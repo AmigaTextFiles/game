@@ -1,0 +1,11 @@
+;MORS12
+;
+;WOJCIECH NOWOSIELSKI
+;UHRUSK 80
+;22-230 WOLA UHRUSKA
+;
+                    
+START   SPL  0
+        JMP  START
+        END
+

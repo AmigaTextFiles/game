@@ -1,0 +1,87 @@
+/* Index Directory                            */
+/* checks all subdirectories and adds all SGF */
+/* files to the current open database         */
+/* Usage: index.arexx <directory>             */
+/*        Use complete path for directory!    */
+/* Author: Arno Hollosi                       */
+/* This script is public domain               */
+/* TABSIZE = 4                                */
+
+options results
+
+if ~show('L', "rexxsupport.library") then do
+	if ~addlib('rexxsupport.library', 0, -30, 0) then do
+		say "NO rexxsupport.library"
+		exit 20
+	end
+end
+
+i = 1;
+j = 0;
+path.0 = ARG(1)
+
+address 'DB.1'		/* Block input and GUI of Database */
+BlockInput
+
+do while i~=j
+	say "Directory: " path.j
+
+	files = ShowDir(path.j, 'FILE')		/* Index files */
+	k = 1
+	do while word(files, k) ~= ""
+		file = path.j || '/' || word(files, k)
+		foo = AddRec(file)
+		k = k+1
+	end
+
+
+	dir = ShowDir(path.j, 'DIR')		/* look for subdirectories */
+	k = 1
+	do while word(dir, k) ~= ""
+		path.i = path.j || '/' || word(dir, k)
+		i = i+1
+		k = k+1
+	end
+	j = j+1
+end
+
+address 'DB.1'
+Add				/* necessary, otherwise last record data is lost */
+UpdateGUI
+FreeInput
+
+exit
+
+/* AddRec - reads SGF file and adds one record to database */
+AddRec:
+arg sgf
+
+	address 'RX_Primiview'
+
+	Open FORCE QUIET sgf	/* load SGF file */
+	GetNode stem n.
+
+	if rc=0 then do			/* load ok? */
+		ginfo.0 = PW;	ginfo.1 = WR;
+		ginfo.2 = PB;	ginfo.3 = BR;
+		ginfo.4 = KO;	ginfo.5 = HA;	ginfo.6 = RE;
+		ginfo.7 = DT;	ginfo.8 = PC;
+		ginfo.9 = EV;	ginfo.10 = RO;
+		ginfo.11 = SO;	ginfo.12 = GN;
+
+		do v=0 to 12		/* get gameinfo values */
+			GetPropValue ginfo.v
+			if rc=0 then value.v = substr(result, 3)
+			else value.v = ""
+		end v
+
+		address 'DB.1'		/* add new record to DB */
+		Add
+		FirstField
+		do v=0 to 12
+			PutField value.v
+			NextField
+		end v
+		PutField sgf
+	end
+	return 1

@@ -1,0 +1,303 @@
+*****************************************************************************
+*									    *
+* LOAD/SAVEDATAS.S THE MOST IMPORTANT PARTS OF THE CARRIER COMMAND PROJECT  *
+*									    *
+*****************************************************************************
+*									    *
+*   PROGRAMPART: LoadDatas.s						    *
+*	VERSION: 1.4							    *
+*   SOURCE CODE: 16 (25.10.2010)					    *
+*	   DATE: 15.01.2001 - 9.2.2001					    *
+*      LANGUAGE: Assembler (DevPac V3.14)				    *
+*	 SYSTEM: A1200	KS 40.68 WB 40.42 2MB chip 64MB fast 68030/50mhz    *
+*									    *
+*	 AUTHOR: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+*****************************************************************************
+;
+; some information about the amiga timer!
+;
+; The base Amiga crystal frequencies are:
+;           NTSC    28.63636 MHz
+;           PAL     28.37516 MHz
+;
+; The two 16 bit timers on the 8520 chips each 
+; count down at 1/10 the CPU clock, or 0.715909 MHz. 
+; That works out to 1.3968255 microseconds per count for NTSC.
+;
+; Under PAL the countdown is slightly slower, 0.709379 MHz.
+; That works out to 1.4096835 microseconds per count for PAL.
+;
+; To wait 1/100 second would require waiting 10000 microseconds.
+; Using NTSC, the timer register would be set to (10000/1.3968255 = 7159).
+; Using PAL,  the timer register would be set to (10000/1.4096835 = 7094).
+;
+; To wait 3 miliseconds would require waiting 3000 microsecsonds.
+; Using NTSC, the register would be set to (3000/1.3968255 = 2148).
+; Using PAL,  the register would be set to (3000/1.4096835 = 2128).
+; 
+; PAL	1ms ~= 709	
+; NTSC	1ms ~= 716
+  
+*****************************************************************************
+
+LoadDatas	lea	$DFF000,A6		;set custom_base
+
+		lea	DataBase(pc),A5		;set data_base
+
+		move.b	D0,FirstTrack(A5)	;first track
+		move.b	D1,TrackCount(A5)	;tracks to read
+		move.b	D2,DiskSide(A5)		;set diskside
+		move.b	D3,DriveNum(A5)		;set drive select
+		addq.b	#3,DriveNum(A5)		;generate drive bit
+		move.l	A0,Destination(A5)	;memory location
+		move.l	A1,MFMBuffer(A5)	;DMA buffer
+
+		st	TrackError(A5)		;preset load error
+
+		move.l	#$55555555,D5		;mfm decoding bits
+
+* preset count for timer_b **************************************************
+
+		lea	$BFD000,A4		;set ciab_base
+
+		move.b	$F00(A4),ciaCTRLB(A5)	;save ciab_control
+
+		bset	#3,$F00(A4)		;timer b one-shot mode
+		move.b	#(Time1&$FF),$600(A4)	;preset timer b low
+		move.b	#(Time1>>08),$700(A4)	;preset timer b hi, wait 3ms
+
+* set drive and motor on ****************************************************
+
+		or.b	#$78,$100(A4)		;deselect all drives
+		bclr	#7,$100(A4)		;set motor on
+		move.b	DriveNum(A5),D0		;get drive number
+		bclr	D0,$100(A4)		;select drive
+
+		moveq	#0,D0			;reset counter
+.wait1		addq.l	#1,D0			;add one
+		btst	#Bit,D0			;check for break?
+		bne	LoadError		;branch if so
+
+		btst	#5,$1001(A4)		;disk ready?
+		bne.b	.wait1			;branch if not
+
+* move head back to track 00 ************************************************
+
+		tst.b	Zero(A5)		;position(A5) known?
+		bne.b	.quit			;yes, skip
+
+		btst	#4,$1001(A4)		;head at track 00?
+		beq.b	.ready			;branch if so
+
+		bset	#1,$100(A4)		;head direction backward.
+
+.MoveBack	bclr	#0,$100(A4)		;send a quick impulse
+		bset	#0,$100(A4)		;to force move head.
+
+		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait2		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait2			;waits ($850 = 3ms)
+
+		btst	#4,$1001(A4)		;head at track 00?
+		bne.b	.MoveBack		;branch if not
+
+.ready		clr.b	Position(A5)		;position(A5) = 00
+		st	Zero(A5)		;set flag (position known)
+
+.quit
+
+* move head to firsttrack(a5) ***********************************************
+
+* as i started to program this part, i forgot about the so important settle
+* time which is absolute required when any head direction change is made.
+* for that reason, the part below wasn't integrated first and the loader
+* was sometimes a bit unstable. this funny bug wasn't easy to find because 
+* i didn't notice any problem when this code was started from a shell/cli.
+* but, when running from disk i got often some curious failures.
+
+		move.b	#(Time2&$FF),$600(A4)	;set timer b low
+		move.b	#(Time2>>08),$700(A4)	;set timer b hi, wait 18ms
+.wait3		btst	#1,$D00(A4)		;settle time 18ms=$31DA
+		beq.b	.wait3			;waits ($31DA = 18ms)
+
+*****************************************************************************
+
+		move.b	#(Time1&$FF),$600(A4)	;preset timer b low
+		move.b	#(Time1>>08),$700(A4)	;preset timer b hi, wait 3ms
+
+		bset	#1,$100(A4)		;head direction backward.
+
+		move.b	Position(A5),D0		;calculate step_count
+		sub.b	FirstTrack(A5),D0
+		bpl.b	.Move			;move backward
+
+		not.b	D0			;move forward
+
+		bclr	#1,$100(A4)		;head direction forward.
+
+.MoveHead	bclr	#0,$100(A4)		;send a quick impulse
+		bset	#0,$100(A4)		;to force move head.
+
+		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait4		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait4			;waits ($850 = 3ms)
+
+.Move		subq.b	#1,D0			;decrement step_count
+		bpl.b	.MoveHead		;do for all steps!
+
+		bclr	#1,$100(A4)		;preset direction forward
+
+		move.b	FirstTrack(A5),Position(A5) ;save current position
+
+* set requested diskside  ***************************************************
+
+		bset	#2,$100(A4)		;set lower side
+
+		tst.b	DiskSide(A5)		;lower side?
+		beq.b	.wait5			;branch if so
+
+		bclr	#2,$100(A4)		;set upper side.
+
+.wait5		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait6		btst	#1,$D00(A4)		;flip_side requires 100us=$47
+		beq.b	.wait6			;waits ($850 = 3ms)
+
+		bra.b	LoadTrack		;load track(s)
+
+* move head one track forward ***********************************************
+
+LoadNextTrack	moveq	#1,D0			;get count
+		add.b	D0,Position(A5)		;increment position
+
+		bclr	#0,$100(A4)		;move head.
+		bset	#0,$100(A4)		;prepare to move head.
+
+		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait			;waits ($850 = 3ms)
+
+* load track / decode mfm buffer ********************************************
+
+LoadTrack	move.w	#$4000,$24(A6)		;dsklen
+		move.w	#$0002,$9C(A6)		;intreq
+		move.l	MFMBuffer(A5),$20(A6)	;dskpth
+		move.w	#$6800,$9E(A6)		;adkcon
+		move.w	#$9500,$9E(A6)		;adkcon
+		move.w	#$4489,$7E(A6)		;dsksync
+		move.w	#$9414,$24(A6)		;dsklen
+		move.w	#$9414,$24(A6)		;dsklen
+
+		moveq	#0,D0
+
+.wait		addq.l	#1,D0
+		btst	#Bit,D0
+		bne	LoadError
+
+		btst	#1,$1f(A6)
+		beq.b	.wait
+
+* decode mfm and write track to memory **************************************
+
+Track2Mem	movea.l	MFMBuffer(A5),A0
+
+		cmp.w	#$4489,(A0)+
+		bne	LoadError
+
+		movea.l	A0,A1
+		move.l	(A1)+,D0		;odd bits
+		move.l	(A1)+,D1		;even bits
+
+		and.l	D5,D0
+		and.l	D5,D1
+		add.l	D0,D0
+		or.l	D1,D0
+	
+		move.b	Position(A5),D1
+		add.b	D1,D1
+		add.b	DiskSide(A5),D1
+		cmp.b	D0,D1
+		bne.b	LoadError
+
+* get checksum **************************************************************
+	
+		lea	8(A0),A1
+		move.l	(A1)+,D0		;odd bits
+		move.l	(A1)+,D1		;even bits
+
+		and.l	D5,D0
+		and.l	D5,D1
+		add.l	D0,D0
+		or.l	D1,D0
+	
+		move.l	D0,D3
+
+* verify checksum ***********************************************************
+
+		move.w	#$2800,D0
+		lsr.w	#2,D0
+		subq.w	#2,D0
+
+		lea	16(A0),A1		;skip tracknum/chksum
+
+		move.l	(A1)+,D1
+
+.ChkSum		move.l	(A1)+,D4
+		eor.l	D4,D1
+		dbra	D0,.ChkSum
+
+		and.l	D5,D1
+
+		cmp.l	D1,D3
+		bne.b	LoadError
+
+* decode mfm and move datablock *********************************************
+
+		lea	16(A0),A0
+
+		move.w	#$1400,D0
+		lea	0(A0,D0.W),A1
+
+		lsr.w	#2,D0
+		subq.w	#1,D0
+
+		movea.l	Destination(A5),A2
+
+.MoveDatas	move.l	(A0)+,D1		;odd bits
+		move.l	(A1)+,D3		;even bits
+
+		and.l	D5,D1
+		and.l	D5,D3
+		add.l	D1,D1
+		or.l	D3,D1
+
+		move.l	D1,(A2)+
+		dbra	D0,.MoveDatas
+
+		move.l	A2,Destination(A5)
+
+		subq.b	#1,TrackCount(A5)
+		bne	LoadNextTrack
+
+		clr.b	TrackError(A5)
+
+*****************************************************************************
+
+LoadError	move.w	#$4000,$24(A6)		;beware accidental writes
+
+* stop drive ****************************************************************
+
+		or.b	#$F8,$100(A4)		;deselect all/motor off
+		move.b	DriveNum(A5),D0
+		bclr	D0,$100(A4)		;select drive
+
+		move.b	ciaCTRLB(A5),$F00(A4)	;reset ciacontrol_b
+
+		tst.b	TrackError(A5)		;warn user?
+		beq.b	.quit			;no, skip
+
+		bchg	#1,$1001(A4)		;warn user
+
+.quit		tst.b	TrackError(A5)		;set condition return
+		rts
+

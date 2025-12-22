@@ -1,0 +1,199 @@
+                               APPENDIX I
+
+             EXTERNAL DISK CONNECTOR INTERFACE SPECIFICATION
+
+
+GENERAL
+The 23-pin female connector at the rear of the main computer unit is used
+to interface to and control devices that generate and receive MFM data.
+This interface can be reached either as a resource or under the control
+of a driver. The following pages describe the interface in both cases.
+
+                           - Appendix I 353 -
+
+
+SUMMARY TABLE
+
+Pin #  Name    Note
+
+1      RDY-    I/O   IDand ready
+2      DKRD-   I     MFM input
+3      GRND    G     -
+4      GRND    G     -
+5      GRND    G     -
+6      GRND    G     -
+7      GRND    G     -
+8      MTRXD-  0     Motor control.
+9      SEL2B-  0*    Select drive 2
+10     DRESB-  0     Reset
+11     CHNG-   I/O   Msk changed
+12     +Sv     PWR   540 mA average 870 mA surge
+13     SIDEB-  0     Side 1 if low
+14     WRPRO-  I/O   Write protect
+15     TK0-    I/O   Track 0
+16     DKWEB-  O     Write gate
+17     DKWDB-  O     Write data
+18     STEPB-  O     Step
+19     DIRB    O     Direction (high is out)
+20     SEL3B-  O*    Select drive 3
+21     SELlB-  O*    Select drive 1
+22     INDEX-  I/OO  Index
+23     +12v    PWR   120 mA average 370 mA surge
+
+KEY TO CLASS:
+
+G     ground, note connector shield grounded.
+
+I     input pulled up to 5v by 1K ohm.
+
+I/O   input in driver, but bidirectional input (1k pullup)
+
+O     output pulled though 1K to 5v
+
+O*    output, separates resources.
+
+PWR   available for extemal use, but currently used up by external drive.
+
+                           - 354 Appendix I -
+
+
+SIGNALS WHEN DRIVING A DISK
+The following describes the interface under driver control.
+
+SEL1B-, SEL2B-, SEL3B-
+    Select lines for the three extemal disk drives active low.
+
+TK
+    A selected drive pulls this signal low whenever its read-write head
+is on track 00.
+
+RDY-
+    When a disk drive's motor is on, this line indicates the selected
+disk is installed and rotating at speed. The driver ignores this signal.
+When the motor is off this is used as a ID data line. See below.
+
+WPRO- (Pin #14)
+    A selected drive pulls this signal low whenever it has a write-
+protected diskette installed.
+
+INDEX- (Pin #22)
+    A selected drive pulses this signal low once for each revolution of
+its motor.
+
+SIDEB- (Pin #13)
+    The system drives this signal to all disk drives-low for side 1, high
+for side 0.
+
+STEPB- (Pin #18)
+    Pulsed to step the selected drive's head.
+
+DIRB (Pin #19)
+    The system drives this signal high or low to tell the selected drive
+which way to step when the STEPB- pulse arrives. Low means step in (to
+higher-numbered track); high means step out.
+
+DKRD- (Pin #2)
+    A selected drive will put out read data on this line.
+
+DKWDB- (Pin #17)
+    The system drives write data to all disks via this signal. The data
+is only written when DKWEB- is active (low). Data is written only to
+selected drives.
+
+                           - Appendix I 355 -
+
+
+DKWEB- (Pin #16)
+    This signal causes a selected drive to start writing data (provided
+by DKWDB-) onto the disk.
+
+CHNG- (Pin #11)
+    A selected drive will drive this signal low whenever its intemal
+"disk change" latch is set.
+This latch is set when the drive is first powered on, or whenever there
+is no diskette in the drive. To reset the latch, the system must select
+the drive, and step the head. Of course, the latch will not reset if
+there is no diskette installed.
+
+MTRXD- (Pin #8)
+    This is the motor control line for all four disk drives. When the
+system wants to tum on a disk drive motor, it first deselects the drive
+(if selected), pulls MTRXD- low, and selects the drive. To turn the motor
+off, the system deselects the drive, pulls MTRXD- high, and selects the
+drive. The system will always set MTRXD- at least 1.4 microseconds before
+it selects the drive, and will not change MTRXD- for at least 1.4
+microseconds after selecting the drive. An external drives must have
+logic equivalent to a D flip-flop, whose D input is the MTRXD signal, and
+whose clock input is activated by the off-to-on (high-to-low) transition
+of its SELxB- signal. As noted above, both the setup and hold times of
+MTRXD-with respect to SELxB- will always be at least 1.4 microseconds.
+The output of this flip-flop controls the disk drive motor. Thus, the
+system can control all four motors using only one signal on the cable
+(MIRXD-).
+
+DRESB- (Pin #10)
+    This signal is a buffered version of the system reset signal. Three
+things can make it go active low):
+
+o  System power-up (DRESB- will go low for approximately one second);
+
+o  System CPU executes a RESET instruction (DRESB- will go low for
+approximately 17 microseconds);
+
+o  Hard reset from keyboard (lasts as long as keyboard reset is held
+down).
+
+External disk drives should respond to DRESB- by shuffing off their motor
+flip-flops and write protecting themselves.
+
+A level of 3.75v or below on the 5v+ requires extemal disks to write-
+protect and reset the motor on line.
+
+                           - 356 Appendix I -
+
+
+Device I.D.
+    This interface suppots a method of establisning the type of disk(s)
+attached. The I.D. sequence is as follows.
+
+        1. Drive MTRXD- low.
+
+        2. Drive SELxB- low
+
+        3. Drive SELxB- hign.
+
+        4. Dnve MTRXD- high.
+
+        5. D;ive SELxB- low
+
+        6. Drive SELxB- high.
+
+        7. Drive SELxB- low
+
+        8. Read and save state of RDY.
+
+        9. Drive SELxB- high.
+
+Repeat steps 6 to 9, 15 times more.
+
+Convert the 16 values of RDY- into a 16-bit word. The most significant
+bit is the first value and so on. This 16-bit quantity is the device I.D.
+
+The following I.D.s are defined:
+
+0000 0000 0000 0000  Reserved
+1111 1111 1111 1111  Amiga standard 3.25
+1010 1010 1010 1010  Reserved
+0101 0101 0101 0101  48 TPI double-density,double-sided
+1000 0000 0000 0000  Reserved
+0111 1111 1111 1111  Reserved
+0000 1111 xxxx xxxx  Available for users
+1111 0000 xxxx xxxx  Extension reserved
+xxxx 0000 0000 0000  Reserved
+xxxx 1111 1111 1111  Reserved
+0011 0011 0011 0011  Reserved
+1100 1100 1100 1100  Reserved
+
+                           - Appendix I 357 -
+
+End.

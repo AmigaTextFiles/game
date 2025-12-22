@@ -1,0 +1,4339 @@
+  _________________________________________________________________________
+/#########################################################################\
+|#####...####..######..######......####...####..#####..##......##......###|
+|####.....###..######..########..#####.....###...####..##..######..#######|
+|###..###..##..######..########..####..###..##....###..##..######..#######|
+|###..###..##..######..########..####..###..##..#...#..##..######......###|
+|###.......##..######..########..####.......##..##.....##..######..#######|
+|###..###..##..######..########..####..###..##..###....##..######..#######|
+|###..###..##...#####...#######..####..###..##..####...##..######..#######|
+|###..###..##......##......##......##..###..##..#####..##......##......###|
+|#########################################################################|
+|####################################################################{RB}#|
+|=========================================================================|
+|									  |
+|		           ----> PRESENTS <----				  |
+|									  |
+|            AMIGA GRAPHICS INSIDE AND OUT - THE COMPLETE BOOK            |
+|									  |
+|		                > PART 3 <				  |
+|									  |
+| Typed / Scanned / Edited By : RAZOR BLADE.			          |
+| Additional Typing by        : GLITCH ( + 8 pages by Asterix ! ).	  |
+| Original Supplied by	      : VIPER					  |
+|									  |
+|-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-|
+| 		CALL THE ALLIANCE WORLD HQ -> THE PLACE TO BE             |
+|       UNKNOWN PLEASURES --> +44 (0) 823 322 891 --> SYSOP: BARBARIAN    |
+|_________________________________________________________________________|
+        
+4.7 THE DIFFERENT LAYER TYPES.
+        
+In all, the Amiga has four different layer types :
+        
+        Layersimple
+        Layersmart
+        Layersuper
+        Layerbackdrop
+        
+These modes determine how, and by what method, the covered portions of a
+layer are handled.        
+        
+        
+Simple Refresh (Layersimple) :
+        
+Each time a piece of this layer becomes visible (is uncovered or brought
+to the foreground), the program that created the layer must redraw the
+new visible portion. Since this type of layer does not automatically save
+covered sections so that it can repair the damage later, it is the 
+responsibility of the program (or in this case your responsibility) to 
+repair the sections.        
+        
+Layers of this type are fast and require little memory. However, they
+require more work because their contents have to be redrawn whenever they
+are covered by another layer.
+        
+        
+Smart Refresh (Layersmart) :
+        
+When part of this layer type is covered, the system automatically creates
+an intermediate storage area where the covered portion is temporarily
+saved. Whenever the layer is uncovered, the portion temporarily saved is
+automatically transferred back to its original location.
+        
+        
+Superbitmap (LayerSuper) :
+        
+This layer contains it's own bitplanes where the entire contents of the 
+layer are stored. The portion of the layer that is currently visibile on 
+the screen is copied to the common screen bit-map
+        
+If it possible to create a layer bitmap that is (much) larger than the 
+layer itself (it can be up to 1024 * 1024 pixels in size). This giant
+area is easily scrolled.        
+        
+                                PAGE 196
+        
+-----------------------------------------------------------------------------
+        
+Backdrop (Layerbackdrop) :
+        
+A backdrop layer exists behind all other current layers.
+        
+We are now going to give you a look into the world of layers and show you 
+what can be accomplished with their help.        
+        
+                --------------------------------------------
+        
+4.7.1 SIMPLE LAYERS: YOUR OWN REQUESTER.
+        
+An excellent use for simple layers is the use of requesters, which help
+highlight special parts of the program. For example, when the user places
+a disk in the drive, a graphic will be loaded. The following program uses
+simple layers to help create your own requester. You can call a request
+with :
+        
+        Request nr%,x%,y%,text$
+        
+        nr%     : Number of the request (0-10)
+        x%      : X coordinate of the left hand corner of the requester.
+        y%      : Y coordinate of the top corner of the requester.
+        text$   : Text for the requester.
+        
+        
+        '##########################################
+        '#
+        '# Section: 4.7.1
+        '# Program: A layer - Your own requester
+        '# Date   : 01/05/87
+        '# Author : Bertie Fuckin Basset !!!!!!
+        '# Version: 1.0
+        '#
+        '###########################################
+        
+        PRINT "Searching for .bmap file ...."
+        '
+        ' Demonstrates the use of layers.
+        '
+        'LAYERS library
+        DECLARE FUNCTION CreateUpFrontLayer& LIBRARY
+        'DeleteLayer()
+        
+        'GRAPHICS-library
+        'Draw()
+        'Move()
+        'Text()
+        
+                                PAGE 197
+        
+-----------------------------------------------------------------------------
+        
+        LIBRARY "graphics.library"
+        LIBRARY "layers.library"
+        
+        variables: DIM SHARED layer&(10)
+        
+        init:
+            'Background
+            CLS
+            FOR loop% = 1 TO 15
+                PRINT STRING$(80,"#")
+            NEXT loop%
+            
+        main:
+            Request 1,80,40,"Request Nr. 1"
+            Request 2,50,50,"Request 2: These are layers!"
+        
+            FOR t% = 1 TO 30000:NEXT t%
+            CloseRequest 1
+            Request 1,30,30,"Positioned as desired"
+            FOR t% = 1 TO 30000:NEXT t%
+            CloseRequest 2
+            CloseRequest 1
+            Request 1,200,100,"Thats it!"
+            FOR t% = 1 TO 2000:NEXT t%
+            CloseRequest 1
+            
+        thatsIT:
+            LIBRARY CLOSE
+            END
+            
+        SUB Request(nr%,x0%,y0%,text$) STATIC
+            SHARED screenLayerInfo&
+            IF layer&(nr%)<>0 THEN EXIT SUB
+            scrAdd&     = PEEKL(WINDOW(7)+46)
+            screenLayerInfo& = scrAdd&+224
+            screenBitMap&    = scrAdd&+184
+            x1%    = (LEN(text$)+2)*8-8
+            y1%    = 12
+            layer&(nr%) = CreateUpFrontLayer&(screenLayerInfo&,
+  screenBitMap&,x0%,y0%,x0%+x1%,y0%+y1%,typ%,0)
+            layerRast&     = PEEKL(layer&(nr%)+12)
+            CALL Draw(layerRast&,x1%,0)
+            CALL Draw(layerRast&,x1%,y1%)
+            CALL Draw(layerRast&,0,y1%)
+            CALL Draw(layerRast&,0,0)
+            CALL Draw(layerRast&,3,9)
+            CALL text(layerRast&,SADD(text$),LEN(text$))
+        END SUB
+        
+        SUB CloseRequest(nr%) STATIC
+            SHARED screnLayerInfo&
+            IF layer&(nr%) = 0 THEN EXIT SUB
+            CALL DeleteLayer(screenLayerInfo&,layer&(nr%))
+            layer&(nr%)=0
+        END SUB
+        
+                                PAGE 198
+        
+-----------------------------------------------------------------------------
+        
+You can open up to 11 requesters at the same time (this can be increased 
+but usually 11 requesters is enough). Since the X and Y coordinates of the
+upper left hand corner of every requester are relative to th upper left
+hand corner of the screen, not to your window, requesters can appear 
+anywhere, not just inside your windows. However, outside the window they
+can still cause some small damage because the damage list is not activated
+there.
+        
+The command CloseRequest closes the requester (and also the layer) again.
+        
+                --------------------------------------------
+        
+4.7.2 THE SUPERLAYER - 1024 * 1024 PIXELS !
+        
+Now we come to a very special layer type called the superlayer, which is
+completely different from all other layer types becuase it is equipped 
+with its own graphic memory area. This memory area can also be larger
+than the visible portion on your screen. This layer can manage a total
+drawing area of up to 1024 * 1024 pixels large.
+        
+Creating a layer of this type should not be a problem because you are 
+familiar with the CreateUpFrontLayer command from the layer library.
+However, to make this layer useful is a more difficult task.
+        
+First we need to position the new layer. The best way to do this is to 
+plant this layer on top of an existing window by selecting a layer that 
+corresponds to the size of the window and then place your layer exactly 
+on top of it. By using this method, no one will notice what you did.
+We will test this in the following program:
+        
+        
+        '#######################################
+        '#
+        '# Section : 4.7.2
+        '# Program : SuperBitMap
+        '# Date    : 01/04/87
+        '# Author  : tob
+        '# Version : 1.0
+        '#
+        '#########################################
+        ' Shows how up to 1024 * 1024 pixel layers 
+        ' are created, programmed and scrolled.
+        ' First Demo.
+
+				PAGE 199
+
+------------------------------------------------------------------------
+
+        'LAYERS-LIBRARY
+        DECLARE FUNCTION CreateUpFrontLayer& LIBRARY
+        'DeleteLayer()
+        'SCrollLayer()
+        
+        'GRAPHICS library
+        DECLARE FUNCTION AllocRaster& LIBRARY
+        'FreeRaster
+        'SetRast()
+        'Move()
+        'Draw()
+        'WaitTOF()
+        'Text()
+        
+        'EXEC-library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem()
+        
+        'INTUITION-library
+        'SetWindowTitles()
+        
+        PRINT "Searching for .bmap files ......."
+        
+        LIBRARY "layers.library"
+        LIBRARY "graphics.library
+        LIBRARY "exec.library"
+        LIBRARY "intuition.library"
+        
+        PRINT "Found."
+        
+        initpar:
+            '* Screen Parameters.
+            scrWidth%    = 320
+            scrHeight%   = 200
+            scrDepth%    = 1
+            scrMode%     = 1
+            scrNr%       = 1
+        
+            '* Window Parameters.
+            windWidth%    = scrWidth%-9
+            windHeight%  = scrHeight%-26
+            windNr%      = 1
+            windTitle$   = "Working Area"
+            windMode%    = 0
+        
+            'Super Bitmap
+            superWidth% = 800
+            superHeight% = 400
+            superFlag%   = 4
+            
+        initDisp:
+            '* Open screen and window.
+            SCREEN scrNr%,scrWidth%,scrHeight%,scrMode%,scrDepth%
+            WINDOW windNr%,windTitle$,(0,0)-(windWidth%,windHeight%),
+   windMode%,scrNr%
+            WINDOW OUTPUT windNr%
+            PALETTE 1,0,0,0
+        
+                                PAGE 200
+        
+-----------------------------------------------------------------------------        
+        
+            PALETTE 0,1,1,1
+            
+            '* Layer Size.
+            windLayer& = PEEKL(WINDOW(8))
+            layMinX%   = PEEKW(windLayer&+16)
+            layMinY%   = PEEKW(windLayer&+18)
+            layMaxX%   = PEEKW(windLayer&+20)
+            laymaxY%   = PEEKW(windLayer&+22)
+        
+        initsys: '* Read system parameters.
+            windAdd%    = WINDOW(7)
+            scrAdd%     = PEEKL(windAdd&+46)
+            scrBitMap&  = scrAdd&+184
+            scrLayerInfo& = scrAdd&+224
+            
+        initSBMap: '* Create SuperbitMap.
+            opt&           = 2^0+2^1+2^16
+            superBitMap&   = AllocMem(40,opt&)
+            IF superBitMap& = 0 THEN
+                PRINT "Mmm. Not even 40 bytes, okay? "
+                ERROR 7
+            END IF
+            
+            '* And make use of it.
+            CALL InitBitMap(superBitMap&,scrDepth%,superWidth%,SuperHeight%)
+            superPlane&   = AllocRaster&(superWidth%,superHeight%)
+            IF superPlane& = 0 THEN
+                PRINT "No Room!"
+                CALL FreeMem(superBitap&,40)
+                ERROR 7
+            END IF
+            POKEL superBitMap&+8,superPlane&
+            
+            'Open SuperBitmap Layer.....
+            superLayer& = CreateUpFrontLayer&(scrLayerInfo&,scrBitMap&,
+   LayMinX%,layMinY%,layMaxX%,layMaxY%,superFlag%,superBitMap&)
+            IF superLayer& = 0 THEN
+                PRINT "No layer today!!"
+                CALL FreeRaster(superPlane&,superWidth%,superHeight%)
+                CALL FreeMem(superBitMap&,40)
+                ERROR 7
+            END IF
+            
+            '* Ignore next line for now.
+            '******* PUT 4.7.3 expansion here *******
+            
+            '* Run new RastPort
+            superRast& = PEEKL(superLayer&+12)
+            
+    prepare:   '* Prepare Drawing Area.
+            CALL SetRast(superRast&,0)
+            
+                                PAGE 201
+    
+-----------------------------------------------------------------------------
+        
+            CALL Move(superRast&,0,0)
+            CALL Draw(superRast&,superWidth%,superHeight%)
+            
+            CALL Move(superRast&,0,10)
+            text1$ = "Use cursor keys to scroll"
+            CALL Text(superRast&,SADD(text1$),LEN(text1$))
+            
+            CALL Move(superRast&,0,30)
+            text2$ = "'S' key to Abort"
+            CALL Text(superRast&,SADD(text2$),LEN(text2$))
+            
+            '* Coordinates.
+            POKEW superRast&+34,&HAAAA
+            FOR loop% = 0 TO superWidth% STEP 50
+                CALL Move(superRast&,loop%,0)
+                CALL Draw(superRast&,loop%,superHeight%)
+            NEXT loop%
+            FOR loop% = 0 TO superHeight% STEP 50
+                CALL Move(superRast&,0,loop%)
+                CALL Draw(superRast&,superWidth%,loop%)
+            NEXT loop%
+            POKEW superRast&+34,&HFFFF
+            
+        doScroll:  '* Control Scrolling
+            WHILE in$<>"S"
+                in$=UCASE$(INKEY$)
+                y%  = 0
+                x%  = 0
+                IF in$ = CHR$(30) THEN 
+                    IF ox% < (superWidth%-layMaxX%+LayMinX%-1) THEN
+                        x%   = -1
+                        ox%  = ox%-1
+                    END IF
+                ELSEIF in$=CHR$(29) THEN 'up
+                    IF oy%<(superHeight%-layMaxY%+layMinY%-1) THEN
+                        y%  = 1
+                        oy% = oy% + 1
+                    END IF
+                ELSEIF in$=CHR$(28) THEN 'down
+                    IF oy%>0 THEN
+                        y%   = -1
+                        oy%  = oy% - 1
+                    END IF
+                END IF
+                IF in$<>"" THEN
+        
+                                PAGE 202
+        
+-----------------------------------------------------------------------------
+        
+                    CALL ScrollLayer(scrLayerInfo&, superLayer&, x%, y%)
+                    actu$ = windTitle$+" [X]="+STR$(ox%)+" [Y]=
+  "+STR$(oy%)+CHR$(0)
+                    CALL WaitTOF
+                    CALL SetWindowTitles(windAdd&,SADD(actu$),0)
+                END IF
+            WEND
+        
+    deleteSys: '* Delete system
+            CALL DeleteLayer(scrLayerInfo&,superLayer&)
+            CALL FreeRaster(superPlane&,superWidth%,supeHeight%)
+            CALL FreeMem(superBitMap&,40)
+            SCREEN CLOSE scrNr%
+            WINDOW windNr&,"hi!",,,-1
+            LIBRARY CLOSE
+            END
+        
+Immediately after the program starts you see a window named "Working Area"
+which contains a line that is downward orientated diagonal. What you are
+actually seeing is a superbitmap layer that has displayed itself in this
+window. To prove this move the mouse into the raster area and click the 
+left button. The title bar will immediately ghost because you have just
+activated the invisible layer in front of your window. Click the mouse
+on the window title bar and everything will return to the way it 
+was.
+        
+More than once we have mentioned that a superbitmap can manage a much 
+larger area than what will fill on your screen. Our demonstration program
+uses this ability. Press any of the cursor keys next to the number pad of
+your keyboard. You can shift the position of our layer and see a different
+position of the layer controlled using the cursor keys.
+        
+When you have seen enough of this program, please press the <S> key (for
+stop). The old display will return immediately (do not use <Ctrl><c> for 
+break because then the superbitmap layer will not dissappear).
+        
+We have now come to the reason for this project. In this program we have
+used functions from the layers, graphic, exec- and intuition libraries.
+The following functions are especially important:-
+        
+        CreateUpFrontLayer()        
+        AllocRaster()
+        AllocMem()
+        ScrollLayer()
+        
+        
+In addition we used:
+        
+                                PAGE 203
+        
+------------------------------------------------------------------
+        
+        InitBitMap()
+        SetRast()
+        Move()
+        DraW()
+        WaitTOF()
+        SetWindowTitles()
+        
+and naturally:
+        
+        DeleteLayer()
+        FreeRaster()
+        FreeMem()
+        
+Now we move on to the program. First we open a screen with a depth of one,
+which means one bit-plane and a maximum of two colours. We are using this
+depth because our superbitmap layer requires the same amount of memory 
+lanes as the screen depth in which it appears. Since the planes of a 
+superbitmap are very memory intensive, we are only able to create one
+single plane.        
+        
+Our superbitmap is going to be 800 pixels wide and 400 pixels high.
+        
+After the window and screen are open, we determine the size of the layers.
+(we mean the size of the layer on the screen, not the size of the layers 
+drawing plane). Since this layer is going to fill the entire window, we 
+read the parameters from the existing layer of our window (see section 
+4.5, offsets 16-22).
+        
+Before we can use "CreateUpFrontLayer" to bring our layer to life, we must
+create the private bit-map of our layer. This only applies to layers of
+the layersuper type because memory is automatically allocated for the 
+other layer types. We now continue with a display that is similar to the 
+display in Section 4.4. We create a 40 bytes sized Bit-map structure
+and make it ready for use with InitBitMap. We can obtain an additional 
+bitplane by using the graphic function, AllocRaster, which requires, in 
+pixels, the X and Y dimensions of the bit-plane and returns a pointer for
+the starting address of the new plane (when sufficient memory is available).
+        
+After the bit-plane is linked to our new Bitmap structure we can finally 
+call CreateUpFrontLayer. The variable superflag% contains the value four
+(=superlayer). The address of our new bit-map structure is also sent.
+        
+As soon as the layer has successfully opended, it should have something to
+display. Using the function SetRast, we erase the layer contents and draw
+a diagonal line with the help of the Draw command in the graphic library.
+        
+                                PAGE 204
+        
+-----------------------------------------------------------------------------
+        
+The program routine doScroll, manages the scrolling of the superbitmap 
+through the use of cursor keys. We use the layer function ScrollLayer 
+whch requires four parameters:
+        
+        ScrollLayer(layerinfo&,layer&,x%,y%)
+        
+        Layerinfo&    : Addres of the LAyerInfo structure ( see screen )
+        layer&        : Address of our new superlayer.
+        x%,y%         : Numer of pixels, to scroll the layer contents.
+                        (negative values = opposite direction).
+        
+After each scroll, we use the intuition function SetWindowTitles to 
+display the current X and Y position in the title bar of thw window. The
+function WaitTOF (Top of Frame), which comes from the graphic library,
+waits for the electronic raster beam to reach the topmost display line.
+This prevents the window title bar from being changed while the electronic
+beam is moving through it. This would produce an unsightly flickering
+effect.
+        
+When you press the <S> key, the superlayer is closed. Finally we return the
+memory for the bitplane and bitmap structure to the systm.
+        
+This program is useful as a first test. However, our programming technique
+is incomplete because there are a few serious problems:
+        
+    a.) When the user clicks the mouse in the layer, this layer can 
+        accidentally be activated and their own window deactivated.
+        This means that their own program will no longer recognise 
+        any key or mouse entries.
+        
+    b.) Since we generated the superlayer directly from the system, it
+        is not possible for us to draw in the superlayer with the
+        BASIC graphic commands. We must use the functions of the 
+        graphic libraries.
+        
+In order to use the superbitmap, we have to solve these problems. We will
+do just that in the following section.
+        
+        
+                --------------------------------------------
+        
+4.7.3 PERMANENTLY DEACTIVATING LAYERS.
+        
+To solve the first problem, we must prevent the activation of the layer
+when using the mouse and also prevent the mouse from having any
+        
+                                PAGE 205
+        
+-----------------------------------------------------------------------------
+        
+effect on our layer (or in other words, keep our window permanently active).
+        
+After looking into the Amiga graphic system, we find our solution. In 
+every layer structure at offset 40, there is a field name POINTER TO 
+WINDOW. This field is set to zero for simple layers. For layers used for
+Intuition windows, this field contains a pointer to the window data 
+structure of the window use by this layer. This pointer's only function is
+to tell Intuition when the user activates this layer by clicking the left
+mouse button.        
+        
+To prevent Intuition from deactivatin our window when the layer is 
+activated, we must write, into the data field of our layer, the address
+of the window data structure we want kept active. The following lines
+do this:
+        
+        POKEL layer&+40,(WINDOW(7))
+        
+You can test this technique on our demonstration program from section 
+4.7.2. Add the following line to the program after the '**** PUT 
+4.7.3 EXPANSION HERE ****' that marks the entry position.
+        
+        POKEL superlayer&+40,WINDOW(7)
+        
+After the program starts, you can move the mouse freely around the layer 
+and click the left mouse button. Our window stays active.
+        
+This solves the first problem. Now we will move on to the solution for
+the second problem.
+        
+                --------------------------------------------
+        
+4.7.4 USING THE BASIC COMMANDS WITH A LAYER.
+        
+We are goin to analyze the problem of AmigaBASIC graphic commands, such as 
+LINE , CIRCLE, and PRINT, not being able to draw in our layer. Since there
+is no way to direct the commands to the layer we have to reach into the 
+system.
+        
+It is possible to transfer the graphic output from our window to a layer 
+using careful manipulation of the pointer. It is very important that you 
+remember to restore the display to normal before closing the layer. If
+you don't do this, the system becomes confused, hangs, and usually creates
+a Guru.
+        
+The technique looks like this:
+        
+        backupRast& = PEEKL(layer&+32)
+        'Save rasport of layer
+        
+        
+                                PAGE 206
+        
+-----------------------------------------------------------------------------
+        
+        backupLayer& = PEEKL(WINDOW(8))
+        '* Save Layer of Window.
+        POKEL WINDOW(8),layer&
+        POKEL layer&+12,WINDOW(8)
+        
+Now all the graphics commands sent from AmigaBASIC are executed in the 
+layer.        
+        
+NOTE: You can use all the BASIC commands with confidence except for various
+fill commands like, PAINT, LINE()-(),,bf. The reason for this is found in 
+the data structure, TmpRas, which is located in the RastPort. For fill 
+commands, TmpRas has to point to a memory area that is at least as big as
+one bitplane of the layer. You could provide more memory to the TmpRas 
+structure which would enable you to use the fill commands. However, this
+would use more memory than is worth the effort. For this example, we 
+would need 40,000 bytes. If you do have sufficient memory, we have 
+outlined the technique for remodeling the TmpRas structure further on in
+the book.         
+        
+The following lines restore your display to the original window:
+        
+        POKEL WINDOW(8),backupLayer&
+        POKEL layer&+12,backupRast&
+        
+We are going to use our new knowledge in the following demonstration 
+program:
+        '#######################################
+        '#
+        '# Section : 4.7.4
+        '# Program : SuperBitMap with BASIC
+        '# Date    : 01/04/87
+        '# Author  : tob
+        '# Version : 1.0
+        '#
+        '#########################################
+        ' Makes it possible to use AmigaBASIC graphic
+        ' commands in a super bitmap layer.
+        
+        PRINT "Searching for .bmap files ..........."
+        'LAYERS-LIBRARY
+        DECLARE FUNCTION CreateUpFrontLayer& LIBRARY
+        'DeleteLayer()
+        'SCrollLayer()
+        
+        'GRAPHICS library
+        
+                                PAGE 207
+        
+-------------------------------------------------------------------------
+        
+        DECLARE FUNCTION AllocRaster& LIBRARY
+        'FreeRaster
+        'SetRast()
+        'Move()
+        'Draw()
+        'WaitTOF()
+        
+        'EXEC-library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem()
+        
+        'INTUITION-library
+        'SetWindowTitles()
+        
+        PRINT "Searching for .bmap files ......."
+        
+        LIBRARY "layers.library"
+        LIBRARY "graphics.library
+        LIBRARY "exec.library"
+        LIBRARY "intuition.library"
+        
+        PRINT "Found."
+        
+        initpar:
+            '* Screen Parameters.
+            scrWidth%    = 320
+            scrHeight%   = 200
+            scrDepth%    = 1
+            scrMode%     = 1
+            scrNr%       = 1
+        
+            '* Window Parameters.
+            windWidth%    = scrWidth%-9
+            windHeight%  = scrHeight%-26
+            windNr%      = 1
+            windTitle$   = "Working Area"
+            windMode%    = 0
+        
+            'Super Bitmap
+            superWidth% = 800
+            superHeight% = 400
+            superFlag%   = 4
+            
+        initDisp:
+            '* Open screen and window.
+            SCREEN scrNr%,scrWidth%,scrHeight%,scrMode%,scrDepth%
+            WINDOW windNr%,windTitle$,(0,0)-(windWidth%,windHeight%),
+   windMode%,scrNr%
+            WINDOW OUTPUT windNr%
+            PALETTE 1,0,0,0
+            PALETTE 0,1,1,1
+            
+            '* Layer Size.
+            windLayer& = PEEKL(WINDOW(8))
+            layMinX%   = PEEKW(windLayer&+16)
+            layMinY%   = PEEKW(windLayer&+18)
+            layMaxX%   = PEEKW(windLayer&+20)
+            laymaxY%   = PEEKW(windLayer&+22)
+        
+        initsys: '* Read system parameters.
+        
+        
+                                PAGE 208
+        
+--------------------------------------------------------------------------
+        
+            windAdd%    = WINDOW(7)
+            scrAdd%     = PEEKL(windAdd&+46)
+            scrBitMap&  = scrAdd&+184
+            scrLayerInfo& = scrAdd&+224
+            
+        initSBMap: '* Create SuperbitMap.
+            opt&           = 2^0+2^1+2^16
+            superBitMap&   = AllocMem(40,opt&)
+            IF superBitMap& = 0 THEN
+                PRINT "Mmm. Not even 40 bytes, okay? "
+                ERROR 7
+            END IF
+            
+            '* And make use of it.
+            CALL InitBitMap(superBitMap&,scrDepth%,superWidth%,SuperHeight%)
+            superPlane&   = AllocRaster&(superWidth%,superHeight%)
+            IF superPlane& = 0 THEN
+                PRINT "No Room!"
+                CALL FreeMem(superBitap&,40)
+                ERROR 7
+            END IF
+            POKEL superBitMap&+8,superPlane&
+            
+            'Open SuperBitmap Layer.....
+            superLayer& = CreateUpFrontLayer&(scrLayerInfo&,scrBitMap&,
+   LayMinX%,layMinY%,layMaxX%,layMaxY%,superFlag%,superBitMap&)
+            IF superLayer& = 0 THEN
+                PRINT "No layer today!!"
+                CALL FreeRaster(superPlane&,superWidth%,superHeight%)
+                CALL FreeMem(superBitMap&,40)
+                ERROR 7
+            END IF
+            
+            '* Ignore next line for now.
+            '******* PUT EXPANSION HERE **********
+            
+            '* Run new RastPort
+            superRast& = PEEKL(superLayer&+12)
+            
+    prepare:   '* set up drawing area.
+            CALL SetRast(superRast&,0)
+ 
+            '* Activate layer
+            POKEL superLayer&+40,WINDOW(7)
+            backup.rast&  = PEEKL(superLayer&+12)
+            backup.layer& = PEEKL(WINDOW(8))
+            POKEL superLayer&+12,WINDOW(8)
+            POKEL WINDOW(8),superLayer&
+            
+            '* Coordinates.
+            POKEW superRast&+34,&HAAAA
+            FOR loop% = 0 TO superWidth% STEP 50
+        
+                                PAGE 209
+ 
+-----------------------------------------------------------------------------
+        
+                LINE (loop%,0)-(loop%,superHeight%)
+            NEXT loop%
+            FOR loop% = 0 TO superHeight% STEP 50
+                LINE (0,loop%)-(suiperWidth%,loop%)
+            NEXT loop%
+            POKEW superRast&+34,&HFFFF
+            
+        draw:   '* Here comes the Amigabasic commands.
+            CIRCLE(400,200),250
+            CIRCLE(400,200),300
+            LINE (200,100)-(600,300),1,bf
+        
+        scrollD:  ' Scroll Display
+            FOR loop% = 0 TO 150
+                y% = 1
+                GOSUB scrollIt
+            NEXT loop%
+        
+            FOR loop% = 0 TO 500
+                y% = 0
+                x% = 1
+                GOSUB scrollIt
+            NEXT loop%
+        
+            FOR loop% = 0 TO 150
+                y% = -1
+                x% = -1
+                GOSUB scrollIt
+            NEXT loop%
+        
+            FOR loop% = 0 TO 350
+                y% = 0
+                x% = -1
+                GOSUB scrollIt
+            NEXT loop%
+    deleteSys: '* Delete system
+            POKEL WINDOW(8),backup,layer&
+            POKEL superLayer&+12,backup.rast&
+            POKEL superLayer&+40,0
+        
+            CALL DeleteLayer(scrLayerInfo&,superLayer&)
+            CALL FreeRaster(superPlane&,superWidth%,supeHeight%)
+            CALL FreeMem(superBitMap&,40)
+            SCREEN CLOSE scrNr%
+            WINDOW windNr&,"hi!",,,-1
+            LIBRARY CLOSE
+            END
+        
+        
+    scrollIt: '* Scroll function
+            CALL ScrollLayer(scrLayerInfo&,superLayer&,x%,y%)
+            RETURN
+        
+                                PAGE 210
+        
+-----------------------------------------------------------------------------
+        
+This program create a supergraphic with AmigaBASIC commands. It is scrolled
+back and forth across the screen. This program was adequate as a test. 
+However, a complete drawing program that uses these layer techniques and
+many more exciting effects is included in chapter 8. We have one more 
+tip before we complete this chapter. With the routines we have demonstrated
+you could use all the AmigaBASIC graphic commands in a layer. Two of these
+commands require careful handling. The CLS command erases only an area the
+size of a window's content in relation to the upper left hand corner of a 
+layer. To erase the entire Layer, you must use the graphic command SetRast.
+This command is called as follows:
+        
+        CALL SetRast(RastPort&,kolor%)
+        
+        RastPort& : Rastport address of your Layer/ Window.
+        Kolor%    : The colour to fill the rastport with. To erase it is
+                    normally 0
+        
+When you print (LOCATE instruction) text in a portion of the layer that
+is below your visible window, BASIC will scroll your output window and
+your layer will be moved up one line. To avoid this problem use the 
+graphic function TEXT (from chapter 2) instead of print.
+        
+                                PAGE 211
+        
+-----------------------------------------------------------------------------
+        
+4.8 LAYERS IN THE SYSTEM.
+        
+You probably recall out attempt in Section 4.3 to illustrate the system 
+data structure.  By now the layers should be familiar to you also. With
+all this accumulated knowledge, it is much easier to represent the system
+more accurately. First our layer:
+
+					|	         |
+				   _____|________________|_____
+				  |     | 	 	 |     |
+			          |   RastPort      Window     |
+				  |			       |
+				  |  	LAYER		       |
+		 		  |____________________________|
+
+
+
+And here is the entire system ..........................
+
+		__|_____________
+               |                | 
+               |  Screen        |<----------------
+	    ___|                |                 |  
+           |   |                |------           |
+           |   |________________|      |          |
+           |       |    |   ____       |          |
+           |       |    |__|    |   ___|__________|__|__
+           |       |     __|R P |  |                 |  |
+           |       |__  |  |____|  |   Window          -|---
+           |          | |          |_________________|__|
+           |          | |              |             |
+	                            ___|___
+	                           |       |
+                                <--| R P   |
+                                   |_______|
+                                     |  |
+                                   __|__|_______
+				  | 		|
+				  |  LAYER      |
+				  |_____________|
+
+        
+At this point we have covered all the important system components. The
+BASIC elements of the graphic system are open to you. We will now move
+onto the subordinate data structures that, in some cases, are just as 
+important.        
+        
+-----------------------------------------------------------------------------
+
+                CHAPTER 5 - THE AMIGA FONTS
+        
+        
+The Amiga is capable of using various character sets called fonts. Like
+all computers, the Amiga has a specific memory area for storing the 
+shapes for the current font. However, unlike other computers, the Amiga
+contains two fonts that are built into the system. These fonts are:
+        
+        topaz 8 and topaz 9
+        
+Which of these is active depends on the preference setting for the 
+Workbench. (60 or 80 characters width).
+        
+The Amiga, unlike other computers, has the option of loading other fonts
+from disk. Because of this capability, an unlimited supply of fonts are
+available for use with your projects.        
+        
+It is also possible for you to create your own fonts with no limits to your
+creativity.        
+        
+Three paths are available for AmigaBASIC programming. Each of these methods
+will be explained in this chapter and many example programs will 
+demonstrate how each function works.
+        
+                                PAGE 213
+        
+-----------------------------------------------------------------------------
+        
+5.1 THE AMIGA CHARACTER GENERATOR.
+        
+Before we can begin any type of project, we need an entry point into the 
+font system of the Amiga. We can find this point in the RastPort of our
+windows. The address of the RastPort is always in the variable WINDOW(8)
+(See section 3.6). At offset 32 is the startin address of the currently
+active font or, to be more precise, the starting address of a structure 
+named TextFont. The following is the internal structue:
+        
+        textFont& = PEEKL(WINDOW(8)+52)
+        
+Data structure TextFont/graphics/52 bytes.
+        
+Offset  Type    Description.
+------- ------- ----------------------------------------------
++000      --    Message structure
++010    Long    Pointer to name string
++020    Word    Height of font
++022    Byte    Style of font
+                normal        = 0
+                underlined    = 1   bit 0 = 1
+                bold          = 2   bit 1 = 1
+                italic        = 4   bit 2 = 1
+                extended      = 8   bit 3 = 1
++023   Byte     Preferences and flags.
+                ROM-font    = 1        bit 0 = 1
+                Disk-font   = 2        bit 1 = 1
+                Rev-path    = 4        bit 2 = 1
+                Talldot     = 8        bit 3 = 1
+                Widedot     = 16       bit 4 = 1
+                Proportional= 32       bit 5 = 1
+                Designed    = 64       bit 6 = 1
+                Removed     = 128      bit 7 = 1
++024  word      Width of Character (average)
++026  Word      Height of character without underline
++028  Word      Smear effect for bold.
++030  Word      Access Counter
++032  Byte      ASCII code of first character.
++033  Byte      ASCII code of last character.
++034  Long      Pointer to font data
++038  Word      Bytes per font line (modulo)
++040  Long      Pointer to offset-data for character decoding.
++044  Long      Pointer to width table of font.
++048  Long      Pointer to font kern table.
+        
+                                PAGE 214
+        
+-----------------------------------------------------------------------------
+        
+This data structure contains all the parameters the Amiga needs to 
+display a font. The following is a detailed explanation of all the data
+fields.
+        
+OFFSET 0: MESSAGE
+        
+Since a font operates independantly from the other running tasks and 
+simulates a stand alone program, it can use the message port techniques.
+This messag structure keeps the font separate from the rest of the system.
+        
+        
+OFFSET 10: POINTER TO NAME STRING.
+        
+This field is located inside the message structure and is a pointer to 
+the name string of the font. The end of the name is indicated by a zero 
+byte. You can determine the name of the current font with the 
+following lines:
+        
+        windo.rast& = WINDOW(8)
+        font.add&   = PEEKL(windor.rast&+52)
+        font.name&  = PEEKL(font.add&+10)
+        
+        found% = PEEK(font.name&)
+        WHILE found% > 0
+            font.name& = font.name&+1
+            font.name$ = font.name$+CHR$(found%)
+            found% = PEEK(font.name&)
+        WEND
+        
+        PRINT "Name of font : ";font.name%
+        
+        
+OFFSET 20 AND 22 : FONT ATTRIBUTE.
+        
+The characteristics of the font are stored here - the height in pixels 
+and the style in bits.
+        
+        
+OFFSET 23: PREFERENCES AND FLAGS.
+        
+The bits in these bytes represent the current status of the font. When 
+searching for a font, you can set bits similar to the desired font and
+use them as a preference. This means that it's not necessary for the 
+found font to have the exact settings but, normally, the settings will
+be as close as possible.
+        
+        
+OFFSET 24 AND 26: FURTHER DIMENSIONS OF THE FONT.
+        
+OFFSET 28: COUNTER FOR BOLD PRINT.
+        
+Normally, the Amiga moves the text one pixel to the right and prints it
+again when outputting bold text. This counter contains a value of how 
+many pixels to offset the text. Using larger values allows you to 
+increase this width.
+        
+                                PAGE 215
+        
+-----------------------------------------------------------------------------
+        
+        font& = PEEKL(WINDOW(8)+52)
+        POKE WINDOW(8)+56,2 'Bold on
+        POKEW font&+28,3 'Offset 3 pixels to the right.
+        PRINT "Demo-text"
+        POKE WINDOW(8)+56,0 'normal
+        
+        
+OFFSET 30: ACCESS COUNTER.
+        
+When a font is opened, it becomes available to the entire system. So more
+than one program (task) can use the same font at once. Every task that
+opens a font for its own use must close it when finished. When a task 
+opens a font that is already being used by another task, a new, memory
+intensive data structure is not opened. Instead, the second task simply
+accesses the existing data structure that was opened by the first task.
+At the same time, the access counter is incremented from one to two. If
+a task passes an assignment to close the task, the access counter is
+decreased by one. The counter must be equal to zero before the data 
+structure is deleted from memory. This prevents the first task, which 
+opened the font, from deleting this font while another task is using
+it.
+        
+       
+OFFSET 32 AND 33: ASCII CODES.
+        
+As you may know, the Amiga can provide up to 256 different characters in 
+font. However, it isnt always necessary to define that many characters.
+For example, the alphabet only has 26 characters. Because of this, most 
+fonts dont contain all 256 characters. Instead, these fonts simply
+specify a low and high limit for the defined characters. These limits 
+are stored in these two fields.
+        
+        
+OFFSET 34: THE FONT DATA.
+        
+This is a pointer to the character definitions for this font. We will cover
+the data block format later in this chapter.
+        
+        
+OFFSET 38: MODULO
+ 
+Modulo determines the number of bytes used per line of data block. The
+Amiga stores a font in rows of equal length. By using modulo, you can
+determine, for the current font, where the next row begins. There will
+be more on this subject later.
+        
+        
+OFFSET 40: DATA DECODING.
+        
+With data decoding it is possible to find the data, for a specific 
+character, in the existing data lines. More information about this will
+be provided later.
+        
+                                PAGE 216
+        
+--------------------------------------------------------------------------
+       
+OFFSET 40: WIDTH TABLE.
+        
+The characters of a font are not necessarily the same width. A proportional
+font has a separate width for each character. For example, an "i" is 
+narrower than a "w". This offset contains a pointer to a width table,
+which we will discuss later.
+        
+        
+OFFSET 48: FONT KERN.
+        
+This will be covered in detail in a later section.
+           
+        
+                                PAGE 217
+        
+--------------------------------------------------------------------------
+        
+5.2 OPENING YOUR FIRST FONT.
+        
+You have just learned about the innermost data structure of a font. Before 
+we continue, we will introduce you to a much shorter data structure called
+a TextAtt.
+        
+Data structure TextAttr/graphics/8 Bytes.
+        
+Offset  Type    Description.
+------- ------- ----------------------------------------------
++000    Long    Pointer to zero terminated name string.
++004    Word    Height of font.
++006    Byte    Style bits.
++007    Byte    Preferences.
+        
+For the definition of fields see section 5.1
+        
+This structure helps you describe a font or specify a search description
+for it. The graphic routine OpenFont uses this data to find the specified
+font. We will try this out shortly. First, the syntax of the function
+OpenFont is:
+        
+        newFont& = OpenFont&(textAttr&)
+        
+        textAttr&  = Starting address of the correctly filled
+                     TextAttr data structure (see above).
+        newFont&   = When the font is successfully opened this is the 
+                     starting address of the TextFont data structure of
+                     the new font (See section 5.1)
+        
+        '############################################
+        '#
+        '# Section: 5.2
+        '# Program: Font Loader
+        '# Date   : 04/10/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '#############################################
+        
+        ' Loads both ROM fonts (TOPAZ8 and TOPAZ9)
+            
+        PRINT "Searching for .bmap files. ....."
+        
+                                PAGE 218
+        
+-----------------------------------------------------------------------------
+        
+        'GRAPHICS library
+        DECLARE FUNCTION OpenFont& LIBRARY
+        'CloseFont()
+        'SetFont()
+        
+        LIBRARY "graphics.library"
+        
+        demo:  '* Demonstrate both ROM fonts.
+        demo.1$  = "TOPAZ 9 *** topaz 9 "
+        demo.2$  = "TOPAZ 8 *** topaz 8 "
+        CLS
+        
+        FOR demo% = 1 TO 10
+            OpenFont 9
+            FOR loop% = 1 TO 10
+                PRINT demo.1$;
+            NEXT loop%
+            PRINT
+            
+            OpenFont 8
+            FOR loop% = 1 TO 10
+                PRINT demo.2$;
+            NEXT loop%
+            PRINT 
+        NEXT demo%
+        
+        LIBRARY CLOSE
+        END
+        
+    SUB OpenFont(height%) STATIC
+        font.name$    = "topaz.font"+CHR$(0)
+        font.height%  = height%
+        font.stil%    = 0
+        font.prefs%   = 0
+        font.old&     = PEEKL(WINDOW(8)+52)
+        
+        '* Fill TextAttr structure
+        textAttr&(0)  = SADD(font.name$)
+        textAttr&(1)  = font.height%*2^16+font.stil%*2^4+font.prefs%
+        
+        '* Open New Font
+        font.new&    = OpenFont&(VARPTR(textAttr&(0)))
+        IF font.new&<>0 THEN
+            CALL CloseFont(font.old&)
+            CALL SetFont(WINDOW(8),font.new&)
+        END IF
+    END SUB
+        
+This program opens and uses both ROM fonts, topaz 8 and topaz 9. If you 
+attempt to enter a character height smaller than either font, it will not
+be accepted. Instead, one of the two ROM fonts will appear.
+        
+The program uses two additional library routines:
+        
+                                PAGE 219
+        
+-----------------------------------------------------------------------------
+        
+        CloseFont() and SetFont()
+        
+Whenever you open a new font you must also close the old font so that 
+the access counter in the TextFont structure contains the correct value
+(see section 5.1). Use CloseFont to do this with an argument for the 
+address of the TextFont structure of the old font. You can find this in 
+your RastPort structure.
+        
+Just opening the font doesn't actually do anything. Much more is required
+in order to pass information about the new font to your RastPort. To 
+accomplish this use SetFont, which requires two arguments. These are the 
+address of your RastPort and the address of the TextFont structure of a
+correctly opened font. These values are returned by the OpenFont 
+function.
+        
+                                PAGE 220
+        
+-----------------------------------------------------------------------------
+        
+5.3 ACCESSING THE DISK FONTS.
+        
+The previous example program demonstrated that it is not very difficult to 
+activate a different font and that you can easily switch back and forth 
+between them.
+        
+There isn't much difference in the appearance of the two fonts because they
+were designed to display 60 and 80 column text. In order to view a font
+that has a very different appearance, we have to use another method. Om
+every Workbench disk there are numerous fonts available, which are stored
+in a subdirectory named "fonts". This directory should contain the follwing
+fonts:
+        
+        Nr.     Height   Name
+        ------------------------------------
+        01      08       ruby.font
+        02      12       ruby.font
+        03      15       ruby.font
+        04      12       diamond font
+        05      20       diamond font
+        06      09       opal.font
+        07      12       opal.font
+        08      17       emerald.font
+        09      20       emerald.font
+        10      11       topaz.font
+        11      09       garnet.font
+        12      16       granet.font
+        13      14       sapphire.font
+        14      19       sapphire.font
+        
+The two topaz fonts from the previous examplea are obviously not on thw
+list. They are either loaded from the kickstart disk or found in ROM.
+        
+Disk fonts cannot be activated by using OpenFont because this command 
+only works with fonts currently in memory. Instead, we must use 
+OpenDiskFont from the Diskfont.library. This is called in the same way as
+the Openfont and also uses a TextAttr data structure.
+        
+The following program enables you to use diskfonts. Since it is designed 
+as a first test, it is rather simple. The program requires the Workbench
+disk and the fonts found on this disk. The routine OpenDiskFont first
+searches for a font in the current directory and then looks in the system
+directory FONTS. It the searched for font is not on the Workbench disk,
+the currently active font will not change.
+        
+                                PAGE 221
+        
+-----------------------------------------------------------------------------
+
+	'########################################
+	'#
+	'# Section:  5.3
+	'# Program:  Disk Font Loader.
+	'# Date   :  04/10/87
+	'# Author :  tob
+	'# Version:  1.0
+	'#
+	'#########################################
+	
+	' Loads a selected disk font.
+	
+	PRINT "Seacrching for .bmap files...."
+	
+	'DISKFONT library
+	DECLARE FUNCTION OpenDiskFont& LIBRARY
+	
+	'GRAPHICS library
+	'CloseFont()
+	'SefFont()
+	
+	LIBRARY "diskfont.library"
+	LIBRARY "graphics.library"
+	
+	demo:   '* Demonstrates disk fonts.
+		demo.1$ = "DIAMOND 20 *** diamond 20 "
+		demo.2$ = "SAPPHIRE 14 *** sapphire 14 "
+		font.old& = PEEKL(WINDOW(8)+52)
+		CLS
+	
+		FOR demo% = 1 TO 5
+		    OpenDiskFont "diamond",20
+		    FOR loop% = 1 TO 5
+			PRINT demo.1$;
+		    NEXT loop%
+		    PRINT
+	
+		    OpenDiskFont "Sapphire",14
+		    FOR loop% = 1 TO 5
+			PRINT demo.2$;
+		    NEXT loop%
+		    PRINT
+		NEXT demo
+	
+		'Activate normal format.
+		font.new& = PEEKL(WINDOW(8)+52)
+		CALL CloseFont(font.new&)
+		CALL SetFont(WINDOW(8),font.old&)
+				
+				PAGE 222
+	
+---------------------------------------------------------------------------
+	
+		LIBRARY CLOSE
+		END
+	
+    SUB OpenDiskFont(n$,height%) STATIC
+		font.name$ = n$+".font"+CHR$(0)
+		font.height% = height%
+		font.style% = 0
+		font.prefs% = 0
+		font.old% = PEEKL(WINDOW(8)+52)
+	
+		'* Fill textattr structure.
+		textAttr&(0) = SADD(font.name$)
+		textAttr&(1) = font.height%*2^16+font.style%*2^4+font.prefs
+	
+		'* Open new font.
+		font.new& = OpenDiskFont&(VARPTR(textAttr&(0)))
+		IF font.new&<>0 THEN
+		    CALL CloseFont(font.old&)
+		    CALL SetFont(WINDOW(8),font.new&)
+		END IF
+	    END SUB
+
+You can clearly see that every time the demo prints a line of text the 
+Amiga starts loading a font again. This makes sense because each time you
+switch fonts, the old font is deleted from RAM. Obviously this isn't very
+practical. You can prevent this by leaving the often-used fonts open and
+then closing all the fonts when the program has ended. When doing this, it
+is important to remember that; 1.) all the fonts that are opened by your
+program must be closed by your program and 2.) a font can only be loaded
+once (otherwise you will waster useful memory space). The following program
+uses this method. It can activate both disk and ROM fonts and loads a disk
+font only once. This makes the program much faster and more efficient.
+Here is the listing:
+
+
+	'########################################
+	'#
+	'# Section:  5.3b
+	'# Program:  Font load and hold
+	'# Date   :  04/10/87
+	'# Author :  tob
+	'# Version:  1.0
+	'#
+	'#########################################
+	
+	'Loads disk and RAM/ROM fonts. Whenever a new font is loaded the
+        'program doesnt close the old font, but adds the new font to a 
+        'list. The next time this font is opened it is already in RAM and
+        'appears immediately.
+	'At the end of the program all fonts are closed at the same time.	
+
+				PAGE 223
+				
+--------------------------------------------------------------------------
+	
+	PRINT "Seacrching for .bmap files...."
+	
+	'DISKFONT library
+	DECLARE FUNCTION OpenDiskFont& LIBRARY
+	
+	'GRAPHICS library
+	'CloseFont()
+	'SefFont()
+	
+	LIBRARY "diskfont.library"
+	LIBRARY "graphics.library"
+	
+	init:  '* Dimension storage fields
+		DIM SHARED storage&(30)  'Max 30 different types.
+		CLS
+	
+	demo:	'* Here we go
+		LOCATE 3,1
+		OpenPrgFont "Opal",12
+		PRINT "Working with Amiga fonts!"
+		OpenPrgFont "Diamond",12
+		
+		WHILE z$<>"end"
+		    LINE INPUT "Name of Font: ";z$
+		    IF z$<>"end" THEN
+			INPUT "Height";h%
+			OpenPrgFont z$,h%
+			PRINT "This is ";z$;", ";h%;" Points high."
+			PRINT "Enter 'end' to exit"
+			PRINT "Opened fonts : ";counter%
+			OpenPrgFont "Opal",12
+		    END IF
+		WEND
+		
+		'* Activate normal font
+		'* And delete all other from RAM
+		ClosePrgFont
+	
+		LIBRARY CLOSE
+		END
+	
+    SUB OpenPrgFont(n$,height%) STATIC
+	SHARED counter%, mode%, font.original&
+	
+	IF mode% = 0 THEN
+	    mode%          = 1
+  	    font.original& = PEEKL(WINDOW(8)+52)
+	END IF
+	
+				PAGE 224
+	
+---------------------------------------------------------------------------
+	
+	font.name$ = n$+".font"+CHR$(0)
+	part2$ = RIGHT$(font.name$,LEN(font.name$)-1)
+	part1% = ASC(LEFT$(font.name$,1))
+	part1% = part1% OR 32
+
+	font.name$   = CHR$(part1%)+part2$
+	font.height% = height%
+	font.style%  = 0
+	font.prefs%  = 0
+	
+	'* Fill Textattr structure
+	textAttr&(0) = SADD(font.name$)
+	textAttr&(1) = font.height%*2^16+font.style%*2^4+font.prefs%
+	
+	'* New font in RAM ???
+	font.new& = OpenFont&(VARPTR(textAttr&(0)))
+	IF font.new&<>0 THEN
+	    '* Yes... there is a new font in RAM with that name.
+	    test.height% = PEEKW(font.new&+20)
+	    CALL CloseFont(font.new&)
+	    IF test.height%<>font.height% THEN
+		'* Not a high as the one we want.
+		'* So search again.
+		font.new& = 0
+	    END IF
+	END IF
+	
+	'* Open new font
+	IF font.new& = 0 THEN
+	    '* Look on the disk (last chance)
+	    font.new& = OpenDiskFont(VARPTR(textAttr&(0)))
+	    IF font.new& <> 0 THEN
+		'* Found !
+		counter%      = counter% + 1
+		storage&(counter%) = font.new&
+	    END IF
+	END IF
+	IF font.new&<>0 THEN
+	    '* New font to be activated.
+	    CALL SetFont(WINDOW(8),font.new&)
+	END IF
+    END SUB
+	
+	
+    SUB ClosePrgFont STATIC
+	SHARED counter%, font.original&
+	
+	FOR loop% = 1 TO counter%
+	    IF storage&(loop%)<>0 THEN
+		CALL CloseFont(storage&(loop%))
+	    ELSE
+		ERROR 255
+	    END IF
+	    storage&(loop%) = NULL
+	
+				PAGE 225
+	
+--------------------------------------------------------------------------
+
+	NEXT loop%
+	
+	CALL SetFont(WINDOW(8),font.original&)
+    END SUB
+
+The variables counter% and mode% are reserved for the SUB programs and
+must not changed or deleted anywhere in the program.
+	
+The SUB OpenPrgFont lets you select any desired font:
+	
+	OpenPrgFont name$,height%
+	
+	name$:     Name of Font.
+	height% :  Height of font.
+	
+Next, the SUB makes the variable mode%. If mode% equals zero then an 
+alternate font is not loaded. In our program, the pointer font original&
+is set for the original font. With this pointer, and some experimentation,
+you can always return to the original font.
+
+At the end of the SUB, a TextAttr structure is created. The statement  
+UCASE$ converts the search fonts name to uppercase. The routine OpenFont
+handles upper and lower case fonts differently, which means that it is 
+case sensitive. So when the diamond font is in RAM, it cannot be located
+using the name "diamond". We must use uppercase letters instead.
+
+Finally, the storage structure is initialised. The variable textAttr& is 
+used for storage.
+ 
+To avoid loading the desired font from disk, we check for it in RAM instead.
+When the routine OpenFont returns a pointer the desired font exists in 
+memory. The height of the RAM font is stored in the variable test.height%
+for later comparison. The RAM font is then closed with CloseFont. This 
+process is both important and necessary because, if the font already exists
+in RAM, we have already opened it with OpenDiskFont. Since we used
+OpenFont, we need to prevent the access counter from being incremented, so
+we close the font again. However, the font is not really closed; only our
+access entry for the command OpenFont is removed. When the RAM font isnt the
+one we are searching for, we have to close it anyway.
+	
+Now we compare the height of the found font with the height of the font for
+which we are looking. When they match, the pointer to the RAM font in 
+font.new& remains, and if they do not match, font.new& is deleted.
+
+When font.new& is deleted, we look on the disk for the desired font. If
+it is found, OpenDiskFont loads the font into RAM. Since we loaded a new 
+font, we must be able to delete it at the end of the program. In order to do
+this, we must store the address of the find in a field of storage& and
+raise our array pointer.
+	
+				PAGE 226
+
+-------------------------------------------------------------------------
+
+To complete this process we activate the new font. This happens only when
+font.new& is not equal to zero. When a font cant be found in RAM, ROM or
+on the disk, the variable FONT.NEW& is always equal to zero.
+	
+A call to ClosePrgFont must be at the end of your program. This reads 
+through the fields of the storage& array and calls CloseFont for each font.
+Once this occurs, the memory is returned to the system.
+	
+				PAGE 227
+	
+----------------------------------------------------------------------------
+
+5.4 THE FONT MENU.
+
+With the information and programs from the previous chapter, you are almost
+ready to work with Amiga fonts. So far you can load and use fonts but only
+if you already know the name and height of the desired font. Our next 
+project will show you how to choose fonts from a menu.
+
+You could put the names of all available fonts into the DATA statements of
+a program. However, this wouldnt be very useful because fonts on disk 
+can be deleted or added. For this reason, there is a function AvailFonts
+in the DiskFont library. This routine assembles a list of the currently 
+available fonts. The call to the AvailFonts routine looks like this:
+	
+	status% = AvailFonts(buffer&,buflen&,mode%)
+	
+	buffer&  = Address to a free memory buffer.
+	buflen&  = Size of buffer.
+        mode%    =   1=RAM/ROM
+		     2=DISK
+		     3=any source
+	status%  =   0=All OK
+		     otherwise the number of bytes for the buffer is not
+                     enough.
+
+Depending on the mode variable, AvailFonts fills the buffer with the 
+following information:
+
+Offset  Type    Description
+------- ------- -------------------------------------------
++000    Word    Number of following entries
+(the next five entries are repeated as required.)
++002    Word    ID (1=RAM/ROM  2=DISK)
++004    Long    Pointer to name string.
++008    Word    Height of font
++010    Byte    Style bits
++011    Byte    Preferences.
+
+This information is used by AvailFonts to provide data on all available
+fonts.
+
+The following program contains the SUB program GenerateMenu.
+
+				PAGE 228
+
+-----------------------------------------------------------------------------
+
+	'########################################
+	'#
+	'# Section:  5.4
+	'# Program:  Menu Managed Fonts
+	'# Date   :  04/10/87
+	'# Author :  tob
+	'# Version:  1.0
+	'#
+	'#########################################
+	
+	'Automatically builds a menu for all usable fonts
+        ' and then controls the menu	
+	
+	PRINT "Seacrching for .bmap files...."
+	
+	'EXEC library
+	DECLARE FUNCTION AllocMem& LIBRARY
+	'FreeMem()
+
+	'DISKFONT library
+	DECLARE FUNCTION OpenDiskFont& LIBRARY
+	DECLARE FUNCTION AvailFonts& LIBRARY	
+	
+	'GRAPHICS library
+	DECLARE FUNCTION OpenFont& LIBRARY
+	'CloseFont()
+	'SefFont()
+	
+	LIBRARY "diskfont.library"
+	LIBRARY "graphics.library"
+	LIBRARY "exec.library"
+
+	init:  '* Dimension storage fields
+		DIM SHARED storage&(30)  'Max 30 different types.
+		CLS
+		DIM SHARED font.title$(19)
+                DIM SHARED font.height%(19)
+
+	demo:	'* Here we go
+		MENU 5,0,1,"Font"
+		MENU 5,1,1,"Load"
+		MENU 6,0,1,"Service"
+		MENU 6,1,1,"Quit"
+
+		menu.old% = 1
+
+		ON MENU GOSUB menucheck
+		MENU on
+
+		PRINT "The menu is now ready to use."
+
+				PAGE 229
+
+--------------------------------------------------------------------------	
+
+		PRINT "Pick a font of your choice, or "
+		PRINT "'LOAD', to choose from menu."
+
+		WHILE forever=forever
+                WEND
+
+    	menucheck: '* Menu handling.
+	
+		menuId    = MENU(0)
+		menuItem  = MENU(1)
+	
+		IF menuId = 5 THEN
+		    IF menu.old% = 1 THEN
+			menu.old% = 0
+			menu.nr%  = 5
+			modeALL%  = 3
+			GenerateMenu menu.nr%,modeALL%
+			PRINT "Menu is ready!"
+		    ELSE
+			ft$ = font.title$(menuItem-1)
+			fh% = font.height%(menuItem-1)
+	
+			OpenPrgFont ft$,ht%
+		    END IF
+		ELSE IF
+		    GOTO endprg
+		END IF
+		
+		GOSUB ShowText
+	
+		RETURN
+
+    ShowText:   '* Display TExt.
+		PRINT ft$,fh%,"Points - TEXT SAMPLE *** text sample"
+		RETURN
+
+    endprg:     '* Activate normal font
+		'* Delete all others from RAM
+		ClosePrgFont
+		LIBRARY CLOSE
+		END
+
+    SUB GenerateMenu(menu.nr%,mode%) STATIC
+		menu.opt&      = 2^0+2^16
+		buffer.size&   = 3000
+		buffer.add&    = AllocMem&(buffer.size&,mem.opt&)
+		IF buffer.add&<>0 THEN
+		    status% = AvailFont%(buffer.add&,buffer.size&,mode%)
+		    IF status% = 0 THEN
+			entry%    = PEEKW(buffer.add&)
+			IF entry% > 18 THEN entry%=18
+			FOR loop% = 0 TO entry%-1
+	
+				PAGE 230
+
+--------------------------------------------------------------------------
+
+			    counter%     = loop%*10
+			    font.name&   = PEEKL(buffer.add&+4+counter%)
+			    font.height% = PEEKW(buffer.add&+8+counter%)
+			    font.name$   = ""
+			    check%       = PEEK(font.name&)
+			    WHILE check%<>ASC(".")
+				font.name$ = font.name$+CHR$(check%)
+				font.name& = font.name&+1
+				check%     = PEEK(font.name&)
+			    WEND
+			    font.title$(loop%)  = font.name$
+			    font.height%(loop%) = font.height%
+			    menu.name$          = UCASE$(font.name$+STR$
+    (font.height%))
+			    MENU CSNG(menu.nr%),CSNG(loop%+1),1,menu.name$
+			NEXT loop%
+			CALL FreeMem(buffer.add&,buffer.size&)
+		    END IF
+		ELSE
+		    BEEP
+		END IF
+	END SUB
+
+    SUB OpenPrgFont(n$,height%) STATIC
+	SHARED counter%, mode%, font.original&
+	
+	IF mode% = 0 THEN
+	    mode%          = 1
+  	    font.original& = PEEKL(WINDOW(8)+52)
+	END IF
+	
+	
+	font.name$ = n$+".font"+CHR$(0)
+	part2$ = RIGHT$(font.name$,LEN(font.name$)-1)
+	part1% = ASC(LEFT$(font.name$,1))
+	part1% = part1% OR 32
+
+	font.name$   = CHR$(part1%)+part2$
+	font.height% = height%
+	font.style%  = 0
+	font.prefs%  = 0
+	
+	'* Fill Textattr structure
+	textAttr&(0) = SADD(font.name$)
+	textAttr&(1) = font.height%*2^16+font.style%*2^4+font.prefs%
+	
+	'* New font in RAM ???
+	font.new& = OpenFont&(VARPTR(textAttr&(0)))
+	IF font.new&<>0 THEN
+	    '* Yes... there is a new font in RAM with that name.
+	    test.height% = PEEKW(font.new&+20)
+	    CALL CloseFont(font.new&)
+	    IF test.height%<>font.height% THEN
+		'* Not a high as the one we want.
+		'* So search again.
+		font.new& = 0
+
+				PAGE 231
+
+---------------------------------------------------------------------------
+
+	    END IF
+	END IF
+	
+	'* Open new font
+	IF font.new& = 0 THEN
+	    '* Look on the disk (last chance)
+	    font.new& = OpenDiskFont(VARPTR(textAttr&(0)))
+	    IF font.new& <> 0 THEN
+		'* Found !
+		counter%      = counter% + 1
+		storage&(counter%) = font.new&
+	    END IF
+	END IF
+	IF font.new&<>0 THEN
+	    '* New font to be activated.
+	    CALL SetFont(WINDOW(8),font.new&)
+	END IF
+    END SUB
+	
+	
+    SUB ClosePrgFont STATIC
+	SHARED counter%, font.original&
+	
+	FOR loop% = 1 TO counter%
+	    IF storage&(loop%)<>0 THEN
+		CALL CloseFont(storage&(loop%))
+	    ELSE
+		ERROR 255
+	    END IF
+	    storage&(loop%) = NULL
+	NEXT loop%
+	
+	CALL SetFont(WINDOW(8),font.original&)
+    END SUB
+
+
+The call to this SUB program looks like this:
+
+		GenerateMenu menu.nr%,mode%
+
+		menu.nr%  = Number of the menu to generate
+		mode%     = 1=RAM/ROM font
+			    2=Disk font
+			    3=All fonts
+
+After calling this SUB program two things happen:
+
+a.) A menu is created. This menu contains the names and height of the
+    (depending on the mode selected) available fonts within your Y
+    measurement.
+
+				PAGE 232
+
+---------------------------------------------------------------------------
+
+b.) Two data fields are initialised: font.title$ contains the names of the
+    fonts and font.height% contains their Y measurement.
+
+By using the menu you can select one of the available fonts. You do not 
+have to know which fonts are on the disk. Once a font is selected, the name
+and height of the selected font are passed using the existing variables.
+OpenPrgFont then takes these variables and does the rest of the work.
+
+				PAGE 233
+
+---------------------------------------------------------------------------
+        
+5.5 DESIGNING YOUR OWN FONTS.
+ 
+By now you should know enough about the standard Amiga fonts. We will now
+move onto the last and most difficult section: defining a completely 
+original font.
+        
+In order to do this you need to know about the contruction of a font. At
+the beginning of this chapter we introduced you to the data structure named
+TextFont. Before continuing with this data structure, we will present some
+of the peculiarities of an Amiga font.
+        
+Basically, there are two different font forms for the Amiga:
+        
+a.) Normal fonts.
+        
+b.) Proportional fonts.
+        
+A typical font consists of characters that have equal height and width.
+Proportional font characters also have equal heights but inidividual 
+widths.
+ 
+You need a maximum of 4 memory blocks to define a font.
+ 
+        charData
+        charLoc
+        charSpace
+        charKern
+ 
+charData contains the actual definition of a character in the font. This 
+refers to the bitpacked character information. Since an Amiga character can
+be any character width that you select, it is wastful to store the data
+for every character in byte form. Th Amiga stores the characters data as
+follows:
+        
+Let's start with the two characters below. A "." represents an unset pixel
+and a "*" represents a set pixel.
+        
+        ....*....      ****.
+        ...*.*...      *...*
+        ..*...*..      *...*
+        .*.....*.      ****.
+        *********      *...*
+        *.......*      *...*
+        *       *      ****
+        
+                                PAGE 234
+        
+-----------------------------------------------------------------------------
+        
+These two characters have different widths and could be from a proportional
+font. The Amiga creates a bit-row, one after the other of all the characters
+in a font. If our font contained only the characters above then charData
+would look like this:
+        
+        1. row:   ....*....****.
+        2. row:   ...*.*...*...*
+        3. row:   ..*...*..*...*
+        4. row:   .*.....*.****.
+        5. row:   **********...*
+        6. row:   *.......**...*
+        7. row:   *.......*****.
+        
+The individual rows are then written one after the other into the memory
+block:
+        
+     charData: ....*....****....*.*...*...*..*...*..*...* etc ...
+        
+This storage methoid is very efficient but has one problem. We need to 
+get the characters out of the bits. This is why there is a memory block,
+call charLoc. This block contains two words (two-byte fields) for every
+character in the font. The first word contains the bit count from the
+start of a row to the bit information for the character. The second word
+contains the bit count of the character. For the two characters in our 
+example it look like this:
+        
+        charLoc:  0,9  9,5
+        
+The first character begins zero bits from the beginning of the data row and
+is nine pixels wide. The second charcter begins 9 bits after the start of 
+the data row and is five pixels wide. This is the definition for all seven 
+rows of our characters.
+        
+Another problem is getting from one charData row to the next. The field
+MODULO from the Textfont structure is used to do this. The length, in 
+bytes, of the data row is stored here. To get yor next row, add this value
+to the current address of the data row.
+ 
+The data field CharData contains only the basic information for the current
+character. So, to separate the characters on the screen, we need to insert 
+some space between them. The field charSpace contains the real character 
+width, in pixels. For example:
+ 
+        charSpace: 11,7
+ 
+The first character is eleven pixels wide and the second is seven.
+        
+There is one last problem, charSpace sets the actual character width. For
+the first character in our example, this is eleven pixels.
+ 
+                                PAGE 235
+ 
+-----------------------------------------------------------------------------
+ 
+        ...........
+        ...........
+        ...........
+        ...........
+        ...........
+        ...........
+        ...........
+        
+This is a problem because the character itself is only 9 pixels wide.
+So the position at which this field should begin displaying the character 
+is still unknown. The block, charKern contains, for every character, a 
+word that defines, in bits, the distancee from the left edge of the field
+where the character should be displayed. Again an example:
+        
+        charKern:  1,2
+        
+This displays our characters on screen like this:
+        
+        .....*.....    ..****.
+        ....*.*....    ..*...*
+        ...*...*...    ..*...*
+        ..*.....*..    ..****.
+        .*********.    ..*...*
+        .*.......*.    ..*...*
+        .*.......*.    ..****.
+        
+        Space = 11     Space = 7
+        Kern  = 1      Kern  = 2
+        Width = 9      Width = 5
+        
+                --------------------------------------------
+        
+5.5.1 READING THE FONT GENERATOR.
+        
+By using the information provided above, we can access an existing font
+and read it. You can also get the data for a specific character and read
+it.
+        
+The address of the TextFont structure for a font that is currently open
+is found in the RastPort.
+        
+        font& = PEEKL(WINDOW(8)+52)
+        
+You will find the required pointer to the memory block there (see section 
+5.1):
+        
+                                PAGE 236
+ 
+-----------------------------------------------------------------------------
+ 
+Here is the font reader program:
+ 
+        '##########################################
+        '#
+        '# Section: 5.5.1
+        '# Program: Font Readerr
+        '# Date   : 04/11/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '###########################################
+        
+        ' Reads the currently active font and displays the
+        ' decoded information in different sized variations.
+        
+        PRINT "Searching for .bmap files...."
+        
+        'GRAPHICS library
+        DECLARE FUNCTION OpenFont& LIBRARY
+        'SetFont()
+        'CloseFont()
+        
+        LIBRARY "graphics.library"
+        
+        init:   '* Variables
+            DIM SHARED  char$(256)
+            g%  = 12 'Box size
+            CLS
+        
+            FOR demo% = 32 TO 255
+                Matrix demo%
+                CLS
+                TopazON
+                PRINT "Character: ASCII ";demo%;" = ";CHR$(demo%)
+                FOR show% = 1 TO height%
+                    LOCATE show%+2,1
+                    PRINT char$(show%)
+                    FOR ex% = 1 TO LEN(char$(show%))
+                        z$ = MID$(char$(show%),ex%,1)
+                        IF z$ = "*" THEN
+                            kolor% = 2
+                        ELSEIF z$ = "." THEN
+                            kolor% = 1
+                        ELSEIF z$ = "," THEN
+                            kolo% = 3
+                        END IF
+                        LINE (300+ex%*g%,show%*g%)-(300+ex%*g%+g%,show%
+        *g%+g%),kolor%,bf
+                        LINE (500+ex%*2,show%*2)-(500+ex%*2+2,show%*2+2),
+        kolor%,bf
+                    NEXT ex%
+        
+                                PAGE 237
+        
+-----------------------------------------------------------------------------
+        
+                NEXT show%
+                TopazOFF
+            NEXT demo%
+            
+            END
+            
+    SUB Matrix(code%) STATIC
+        SHARED height%
+        
+        f.1%          =0
+        f.2%          =0
+        font%         =PEEKL(WINDOW(8)+52)
+        charData&     =PEEKL(font&+34)
+        charLoc&      =PEEKL(font&+40)
+        charSpace&    =PEEKL(font&+44)
+        charKern&     =PEEKL(font&+48)
+        modulo%       =PEEKW(font&+38)
+        
+        IF charSpace& = 0 THEN f.1% = 1
+        IF charKern&  = 0 THEN f.2% = 1
+        
+        height%       = PEEKW(font&+20)
+        
+        loASCII       = PEEK(font&+32)
+        hiASCII       = PEEK(font&+33)
+        
+        IF code%<loASCII% OR code%>hiASCII THEN
+            PRINT "ASCII code ";code%;" not in font"
+        END IF
+        
+        'Decoding information.
+        offset%    = code% - loASCII%
+        offset.bit&= PEEKW(charLoc&+4*offset%)
+        offset.byte%= INT(offset.bit&/8)
+        offset.bit% = offset.bit& - (8*offset.byte%)
+        char.width% = PEEKW(charLoc&+4*offset%+2)
+        IF f.1% = 0 THEN
+            char.space% = PEEKW(charSpace&+2*offset%)
+        END IF
+        IF f.2% = 0 THEN
+            char.kern%  = PEEKW(charKern&+2*offset%)
+        END IF
+ 
+        'Read data
+        FOR loop1% = 1 TO height%
+            char$(loop1%) = ""
+            IF f.2% = 0 THEN
+                IF char.kern%>0 THEN
+                    char$(loop1%)=STRING$(char.kern%,",")
+                END IF
+            END IF
+            linedata& = PEEK(charData+offset.byte%)
+            counter% = 7-offset.bit%
+            FOR loop2% = 1 TO char.width%
+                IF (linedata& AND 2^counter%)<>0 THEN
+                    linedata&   = linedata& - 2^counter%
+        
+                                PAGE 238
+ 
+-----------------------------------------------------------------------------
+ 
+                    char$(loop1%) = char$(loop1%)+"*"
+                ELSE
+                    char$(loop1%) = char$(loop1%)+"."
+                END IF
+                counter% = counter% - 1
+                IF counter% < 0 THEN
+                    offset.long%  = offset.long%+1
+                    linedata&     = PEEK(charData&+offset.byte%+
+   offset.long%)
+                    counter%   = 7
+                END IF
+            NEXT loop2%
+            offset.long% = 0
+            charData&  = charData&+modulo%
+            IF f.2% = 0 THEN 
+                char.diff% = char.space%-char.width%-char.kern%
+            ELSEIF f.2% = 0 THEN
+                char.diff% = char.space%-char.width%
+            END IF
+            IF char.diff%>0 THEN
+                char$(loop1%)=char$(loop1%)+STRING$(char.diff%,",")
+            END IF
+        NEXT loop1%
+    END SUB
+        
+    SUB TopazOn STATIC
+        SHARED font&,font.old&
+        font$        = "topaz.font"+CHR$(0)
+        textAttr&(0) = SADD(font$)
+        font.old&    = PEEKL(WINDOW(8)+52)
+        font&        = OpenFont&(VARPTR(textAttr&(0)))
+        CALL SetFont(WINDOW(8),font&)
+    END SUB
+        
+    SUB TopazOFF STATIC
+        SHARED font&,font.old&
+        CALL CloseFont(font&)
+        CALL SetFont(WINDOW(8),font.old&)
+    END SUB
+ 
+ 
+This program reads the currently active font. In most cases, this is one of
+the two ROM fonts. To see something really interesting first load one of
+the disk fonts like sapphire.
+ 
+All the possible characters of the font are represented on the screen in 
+three ways: 1.) using "*" and ".", 2.) as large graphics, 3.) as small 
+graphics.
+ 
+The graphics use three different colours. The data area define by charData
+is white and all the set pixels are black. The additional pixels defined
+by charSpace and CharKern are displayed in Orange.
+ 
+                                PAGE 239
+ 
+-----------------------------------------------------------------------------
+ 
+However, proportional fonts will not display any orange because they do not
+use charSpace and charKern.
+        
+The following is information about the program:
+        
+The heart of the program is the SUB matrix. This routine handles the 
+difficult task of reading the font but can also be used for other purposes.
+Here is the call:
+ 
+        Matrix ascii.code%
+ 
+        ascii.code%: ASCII code of the character (0-255)
+        
+or:
+        Matrix CINT(ASC(z$))
+        
+        z$: the desired character.
+        
+In addition, there are the SUB programs TopazOn and TopazOff, which switch 
+the currently active system font on and off. By using them, you are able to
+display comments between the font data that are independant of the active
+font being read and displayed.
+        
+An explanation of how the SUB Matrix functions is found in section 5.5
+        
+                --------------------------------------------
+        
+5.5.2 BIG TEXT: ENLARGING TEXT.
+        
+This application demonstrates the adaptability of the read routine Matrix,
+from our previous example. Matrix helps the SUB BigText create text of any
+desired size on the screen.
+        
+This is the call:
+                
+                BigText text$,sixe%,kolor%
+        
+                text$:    Text to display.
+                size%:    Enlargin factor (1-...)
+                kolor%:   Text color.
+        
+        
+                                PAGE 240
+        
+-----------------------------------------------------------------------------
+        
+        '#####################################
+        '#        
+        '# Section: 5.5.2
+        '# Program: Enlarge text.
+        '# Date   : 04/11/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '#####################################
+        
+        ' Enlarges any desired text. The text is enlarged in the 
+        ' style of the currently active font.
+        
+        init:
+            '* Variables
+            DIM SHARED char$(256)
+            BigText "Hello",15,2
+            BigText "Commodore AMIGA",4,3
+            LOCATE 3,1
+            BigText "small",1,1
+            BigText "larger",2,1
+            BigText "Larger Yet!",3,1
+            BigText "GIGANTIC!",8,3
+            END
+            
+            
+    SUB BigText(text$,size%,kolor%) STATIC
+            SHARED height%,char.kern%,char.width%
+            SHARED char.space%
+        
+            o.xo%  = 0
+            z.x%   = PEEKW(WINDOW(8)+58)
+            z.y%   = PEEKW(WINDOW(8)+58)
+            y%     = CSRLIN*z.y%
+            x%     = POS(0)*z.x%
+            
+            FOR loop1% = 1 TO LEN(text$)
+                z$ = MID$(text$,loop1%,1)
+                Matrix CINT(ASC(z$))
+                o.xo% = o.xo% + char.kern%*size%
+                FOR loop2% = 1 TO height%
+                    FOR loop3% = 1 TO LEN(char$(loop2%))
+                        m$ = MID$(char$(loop2%),loop3%,1)
+                        IF m$ = "" THEN
+                            o.x% = x%+o.xo%+loop3%*size%
+                            o.y% = y%+loop2%*size%
+                            LINE (o.x%,o.y%)-(o.x%+size%,o.y%+size%),
+    kolor%,bf
+                        END IF
+                    NEXT loop3%
+                NEXT loop2%
+                rest% = char.space%-char.width%-char.kern%
+                IF rest% < 0 THEN rest% = 0
+                o.xo% = o.xo%+char.width%*size%+rest%*size%
+            NEXT loop1%
+            PRINT 
+    END SUB
+        
+                                PAGE 241
+        
+-----------------------------------------------------------------------------
+        
+    SUB Matrix(code%) STATIC
+        SHARED height%, char.kern%, char.width%
+        SHARED char.space%
+        
+        f.1%          =0
+        f.2%          =0
+        font%         =PEEKL(WINDOW(8)+52)
+        charData&     =PEEKL(font&+34)
+        charLoc&      =PEEKL(font&+40)
+        charSpace&    =PEEKL(font&+44)
+        charKern&     =PEEKL(font&+48)
+        modulo%       =PEEKW(font&+38)
+        
+        IF charSpace& = 0 THEN f.1% = 1
+        IF charKern&  = 0 THEN f.2% = 1
+        
+        height%       = PEEKW(font&+20)
+        
+        loASCII       = PEEK(font&+32)
+        hiASCII       = PEEK(font&+33)
+        
+        IF code%<loASCII% OR code%>hiASCII THEN
+            PRINT "ASCII code ";code%;" not in font"
+        END IF
+        
+        'Decoding information.
+        offset%    = code% - loASCII%
+        offset.bit&= PEEKW(charLoc&+4*offset%)
+        offset.byte%= INT(offset.bit&/8)
+        offset.bit% = offset.bit& - (8*offset.byte%)
+        char.width% = PEEKW(charLoc&+4*offset%+2)
+        z.b% = char.width%
+        IF f.1% = 0 THEN
+            char.space% = PEEKW(charSpace&+2*offset%)
+            z.b%   = char.space%
+        END IF
+        IF f.2% = 0 THEN
+            char.kern%  = PEEKW(charKern&+2*offset%)
+        END IF
+        
+        'Read data
+        FOR loop1% = 1 TO height%
+            char$(loop1%) = ""
+            IF f.2% = 0 THEN
+                IF char.kern%>0 THEN
+                    char$(loop1%)=STRING$(char.kern%,",")
+                END IF
+            END IF
+            linedata& = PEEK(charData+offset.byte%)
+            counter% = 7-offset.bit%
+            FOR loop2% = 1 TO char.width%
+                IF (linedata& AND 2^counter%)<>0 THEN
+                    linedata&   = linedata& - 2^counter%
+                    char$(loop1%) = char$(loop1%)+"*"
+                ELSE
+        
+                                PAGE 242
+        
+-----------------------------------------------------------------------------
+
+                    char$(loop1%) = char$(loop1%)+"."
+                END IF
+                counter% = counter% - 1
+                IF counter% < 0 THEN
+                    offset.long%  = offset.long%+1
+                    linedata&     = PEEK(charData&+offset.byte%+
+   offset.long%)
+                    counter%   = 7
+                END IF
+            NEXT loop2%
+            offset.long% = 0
+            charData&  = charData&+modulo%
+            IF f.2% = 0 THEN 
+                char.diff% = char.space%-char.width%-char.kern%
+            ELSEIF f.2% = 0 THEN
+                char.diff% = char.space%-char.width%
+            END IF
+            IF char.diff%>0 THEN
+                char$(loop1%)=char$(loop1%)+STRING$(char.diff%,",")
+            END IF
+        NEXT loop1%
+    END SUB
+        
+        
+The matrix routine had to be changed slightly so that BigText could 
+position the text properly. In order to do this, we added a few more 
+parameters to the SHARED assignment at the beginning of the SUB.
+        
+                --------------------------------------------
+        
+5.5.3 A FIXED WIDTH FONT GENERATOR.
+        
+Now that you are more comfortable with the pointers and contents of a font,
+we will proceed to our main project, a character generator.
+        
+You have seen how difficult it is to define and manage a proportional font.
+Because of this, our first character generator is a fixed width generator 
+which creates characters with identical widths.
+        
+To further simplify this process, our characters will have a set size of 
+8*8 pixels like the ROM font "topaz 8". Since this size has a one byte 
+offset, it's easy to store and handle the character data in charData.
+        
+Before we discuss the details of the program, here is the program listing:
+        
+                                PAGE 243
+        
+-----------------------------------------------------------------------------
+        
+        '############################################
+        '#
+        '# Section: 5.5.3
+        '# Program: Fixed-width font generator.
+        '# Date   : 04/12/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '##############################################
+        
+        ' This program makes possible the creation of a 
+        ' different font. Every character has a set size.
+        ' of 8*8 pixels. Each character can be freely defined
+        ' as required. All undefined characters will default to the
+        ' standard ROM font (topaz 8). Unavailable characters will be
+        ' indicated by the 'unprintable character' symbol.
+        
+        PRINT "Searching for .bmap file ......"
+        
+        'GRAPHICS-library
+        DECLARE FUNCTION OpenFont& LIBRARY
+        'CloseFont()
+        'SetFont()
+        'AddFont()
+        
+        'EXEC-library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem()
+        'CopyMem()
+        
+        LIBRARY "graphics.library"
+        LIBRARY "exec.library"
+        
+        init:
+            CLS
+            '* Generate character set
+            '* Call :
+            '*    MakePrgFont "name",asciiLo%,asciiHi%
+            
+            MakePrgFont "tobi",22,200
+            MakePrgFont "ralfi",60,122
+        
+            '* Call:
+            '*     ActivateFont "name"
+            
+            ActivateFont "tobi"
+        
+            '* Define new font.
+            '* Call:
+            '*     NewD "char",row%,"definition"
+            '*     row%:  0....7 definition: *=set pixel
+        
+            NewD "A",0,"......*."
+            NewD "A",1,".....**."
+            NewD "A",2,"....***."
+            NewD "A",3,"...*.**."
+        
+                                PAGE 244
+        
+-----------------------------------------------------------------------------
+        
+            NewD "A",4,"..*****."
+            NewD "A",5,".*....*."
+            NewD "A",6,"***..***"
+            NewD "A",7,""
+            
+            ActivateFont "ralfi"
+            '* Second character using byte value method (faster)
+            
+            NewB "@",0,126
+            NewB "@",1,129
+            NewB "@",2,157
+            NewB "@",3,161
+            NewB "@",4,161
+            NewB "@",5,157
+            NewB "@",6,129
+            NewB "@",7,126
+            
+            '* Sample text
+            ActivateFont "tobi"
+            PRINT "@ 1989 Abacus (Alliance) - Amiga Graphics Inside &
+     out "
+            PRINT "       ^                   ^ "
+            ActivateFont "ralfi"
+            PRINT "@ 1989 Abacus (Alliance) - Amiga Graphics Inside
+    & out "
+            PRINT "^"
+            
+            '* Delete font
+            '* Call:
+            '*   DeleteFont "name"
+            
+            DeleteFont "tobi"
+            DeleteFont "ralfi"
+            END
+            
+            
+    SUB ActivateFont(z.n$) STATIC
+            z.name$  = UCASE$(z.n$+".font"+CHR$(0))
+            t&(0)    = SADD(z.name$)
+            t&(1)    = 8*2^16
+            font&    = OpenFont&(VARPTR(t&(0)))
+            IF font& = 0 THEN BEEP: EXIT SUB
+            CALL CloseFont(font&)
+            CALL SetFont(WINDOW(8),font&)
+    END SUB
+        
+        
+    SUB NewB(char$,row%,value%) STATIC
+            n.font&       = PEEKL(WINDOW(8)+52)
+            n.data&       = PEEKL(n.font&+34)
+            n.ascii&      = ASC(char$)
+            n.lo%         = PEEK(n.font&+32)
+            n.hi%         = PEEK(n.font&+33)
+            n.modulo%     = PEEKW(n.font&+38)
+            n.offset%     = (n.ascii%-n.lo%)+row%*n.modulo%
+            n.data%       = 0
+            
+            IF n.ascii%<n.lo% OR n.ascii%>n.hi% THEN
+        
+                            PAGE 245
+       
+-----------------------------------------------------------------------------
+       
+           PRINT "Character not in font!"
+           ERROR 255
+       END IF
+           
+       POKE n.data&+n.offset%,value%
+    END SUB
+       
+    SUB NewD(char$,row%,bit$) STATIC
+       n.font&     = PEEKL(WINDOW(8)+52)
+       n.data&     = PEEKL(n.font&+34)
+       n.ascii%    = ASC(char$)
+       n.lo%       = PEEK(n.font&+32)
+       n.hi%       = PEEK(n.font&+33)
+       n.modulo%   = PEEKW(n.font&+38)
+       n.offset%   = (n.ascii%-n.lo%)+row%*n.modulo%
+       n.data%     = 0
+       
+       IF n.ascii%<n.lo% OR n.ascii%>n.hi% THEN
+           PRINT "Character not in font!"
+           ERROR 255
+       END IF
+       
+       '* 8 bit alignment
+       IF LEN(bit$)<>8 THEN
+           IF LEN(bit$)>8 THEN bit$ = LEFT$(bit$,8)
+           IF LEN(bit$)<8 THEN bit$ = bit$+space$(8-LEN(bit$))
+       END IF
+       
+       '* Write data in chardata.
+       FOR loop1%=7 TO 0 STEP -1
+           n.check$ = MID$(bit$,8-loop1%,1)
+           IF n.check$ = "*" THEN
+                n.data%   = n.data%+2^loop1%
+           END IF
+       NEXT loop1%
+       POKE n.data&+n.offset%,n.data%
+    END SUB
+       
+    SUB DeleteFont (z.n$) STATIC
+       z.name$ = UCASE$(z.n$+".font"+CHR$(0))
+       t&(0)   = SADD(z.name$)
+       t&(1)   = 8*2^16
+       font&   = OpenFont&(VARPTR(t&(0)))
+       IF font&= 0 THEN ERROR 255
+       
+       z.size& = PEEKL(font&-4)
+       IF z.size&<100 OR z.size&>4000 THEN ERROR 255
+              
+       '* Remove from system list.
+       z.1&    = PEEKL(font&)
+       z.2&    = PEEKL(font&+4)
+       POKEL z.1&+4,z.2&
+       POKEL z.2&,z.1&
+       
+       '* Release RAM
+                     
+                            PAGE 246
+       
+-----------------------------------------------------------------------------
+
+       font& = font& - 4
+       CALL FreeMem(font&,z.size&)
+       
+       '* Load standard font
+       standard$  = "topaz.font"+CHR$(0)
+       t&(0)      = SADD(standard$)
+       font&      = OpenFont&(VARPTR(t&(0)))
+       IF font&   = 0 THEN ERROR 255
+       CALL SetFont(WINDOW(8),font&)
+    END SUB
+       
+    SUB MakePrgFont(z.n$,ascii.lo%,ascii.hi%) STATIC
+       z.name$     = UCASE$(z.n$+".font"+CHR$(0))
+       z.count%    = ascii.hi% - ascii.lo%=2
+       z.modulo%   = z.count%
+       z.size&     = z.count%*8+z.count%*4+110
+       z.offset%   = ascii.lo%-32
+       z.begin%    = 0
+       
+       mem.opt&    = 2^0+2^16
+       z.add&      = AllocMem(z.size&,mem.opt&)
+       IF z.add&   = 0 THEN ERROR 7
+       POKEL z.add&,z.size&
+       z.add&      = z.add& + 4
+       
+       z.data&     = z.add& + 100
+       z.loc&      = z.data&+z.count%*8
+       z.name&     = z.add&+65
+       
+       POKEL z.add&+10,z.name&
+       POKEW z.add&+18,z.size&-4
+       POKEW z.add&+20,8
+       POKE z.add&+23,64
+       POKEW z.add&+24,8
+       POKEW z.add&+26,6
+       POKE  z.add&+32,ascii.lo%
+       POKE  z.add&+33,ascii.hi%
+       POKEL z.add&+34,z.data&
+       POKEW z.add&+38,z.modulo%
+       POKEL z.add&+40,z.loc&
+       
+       '* Fill Name field.
+           FOR loop1% = 1 TO LEN(z.name$)
+               POKE z.name$+loop1%-1,ASC(MID$(z.name$,loop1%,1))
+           NEXT loop1%
+       
+       '* charLoc field
+       FOR loop1% = 0 TO z.count%-1
+           POKEW z.loc&+(4*loop1%)+0,loop1%*8
+           POKEW z.loc&+(4*loop1%)+2,8
+       NEXT loop1%
+       
+       '* charData field.
+       sample$ = "topaz.font"+CHR$(0)
+       t&(0)   = SADD(sample$)
+       
+                            PAGE 247
+       
+-----------------------------------------------------------------------------
+       
+       t&(1)    = 8*2^16
+       sample&  = OpenFont&(VARPTR(t&(0)))
+       IF sample& = 0 THEN
+           PRINT "ROM-fonts weg???!"
+           ERROR 255
+       END IF
+       s.char&    = PEEKL(sample&+34)
+       s.modulo%  = PEEKW(sample&+38)
+       CALL CloseFont(sample&)
+       
+       IF z.offset%<0 THEN
+           z.count%   = z.count%+z.offset%
+           z.begin%   = ABS(z.offset%)
+           z.offset%  = 0
+       END IF
+       
+       FOR loop1% = 0 TO 7
+           CALL CopyMem(s.char&+z.offset%+loop1%*s.modulo%, z.data&+
+    z.begin%+loop1%*z.modulo%,z.count%-1)
+       NEXT loop1%
+       
+       '* Unprintable character.
+       POKE z.data&+z.modulo%-1+0*z.modulo%,224
+       POKE z.data&+z.modulo%-1+1*z.modulo%,64
+       POKE z.data&+z.modulo%-1+2*z.modulo%,64
+       POKE z.data&+z.modulo%-1+3*z.modulo%,64
+       POKE z.data&+z.modulo%-1+4*z.modulo%,73
+       POKE z.data&+z.modulo%-1+5*z.modulo%,73
+       POKE z.data&+z.modulo%-1+6*z.modulo%,77
+       POKE z.data&+z.modulo%-1+7*z.modulo%,74
+       
+       '* Link
+       CALL AddFont(z.add&)
+       t&(0)      = SADD(z.name$)
+       font.new&  = OpenFont&(VARPTR(t&(0)))
+       IF font.new& = 0 THEN ERROR 255
+       
+       CALL SetFont(WINDOW(8),font.new&)
+    END SUB
+ 
+ 
+Altogether this program provides you with five SUB programs:
+       
+       * MakePrgFont
+       * DeleteFont
+       * NewD
+       * NewB
+       * ActivateFont                     
+                            
+MakePrgFont:
+-----------                     
+ 
+This SUB program allows you to create a completely new font which carries
+the name assigned by you. Here is the call:
+       
+       MakePrgFont name$,lo%,hi%
+ 
+       name$   : Name of new font.
+       lo%     : ASCII value of first character
+       hi%     : ASCII value of last character.
+                            
+                            PAGE 248
+       
+-----------------------------------------------------------------------------
+       
+You determine the number of characters in your font. Every value has
+an ASCII character that can be determined using the ASC function. Select
+the low and high limits.
+       
+       LINE INPUT "Character ";z$
+       PRINT ASC(z$)
+       
+The codes 0 TO 255 are available.              
+                            
+After the font is prepared, it contains no character definitions. Basically,
+it is 'empty'; all the current characters equal nothing. Because of this we
+will fill the new font with the data from the ROM font topaz 8.
+                            
+After this call the new font is ready for your commands. All the characters
+within your ASCII limits will be displayed with 'topaz8' characters.
+Any character outside these limits will be displayed as an 'unprintable
+character' with the small TW character.                     
+                            
+              
+Actviate Font:
+-------------
+       
+This SUB program is useless to you if you only want to work with a single
+font. However, if you wish to work with many fonts with different names,
+you can select any of them with this command.
+       
+       ActivateFont name$
+       
+       name$  : The name of a previously generated font with MakePrgFont.
+       
+       
+NewD:
+----       
+       
+Our goal was to define our own characters. This is accomplished with NewD.
+Each character of our font is 8 pixels wide and 8 pixels high. By using 
+NewD, we can define any one of the eight rows of any character.
+       
+       NewD  char$,nr%,bit$
+       
+       char$   : The character that you want to define.
+       nr%     : The row of the character (0-7)
+       bit$    : The new data row (*=set pixels, "." unused pixels)
+       
+NOTE: NewD defines a character from the last generated (or active) font.
+      Obviously the character must exist in the font in order to be 
+      redefined.
+                            
+                            PAGE 249
+       
+-----------------------------------------------------------------------------
+       
+NewB
+----              
+       
+This is a variation of the NewD. When using NewD the character data for the
+new character is displayed as astericks and points in binary form. This 
+binary data must first be converted to decimal. However, if you are 
+familiar with the binary decimal conversion, you can use the decimal values
+directly. In order to do this, NewB is used.       
+       
+       NewB char$,nr%,value%
+       
+       char$,nr% : Same as with NewD
+       value%    : Decimal value for row (0 to 255).
+       
+       
+DeleteFont
+----------
+ 
+When you no longer need one of your open fonts, you must close it again.
+This is accomplished with the command:
+       
+       DeleteFont name$
+       
+       name$     : Name of the font opened using MakePrgFont.
+ 
+At the end of your program you must close all of the fonts that were opened
+using MakePrgFont. This returns the assigned memory to the system.
+       
+Those of you who want or need more information of making your own fonts 
+will fint detailed explanations on the following pages.       
+       
+       
+MakePrgFont
+-----------
+ 
+We fill the TextFont structure (from section 5.5) with all the required 
+parameters. Then we initialise the field CharLoc with its required 
+parameters. Because the characters of the font have a standard width value
+of 8 pixels, the offset value is a multiple of 8. The width value is always
+equal to 8 (see section 5.5).
+       
+The charData field is supposed to be filled with the use defined characters.
+Since we assume that not all the characters will be redefined, we fill the
+font with the ROM font topaz 8. After opening topaz 8, we save the pointer
+to it in the variable sample&. The MODULO is also read. Now we can close
+topaz again because the charData is in ROM and cannot be lost.
+
+
+       
+Next we must initialise two varaibles z.offset% and z.begin%. Your font 
+wont always have the same contents as the ROM type. The number of the
+character that the new font will later begin with is contained in the 
+z.offset%. The ROM font always starts with ASCII code 32. If the first
+character in your font has a larger value, for example "A" (code = 65),
+then z.offset% contains 65-32 = 33. The opposite is accomplished with 
+z.begin%. If the ASCII code of the first character in your new font is 
+smaller than 32, then z.begin% contains the difference between the new
+values.
+       
+                            PAGE 250
+       
+-----------------------------------------------------------------------------
+       
+Now we can copy the ROM data to the RAM buffer. For this we use a function 
+of the exec.library:
+       
+       CALL CopyMem(o.data&,z.data&,bytes&)
+       
+       o.data&:   Original data.
+       z.data&:   Target data.
+       bytes& :   Number of bytes to copy.       
+       
+This routine was first made available in Kickstart Version 1.2. Users of 
+older versions must either revise these commands into PEEKS and POKES 
+or completely leave out the loop. Otherwise you have to define all the 
+characters of the new font before working with it.       
+       
+After all the characters are copied, the shape of the unprintable character
+is defined as a small "TW". Whenever a user requests a characte that doesnt
+exist in the font, the "TW" character will appear. The data for this 
+unprintable character us stored after the data for all the other characters.
+       
+Now the new font is completely functional. To add this font to the system,
+we use the function AddFont. From this point on, other programs can also
+access your font (for example the NOTEPAD). Finally we use OpenFont& to
+open the new font. The address font.new& must match the address z.add&.
+       
+Right now it is necessary to take a closer look at the beginning of the 
+TextFont structure. The message structure looks like this:
+       
+Data structure Message/exec/20 bytes.
+       
+Offset  Type    Description.
+------- ------- -------------------------------------------------
++000    Long    Pointer to the next font.
++004    Long    Pointer to the previous font.
++008    Byte    Node Type.
++009    Byte    Priority.
++010    Long    Pointer to the name of the font.
++014    Long    Pointer to ReplyPort.
++018    Word    Length of Message.
+       
+Before we call the AddFont routine, we must store the name field and length
+of the message, which equals the length of the font. After AddFont, the 
+rest of the pointers are initialised, which means that the first two 
+pointers point at different fonts.       
+       
+This step is very important when you try to delete your font from the 
+system again. This will be explained further in DeleteFont.       
+       
+                            PAGE 251
+       
+-----------------------------------------------------------------------------
+       
+ActivateFont
+------------
+ 
+Here we search for the font with the requested name. This SUB can be only
+used to look for fonts that are created with MakePrgFont. The reason for
+this is that the font is only opened for a short time, in order to receive
+all the necessary pointers, and then closed again. We do not have to keep
+it open because it has already been opened with MakePrgFont.
+       
+       
+SetFont
+-------
+       
+This SUB program activates the font.
+       
+       
+NewD, NewB
+----------
+       
+We read all the required font data from the RastPort. NewD converts the bit
+definitions into a decimal number and therefore, is faster. The values are
+poked to the locations set by your parameters.       
+       
+       
+DeleteFont
+----------       
+       
+The name font is opened here also. Fonts must always be removed by whatever
+opened them. ROM fonts are never removed and disk fonts are loaded and
+handled by AmigaDOS. You are responsible for the cleanup of your own
+fonts. When reserving the memory, MakePrgFont stored the length of the 
+font in the last 4 bytes before the font. We read out this value. Before 
+we delete the font with FreeMem, we must correct the Systemlist because
+AddFont integrated our font with the SystemList. The required fields are
+restored and our font evaporates.
+       
+Now we can release the RAM allocated for the font and return this memory
+to the system. To avoid being left without a font, we activate the ROM 
+font again.       
+       
+              ----------------------------------------------
+       
+5.5.4 A PROPORTIONAL FONT.
+       
+Now we will discuss the complex proportional font. It is almost impossible, 
+in this type of font, to redefine existing characters. Every time we 
+redefine one character, hundreds of bytes would have to be shifted one way
+or the other to adjust for the new character size. A solution to this 
+problem is to provide a number for the maximum width of any single 
+character. The program then reserves enough memory for a font containing
+characters of this size. Although this method isn't memory efficient, it 
+is the only practical solution.       
+       
+Again, our character generator demonstrates it's user friendliness. You
+can easily create characters without being required to use any complex 
+numbers and parameters. We use six SUB programs:
+       
+       MakePrgFont
+       DeleteFont
+       NewB
+       NewD
+       ActivateFont
+       Set
+              
+                            PAGE 252
+       
+-----------------------------------------------------------------------------
+       
+You are already familiar with these names. The way these SUB programs work
+is very similar to those in the fixed width character generator from the 
+previous chapter.       
+       
+Again, you can create as many fonts as you like. To do this use the 
+following command:
+       
+       MakePrgFont name$,lo%,hi%,width%,height%,base%
+       
+       name$       : Name of font.
+       lo%         : Lower ASCII limit (See chapter 5.5.3)
+       hi%         : Upper ASCII limit.
+       width%      : Maximum width in pixels.
+       height%     : Uniform height in pixels.
+       base%       : Baseline (height without underline).
+       
+NOTE: 
+----
+       
+Baseline must be at least one pixel smaller than height%, otherwise, while 
+using algorithmic managed fonts (special italic), the system buffer can be
+overwritten.       
+       
+After this call, the Amiga generates a font with the above parameters; no
+other information is required. This font is exactly the opposite from those
+enerated with the fixed width generator because it is empty with no 
+previoulsy defined characters. Now it is your responsibility to define each
+character in the font.
+       
+Before you design a particular character using the familiar SUB programs
+NewD and NewB, you must specify and individual size for this character.
+This is accomplished by using the "set" command:
+       
+       Set char$,spacing%,kerning%
+       
+       char$      : The character for which this value applies.
+       spacing%   : Width of character (cannot exceed the maximum width
+                    of the font generated).
+       kerning%   : Number of pixels to skip before the character you 
+                    actually define appears.
+       
+Additional information can be found in section 5.5
+       
+                            PAGE 253
+       
+-----------------------------------------------------------------------------
+       
+All the other SUB programs have similar functions to those in the fixed 
+width generator. However, they are not identical.
+       
+       
+        '############################################
+        '#
+        '# Section: 5.5.4
+        '# Program: Proportional font generator.
+        '# Date   : 04/12/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '##############################################
+        
+       ' This program makes it possible to create differently named
+       ' proportional fonts and every character  can have its own 
+       ' individual width. Undefined characters will not have character
+       ' data, and will appear only after being successfully defined.
+        
+        PRINT "Searching for .bmap file ......"
+        
+        'GRAPHICS-library
+        DECLARE FUNCTION OpenFont& LIBRARY
+        'CloseFont()
+        'SetFont()
+        'AddFont()
+        
+        'EXEC-library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem()
+        
+        LIBRARY "graphics.library"
+        LIBRARY "exec.library"
+        
+        init:
+           '* Generate fonts
+           MakePrgFont "tobi",32,65,9,10,7
+ 
+           '* Set format
+           '* Set "character$",space,kern
+           
+           Set "@",20,3
+           NewD "@",0,"...***..."
+           NewD "@",1,"..*...*.."
+           NewD "@",2,"......*.."
+           NewD "@",3,".....*..."
+           NewD "@",4,"....*...."
+           NewD "@",5,"....*...."
+           NewD "@",6,"........."
+           NewD "@",7,"*********"
+           NewD "@",8,".*******."
+           NewD "@",9,"..*****.."
+        
+           'Second character using byte method.
+            
+                            PAGE 254
+       
+-----------------------------------------------------------------------------
+            
+           Set "A",11,1
+           NewB "A",0,8,126
+           NewB "A",1,8,129
+           NewB "A",2,8,157
+           NewB "A",3,8,161
+           NewB "A",4,8,161
+           NewB "A",5,8,157
+           NewB "A",6,8,129
+           NewB "A",7,8,126
+            
+            '* Sample text
+           PRINT STRING$(40,"A")
+           PRINT STRING$(40,"@")
+       
+            '* Delete font
+            '* Call:
+            '*   DeleteFont "name"
+            
+            DeleteFont "tobi"
+            END
+            
+            
+    SUB ActivateFont(z.n$) STATIC
+            z.name$  = UCASE$(z.n$+".font"+CHR$(0))
+            t&(0)    = SADD(z.name$)
+            t&(1)    = 8*2^16
+            font&    = OpenFont&(VARPTR(t&(0)))
+            IF font& = 0 THEN BEEP: EXIT SUB
+            CALL CloseFont(font&)
+            CALL SetFont(WINDOW(8),font&)
+    END SUB
+        
+    SUB Set(char$,spacing%,kerning%) STATIC
+       n.font&       = PEEKL(WINDOW(8)+52)
+       n.space&      = PEEKL(n.font&+44)
+       n.kern&       = PEEKL(n.font&+48)
+       n.ascii%      = ASC(char$)
+       n.lo%         = PEEK(n.font&+32)
+       n.hi%         = PEEK(n.font&+33)
+       n.number%     = n.ascii% - n.lo%
+       IF n.ascii%<n.lo% OR n.ascii%>n.hi% THEN
+           EXIT SUB
+       END IF
+       POKEW n.space&+(2*n.number%),spacing%
+       POKEW n.kern&+(2*n.number%),kerning%
+    END SUB
+        
+    SUB NewB(char$,row%,bits%,value%) STATIC
+            n.byte%    = 0
+            n.bit%     = 0
+            n.font&       = PEEKL(WINDOW(8)+52)
+            n.data&       = PEEKL(n.font&+34)
+            n.loc&        = PEEKL(n.font&+40)
+            n.ascii&      = ASC(char$)
+            n.lo%         = PEEK(n.font&+32)
+            n.hi%         = PEEK(n.font&+33)
+            n.modulo%     = PEEKW(n.font&+38)
+            n.offset%     = row%*n.modulo%
+            n.height%     = PEEKW(n.font&+20)
+       
+                            PAGE 255
+       
+-----------------------------------------------------------------------------
+       
+           n.number%      = n.ascii%-n.lo%
+           n.width%       = PEEKW(PEEKL(n.font&+40)+(4*n.number%)+2)
+           n.offset&      = PEEKW(PEEKL(n.font&+40)+(4*n.number%))
+           n.byte%        = INT(n.offset&/8)
+           n.bit%         = 7-(n.offset&-(n.byte%*8))
+       
+           IF n.ascii%<n.lo% OR n.ascii%>n.hi% THEN
+              EXIT SUB
+           END IF
+           
+           IF bits%>n.width% THEN
+               bits% = n.width%
+           END IF
+           n.data&        = n.data&+n.offset%
+           FOR loop1% = bits%-1 TO 0 STEP -1
+               IF (value% AND 2^loop1%)<>0 THEN
+                   POKE n.data&+n.byte%,PEEK(n.data&+n.byte%) OR (2^n.bit%)
+               END IF
+               n.bit% = n.bit% - 1
+               IF n.bit% < 0 THEN
+                   n.bit% = 7
+                   n.byte% = n.byte% + 1
+               END IF
+           NEXT loop1%
+           
+           POKEW n.loc&+(4*n.number%)+2,bits%
+    END SUB
+       
+    SUB NewD(char$,row%,bit$) STATIC
+           bits%        = LEN(bits$)
+           n.byte%      = 0
+           n.bit%       = 0
+       n.font&     = PEEKL(WINDOW(8)+52)
+       n.data&     = PEEKL(n.font&+34)
+       n.loc&      = PEEKL(n.font&+40)
+       n.ascii%    = ASC(char$)
+       n.lo%       = PEEK(n.font&+32)
+       n.hi%       = PEEK(n.font&+33)
+       n.modulo%   = PEEKW(n.font&+38)
+       n.offset%   = row%*n.modulo%
+       n.height%   = PEEKW(n.font&+20)
+       n.number%   = n.ascii%-n.lo%
+       n.width%    = PEEKW(PEEKL(n.font&+40)+(4*n.number%)+2)
+       n.offset&   = PEEKW(PEEKL(n.font&+40)+(4*n.number%))
+       n.byte%     = INT(n.offset&/8)
+       n.bit%      = 7-(n.offset&-(n.byte%*8))
+       
+       IF n.ascii%<n.lo% OR n.ascii%>n.hi% THEN
+           EXIT SUB
+       END IF
+       
+       IF bits% > n.width% THEN
+           bits% = n.width%
+       END IF
+       
+                            PAGE 256
+       
+-----------------------------------------------------------------------------
+       
+       n.data& = n.data& + n.offset%
+       FOR loop1%=bits%-1 TO 0 STEP -1
+           c$ = MID$(bits$,bits%-loop1%,1)
+           IF c$ = "" THEN
+               POKE n.data&+n.byte%,PEEK(n.data&+n.byte%) OR (2^n.bit%)
+           END IF
+           n.bit% = n.bit% - 1
+           IF n.bit% < 0 THEN
+               n.bit% = 7
+               n.byte% = n.byte%+1
+           END IF
+       NEXT loop1%
+       
+       POKEW n.loc&+(4*n.number%)+2,bits%
+    END SUB
+       
+    SUB DeleteFont (z.n$) STATIC
+       z.name$ = UCASE$(z.n$+".font"+CHR$(0))
+       t&(0)   = SADD(z.name$)
+       t&(1)   = 8*2^16
+       font&   = OpenFont&(VARPTR(t&(0)))
+       IF font&= 0 THEN ERROR 255
+       
+       z.size& = PEEKL(font&-4)
+       IF z.size&<100 OR z.size&>40000& THEN ERROR 255
+              
+       '* Remove from system list.
+       z.1&    = PEEKL(font&)
+       z.2&    = PEEKL(font&+4)
+       POKEL z.1&+4,z.2&
+       POKEL z.2&,z.1&
+       
+       '* Release RAM
+                     
+       font& = font& - 4
+       CALL FreeMem(font&,z.size&)
+       
+       '* Load standard font
+       standard$  = "topaz.font"+CHR$(0)
+       t&(0)      = SADD(standard$)
+       font&      = OpenFont&(VARPTR(t&(0)))
+       IF font&   = 0 THEN ERROR 255
+       CALL SetFont(WINDOW(8),font&)
+    END SUB
+       
+    SUB MakePrgFont(z.n$,ascii.lo%,ascii.hi%,z.maxX%,z.height%,
+z.baseline%) STATIC
+       z.name$     = UCASE$(z.n$+".font"+CHR$(0))
+       z.number%   = ascii.hi%-ascii.lo%+2
+       z.modulo%   = (z.number%*z.maxX%+4)/8
+       IF (z.modulo% MOD 2) <> 0 THEN
+           z.modulo% = z.modulo%+1
+       END IF
+       
+                            PAGE 257
+       
+-----------------------------------------------------------------------------
+       
+       z.size& = z.modulo%*z.height%+z.number%*8+110
+       
+       IF z.baseline%>z.height% THEN
+           z.baseline% = z.height%-1
+       END IF
+           
+       mem.opt&    = 2+0+2^16
+       z.add&      = AllocMem(z.size&,mem.opt&)
+       IF z.add& = 0 THEN ERROR 7
+       POKEL z.add&,z.size&
+       
+       z.add&     = z.add&+4
+       z.data&    = z.add&+100
+       z.loc&     = z.data&+z.modulo%*z.height%
+       IF z.loc&/2<>INT(z.loc&/2) THEN
+           z.loc& = z.loc&+1
+       END IF
+       
+       z.kern&    = z.loc&+4*z.number%
+       z.space&   = z.kern&+2*z.number%
+       z.name&    = z.add&+65
+       
+       POKEL z.add&+10,z.name&
+       POKEW z.add&+18,z.size&-4
+       POKEW z.add&+20,z.height%
+       POKE  z.add&+23,64+32
+       POKEW z.add&+24,z.maxX%
+       POKEW z.add&+26,z.baseline%
+       POKE  z.add&+32,ascii.lo%
+       POKE  z.add&+33,ascii.hi%
+       POKEL z.add&+34,z.data&
+       POKEW z.add&+38,z.modulo%
+       POKEL z.add&+40,z.loc&
+       POKEL z.add&+44,z.space&
+       POKEL z.add&+48,z.kern&
+       
+       '* Fill Name Field.
+       FOR loop1%=1 TO LEN(z.name$)
+           POKE z.name&+loop1%-1,ASC(MID$(z.name$,loop1%,1))
+       NEXT loop1%
+       
+       '* charLoc field
+       FOR loop1% = 0 TO z.number%-1
+           POKEW z.loc&+(4*loop1%)+0,loop1%*z.maxX%
+           POKEW z.loc&+(4*loop1%)+2,maxX%
+       NEXT loop1%
+       
+       '* Link
+       CALL AddFont(z.add&)
+       t&(0)      = SADD(z.name$)
+       font.new&  = OpenFont&(VARPTR(t&(0)))
+       IF font.new& = 0 THEN ERROR 255
+       
+       CALL SetFont(WINDOW(8),font.new&)
+    END SUB
+       
+                                   PAGE 258
+       
+-----------------------------------------------------------------------------
+
+6.  GRAPHIC HISTORY
+
+Obviously, the graphics you have created aren't useful if they disapearthe
+moment you turn off the power to your computer. You need a routine that
+enables you to print out your graphics to a printer.
+
+Most computers require a boring and difficult machine language routine in
+order to do this. The Amiga, however, provides us with system software to
+produse "hardcopies". After you have selected your printer in Preferences,
+you don't have to do much more (if your printer is capable of printing
+graphics). The printer device takes over all the work. It reads the
+graphic image, controls the printer and patterns used for colours. Don't
+confuse the printer device with the printer. The printer device is a
+component of the Amiga operating system that controls the printer.
+
+Before we can print graphics, we must find a way to make contact with the
+printer device. We do this by using the Amigas standard I/O
+(Input/Output), which is managed by the exec library.
+
+The data structure IODRPReq (I?O Dump Rastport Request), which means
+input/output request to print a Rastport, is specifically designed for
+this purpose. First you must fill it with the data that needs to be sent
+to a printer device. The structure appears as follows:
+
+
+       Offset   Type    Description
+      -------------------------------------------------------------------
+     	 +000   Long    Next data structure
+      	 +004	Long	Previous data structure
+     	 +008	Byte	Node-type (5=MESSAGE)
+     	 +009	Byte	Priority (0=normal)
+     	 +010	Long 	Pointer to name
+     	 +014	Long 	Pointer to message port (reply port)
+     	 +018   Word	Command (11 DumpRastPort0)
+     	 +020	Long 	ioDevice
+     	 +024	Long 	ioUnit 
+     	 +028	Word	Command (11=DumpRastPort0)
+     	 +030	Byte	Flag (1=Quick I/O)
+     	 +031	Byte	Error-Nr
+                        1= User cancelled print event
+                        2= No graphic printer connected
+                        3= HAM cannot be inverted
+
+                                PAGE 259
+
+-----------------------------------------------------------------------------
+
+                        4= Print coordinates arew invalid
+                        5= Print dimensions are invalid
+                        6= No memeory for internal calculations
+                        7= No memory for print buffer
+     	 +032	Long	Address of RastPort
+     	 +036	Long	Address of colormap
+     	 +040	Long	Mode  (of Viewport)
+     	 +044	Word	RastPort: X begin (0=normal)
+     	 +046	Word 	RastPort: Y begin (0=normal)
+     	 +048	Word	RastPort: width
+     	 +050	Word	Rastport: height
+     	 +052	Long	Printer: width
+     	 +056	Long	Printer: height
+     	 +060	Word    Special modes
+			1=    Bit 0 = 1:print width in 1/1000 inch
+		        2=    Bit 1 = 1:print height in 1/1000 inch
+			4=    Bit 2 = 1:print width as large as possible
+			8=    Bit 3 = 1:print height as large as possible
+			16=   Bit 4 = 1:print width part of FULL-X
+			32=   Bit 5 = 1:print height part of FULL-Y
+			128=  Bit 7 = 1:X-Y ratio smoothing
+			256=  Bit 8 = 1:low resolution
+			512=  Bit 9 = 1:medium resolution
+			768=  Bits 8+9 = 1:high resolution
+			1024= Bit 10 = 1:highest resolution
+     ---------------------------------------------------------------------
+
+Before you can use this data structure, you must fill most of the data
+fields with the correct values. This includes the pointer to the ReplyPort
+which is an exec message port. The ReplyPort os a sender/receiver between
+the related tasks and, as usual, is also a data structure.
+
+Data structure Message Port/exec/34 Bytes
+
+      Offset	Type	Description
+      --------------------------------------------------------------------
+	+000	Long	next data structure
+	+004	Long	previous data structure
+	+008	Byte	Type (4=MESSAGE PORT)
+	+009	Byte	Priority (0=normal)
+	+010	Long	Pointer to name
+	+014	Byte	Flags
+			PA SIGNAL   =1
+			PA SOFTINT  =2
+			PA IGNORE   =4
+	+015 	Byte	Signal bit
+
+                                PAGE 260
+
+-----------------------------------------------------------------------------
+
+	+016 	LOng 	Pointer to task for signal
+	+020	Long 	first data structure
+	+024	Long 	last data structure
+	+028	Long	second to last data structure
+	+032	Byte	Type
+	+033	Byte	unused
+     ---------------------------------------------------------------------- 	
+
+Once you have correctly initialised both stryctures, you are ready to
+access the printer. The OpenDevice function is responsible for this:
+
+
+       status%=OpenDevice%(name$,unit%,io&,flags%) 	
+       
+       name$: Pointer to zero terminated name string, here:
+	      "printer.device"+CHR$(0).
+       unit%: Device number; not required now, so=0.
+       io&:   Address of the correctly initalised I?O data blocks,here; 
+	      IODRPReq.
+       flag%: not required now, so=0.
+
+This function then returns a status report. If everything worked
+correctly, the returned value is equl to zero. If a value other than zero
+is returned, then we were unable to open a printer. The printer was either
+not connected properly, turned off or was being used by another task.
+Note: When you use LPRINT in your program, the hardcopy the hardcopy
+routine cannot acces the printer.
+
+When the printer is properly opened, the fields ioDevice and ioUnit in the
+IODRPReg structure are filled. The exec command DoIO starts the printing
+function:
+
+      error%=DoIO5(io&)
+      
+	io&	Address of IODRPReg block
+	error%	all ok = 0
+		for error decoding see IODRPReq structure (above),
+		Error field
+
+Now that we have discussed the theory, we will present some examples.
+
+                                PAGE 261
+                                        
+----------------------------------------------------------------------------
+        
+6.1	A SIMPLE HARDCOPY ROUTINE
+
+
+The following is the basic foundation for a hardcopy routine.
+The SUB program Hardcopy prints the contents of the current output window
+(use WINDOW OUTPUT to set).
+
+       "#####################################
+       "#
+       "# Section  6.1
+       "# Program: Hardcopy I
+       "# Date:    11/2/92
+       "# Author:  tob
+       "# Version: 1.0
+       "#
+       "#####################################
+       " Prints the contents of the current Output Window
+       " as graphic hardcopy on a graphic capable printer.
+       Print "Searching for .bmap file..."
+
+
+      "EXEC.library
+      DECALRE FUNCTION AllocMem& LIBRARY
+      DECLARE FUNCTION DoIO% LIBRARY
+      DECLARE FUNCTION OpenDevice% LIBRARY
+      DECLARE FUNCTION AllocSignal% LIBRARY
+      DECLARE FUNCTION FindTask& LIBRARY
+      "FreeMem()
+      "CloseDevice()
+      "FreeSignal()
+      "AddPort()
+      "RemPort()
+
+      LIBRARY "exec.library"
+
+      init:    "* draw something
+               CLS
+               CIRCLE (300,100),100
+	       LINE (10,10)-(200,100),2,bf
+
+	       Hardcopy
+
+               END
+
+      SUB Hardcopt STATIC
+   
+           mem.opt& = 2^0+2^16
+           p.io&    = AllocMem&(100,mem,opt&)
+           p.ports  = p.io&+62
+           IF p.io& = THEN ERROR 7
+     
+           f.windo&   = WINDOW(7)
+	   f.rastport = PEEKL(f.windo&+50)
+              						
+                                PAGE 262
+
+----------------------------------------------------------------------------
+
+      f.height%   = PEEKW(f.windo&+114)
+      f.screen&   = PEEKL(f.windo&+46)
+      f.veiwport% = f.screen&+44  
+      f.colormap& = PEEKL(f.veiwport&+4)
+      f.vp.mode&  = PEEKW(f.veiwport&+32)
+
+      p.sigbit% = Allocsignal% (-1)
+      IF p.sigbit% = -1 THEN
+      PRINT "No Signalbit Free!"
+      CALL FreeMem(p.io&,100)
+      EXIT SUB
+      p.sigtask& = FindTask&(0)
+ 
+      POKE  p.port&+8,4
+      POKEL p.io&+10,p.port&+34
+      POKE  p.port+15,p.sigbit%
+      POKEL p.port&+16,p.sigtask&
+      POKEL p.port&+20,p.port&+24
+      POKEL p.port&+28,p.port&+20
+      POKE  p.port&+34,ASC("P")
+      POKE  p.port&+35,ASC("R")
+      POKE  p.port&+36,ASC("T")
+
+      CALL AddPort(p.port&)
+
+      POKE  p.io+8,5
+      POKEL p.IO+14,p.port&
+      POKEW p.io&+28,11
+      POKEL p.io&+32,,f.rastport
+      POKEL p.io&+36,f.colormaps
+      POKEL p.io&+40,f.vp.mode%
+      POKEW p.io&+48,f.width%
+      POKEL p.io&+50,height%
+      POKEL p.io&+52,width%
+      POKEL p.io&+56,height
+      POKEW p.io&+60,4
+
+      d.names$ = "printer.device"+CHR$(0)
+      status%  = OpenDevice%(SADD(d.name$),0,p.io&,0)
+      IF status%<>0 THEN
+         PRINT"Printer is not free."
+         CALL FreeMem(p.io&,100)
+         CALL FreeSignal(p.sigbit%)
+         EXIT SUB
+      END IF
+
+      ercond% = DoIO%(p.io&)
+
+      CALL CloseDevice(p.io&)
+      CALL RemPort(p.port&)
+      CALL FreeMem(p.io&,100)
+      CALL FreeSignal(p.sigbit%)
+      PRINT "Error Code: ";ercond%
+      END SUB
+
+                                PAGE 263
+
+----------------------------------------------------------------------------
+
+ABOUT THE PROGRAM:
+
+When you print using a black & white printer, the printer device converts
+all colors on the screen into patterns on the printout.
+Different patterns represent different colours. To acheive a white
+background you have to set the colors accordingly:
+
+      PALETTE 0,1,1,1
+      COLOR 1,0
+
+POSSIBLE ERRORS:
+
+No graphic printout. Here is a checklist:
+Waas an error code returned? NOTE:This can take upto 30 seconds.
+
+ERROR CODES:
+
+The error code provides information about the type of error.
+The following codes are possible.
+
+CODE 1: You Interrupted The Print Event
+
+You have intentionally stopped the print. For example, you selected CANCEL
+in the PRINTER TROUBLE requester instead of correcting the problem.
+
+CODE 2: Not A Graphic Printer
+
+The printer you selcted in preferences cannot print graphics(such as a
+daisy wheel printer etc.).
+
+CODE 3: Hold And Modify (HAM)
+
+You cannot invert HAM grphics because of the method used to create their
+colors. See 4.2.2
+
+CODE 4: INVALID PRINT COORDINATES
+
+This error should not occur when you rprogram entries are correct. When it
+does occur, you have probably made a typing error and X and Y coordinates
+are oiutside the RastPort.
+
+CODE 5: Invalid Dimensions
+
+See code 4. The RastPort Width and/or Height is higher than the existing
+RastPort.
+
+Code 6: Out Of Memory
+
+There is not enough memory availab;e to complete the task.
+
+NO ERROR CODES
+
+If you receive No Signalbit Free error message, you have overloaded the
+multitasking system. You will have to wait until another program releases
+a signalbit.
+
+If you receive the Pinter Is Not Free error message, the printer is
+currently being used by another task(LPRINT for example). Another
+possibility is that a task opened a printer and did not close it again.
+The only solution is to reboot the system (reset).
+
+                                 PAGE 264
+
+---------------------------------------------------------------------------
+
+6.2 Hardcopies: enlarging and shrinking
+
+The previous program creates hard copies that are suitable for most users
+needs. However, we have barely utilised the capabilities of the printer
+device. The following hardcopy routine enables you to print a section of a
+window. When this section is sent to the printer, it can either be as
+large as the window or it can reduced or enlarged.
+
+The ¶ characters in the following program signify the end of a BASIC
+program line. Some lines were split when the program was formatted for
+this book.
+
+	"####################################################¶
+	"#¶
+        "# Section:  6.2¶
+        "# Program:  Hardcopy II¶
+        "# Date:     11/2/92¶
+        "# Author:   tob¶
+        "# Version:  1.0¶
+	"#¶
+	"####################################################¶
+ 	¶
+	"Allows you to print any section of a window¶
+        "and enlarge or shrink the printed output"¶
+	¶
+        PRINT" Searching for .bamp file..."¶
+	¶
+        "EXEC-library¶
+        DECLARE FUNCTION AlloMem& LIBRARY¶
+	DECLARE FUNCTION DoIO% LIBRARY¶
+	DECLARE FUNCTION OpenDevice% LIBRARY¶
+	DECLARE FUNCTION AllocSignal% LIBRARY¶
+	DECLARE FUNCTION FindTask& LIBRARY¶
+        "FreeMem()¶
+        "CloseDevice()¶
+        "FreeSignal()¶
+        "AddPort()¶
+        "RemPort()¶
+        ¶
+        LIBRARY "exec.library"¶
+        ¶
+        init:   "* draw something¶
+                CLS¶
+                CIRCLE (300,100),100¶
+                LINE (10,10)-(200,100),2,bf¶
+                ¶
+                "* Colors: black and white contrast¶
+                PALETTE 0,1,1,1¶
+                PALETTE 1,0,0,0¶
+
+                                PAGE 265
+
+-----------------------------------------------------------------------------
+
+                ParameterHardcopy 200,10,200,100,1.2,.5¶
+                ¶
+                END¶
+                ¶
+      	SUB ParameterHardcopy(x%,y%,p.width%,p.height%,f1,f2)
+        STATIC¶
+                mem.opt&    = 2^0+2^16¶
+                p.io&       = Allocmem&(100,mem.opt&)¶
+                p.port      = .pio&+62¶
+                IF p.io&    = 0 TEHN ERROR 7¶
+                
+       ¶
+                f.windo&    = WINDOW(7)¶
+                f.rastport& = PEEKL(f.windo&+50)¶
+                f.width%    = PEEKW(f.windo&+112)¶
+                f.height%   = PEEKW(f.windo&+114)¶
+                f.screen&   = PEEKL(f.windo&+46)¶
+                f.viewport& = f.screen&+44¶
+                f.colormap& = PEEKL(f.veiwport&+4)¶
+                f.vp.mode%  = PEEKW(f.viewport&+32)¶
+                ¶
+                ¶
+                p.sigbit    = AllocSiganal%(-1)¶
+                IF p.sigbit%= p.io -1 THEN
+                   PRINT "No Signalbit Free!"¶
+                   CALL FreeMem(p.io&100)¶
+                   EXIT SUB¶
+                END IF¶
+                p.sigTask&  = FindTask&(0)¶
+                ¶
+                POKE  p.port&+8,5¶
+                POKEL p.port&+10,p.port&+34¶
+                POKE  p.port&+15,p.sigbit%
+                POKEL p.port&+16,p.sigtask&¶
+                POKE  p.port&+20,p.port&+24¶
+                POKEL p.port&+28,p.port&+20¶
+                POKE  p.port&+34,ASC("P")¶
+                POKE  p.port&+35,ASC("R")¶
+                POKE  p.port&+36,ASC("T")¶
+                ¶
+                CALL AddPort (p.port&)¶
+                ¶
+                POKE  p.io&+8,5¶
+                POKEL p.io&+14,p.port&¶
+                POKEW p.io&+28,11¶
+                POKEL p.io&+32,f.RastPort&¶
+                POKEL p.io&+36,f.colormap&¶
+                POKEL p.io&+40,f.vp.mpde%¶
+                POKEW p.io&+44,x
+                POKEW p.io&+46,y
+                POKEW p.io&+48,p.width¶
+                POKEW p.io&+52,p.height¶
+                POKEL p.io&+50,p.width%*f1
+                POKEL p.io&+52,p.height%*f2
+                
+                d.names$ = "printer.device+CHR$(0)¶
+                status%  = OpenDevice$(SADD(d.na.mes),0,p.io&,0)¶
+
+                                PAGE 266
+
+----------------------------------------------------------------------------
+
+                   IF status%<>0 THEN¶
+                   PRINT"Pinter is not free."¶
+                   CALL FreeMem(p.io&,100)¶
+                   CALL FreeSignal(p.sigbit%)¶
+                EXIT SUB
+                ¶
+                ercond% = DoIO%(p.io&)¶
+                ¶
+                CALL CloseDevice(p.io&)¶
+                CALL RemPort(p.port&)¶
+                CALL FreeMem(p.io&,100)¶
+                CALL FreeSignal(.psigBit%)¶
+                PRINT"Error Code: ";ercond%¶
+                END SUB¶
+ 
+Call:           ParameterHardcopy x%,y%,width%,height%,f1,f2
+              
+                x%,y%:   Coordinates of the upper left hand corner of the 
+                         window peice you want to print.
+                width%:  Width of the section in pixels.
+                height%: Height of the section in pixels.
+                f1:      Enlargement factor horizontal.
+                f2:      Enlargement factor vertical.
+
+                                PAGE 267
+
+----------------------------------------------------------------------------
+
+6.3  PRINTING SELECTED WINDOWS.
+
+So far, we have only printed the output from the AmigaBASIC windows.
+However, the printewr device can also print the contents of any
+window(preferences for example). In section 3.1, we showed you how to
+access all of the windows in the system. We will use this knowledge in
+aslightly different way in our next program, ehich will print any selected
+window. To do this, only the name of the window is required. 
+(NOTE:The preference window is named Preferences.)
+
+The ¶ characters in the following porgram signify the end of a BASIC line.
+Some lines were split when formatted for this book.
+
+       "##################################################¶
+       "#¶
+       "# Section: 6.3¶
+       "# Program: Hardcopy III¶
+       "# Date:    11/2/92¶
+       "# Author:  tob¶
+       "# Version: 1.0¶
+       "#¶
+       "##################################################¶
+       ¶
+
+       "Prints the contents of any selected system window for¶
+       "which you know the name, including selected peices,¶
+       "enlarging, and shrinking"¶
+       ¶
+       PRINT "Searching for .bmap file...."¶
+       ¶
+       "EXEC-Library¶
+       DECLARE FUNCTION AllocMem& LIBRARY¶
+       DECLARE FUNCTION DoIO% LIBRARY¶
+       DECLARE FUNCTION OpenDevice% LIBRARY¶
+       DECLARE FUNCTION AllocSignal% LIBARAY¶
+       DECLARE FUNCTION FindTask LIBRARY¶
+       "FreeMem()¶
+       "CloseDevice()¶
+       "FreeSiganl()¶
+       "AddPort()¶
+       "RemPort()¶
+       ¶
+       LIBRARY "exec.library"¶
+       ¶
+       init:   "* here we go¶
+               CLS¶
+               PALETTE 0,1,1,1¶
+               PALETTE 1,0,0,0¶
+ 
+                                PAGE 268
+
+-----------------------------------------------------------------------------
+
+               LIST¶
+               UniveralHardcopy "LIST",0,0200,100,.8,.5¶
+               ¶
+               END¶
+               ¶
+       SUB UniveralHardcopy(na$,x%,p.width%,p.height%,f1,f2)
+       STATIC¶
+             f.windo&   = WINDOW(7)¶
+             f.reg&     = PEEKL(f.windo&+66)¶
+             WHILE¶
+               f.windo& = f.reg¶
+               f.reg&   = PEEKL(f.windo&+66)¶
+             WEND¶
+             ¶
+             finder:¶
+             f.title&   = PEEKL(f.windo&+32)¶
+             check%     = PEEK(f.windo&+count%)¶
+             WHILE check%>0¶
+               check$   = check$+CHR$(check%)¶
+               count%   = count%+1¶
+               check%   = PEEK(f.title&+count%)¶
+             WEND¶
+             founds%    = check$:check$="":count%=0¶
+             IF UCASE$(found$)<>UCASES(na$) THEN¶
+               f.windo& = PEEKL(f.windo&+70)¶
+               IF F.windo&>0 THEN¶
+                 GOTO finder
+               ELSE¶
+                 PRINT"Window does not exist!"¶
+                 EXIT SUB¶
+               END IF¶
+             END IF¶
+
+             mem.opt&   = 2^0+2^16¶
+             p.io&      = AllocMem&(100,mem.opt&)¶
+             p.port     = p.io+62¶
+             IF p.io&   = 0 THEN ERROR 7¶
+       ¶
+             f.rastport& = PEEKL(f.windo&+50)¶
+             f.width%    = PEEKW(f.windo&+112)¶
+             f.height%   = PEEKW(f.windo&+114)¶
+             f.screen&   = PEEKW(f.windo&+46)¶
+             f.veiwport& = f.screen&+44¶
+             f.colormap& = PEEKL(f.veiwport&+4)¶
+             f.vp.mode%  = PEEKW(f.veiwport&+32)¶
+             ¶
+             p.sigBit%   = AllocSinal%(-1)¶
+             IF p.sigBit%= -1 THEN¶
+             PRINT"No Signa1bit Free!"¶
+             CALL FreeMem(p.io&,100)¶
+             EXIT SUB¶
+             END IF¶
+             p.sigTask& = FindTask&(0)¶
+             ¶
+             POKE p.port&+8,4¶
+
+                                PAGE 269
+
+----------------------------------------------------------------------------
+
+             POKEL p.port&+10,p.port&+34¶
+             POKE p.port&+15,p.sigBit%¶
+             POKEL p.port&+16,p.sigTask&¶
+             POKEL p.port&+20,p.port&+24¶
+             POKEL p.port&+28,p.port&+20¶
+             POKE p.port&+34,ASC("P")¶
+             POKE p.port&+35,ASC("R")¶
+             POKE P.port&+36,ASC("T")¶
+             ¶
+             CALL AddPort(p.port&)¶
+             ¶
+             POKE p.io&+8,5¶
+             POKEL p.io&+14,p.port&¶
+             POKEW p.io&+28,11¶
+             POKEL p.io&+32,f.rastport&¶
+             POKEL p.io&+36,r.vp.mode%¶
+             POKEW p.io&+44,x%¶
+             POKEW p.io&+46,y%¶
+             POKEW p.io&+48,p.width%¶
+             POKEW p.io&+50,p.height%¶
+             POKEL p.io&+52,f.widht%*f1¶
+             POKEL p.io&+56,f.height%*f2¶
+       ¶
+             d.name$ = "printer.device"+CHR$(0)¶
+             status% = OpenDevice%(SADD(d.name$),0,p.io&,0)¶
+             IF status% <>0 THEN¶
+               PRINT "Printer Is Not Free."¶
+               CALL FreeMem(p.io&,100)¶
+               CALL FreeSignal(p.sigBit%)¶
+               EXIT SUB¶
+             END IF¶
+             ¶
+             ercond% = DoIO%(p.io&)¶
+             ¶
+             CALL CloseDevice(p.io&)¶
+             CALL RemPort(p.port&)¶
+             CALL FreeMem(p.io&,100)¶
+             CALL FreeSignal(p.sigBit%)¶
+             PRINT "Error Code: ";ercond%¶
+             END SUB¶
+
+                                PAGE 270
+
+----------------------------------------------------------------------------
+
+6.4  Screen Dump - A Complete Screen.
+
+It is also possible to print a screen since it has its own RastPort. The
+following program is very similar to the previous one. Instead of
+requiring the window name, the screen number is required(0 = Workbench
+Screen). This program only functions with the output window is in the
+workbench screen.
+
+The ¶ characters in the following program listing signify the end of a
+BASIC program line. Some lines were split when formatted for this book.
+
+       "#####################################################¶
+       "#¶
+       "# Section:  6.4¶
+       "# Program:  HardCopy III¶
+       "# Date:     11/2/92¶
+       "# Author:   tob¶
+       "# Version:  1.0¶
+       "#¶
+       "#####################################################¶
+       ¶
+       "Prints the contents of any selected system window for¶
+       "which you know the name, including selected pieces,¶
+       "enlarging, and shrinking.¶
+       ¶
+       PRINT "Searching for .bmap file..."¶
+       ¶
+       "EXEC-Library¶
+       DECLARE FUNCTION AllocMem& LIBRARY¶
+       DECLARE FUNCTION DoIO% LIBRARY¶
+       DECLARE FUNCTION OpenDevice% LIBRARY¶
+       DECLARE FUNCTION AllocSigal% LIBRARY¶
+       DECLARE FUNCTION FindTask& LIBRARY¶
+       "FreeMem ()¶
+       "CloseDevice ()¶
+       "FreeSignal ()¶
+       "AddPort ()¶
+       "RemPort ()¶
+       ¶
+       LIBRARY "exec.library"¶
+       ¶
+       init:       "* here we go¶
+                    CLS¶
+                    PALETTE 0,1,1,1¶
+                    PALETTE 1,0,0,0¶
+       ¶
+                    LIST¶
+                    UniversalHardcopy "LIST",0,0,200,100,.8,.5¶
+     
+                                PAGE 271
+
+----------------------------------------------------------------------------
+
+                    END¶
+                    ¶
+       SUB UniversalHardcopy (na$,x%,y%,p.width%,p.height%,f1,f2)
+       STATIC¶
+             f.windo&  =  window(7)¶
+             f.reg&    =  PEEKL(f.windo&+66)¶
+             WHILE f.reg&>0¶
+               f.windo&   =   f.reg&¶
+               f.reg&     =   PEEKL(f.windo&+66)¶
+               WEND¶
+               ¶
+               finder:¶
+               f.title&   =  PEEKL(f.windo&+32)¶
+               check%     =  PEEK(f.title&+count%)¶
+               WHILE check%>0¶
+                 check$   =  check$+CHR$(check%)¶
+                 count%   =  count%+1¶
+                 check%   =  PEEK(f.title&+count%)¶
+               WEND¶
+               found$     =  check$:check$="":count%=0¶
+               IF UCASE$(found$)<>UNCASE$(na$)THEN¶
+                  f.windo&+  =  PEEKL(f.windo&+70)¶
+                 GOTO finder¶
+               ELSE¶
+                 PRINT"Window does not exist!"¶
+                 EXIT SUB¶
+               END IF¶
+            END IF¶
+       ¶
+             mem.opt&  =  2^0+2^16¶
+             p.oi&     =  AllocMem& (100,mem.opt&)¶
+             p.port&   =  p.io&+62¶
+             IF p.io&  =  0 THEN ERROR 7¶
+       ¶
+             f.rastport& = PEEKL (f.windo&+50)¶
+             f.width%    = PEEKW (f.windo&+112)¶
+             f.height%   = PEEKW (f.windo&+114)¶
+             f.screen&   = PEEKL (f.windo&+46)¶
+             f.veiwpoint&= f.screen&+44¶
+             f.colormap& = PEEKL (f.veiwport&+4)¶
+             f.vp.mode%  = PEEKW (f.veiwport&+32)¶
+             ¶
+             ¶
+             p.sigBit%   = AllocSignal%(-1)¶
+             IF p.sigBit%= -1 THEN¶
+               PRINT "signalbit free!"¶
+               CALL FreeMem(p.io&100)¶
+               EXIT SUB¶
+             END IF¶
+             p.sigTask&=FindTask&(0)¶
+             ¶
+             POKE p.port&+8,4¶
+             POKEL p.port&+10,p.port&+34¶
+             POKE p.port&+15,p.sigBit%¶
+
+                                PAGE 272
+
+----------------------------------------------------------------------------
+
+             POKEL p.port&+16,p.sigTask&¶
+             POKEL p.port&+20,p.port&+24¶
+             POKEL p.port&+28,p.port&+20¶
+             POKE p.port&+34,ASC("P")¶
+             POKE p.port&+35,ASC("R")¶
+             POKE p.port&+36,ASC("T")¶
+             ¶
+             CALL AddPort(p.port&)¶
+             ¶
+             POKE p.io&+8,5¶
+             POKEL p.io&+14,p.port&¶
+             POKEW p.io&+28,11¶
+             POKEL p.io&+32,f.rastport&¶
+             POKEL p.io&+36,f.colormap&¶
+             POKEL p.io&+40,f.vp.mode%¶
+             POKEW p.io&+44,x%¶
+             POKEW p.io&+46,y%¶
+             POKEW p.io&+48,p.width%¶
+             POKEW p.io&+50,p.height¶
+             POKEL p.io&+52,f.width%*f1¶
+             POKEL p.io&+56,f.height%*f2¶
+       ¶
+             d.name$ = "printer.device"+CHR$(0)¶
+             status% = OpenDevice% (SADD(d.name$),0,p.io&,0)¶
+             IF status%<>0 THEN¶
+               PRINT "printer is not free."¶
+               CALL FreeMem(p.io&,100)¶
+               CALL FreeSignal(p.sigBit%)¶
+               EXIT SUB¶
+             END IF¶
+             ¶
+             ercond% = DoIO%(p.io&)¶
+             ¶
+             CALL CloseDevice(p.io&)¶
+             CALL RemPort(p.port&)¶
+             CALL FreeMem(p.io&,100)¶
+             CALL FreeSignal(p.sigBit%)¶
+             PRINT "Error Code: ";ercond%¶
+       END SUB¶
+ 
+                                PAGE 273
+
+---------------------------------------------------------------------------
+        
+6.5 MULTI-TASKING HARDCOPY.
+---------------------------
+        
+The Amiga can use two different types of I/O: synchronous and asynchronous.
+Until now, we have only worked with synchronous I/O, which means that our
+program has to wait for the hardcopty to finish. This has both advantages 
+and disadvantages. An advantage is that the program cannot change the 
+drawing while it is being printed, which would cause problems. However,
+waiting for the printer to finish wastes a lot of time.
+        
+Asynchronous I/O can solve this problem by sending the data contained in 
+the printer.device to the printer and immediately return control to the 
+BASIC interpreter. This means that the program does not have to wait for 
+the printer to finish. Although this method is very useful it requires 
+extremely complex programming.
+    
+To demonstrate this programming method, we havejust rewritten the program
+from section 6.1 for asynchronous I/O. Just as before, the HARDCOPY SUB
+program sends the contents of the output window to your printer but, 
+instead, immediately continues with the other tasks.
+        
+A call to the Delete subprogram must be at the end of your program. This 
+routine releases the runnin I/O request, returns memory to the system and
+then closes the printer.
+        
+        '#########################################
+        '#
+        '# Section : 6.5
+        '# Program : Hardcopy V (Multitasking).
+        '# Date    : 04/13/87
+        '# Author  : tob
+        '# Version : 1.0
+        '#
+        '##########################################
+        
+        ' This is a multitasking hardcopy routine, which demonstrates
+        ' all the capabilities of the machine. The program does not have 
+        ' to wait on the printer and can continue working immediately 
+        ' after calling the print. The printing routine continues as a 
+        ' separate task. WARNING: The entire are being printed with 
+        ' these routines is stored temporarily. This requires a LOT of 
+        ' memory.
+        
+                                PAGE 274
+        
+----------------------------------------------------------------------------
+        
+        PRINT "Searching for .bmap files..."
+        
+        'GRAPHICS-library.
+        DECLARE FUNCTION BltBitMap% LIBRARY
+        DECLARE FUNCTION AllocRaster& LIBRARY
+        'FreeRaster()
+        
+        'EXEC-library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        DECLARE FUNCTION OpenDevice% LIBRARY
+        DECLARE FUNCTION AllocSignal% LIBRARY
+        DECLARE FUNCTION FindTask& LIBRARY
+        DECLARE FUNCTION WaitIO% LIBRARY
+        DELCARE FUNCTION CheckIO% LIBRARY
+        'FreeMem()
+        'CloseDevice()
+        'FreeSignal()
+        'AddPort()
+        'RemPort()
+        'SendIO()
+        
+        LIBRARY "exec.library"
+        LIBRARY "graphics.library"
+        
+        init:  '* Draw something.
+            CLS
+            CIRCLE (300,100),100
+            LINE (10,10)-(200,100),2,bf
+            
+            HardCopy
+            
+        demo: '* You could replace this with your own program.
+            WHILE INKEY$ = ""
+                PRINT "Instead of this wait loop you could "
+                PRINT "have a graphic routine that does"
+                PRINT "not have to wait for printing"
+                PRINT "to be completed."
+                PRINT
+                PRINT "Press any key to abort."
+            WEND
+            
+            '* Asynchronous I/O
+            iodelete
+            END
+            
+      SUB Hardcopy STATIC
+            SHARED p.io&, p.sigBit%. f.rastport&
+            SHARED p.port&
+            mem.opt& = 2^0+2^16
+            p.io& = AllocMem&(240,mem.opt&)
+            p.port& = p.io&+62
+            p.rast&  =p.io&+100
+            p.bmap& = p.io&+200
+        
+                                PAGE 275
+        
+----------------------------------------------------------------------------
+        
+        IF p.io& = 0 THEN ERROR 7
+        
+        f.wind&     = WINDOW(7)
+        f.rastport& = PEEKL(f.windo&+50)
+        f.bitmap&   = PEEKL(f.rastport&+4)
+        f.width%    = PEEKW(f.windo&+112)
+        f.height%   = PEEKW(f.windo&+114)
+        f.screen&   = PEEKL(f.windo&+46)
+        f.viewport& = f.screen&+44
+        f.colormap& = PEEKL(f.viewport&+4)
+        f.vp.mode%  = PEEKW(f.viewport&+32)
+        f.x%        = PEEKW(f.bitmap&)*8
+        f.y%        = PEEKW(f.bitmap&+2)
+        f.depth%    = PEEK(f.bitmap&+5)
+        
+        CALL CopyMem(f.rastport&, p.rast&,100)
+        CALL CopyMem(f.bitmap&, p.bmap&, 40)
+            
+        FOR loop1% = 0 TO f.depth%-1
+            p.plane&(loop1%) = AllocRaster(f.x%,f.y%)
+            IF p.plane&(loop1%) = 0 THEN
+                FOR loop2% = 0 TO loop1%-1
+                    CALL FreeRaster(p.plane&(loop2%),f.x%,f.y%)
+                NEXT loop2%
+                CALL FreeMem(p.io&,240)
+                PRINT "Out of Memory!"
+                EXIT SUB
+            END IF
+            POKEL p.bmap&+8+loop1%*4,p.plane&(loop1%)
+        NEXT loop1%
+        tempA$ = SPACE$(f.x%/8)
+        pc% = BltBitMap%(f.bitmap&,0,0,p.bmap&,0,0,f.x%,f.y%,200,255,SADD(tempA$))
+        IF pc% <> f.depth% THEN ERROR 255
+        
+        POKEL p.rast&+4,p.bmap&
+        f.rastport&= p.rast&
+        
+        p.sigBit% = AllocSignal%(-1)
+        IF p.sigBit% = -1 THEN
+            PRINT "No signalbit Free !"
+            CALL FreeMem(p.io&,240)
+            EXIT SUB
+        END IF
+        p.sigTask& = FindTask&(0)
+            
+        POKE  p.port&+8,4
+        POKEL p.port&+10, p.port&+34
+        POKE  p.port&+15, p.sigBit%
+        POKEL p.port&+16, p.sigTask&
+        POKEL p.port&+20, p.port&+24
+        POKEL p.port&+28, p.port&+20
+        POKE  p.port&+34,ASC("P")
+        POKE  p.port&+35,ASC("R")
+        POKE  p.port&+36,ASC("T")
+        CALL AddPort(p.port&)
+        
+                                PAGE 276
+        
+---------------------------------------------------------------------------
+        
+        POKE p.io&+8,5
+        POKEL p.io&+14,p.port&
+        POKEW p.io&+28,11
+        POKEL p.io&+32,f.rastport&
+        POKEL p.io&+36,f.colormap&
+        POKEL p.io&+40,f.vp.mode%
+        POKEW p.io&+48,f.width%
+        POKEW p.io&+50,f.height%
+        POKEL p.io&+52,f.width%
+        POKEW p.io&+56,f.height%
+        POKEW p.io&+60,4
+        
+        d.name$ = "printer.device"+CHR$(0)
+        status% = OpenDevice%(SADD(d.name$),0,p.io&,0)
+        IF status% <> 0 THEN
+            PRINT "Printer not Free"
+            CALL FreeMem(p.io&,240)
+            CALL FreeSignal(p.sigBit%)
+            EXIT SUB
+        END IF
+        
+        CALL SendIO(p.io&)
+        IF PEEK(p.io&+31)<>0 THEN: iodelete
+    END SUB
+        
+    SUB iodelete STATIC
+        SHARED p.io&, p.sigBit%, f.rastport&
+        SHARED p.port&
+        status% = CheckIO%(p.io&)
+        IF status% = 0 THEN
+            PRINT "Printer Still in Use !"
+            PRINT "Please Wait!"
+        END IF
+        ercond%   = WaitIO%(p.io&)
+        l.bitmap& = PEEKL(f.rastport&+4)
+        l.x%      = PEEKW(l.bitmap&)*8
+        l.y%      = PEEKW(l.bitmap&+2)
+        l.depth%  = PEEK(l.bitmap&+5)
+        FOR loop1% = 1 TO l.depth%
+            l.plane& = PEEKL(l.bitmap&+4+4*loop1%)
+            CALL FreeRaster(l.plane&,1.x%,1.y%)
+        NEXT loop1%
+        
+        CALL CloseDevice(p.io&)
+        CALL RemPort(p.port&)
+        CALL FreeMem(p.io&,240)
+        CALL FreeSignal(p.sigBit%)
+        PRINT "Error Code: ";ercond%
+    END SUB
+        
+Since there is not enough room in this book for a step by step program 
+explanation (this would be found in a book about the exec operating system),
+the following is a brief explanation of what the program does:
+        
+                              PAGE 277
+        
+---------------------------------------------------------------------------
+        
+Because your program continues to work after calling HardCopy, the 
+following things happen: the RastPort and bitmap, including all bitplanes
+are copied to a memory buffer. This ensures that the printing will not be 
+disturbed by anything else the program does. Most of this work is performed
+by the exec function CopyMem and the graphic routine BltBitMap (Nite:
+Use Kickstart Version 1.2).
+        
+I/O block and ReplyPort are setup as required. We activate the printing 
+with SendIO.
+        
+The SUB program DELETE is responsible for checking the printer to see if
+it is finished. CheckIO% performs this function. If we receive a value of
+zero, the printer is still printing. WaitIO waits internally for the 
+printing to finish and then sends the ReplyMessage. WaitIO also reads the
+error field of the I/O Block and returns this value to the program.
+        
+Now we return the bitplanes and system structures to the system, close
+the printer and release the SignalBit.
+        
+                                PAGE 278
+        
+----------------------------------------------------------------------------        
+			    > Now load part 4 <
+----------------------------------------------------------------------------        
+	

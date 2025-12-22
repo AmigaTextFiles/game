@@ -1,0 +1,175 @@
+Stack 300000
+
+delete env:userminpl >nil:
+delete env:usermaxpl >nil:
+delete env:usermap >nil:
+delete env:usergamedir >nil:
+delete env:cmakerfile >nil:
+delete env:servertype >nil:
+delete env:qstatold >nil:
+
+execute GameTracker.config >nil:
+
+mount dh0:storage/dosdrivers/pipe >nil:
+mount devs:dosdrivers/pipe >nil:
+
+Requestchoice TITLE "CustomCache by SuRgEoN" BODY "Select game" "Quake" "QuakeWorld" "Heretic2" "Shogo" "Sin" >env:servertype
+
+run <>nil: Play16 $buttonsnd
+
+IF $qstatold EQ 0
+ IF $servertype EQ 0
+ setenv servertype sns 
+ setenv defcachedir "sin"
+ ENDIF
+
+ IF $servertype EQ 1
+ setenv defcachedir "quake"
+ setenv servertype qs
+ ENDIF
+
+ IF $servertype EQ 2
+ setenv defcachedir "quakeworld"
+ setenv servertype qws
+ ENDIF
+
+ IF $servertype EQ 3
+ setenv defcachedir "heretic2"
+ setenv servertype hrs
+ ENDIF
+
+ IF $servertype EQ 4
+ setenv defcachedir "shogo"
+ setenv servertype sgs
+ ENDIF
+ENDIF
+
+IF $qstatold EQ 1
+ IF $servertype EQ 0
+ setenv servertype SNS 
+ setenv defcachedir "sin"
+ ENDIF
+
+ IF $servertype EQ 1
+ setenv servertype QS
+ setenv defcachedir "quake"
+ ENDIF
+
+ IF $servertype EQ 2
+ setenv servertype QW
+ setenv defcachedir "quakeworld"
+ ENDIF
+
+ IF $servertype EQ 3
+ setenv servertype Q2
+ setenv defcachedir "heretic2"
+ ENDIF
+
+ IF $servertype EQ 4
+ echo "Shogo is not supported by version 2.2 of qstat"
+ execute scripts/cleanup.rc
+ endcli
+ ENDIF
+ENDIF
+
+assign qwbhome: ""
+
+Requestfile TITLE "choose cache basisfile" >env:qwbbase DRAWER=qwbhome:cache/$defcachedir
+
+run <>nil: Play16 $buttonsnd
+
+Requestchoice TITLE "CustomCache SuRgEoN" BODY "Select filter:" "dir" "exdir" "map" "capacity" "dir & capacity" >env:superfilter
+
+run <>nil: Play16 $buttonsnd
+
+IF $superfilter EQ 0
+
+   echo "gamedir? (examples: arena, ctf, fortress)"
+   execute scripts/getgamedir.rc
+
+   echo "enter minimum player capacity:"
+   execute scripts/getminplayers.rc
+
+   echo "enter maximum player capacity:"
+   execute scripts/getmaxplayers.rc
+
+   echo "retrieving servers ..."
+   qstat -R -sort gp -Ts filters/cmaker/gamecapacity_filter -f $qwbbase >env:cmakerfile
+
+ENDIF
+
+IF $superfilter EQ 4
+   echo "enter minimum player capacity:"
+   execute scripts/getminplayers.rc
+
+   echo "enter maximum player capacity:"
+   execute scripts/getmaxplayers.rc
+   echo "retrieving servers ...."
+
+   qstat -R -sort gp -Ts filters/cmaker/capacity_filter -f $qwbbase >env:cmakerfile
+
+ENDIF
+
+IF $superfilter EQ 1
+
+   echo "gamedir? (examples: arena, ctf, fortress)"
+   execute scripts/getgamedir.rc
+   echo "retrieving servers ...."
+
+   qstat -R -sort gp -Ts filters/cmaker/gamedir_filter -f $qwbbase >env:cmakerfile
+
+ENDIF
+
+IF $superfilter EQ 2
+
+   echo "gamedir to exclude? (examples: arena, ctf, fortress)"
+   execute scripts/getexgamedir.rc
+   echo "retrieving servers ...."
+
+   qstat -R -sort gp -Ts filters/cmaker/exgamedir_filter -f $qwbbase >env:cmakerfile
+
+ENDIF
+
+IF $superfilter EQ 3
+
+   echo "mapname? (examples: dm4, start, death32c)"
+   execute scripts/getmapname.rc
+   echo "retrieving servers ...."
+
+   qstat -R -sort gp -Ts filters/cmaker/map_filter -f $qwbbase >env:cmakerfile
+
+ ENDIF
+
+Requestchoice TITLE "CustomCache by SuRgEoN" BODY "select option" "save list" "new filter" "quit" >env:superfilter
+
+run <>nil: Play16 $buttonsnd
+
+IF $superfilter EQ 0
+   execute scripts/cleanup.rc
+   endcli
+ENDIF
+ 
+IF $superfilter EQ 1
+
+Requestfile >env:cmakerfiledest TITLE "choose cache directory" DRAWER=qwbhome:cache/$defcachedir
+
+   echo "type the name of the generated cache-file:"
+   execute scripts/getfile.rc
+
+   echo "processing list ..."
+   EXECUTE env:cmakerfile
+   WAIT SEC 1
+   TYPE PIPE:cmaker >ram:cachefile
+   echo "saving $Input to $cmakerfiledest"
+   RENAME ram:cachefile TO ram:$Input
+   COPY ram:$Input $cmakerfiledest
+   DELETE ram:$Input >nil:
+   execute scripts/cleanup.rc
+
+ENDIF
+
+IF $superfilter EQ 2
+   execute scripts/cleanup.rc
+   execute CustomCache
+ENDIF
+

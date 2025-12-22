@@ -1,0 +1,10 @@
+	xref	gs_open_sound
+	xref	gs_close_sound
+	xref	gs_start_sound
+	xref	gs_stop_sound
+	xref	gs_set_volume
+	xref	gs_set_period
+	xref	gs_load_raw_sound
+	xref	gs_load_iff_sound
+	xref	gs_free_sound
+	xref	gs_sound_check

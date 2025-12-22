@@ -1,0 +1,126 @@
+/******************************\
+** Spaces v1.0 for Solitarexx **
+**    by Michal Szafranski    **
+\******************************/
+OPTIONS RESULTS
+
+tex = '"Spaces v1.0"'
+win = '"We Have a Winner"'
+ADDBUTTON 0 10 "Start"
+ADDCYCLE 1 6 '0|1|2|3|4|5' 2 'Reshuffles' 12
+ADDTEXT 4 24 tex 6
+ADDBUTTON 12 10 "Abort"
+ADDBUTTON 13 12 'Reshuffle'
+ADDTEXT 14 30 tex 6
+SELECTGUI 1
+SCREENSIZE 5 0 13 0
+DO i = 0 TO 51
+	NEWSTACK i 0 0 (i//13) (i%13)
+	stack.i = RESULT
+END
+NEWSTACK 52 0 1 0 4
+deck = RESULT
+NEWSTACK 53 0 1 12 4
+waste = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	SETGADGET 14 STR tex
+	CLEANUP deck
+	SELECTGUI 4
+	GETGADGET 1
+	shuff = RESULT
+	fin. = 0
+	CALL DODECK
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		SELECT
+		WHEN act = 1 THEN EXIT
+		WHEN act = 2 & sid < 54 & card > 0 THEN CALL DOMOVE
+		WHEN act = 3 & stack = 13 & shuff>0 THEN CALL DOSHUFFLE
+		WHEN act = 3 & stack = 12 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+		OTHERWISE ERRBEEP
+		END
+	END
+RETURN
+DODECK:
+	DO jj = 0 TO 3
+		DO ii = fin.jj TO 12
+			i = 13*jj+ii
+			CARDSELECT deck 1
+			PARSE VAR RESULT kol.i war.i .
+			mm = stack.i
+			IF war.i = 0 THEN DO
+				mm = waste
+				kol.i = -1
+			END
+			MOVECARDS deck mm REVERSE
+		END
+	END
+RETURN
+DOMOVE:
+	i = sid
+	l = (sid+51)//52
+	ok = 0
+	DO WHILE ok = 0 & i~= l
+		i = (i+1)//52
+		IF war.i = 0 THEN DO
+			pos = i//13
+			IF pos=0 & war.sid = 1 THEN ok = 1
+			ELSE IF pos>0 THEN DO
+				ip = i-1
+				IF war.sid - war.ip = 1 & kol.ip = kol.sid THEN ok = 1
+			END
+		END
+	END
+	IF ok=1 THEN DO
+		war.i = war.sid
+		kol.i = kol.sid
+		kol.sid = -1
+		war.sid = 0
+		MOVECARDS stack stack.i
+		CALL CHECK
+	END
+	ELSE ERRBEEP
+RETURN
+DOSHUFFLE:
+	shuff = shuff-1
+	DO jj = 0 TO 3
+		DO ii = fin.jj TO 12
+			i = 13*jj+ii
+			CARDSELECT stack.i 1
+			MOVECARDS stack.i deck REVERSE
+		END
+	END
+	CARDSELECT waste 4
+	MOVECARDS waste deck REVERSE
+	SHUFFLECARDS deck
+	CALL DODECK
+	CALL CHECK
+RETURN
+CHECK:
+	fin = 0
+	DO jj = 0 TO 3
+		p = 13*jj
+		ii = 0
+		i = p
+		DO WHILE kol.i=kol.p & war.i=ii+1
+			i = i+1
+			ii = ii+1
+		END
+		fin.jj = ii
+		fin = fin+fin.jj
+	END
+	IF fin = 48 THEN SETGADGET 14 STR win
+RETURN

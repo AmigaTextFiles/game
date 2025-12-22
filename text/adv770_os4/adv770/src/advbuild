@@ -1,0 +1,239 @@
+#!/bin/sh
+#
+# advbuild for Linux/Unix. Copyleft Mike Arnautov, 09 Mar 2003.
+#
+# The C sources can be built into a basic executable (no readline,
+# no Glk) by simply compiling the lot into an executable, with an ANSI
+# C compiler. The purpose of this script is to build a Glk version if 
+# possible, failing that a readline one, if possible, and failing that
+# just simply compile the lot as indicated above. 
+#
+# Usage: ./advbuild [source_dir [target_dir [DEBUG]]]]
+#
+# ====== This is a Linux/Unix shell script for building an A-code ======
+# ====== advneture from derived C sources. It attempts to locate  ======
+# ====== and use a Glk library, in order to build an X-windows    ======
+# ====== executable. Failing that, it will attempt to build a     ======
+# ====== an executable which supports command history and editing ======
+# ====== (using GNU readline). Failing that, it will build just a ======
+# ====== plain "dumb" executable.                                 ======
+#
+# ====== Prepend the script invocation command with GLK=NO and/or ======
+# ====== READLINE=NO to suppress the corresponding functionality. ======
+#
+# *********************** GENERIC DEFINITIONS **************************
+#
+# Change the CC definition as appropriate.
+#
+CC=gcc
+#
+# INCDIRS specifies the "usual" list in which to look for header files.
+#
+INCDIRS="/usr/include /usr/local/include $HOME/include ./include $HOME ."
+#
+# **************************** GLK SECTION *****************************
+# 
+# ====== You may wish to tinker with variable in this section if  ======
+# ====== you have an implementation of the Glk library installed. ======
+#
+# GLKLIB defines what Glk library you have, if you have one. If found, 
+# it will be prepended with -l and added to the compilation/linking
+# command line.
+#
+GLKLIB=xglk
+#
+# GLKINC is the name of the Glk header file, which you should have
+# (somewhere) if you have a version of the Glk library installed.
+#
+GLKINC=glk.h
+#
+# LIBDIRS specifies the list of possible locations of the Glk library.
+#
+LIBDIRS="/usr/lib /usr/local/lib $HOME/lib $HOME/xglk ./xglk ../xglk ."
+#
+# INCGLK is INCDIRS, expanded to include a few more possible locations
+# for Glk.
+#
+INCGLK="$INCDIRS $HOME/xglk ./xglk ../xglk"
+#
+# XLIBS is a list of likely locations for the X library.
+#
+XLIBS="/usr/lib/X11 /usr/lib/X11R6 /usr/X11R6/lib"
+#
+# ************************** READLINE SECTION **************************
+#
+# ====== Definitions in this section come into play if you do not ======
+# ====== Glk, but do have the readline and ncurses libraries.     ======
+#
+READLINELIB=readline
+CURSESLIB=ncurses
+#
+# INCREADLINE specifies the possible locations of the readline.h and
+# history.h header files.
+#
+INCREADLINE="$INCDIRS /usr/include/readline /usr/local/include/readline"
+INCREADLINE="$INCREADLINE $HOME/readline ./readline ../readline"
+#
+# ******************* Now for the actual script... *********************
+#
+SOURCE="${1:-.}"
+TARGET="${2:-.}"
+DEBUG="${3:+-DLOG -DDEBUG -g}"
+#
+# Do we actually have something that look like adventure C source?
+#
+if [ ! -r "$SOURCE/adv01.c" -o ! -r "$SOURCE/adv0.h" ]; then
+   [ "$SOURCE" = '.' ] && SOURCE="current directory" || \
+                          SOURCE="directory $SOURCE"
+   echo
+   echo The $SOURCE does not appear to contain complete C sources.
+   echo
+   exit
+fi
+#
+# Work out the game name.
+#
+   NAME="`grep '\.dat' $SOURCE/adv1.h`"
+   RIFS="$IFS"
+   IFS="\"."
+   set -- $NAME
+   IFS="$RIFS"
+   NAME=${2:-adventure}
+#
+echo
+echo Building $NAME.
+#
+# Try for Glk, unless we are told not to.
+#
+if [ "$GLK" != "NO" ]; then
+   GLK=NO
+   echo
+   echo Searching for Glk library...
+   for dir in $LIBDIRS; do
+      if [ -r $dir/lib$GLKLIB.a -o -r $dir/lib$GLKLIB.so ]; then
+         [ "$dir" = "/usr/lib" ] && GLK='' || GLK=" -L$dir"
+         GLK="-DGLK$GLK -l$GLKLIB"
+         [ $GLKLIB = 'xglk' ] && GLK="$GLK -DXGLK"
+         break
+      fi
+   done
+   if [ "$GLK" = "NO" ]; then
+      echo Unable to find $GLKLIB - cannot build Glk-enabled executable.
+   fi
+fi
+#
+# If found Glk library, look for the Glk header file.
+#
+if [ "$GLK" != NO ]; then
+   INC=NO
+   echo Searching for Glk header file $GLKINC...
+   for dir in $INCGLK; do
+      if [ -r $dir/$GLKINC ]; then
+         [ "$dir" = "/usr/include" -o "$dir" = "/usr/local/include" ] || \
+            GLK="-I$dir $GLK"
+         INC=YES
+         break
+      fi
+   done
+   if [ "$INC" = "NO" ]; then
+      echo Unable to find $GLKINC - cannot build Glk-enabled executable.
+      GLK=NO
+   fi
+fi
+#
+# If OK so far, look for the X library.
+#
+if [ "$GLK" != "NO" ]; then
+   X11=NO
+   echo Searching for X11 library...
+   for dir in $XLIBS; do
+      if [ -r $dir/libX11.a -o -r $dir/libX11.so ]; then
+         X11=YES
+         GLK="$GLK -L$dir -lX11"
+         break
+      fi
+   done
+   if [ "X11" = "NO" ]; then
+      GLK=NO
+      echo Unable to find libX11 - cannot build Glk-enabled executable.
+   fi
+fi
+#
+# If all bits found for Glk, we don't want the readline stuff.
+#
+[ "$GLK" = "NO" ] && GLK='' || READLINE=NO
+#
+# If we failed with Glk, try for readline...
+#
+if [ "$READLINE" != "NO" ]; then
+   GLK=''
+   READLINE=NO
+   CURSES=NO
+   echo
+   echo Searching for $READLINELIB and $CURSESLIB libraries...
+   for dir in $LIBDIRS; do
+      if [ -r $dir/lib$READLINELIB.a -o -r $dir/lib$READLINELIB.so ]; then
+         [ "$dir" = "/usr/lib" ] && READLINE='' || READLINE=" -L$dir"
+            fi
+      if [ -r $dir/lib$CURSESLIB.a -o -r $dir/lib$CURSESLIB.so ]; then
+         [ "$dir" = "/usr/lib" ] && CURSES='' || CURSES=" -L$dir"
+      fi
+   done
+   [ "$READLINE" = "NO" ] && \
+      echo Unable to find lib$READLINELIB - cannot build readline-enabled executable.
+   [ "$CURSES" = "NO" ] && \
+      echo Unable to find lib$CURSESLIB - cannot build readline-enabled executable.
+   [ "$READLINE" = "$CURSES" ] && CURSES=''
+   [ "$READLINE" != "NO" -a "$CURSES" != "NO" ] && \
+      READLINE="-DREADLINE$READLINE$CURSES -l$READLINELIB -l$CURSESLIB"
+fi
+#
+# If readline and ncurses libraries found, look for readline header files.
+#
+if [ "$READLINE" != "NO" ]; then
+   echo Searching for readline header files...
+   INCRDL=NO
+   INCHST=NO
+   for dir in $INCREADLINE; do
+      if [ -r $dir/readline.h ]; then
+         [ "$dir" = "/usr/include" ] && INCRDL='' || INCRDL=" -I$dir"
+      fi
+      if [ -r $dir/history.h ]; then
+         [ "$dir" = "/usr/include" ] && INCHST='' || INCHST=" -I$dir"
+      fi
+   done
+   [ "$INCRDL" = "NO" ] && \
+      echo Unable to find readline.h - cannot build readline-enabled executable.
+   [ "$INCHST" = "NO" ] && \
+      echo Unable to find history.h - cannot build readline-enabled executable.
+   [ "$INCHST" = "$INCRDL" ] && INCHST=''
+   [ "$INCRDL" != "NO" -a "$INCHST" != "NO" ] && \
+      READLINE="$READLINE$INCRDL$INCHST"
+fi
+#
+# Are we building a readline executable?
+#
+if [ "$READLINE" = "NO" ]; then
+   READLINE=''
+fi
+#
+# Say what we are about to do...
+#
+echo
+[ "$GLK" != '' ] && echo Creating Glk-enabled executable...
+[ "$READLINE" != '' ] && echo Creating readline-enabled executable...
+[ "$GLK$READLINE" = '' ] && echo Creating non-Glk, non-readline executable...
+case "$TARGET" in
+   .)  TRG=.;               TARGET=''         ;;
+   /*) TRG="$TARGET";       TARGET="$TARGET/" ;;
+   *)  TRG=`pwd`/"$TARGET"; TARGET="$TARGET/" ;;
+esac
+#
+# Do it!
+#
+cd $SOURCE
+$CC *.c -o "$TRG/$NAME" $DEBUG $GLK $READLINE && echo && \
+   echo Executable $TARGET$NAME created.
+echo
+#
+############################# End of script #############################

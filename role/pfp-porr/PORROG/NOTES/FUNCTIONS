@@ -1,0 +1,196 @@
+July 2004:
+Making a list of the various functions in Porrog. *Partly* this is in
+case other people want to hack on it a bit, but to a significant extent,
+it's so I can keep track of them all! A lot of functionality has ended
+up *split* into lots of small functions that do parts of each action.
+
+eg: Picking something up involves a wrapper function that calls any
+sub-functions, after first counting how many items are on the floor,
+giving an error and returning if there's none, prompting the user if
+there's several, and picking the only item if there's one. The function
+then calls a function for removing the relevant item from the floor of
+the dungeon, and then calls another function for adding the item to
+the user's inventory. There's equivalent functions for creating an item,
+placing an item on the floor, removing an item from the player's
+inventory, adding an item to or removing from a monster's inventory,
+etc etc etc.
+
+These primitive functions make it far easier to make lots of more
+complex functions. However, it ends up that there's lots and lots of
+functions, with various funny names. As the naming scheme has changed
+in the middle of coding (I soon decided that some_function_name got
+kind of clunky in certain circumstances), it gets evven harder to
+remember what everything's called. Some functions have been changed
+to the new scheme, many haven't.
+
+Please note that this list is probably not going to be extensive for
+quite a while. But it's a start.
+
+======================================================================
+
+GENERAL SUPPORT FUNCTIONS:
+==========================
+
+bugger()                     crash.c,crash.h
+  Places debugging info in the bug log (a large ringbuffer), with a
+  long int to describe the topics relevant to the message, and an
+  enumeration of the significance of the message (eg: just plain debug
+  info, a warning, an error, or a *SERIOUS* error).
+  I forget whether the serious errors automatically call crash or not.
+
+crash()                      crash.c,crash.h
+  Ends the game with an error message based on the enumeration given.
+  Not very good really.
+
+UI FUNCTIONS:
+=============
+
+show_messages()               ui.c,ui.h
+  Displays given message in message area of screen, and places it in the
+  message ring buffer too. Can prompt the user to press SPACE when the
+  area overflows.Passing a NULL pointer resets the message area (so it
+  starts again at the top when the *next* message comes in), but has no
+  effects on the ring buffer however.
+
+ITEM FUNCTIONS:
+===============
+
+apply_container()            ui.c,apply.h
+  Complex wrapper/UI function, prompts for action with container, etc
+
+can_go_in_container()        apply.c,apply.h
+  Checks if item *could* go in specified container. *Used* to try putting
+  it in, but this was *bad*. See function-splitting arguments above, but
+  also it caused problems.
+
+put_in_container()           apply.c,apply.h
+  Puts specified item in specified container. Doesn't check if this is
+  possible, just does it.
+
+remove_from_container()      apply.c,apply.h
+  Removes specified item from specified container. If item isn't in
+  container, crashes with error.
+
+
+GENERAL ITEM FUNCTIONS:
+=======================
+
+apply_main()                 apply.c,apply.h
+  A wrapper/UI function, picks appropriate handler based on item type.
+
+i_init()                     i_init.c,item_p.h
+  Create all item types. Must be called once, at beginning of game.
+
+p_init_inv()                 item.c,item_p.h
+  Sets up player inventory. Forget details.
+
+firstUnusedInvletter()     item.c,item_p.h
+  Returns first unused inventory letter, quickly and efficiently.
+  (returns space/ASCII 32 if inventory all full)
+
+isInvletterAvailable()       item.c,item_p.h
+  Checks if a *specific* inventory letter is available.
+
+tagInvletterUsage()        item.c,item_p.h
+  State whether inventory letter is available or not. See header for
+  proper semantics.
+
+newItem()                   item.c,item_p.h
+  Creates a new item of given type and quantity, with no location.
+
+freeItem()                  item.c,item_p.h
+  Destroys an item. Does same to contents if a container. *does not*
+  remove item from inventory or dungeon, etc!
+
+newItemtype()               item.c,item_p.h
+  Creates a new object type, using preallocated space. Not actually all
+  that useful as it goes, but used anyway.
+
+push_itype()                 item.c,item_p.h
+  Creating item type, places new type onto per-group stack of item types.
+
+sortInventoryGroup()         item.c,item_p.h
+  returns relative order of items, using perl semantics. Used for listing
+  items in groups rather than just in heap order. Is this used yet??
+
+getItemtypeByProbability()   item.c,item_p.h
+  picks an itemtype from group based on roll given and the individual
+  predetermined probabilities of each type in the group.
+
+getItemtypeByName()       item.c,item_p.h
+  picks an itemtype by name. If group that type is in is given, can
+  search faster.
+
+skimItem()                  item.c,item_p.h
+  removes given item from heap on the floor; also removes item from the
+  level-wide item list (which is used for placing items on the map when
+  level is reentered). Item must be there!
+
+placeItem()                 item.c,item_p.h
+  places given item somewhere on the floor, and adds it to the level-wide
+  item list.
+
+nextItemByGroupThenList()    item.c,item_p.h
+  works out which item in the given list would follow the given item if
+  list is to be sorted into groups. See header for details.
+
+describe_item()              item.c,item_p.h
+  gives detailed name of item
+
+item_basename()              item.c,item_p.h
+  similar to above, but gives more generic name of item, suitable for use
+  when prepending "the", etc (although AFAICT you could also use the
+  describe_item function for that too)
+
+combine_items()              item.c,item_p.h
+  I DO NOT KNOW IF THIS STILL EXISTS!
+
+combinableItem()            item.c,item_p.h
+  Checks if given item could be combined with an item in the given heap.
+  If so, returns that item. Caller must do any combining necessary, if
+  that's even appropriate to the situation (it isn't *always*)
+
+isinclass()                 item.c,item_p.h
+  Checks if given item could be considered part of given class.
+
+[replace_items(), add_room_items() are considered map building funcs]
+
+
+EQUIPMENT FUNCTIONS:
+====================
+
+classify_equipspace()        equip.c,equip.h
+  Works out which slot (if any??) specified item would use
+
+p_has_equipped()             equip.c,equip.h
+  Returns 1 if item is currently equipped.
+
+p_equip()                    equip.c,equip.h
+  Not sure if this is still in use. Equipment code went through a lot
+  of changes and I was never quite sure what the design ought to be :(
+
+p_unequip()                  equip.c,equip.h
+  Again, not sure if this is still used.
+
+p_wield()                    ...,player_p.h
+  ??? Doesn't exist. Became p_equip, which I don't think is used anyway.
+
+p_trywield()                 player.c,player_p.h
+  Prompts player for item to wield, tries to equip if possible.
+
+p_trywear()                  player.c,player_p.h
+  Prompts player for item to wear, tries to equip if possible.
+
+p_tryunwield()               player.c,player_p.h
+  Prompts player for item to unwield, tries to remove if possible.
+  Doesn't exist?! This is because of trying to mimic Nethack's use
+  of "-" to indicate "wield nothing"
+
+p_tryunwear()                player.c,player_p.h
+  Prompts player for item to take off, tries to remove if possible.
+
+
+DUNGEON CREATION FUNCTIONS:
+===========================
+
+...

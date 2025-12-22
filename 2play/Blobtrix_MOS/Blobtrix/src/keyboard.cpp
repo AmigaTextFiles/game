@@ -1,0 +1,192 @@
+/*
+    Copyright (c) 2004-2005 Markus Kettunen
+
+    This file is part of Blobtrix.
+
+    Blobtrix is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Blobtrix is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Blobtrix; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+#include "keyboard.h"
+
+keyboard::keyboard() {
+}
+
+keyboard::~keyboard() {
+}
+
+void keyboard::GotQuit() {
+	fprintf (stderr, "Quitting..\n");
+	Window.ToWindowed();
+	exit(1);
+}
+
+bool keyboard::Hold(Uint16 key){
+	keys=SDL_GetKeyState(NULL);
+	if (keys[key]) return true;
+	else return false;
+}
+
+void keyboard::HandleInterrupts() {
+	keys=SDL_GetKeyState(NULL);
+	while (SDL_PollEvent(&Event)) {
+		if (Event.type == SDL_QUIT) {
+			GotQuit();
+		}
+		if (keys[SDLK_ESCAPE] && keys[SDLK_F10]) {
+			GotQuit();
+		}
+		if ( keys[SDLK_ESCAPE] && keys[SDLK_LCTRL] ) {
+			Window.Iconify();
+		}
+		if ( Pressed(SDLK_F12) ) {
+			Window.ToggleFullscreen();
+		}
+	}
+}
+
+void keyboard::ResetEvents() {
+	SDL_PumpEvents();
+	HandleInterrupts();
+}
+
+bool keyboard::KeyPressed() {
+	while (SDL_PollEvent(&Event)) {
+		if (Event.type == SDL_KEYDOWN) return 1;
+	}
+	return 0;
+}
+
+void keyboard::WaitForKeyPress() {
+	while (!KeyPressed()) {
+		HandleInterrupts();
+	}
+}
+
+void keyboard::ResetReleased() {
+	keys=SDL_GetKeyState(NULL);
+	for (int i=0; i<SDLK_LAST; i++) {
+		keydown[i]=false;
+	}
+}
+
+void keyboard::ResetDouble() {
+	for (int i=0; i<SDLK_LAST; i++) {
+		keydouble[i]=0;
+	}
+}
+
+void keyboard::ResetAll() {
+	ResetReleased();
+	ResetDouble();
+}
+
+int keyboard::GetAscii() {
+
+	SDL_PumpEvents();
+
+	while (SDL_PollEvent(&Event)) {
+		if (Event.type == SDL_QUIT) {
+			GotQuit();
+		}
+
+		if (keys[SDLK_ESCAPE] && keys[SDLK_F10]) {
+			GotQuit();
+		}
+		if ( keys[SDLK_ESCAPE] && keys[SDLK_LCTRL] ) {
+			Window.Iconify();
+		}
+		if ( Pressed(SDLK_F12) ) {
+			Window.ToggleFullscreen();
+		}
+
+		if (Event.type == SDL_KEYDOWN) {
+			if ( (Event.key.keysym.unicode & 0xFF80) == 0 ) { // 1111111110000000
+			 	return Event.key.keysym.unicode & 0x7F; // 0000000001111111
+			}
+			else {
+				switch (Event.key.keysym.unicode) {
+					case 0xC5:/* Å */
+						return 127;
+					case 0xC4:/* Ä */
+						return 128;
+					case 0xD6:/* Ö */
+						return 129;
+					case 0xE5:/* å */
+						return 130;
+					case 0xE4:/* ä */
+						return 131;
+					case 0xF6:/* ö */
+						return 132;
+					default:
+						return 0;
+
+				}
+
+
+			}
+		}
+	}
+
+	return 0;
+}
+
+
+int keyboard::Released(Uint16 key) {
+	if (keys[key]) {						// if was pressed, but WAS pressed -> click
+		if (!keydown[key]) {			// if pressed first time, report it with -1.
+			keydown[key]=true;
+			return -1;
+		}
+	} else {
+		if (keydown[key]==true) {
+			keydown[key]=false;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+bool keyboard::Pressed(Uint16 key) {
+	SDL_PumpEvents();
+
+	if (key == SDLK_NUMLOCK || key == SDLK_CAPSLOCK || key == SDLK_SCROLLOCK) return 0;
+
+	if (keys[key]) {						// if pressed, but was NOT pressed -> click
+		if (keydown[key]==false) {
+			keydown[key]=true;
+			return 1;
+		}
+
+		/* To make it repeat if pressed for a long time */
+		else keydown[key]++;
+
+		if (keydown[key]>=REPEATDELAY1) {
+			keydown[key]-=REPEATDELAY2;
+			return 1;
+		}
+	} else {
+		keydown[key]=false;
+	}
+	return 0;
+}
+
+bool keyboard::Double(Uint16 key) {
+	if (Pressed(key)) keydouble[key]++;
+	if (keydouble[key]==2) {
+		keydouble[key]=0;
+		return 1;
+	}
+	return 0;
+}

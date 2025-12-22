@@ -1,0 +1,190 @@
+(Codename Porrog)
+
+(Details of Porrog's RNG design, was in IDEA, but moved out)
+
+
+RNG
+===
+
+As a variant on the shuffly RNGs I've seen here and there for things like
+HP dice:
+For each type of dice (d3 (artificial), d4,d5,d6,d10,d12,d20), we create
+a table (actually, I think maybe we create 2 separate ones?)
+
+For dX, we have, er, 6? runs of numbers from 1 to X.
+This means for d3 we at least have an 18 number long table.
+
+Then, we shuffle the table thoroughly. We shan't discuss shuffling algo's
+here tho.
+
+I don't think we really want to have 2 tables, it probably isn't better
+than having one big table that's well shuffled. Could consider the
+2-tables concatenated model as a shuffling algorithm in itself. So ignore.
+
+Now, cut our big table of dX into sections 3 entries long- so for d20,
+for example, we should have... 40 sections? Whatever that number of
+sections *is*, we call N.
+Well, we remember our table such that we can access each section by
+number.
+
+Now, 5 times we generate a list of N random numbers- probably not scaled,
+but as they are. Only restriction is that if any number in that list was
+in the list before, we pick another number, so that list is N *different*
+numbers. Now, we change those numbers in that list to fit within the
+range 1...N, such that the smalles number becomes 1 and the largest N.
+This is in effect, a shuffle of sorts.
+We store those 5 lists as well, for each dX.
+
+So, for each dX, we have a table of N sections that are each 3 numbers long,
+and 5 lists of numbers between 1 and N.
+
+To generate our first random number, we pick a list (1 to 5), and look at
+the first number in that list. We use that as an index into a section
+from the table, and read the first number from the section. That is our
+roll.
+Next roll, we get the next number from the section. Then the next. Then,
+we find the next number in the list, as yet another index to a section
+from the table, and get the first number from the section. This continues
+until all of the sections have been used (which we notice as we will have
+finished the list). Then, we pick a random number 1 to 4, add it to the
+current list number, and modulus it to get a new list that is not the
+current one (actually, modulus would require lists numbered 0 to 4 rather
+than 1 to 5). Thus, a nice new sequence.
+
+I like that.
+Details should probably be tweaked. Length of section being 3 makes sense.
+More would make short patterns more noticable, but sections 2 entries long
+would be stupid and pointless. However, number of sections (N) probably
+doesn't want to be too high- it just makes the chance of *long* patterns
+recurring more likely. A better choice is to have a larger number of lists
+(more than 5).
+
+Note that if you want to simulate rolling 2dX, you should do so with 2
+sets of pointers (ie, don't just get a roll and then get another roll
+out of the same black box. Use 2 separate black boxes). The 1st roller
+should be the one that is normally used by default whereas the 2nd
+should be used for various different 2-dice rolls, This should completely
+stop any chance of certain numbers always (or never) coinciding, which
+could easily happen if rolling with the same set of pointers.
+
+I'm going to implement this (or skeleton for it) in dXrng.c
+
+
+FURTHER Thought later on:
+=========================
+
+
+ The reason we'd want several lists (*had* said that we'd prolly want
+more than 5 because 5 lists==5 roll sequences) was that each list
+described one immutable series that, whilst *fair* (in that each
+number would have equal frequency within the list) and pretty damn
+random in structure, might perhaps be recognisable by anyone who could
+actually see the roll, such that having seen a certain number of rolls
+in the sequence they could then predict the whole of the rest of the
+sequence. Yes, this *is* a tad unlikely, and yes, it's only for a
+game, but it is an issue of sorts.
+
+Then it suddenly dawned on me: We can keep a small number of lists like
+maybe 5 as before, but whenever we start a new list, we also generate
+a random number from 0 to N-1 which we call S_offset, possibly a random
+number from 0 to 2, which we call E_offset, and maybe even a random
+number from 0 to X-1, which we call R_offset. Again, these random numbers
+are only generated when we start on a new sequence list, *NOT* for
+each roll we make.
+Now, when we go through our list, we add S_offset to the items in the list
+and modulo the result to get a new index to a section, so that each time
+we get a new list, we end up with a very new seqence of sections, giving
+a total of 5N possible sequences (although technically these sequences
+might not all be unique). Nonetheless, some of the sections in the
+tables might turn out to be fairly recognisable. Hence, we can use
+E_offset as an offset into the section, such that if E_offset is 2,
+we return the last entry, then the first, then the second, from the
+section; furthermore, we can use R_offset to add to the number read from
+the section and modulus, so we end up with a whole new set of numbers
+from the sections, but still with the same fairness!
+
+In total, this means that with just a reasonably sized set of dX tables
+and a few (as I say, just the 5, or maybe less) section sequence lists,
+we can get SERIOUSLY random and unpredictable (yet still fair) roll
+sequences, only requiring that we get 3 random numbers from the system
+every 6X rolls. Oh, and of course we need a ream of reasonably random
+numbers from the system to shuffle the roll tables and produce the
+sequnce lists, right at the beginning of the game.
+
+As described in the source, we don't have any d3 or d5, we simulate them
+by rolling d6s and d10s and dividing by 2 (or use d12 and d20 and divide
+by 4?)
+
+How to use the rollers:
+=======================
+
+At first, I'd been thinking about having global pointers for each roller,
+or static pointers within a set of dedicated roller functions (yes, one
+for each separate dX that we wanted to have, remembering we wanted
+separate pointers for if we used more than one dX in a roll)- but that's
+really really stupid. Well, it was late, I was tired.
+
+So. We set out a structure "struct roller" that has elements:
+enum dXType (what shape dice- we may include d3s and d5s here and have
+the roller function figure it? Or not?)
+byte Listnum (what section sequence list we're looking at)
+
+byte Listptr (pointer into the list, to return a section number with)
+byte S_offset (the offset we modulate the section number with)
+
+byte Secptr (pointer into the section we look at, to return an entry)
+byte E_offset (the offset we modulate the entry number with)
+
+byte R_offset (the offset we modulate the returned roll with)
+
+And I think that's it.
+I had thought about including dXtype-specific data, such as the range
+of N, but as the rollers will need to have a switch statement to choose
+the tables (wont they?) we can include that data there.
+Or alternatively, the structure could include pointers to the global
+tables and sequence lists, and we avoid the need for a switch statement,
+thereby hopefully speeding the RNG a bit, without *vastly* increasing
+the memory use. A tiny bit of extra complexity is then shoved into
+the roller creation function, but you don't call that so many times.
+
+If we keep dXtype-specific data in the roller structure, we would prolly
+want to include data for generating d3's and d5s etc from other die types.
+
+I think that next to the typical RNG functions based on weird mathematical
+functions on long numbers (OK probably not that weird, but moderately
+intensive), this RNG should be pretty fast, which is good as so much of
+a roguelike depends on random number rolls. Hurrah!
+
+EVEN FURTHER THOUGHTS
+=====================
+
+Precisely *because* of the fairness, it becomes obvious that you always
+have 6 of each number within a sequence. This produces insecurity in
+the RNG, as in some cases you gain some knowledge about what numbers
+can be rolled next. I had thoughts on missing a section out
+from each sequence. This would have to be done such that overall,
+certain sections would *not* be more or less favoured, which would
+affect the fairness, perhaps drastically.
+
+My thought was: When generating the sequence lists, make each list
+N-1 long rather than N; In this way, *if it weren't for the offsets*,
+the last section for each dXtable would never be traversed.
+However, if the offsets are sufficiently dispersed, then over time
+the rolls should be fair.
+Unfortunately, we don't know how well dispersed the generation of the
+offsets would be! In the previous scheme, it didn't matter, as they
+were purely for disguising the sequences. Now, inbalance could affect
+roll fairness!
+We could always make sure that each sequence list missed out a
+different section, IE- they didn't all miss the last one. This would
+help. It would probably help more if there were N sequence lists-
+but I think that would be massive overkill. As long as one section
+is not going to be missed each sequence, the rolls should be reasonably
+fair.
+Alternatively, we could forget the missing-sections-out thing, as
+in the typical roguelike, we will never see the rolls directly, and
+anyway, many rolls use multiple dice, which will seriously disguise
+the sequences. The missing-sections-out method could be saved for
+other applications of the RNG where users may be able to see the
+rolls.
+

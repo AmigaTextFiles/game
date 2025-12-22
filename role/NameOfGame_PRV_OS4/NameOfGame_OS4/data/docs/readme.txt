@@ -1,0 +1,88 @@
+==============================================
+           Name of Game 0.6.2 README           
+                by Andrew Weber               
+==============================================
+
+Name of Game is a RolePlaying Game and will be very 
+extensive eventually.
+
+Here is all you need to know for version 0.6.1:
+
+Contents:
+Game Display
+Game Controls
+Information
+
+============
+Game Display
+============
+
+The Game begins with a "splash screen" which fades the Name of Game
+logo into view. Then a menu comes up. You may select:
+
+1. New Game
+   This starts a new game obviously.
+2. Options
+   You may toggle fullscreen/windowed mode.
+3. Quit
+   Exits the game.
+
+========
+NEW GAME
+========
+
+You begin as a man in a small town.
+There are many houses in this town, a tavern, and an inn.
+You can't do anything in the buildings yet.
+There are several screens of your world, so you can go off the edge into
+a new section of the world.
+
+========
+CONTROLS
+========
+
+   ^            Movement
+<- V ->
+
+7 8 9           Movement
+4 5 6
+1 2 3
+
+ENTER           Pick up an item.
+c               Close a door
+shift+C         View your character's statistics.
+d               Drop an item.
+g               Go: Run in a direction.
+                You automatically stop when in contact with a monster,
+                item, wall, or when reaching a new screen.
+h               Heal: Rest until your health returns.
+i               View inventory.
+                There are letters next to each item; press the letter 
+                to view details.
+                You can also use the arrow keys and press spacebar to 
+                select item details.
+                Press Escape to return to the Map.
+l               Look at your surroundings.
+                When looking at your surroundings, if you look at a monster, 
+                press y to view such details as CHP, MHP, and STR.
+o               Open a door. You may also open doors by walking into them.
+shift+Q         Return to the main menu.
+                Pressing ESC or selecting 'continue' returns to your game.
+?               Help
+                The help screen lists 41 different commands ... maybe about 
+                5 work.
+                However these can get you excited for what the game will 
+                be like later.
+
+===========
+Information
+===========
+You can download later versions of this game from
+http://webby.125mb.com/nameofgame/
+
+I would greatly appreciate patches, graphics, sound effects, music, etc.
+from more talented programmers and artists. If you contribute you will 
+be listed in a CONTRIBUTION file.
+
+See INSTALL, AUTHOR, ACKNOWLEDGEMENTS, and DEDICATION
+for more information.

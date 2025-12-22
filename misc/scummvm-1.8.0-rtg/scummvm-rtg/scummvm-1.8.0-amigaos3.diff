@@ -1,0 +1,4574 @@
+diff --git a/backends/events/amigaos3/amigaos3-events.cpp b/backends/events/amigaos3/amigaos3-events.cpp
+new file mode 100644
+index 0000000..b8364db
+--- /dev/null
++++ b/backends/events/amigaos3/amigaos3-events.cpp
+@@ -0,0 +1,275 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * ScummVM is the legal property of its developers, whose names
++ * are too numerous to list here. Please refer to the COPYRIGHT
++ * file distributed with this source distribution.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * $URL$
++ * $Id$
++ *
++ */
++
++#include "common/scummsys.h"
++#include "common/system.h"
++
++#include "backends/platform/amigaos3/amigaos3-aga.h"
++
++#include "backends/timer/default/default-timer.h"
++#include "backends/events/amigaos3/amigaos3-events.h"
++
++#include "common/textconsole.h"
++#include "engines/engine.h"
++
++
++// Amiga includes.
++#include <proto/intuition.h>
++
++//#include <clib/exec_protos.h>
++#include <proto/exec.h>
++#include <inline/exec.h>
++
++//#include <clib/keymap_protos.h>
++#include <proto/keymap.h>
++#include <inline/keymap.h>
++
++//#include "rawkeycodes.h"
++#define RAWKEY_ESCAPE       0x45
++
++#define RAWKEY_F1       0x50
++#define RAWKEY_F2       0x51
++#define RAWKEY_F3       0x52
++#define RAWKEY_F4       0x53
++#define RAWKEY_F5       0x54
++#define RAWKEY_F6       0x55
++#define RAWKEY_F7       0x56
++#define RAWKEY_F8       0x57
++#define RAWKEY_F9       0x58
++#define RAWKEY_F10      0x59
++#define RAWKEY_F11      0x4B
++#define RAWKEY_F12      0x6F
++
++#define RAWKEY_X        0x32
++#define RAWKEY_Y        0x15
++#define RAWKEY_Z        0x31
++
++static DefaultTimerManager *_timerManager = NULL;
++
++AmigaOS3EventSource::AmigaOS3EventSource() {
++#ifndef NDEBUG
++    debug(9, "AmigaOS3EventSource::AmigaOS3EventSource()");
++#endif
++    _timerManager = ((DefaultTimerManager *)g_system->getTimerManager());
++}
++
++AmigaOS3EventSource::~AmigaOS3EventSource() {
++#ifndef NDEBUG
++    debug(9, "AmigaOS3EventSource::~AmigaOS3EventSource()");
++#endif
++    _timerManager = NULL;
++}
++
++
++
++bool AmigaOS3EventSource::pollEvent(Common::Event &event) {
++#ifndef NDEBUG
++    debug(9, "AmigaOS3EventSource::pollEvent()");
++#endif
++
++	bool result = false;
++
++
++    _timerManager->handler();
++
++
++    struct Window *hardwareWindow = ((OSystem_AmigaOS3 *)g_system)->getHardwareWindow();
++
++
++    if (hardwareWindow) {
++        struct IntuiMessage *imsg;
++
++        while (imsg = (struct IntuiMessage *)GetMsg(hardwareWindow->UserPort)) {
++
++            ReplyMsg((struct Message *)imsg);
++
++            switch (imsg->Class) {
++                case IDCMP_MOUSEMOVE:
++                    event.type = Common::EVENT_MOUSEMOVE;
++                    event.mouse.x = imsg->MouseX;
++                    event.mouse.y = imsg->MouseY;
++                    ((OSystem_AmigaOS3 *)g_system)->setMouseCursorPosition(imsg->MouseX, imsg->MouseY);
++                    result = true;
++                    break;
++
++
++                case IDCMP_MOUSEBUTTONS:
++                    if (imsg->Code == SELECTDOWN) {
++                        event.type = Common::EVENT_LBUTTONDOWN;
++                    }
++
++                    if (imsg->Code == SELECTUP) {
++                        event.type = Common::EVENT_LBUTTONUP;
++                    }
++
++                    if (imsg->Code == MENUDOWN) {
++                        event.type = Common::EVENT_RBUTTONDOWN;
++                    }
++
++                    if (imsg->Code == MENUUP) {
++                        event.type = Common::EVENT_RBUTTONUP;
++                    }
++
++                    event.mouse.x = imsg->MouseX;
++                    event.mouse.y = imsg->MouseY;
++                    result = true;
++                    break;
++
++
++                case IDCMP_RAWKEY:
++                    int code = imsg->Code;
++
++                    int flags = 0;
++
++                    if (imsg->Qualifier & (IEQUALIFIER_LALT | IEQUALIFIER_RALT)) {
++                        flags |= Common::KBD_ALT;
++                    }
++
++                    if (imsg->Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT)) {
++                        flags |= Common::KBD_SHIFT;
++                    }
++
++                    if (imsg->Qualifier & IEQUALIFIER_CONTROL) {
++                        flags |= Common::KBD_CTRL;
++                    }
++
++                    event.kbd.flags = flags;
++
++                    event.type = (code & IECODE_UP_PREFIX) ? Common::EVENT_KEYUP : Common::EVENT_KEYDOWN;
++
++                    code &= ~IECODE_UP_PREFIX;
++
++
++                    switch (code) {
++                        case RAWKEY_ESCAPE:
++                            event.kbd.keycode = Common::KEYCODE_ESCAPE;
++                            event.kbd.ascii = Common::ASCII_ESCAPE;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F1:
++                            event.kbd.keycode = Common::KEYCODE_F1;
++                            event.kbd.ascii = Common::ASCII_F1;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F2:
++                            event.kbd.keycode = Common::KEYCODE_F2;
++                            event.kbd.ascii = Common::ASCII_F2;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F3:
++                            event.kbd.keycode = Common::KEYCODE_F3;
++                            event.kbd.ascii = Common::ASCII_F3;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F4:
++                            event.kbd.keycode = Common::KEYCODE_F4;
++                            event.kbd.ascii = Common::ASCII_F4;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F5:
++                            event.kbd.keycode = Common::KEYCODE_F5;
++                            event.kbd.ascii = Common::ASCII_F5;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F6:
++                            event.kbd.keycode = Common::KEYCODE_F6;
++                            event.kbd.ascii = Common::ASCII_F6;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F7:
++                            event.kbd.keycode = Common::KEYCODE_F7;
++                            event.kbd.ascii = Common::ASCII_F7;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F8:
++                            event.kbd.keycode = Common::KEYCODE_F8;
++                            event.kbd.ascii = Common::ASCII_F8;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F9:
++                            event.kbd.keycode = Common::KEYCODE_F9;
++                            event.kbd.ascii = Common::ASCII_F9;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F10:
++                            event.kbd.keycode = Common::KEYCODE_F10;
++                            event.kbd.ascii = Common::ASCII_F10;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F11:
++                            event.kbd.keycode = Common::KEYCODE_F11;
++                            event.kbd.ascii = Common::ASCII_F11;
++                            result = true;
++                            break;
++
++                        case RAWKEY_F12:
++                            event.kbd.keycode = Common::KEYCODE_F12;
++                            event.kbd.ascii = Common::ASCII_F12;
++                            result = true;
++                            break;
++
++                        default:
++                            if (flags == Common::KBD_CTRL && code == RAWKEY_Z) {
++                                event.type = Common::EVENT_QUIT;
++                            }
++
++                            if (flags == Common::KBD_ALT && code == RAWKEY_X) {
++                                event.type = Common::EVENT_QUIT;
++                            }
++
++                            InputEvent FakedIEvent;
++                            memset(&FakedIEvent, 0, sizeof (InputEvent));
++                            FakedIEvent.ie_Class = IECLASS_RAWKEY;
++                            FakedIEvent.ie_Code = code;
++                            FakedIEvent.ie_Qualifier = imsg->Qualifier;
++
++
++                            char charbuf;
++
++                            if (MapRawKey(&FakedIEvent, &charbuf, 1, NULL) == 1) {
++                                event.kbd.ascii = charbuf;
++                                event.kbd.keycode = (Common::KeyCode)charbuf;
++                                result = true;
++                            }
++                            break;
++                    }
++            }
++        }
++    }
++
++    return result;
++}
++
+diff --git a/backends/events/amigaos3/amigaos3-events.h b/backends/events/amigaos3/amigaos3-events.h
+new file mode 100644
+index 0000000..1c8d0d4
+--- /dev/null
++++ b/backends/events/amigaos3/amigaos3-events.h
+@@ -0,0 +1,18 @@
++
++#ifndef EVENTS_AMIGAOS3_H
++#define EVENTS_AMIGAOS3_H
++
++#include "common/events.h"
++#include "common/queue.h"
++
++#include "backends/events/default/default-events.h"
++
++class AmigaOS3EventSource : public Common::EventSource {
++public:
++	AmigaOS3EventSource();
++	virtual ~AmigaOS3EventSource();
++
++	virtual bool pollEvent(Common::Event &event);
++};
++
++#endif
+diff --git a/backends/fs/amigaos3/amigaos3-fs-factory.cpp b/backends/fs/amigaos3/amigaos3-fs-factory.cpp
+new file mode 100644
+index 0000000..8a4b260
+--- /dev/null
++++ b/backends/fs/amigaos3/amigaos3-fs-factory.cpp
+@@ -0,0 +1,36 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * ScummVM is the legal property of its developers, whose names
++ * are too numerous to list here. Please refer to the COPYRIGHT
++ * file distributed with this source distribution.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ */
++
++#include "backends/fs/amigaos3/amigaos3-fs-factory.h"
++#include "backends/fs/amigaos3/amigaos3-fs-node.h"
++
++AbstractFSNode *AmigaOS3FilesystemFactory::makeRootFileNode() const {
++	return new AmigaOS3FilesystemNode();
++}
++
++AbstractFSNode *AmigaOS3FilesystemFactory::makeCurrentDirectoryFileNode() const {
++	return new AmigaOS3FilesystemNode();
++}
++
++AbstractFSNode *AmigaOS3FilesystemFactory::makeFileNodePath(const Common::String &path) const {
++	return new AmigaOS3FilesystemNode(path);
++}
+diff --git a/backends/fs/amigaos3/amigaos3-fs-factory.h b/backends/fs/amigaos3/amigaos3-fs-factory.h
+new file mode 100644
+index 0000000..f42d2a3
+--- /dev/null
++++ b/backends/fs/amigaos3/amigaos3-fs-factory.h
+@@ -0,0 +1,12 @@
++#ifndef FS_FACTORY_AMIGAOS3_H
++#define FS_FACTORY_AMIGAOS3_H
++
++#include "backends/fs/fs-factory.h"
++
++class AmigaOS3FilesystemFactory : public FilesystemFactory {
++ 	virtual AbstractFSNode *makeRootFileNode() const;
++ 	virtual AbstractFSNode *makeCurrentDirectoryFileNode() const;
++	virtual AbstractFSNode *makeFileNodePath(const Common::String &path) const;
++};
++
++#endif
+diff --git a/backends/fs/amigaos3/amigaos3-fs-node.cpp b/backends/fs/amigaos3/amigaos3-fs-node.cpp
+new file mode 100644
+index 0000000..4da6e13
+--- /dev/null
++++ b/backends/fs/amigaos3/amigaos3-fs-node.cpp
+@@ -0,0 +1,575 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * ScummVM is the legal property of its developers, whose names
++ * are too numerous to list here. Please refer to the COPYRIGHT
++ * file distributed with this source distribution.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * $URL: https://scummvm.svn.sourceforge.net/svnroot/scummvm/scummvm/tags/release-1-0-0/backends/fs/amigaos4/amigaos4-fs.cpp $
++ * $Id: amigaos4-fs.cpp 36171 2009-02-01 09:49:24Z wjpalenstijn $
++ */
++
++
++
++
++#include "backends/fs/amigaos3/amigaos3-fs-node.h"
++#include "backends/fs/stdiostream.h"
++
++#include "common/debug.h"
++
++#ifndef PATH_MAX
++ #define PATH_MAX 1024
++#endif
++
++/****************************************************************************/
++/* Handy macros for checking what kind of object a ExAllData's
++   ed_Type describes;  ExAll() */
++
++#define EAD_IS_FILE(ead)    ((ead)->ed_Type <  0)
++
++#define EAD_IS_DRAWER(ead)  ((ead)->ed_Type >= 0 && \
++                             (ead)->ed_Type != ST_SOFTLINK)
++
++#define EAD_IS_LINK(ead)    ((ead)->ed_Type == ST_SOFTLINK || \
++                             (ead)->ed_Type == ST_LINKDIR || \
++                             (ead)->ed_Type == ST_LINKFILE)
++
++#define EAD_IS_SOFTLINK(ead) ((ead)->ed_Type == ST_SOFTLINK)
++
++#define EAD_IS_LINKDIR(ead)  ((ead)->ed_Type == ST_LINKDIR)
++
++
++/****************************************************************************/
++/* Handy macros for checking what kind of object a FileInfoBlock
++ * describes; Examine() / ExNext().
++ * Special versions of these  macros for ExAll() are available
++ * in the include file;  dos/exall.h
++ */
++
++#define FIB_IS_FILE(fib)      ((fib)->fib_DirEntryType <  0)
++
++#define FIB_IS_DRAWER(fib)    ((fib)->fib_DirEntryType >= 0 && \
++                               (fib)->fib_DirEntryType != ST_SOFTLINK)
++
++#define FIB_IS_LINK(fib)      ((fib)->fib_DirEntryType == ST_SOFTLINK || \
++                               (fib)->fib_DirEntryType == ST_LINKDIR || \
++                               (fib)->fib_DirEntryType == ST_LINKFILE)
++
++#define FIB_IS_SOFTLINK(fib)  ((fib)->fib_DirEntryType == ST_SOFTLINK)
++
++#define FIB_IS_LINKDIR(fib)   ((fib)->fib_DirEntryType == ST_LINKDIR)
++
++
++// 16K ExAllData buffer.
++#define FILE_DATA_BUFFER  16384
++
++// 64K ExAllData buffer.
++//#define FILE_DATA_BUFFER    65536
++
++
++
++
++
++
++
++
++
++/**
++ * Returns the last component of a given path.
++ *
++ * @param str Common::String containing the path.
++ * @return Pointer to the first char of the last component inside str.
++ */
++static const char *lastPathComponent(const Common::String &str) {
++#ifndef NDEBUG
++    debug(8, "lastPathComponent(%s)", str.c_str());
++#endif
++
++	int offset = str.size();
++
++	if (offset <= 0) {
++		return 0;
++	}
++
++	const char *p = str.c_str();
++
++	while (offset > 0 && (p[offset-1] == '/' || p[offset-1] == ':'))
++		offset--;
++
++	while (offset > 0 && (p[offset-1] != '/' && p[offset-1] != ':'))
++		offset--;
++
++	return p + offset;
++}
++
++/**
++ * Obtain the FileInfoBlock protection value for this FSNode,
++ * as defined in the <proto/dos.h> header.
++ *
++ * @return -1 if there were errors, 0 or a positive integer otherwise.
++ */
++static int getFibProtection(Common::String path) {
++#ifndef NDEBUG
++    debug(8, "getFibProtection(%s)", path.c_str());
++#endif
++
++	int fibProt = -1;
++	struct FileInfoBlock *fib = (struct FileInfoBlock *)AllocDosObject(DOS_FIB, TAG_END);
++	if (!fib) {
++		return fibProt;
++	}
++
++	BPTR pLock = Lock((STRPTR)path.c_str(), SHARED_LOCK);
++	if (pLock) {
++		if (Examine(pLock, fib) != DOSFALSE) {
++			fibProt = fib->fib_Protection;
++		}
++		UnLock(pLock);
++	}
++
++	FreeDosObject(DOS_FIB, fib);
++
++	return fibProt;
++}
++
++static void CopyStringBSTRToC(BPTR bptr, char *destination) {
++#ifndef NDEBUG
++    debug(8, "CopyStringBSTRToC(bptr, %s)", destination);
++#endif
++
++    const char *source = (const char*)BADDR(bptr);
++    size_t num = *source++;
++
++    strncpy(destination, source, num);
++    destination[num] = 0;
++}
++
++
++AbstractFSList AmigaOS3FilesystemNode::listVolumes() const {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::listVolumes()");
++#endif
++
++    AbstractFSList myList;
++    char buffer[MAXPATHLEN];
++
++    struct DosList *dosList = LockDosList(LDF_READ | LDF_VOLUMES | LDF_DEVICES);
++    if (!dosList) {
++    	return myList;
++    }
++
++    // List the volumes.
++    struct DosList *volumeList = dosList;
++
++    volumeList = NextDosEntry(volumeList, LDF_VOLUMES);
++
++    while (volumeList) {
++        if (volumeList->dol_Type == DLT_VOLUME && volumeList->dol_Name && volumeList->dol_Task) {
++
++            // Find device name
++            char *devName = new char[MAXPATHLEN];
++
++            struct DosList *deviceList = volumeList;
++
++            deviceList = NextDosEntry(deviceList, LDF_DEVICES);
++
++            while (deviceList) {
++                if (deviceList->dol_Task == volumeList->dol_Task) {
++                    CopyStringBSTRToC(deviceList->dol_Name, devName);
++                    break;
++                }
++
++                deviceList = NextDosEntry(deviceList, LDF_DEVICES);
++            }
++
++
++            // Find the volume name
++            CopyStringBSTRToC(volumeList->dol_Name, buffer);
++
++            // Volume name + '\0'
++			char *volName = new char[strlen(buffer) + 1];
++
++            strcpy(volName, buffer);
++
++			strcat(buffer, ":");
++
++            BPTR volumeLock = Lock((STRPTR)buffer, SHARED_LOCK);
++            if (volumeLock) {
++                char *displayName = new char[strlen(volName) + strlen(devName) + 3];
++                sprintf(displayName, "%s (%s)", volName, devName);
++
++                AmigaOS3FilesystemNode *entry = new AmigaOS3FilesystemNode(volumeLock, displayName);
++                delete[] displayName;
++
++                if (entry) {
++                    myList.push_back(entry);
++                }
++
++                UnLock(volumeLock);
++            }
++
++            delete[] devName;
++            delete[] volName;
++
++            volumeList = NextDosEntry(volumeList, LDF_VOLUMES);
++        }
++    }
++
++    UnLockDosList(LDF_READ | LDF_VOLUMES | LDF_DEVICES);
++
++
++    return myList;
++}
++
++
++
++
++
++AmigaOS3FilesystemNode::AmigaOS3FilesystemNode() {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::AmigaOS3FilesystemNode()");
++#endif
++
++	_sDisplayName = "Available Volumes";
++	_bIsValid = true;
++	_bIsDirectory = true;
++	_sPath = "";
++	_pFileLock = 0;
++}
++
++AmigaOS3FilesystemNode::AmigaOS3FilesystemNode(const Common::String &p) {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::AmigaOS3FilesystemNode(%s)", p.c_str());
++#endif
++
++	int offset = p.size();
++
++	if (offset <= 0) {
++		return;
++	}
++
++	_sPath = p;
++	_sDisplayName = ::lastPathComponent(_sPath);
++	_pFileLock = 0;
++	_bIsDirectory = false;
++
++	struct FileInfoBlock *fib = (struct FileInfoBlock *)AllocDosObject(DOS_FIB, TAG_END);
++    if (!fib) {
++		return;
++	}
++
++	// Check whether the node exists and if it is a directory
++	BPTR pLock = Lock((STRPTR)_sPath.c_str(), SHARED_LOCK);
++	if (pLock) {
++		if (Examine(pLock, fib) != DOSFALSE) {
++			if (FIB_IS_DRAWER(fib)) {
++				_bIsDirectory = true;
++				_pFileLock = DupLock(pLock);
++				_bIsValid = (_pFileLock != 0);
++
++				// Add a trailing slash if it is needed
++				const char c = _sPath.lastChar();
++				if (c != '/' && c != ':')
++					_sPath += '/';
++			}
++			else {
++				_bIsValid = true;
++			}
++		}
++
++		UnLock(pLock);
++	}
++
++	FreeDosObject(DOS_FIB, fib);
++}
++
++AmigaOS3FilesystemNode::AmigaOS3FilesystemNode(BPTR pLock, const char *pDisplayName) {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::AmigaOS3FilesystemNode(pLock, %s)", pDisplayName);
++
++    assert (pLock);
++#endif
++
++
++	int bufSize = MAXPATHLEN;
++	_pFileLock = 0;
++
++	while (true) {
++		char *n = new char[bufSize];
++		if (NameFromLock(pLock, (STRPTR)n, bufSize) != DOSFALSE) {
++			_sPath = n;
++			_sDisplayName = pDisplayName ? pDisplayName : FilePart((STRPTR)n);
++			delete[] n;
++			break;
++		}
++
++		if (IoErr() != ERROR_LINE_TOO_LONG) {
++			_bIsValid = false;
++			delete[] n;
++			return;
++		}
++
++		bufSize *= 2;
++		delete[] n;
++	}
++
++	_bIsValid =	false;
++	_bIsDirectory = false;
++
++	struct FileInfoBlock *fib = (struct	FileInfoBlock *)AllocDosObject(DOS_FIB, TAG_END);
++	if (!fib) {
++        return;
++	}
++
++	if (Examine(pLock, fib) != DOSFALSE) {
++		if (FIB_IS_DRAWER(fib)) {
++			_bIsDirectory = true;
++			_pFileLock = DupLock(pLock);
++			_bIsValid = _pFileLock != 0;
++
++			const char c = _sPath.lastChar();
++			if (c != '/' && c != ':')
++				_sPath += '/';
++		}
++		else {
++			_bIsValid = true;
++		}
++	}
++
++	FreeDosObject(DOS_FIB, fib);
++}
++
++// We need the custom copy constructor because of DupLock()
++AmigaOS3FilesystemNode::AmigaOS3FilesystemNode(const AmigaOS3FilesystemNode& node) {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::AmigaOS3FilesystemNode(AmigaOS3FilesystemNode)");
++#endif
++
++	_sDisplayName = node._sDisplayName;
++	_bIsValid = node._bIsValid;
++	_bIsDirectory = node._bIsDirectory;
++	_sPath = node._sPath;
++	_pFileLock = DupLock(node._pFileLock);
++}
++
++AmigaOS3FilesystemNode::~AmigaOS3FilesystemNode() {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::~AmigaOS3FilesystemNode()");
++#endif
++
++	if (_pFileLock) {
++		UnLock(_pFileLock);
++    }
++}
++
++bool AmigaOS3FilesystemNode::exists() const {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::exists(): %s", _sPath.c_str());
++#endif
++
++	if(_sPath.empty()) {
++        return false;
++    }
++
++	bool nodeExists = false;
++
++	BPTR pLock = Lock((STRPTR)_sPath.c_str(), SHARED_LOCK);
++	if (pLock) {
++        nodeExists = true;
++		UnLock(pLock);
++    }
++
++    debug(8, "-> %d\n", nodeExists);
++	return nodeExists;
++}
++
++AbstractFSNode *AmigaOS3FilesystemNode::getChild(const Common::String &n) const {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::getChild()");
++#endif
++
++	if (!_bIsDirectory) {
++		return 0;
++	}
++
++	Common::String newPath(_sPath);
++
++	if (_sPath.lastChar() != '/')
++		newPath += '/';
++
++	newPath += n;
++
++	return new AmigaOS3FilesystemNode(newPath);
++}
++
++bool AmigaOS3FilesystemNode::getChildren(AbstractFSList &myList, ListMode mode, bool hidden) const {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::getChildren()");
++#endif
++
++	//TODO: honor the hidden flag
++
++	if (!_bIsValid) {
++		return false; // Empty list
++	}
++
++	if (!_bIsDirectory) {
++		return false; // Empty list
++	}
++
++	if (_pFileLock == 0) {
++		myList = listVolumes();
++		return true;
++	}
++
++	struct ExAllControl *eac = (struct ExAllControl *)AllocDosObject(DOS_EXALLCONTROL, TAG_END);
++	if (eac) {
++		struct ExAllData *data = (struct ExAllData *)AllocVec(FILE_DATA_BUFFER, MEMF_ANY);
++		if (data) {
++			BOOL bExMore;
++			eac->eac_LastKey = 0;
++			do {
++				// Examine directory
++				bExMore = ExAll(_pFileLock, data, FILE_DATA_BUFFER, ED_TYPE, eac);
++
++				LONG error = IoErr();
++				if (!bExMore && error != ERROR_NO_MORE_ENTRIES)
++					break; // Abnormal failure
++
++				if (eac->eac_Entries ==	0)
++					continue; // Normal failure, no entries
++
++				struct ExAllData *ead = data;
++				do {
++					if ((mode == Common::FSNode::kListAll) ||
++						(EAD_IS_DRAWER(ead) && (mode == Common::FSNode::kListDirectoriesOnly)) ||
++						(EAD_IS_FILE(ead) && (mode == Common::FSNode::kListFilesOnly))) {
++						Common::String full_path = _sPath;
++						full_path += (char*)ead->ed_Name;
++
++						BPTR lock = Lock((STRPTR)full_path.c_str(), SHARED_LOCK);
++						if (lock) {
++							AmigaOS3FilesystemNode *entry = new AmigaOS3FilesystemNode(lock, (char *)ead->ed_Name);
++							if (entry) {
++							    myList.push_back(entry);
++							}
++
++							UnLock(lock);
++						}
++					}
++					ead = ead->ed_Next;
++				} while (ead);
++			} while (bExMore);
++
++			FreeVec(data);
++		}
++
++		FreeDosObject(DOS_EXALLCONTROL, eac);
++	}
++
++	return true;
++}
++
++
++AbstractFSNode *AmigaOS3FilesystemNode::getParent() const {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::getParent()");
++#endif
++
++	if (!_bIsDirectory) {
++		return 0;
++	}
++
++	if (_pFileLock == 0) {
++		return new AmigaOS3FilesystemNode(*this);
++	}
++
++	AmigaOS3FilesystemNode *node;
++
++	BPTR parentDir = ParentDir( _pFileLock );
++	if (parentDir) {
++		node = new AmigaOS3FilesystemNode(parentDir);
++		UnLock(parentDir);
++	} else {
++		node = new AmigaOS3FilesystemNode();
++    }
++
++	return node;
++}
++
++bool AmigaOS3FilesystemNode::isReadable() const {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::isReadable()");
++#endif
++
++    bool readable = false;
++	int fibProt = getFibProtection(_sPath);
++
++	if (fibProt >= 0) {
++		/* The fib_Protection flag is low-active or inverted, thus the negation.
++		 *
++		 * For more information, consult the compiler/include/dos/dos.h
++		 * file from the AROS source (http://aros.sourceforge.net/).
++		 */
++		readable = !(fibProt & FIBF_READ);
++	}
++
++	return readable;
++}
++
++bool AmigaOS3FilesystemNode::isWritable() const {
++#ifndef NDEBUG
++    debug(8, "AmigaOS3FilesystemNode::isWritable()");
++#endif
++
++	bool writable = false;
++	int fibProt = getFibProtection(_sPath);
++
++	if (fibProt >= 0) {
++		/* The fib_Protection flag is low-active or inverted, thus the negation.
++		 *
++		 * For more information, consult the compiler/include/dos/dos.h
++		 * file from the AROS source (http://aros.sourceforge.net/).
++		 */
++		writable = !(fibProt & FIBF_WRITE);
++	}
++
++	return writable;
++}
++
++
++
++
++
++
++Common::SeekableReadStream *AmigaOS3FilesystemNode::createReadStream() {
++	return StdioStream::makeFromPath(getPath().c_str(), false);
++}
++
++Common::WriteStream *AmigaOS3FilesystemNode::createWriteStream() {
++	return StdioStream::makeFromPath(getPath().c_str(), true);
++}
++
++
++Common::String AmigaOS3FilesystemNode::getName() const {
++	return _sDisplayName;
++}
++Common::String AmigaOS3FilesystemNode::getPath() const {
++	return _sPath;
++}
++bool AmigaOS3FilesystemNode::isDirectory() const {
++	return _bIsDirectory;
++}
+diff --git a/backends/fs/amigaos3/amigaos3-fs-node.h b/backends/fs/amigaos3/amigaos3-fs-node.h
+new file mode 100644
+index 0000000..b2a99c4
+--- /dev/null
++++ b/backends/fs/amigaos3/amigaos3-fs-node.h
+@@ -0,0 +1,42 @@
++#ifndef FS_NODE_AMIGAOS3_H
++#define FS_NODE_AMIGAOS3_H
++
++#include <proto/exec.h>
++#include <proto/dos.h>
++#include <stdio.h>
++
++#include "backends/fs/abstract-fs.h"
++
++class AmigaOS3FilesystemNode : public AbstractFSNode {
++protected:
++	BPTR _pFileLock;
++
++	Common::String _sDisplayName;
++	Common::String _sPath;
++	bool _bIsDirectory;
++	bool _bIsValid;
++	uint32 _nProt;
++
++	virtual AbstractFSList listVolumes() const;
++public:
++	AmigaOS3FilesystemNode();
++	AmigaOS3FilesystemNode(const Common::String &p);
++	AmigaOS3FilesystemNode(BPTR pLock, const char *pDisplayName = NULL);
++	AmigaOS3FilesystemNode(const AmigaOS3FilesystemNode& node);
++	virtual ~AmigaOS3FilesystemNode();
++
++    virtual Common::String getName() const;
++    virtual Common::String getPath() const;
++	virtual bool isDirectory() const;
++
++	virtual bool exists() const;
++	virtual AbstractFSNode *getChild(const Common::String &n) const;
++	virtual bool getChildren(AbstractFSList &myList, ListMode mode, bool hidden) const;
++	virtual AbstractFSNode *getParent() const;
++	virtual bool isReadable() const;
++	virtual bool isWritable() const;
++	virtual Common::SeekableReadStream *createReadStream();
++	virtual Common::WriteStream *createWriteStream();
++};
++
++#endif
+diff --git a/backends/mixer/amigaos3/amigaos3-mixer.cpp b/backends/mixer/amigaos3/amigaos3-mixer.cpp
+new file mode 100644
+index 0000000..f288fbe
+--- /dev/null
++++ b/backends/mixer/amigaos3/amigaos3-mixer.cpp
+@@ -0,0 +1,283 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * ScummVM is the legal property of its developers, whose names
++ * are too numerous to list here. Please refer to the COPYRIGHT
++ * file distributed with this source distribution.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * $URL$
++ * $Id$
++ *
++ */
++
++
++#include "backends/mixer/amigaos3/amigaos3-mixer.h"
++#include "common/debug.h"
++#include "common/system.h"
++#include "common/config-manager.h"
++#include "common/textconsole.h"
++
++// Amiga includes.
++#include <proto/exec.h>
++#include <inline/exec.h>
++#include <proto/ahi.h>
++#include <inline/ahi.h>
++#include <proto/dos.h>
++#include <inline/dos.h>
++#include <dos/dostags.h>
++
++
++#define SAMPLES_PER_SEC 11025
++
++
++static struct MsgPort *ahiPort = NULL;;
++static struct AHIRequest *ahiReq[2] = { NULL, NULL };
++static bool ahiReqSent[2] = { false, FALSE };
++
++static BYTE *soundBuffer[2]	 = { NULL, NULL };
++static BYTE _currentSoundBuffer = 0;
++
++static uint32  _mixingFrequency = 0;
++static uint32  _sampleCount = 0;
++static uint32  _sampleBufferSize = 0;
++
++
++
++static Audio::MixerImpl *g_mixer = NULL;
++static struct Task *g_soundThread = NULL;
++
++
++
++AmigaOS3MixerManager::AmigaOS3MixerManager() {
++#ifndef NDEBUG
++    debug(9, "AmigaOS3MixerManager::AmigaOS3MixerManager()");
++#endif
++}
++
++AmigaOS3MixerManager::~AmigaOS3MixerManager() {
++#ifndef NDEBUG
++    debug(9, "AmigaOS3MixerManager::~AmigaOS3MixerManager()");
++#endif
++
++    if (g_mixer) {
++        g_mixer->setReady(false);
++
++        if (g_soundThread) {
++    		Signal(g_soundThread, SIGBREAKF_CTRL_C);
++    		Delay(10);
++            g_soundThread = NULL;
++    	}
++
++    	delete g_mixer;
++    	g_mixer = NULL;
++    }
++}
++
++
++
++
++
++
++
++
++
++
++
++int init_scummvm_sound() {
++
++
++
++    ahiPort = (struct MsgPort *)CreateMsgPort();
++    if (!ahiPort) {
++        error("Could not create a Message Port for AHI");
++    }
++
++    ahiReq[0] = (struct AHIRequest *)CreateIORequest(ahiPort, sizeof(struct AHIRequest));
++    if (!ahiReq[0]) {
++        error("Could not create an IO Request for AHI");
++    }
++
++    // Open at least version 4.
++    ahiReq[0]->ahir_Version = 4;
++
++    BYTE deviceError = OpenDevice(AHINAME, AHI_DEFAULT_UNIT, (struct IORequest*)ahiReq[0], 0);
++    if (deviceError) {
++        error("Unable to open AHI Device");
++    }
++
++    // 32 bits (4 bytes) are required per sample for storage (16bit stereo).
++    _sampleBufferSize = (_sampleCount * 4);
++
++    soundBuffer[0] = (BYTE *)AllocVec(_sampleBufferSize, MEMF_PUBLIC | MEMF_CLEAR);
++	soundBuffer[1] = (BYTE *)AllocVec(_sampleBufferSize, MEMF_PUBLIC | MEMF_CLEAR);
++
++
++    // Make a copy of the request (for double buffering)
++    ahiReq[1] = (struct AHIRequest *)AllocVec(sizeof(struct AHIRequest), MEMF_PUBLIC);
++    if(!ahiReq[1]) {
++        error("Could not create IO request copy for AHI");
++    }
++
++
++	CopyMem(ahiReq[0], ahiReq[1], sizeof(struct AHIRequest));
++
++
++	_currentSoundBuffer = 0;
++	ahiReqSent[0] = false;
++	ahiReqSent[1] = false;
++}
++
++void exit_scummvm_sound() {
++
++	if (ahiReq[1]) {
++		FreeVec(ahiReq[1]);
++    }
++
++	if (ahiReq[0]) {
++		CloseDevice((struct IORequest *) ahiReq[0]);
++		DeleteIORequest(ahiReq[0]);
++	}
++
++	if (soundBuffer[0])
++		FreeVec((APTR) soundBuffer[0]);
++
++	if (soundBuffer[1])
++		FreeVec((APTR) soundBuffer[1]);
++
++	if (ahiPort)
++		DeleteMsgPort(ahiPort);
++}
++
++int scummvm_sound_thread(STRPTR args, ULONG length) {
++
++    LONG priority = 0;
++    ULONG signals;
++
++    init_scummvm_sound();
++
++
++    for (;;) {
++		while (!ahiReqSent[_currentSoundBuffer] || CheckIO((IORequest *) ahiReq[_currentSoundBuffer])) {
++
++            if (ahiReqSent[_currentSoundBuffer]) {
++				WaitIO((IORequest *) ahiReq[_currentSoundBuffer]);
++            }
++
++    		ahiReq[_currentSoundBuffer]->ahir_Std.io_Message.mn_Node.ln_Pri = priority;
++    		ahiReq[_currentSoundBuffer]->ahir_Std.io_Command = CMD_WRITE;
++    		ahiReq[_currentSoundBuffer]->ahir_Std.io_Data    = soundBuffer[_currentSoundBuffer];
++    		ahiReq[_currentSoundBuffer]->ahir_Std.io_Length  = _sampleBufferSize;
++    		ahiReq[_currentSoundBuffer]->ahir_Std.io_Offset  = 0;
++    		ahiReq[_currentSoundBuffer]->ahir_Type		     = AHIST_S16S;
++    		ahiReq[_currentSoundBuffer]->ahir_Frequency		 = _mixingFrequency;
++    		ahiReq[_currentSoundBuffer]->ahir_Position       = 0x8000;
++    		ahiReq[_currentSoundBuffer]->ahir_Volume		 = 0x10000;
++            ahiReq[_currentSoundBuffer]->ahir_Link		     = (ahiReqSent[_currentSoundBuffer^1]) ? ahiReq[_currentSoundBuffer^1] : NULL;
++
++
++            g_mixer->mixCallback((byte *)soundBuffer[_currentSoundBuffer], _sampleBufferSize);
++
++            SendIO((struct IORequest *)ahiReq[_currentSoundBuffer]);
++
++    		ahiReqSent[_currentSoundBuffer] = true;
++
++            // Flip.
++            _currentSoundBuffer ^= 1;
++
++        }
++
++
++		signals = Wait(SIGBREAKF_CTRL_C | (1 << ahiPort->mp_SigBit));
++		if (signals & SIGBREAKF_CTRL_C) {
++			break;
++        }
++    }
++
++
++
++	if (ahiReqSent[_currentSoundBuffer]) {
++		AbortIO((struct IORequest *) ahiReq[_currentSoundBuffer]);
++		WaitIO((struct IORequest *) ahiReq[_currentSoundBuffer]);
++	}
++
++	if (ahiReqSent[_currentSoundBuffer^1]) {
++		AbortIO((struct IORequest *) ahiReq[!_currentSoundBuffer]);
++		WaitIO((struct IORequest *) ahiReq[!_currentSoundBuffer]);
++	}
++
++    exit_scummvm_sound();
++
++	return 0;
++}
++
++
++
++
++
++
++
++void AmigaOS3MixerManager::init(int priority) {
++#ifndef NDEBUG
++    debug(9, "AmigaOS3MixerManager::init()");
++#endif
++
++	// Determine the desired output sampling frequency.
++	if (ConfMan.hasKey("output_rate")) {
++		_mixingFrequency = ConfMan.getInt("output_rate");
++    }
++
++    if (_mixingFrequency == 0) {
++		_mixingFrequency = SAMPLES_PER_SEC;
++    }
++
++	// Determine the sample buffer size. We want it to store enough data for
++	// at least 1/16th of a second (though at most 8192 samples). Note
++	// that it must be a power of two. So e.g. at 22050 Hz, we request a
++	// sample buffer size of 2048.
++	_sampleCount = 8192;
++	while ((_sampleCount * 16) > (_mixingFrequency * 2)) {
++		_sampleCount >>= 1;
++    }
++
++
++    // Create the mixer instance and start the sound processing.
++    assert(!g_mixer);
++	g_mixer = new Audio::MixerImpl(g_system, _mixingFrequency);
++	assert(g_mixer);
++    g_mixer->setReady(true);
++
++
++    g_soundThread = (Task *) CreateNewProcTags(
++					NP_Name, (ULONG)"ScummVM Mixer Thread",
++					NP_CloseOutput, FALSE,
++                    NP_CloseInput, FALSE,
++					NP_StackSize, 20000,
++					NP_Entry, (ULONG)&scummvm_sound_thread,
++					TAG_DONE);
++
++	if (!g_soundThread) {
++		error("Could not create the sound thread");
++	}
++
++    SetTaskPri(g_soundThread, priority);
++}
++
++Audio::Mixer *AmigaOS3MixerManager::getMixer() {
++    return g_mixer;
++}
++
++
++
+diff --git a/backends/mixer/amigaos3/amigaos3-mixer.h b/backends/mixer/amigaos3/amigaos3-mixer.h
+new file mode 100644
+index 0000000..85241dd
+--- /dev/null
++++ b/backends/mixer/amigaos3/amigaos3-mixer.h
+@@ -0,0 +1,16 @@
++#ifndef MIXER_AMIGAOS3_H
++#define MIXER_AMIGAOS3_H
++
++#include "audio/mixer_intern.h"
++
++class AmigaOS3MixerManager {
++public:
++	AmigaOS3MixerManager();
++	virtual ~AmigaOS3MixerManager();
++
++	virtual void init(int priority);
++
++	Audio::Mixer* getMixer();
++};
++
++#endif
+diff --git a/backends/module.mk b/backends/module.mk
+index 3d412c0..d457642 100644
+--- a/backends/module.mk
++++ b/backends/module.mk
+@@ -120,6 +120,14 @@ MODULE_OBJS += \
+ 	midi/camd.o
+ endif
+ 
++ifdef AMIGAOS3
++MODULE_OBJS += \
++	events/amigaos3/amigaos3-events.o \
++	fs/amigaos3/amigaos3-fs-node.o \
++	fs/amigaos3/amigaos3-fs-factory.o \
++	mixer/amigaos3/amigaos3-mixer.o
++endif
++
+ ifdef PLAYSTATION3
+ MODULE_OBJS += \
+ 	fs/posix/posix-fs.o \
+diff --git a/backends/platform/amigaos3/amigaos3-aga.cpp b/backends/platform/amigaos3/amigaos3-aga.cpp
+new file mode 100644
+index 0000000..2cfcbc7
+--- /dev/null
++++ b/backends/platform/amigaos3/amigaos3-aga.cpp
+@@ -0,0 +1,436 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * ScummVM is the legal property of its developers, whose names
++ * are too numerous to list here. Please refer to the COPYRIGHT
++ * file distributed with this source distribution.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * $URL$
++ * $Id$
++ *
++ */
++
++
++// Disable symbol overrides so that we can use FILE, fopen etc.
++//#define FORBIDDEN_SYMBOL_ALLOW_ALL
++
++#include "backends/platform/amigaos3/amigaos3-aga.h"
++
++
++#include "backends/saves/default/default-saves.h"
++#include "backends/audiocd/default/default-audiocd.h"
++#include "backends/events/amigaos3/amigaos3-events.h"
++#include "backends/timer/default/default-timer.h"
++#include "backends/fs/amigaos3/amigaos3-fs-factory.h"
++#include "backends/fs/amigaos3/amigaos3-fs-node.h"
++#include "backends/fs/fs-factory.h"
++
++#include "common/scummsys.h"
++#include "common/textconsole.h"
++#include "common/debug.h"
++#include "common/textconsole.h"
++
++
++
++
++
++#include "graphics/colormasks.h"
++
++
++
++#include <proto/timer.h>
++#include <inline/timer.h>
++
++extern struct Device* TimerBase;
++static struct timeval t0;
++
++
++
++OSystem_AmigaOS3::OSystem_AmigaOS3() {
++    //gDebugLevel = 11;
++
++    _inited = false;
++
++    _fsFactory = NULL;
++	_eventManager = NULL;
++	_savefileManager = NULL;
++	_timerManager = NULL;
++
++    _mixerManager = NULL;
++	_audiocdManager = NULL;
++
++
++	_eventSource = NULL;
++
++	_debugLogger = NULL;
++	_warningLogger = NULL;
++	_errorLogger = NULL;
++
++    _hardwareWindow = NULL;
++    _hardwareScreen = NULL;
++    _screenDirty = false;
++    _overlayDirty = false;
++
++    //_splashSurface = NULL;
++
++    _overlayVisible = true;
++    _overlayColorMap = NULL;
++}
++
++OSystem_AmigaOS3::~OSystem_AmigaOS3() {
++#ifndef NDEBUG
++    debug(1, "OSystem_AmigaOS3::~OSystem_AmigaOS3()");
++#endif
++
++	unloadGFXMode();
++
++
++    /*if (_splashSurface) {
++        _splashSurface->free();
++        delete _splashSurface;
++        _splashSurface = NULL;
++    }*/
++
++    if (_agaPalette) {
++        free(_agaPalette);
++        _agaPalette = NULL;
++    }
++
++    if (_overlayPalette) {
++        free(_overlayPalette);
++        _overlayPalette = NULL;
++    }
++
++    if (_gamePalette) {
++        free(_gamePalette);
++        _gamePalette = NULL;
++    }
++
++    if (_currentPalette) {
++        free(_currentPalette);
++        _currentPalette = NULL;
++    }
++
++    _mouseCursor.surface.free();
++    _mouseCursorMask.surface.free();
++
++    if (_overlayColorMap) {
++        free(_overlayColorMap);
++        _overlayColorMap = NULL;
++    }
++
++
++
++
++
++    if (_audiocdManager) {
++	   delete _audiocdManager;
++	   _audiocdManager = NULL;
++    }
++
++    if (_mixerManager) {
++	   delete _mixerManager;
++	   _mixerManager = NULL;
++    }
++
++
++    if (_savefileManager) {
++	   delete _savefileManager;
++	   _savefileManager = NULL;
++    }
++
++    if (_eventManager) {
++	   delete _eventManager;
++	   _eventManager = NULL;
++    }
++
++    if (_eventSource) {
++	   delete _eventSource;
++	   _eventSource = NULL;
++    }
++
++    if (_timerManager) {
++	   delete _timerManager;
++	   _timerManager = NULL;
++    }
++
++
++
++
++
++    if (_debugLogger) {
++	   delete _debugLogger;
++	   _debugLogger = NULL;
++    }
++
++    if (_warningLogger) {
++	   delete _warningLogger;
++	   _warningLogger = NULL;
++    }
++
++    if (_errorLogger) {
++	   delete _errorLogger;
++	   _errorLogger = NULL;
++    }
++
++    if (_fsFactory) {
++	   delete _fsFactory;
++	   _fsFactory = NULL;
++    }
++
++
++}
++
++
++void OSystem_AmigaOS3::init(int audioThreadPriority) {
++
++    _audioThreadPriority = audioThreadPriority;
++
++
++    // Initialze File System Factory
++	_fsFactory = new AmigaOS3FilesystemFactory();
++
++
++#ifndef NDEBUG
++	_debugLogger = new Backends::Log::Log(this);
++
++    AmigaOS3FilesystemNode *node = new AmigaOS3FilesystemNode("debug.log");
++
++    Common::WriteStream *logFile = node->createWriteStream();
++    if (logFile) {
++        _debugLogger->open(logFile);
++    }
++
++    delete node;
++#endif
++
++	_timerManager = new DefaultTimerManager();
++}
++
++void OSystem_AmigaOS3::initBackend() {
++#ifndef NDEBUG
++    debug(1, "OSystem_AmigaOS3::initBackend()");
++
++	// Check if backend has not been initialized
++	assert(!_inited);
++#endif
++
++
++	// Pass in the current path as the default save path.
++    char pathName[255];
++    GetCurrentDirName(pathName, 255);
++    strncat(pathName, "/", 1);
++	_savefileManager = new DefaultSaveFileManager(pathName);
++
++
++
++
++    // Setup and start mixer
++    _mixerManager = new AmigaOS3MixerManager();
++    _mixerManager->init(_audioThreadPriority);
++
++
++
++	_audiocdManager = new DefaultAudioCDManager();
++
++
++    _eventSource = new AmigaOS3EventSource();
++
++	_eventManager = new DefaultEventManager(_eventSource);
++
++
++    memset(&_screen, 0, sizeof(_screen));
++
++    memset(&_overlayscreen8, 0, sizeof(_overlayscreen8));
++    memset(&_overlayscreen16, 0, sizeof(_overlayscreen16));
++
++    _overlayFormat = Graphics::createPixelFormat<565>();
++
++
++	memset(&_transactionDetails, 0, sizeof(_transactionDetails));
++
++    memset(&_videoMode, 0, sizeof(_videoMode));
++
++    // Set video mode defaults.
++    _videoMode.mode = GFX_NORMAL;
++    _videoMode.setup = false;
++
++    //_videoMode.aspectRatioCorrectionRequested = false;
++    //_videoMode.aspectRatioCorrectionInUse = false;
++
++    memset(&_oldVideoMode, 0, sizeof(_oldVideoMode));
++
++	_transactionMode = kTransactionNone;
++
++	_screenChangeCount = 0;
++
++    memset(&_mouseCursor, 0, sizeof(_mouseCursor));
++    memset(&_mouseCursorMask, 0, sizeof(_mouseCursorMask));
++
++
++    // allocate palette storage
++	_currentPalette = (byte *)calloc(PALETTE_SIZE, sizeof(byte));
++	_gamePalette = (byte *)calloc(PALETTE_SIZE, sizeof(byte));
++    _overlayPalette = NULL;
++    _agaPalette = (ULONG *)calloc(770, sizeof(uint32));
++
++
++    _paletteDirtyStart = 256;
++    _paletteDirtyEnd = 0;
++
++    _screenDirty = false;
++    _overlayDirty = false;
++
++	_currentShakePos = _newShakePos = 0;
++
++
++	_inited = true;
++}
++
++
++
++
++Common::SeekableReadStream *OSystem_AmigaOS3::createConfigReadStream() {
++	Common::FSNode file(getDefaultConfigFileName());
++	return file.createReadStream();
++}
++
++Common::WriteStream *OSystem_AmigaOS3::createConfigWriteStream() {
++	Common::FSNode file(getDefaultConfigFileName());
++	return file.createWriteStream();
++}
++
++
++
++void OSystem_AmigaOS3::quit() {
++#ifndef NDEBUG
++    debug(1, "OSystem_AmigaOS3::quit()");
++#endif
++
++
++    delete this;
++	exit(0);
++}
++
++
++
++void OSystem_AmigaOS3::logMessage(LogMessageType::Type type, const char *message) {
++
++	if (type == LogMessageType::kDebug) {
++    	if (_debugLogger) {
++    		_debugLogger->print(message);
++        }
++	} else {
++       	if (type == LogMessageType::kWarning) {
++            if (!_warningLogger) {
++                _warningLogger = new Backends::Log::Log(this);
++
++                AmigaOS3FilesystemNode *node = new AmigaOS3FilesystemNode("warning.log");
++
++                Common::WriteStream *logFile = node->createWriteStream();
++                delete node;
++
++                if (logFile) {
++                    _warningLogger->open(logFile);
++                }
++            }
++
++            if (_warningLogger) {
++                _warningLogger->print(message);
++            }
++        } else {
++            if (!_errorLogger) {
++                _errorLogger = new Backends::Log::Log(this);
++
++                AmigaOS3FilesystemNode *node = new AmigaOS3FilesystemNode("error.log");
++
++                Common::WriteStream *logFile = node->createWriteStream();
++                delete node;
++
++                if (logFile) {
++                    _errorLogger->open(logFile);
++                    _errorLogger->print(message);
++                }
++            }
++        }
++    }
++}
++
++uint32 OSystem_AmigaOS3::getMillis(bool skipRecord) {
++    // Kickstart 2.0 version
++    struct timeval t1;
++    long secs, usecs;
++    unsigned long tc;
++
++    if (t0.tv_secs == 0 && t0.tv_micro == 0) {
++        GetSysTime(&t0);
++        return 0;
++    }
++
++    GetSysTime(&t1);
++
++    secs = t1.tv_secs - t0.tv_secs;
++    usecs = t1.tv_micro - t0.tv_micro;
++
++    if (usecs < 0) {
++        usecs += 1000000;
++        secs--;
++    }
++
++    tc = secs * 1000 + usecs / 1000;
++
++    return tc;
++}
++
++void OSystem_AmigaOS3::delayMillis(uint msecs) {
++    if (msecs > 0) {
++        Delay(msecs / 20);
++    }
++}
++
++void OSystem_AmigaOS3::getTimeAndDate(TimeDate &td) const {
++
++	time_t curTime = time(0);
++	struct tm t = *localtime(&curTime);
++
++	td.tm_sec = t.tm_sec;
++	td.tm_min = t.tm_min;
++	td.tm_hour = t.tm_hour;
++	td.tm_mday = t.tm_mday;
++	td.tm_mon = t.tm_mon;
++	td.tm_year = t.tm_year;
++}
++
++Common::String OSystem_AmigaOS3::getDefaultConfigFileName() {
++	return "scummvm.ini";
++}
++
++
++
++OSystem::MutexRef OSystem_AmigaOS3::createMutex() {
++
++	SignalSemaphore *sem = (SignalSemaphore *) AllocVec(sizeof (SignalSemaphore), MEMF_PUBLIC);
++
++	if (sem) {
++		InitSemaphore(sem);
++    }
++
++	return (MutexRef)sem;
++}
++
++
++
++
+diff --git a/backends/platform/amigaos3/amigaos3-aga.h b/backends/platform/amigaos3/amigaos3-aga.h
+new file mode 100644
+index 0000000..066c944
+--- /dev/null
++++ b/backends/platform/amigaos3/amigaos3-aga.h
+@@ -0,0 +1,335 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * ScummVM is the legal property of its developers, whose names
++ * are too numerous to list here. Please refer to the COPYRIGHT
++ * file distributed with this source distribution.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * $URL$
++ * $Id$
++ *
++ */
++
++#ifndef PLATFORM_AMIGAOS3_H
++#define PLATFORM_AMIGAOS3_H
++
++
++#include <time.h>
++
++
++
++#include "audio/mixer_intern.h"
++#include "backends/log/log.h"
++#include "backends/events/amigaos3/amigaos3-events.h"
++#include "backends/mixer/amigaos3/amigaos3-mixer.h"
++
++#include "common/scummsys.h"
++#include "common/system.h"
++#include "graphics/surface.h"
++#include "graphics/palette.h"
++
++
++// Amiga includes.
++#include <proto/exec.h>
++#include <proto/intuition.h>
++#include <proto/graphics.h>
++#include <proto/dos.h>
++
++
++
++
++
++
++#define PALETTE_SIZE 768
++
++enum {
++	GFX_NORMAL = 0
++};
++
++
++
++
++class OSystem_AmigaOS3 : public OSystem, PaletteManager {
++public:
++	OSystem_AmigaOS3();
++
++	~OSystem_AmigaOS3();
++
++	/**
++	 * Pre-initialize backend. It should be called after
++	 * instantiating the backend. Early needed managers are
++	 * created here.
++	 */
++    void init(int audioThreadPriority);
++
++
++	// Override functions from ModularBackend and OSystem
++	void initBackend();
++
++	void quit();
++
++	// Logging
++	void logMessage(LogMessageType::Type type, const char *message);
++
++
++	Common::SeekableReadStream *createConfigReadStream();
++	Common::WriteStream *createConfigWriteStream();
++
++    virtual uint32 getMillis(bool skipRecord = false);
++
++	void delayMillis(uint msecs);
++
++	void getTimeAndDate(TimeDate &td) const;
++
++
++
++
++    bool hasFeature(OSystem::Feature f);
++	void setFeatureState(OSystem::Feature f, bool enable);
++	bool getFeatureState(OSystem::Feature f);
++
++
++	const OSystem::GraphicsMode *getSupportedGraphicsModes() const;
++	int getDefaultGraphicsMode() const;
++	bool setGraphicsMode(int mode);
++	void resetGraphicsScale();
++	int getGraphicsMode() const;
++
++
++	void initSize(uint width, uint height, const Graphics::PixelFormat *format = NULL);
++
++    int getScreenChangeID() const { return _screenChangeCount; }
++
++	void beginGFXTransaction();
++	OSystem::TransactionError endGFXTransaction();
++
++	inline int16 getHeight() { return _videoMode.screenHeight; }
++	inline int16 getWidth() { return _videoMode.screenWidth; }
++
++    inline PaletteManager *getPaletteManager() { return this; }
++
++    void setPalette(const byte *colors, uint start, uint num);
++	void grabPalette(byte *colors, uint start, uint num);
++
++	void copyRectToScreen(const void *buf, int pitch, int x, int y, int w, int h);
++	inline Graphics::Surface *lockScreen() { return &_screen; }
++	void unlockScreen() { _screenDirty = true; }
++	void fillScreen(uint32 col);
++	void updateScreen();
++	void setShakePos(int shakeOffset);
++
++	void setFocusRectangle(const Common::Rect& rect) {}
++	void clearFocusRectangle() {}
++
++	void showOverlay();
++	void hideOverlay();
++	inline Graphics::PixelFormat getOverlayFormat() const { return _overlayFormat; }
++	void clearOverlay();
++	void grabOverlay(void *buf, int pitch);
++	void copyRectToOverlay(const void *buf, int pitch, int x, int y, int w, int h);
++	inline int16 getOverlayHeight() { return _videoMode.overlayHeight; }
++	inline int16 getOverlayWidth() { return _videoMode.overlayWidth; }
++
++	bool showMouse(bool visible);
++	void warpMouse(int x, int y);
++
++    void setMouseCursor(const void *buf, uint w, uint h, int hotspotX, int hotspotY, uint32 keycolor,
++     bool dontScale = false, const Graphics::PixelFormat *format = NULL);
++
++	void setCursorPalette(const byte *colors, uint start, uint num) {}
++	void disableCursorPalette(bool disable) {}
++	void setMouseCursorPosition(uint x, uint y);
++
++	//inline struct Window* getHardwareWindow() { return _hardwareWindow; }
++	struct Window* getHardwareWindow();
++
++    inline Audio::Mixer *getMixer() { return _mixerManager->getMixer(); }
++
++	void displayMessageOnOSD(const char *msg) {}
++
++
++
++    MutexRef createMutex();
++	inline void lockMutex(OSystem::MutexRef mutex) { ObtainSemaphore((SignalSemaphore *) mutex); }
++	inline void unlockMutex(OSystem::MutexRef mutex) { ReleaseSemaphore((SignalSemaphore *)mutex); }
++	inline void deleteMutex(OSystem::MutexRef mutex) { FreeVec(mutex); }
++
++
++protected:
++	bool _inited;
++
++
++    AmigaOS3MixerManager *_mixerManager;
++
++	/**
++	 * The event source we use for obtaining SDL events.
++	 */
++	AmigaOS3EventSource *_eventSource;
++
++
++	Backends::Log::Log *_debugLogger;
++	Backends::Log::Log *_warningLogger;
++	Backends::Log::Log *_errorLogger;
++
++
++    int _audioThreadPriority;
++
++
++
++    /** Hardware window */
++    struct Window *_hardwareWindow;
++
++	/** Hardware screen */
++	struct Screen *_hardwareScreen;
++
++
++
++
++
++	/** Unseen game screen */
++	Graphics::Surface _screen;
++	Graphics::Surface _tmpscreen;
++
++
++
++
++	// Loading screen.
++    //Graphics::Surface* _splashSurface;
++
++    Graphics::Surface _overlayscreen8;
++    Graphics::Surface _overlayscreen16;
++	bool _overlayVisible;
++	Graphics::PixelFormat _overlayFormat;
++    byte *_overlayColorMap;
++
++    enum {
++		kTransactionNone = 0,
++		kTransactionActive = 1,
++		kTransactionRollback = 2
++	};
++
++	struct TransactionDetails {
++		bool sizeChanged;
++    };
++    TransactionDetails _transactionDetails;
++
++    struct VideoState {
++		bool setup;
++
++        //bool aspectRatioCorrectionRequested;
++        //bool aspectRatioCorrectionInUse;
++
++		int mode;
++
++        uint screenWidth, screenHeight;
++        uint overlayScreenHeight;
++        //uint scaledHeight;
++
++        uint overlayWidth;
++        uint overlayHeight;
++	};
++	VideoState _videoMode, _oldVideoMode;
++
++
++	int _transactionMode;
++
++    int _screenChangeCount;
++
++    int _overlayWidth;
++    int _overlayHeight;
++
++	bool _screenDirty;
++	bool _overlayDirty;
++	bool _mouseDirty;
++
++
++    // Mouse data.
++    struct MouseCursor {
++
++        bool visible;
++
++        uint32 keyColor;
++
++        uint w, h;
++
++        // The mouse position.
++        uint x, y;
++
++        int hotX, hotY;
++
++        Graphics::Surface surface;
++    };
++
++    MouseCursor _mouseCursor;
++
++
++    struct MouseCursorMask {
++
++        // The mouse position.
++		uint x, y;
++
++		// The size of the cursor image.
++		uint w, h;
++
++        Graphics::Surface surface;
++	};
++
++    MouseCursorMask _mouseCursorMask;
++
++
++
++
++    // Palette data
++	byte *_currentPalette;
++	byte *_gamePalette;
++	byte * _overlayPalette;
++
++	ULONG *_agaPalette;
++	uint _paletteDirtyStart, _paletteDirtyEnd;
++
++	// Shake mode
++	int _currentShakePos;
++	int _newShakePos;
++
++
++	/**
++	 * Get the file path where the user configuration
++	 * of ScummVM will be saved.
++	 */
++	Common::String getDefaultConfigFileName();
++
++
++	bool loadGFXMode();
++	ULONG loadModeId();
++	void saveModeId(ULONG modeId);
++
++	struct Screen* createHardwareScreen(uint width, uint height);
++	struct Window* createHardwareWindow(uint width, uint height, struct Screen *screen);
++    void unloadGFXMode();
++    void updatePalette();
++
++    void loadOverlayPalette();
++    void loadOverlayColorMap();
++
++    void drawMouse();
++    void undrawMouse();
++
++    //UBYTE *scaleScreen();
++};
++
++
++
++#endif
+diff --git a/backends/platform/amigaos3/amigaos3-graphics-aga.cpp b/backends/platform/amigaos3/amigaos3-graphics-aga.cpp
+new file mode 100644
+index 0000000..b8ab5c1
+--- /dev/null
++++ b/backends/platform/amigaos3/amigaos3-graphics-aga.cpp
+@@ -0,0 +1,1047 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * ScummVM is the legal property of its developers, whose names
++ * are too numerous to list here. Please refer to the COPYRIGHT
++ * file distributed with this source distribution.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * $URL$
++ * $Id$
++ *
++ */
++
++
++
++#include "backends/platform/amigaos3/amigaos3-aga.h"
++#include "backends/fs/fs-factory.h"
++#include "backends/fs/amigaos3/amigaos3-fs-node.h"
++#include "graphics/scaler/aspect.h"
++#include "common/scummsys.h"
++#include "common/textconsole.h"
++#include "common/debug.h"
++#include "common/config-manager.h"
++
++
++#include <proto/commodities.h>
++#include <inline/commodities.h>
++
++#include "amiga_c2p_aga.h"
++
++
++
++
++
++
++static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
++	{"1x", "Normal", GFX_NORMAL},
++	{0, 0, 0}
++};
++
++static UWORD emptypointer[] = {
++  0x0000, 0x0000,    /* reserved, must be NULL */
++  0x0000, 0x0000,     /* 1 row of image data */
++  0x0000, 0x0000    /* reserved, must be NULL */
++};
++
++
++
++
++#define AGA_VIDEO_DEPTH 8
++
++
++static struct ScreenBuffer *_hardwareScreenBuffer[2] = {NULL, NULL};
++
++void *c2p[2] = {NULL, NULL};
++
++static BYTE _currentScreenBuffer = 0;
++
++
++
++
++
++bool OSystem_AmigaOS3::hasFeature(OSystem::Feature f) {
++
++    /*if (f == OSystem::kFeatureAspectRatioCorrection) {
++        return true;
++    }*/
++
++    if (f == OSystem::kFeatureFullscreenMode) {
++        return true;
++    }
++
++    return false;
++}
++
++void OSystem_AmigaOS3::setFeatureState(OSystem::Feature f, bool enable) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::setFeatureState()");
++#endif
++
++    /*switch (f) {
++    	case OSystem::kFeatureAspectRatioCorrection:
++            _videoMode.aspectRatioCorrectionRequested = enable;
++    		break;
++	}*/
++
++}
++
++bool OSystem_AmigaOS3::getFeatureState(OSystem::Feature f) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::getFeatureState()");
++
++    assert (_transactionMode == kTransactionNone);
++#endif
++
++
++	switch (f) {
++    	case OSystem::kFeatureFullscreenMode:
++    		return true;
++
++    	//case OSystem::kFeatureAspectRatioCorrection:
++		//  return _videoMode.aspectRatioCorrectionRequested;
++
++    	default:
++    		return false;
++	}
++}
++
++const OSystem::GraphicsMode *OSystem_AmigaOS3::getSupportedGraphicsModes() const {
++	return s_supportedGraphicsModes;
++}
++
++int OSystem_AmigaOS3::getDefaultGraphicsMode() const {
++	return GFX_NORMAL;
++}
++
++void OSystem_AmigaOS3::resetGraphicsScale() {
++	setGraphicsMode(GFX_NORMAL);
++}
++
++void OSystem_AmigaOS3::beginGFXTransaction() {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::beginGFXTransaction()");
++
++	assert(_transactionMode == kTransactionNone);
++#endif
++
++
++	_transactionMode = kTransactionActive;
++
++	_transactionDetails.sizeChanged = false;
++
++    // Store the current mode in the old mode.
++	_oldVideoMode = _videoMode;
++}
++
++OSystem::TransactionError OSystem_AmigaOS3::endGFXTransaction() {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::endGFXTransaction()");
++
++    assert(_transactionMode != kTransactionNone);
++#endif
++
++
++	int errors = OSystem::kTransactionSuccess;
++
++	if (_transactionMode == kTransactionRollback) {
++    	errors |= OSystem::kTransactionSizeChangeFailed;
++
++        // Revert to the last (working) mode.
++		_videoMode.screenWidth = _oldVideoMode.screenWidth;
++		_videoMode.screenHeight = _oldVideoMode.screenHeight;
++
++		// Stop an endless loop if loadGFXMode() also fails with the old mode.
++		_oldVideoMode.setup = false;
++    }
++
++
++    if (_transactionDetails.sizeChanged) {
++        unloadGFXMode();
++        if(!loadGFXMode()) {
++           	if (_oldVideoMode.setup) {
++                _transactionMode = kTransactionRollback;
++				errors |= endGFXTransaction();
++			} else {
++                error("Could not switch to video mode (%d x %d)", _videoMode.screenWidth, _videoMode.screenHeight);
++            }
++        }
++
++        // Success.
++        SetPointer(_hardwareWindow, emptypointer, 1, 16, 0, 0);
++
++
++        // Set current cursor position.
++        _mouseCursor.x = _hardwareWindow->MouseX;
++        _mouseCursor.y = _hardwareWindow->MouseY;
++
++
++        if (!_overlayPalette) {
++            _overlayPalette = (byte *)calloc(3 * 256, sizeof(byte));
++            loadOverlayPalette();
++        }
++
++        setPalette((byte*)_overlayPalette, 0, 256);
++
++
++
++
++        if (!_overlayColorMap) {
++            _overlayColorMap = (byte*)calloc(65536, sizeof(byte));
++            loadOverlayColorMap();
++        }
++
++        _videoMode.setup = true;
++
++        _screenChangeCount++;
++    }
++
++	_transactionMode = kTransactionNone;
++
++
++    return (OSystem::TransactionError)errors;
++}
++
++bool OSystem_AmigaOS3::setGraphicsMode(int mode) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::setGraphicsMode(%d)", mode);
++#endif
++
++	assert(_transactionMode == kTransactionActive);
++
++	if (_oldVideoMode.setup && _oldVideoMode.mode == mode) {
++		return true;
++    }
++
++	if (mode != GFX_NORMAL) {
++        warning("Unsupported GFX mode %d", mode);
++        return false;
++    }
++
++	_videoMode.mode = mode;
++
++	return true;
++}
++
++int OSystem_AmigaOS3::getGraphicsMode() const {
++	assert (_transactionMode == kTransactionNone);
++
++	return _videoMode.mode;
++}
++
++void OSystem_AmigaOS3::initSize(uint w, uint h, const Graphics::PixelFormat *format) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::initSize(%d, %d)", w, h);
++
++	assert(_transactionMode == kTransactionActive);
++#endif
++
++	// Avoid redundant res changes
++    /*if (_videoMode.aspectRatioCorrectionRequested) {
++        if (w == _videoMode.screenWidth && real2Aspect(h) == _videoMode.scaledHeight) {
++    		return;
++        }
++    } else {*/
++         if (w == _videoMode.screenWidth && h == _videoMode.screenHeight) {
++    		return;
++        }
++    //}
++
++	_videoMode.screenWidth = w;
++	_videoMode.screenHeight = h;
++
++	_transactionDetails.sizeChanged = true;
++}
++
++bool OSystem_AmigaOS3::loadGFXMode() {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::loadGFXMode()");
++
++    debug(5, "New video mode requested - width = %d, height = %d", _videoMode.screenWidth, _videoMode.screenHeight);
++#endif
++
++    // Reset.
++    //_videoMode.aspectRatioCorrectionInUse = false;
++
++    // Only aspect scale 200 pixel heights.
++	/*if (_videoMode.aspectRatioCorrectionRequested && _videoMode.screenHeight == 200) {
++		debug(5, "Aspect ratio correction requested and allowed");
++		_videoMode.aspectRatioCorrectionInUse = true;
++
++		// Adjust screen height.
++        //_videoMode.screenHeight = real2Aspect(_videoMode.screenHeight);
++        _videoMode.scaledHeight = real2Aspect(_videoMode.screenHeight);
++        debug(5, "Aspect corrected video mode - width = %d, height = %d", _videoMode.screenWidth, _videoMode.screenHeight);
++    }*/
++
++
++
++    // Default overlay size to the same as the (game) screen.
++    _videoMode.overlayScreenHeight = _videoMode.screenHeight;
++
++    // Increase for a bigger overlay.
++    if (_videoMode.overlayScreenHeight < 256) {
++        _videoMode.overlayScreenHeight = 256;
++    }
++
++
++
++    // Create the hardware screen.
++    _hardwareScreen = createHardwareScreen();
++    if (!_hardwareScreen) {
++		return false;
++    }
++
++    // Setup double buffering.
++    _hardwareScreenBuffer[0] = AllocScreenBuffer (_hardwareScreen, NULL, SB_SCREEN_BITMAP);
++    if (!_hardwareScreenBuffer[0]) {
++		return false;
++    }
++
++    _hardwareScreenBuffer[1] = AllocScreenBuffer (_hardwareScreen, NULL, 0);
++    if (!_hardwareScreenBuffer[1]) {
++		return false;
++    }
++
++
++	_currentScreenBuffer = 1;
++
++    // Setup C2P.
++    c2p[0] = c2p8_reloc_stub(_hardwareScreenBuffer[0]->sb_BitMap);
++    c2p[1] = c2p8_reloc_stub(_hardwareScreenBuffer[1]->sb_BitMap);
++
++    // Create the hardware window.
++    _hardwareWindow = createHardwareWindow();
++    if (!_hardwareWindow) {
++		return false;
++    }
++
++    // Create the surface that contains the 8 bit game data
++    _screen.create(_videoMode.screenWidth, _videoMode.screenHeight, Graphics::PixelFormat::createFormatCLUT8());
++
++    // Create the screen used by the scaler/shaker.
++    _tmpscreen.create(_videoMode.screenWidth, _videoMode.screenHeight, Graphics::PixelFormat::createFormatCLUT8());
++
++
++
++    // Create the 8bit overlay surface
++    _overlayscreen8.create(_videoMode.screenWidth, _videoMode.overlayScreenHeight, Graphics::PixelFormat::createFormatCLUT8());
++
++	// Create the 16bit overlay surface
++    _overlayscreen16.create(_videoMode.screenWidth, _videoMode.overlayScreenHeight, _overlayFormat);
++
++
++    return true;
++}
++
++struct Screen* OSystem_AmigaOS3::createHardwareScreen() {
++
++    // Create the hardware screen.
++    struct Screen* screen = NULL;
++    ULONG modeId = INVALID_ID;
++
++
++
++
++    modeId = BestModeID(BIDTAG_NominalWidth, _videoMode.screenWidth,
++                        BIDTAG_NominalHeight, _videoMode.overlayScreenHeight,
++            	        BIDTAG_DesiredWidth, _videoMode.screenWidth,
++            	        BIDTAG_DesiredHeight, _videoMode.overlayScreenHeight,
++            	        BIDTAG_Depth, AGA_VIDEO_DEPTH,
++            	        BIDTAG_MonitorID, PAL_MONITOR_ID,
++            	        TAG_END);
++
++    if (modeId != INVALID_ID) {
++    	screen = OpenScreenTags(NULL,
++                         SA_Depth, AGA_VIDEO_DEPTH,
++                         SA_DisplayID, modeId,
++                         SA_Width, _videoMode.screenWidth,
++    					 SA_Height, _videoMode.overlayScreenHeight,
++						 SA_Type, CUSTOMSCREEN,
++                         SA_Quiet, TRUE,
++    					 SA_ShowTitle, FALSE,
++    					 SA_Draggable, FALSE,
++                         SA_Exclusive, TRUE,
++    					 SA_AutoScroll, FALSE,
++						 TAG_END);
++    }
++
++    return screen;
++}
++
++struct Window* OSystem_AmigaOS3::createHardwareWindow() {
++
++    return OpenWindowTags(NULL,
++                  	    WA_Left, 0,
++            			WA_Top, 0,
++            			WA_Width, _videoMode.screenWidth,
++            			WA_Height, _videoMode.overlayScreenHeight,
++    					SA_AutoScroll, FALSE,
++            			WA_CustomScreen, (ULONG)_hardwareScreen,
++            			WA_Backdrop, TRUE,
++            			WA_Borderless, TRUE,
++            			WA_DragBar, FALSE,
++            			WA_Activate, TRUE,
++            			WA_SimpleRefresh, TRUE,
++            			WA_NoCareRefresh, TRUE,
++            			WA_ReportMouse, TRUE,
++            			WA_RMBTrap, TRUE,
++                  	    WA_IDCMP, IDCMP_RAWKEY|IDCMP_MOUSEMOVE|IDCMP_MOUSEBUTTONS,
++                  	    TAG_END);
++}
++
++
++void OSystem_AmigaOS3::unloadGFXMode() {
++
++	_screen.free();
++	_tmpscreen.free();
++
++	_overlayscreen8.free();
++	_overlayscreen16.free();
++
++
++
++    if (_hardwareWindow) {
++        ClearPointer(_hardwareWindow);
++        CloseWindow(_hardwareWindow);
++        _hardwareWindow = NULL;
++    }
++
++    if (_hardwareScreenBuffer[0] != NULL) {
++        ChangeScreenBuffer (_hardwareScreen, _hardwareScreenBuffer[0]);
++        WaitTOF();
++        WaitTOF();
++        FreeScreenBuffer (_hardwareScreen, _hardwareScreenBuffer[0]);
++        _hardwareScreenBuffer[0] = NULL;
++    }
++
++    if (_hardwareScreenBuffer[1] != NULL) {
++        FreeScreenBuffer (_hardwareScreen, _hardwareScreenBuffer[1]);
++        _hardwareScreenBuffer[1] = NULL;
++    }
++
++    if (_hardwareScreen) {
++        CloseScreen(_hardwareScreen);
++        _hardwareScreen = NULL;
++    }
++
++    if (c2p[0]) {
++        c2p8_deinit_stub(c2p[0]);
++        c2p[0] = NULL;
++    }
++
++    if (c2p[1]) {
++        c2p8_deinit_stub(c2p[1]);
++        c2p[1] = NULL;
++    }
++}
++
++
++void OSystem_AmigaOS3::setPalette(const byte *colors, uint start, uint num) {
++#ifndef NDEBUG
++	debug(4, "OSystem_AmigaOS3:setPalette()");
++
++    debug(5, "setPalette() - start = %d", start);
++	debug(5, "setPalette() - num = %d", num);
++
++    assert(colors);
++#endif
++
++
++	byte *dst = (byte*)(_currentPalette + (3 * start));
++    CopyMem((byte*)colors, dst, (num * 3));
++
++	if (start < _paletteDirtyStart) {
++		_paletteDirtyStart = start;
++    }
++
++    if (start + num > _paletteDirtyEnd) {
++		_paletteDirtyEnd = start + num;
++    }
++}
++
++void OSystem_AmigaOS3::grabPalette(byte *colors, uint start, uint num) {
++#ifndef NDEBUG
++	assert(colors);
++#endif
++
++    CopyMem(_currentPalette + (3 * start), colors, 3 * num);
++}
++
++
++void OSystem_AmigaOS3::updatePalette() {
++#ifndef NDEBUG
++    debug(4, "updatePalette()");
++
++    debug(5, "updatePalette() - _paletteDirtyStart = %d", _paletteDirtyStart);
++	debug(5, "updatePalette() - _paletteDirtyEnd = %d", _paletteDirtyEnd);
++#endif
++
++    uint j = 1;
++    byte *color = (byte*)(_currentPalette + 3 * _paletteDirtyStart);
++
++    for(uint i = _paletteDirtyStart; i < _paletteDirtyEnd; i++) {
++
++        _agaPalette[j] = color[0] << 24;
++    	_agaPalette[j+1] = color[1] << 24;
++    	_agaPalette[j+2] = color[2] << 24;
++
++    	j += 3;
++    	color += 3;
++    }
++
++	uint numberOfEntries = (_paletteDirtyEnd - _paletteDirtyStart);
++
++    _agaPalette[0] = (numberOfEntries << 16) + _paletteDirtyStart;
++
++    // Terminator: NEEDED
++    _agaPalette[((numberOfEntries * 3) + 1)] = 0x00000000;
++
++	LoadRGB32(&_hardwareScreen->ViewPort, _agaPalette);
++
++    // Reset.
++    _paletteDirtyStart = 256;
++    _paletteDirtyEnd = 0;
++}
++
++
++
++
++void OSystem_AmigaOS3::copyRectToScreen(const void *buf, int pitch, int x, int y, int w, int h) {
++#ifndef NDEBUG
++    debug(4, "copyRectToScreen()");
++    debug(5, "copyRectToScreen() - pitch = %d", pitch);
++    debug(5, "copyRectToScreen() - x = %d", x);
++    debug(5, "copyRectToScreen() - y = %d", y);
++    debug(5, "copyRectToScreen() - w = %d", w);
++    debug(5, "copyRectToScreen() - h = %d", h);
++
++    assert(_transactionMode == kTransactionNone);
++	assert(buf);
++
++
++	assert(x >= 0 && x < _videoMode.screenWidth);
++	assert(y >= 0 && y < _videoMode.screenHeight);
++	assert(h > 0 && y + h <= _videoMode.screenHeight);
++	assert(w > 0 && x + w <= _videoMode.screenWidth);
++#endif
++
++
++	byte *dst = (byte*)_screen.getBasePtr(x, y);
++
++    if (_videoMode.screenWidth == pitch && pitch == w) {
++        CopyMemQuick((byte*)buf, dst, w * h);
++	} else {
++		const byte *src = (const byte *)buf;
++		do {
++			CopyMem((void *)src, dst, w);
++			src += pitch;
++			dst += _videoMode.screenWidth;//_screen.pitch;
++		} while (--h);
++	}
++}
++
++
++
++
++
++void OSystem_AmigaOS3::fillScreen(uint32 col) {
++    if (_screen.pixels) {
++        memset(_screen.pixels, (int)col, (_videoMode.screenWidth * _videoMode.screenHeight));
++    }
++}
++
++
++
++
++void OSystem_AmigaOS3::updateScreen() {
++#ifndef NDEBUG
++    debug(9, "OSystem_AmigaOS3::updateScreen()");
++#endif
++
++    static UBYTE* src;
++
++
++    if (_mouseCursor.visible) {
++        drawMouse();
++    }
++
++    if (_overlayVisible) {
++        src = (UBYTE*)_overlayscreen8.pixels;
++
++        c2p8_stub(c2p[_currentScreenBuffer], _hardwareScreenBuffer[_currentScreenBuffer]->sb_BitMap, src, _videoMode.screenWidth * _videoMode.overlayScreenHeight);
++    } else {
++        if (_currentShakePos != _newShakePos) {
++            // Set the 'dirty area' to black.
++            memset(_tmpscreen.getBasePtr(0, (_videoMode.screenHeight - _newShakePos)), 0, (_videoMode.screenWidth * _newShakePos));
++
++            src = (UBYTE*)_screen.getBasePtr(0, _newShakePos);
++            byte *dst = (byte*)_tmpscreen.getBasePtr(0, 0);
++
++            CopyMemQuick(src, dst, (_videoMode.screenWidth * (_videoMode.screenHeight - _newShakePos)));
++
++            // Reset.
++	        _currentShakePos = _newShakePos;
++
++	        src = (UBYTE*)_tmpscreen.pixels;
++        } else {
++            src = (UBYTE*)_screen.pixels;
++        }
++
++        c2p8_stub(c2p[_currentScreenBuffer], _hardwareScreenBuffer[_currentScreenBuffer]->sb_BitMap, src, _videoMode.screenWidth * _videoMode.screenHeight);
++    }
++
++
++
++    // Check whether the palette was changed.
++	if (_paletteDirtyEnd != 0) {
++        updatePalette();
++	}
++
++
++    if (_mouseCursor.visible) {
++        undrawMouse();
++    }
++
++    if (ChangeScreenBuffer(_hardwareScreen, _hardwareScreenBuffer[_currentScreenBuffer])) {
++        // Flip.
++	   _currentScreenBuffer = _currentScreenBuffer ^ 1;
++    }
++}
++
++
++
++void OSystem_AmigaOS3::setShakePos(int shakeOffset) {
++#ifndef NDEBUG
++	assert (_transactionMode == kTransactionNone);
++#endif
++
++	_newShakePos = shakeOffset;
++}
++
++
++
++
++
++
++
++
++
++
++
++
++
++#pragma mark -
++#pragma mark --- Overlays ---
++#pragma mark -
++
++void OSystem_AmigaOS3::loadOverlayPalette() {
++
++	// Load overlay palette file.
++   	FILE *paletteFile;
++
++    paletteFile = fopen("overlay.pal", "r");
++    if (paletteFile == NULL) {
++        error("Could not load the palette file");
++    } else {
++        // Skip forward 3 rows.
++        char temp[100];
++        fgets(temp, 100, paletteFile);
++        fgets(temp, 100, paletteFile);
++        fgets(temp, 100, paletteFile);
++
++        // Read the palette data.
++        int red, green, blue;
++
++        byte *color = _overlayPalette;
++
++        while (fscanf(paletteFile, "%d %d %d", &red, &green, &blue) != EOF) {
++           color[0] = red;
++    	   color[1] = green;
++    	   color[2] = blue;
++
++    	   color += 3;
++        }
++
++        fclose(paletteFile);
++    }
++}
++
++void OSystem_AmigaOS3::loadOverlayColorMap() {
++#ifndef NDEBUG
++    debug(4, "generateOverlayColorMap()");
++#endif
++
++    int color8;
++
++    // Load overlay map file.
++   	FILE *mapFile;
++
++    mapFile = fopen("overaly.map", "r");
++    if (mapFile == NULL) {
++        error("Could not load the overaly map file");
++    }
++
++
++    int i = 0;
++
++    while (fscanf(mapFile, "%d", &color8) != EOF) {
++        _overlayColorMap[i] = color8;
++        i++;
++    }
++
++    fclose(mapFile);
++}
++
++void OSystem_AmigaOS3::showOverlay() {
++#ifndef NDEBUG
++	assert (_transactionMode == kTransactionNone);
++#endif
++
++	if (_overlayVisible) {
++		return;
++    }
++
++	_overlayVisible = true;
++
++    // Make a backup of the current game palette.
++    memcpy(_gamePalette, _currentPalette, PALETTE_SIZE);
++
++    // Set the overlay palette.
++    setPalette((byte*)_overlayPalette, 0, 256);
++}
++
++void OSystem_AmigaOS3::hideOverlay() {
++#ifndef NDEBUG
++	assert (_transactionMode == kTransactionNone);
++#endif
++
++	if (!_overlayVisible) {
++		return;
++    }
++
++
++    clearOverlay();
++
++    UBYTE* src = (UBYTE*)_overlayscreen8.pixels;
++    c2p8_stub(c2p[_currentScreenBuffer], _hardwareScreenBuffer[_currentScreenBuffer]->sb_BitMap, src, _videoMode.screenWidth * _videoMode.overlayScreenHeight);
++
++    if (ChangeScreenBuffer(_hardwareScreen, _hardwareScreenBuffer[_currentScreenBuffer])) {
++        // Flip.
++	   _currentScreenBuffer = _currentScreenBuffer ^ 1;
++
++	   c2p8_stub(c2p[_currentScreenBuffer], _hardwareScreenBuffer[_currentScreenBuffer]->sb_BitMap, src, _videoMode.screenWidth * _videoMode.overlayScreenHeight);
++    }
++
++
++	_overlayVisible = false;
++
++    // Reset the game palette.
++    setPalette((byte*)_gamePalette, 0, 256);
++}
++
++void OSystem_AmigaOS3::clearOverlay() {
++
++	if (!_overlayVisible) {
++		return;
++    }
++
++    // Set the background to black.
++    byte *src = (byte*)_overlayscreen8.pixels;
++    memset(src, 0, (_videoMode.screenWidth * _videoMode.overlayScreenHeight));
++}
++
++void OSystem_AmigaOS3::grabOverlay(void *buf, int pitch) {
++#ifndef NDEBUG
++	assert (_transactionMode == kTransactionNone);
++#endif
++
++    // Grab the overlay.
++    memcpy(buf, _overlayscreen16.pixels, (_videoMode.screenWidth * _videoMode.overlayScreenHeight) * _overlayscreen16.format.bytesPerPixel);
++}
++
++void OSystem_AmigaOS3::copyRectToOverlay(const void *buf, int pitch, int x, int y, int w, int h) {
++#ifndef NDEBUG
++    debug(4, "copyRectToOverlay()");
++
++   	assert (_transactionMode == kTransactionNone);
++#endif
++
++	// Clip the coordinates
++    if (x < 0) {
++		return;
++	}
++
++	if (y < 0) {
++		return;
++	}
++
++	if (w > _videoMode.screenWidth - x) {
++		w = _videoMode.screenWidth - x;
++	}
++
++	if (h > _videoMode.overlayScreenHeight - y) {
++		h = _videoMode.overlayScreenHeight - y;
++	}
++
++	if (w <= 0 || h <= 0) {
++		return;
++    }
++
++
++    const OverlayColor *src = (const OverlayColor *)buf;
++    byte *dst = (byte*)_overlayscreen8.getBasePtr(x, y);
++
++    OverlayColor color16;
++    byte color8;
++
++    for(uint r = 0; r < h; r++) {
++        for(uint c = 0; c < w; c++) {
++            color16 = *src;
++
++            color8 = _overlayColorMap[color16];
++
++            *dst = color8;
++
++            // Add a column.
++            src++;
++            dst++;
++        }
++
++        // add a row.
++        dst += (_videoMode.screenWidth - w);
++        src += (_videoMode.screenWidth - w);
++    }
++}
++
++
++
++
++
++#pragma mark -
++#pragma mark --- Mouse ---
++#pragma mark -
++
++bool OSystem_AmigaOS3::showMouse(bool visible) {
++	if (_mouseCursor.visible == visible) {
++		return visible;
++    }
++
++	bool last = _mouseCursor.visible;
++	 _mouseCursor.visible = visible;
++
++	return last;
++}
++
++void OSystem_AmigaOS3::warpMouse(int x, int y) {
++
++	struct InputEvent ie;
++	struct IEPointerPixel pp;
++
++	ie.ie_NextEvent = NULL;
++    ie.ie_Class = IECLASS_NEWPOINTERPOS;
++    ie.ie_SubClass = IESUBCLASS_PIXEL;
++    ie.ie_Code = 0;
++    ie.ie_Qualifier = 0;
++    ie.ie_EventAddress = &pp;
++
++    pp.iepp_Screen = _hardwareScreen;
++    pp.iepp_Position.X = x;
++    pp.iepp_Position.Y = y;
++
++	AddIEvents(&ie);
++}
++
++void OSystem_AmigaOS3::setMouseCursor(const void *buf, uint w, uint h,
++ int hotspot_x, int hotspot_y, uint32 keycolor, bool dontScale, const Graphics::PixelFormat *format) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::setMouseCursor(w = %d, h = %d)", w, h);
++
++    assert(buf);
++#endif
++
++    // Sanity check.
++	if (w == 0 || h == 0) {
++		return;
++    }
++
++    // Check to see if we need to recreate the surfaces.
++    if (w != _mouseCursor.w || h != _mouseCursor.h) {
++        _mouseCursor.surface.create(w, h, Graphics::PixelFormat::createFormatCLUT8());
++        _mouseCursorMask.surface.create(w, h, Graphics::PixelFormat::createFormatCLUT8());
++    }
++
++    _mouseCursor.w = w;
++    _mouseCursor.h = h;
++    _mouseCursor.hotX = hotspot_x;
++    _mouseCursor.hotY = hotspot_y;
++    _mouseCursor.keyColor = keycolor;
++
++    CopyMem((void*)buf, _mouseCursor.surface.pixels, w * h);
++}
++
++void OSystem_AmigaOS3::setMouseCursorPosition(uint x, uint y) {
++    _mouseCursor.x = x;
++    _mouseCursor.y = y;
++}
++
++void OSystem_AmigaOS3::drawMouse() {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::drawMouse()");
++#endif
++
++    uint w = _mouseCursor.w;
++    uint h = _mouseCursor.h;
++
++    int x = (_mouseCursor.x - _mouseCursor.hotX);
++    int y = (_mouseCursor.y - _mouseCursor.hotY);
++
++
++    byte *mousePixels = (byte*)_mouseCursor.surface.pixels;
++
++
++    // Clip the coordinates
++	if (x < 0) {
++		w += x;
++		mousePixels -= x;
++		x = 0;
++	}
++
++	if (y < 0) {
++		h += y;
++        mousePixels -= (y * _mouseCursor.surface.pitch);
++		y = 0;
++	}
++
++
++	if (w > _videoMode.screenWidth - x) {
++		w = _videoMode.screenWidth - x;
++	}
++
++	if (h > _videoMode.screenHeight - y) {
++		h = _videoMode.screenHeight - y;
++	}
++
++
++	if (w <= 0 || h <= 0) {
++		// Nothing to do.
++        return;
++    }
++
++
++    // Setup the cursor mask.
++    _mouseCursorMask.x = x;
++    _mouseCursorMask.y = y;
++    _mouseCursorMask.w = w;
++    _mouseCursorMask.h = h;
++
++    byte *maskPixels = (byte*)_mouseCursorMask.surface.pixels;
++
++
++    // Set the starting point of the screen we will be drawing to.
++    byte *screenPixels = NULL;
++
++    if(_overlayVisible) {
++        screenPixels = (byte*)_overlayscreen8.getBasePtr(x, y);
++    } else {
++        screenPixels = (byte*)_screen.getBasePtr(x, y);
++    }
++
++
++	// Draw it.
++    byte color;
++
++	do {
++		// Save a copy of this row before it's overwritten.
++        CopyMem(screenPixels, maskPixels, w);
++
++         for(uint c = 0; c < w; c++) {
++            color = *mousePixels;
++
++            if (color != _mouseCursor.keyColor) {
++                // Set the color.
++                *screenPixels = color;
++            }
++
++            // Add a column.
++            mousePixels++;
++            screenPixels++;
++        }
++
++        // add a row.
++        maskPixels += w;
++        mousePixels += (_mouseCursor.surface.pitch - w);
++        screenPixels += (_videoMode.screenWidth - w);
++	} while (--h);
++}
++
++void OSystem_AmigaOS3::undrawMouse() {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::undrawMouse()");
++#endif
++
++
++    byte *dst = NULL;
++
++    if(_overlayVisible) {
++        dst = (byte*)_overlayscreen8.getBasePtr(_mouseCursorMask.x, _mouseCursorMask.y);
++    } else {
++        dst = (byte*)_screen.getBasePtr(_mouseCursorMask.x, _mouseCursorMask.y);
++    }
++
++    byte *src = (byte*)_mouseCursorMask.surface.pixels;
++
++    for(uint i = 0; i < _mouseCursorMask.h; i++) {
++        CopyMem(src, dst, _mouseCursorMask.w);
++        dst += _videoMode.screenWidth;
++        src += _mouseCursorMask.w;
++    }
++}
++
++/*UBYTE *OSystem_AmigaOS3::scaleScreen() {
++
++    byte *src;
++    byte *dst = (byte*)_tmpscreen.getBasePtr(0, _videoMode.scaledHeight - 1);
++
++    bool shaking = false;
++
++	// If the shake position changed, fill the dirty area with blackness
++    if (_currentShakePos != _newShakePos) {
++
++        // Set the 'dirty area' to black.
++        memset(_tmpscreen.getBasePtr(0, (_videoMode.scaledHeight - _newShakePos)), 0, (_videoMode.screenWidth * _newShakePos));
++
++        for (uint y = (_videoMode.scaledHeight - 1); y > _newShakePos; y--) {
++            src = (byte *)_screen.pixels + (aspect2Real(y + _newShakePos) * _videoMode.screenWidth);
++
++            CopyMemQuick(src, dst, _videoMode.screenWidth);
++
++            dst -= _videoMode.screenWidth;
++        }
++
++        // Reset.
++    	_currentShakePos = _newShakePos;
++    } else {
++        for (uint y = (_videoMode.scaledHeight - 1); y > 0; y--) {
++            src = (byte *)_screen.pixels + (aspect2Real(y) * _videoMode.screenWidth);
++
++            CopyMemQuick(src, dst, _videoMode.screenWidth);
++
++            dst -= _videoMode.screenWidth;
++        }
++    }
++
++    return (UBYTE*)_tmpscreen.pixels;
++}*/
+diff --git a/backends/platform/amigaos3/amigaos3-graphics-cgx.cpp b/backends/platform/amigaos3/amigaos3-graphics-cgx.cpp
+new file mode 100644
+index 0000000..58f2f41
+--- /dev/null
++++ b/backends/platform/amigaos3/amigaos3-graphics-cgx.cpp
+@@ -0,0 +1,1110 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * ScummVM is the legal property of its developers, whose names
++ * are too numerous to list here. Please refer to the COPYRIGHT
++ * file distributed with this source distribution.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * $URL$
++ * $Id$
++ *
++ */
++
++
++
++#include "backends/platform/amigaos3/amigaos3-aga.h"
++#include "backends/fs/fs-factory.h"
++#include "backends/fs/amigaos3/amigaos3-fs-node.h"
++#include "graphics/scaler/aspect.h"
++#include "common/scummsys.h"
++#include "common/textconsole.h"
++#include "common/debug.h"
++#include "common/config-manager.h"
++
++#include <proto/commodities.h>
++#include <inline/commodities.h>
++
++#include <proto/graphics.h>
++#include <inline/graphics.h>
++
++#include <cybergraphx/cybergraphics.h>
++#include <proto/cybergraphics.h>
++#include <inline/cybergraphics.h>
++
++struct Library *CyberGfxBase;
++
++
++static UWORD emptypointer[] = {
++  0x0000, 0x0000,    /* reserved, must be NULL */
++  0x0000, 0x0000,     /* 1 row of image data */
++  0x0000, 0x0000    /* reserved, must be NULL */
++};
++
++
++
++
++/** Hardware screen */
++static struct Screen *_hardwareGameScreen = NULL;
++
++/** Hardware window */
++static struct Window *_hardwareGameWindow = NULL;
++
++
++/** Hardware screen */
++static struct Screen *_hardwareOverlayScreen = NULL;
++
++/** Hardware window */
++static struct Window *_hardwareOverlayWindow = NULL;
++
++
++
++#define CGX_VIDEO_DEPTH 8
++
++
++
++
++
++
++
++
++static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
++	{"1x", "Normal", GFX_NORMAL},
++	{0, 0, 0}
++};
++
++bool OSystem_AmigaOS3::hasFeature(OSystem::Feature f) {
++
++    /*if (f == OSystem::kFeatureAspectRatioCorrection) {
++        return true;
++    }*/
++
++    if (f == OSystem::kFeatureFullscreenMode) {
++        return true;
++    }
++
++    return false;
++}
++
++void OSystem_AmigaOS3::setFeatureState(OSystem::Feature f, bool enable) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::setFeatureState()");
++#endif
++
++    /*switch (f) {
++    	case OSystem::kFeatureAspectRatioCorrection:
++            _videoMode.aspectRatioCorrectionRequested = enable;
++    		break;
++	}*/
++
++}
++
++bool OSystem_AmigaOS3::getFeatureState(OSystem::Feature f) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::getFeatureState()");
++
++    assert (_transactionMode == kTransactionNone);
++#endif
++
++
++	switch (f) {
++    	case OSystem::kFeatureFullscreenMode:
++    		return true;
++
++    	//case OSystem::kFeatureAspectRatioCorrection:
++		//  return _videoMode.aspectRatioCorrectionRequested;
++
++    	default:
++    		return false;
++	}
++}
++
++const OSystem::GraphicsMode *OSystem_AmigaOS3::getSupportedGraphicsModes() const {
++	return s_supportedGraphicsModes;
++}
++
++int OSystem_AmigaOS3::getDefaultGraphicsMode() const {
++	return GFX_NORMAL;
++}
++
++void OSystem_AmigaOS3::resetGraphicsScale() {
++	setGraphicsMode(getDefaultGraphicsMode());
++}
++
++void OSystem_AmigaOS3::beginGFXTransaction() {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::beginGFXTransaction()");
++
++	assert(_transactionMode == kTransactionNone);
++#endif
++
++
++	_transactionMode = kTransactionActive;
++
++	_transactionDetails.sizeChanged = false;
++
++    // Store the current mode in the old mode.
++	_oldVideoMode = _videoMode;
++}
++
++OSystem::TransactionError OSystem_AmigaOS3::endGFXTransaction() {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::endGFXTransaction()");
++
++    assert(_transactionMode != kTransactionNone);
++#endif
++
++
++	int errors = OSystem::kTransactionSuccess;
++
++	if (_transactionMode == kTransactionRollback) {
++    	errors |= OSystem::kTransactionSizeChangeFailed;
++
++        // Revert to the last (working) mode.
++		_videoMode.screenWidth = _oldVideoMode.screenWidth;
++		_videoMode.screenHeight = _oldVideoMode.screenHeight;
++
++		// Stop an endless loop if loadGFXMode() also fails with the old mode.
++		_oldVideoMode.setup = false;
++    }
++
++
++    if (_transactionDetails.sizeChanged) {
++        unloadGFXMode();
++        if(!loadGFXMode()) {
++           	if (_oldVideoMode.setup) {
++                _transactionMode = kTransactionRollback;
++				errors |= endGFXTransaction();
++			} else {
++                error("Could not switch to video mode (%d x %d)", _videoMode.screenWidth, _videoMode.screenHeight);
++            }
++        }
++
++
++        if (_overlayVisible) {
++            ScreenToFront(_hardwareOverlayScreen);
++            ActivateWindow(_hardwareOverlayWindow);
++
++            // Set current cursor position.
++            _mouseCursor.x = _hardwareOverlayWindow->MouseX;
++            _mouseCursor.y = _hardwareOverlayWindow->MouseY;
++        } else {
++            ScreenToFront(_hardwareGameScreen);
++            ActivateWindow(_hardwareGameWindow);
++
++            // Set current cursor position.
++            _mouseCursor.x = _hardwareGameWindow->MouseX;
++            _mouseCursor.y = _hardwareGameWindow->MouseY;
++        }
++
++
++
++
++        if (!_overlayPalette) {
++            _overlayPalette = (byte *)calloc(3 * 256, sizeof(byte));
++            loadOverlayPalette();
++        }
++
++        setPalette((byte*)_overlayPalette, 0, 256);
++
++        if (!_overlayColorMap) {
++            _overlayColorMap = (byte*)calloc(65536, sizeof(byte));
++            loadOverlayColorMap();
++        }
++
++        _videoMode.setup = true;
++
++        _screenChangeCount++;
++    }
++
++	_transactionMode = kTransactionNone;
++
++
++    return (OSystem::TransactionError)errors;
++}
++
++bool OSystem_AmigaOS3::setGraphicsMode(int mode) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::setGraphicsMode(%d)", mode);
++#endif
++
++	assert(_transactionMode == kTransactionActive);
++
++	if (_oldVideoMode.setup && _oldVideoMode.mode == mode) {
++		return true;
++    }
++
++	if (mode != GFX_NORMAL) {
++        warning("Unsupported GFX mode %d", mode);
++        return false;
++    }
++
++	_videoMode.mode = mode;
++
++	return true;
++}
++
++int OSystem_AmigaOS3::getGraphicsMode() const {
++	assert (_transactionMode == kTransactionNone);
++
++	return _videoMode.mode;
++}
++
++void OSystem_AmigaOS3::initSize(uint w, uint h, const Graphics::PixelFormat *format) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::initSize(%d, %d)", w, h);
++
++	assert(_transactionMode == kTransactionActive);
++#endif
++
++
++
++	// Avoid redundant res changes
++    /*if (_videoMode.aspectRatioCorrectionRequested) {
++        if (w == _videoMode.screenWidth && real2Aspect(h) == _videoMode.scaledHeight) {
++    		return;
++        }
++    } else {*/
++         if (w == _videoMode.screenWidth && h == _videoMode.screenHeight) {
++    		return;
++        }
++    //}
++
++	_videoMode.screenWidth = w;
++	_videoMode.screenHeight = h;
++
++    _overlayWidth = 640;
++    _overlayHeight = 480;
++
++	_transactionDetails.sizeChanged = true;
++}
++
++bool OSystem_AmigaOS3::loadGFXMode() {
++
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::loadGFXMode()");
++
++    debug(5, "New video mode requested - width = %d, height = %d", _videoMode.screenWidth, _videoMode.screenHeight);
++#endif
++
++
++
++    // Hack - should come from tooltypes
++    _videoMode.overlayWidth = _overlayWidth;
++    _videoMode.overlayHeight = _overlayHeight;
++
++    // Overlay cannot be smaller than the game screen.
++    /*if ((_videoMode.overlayWidth < _videoMode.screenWidth) || (_videoMode.overlayHeight < _videoMode.screenHeight)) {
++        _videoMode.overlayWidth = _videoMode.screenWidth;
++        _videoMode.overlayHeight = _videoMode.screenHeight;
++    }*/
++
++    // Create the hardware screen.
++    _hardwareOverlayScreen = createHardwareScreen(_videoMode.overlayWidth, _videoMode.overlayHeight);
++    if (!_hardwareOverlayScreen) {
++		return false;
++    }
++
++    // Create the hardware window.
++    _hardwareOverlayWindow = createHardwareWindow(_videoMode.overlayWidth, _videoMode.overlayHeight, _hardwareOverlayScreen);
++    if (!_hardwareOverlayWindow) {
++		return false;
++    }
++
++    SetPointer(_hardwareOverlayWindow, emptypointer, 1, 16, 0, 0);
++
++    // Create the hardware screen.
++    _hardwareGameScreen = createHardwareScreen(_videoMode.screenWidth, (_videoMode.screenHeight < 240) ? 240: _videoMode.screenHeight);
++    if (!_hardwareGameScreen) {
++		return false;
++    }
++
++    // Create the hardware window.
++    _hardwareGameWindow = createHardwareWindow(_videoMode.screenWidth, (_videoMode.screenHeight < 240) ? 240: _videoMode.screenHeight, _hardwareGameScreen);
++    if (!_hardwareGameWindow) {
++		return false;
++    }
++
++    SetPointer(_hardwareGameWindow, emptypointer, 1, 16, 0, 0);
++
++    // Create the surface that contains the 8 bit game data
++    _screen.create(_videoMode.screenWidth, _videoMode.screenHeight, Graphics::PixelFormat::createFormatCLUT8());
++
++    // Create the screen used by the scaler/shaker.
++    _tmpscreen.create(_videoMode.screenWidth, _videoMode.screenHeight, Graphics::PixelFormat::createFormatCLUT8());
++
++    // Create the 8bit overlay surface
++    _overlayscreen8.create(_videoMode.overlayWidth, _videoMode.overlayHeight, Graphics::PixelFormat::createFormatCLUT8());
++
++	// Create the 16bit overlay surface
++    _overlayscreen16.create(_videoMode.overlayWidth, _videoMode.overlayHeight, _overlayFormat);
++
++    _screenDirty = true;
++    _overlayDirty = true;
++
++    return true;
++}
++
++struct Screen* OSystem_AmigaOS3::createHardwareScreen(uint width, uint height) {
++
++    // Create the hardware screen.
++    struct Screen* screen = NULL;
++    ULONG modeId = INVALID_ID;
++
++    if (width == 0 || width > 4096 || height == 0 || height > 4096) {
++        width = 320;
++        height = 200;
++    }
++
++	modeId = BestCModeIDTags(
++        		CYBRBIDTG_Depth, CGX_VIDEO_DEPTH,
++        		CYBRBIDTG_NominalWidth, width,
++        		CYBRBIDTG_NominalHeight, height,
++        		TAG_DONE);
++
++	// Verify the mode choosen.
++	if (modeId != INVALID_ID) {
++    	if (GetCyberIDAttr(CYBRIDATTR_DEPTH, modeId) != CGX_VIDEO_DEPTH) {
++    		modeId = INVALID_ID;
++    	}
++
++    	if (GetCyberIDAttr(CYBRIDATTR_WIDTH, modeId) != width) {
++    	   modeId = INVALID_ID;
++    	}
++
++    	if (GetCyberIDAttr(CYBRIDATTR_HEIGHT, modeId) != height) {
++    	   modeId = INVALID_ID;
++    	}
++	}
++
++	if (modeId == INVALID_ID) {
++		warning("Couldn't find a Screen Mode for requested mode");
++    }
++
++
++    if (modeId != INVALID_ID) {
++
++    	screen = OpenScreenTags(NULL,
++                         SA_Depth, CGX_VIDEO_DEPTH,
++                         SA_DisplayID, modeId,
++                         SA_Width, width,
++    					 SA_Height, height,
++						 SA_Type, CUSTOMSCREEN,
++                         SA_Quiet, TRUE,
++    					 SA_ShowTitle, FALSE,
++    					 SA_Draggable, FALSE,
++                         SA_Exclusive, TRUE,
++    					 SA_AutoScroll, FALSE,
++						 TAG_END);
++    }
++
++    return screen;
++}
++
++struct Window* OSystem_AmigaOS3::createHardwareWindow(uint width, uint height, struct Screen *screen) {
++
++    return OpenWindowTags(NULL,
++                  	    WA_Left, 0,
++            			WA_Top, 0,
++            			WA_Width, width,
++            			WA_Height, height,
++    					SA_AutoScroll, FALSE,
++            			WA_CustomScreen, (ULONG)screen,
++            			WA_Backdrop, TRUE,
++            			WA_Borderless, TRUE,
++            			WA_DragBar, FALSE,
++            			WA_Activate, TRUE,
++            			WA_SimpleRefresh, TRUE,
++            			WA_NoCareRefresh, TRUE,
++            			WA_ReportMouse, TRUE,
++            			WA_RMBTrap, TRUE,
++                  	    WA_IDCMP, IDCMP_RAWKEY|IDCMP_MOUSEMOVE|IDCMP_MOUSEBUTTONS,
++                  	    TAG_END);
++}
++
++
++void OSystem_AmigaOS3::unloadGFXMode() {
++
++	_screen.free();
++	_tmpscreen.free();
++
++	_overlayscreen8.free();
++	_overlayscreen16.free();
++
++
++
++    if (_hardwareGameWindow) {
++        ClearPointer(_hardwareGameWindow);
++        CloseWindow(_hardwareGameWindow);
++        _hardwareGameWindow = NULL;
++    }
++
++    if (_hardwareGameScreen) {
++        CloseScreen(_hardwareGameScreen);
++        _hardwareGameScreen = NULL;
++    }
++
++
++    if (_hardwareOverlayWindow) {
++        ClearPointer(_hardwareOverlayWindow);
++        CloseWindow(_hardwareOverlayWindow);
++        _hardwareOverlayWindow = NULL;
++    }
++
++    if (_hardwareOverlayScreen) {
++        CloseScreen(_hardwareOverlayScreen);
++        _hardwareOverlayScreen = NULL;
++    }
++}
++
++
++void OSystem_AmigaOS3::setPalette(const byte *colors, uint start, uint num) {
++#ifndef NDEBUG
++	debug(4, "OSystem_AmigaOS3:setPalette()");
++
++    debug(5, "setPalette() - start = %d", start);
++	debug(5, "setPalette() - num = %d", num);
++
++    assert(colors);
++#endif
++
++
++	byte *dst = (byte*)(_currentPalette + (3 * start));
++    CopyMem((byte*)colors, dst, (num * 3));
++
++	if (start < _paletteDirtyStart) {
++		_paletteDirtyStart = start;
++    }
++
++    if (start + num > _paletteDirtyEnd) {
++		_paletteDirtyEnd = start + num;
++    }
++}
++
++void OSystem_AmigaOS3::grabPalette(byte *colors, uint start, uint num) {
++#ifndef NDEBUG
++	assert(colors);
++#endif
++
++    CopyMem(_currentPalette + (3 * start), colors, 3 * num);
++}
++
++
++void OSystem_AmigaOS3::updatePalette() {
++#ifndef NDEBUG
++    debug(4, "updatePalette()");
++
++    debug(5, "updatePalette() - _paletteDirtyStart = %d", _paletteDirtyStart);
++	debug(5, "updatePalette() - _paletteDirtyEnd = %d", _paletteDirtyEnd);
++#endif
++
++    uint j = 1;
++    byte *color = (byte*)(_currentPalette + 3 * _paletteDirtyStart);
++
++    for(uint i = _paletteDirtyStart; i < _paletteDirtyEnd; i++) {
++
++        _agaPalette[j] = color[0] << 24;
++    	_agaPalette[j+1] = color[1] << 24;
++    	_agaPalette[j+2] = color[2] << 24;
++
++    	j += 3;
++    	color += 3;
++    }
++
++	uint numberOfEntries = (_paletteDirtyEnd - _paletteDirtyStart);
++
++    _agaPalette[0] = (numberOfEntries << 16) + _paletteDirtyStart;
++
++    // Terminator: NEEDED
++    _agaPalette[((numberOfEntries * 3) + 1)] = 0x00000000;
++
++    if (_overlayVisible) {
++	   LoadRGB32(&_hardwareOverlayScreen->ViewPort, _agaPalette);
++    } else {
++        LoadRGB32(&_hardwareGameScreen->ViewPort, _agaPalette);
++    }
++
++    // Reset.
++    _paletteDirtyStart = 256;
++    _paletteDirtyEnd = 0;
++}
++
++
++
++
++void OSystem_AmigaOS3::copyRectToScreen(const void *buf, int pitch, int x, int y, int w, int h) {
++#ifndef NDEBUG
++    debug(4, "copyRectToScreen()");
++    debug(5, "copyRectToScreen() - pitch = %d", pitch);
++    debug(5, "copyRectToScreen() - x = %d", x);
++    debug(5, "copyRectToScreen() - y = %d", y);
++    debug(5, "copyRectToScreen() - w = %d", w);
++    debug(5, "copyRectToScreen() - h = %d", h);
++
++    assert(_transactionMode == kTransactionNone);
++	assert(buf);
++
++
++	assert(x >= 0 && x < _videoMode.screenWidth);
++	assert(y >= 0 && y < _videoMode.screenHeight);
++	assert(h > 0 && y + h <= _videoMode.screenHeight);
++	assert(w > 0 && x + w <= _videoMode.screenWidth);
++#endif
++
++
++	byte *dst = (byte*)_screen.getBasePtr(x, y);
++
++    if (_videoMode.screenWidth == pitch && pitch == w) {
++        CopyMemQuick((byte*)buf, dst, w * h);
++	} else {
++		const byte *src = (const byte *)buf;
++		do {
++			CopyMem((void *)src, dst, w);
++			src += pitch;
++			dst += _videoMode.screenWidth;
++		} while (--h);
++	}
++
++    _screenDirty = true;
++}
++
++
++
++
++
++void OSystem_AmigaOS3::fillScreen(uint32 col) {
++    if (_screen.getPixels()) {
++        memset(_screen.getPixels(), (int)col, (_videoMode.screenWidth * _videoMode.screenHeight));
++        _screenDirty = true;
++    }
++}
++
++
++
++
++void OSystem_AmigaOS3::updateScreen() {
++#ifndef NDEBUG
++    debug(9, "OSystem_AmigaOS3::updateScreen()");
++#endif
++
++    UBYTE* src;
++
++    if (_overlayVisible && _overlayDirty) {
++        if (_mouseCursor.visible) {
++            drawMouse();
++        }
++
++        UBYTE *base_address;
++        APTR video_bitmap_handle = LockBitMapTags(_hardwareOverlayScreen->ViewPort.RasInfo->BitMap,
++        									 LBMI_BASEADDRESS, (ULONG)&base_address,
++        									 TAG_DONE);
++        if (video_bitmap_handle) {
++            CopyMemQuick((UBYTE*)_overlayscreen8.getPixels(), base_address, (_videoMode.overlayWidth * _videoMode.overlayHeight));
++        	UnLockBitMap (video_bitmap_handle);
++        	video_bitmap_handle = NULL;
++        }
++
++        if (_mouseCursor.visible) {
++            undrawMouse();
++        }
++
++        _overlayDirty = false;
++    } else if (_screenDirty) {
++
++        if (_mouseCursor.visible) {
++            drawMouse();
++        }
++
++        if (_currentShakePos != _newShakePos) {
++            // Set the 'dirty area' to black.
++            memset(_tmpscreen.getBasePtr(0, (_videoMode.screenHeight - _newShakePos)), 0, (_videoMode.screenWidth * _newShakePos));
++
++            src = (UBYTE*)_screen.getBasePtr(0, _newShakePos);
++            byte *dst = (byte*)_tmpscreen.getBasePtr(0, 0);
++
++            CopyMemQuick(src, dst, (_videoMode.screenWidth * (_videoMode.screenHeight - _newShakePos)));
++
++            // Reset.
++	        _currentShakePos = _newShakePos;
++
++	        src = (UBYTE*)_tmpscreen.getPixels();
++        } else {
++            src = (UBYTE*)_screen.getPixels();
++        }
++
++
++        UBYTE *base_address;
++        APTR video_bitmap_handle = LockBitMapTags(_hardwareGameScreen->ViewPort.RasInfo->BitMap,
++        									 LBMI_BASEADDRESS, (ULONG)&base_address,
++        									 TAG_DONE);
++        if (video_bitmap_handle) {
++            CopyMemQuick(src, base_address, (_videoMode.screenWidth * _videoMode.screenHeight));
++        	UnLockBitMap (video_bitmap_handle);
++        	video_bitmap_handle = NULL;
++
++        }
++
++        if (_mouseCursor.visible) {
++            undrawMouse();
++        }
++
++        _screenDirty = false;
++    }
++
++    // Check whether the palette was changed.
++	if (_paletteDirtyEnd != 0) {
++        updatePalette();
++	}
++}
++
++
++
++void OSystem_AmigaOS3::setShakePos(int shakeOffset) {
++#ifndef NDEBUG
++	assert (_transactionMode == kTransactionNone);
++#endif
++
++	_newShakePos = shakeOffset;
++}
++
++
++
++
++
++
++
++
++
++
++
++
++
++#pragma mark -
++#pragma mark --- Overlays ---
++#pragma mark -
++
++void OSystem_AmigaOS3::loadOverlayPalette() {
++
++	// Load overlay palette file.
++   	FILE *paletteFile;
++
++    paletteFile = fopen("overlay.pal", "r");
++    if (paletteFile == NULL) {
++        error("Could not load the palette file");
++    } else {
++        // Skip forward 3 rows.
++        char temp[100];
++        fgets(temp, 100, paletteFile);
++        fgets(temp, 100, paletteFile);
++        fgets(temp, 100, paletteFile);
++
++        // Read the palette data.
++        int red, green, blue;
++
++        byte *color = _overlayPalette;
++
++        while (fscanf(paletteFile, "%d %d %d", &red, &green, &blue) != EOF) {
++           color[0] = red;
++    	   color[1] = green;
++    	   color[2] = blue;
++
++    	   color += 3;
++        }
++
++        fclose(paletteFile);
++    }
++}
++
++void OSystem_AmigaOS3::loadOverlayColorMap() {
++#ifndef NDEBUG
++    debug(4, "generateOverlayColorMap()");
++#endif
++
++    int color8;
++
++    // Load overlay map file.
++   	FILE *mapFile;
++
++    mapFile = fopen("overaly.map", "r");
++    if (mapFile == NULL) {
++        error("Could not load the overaly map file");
++    }
++
++
++    int i = 0;
++
++    while (fscanf(mapFile, "%d", &color8) != EOF) {
++        _overlayColorMap[i] = color8;
++        i++;
++    }
++
++    fclose(mapFile);
++}
++
++void OSystem_AmigaOS3::showOverlay() {
++#ifndef NDEBUG
++	assert (_transactionMode == kTransactionNone);
++#endif
++
++	if (_overlayVisible) {
++		return;
++    }
++
++
++    ScreenToFront(_hardwareOverlayScreen);
++    ActivateWindow(_hardwareOverlayWindow);
++
++
++	_overlayVisible = true;
++}
++
++void OSystem_AmigaOS3::hideOverlay() {
++#ifndef NDEBUG
++	assert (_transactionMode == kTransactionNone);
++#endif
++    APTR video_bitmap_handle;
++    UBYTE *base_address;
++
++	if (!_overlayVisible) {
++		return;
++    }
++
++
++    clearOverlay();
++
++
++    video_bitmap_handle = LockBitMapTags(_hardwareOverlayScreen->ViewPort.RasInfo->BitMap,
++    									 LBMI_BASEADDRESS, (ULONG)&base_address,
++    									 TAG_DONE);
++    if (video_bitmap_handle) {
++        CopyMemQuick((UBYTE*)_overlayscreen8.getPixels(), base_address, (_videoMode.overlayWidth * _videoMode.overlayHeight));
++    	UnLockBitMap (video_bitmap_handle);
++    	video_bitmap_handle = NULL;
++    }
++
++    ScreenToFront(_hardwareGameScreen);
++    ActivateWindow(_hardwareGameWindow);
++
++	_overlayVisible = false;
++}
++
++void OSystem_AmigaOS3::clearOverlay() {
++
++	if (!_overlayVisible) {
++		return;
++    }
++
++    // Set the background to black.
++    byte *src = (byte*)_overlayscreen8.getPixels();
++    memset(src, 0, (_videoMode.overlayWidth * _videoMode.overlayHeight));
++    _overlayDirty = true;
++}
++
++void OSystem_AmigaOS3::grabOverlay(void *buf, int pitch) {
++#ifndef NDEBUG
++	assert (_transactionMode == kTransactionNone);
++#endif
++
++    // Grab the overlay.
++    memcpy(buf, _overlayscreen16.getPixels(), (_videoMode.overlayWidth * _videoMode.overlayHeight) * _overlayscreen16.format.bytesPerPixel);
++}
++
++void OSystem_AmigaOS3::copyRectToOverlay(const void *buf, int pitch, int x, int y, int w, int h) {
++#ifndef NDEBUG
++    debug(4, "copyRectToOverlay()");
++
++   	assert (_transactionMode == kTransactionNone);
++#endif
++
++	// Clip the coordinates
++    if (x < 0) {
++		return;
++	}
++
++	if (y < 0) {
++		return;
++	}
++
++	if (w > _videoMode.overlayWidth - x) {
++		w = _videoMode.overlayWidth - x;
++	}
++
++	if (h > _videoMode.overlayHeight - y) {
++		h = _videoMode.overlayHeight - y;
++	}
++
++	if (w <= 0 || h <= 0) {
++		return;
++    }
++
++
++    const OverlayColor *src = (const OverlayColor *)buf;
++    byte *dst = (byte*)_overlayscreen8.getBasePtr(x, y);
++
++    OverlayColor color16;
++    byte color8;
++
++    for(uint r = 0; r < h; r++) {
++        for(uint c = 0; c < w; c++) {
++            color16 = *src;
++
++            color8 = _overlayColorMap[color16];
++
++            *dst = color8;
++
++            // Add a column.
++            src++;
++            dst++;
++        }
++
++        // add a row.
++        dst += (_videoMode.overlayWidth - w);
++        src += (_videoMode.overlayWidth - w);
++    }
++
++    _overlayDirty = true;
++}
++
++struct Window* OSystem_AmigaOS3::getHardwareWindow() {
++    if (_overlayVisible) {
++        return _hardwareOverlayWindow;
++    }
++
++    return _hardwareGameWindow;
++}
++
++
++
++
++
++#pragma mark -
++#pragma mark --- Mouse ---
++#pragma mark -
++
++bool OSystem_AmigaOS3::showMouse(bool visible) {
++	if (_mouseCursor.visible == visible) {
++		return visible;
++    }
++
++    if (_mouseCursor.visible != visible) {
++        if (_overlayVisible) {
++            _overlayDirty = true;
++        } else {
++            _screenDirty = true;
++        }
++    }
++
++	bool last = _mouseCursor.visible;
++	 _mouseCursor.visible = visible;
++
++	return last;
++}
++
++void OSystem_AmigaOS3::warpMouse(int x, int y) {
++
++	struct InputEvent ie;
++	struct IEPointerPixel pp;
++
++	ie.ie_NextEvent = NULL;
++    ie.ie_Class = IECLASS_NEWPOINTERPOS;
++    ie.ie_SubClass = IESUBCLASS_PIXEL;
++    ie.ie_Code = 0;
++    ie.ie_Qualifier = 0;
++    ie.ie_EventAddress = &pp;
++
++    pp.iepp_Screen = _hardwareGameScreen;  // Only used by games!
++    pp.iepp_Position.X = x;
++    pp.iepp_Position.Y = y;
++
++	AddIEvents(&ie);
++}
++
++void OSystem_AmigaOS3::setMouseCursor(const void *buf, uint w, uint h,
++ int hotspot_x, int hotspot_y, uint32 keycolor, bool dontScale, const Graphics::PixelFormat *format) {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::setMouseCursor(w = %d, h = %d)", w, h);
++
++    assert(buf);
++#endif
++
++    // Sanity check.
++	if (w == 0 || h == 0) {
++		return;
++    }
++
++    // Check to see if we need to recreate the surfaces.
++    if (w != _mouseCursor.w || h != _mouseCursor.h) {
++        _mouseCursor.surface.create(w, h, Graphics::PixelFormat::createFormatCLUT8());
++        _mouseCursorMask.surface.create(w, h, Graphics::PixelFormat::createFormatCLUT8());
++    }
++
++    MouseCursor oldMouseCursor = _mouseCursor;
++
++    _mouseCursor.w = w;
++    _mouseCursor.h = h;
++    _mouseCursor.hotX = hotspot_x;
++    _mouseCursor.hotY = hotspot_y;
++    _mouseCursor.keyColor = keycolor;
++
++    if (memcmp(&oldMouseCursor, &_mouseCursor, sizeof(MouseCursor)) != 0) {
++        if (_overlayVisible) {
++            _overlayDirty = true;
++        } else {
++            _screenDirty = true;
++        }
++    }
++    CopyMem((void*)buf, _mouseCursor.surface.getPixels(), w * h);
++}
++
++void OSystem_AmigaOS3::setMouseCursorPosition(uint x, uint y) {
++    MouseCursor oldMouseCursor = _mouseCursor;
++
++    _mouseCursor.x = x;
++    _mouseCursor.y = y;
++
++    if (memcmp(&oldMouseCursor, &_mouseCursor, sizeof(MouseCursor)) != 0) {
++        if (_overlayVisible) {
++            _overlayDirty = true;
++        } else {
++            _screenDirty = true;
++        }
++    }
++}
++
++void OSystem_AmigaOS3::drawMouse() {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::drawMouse()");
++#endif
++
++    uint w = _mouseCursor.w;
++    uint h = _mouseCursor.h;
++
++    int x = (_mouseCursor.x - _mouseCursor.hotX);
++    int y = (_mouseCursor.y - _mouseCursor.hotY);
++
++    uint width, height;
++
++    if (_overlayVisible) {
++        width = _videoMode.overlayWidth;
++        height = _videoMode.overlayHeight;
++    } else {
++        width = _videoMode.screenWidth;
++        height = _videoMode.screenHeight;
++    }
++
++
++    byte *mousePixels = (byte*)_mouseCursor.surface.getPixels();
++
++
++    // Clip the coordinates
++	if (x < 0) {
++		w += x;
++		mousePixels -= x;
++		x = 0;
++	}
++
++	if (y < 0) {
++		h += y;
++        mousePixels -= (y * _mouseCursor.surface.pitch);
++		y = 0;
++	}
++
++
++	if (w > width - x) {
++		w = width - x;
++	}
++
++	if (h > height - y) {
++		h = height - y;
++	}
++
++
++	if (w <= 0 || h <= 0) {
++		// Nothing to do.
++        return;
++    }
++
++
++    // Setup the cursor mask.
++    _mouseCursorMask.x = x;
++    _mouseCursorMask.y = y;
++    _mouseCursorMask.w = w;
++    _mouseCursorMask.h = h;
++
++    byte *maskPixels = (byte*)_mouseCursorMask.surface.getPixels();
++
++
++    // Set the starting point of the screen we will be drawing to.
++    byte *screenPixels = NULL;
++
++    if(_overlayVisible) {
++        screenPixels = (byte*)_overlayscreen8.getBasePtr(x, y);
++    } else {
++        screenPixels = (byte*)_screen.getBasePtr(x, y);
++    }
++
++
++	// Draw it.
++    byte color;
++
++	do {
++		// Save a copy of this row before it's overwritten.
++        CopyMem(screenPixels, maskPixels, w);
++
++         for(uint c = 0; c < w; c++) {
++            color = *mousePixels;
++
++            if (color != _mouseCursor.keyColor) {
++                // Set the color.
++                *screenPixels = color;
++            }
++
++            // Add a column.
++            mousePixels++;
++            screenPixels++;
++        }
++
++        // add a row.
++        maskPixels += w;
++        mousePixels += (_mouseCursor.surface.pitch - w);
++        screenPixels += (width - w);
++	} while (--h);
++}
++
++void OSystem_AmigaOS3::undrawMouse() {
++#ifndef NDEBUG
++    debug(4, "OSystem_AmigaOS3::undrawMouse()");
++#endif
++
++    byte *dst = NULL;
++    uint width;
++
++    if (_overlayVisible) {
++        dst = (byte*)_overlayscreen8.getBasePtr(_mouseCursorMask.x, _mouseCursorMask.y);
++        width = _videoMode.overlayWidth;
++    } else {
++        dst = (byte*)_screen.getBasePtr(_mouseCursorMask.x, _mouseCursorMask.y);
++        width = _videoMode.screenWidth;
++    }
++
++    byte *src = (byte*)_mouseCursorMask.surface.getPixels();
++
++    for (uint i = 0; i < _mouseCursorMask.h; i++) {
++        CopyMem(src, dst, _mouseCursorMask.w);
++        dst += width;
++        src += _mouseCursorMask.w;
++    }
++}
++
+diff --git a/backends/platform/amigaos3/amigaos3-main.cpp b/backends/platform/amigaos3/amigaos3-main.cpp
+new file mode 100644
+index 0000000..349adb9
+--- /dev/null
++++ b/backends/platform/amigaos3/amigaos3-main.cpp
+@@ -0,0 +1,206 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * ScummVM is the legal property of its developers, whose names
++ * are too numerous to list here. Please refer to the COPYRIGHT
++ * file distributed with this source distribution.
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
++ *
++ * $URL$
++ * $Id$
++ *
++ */
++
++#include <stdio.h>
++
++#include "common/scummsys.h"
++#include "base/main.h"
++
++#include "backends/platform/amigaos3/amigaos3-aga.h"
++
++
++// Amiga includes.
++#include <proto/icon.h>
++#include <inline/icon.h>
++
++#include <workbench/startup.h>
++
++
++#define DEFAULT_AUDIO_THREAD_PRIORITY 0
++
++
++const char *ID = "$VER: ScummVM 1.8.0\r\n";
++
++
++
++static int wbClosed = 0;
++
++struct CxBase* CxBase;
++extern struct Library *CyberGfxBase;
++struct GfxBase* GfxBase;
++struct Library* IconBase;
++struct IntuitionBase* IntuitionBase;
++struct KeymapBase* KeymapBase;
++
++static struct IORequest TimerDevice;
++
++extern struct Device* TimerBase;
++struct Device* TimerBase;
++
++static void unload_libraries(void) {
++    if (CxBase != NULL) {
++        CloseLibrary((struct Library*) CxBase);
++        CxBase = NULL;
++    }
++
++    if (CyberGfxBase != NULL) {
++        CloseLibrary((struct Library*) CyberGfxBase);
++        CyberGfxBase = NULL;
++    }
++
++    if (GfxBase != NULL) {
++        CloseLibrary((struct Library*) GfxBase);
++        GfxBase = NULL;
++    }
++
++    if (IconBase != NULL) {
++        CloseLibrary((struct Library*) IconBase);
++        IconBase = NULL;
++    }
++
++    if (IntuitionBase != NULL) {
++        CloseLibrary((struct Library*) IntuitionBase);
++        IntuitionBase = NULL;
++    }
++
++    if (KeymapBase != NULL) {
++        CloseLibrary((struct Library*) KeymapBase);
++        KeymapBase = NULL;
++    }
++
++    if (TimerBase != NULL) {
++        CloseDevice(&TimerDevice);
++        TimerBase = NULL;
++    }
++}
++
++static void load_libraries(void) {
++    atexit(unload_libraries);
++
++    CxBase = (struct CxBase*) OpenLibrary("commodities.library", 0);
++    if (CxBase == NULL) {
++        fprintf(stderr, "Unable to load commodities.library!\n");
++        exit(EXIT_FAILURE);
++    }
++
++    CyberGfxBase = (struct Library*) OpenLibrary("cybergraphics.library", 0);
++    if (CyberGfxBase == NULL) {
++        fprintf(stderr, "Unable to load cybergraphics.library!\n");
++        exit(EXIT_FAILURE);
++    }
++
++    GfxBase = (struct GfxBase*) OpenLibrary("graphics.library", 0);
++    if (GfxBase == NULL) {
++        fprintf(stderr, "Unable to load graphics.library!\n");
++        exit(EXIT_FAILURE);
++    }
++
++    IconBase = (struct Library*) OpenLibrary("icon.library", 0);
++    if (IconBase == NULL) {
++        fprintf(stderr, "Unable to load icon.library!\n");
++        exit(EXIT_FAILURE);
++    }
++
++    IntuitionBase = (struct IntuitionBase*) OpenLibrary("intuition.library", 0);
++    if (IntuitionBase == NULL) {
++        fprintf(stderr, "Unable to load intuition.library!\n");
++        exit(EXIT_FAILURE);
++    }
++
++    KeymapBase = (struct KeymapBase*) OpenLibrary("keymap.library", 0);
++    if (KeymapBase == NULL) {
++        fprintf(stderr, "Unable to load keymap.library!\n");
++        exit(EXIT_FAILURE);
++    }
++
++    // Load timer.device so that GetSysTime is
++    // available.
++    OpenDevice("timer.device", 0, &TimerDevice, 37);
++    if (TimerDevice.io_Device == NULL) {
++        fprintf(stderr, "Unable to load timer.device!");
++        exit(EXIT_FAILURE);
++    }
++    TimerBase = TimerDevice.io_Device;
++}
++
++int main(int argcWb, char *argvWb[]) {
++
++    load_libraries();
++
++    int audioThreadPriority = DEFAULT_AUDIO_THREAD_PRIORITY;
++    struct WBStartup* wbStartup = NULL;
++    int closeWb = 0;
++
++    if (argcWb == 0) {
++        wbStartup = (struct WBStartup*)argvWb;
++
++    	// Process Tooltypes.
++    	struct DiskObject *diskObject;
++    	diskObject = GetDiskObject((char*)wbStartup->sm_ArgList[0].wa_Name);
++    	if (diskObject != NULL) {
++            char* toolType = (char*)FindToolType((char* const*)diskObject->do_ToolTypes, "AUDIO_THREAD_PRIORITY");
++            if (toolType != NULL) {
++        		sscanf(toolType, "%ld", &audioThreadPriority);
++            }
++
++            toolType = (char*)FindToolType((char* const*)diskObject->do_ToolTypes, "CLOSE_WB");
++            if (toolType != NULL) {
++        		closeWb = 1;
++            }
++        }
++	}
++
++	// Create our OSystem instance
++	g_system = new OSystem_AmigaOS3();
++    assert(g_system);
++
++	// Pre initialize the backend
++    ((OSystem_AmigaOS3 *)g_system)->init(audioThreadPriority);
++
++    char *argv[] = {"ScummVM", NULL};
++	int argc = sizeof(argv) / sizeof(char *) - 1;
++
++    if (closeWb) {
++	   wbClosed = CloseWorkBench();
++    }
++
++	// Invoke the actual ScummVM main entry point:
++	int res = scummvm_main(argc, argv);
++
++	// Delete OSystem
++	if (g_system) {
++        delete (OSystem_AmigaOS3 *)g_system;
++    }
++
++	if (wbClosed) {
++        OpenWorkBench();
++    }
++
++	return res;
++}
++
++
++
++
+diff --git a/backends/platform/amigaos3/module.mk b/backends/platform/amigaos3/module.mk
+new file mode 100644
+index 0000000..c20fa07
+--- /dev/null
++++ b/backends/platform/amigaos3/module.mk
+@@ -0,0 +1,11 @@
++MODULE := backends/platform/amigaos3
++
++MODULE_OBJS = \
++	amigaos3-main.o \
++	amigaos3-aga.o \
++	amigaos3-graphics-cgx.o
++
++# We don't use rules.mk but rather manually update OBJS and MODULE_DIRS.
++MODULE_OBJS := $(addprefix $(MODULE)/, $(MODULE_OBJS))
++OBJS := $(MODULE_OBJS) $(OBJS)
++MODULE_DIRS += $(sort $(dir $(MODULE_OBJS)))
+diff --git a/configure b/configure
+index 6bc0e85..8bc0590 100755
+--- a/configure
++++ b/configure
+@@ -1371,6 +1371,13 @@ ios7)
+ 	_host_cpu=arm
+ 	_host_alias=arm-apple-darwin11
+ 	;;
++
++m68k-amigaos | m68k-unknown-amigaos | m68k-aros | amigaos3)
++	_host_os=amigaos3
++	_host_cpu=m68k
++	#append_var LDFLAGS "-noixemul"
++	;;
++
+ linupy)
+ 	_host_os=linux
+ 	_host_cpu=arm
+@@ -1867,7 +1874,7 @@ echo $_use_cxx11
+ # However, some platforms use GNU extensions in system header files, so
+ # for these we must not use -pedantic.
+ case $_host_os in
+-android | gamecube | psp | tizen | wii | webos)
++android | gamecube | psp | tizen | wii | webos | amigaos3)
+ 	;;
+ *)
+ 	# ICC does not support pedantic, while GCC and clang do.
+@@ -2131,7 +2138,13 @@ esac
+ echo_n "Checking hosttype... "
+ echo $_host_os
+ case $_host_os in
+-	amigaos*)
++	m68k-amigaos | m68k-unknown-amigaos | m68k-aros | amigaos3)
++		append_var DEFINES "-DFORBIDDEN_SYMBOL_ALLOW_ALL"
++		# append_var CXXFLAGS "-DFORBIDDEN_SYMBOL_ALLOW_ALL -DNO_INLINE_VARARGS -DNO_INLINE_STDARG"
++		append_var CXXFLAGS "-fno-access-control"
++		add_line_to_config_mk 'AMIGAOS3 = 1'
++		;;
++	amigaos4*)
+ 		append_var LDFLAGS "-Wl,--export-dynamic"
+ 		append_var LDFLAGS "-L/sdk/local/newlib/lib"
+ 		# We have to use 'long' for our 4 byte typedef because AmigaOS already typedefs (u)int32
+@@ -2760,6 +2773,15 @@ if test -n "$_host"; then
+ 			_seq_midi=no
+ 			_timidity=no
+ 			;;
++
++		m68k-amigaos | m68k-unknown-amigaos | m68k-aros | amigaos3)
++			append_var DEFINES ""
++			_backend="amigaos3"
++			_build_scalers=no
++			_seq_midi=no
++			_timidity=no
++			;;
++
+ 		m68k-atari-mint)
+ 			append_var DEFINES "-DSYSTEM_NOT_SUPPORTING_D_TYPE"
+ 			_ranlib=m68k-atari-mint-ranlib
+@@ -3066,6 +3088,10 @@ case $_backend in
+ 			append_var CXXFLAGS "-isysroot $SDKROOT -I$SDKROOT/usr/include/c++/4.2.1 -F$SDKROOT/System/Library/Frameworks"
+ 		fi
+ 		;;
++
++	amigaos3)
++		;;
++
+ 	linuxmoto)
+ 		append_var DEFINES "-DLINUXMOTO"
+ 		;;

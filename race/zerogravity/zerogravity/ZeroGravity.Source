@@ -1,0 +1,5461 @@
+; *****************************************************************************
+;
+; $VER: ZeroGravity Source 1.0 (C) 1997 Matthijs Hollemans
+;
+; *****************************************************************************
+;
+; This is the full source code to Zero Gravity. I used the very cool ASM-One
+; V1.29 assembler from T.F.A. but that doesn't matter anyway because you won't
+; be able to reassemble this without the required binary includes...
+;
+; *****************************************************************************
+
+SHOW	equ	0		; 1 = Show rastertiming,   0 = Don't
+DEBUG	equ	1		; 1 = Debug-mode on,       0 = Normal
+ASMOne	equ	1		; 1 = Assemble for ASMOne, 0 = Make executable
+
+run	IFNE	ASMOne		;
+   	  jsr	Init		;
+          illegal		; 
+   	ELSE			;
+   	  jsr	WBInit		;
+   	  jsr	Init		;
+   	  jsr	WBDone		;
+	  rts			; 
+   	ENDC			;
+
+; =============================================================================
+;
+;          S Y S T E M   S T A R T U P / E X I T   R O U T I N E S
+;
+; =============================================================================
+
+; *****************************************************************************
+; Macros
+; *****************************************************************************
+
+CLRMEM 	MACRO				; Clear memory pool size 
+memptr 	set 0				; 
+   	ENDM				;
+   	
+ADDMEM 	MACRO				; Request memory
+\1 	set memptr			; \1 = Offset in memory pool
+memptr 	set memptr+\2			; \2 = Size of required memory
+   	ENDM				;
+
+ALIGNLONG MACRO				; Align to longword
+	CNOP	0,4			;
+	ENDM				;
+
+ALIGNQUAD MACRO				; Align to quadword
+	CNOP	0,8			;
+	ENDM				;
+
+
+; *****************************************************************************
+; WBInit
+; *****************************************************************************
+
+WBInit	clr.l	ReturnMsg		;
+	move.l	$4.w,a6			;
+	sub.l	a1,a1			;
+	jsr	-294(a6)		; FindTask(NULL)
+	move.l	d0,a4			;
+	tst.l	$ac(a4)			; Called from CLI?
+	bne.b	.Done			;
+
+	move.l	$4.w,a6			;
+	lea	$5c(a4),a0		; pr_MsgPort
+	jsr	-384(a6)		; WaitPort()   
+	lea	$5c(a4),a0		; pr_MsgPort
+	jsr	-372(a6)		; GetMsg()     
+	move.l	d0,ReturnMsg		; Save message for later reply
+.Done	
+	rts
+
+
+; *****************************************************************************
+; WBDone
+; *****************************************************************************
+
+WBDone 	tst.l	ReturnMsg		; Called from CLI ?
+	beq.b	.Done			; Then skip next bit
+
+	move.l	$4.w,a6			;
+	jsr	-132(a6)        	; Forbid()
+	move.l	ReturnMsg,a1		; Send message back
+	jsr	-378(a6)        	; ReplyMsg()
+.Done	
+	move.l	ReturnCode,d0		; Returncode
+	rts
+
+
+; *****************************************************************************
+; Init 
+; *****************************************************************************
+
+Init	; Open libraries ------------------------------------------------------
+
+	move.l	$4.w,a6			;
+   	lea 	intname,a1		;
+   	moveq 	#0,d0			;
+   	jsr 	-552(a6) 		; OpenLibrary()
+   	move.l 	d0,intuibase		;
+   	beq.w 	nointui			;
+
+   	lea 	grafname,a1		;
+   	moveq 	#0,d0			;
+   	jsr 	-552(a6)		; OpenLibrary()
+   	move.l 	d0,gfxbase		;
+   	beq.w 	nogfx			;
+
+	lea	dosname,a1		;
+	moveq	#0,d0			;
+	jsr	-552(a6)		; OpenLibrary()
+	move.l	d0,dosbase		;
+	beq.w	nodos			;
+
+	; Check for AGA -------------------------------------------------------
+
+	move.l	gfxbase,a6		;
+	btst.b	#2,$ec(a6)		; gb_ChipRevBits0
+	beq.w	noaga			;
+		
+	; Allocate chip memory ------------------------------------------------
+
+   	move.l 	$4.w,a6			;
+   	move.l 	#chip+65536,d0		; (64k border because of slow copper)
+   	move.l 	#$2,d1			; MEMF_CHIP
+   	jsr 	-198(a6)		; AllocMem()
+   	move.l 	d0,chipmem		;
+   	beq.w 	nochip 			;
+
+	; Allocate other memory -----------------------------------------------
+
+   	move.l 	#fast+8192,d0 		; (8k border for 040 caches)
+   	move.l 	#$10000,d1		; MEMF_CLEAR
+   	jsr 	-198(a6)		; AllocMem()
+   	move.l 	d0,fastmem		;
+   	beq.w 	nofast			;
+
+	; Close Workbench -----------------------------------------------------
+
+	IFEQ	ASMOne			;
+  	move.l	intuibase,a6		;
+	jsr	-78(a6)			; CloseWorkBench()
+	move.l	d0,wbclosed		; Store result
+	ENDC				;
+	
+	; Reset screen hardware -----------------------------------------------
+	
+   	move.l 	gfxbase,a6		;
+   	move.l 	$22(a6),oldview		; gb_ActiView
+   	sub.l 	a1,a1			;
+   	jsr 	-222(a6) 		; LoadView(NULL)
+	jsr	-270(a6)		; WaitTOF() 
+	jsr	-270(a6)		; WaitTOF()
+   	jsr	-228(a6)		; WaitBlit()
+   	jsr 	-456(a6) 		; OwnBlitter()
+	move.w	#0,$dff01fc		; Reset AGA sprites
+	move.w	#0,$dff0106		; 
+
+	; Kill multitasking ---------------------------------------------------
+
+	move.l	$4.w,a6			;
+	jsr	-132(a6)		; Forbid()
+	
+	; Get VBR -------------------------------------------------------------
+
+   	move.l 	$4.w,a6			; Switch to supervisor mode, because
+   	lea 	.get(pc),a5		; movec is a privileged instruction.
+   	jsr 	-$1e(a6)  		; Supervisor()
+   	bra.b 	.store			;
+.get 	movec	vbr,d0			; (dc.l $4e7a0801)
+   	rte				;
+.store 	move.l 	d0,_vbr			; Store VBR
+
+	; Int3 Vector ---------------------------------------------------------
+
+	move.w	$dff002,d0		; Save DMACON
+	ori.w	#$8000,d0		;
+	move.w	d0,olddmacon		;
+	move.w	$dff01c,d0		; Save INTENA
+	ori.w	#$c000,d0		;
+	move.w	d0,oldintena		;
+
+	move.w	#$7fff,$dff09a		; Kill interrupts
+	move.w	#$7fff,$dff09c		; 
+	move.w	#$7fff,$dff096		; Kill DMA
+	
+   	move.l 	_vbr,a0			;
+   	move.l 	$6c(a0),oldint3		; Store old Int3 vector
+
+
+; *****************************************************************************
+; Main 
+; *****************************************************************************
+
+   	jsr Main
+
+; *****************************************************************************
+; Done 
+; *****************************************************************************
+
+Done	; Restore interrupt vectors -------------------------------------------
+
+	move.w	#$7fff,$dff09a		; Kill interrupts
+	move.w	#$7fff,$dff09c		;
+	move.w	#$7fff,$dff096		; Kill DMA
+	
+   	move.l 	_vbr,a0			;
+   	move.l 	oldint3,$6c(a0)		;
+
+	move.w	olddmacon,$dff096	; Restore DMACON
+	move.w	oldintena,$dff09a	; Restore INTENA
+
+	; Enable multitasking -------------------------------------------------
+	
+	move.l	$4.w,a6			;
+	jsr	-138(a6)		; Permit()
+
+	; Restore screen ------------------------------------------------------
+	
+   	move.l 	gfxbase,a6		;
+   	move.l 	oldview,a1		;
+   	jsr 	-222(a6) 		; LoadView(oldview)
+   	jsr 	-462(a6) 		; DisownBlitter()
+
+   	move.l 	$26(a6),$dff080   	; gb_copinit
+   	move.l	#0,$dff088		;
+
+	; Open Workbench ------------------------------------------------------
+
+	IFEQ	ASMOne			;
+	tst.l	wbclosed		; IF Workbench was closed 
+	beq.b	.wbopen			;
+	move.l	intuibase,a6		;
+	jsr	-210(a6)		;   OpenWorkBench()
+.wbopen					; ENDIF
+	ENDC				;
+	
+	; Free memory and close libraries -------------------------------------
+	
+   	move.l	$4.w,a6			;
+   	move.l 	fastmem,a1		;
+   	move.l 	#fast+8192,d0		;
+   	jsr 	-210(a6)		; FreeMem()
+nofast
+   	move.l	$4.w,a6			;
+   	move.l 	chipmem,a1		;
+   	move.l 	#chip+65536,d0		;	
+   	jsr 	-210(a6)		; FreeMem()
+nochip
+noaga
+   	move.l 	4,a6			;
+	move.l	dosbase,a1		;
+	jsr	-414(a6) 		; CloseLibrary()
+nodos
+	move.l	4,a6			;
+   	move.l 	gfxbase,a1		;
+   	jsr 	-414(a6) 		; CloseLibrary()
+nogfx
+   	move.l 	4,a6			;
+   	move.l 	intuibase,a1		;
+   	jsr 	-414(a6) 		; CloseLibrary()
+nointui
+	move.l	ReturnCode,d0		; 
+   	rts
+
+
+; *****************************************************************************
+; Data 
+; *****************************************************************************
+
+	ALIGNLONG
+
+ReturnMsg	dc.l	0		; Workbench message
+ReturnCode	dc.l	0		; CLI return code
+		
+_vbr 		dc.l 	0		; VBR address
+
+oldint3		dc.l 	0		; Old Int3 vector
+oldview 	dc.l 	0		; Old view
+
+olddmacon	dc.w 	0		; Old DMACON
+oldintena	dc.w 	0		; Old INTENA
+
+chipmem 	dc.l 	0		; Amount of required chipmem
+fastmem 	dc.l 	0		; Amount of required fastmem
+
+dosbase		dc.l 	0		; DOSBase
+gfxbase 	dc.l 	0		; GFXBase
+intuibase 	dc.l 	0		; IntuiBase
+
+wbclosed	dc.l	0		; 0 = Unable to close Workbench
+
+dosname		dc.b 	"dos.library",0
+grafname 	dc.b 	"graphics.library",0
+intname 	dc.b 	"intuition.library",0
+
+
+; =============================================================================
+; 
+;                             M A I N   P R O G R A M
+;
+; =============================================================================
+
+; *****************************************************************************
+; Macros
+; *****************************************************************************
+
+PPUTSTR	MACRO				; PPUTSTR StringPtr,PlanarBufferOffset
+	movem.l	d0-d7/a0-a6,-(sp)	;
+	move.l	\1,a0			;
+	move.l	chipmem,a1		;
+	add.l	#scr0,a1		;
+	add.l	\2,a1			;
+	bsr	PPutStr			;
+	movem.l	(sp)+,d0-d7/a0-a6	;
+	ENDM				;
+
+PPUTCHR	MACRO				; PPUTCHR Character,PlanarBufferOffset
+	movem.l	d0-d7/a0-a6,-(sp)	;
+	moveq	#0,d0			;
+	move.l	\1,d0			;
+	move.l	chipmem,a1		;
+	add.l	#scr0,a1		;
+	add.l	\2,a1			;
+	bsr	PPutChr			;
+	movem.l	(sp)+,d0-d7/a0-a6	;
+	ENDM				;
+
+PPUTNUM	MACRO				; PPUTNUM Number,PlanarBufferOffset
+	movem.l	d0-d7/a0-a6,-(sp)	;
+	move.l	\1,d0			;
+	add.l	#48,d0			;
+	move.l	chipmem,a1		;
+	add.l	#scr0,a1		;
+	add.l	\2,a1			;
+	bsr	PPutChr			;
+	movem.l	(sp)+,d0-d7/a0-a6	;
+	ENDM
+	
+CPUTSTR	MACRO				; CPUTSTR StringPtr,ChunkyBufferOffset
+	movem.l	d0-d7/a0-a6,-(sp)	;
+	lea	\1,a0			;
+	move.l	RendCh,a1		;
+	add.l	\2,a1			;
+	bsr	CPutStr			;
+	movem.l	(sp)+,d0-d7/a0-a6	;
+	ENDM				;
+
+CPUTCHR	MACRO				; CPUTCHR Character,ChunkyBufferOffset
+	movem.l	d0-d7/a0-a6,-(sp)	;
+	moveq	#0,d0			;
+	move.l	\1,d0			;
+	move.l	RendCh,a1		;
+	add.l	\2,a1			;
+	bsr	CPutChr			;
+	movem.l	(sp)+,d0-d7/a0-a6	;
+	ENDM				;
+
+CPUTNUM	MACRO				; CPUTNUM Number,ChunkyBufferOffset
+	movem.l	d0-d7/a0-a6,-(sp)	;
+	moveq	#0,d0			;
+	move.l	\1,d0			;
+	add.l	#48,d0			; Convert Number to ASCII
+	move.l	RendCh,a1		;
+	add.l	\2,a1			;
+	bsr	CPutChr			;
+	movem.l	(sp)+,d0-d7/a0-a6	;
+	ENDM				;
+
+
+; *****************************************************************************
+; Memory 
+; *****************************************************************************
+
+	CLRMEM				;
+	ADDMEM	shit,8			; If I leave this bit out, then the
+					; cop0 copperlist gets totally fucked 
+					; up. This is related to mt_init. Why ?
+	
+	ADDMEM 	cop0,8192		; Copperlists
+	ADDMEM	cop1,8192		;
+	
+      	ADDMEM 	ch0,160*128		; Chunky buffers 
+   	ADDMEM	ch1,160*128		;
+   	ADDMEM 	scr0,320*128		; Screens	
+   	ADDMEM	scr1,320*128		;
+	
+   	ADDMEM 	buf2,160*128*2		; Pass-buffer   (160*128/2 ???)
+   	ADDMEM 	sblbuf,160*128		; Scramble-buffer 
+   	ADDMEM 	sprbuf,(312*8*2)*8	; Sprite buffer  
+      	ADDMEM 	chipend,1		;
+chip 	equ chipend      		; Amount of required chipmem
+
+   	CLRMEM				;
+   	ADDMEM 	blist0,40*1024 		; Blitlist buffers
+        ADDMEM	blist1,40*1024		;
+   	ADDMEM 	fastend,1		;
+fast 	equ fastend			; Amount of required fastmem
+
+
+; *****************************************************************************
+; Raw key codes
+; *****************************************************************************
+
+KEY_NONE	= $00			; No key pressed
+KEY_NEW		= $01			; New key pressed
+KEY_REPEAT	= $02			; Key repeated
+
+KEY_F1          = $50		
+KEY_F2          = $51
+KEY_F3          = $52
+KEY_F4          = $53
+KEY_F5          = $54
+KEY_F6          = $55
+KEY_F7          = $56
+KEY_F8          = $57
+KEY_F9          = $58
+KEY_F10         = $59
+
+KEY_Q           = $10
+KEY_W           = $11
+KEY_E           = $12
+KEY_R           = $13
+KEY_T           = $14
+KEY_Y           = $15
+KEY_U           = $16
+KEY_I           = $17
+KEY_O           = $18
+KEY_P           = $19
+KEY_A           = $20
+KEY_S           = $21
+KEY_D           = $22
+KEY_F           = $23
+KEY_G           = $24
+KEY_H           = $25
+KEY_J           = $26
+KEY_K           = $27
+KEY_L           = $28
+KEY_Z           = $31
+KEY_X           = $32
+KEY_C           = $33
+KEY_V           = $34
+KEY_B           = $35
+KEY_N           = $36
+KEY_M           = $37
+
+KEY_ESC         = $45
+KEY_ENTER       = $44
+KEY_SPACE       = $40
+KEY_BACKSPACE	= $41
+
+
+; *****************************************************************************
+; Types
+; *****************************************************************************
+
+Type_HoleX1	equ	0		; }_ TopLeft-coordinates of hole
+Type_HoleY1	equ	2		; }
+Type_HoleX2	equ	4		; }_ BottomRight-coordinates of hole
+Type_HoleY2	equ	6		; }
+
+Level_sizeof	equ	8		;
+Level_NumWall	equ	0		; Total number of walls
+Level_Ships	equ	2		; Number of ships
+Level_Time	equ	4		; Time (in ticks)
+
+Coll_BoundsX1	equ	0		; }_ TopLeft-coordinates of 
+Coll_BoundsY1	equ	2		; }  collision boundary
+Coll_BoundsX2	equ	4		; }_ BottomRight-coordinates of
+Coll_BoundsY2	equ	6		; }  collision boundary
+
+
+; *****************************************************************************
+; Constants
+; *****************************************************************************
+
+TRUE		= 1			; }_ Boolean values
+FALSE		= 0			; }
+
+BufferW		= 160			; }_ Chunky buffer dimensions
+BufferH		= 128			; }
+
+ClipL		= 0			; }
+ClipR		= BufferW-1		; }_ Clipping borders
+ClipT		= 0			; }
+ClipB		= BufferH-1		; } 
+
+CenterX		= BufferW/2		; }_ Center of chunky buffer
+CenterY		= BufferH/2		; }
+
+ViewD		= 256*32*2/8		; Maximum visible depth
+RealZ		= 200			; Adjust player Z-coordinate
+
+MinSpd		= 0			; Minimum speed
+MaxSpd		= 25600			; Maximum speed
+
+Plyr_XInit	= 80			; }_ Initial player coordinates
+Plyr_YInit	= 75			; }
+
+Plyr_XMin	= 32			; }
+Plyr_XMax	= BufferW-32		; }_ Min/Max. player coordinates
+Plyr_YMin	= 32			; }
+Plyr_YMax	= BufferH-32		; }
+
+XAccel		= 1			; }
+YAccel		= 1			; }- Acceleration
+ZAccel		= 256			; }
+
+NumLevel	= 5			; Number of levels
+MaxWall		= 128			; Max. number of walls per level
+
+Flg_Normal	= 0			; Game-loop status flags
+Flg_Collision	= 1			;   Hit a wall
+Flg_LevelDone	= 2			;   Flying away from level
+Flg_LevelInit	= 3			;   Flying to new level
+Flg_GetReady	= 4			;   Ready to start new level
+Flg_NewShip	= 5			;   Ready to start new life
+Flg_OutOfTime	= 6			;   No time left
+Flg_RaceOver	= 7			;   Crashed too many times
+Flg_Pause	= 8 			;   Pause mode
+Flg_Quit	= 99			;   Leaving game-loop
+
+WT_Start	= 0			; Wall types
+WT_Finish	= 1			;
+WT_Left		= 2			;
+WT_Right	= 3			;
+WT_Up		= 4			;
+WT_Down		= 5			;
+
+IFlg_Text	= 0			; Show intro-text
+IFlg_AskName	= 1			; User enters name
+IFlg_TrackSel	= 2			; Track select
+IFlg_Quit	= 99			; Leaving intro-loop
+IFlg_QuitToWB	= 100			; Leaving intro-loop and exit to WB
+
+MaxStrLen	= 11			; Max. length of input string
+
+
+; *****************************************************************************
+; Code
+; *****************************************************************************
+
+	ALIGNLONG
+	
+Main	bsr.b	InitMain			; Initialisation
+
+.Intro	bsr.w	Intro				; Do intro
+	cmp.l	#IFlg_QuitToWB,Intro_Flags	; IF player pressed ESC ?
+	beq.b	.Done				; THEN exit
+		
+	bsr.w	InitLevel			;
+	bsr.w	GameLoop			;
+	bra.b	.Intro				;
+.Done	
+	bsr.w	DoneMain			; Clean up
+	rts					;
+
+
+; =============================================================================
+;
+;                           G A M E   R O U T I N E S
+;
+; =============================================================================
+
+; *****************************************************************************
+; InitMain
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: First initialisation.
+; Notes      : -
+; Scratch    : -
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+InitMain
+	; Copy bitplane pointers to intro copperlist --------------------------
+	
+	lea	IntroCopBpl,a2		; a2=Position in copperlist header
+	move.l	#IntroPic,d0		; d0=Screen address
+   	move.w 	#6-1,d7			; Write 6 bitplanes
+.mkbpl	swap	d0			;
+	move.w	d0,2(a2)		; Write MSW
+	swap	d0			;
+	move.w	d0,6(a2)		; Write LSW
+	addq.l	#8,a2			; Next position in copperlist
+	add.l	#320*256/8,d0		; Next bitplane
+	dbf	d7,.mkbpl		;
+
+	; Copy sprite pointers to intro copperlist ----------------------------
+
+	lea	IntroCopSpr,a2		; a2=Position in copperlist header
+	move.l	#SpriteData,d0		; d0=Address of sprite data
+   	move.w 	#8-1,d7			; Write 8 sprites
+.mkspr	swap	d0			;
+	move.w	d0,2(a2)		; Write MSW
+	swap	d0			;
+	move.w	d0,6(a2)		; Write LSW
+	addq.l	#8,a2			; Next position in copperlist
+	dbf	d7,.mkspr		;
+	
+	; Make BlitterScreen copperlists --------------------------------------
+
+	move.l	chipmem,a0		; 
+	add.l	#cop0,a0		; a0=Copperlist 0
+   	move.l 	chipmem,a1		;
+ 	add.l 	#scr0,a1		; a1=Screen 0
+   	bsr.w 	mkbltscr                ; Create copperlist
+
+	move.l	chipmem,a0		;
+	add.l	#cop1,a0		; a0=Copperlist 1
+   	move.l 	chipmem,a1		;
+ 	add.l 	#scr1,a1		; a1=Screen 1
+   	bsr.w 	mkbltscr                ; Create copperlist
+
+	; Init double buffering pointers --------------------------------------
+
+	move.l	fastmem,RendBL		;
+	add.l	#blist0,RendBL		;
+	move.l	fastmem,DispBL		;
+	add.l	#blist1,DispBL		;
+
+	move.l	chipmem,RendCh		;
+	add.l	#ch0,RendCh		;
+	move.l	chipmem,DispCh		;
+	add.l	#ch1,DispCh		;
+
+	move.l	chipmem,RendCop		;
+	add.l	#cop0,RendCop		;
+	move.l	chipmem,DispCop		;
+	add.l	#cop1,DispCop		;
+
+	; Other stuff ---------------------------------------------------------
+	
+	bsr.w	LoadScores		; Init Hall of Fame
+	bsr.w	SetCIAInt		; Set music player interrupt
+	move.l	#IFlg_Text,Intro_Flags	; Start intro at part I
+		
+	; Finished ------------------------------------------------------------
+	
+	rts
+
+
+; *****************************************************************************
+; DoneMain
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Cleans up the mess.
+; Notes      : -
+; Scratch    : -
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+DoneMain
+	bsr.w	ResetCIAInt		; Remove music player interrupt
+	rts
+
+
+; *****************************************************************************
+; Intro 
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: -
+; Notes      : -
+; Scratch    : All
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+	ALIGNLONG
+	
+Intro
+	; Everything off ------------------------------------------------------
+
+	move.w	#$7fff,$dff09a			; Kill interrupts
+	move.w	#$7fff,$dff09c			;
+	move.w	#$7fff,$dff096			; Kill DMA
+
+	; Set palette ---------------------------------------------------------
+	
+	move.l	#IntroCopCol,a0			; Set palette
+	move.l	#IntroPal,a1			;
+	bsr.w	SetPal24			;
+	move.l	#IntroCop,$dff080		; Display copperlist
+
+	; Init planes 7 and 8 -------------------------------------------------
+
+	lea	IntroCopBpl,a2			; a2=Position in copperlist
+	add.l	#8*6,a2				;
+	move.l	chipmem,d0			; Write last two bitplanes
+	add.l	#scr0,d0			; Plane 7
+	swap	d0				;
+	move.w	d0,2(a2)			; 
+	swap	d0				;
+	move.w	d0,6(a2)			;
+	addq.l	#8,a2				;
+	add.l	#20480,d0			; Plane 8
+	swap	d0				;
+	move.w	d0,2(a2)			;
+	swap	d0				;
+	move.w	d0,6(a2)	 		;
+
+	bsr.w	ClearPlanes			; Clear planes 7 and 8
+	
+	; Init stuff ----------------------------------------------------------
+
+	move.b	#FALSE,Intro_WarpIn		;
+	move.b	#FALSE,Intro_WarpOut		;	
+	move.w	#0,Intro_WarpCount		; Reset warp-counter
+	move.l	#-1,Intro_Timer			; Reset timer
+	
+	move.w	Plyr_Level,Intro_Level		; Intro_Level = Plyr_Level
+
+	move.w	#$e000,$dff09a			; Enable CIA interrupts
+	move.w	#$83af,$dff096			; Enable BPL+COP+AUDx DMA
+
+	; Start music ---------------------------------------------------------
+	
+	move.l	#IntroMusic,mt_data		; 
+	bsr.w	mt_init				;
+	st	mt_Enable			;
+	
+IntroLoop
+	; Sync display --------------------------------------------------------
+
+	bsr.w	WaitVBL				; Wait for vertical blank
+	add.l	#1,Intro_Timer			; Update timer
+
+	; WarpIn --------------------------------------------------------------
+
+.WrpIn	cmp.b	#TRUE,Intro_WarpIn		; WarpIn two last bitplanes
+	bne.b	.WrpOut				; 
+
+	add.w	#1,Intro_WarpCount		; Intro_WarpCount += 1
+	bsr.w	Warp				; Do warp effect
+	cmp.w	#31,Intro_WarpCount		; IF Intro_WarpCount >= 31
+	blt.b	IntroText			;   Intro_WarpIn=FALSE
+	move.b	#FALSE,Intro_WarpIn		; ENDIF
+
+	; WarpOut -------------------------------------------------------------
+
+.WrpOut	cmp.b	#TRUE,Intro_WarpOut		; WarpOut two last bitplanes
+	bne.b	IntroText			;
+
+	sub.w	#1,Intro_WarpCount		; Intro_WarpCount -= 1
+	bsr.w	Warp				; Do warp effect
+	cmp.w	#0,Intro_WarpCount		; IF Intro_WarpCount <= 0
+	bgt.b	IntroText			;   Intro_WarpOut=FALSE
+	move.b	#FALSE,Intro_WarpOut		; ENDIF
+
+	; Part I: Write text ==================================================
+
+IntroText	
+	cmp.l	#IFlg_Text,Intro_Flags		;
+	bne.w	IntroAskName			;
+	
+	cmp.l	#0,Intro_Timer			; CREDITS
+	bne.w	.1				;
+	bsr.w	ClearPlanes			;
+	move.b	#TRUE,Intro_WarpIn		;
+	PPUTSTR #itxt_1,#40*280+20		;
+	PPUTSTR	#itxt_0,#40*296+20		;
+	PPUTSTR #itxt_1,#40*312+20		;
+	PPUTSTR #itxt_2,#40*360+20		;
+	PPUTSTR	#itxt_3,#40*376+20		;
+	PPUTSTR	#itxt_4,#40*392+20		;
+	PPUTSTR #itxt_5,#40*424+20		;
+	PPUTSTR #itxt_6,#40*440+20		;
+	PPUTSTR #itxt_7,#40*456+20		;
+	PPUTSTR #itxt_8,#40*472+20		;
+	
+.1	cmp.l	#150,Intro_Timer		;
+	bne.b	.2				;
+	move.b	#TRUE,Intro_WarpOut		;
+	
+.2	cmp.l	#200,Intro_Timer		; MORE CREDITS
+	bne.w	.3				;
+	bsr.w	ClearPlanes			;
+	move.b	#TRUE,Intro_WarpIn		;
+	PPUTSTR	#itxt_19,#40*296+20		;
+	PPUTSTR	#itxt_10,#40*288+20		;
+	PPUTSTR	#itxt_11,#40*312+20		;
+	PPUTSTR	#itxt_19,#40*368+20		;
+	PPUTSTR	#itxt_12,#40*360+20		;
+	PPUTSTR	#itxt_13,#40*384+20		;
+	PPUTSTR	#itxt_19,#40*440+20		;
+	PPUTSTR	#itxt_14,#40*432+20		;
+	PPUTSTR	#itxt_15,#40*456+20		;
+
+.3	cmp.l	#350,Intro_Timer		;
+	bne.b	.4				;
+	move.b	#TRUE,Intro_WarpOut		;
+		
+.4	cmp.l	#400,Intro_Timer		; HALL OF FAME
+	bne.w	.5				;
+	bsr.w	ClearPlanes			;
+	move.b	#TRUE,Intro_WarpIn		;
+	PPUTSTR	#itxt_20,#40*272+20		; }
+	PPUTSTR	#itxt_21,#40*288+20		; }- Write Hall of Fame header
+	PPUTSTR	#itxt_22,#40*304+20		; }
+	lea	BestTimes,a0			; a0 = Pointer to BestTimes
+	lea	BestNames,a1			; a1 = Pointer to BestNames
+	move.w	#NumLevel-1,d7			; d7 = Loop counter
+	move.l	#0,d1				; d1 = Level counter
+	move.l	#40*336+21,d2			; d2 = Screen position
+.4loop	move.l	d1,d0				; d0 = levelnr
+	addq.l	#1,d0				; Adjust levelnr
+	PPUTNUM	d0,d2				; Write track number
+	move.l	d1,d0				; d0 = levelnr
+	mulu.w	#12,d0				;
+	move.l	a1,a2				; a2 = Pointer to BestNames
+	add.l	d0,a2				; a2 += levelnr*12
+	move.l	d2,a4				;
+	add.l	#2,a4				;
+	PPUTSTR	a2,a4				; Write BestName
+	move.l	d1,d0				; d0 = levelnr
+	move.l	(a0,d0.w*4),d5			; d5 = Time
+	move.l	d2,a4				;
+	add.l	#14,a4				;
+	bsr.w	PWriteTime			; Write BestTime
+	addq.l	#1,d1				; Increase level counter
+	add.l	#40*16,d2			; Increase screen position
+	dbf	d7,.4loop			;
+
+.5	cmp.l	#550,Intro_Timer		;
+	bne.b	.0				;
+	move.b	#TRUE,Intro_WarpOut		;
+
+.0	cmp.l	#600,Intro_Timer		;
+	bne.b	.input				;
+	move.l	#-1,Intro_Timer			; Reset intro timer
+
+	; Get input -----------------------------------------------------------
+.input
+	bsr.w	GetJoy1				; IF Joy1Fire
+	tst.b	Joy1Fire			;
+	beq.b	.keys				; 
+	move.l	#IFlg_AskName,Intro_Flags	;   Intro_Flags=IFlg_AskName 
+	move.b	#FALSE,Intro_WarpIn		;   Stop warp-in
+	move.b	#TRUE,Intro_WarpOut		;   Start warp-out
+	move.l	#-1,Intro_Timer			;   Reset timer
+	bra.w	IntroQuit			; ENDIF
+.keys
+	bsr.w	GetKey				; IF ESC-key pressed
+	cmp.b	#KEY_NEW,KeyState		;
+	bne.w	IntroQuit			;
+	cmp.b	#KEY_ESC,KeyRaw			;
+ 	bne.w	IntroQuit			;
+	move.l	#IFlg_QuitToWB,Intro_Flags	;   Intro_Flags=IFlg_QuitToWB
+	bra.w	IntroQuit			; ENDIF
+
+	; Part II: Ask user name ==============================================
+
+IntroAskName
+	cmp.l	#IFlg_AskName,Intro_Flags	; 
+	bne.w	IntroTrackSel			;
+	
+	cmp.l	#40,Intro_Timer			; Wait for warp-out finished
+	blt.w	IntroQuit			;
+	
+	cmp.l	#40,Intro_Timer			;
+	bne.w	.0				;
+	bsr.w	ClearPlanes			; Erase planes 7 & 8
+	PPUTSTR #ian_0,#40*356+20		;
+	PPUTSTR #ian_1,#40*372+20		;
+	PPUTSTR #ian_2,#40*388+20		;
+	PPUTSTR #ian_3,#40*404+20		;
+	move.b	#TRUE,Intro_WarpIn		; Start warp-in
+
+.0	cmp.l	#80,Intro_Timer			; Wait for warp-in finished
+	blt.w	IntroQuit			;
+	bsr.w	GetStr				; Read player name
+		
+	move.l	#IFlg_TrackSel,Intro_Flags	; Go to part III
+	move.b	#FALSE,Intro_WarpIn		; Stop warp-in 
+	move.b	#TRUE,Intro_WarpOut		; Start warp-out
+	move.l	#-1,Intro_Timer			; Reset timer
+	bra.w	IntroQuit			; 
+
+	; Part III : Track Select =============================================
+	
+IntroTrackSel
+	cmp.l	#IFlg_TrackSel,Intro_Flags	;
+	bne.w	IntroQuit			;
+
+	cmp.l	#40,Intro_Timer			; Wait for warp-out finished
+	blt.w	IntroQuit			;
+	
+	cmp.l	#40,Intro_Timer			; WRITE TRACK INFO
+	bne.w	.input				;
+	move.b	#TRUE,Intro_WarpIn		; Start warp-in
+	bsr.w	ClearPlanes			; Erase planes 7 & 8
+	PPUTSTR #its_0,#40*264+20		; }
+	PPUTSTR	#its_1,#40*280+20		; }- Header
+	PPUTSTR	#its_2,#40*296+20		; }
+	PPUTSTR	#its_3,#40*320+20		; TRACK
+	PPUTSTR	#its_4,#40*336+20		; TIME
+	PPUTSTR	#its_5,#40*352+20		; SHIPS
+	PPUTSTR	#its_6,#40*384+20		; BEST 
+	PPUTSTR	#its_7,#40*424+20		; }
+	PPUTSTR	#its_8,#40*440+20		; }
+	PPUTSTR	#its_9,#40*456+20		; }- Joystick info
+	PPUTSTR	#its_10,#40*472+20		; }
+	PPUTSTR	#its_11,#40*488+20		; }
+	moveq	#0,d0				;
+	move.w	Intro_Level,d0			; d0 = Current selected levelnr
+	move.l	d0,d2				; 
+	move.l	d0,d1				; 
+	addq.w	#1,d1				; Adjust levelnr
+	PPUTNUM	d1,#40*320+34			; Write Intro_Level
+	mulu.w	#Level_sizeof,d0		;
+	lea	Level,a0			;
+	move.w	Level_Ships(a0,d0.w),d1		;
+	PPUTNUM	d1,#40*352+34			; Write Level_Ships
+	move.l	Level_Time(a0,d0.w),d5		;
+	move.l	#40*336+31,a4			;
+	bsr.w	PWriteTime			; Write Level_Time
+	lea	BestTimes,a0			;
+	move.l	(a0,d2.w*4),d5			;
+	move.l	#40*400+34,a4			;
+	bsr.w	PWriteTime			; Write BestTime
+	lea	BestNames,a1			;
+	mulu.w	#12,d2				;
+	add.l	d2,a1				;
+	PPUTSTR	a1,#40*400+22			; Write BestName
+
+	; Get input -----------------------------------------------------------
+.input
+	cmp.b	#FALSE,Intro_WarpOut		; IF Warping-in 
+	bne.w	.keys				; THEN skip joystick part
+	cmp.b	#FALSE,Intro_WarpIn		; IF Warping-out
+	bne.w	.keys				; THEN skip joystick part
+
+	bsr.w	GetJoy1				; IF Joy1Fire
+	tst.b	Joy1Fire			;
+	beq.b	.nofire				;
+	move.l	#IFlg_Quit,Intro_Flags		;   Play selected level !
+	bra.w	IntroQuit			; ENDIF
+
+.nofire	tst.b	Joy1Left			; IF Joy1Left
+	beq.b	.noleft				; 
+	move.l	#-1,Intro_Timer			;   Warp
+	move.b	#TRUE,Intro_WarpOut		;
+	sub.w	#1,Intro_Level			;   Intro_Level -= 1
+	bpl.w	IntroQuit			;   IF Intro_Level < 0
+	move.w	#0,Intro_Level			;   THEN Intro_Level = 0
+	move.l	#$7fff,Intro_Timer		;
+	move.b	#FALSE,Intro_WarpOut		;   Don't warp
+	bra.w	IntroQuit			; ENDIF
+	
+.noleft	tst.b	Joy1Right			; IF Joy1Right
+	beq.b	.keys				;
+	move.l	#-1,Intro_Timer			;   Warp
+	move.b	#TRUE,Intro_WarpOut		;
+	add.w	#1,Intro_Level			;   Intro_Level += 1
+	cmp.w	#NumLevel,Intro_Level		;   IF Intro_Level = NumLevel
+	blt.b	IntroQuit			;   THEN Intro_Level=NumLevel-1
+	sub.w	#1,Intro_Level			;  
+	move.l	#$7fff,Intro_Timer		;   Don't warp
+	move.b	#FALSE,Intro_WarpOut		;
+	bra.b	IntroQuit			; ENDIF
+.keys
+	bsr.w	GetKey				; IF ESC-key pressed
+	cmp.b	#KEY_NEW,KeyState		;
+	bne.b	IntroQuit			;
+	cmp.b	#KEY_ESC,KeyRaw			;
+ 	bne.b	IntroQuit			;
+	move.l	#IFlg_Text,Intro_Flags		;   Back to part I
+	move.b	#FALSE,Intro_WarpIn		;   Stop warp-in 
+	move.b	#TRUE,Intro_WarpOut		;   Start warp-out
+	move.l	#550,Intro_Timer		;   Reset timer
+	bra.w	IntroQuit			; ENDIF
+
+	; Quit ? ==============================================================
+
+IntroQuit
+	IFNE 	DEBUG				;
+   	btst 	#2,$dff016			; Check right mousebutton 
+	bne.b	.z				;
+	move.l	#IFlg_QuitToWB,Intro_Flags	;
+.z	ENDC					;
+
+	cmp.l	#IFlg_Quit,Intro_Flags		; Quit intro-loop ?
+	blt.w	IntroLoop			;
+
+	; Finished ------------------------------------------------------------
+
+	move.w	Intro_Level,Plyr_Level		; Play this level
+
+	bsr.w	mt_end				; Stop music
+	
+	move.w	#$7fff,$dff09a			; Kill interrupts
+	move.w	#$7fff,$dff09c			;
+	move.w	#$7fff,$dff096			; Kill DMA
+	rts
+
+
+; *****************************************************************************
+; ClearPlanes
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Erase intro screen plane 7 and 8.
+; Notes      : -
+; Scratch    : -
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+ClearPlanes					;
+	move.l	chipmem,a0			; Use scr0 buffer for last two
+	add.l	#scr0,a0			; bitplanes.
+	move.w	#320*128/4-1,d7			; 
+	moveq	#0,d0				;
+.clr1	move.l	d0,(a0)+			;
+	dbf	d7,.clr1			;
+	rts
+
+
+; *****************************************************************************
+; Warp
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Do intro warp effect.
+; Notes      : -
+; Scratch    : All
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+Warp
+	move.w	Intro_WarpCount,d1	; d1 = Index in IntroWarp table
+	lea	IntroWarp,a0		; a0 = Pointer to IntroWarp table
+	lea	IntroCopBpl+6*8,a2	; a2 = Position in copperlist header
+	move.l	chipmem,d0		; 
+	add.l	#scr0,d0		; Plane 7
+	add.l	(a0,d1.w*4),d0		; Add warp offset
+	swap	d0			;
+	move.w	d0,2(a2)		; 
+	swap	d0			;
+	move.w	d0,6(a2)		;
+	addq.l	#8,a2			;
+	add.l	#20480,d0		; Plane 8
+	swap	d0			;
+	move.w	d0,2(a2)		;
+	swap	d0			;
+	move.w	d0,6(a2)	 	;
+	rts
+
+
+; *****************************************************************************
+; InitLevel 
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: -
+; Notes      : -
+; Scratch    : -
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+InitLevel
+	; Clear chunky buffers and screens ------------------------------------
+
+	move.l	chipmem,a0			; Note: chunky buffers must be
+	add.l	#ch0,a0				; allocated after each other
+	move.w	#2*160*128/4-1,d7		; in memory.
+.clr0	move.l	#0,(a0)+			;
+	dbf	d7,.clr0			;
+
+	move.l	chipmem,a0			; Note: screen buffers must be
+	add.l	#scr0,a0			; allocated after each other
+	move.w	#2*320*128/4-1,d7		; in memory.
+.clr1	move.l	#0,(a0)+			;
+	dbf	d7,.clr1			;
+
+	; Set palette ---------------------------------------------------------
+
+	move.l	RendCop,a0			; Set colours to black
+	add.l	#CopCol-Cop,a0			;
+	move.l	#GamePal,a1			;	
+	bsr.w	SetPal24			;
+	move.l	DispCop,a0			;
+	add.l	#CopCol-Cop,a0			;
+	move.l	#GamePal,a1			;
+	bsr.w	SetPal24			;
+	
+	; DMA & Interrupts ----------------------------------------------------
+	
+	move.w	#$7fff,$dff09a			; Kill interrupts
+	move.w	#$7fff,$dff09c			;
+	move.w	#$7fff,$dff096			; Kill DMA
+
+   	move.l 	_vbr,a0 			;
+ 	move.l 	#int3,$6c(a0)			; INT3 vector
+
+	move.l	DispCop,$dff080			; Display copperlist
+	
+	move.w	#$e060,$dff09a			; Enable BLIT+VERTB+CIA ints
+   	move.w 	#$83cf,$dff096			; Enable BPL+COP+BLT+AUD DMA
+
+	; Make BlitterScreen --------------------------------------------------
+	
+   	move.l 	chipmem,a0 			;
+ 	add.l 	#ch0,a0      			; Chunky buffer
+   	move.l 	chipmem,a1 			;
+ 	add.l 	#scr0,a1     			; Planar screen
+   	move.l 	chipmem,a2 			;
+ 	add.l 	#buf2,a2     			; Pass buffer
+   	move.l 	chipmem,a3 			;
+ 	add.l 	#sblbuf,a3   			; Scramble buffer
+   	move.l 	fastmem,a6 			;
+ 	add.l 	#blist0,a6    			; Blitterlist buffer
+
+   	move.l 	#160*128,d0    			; Number of chunky pixels
+  	move.l 	#320*128/8,d1   		; Bytes between the bitplanes
+
+  	movem.l d0-d7/a0-a6,-(sp)		;
+   	jsr 	c2bs                 		; Make blitterlist 0
+  	movem.l (sp)+,d0-d7/a0-a6		;
+
+  	move.l 	chipmem,a0 			;
+  	add.l 	#ch1,a0      			; Chunky buffer
+   	move.l 	chipmem,a1 			;
+ 	add.l 	#scr1,a1     			; Planar screen
+   	move.l 	chipmem,a2 			;
+ 	add.l 	#buf2,a2     			; Pass buffer
+   	move.l 	chipmem,a3 			;
+ 	add.l 	#sblbuf,a3   			; Scramble buffer
+   	move.l 	fastmem,a6 			;
+ 	add.l 	#blist1,a6    			; Blitterlist buffer
+
+   	move.l 	#160*128,d0    			; Number of chunky pixels
+  	move.l 	#320*128/8,d1   		; Bytes between the bitplanes
+
+  	movem.l d0-d7/a0-a6,-(sp)		;
+   	jsr 	c2bs                 		; Make blitterlist 1 
+  	movem.l (sp)+,d0-d7/a0-a6		;
+
+	; Start the music -----------------------------------------------------
+
+	move.l	#GameMusic,mt_data		;
+	bsr.w	mt_init				;
+	st	mt_Enable			;
+
+	; Init variables ------------------------------------------------------
+
+	move.w	Plyr_Level,d1			; d1 = Plyr_Level
+	move.l	#Level,a0			; Calculate Game_LevelPtr
+	move.w	d1,d0				;
+	mulu	#Level_sizeof,d0		;
+	add.l	d0,a0				;
+	move.l	a0,Game_LevelPtr		; 
+	move.l	#Wall_Z,a0			; Calculate Game_WallZ
+	move.w	d1,d0				;
+	mulu	#MaxWall*4,d0			;
+	add.l	d0,a0				;
+	move.l	a0,Game_WallZ			; 
+	move.l	#Wall_Type,a0			; Calculate Game_WallType
+	move.w	d1,d0				;
+	mulu	#MaxWall*2,d0			;
+	add.l	d0,a0				;
+	move.l	a0,Game_WallType		;
+
+	move.w	#Plyr_XInit,Plyr_X		; Init player position
+	move.w	#Plyr_YInit,Plyr_Y		;
+	move.w	#0,Plyr_XSpd			; Init player speed
+	move.w	#0,Plyr_YSpd			;
+	move.w	#0,Plyr_Scroll			;
+	move.l	#0,Plyr_Z			;
+	move.w	#28*256,Plyr_ZSpd		;
+	
+	move.w	#0,Plyr_Frame			; Current frame number
+	move.w	#7,Plyr_EngineCnt		; Current engine colour
+	move.w	#TRUE,Plyr_EngineOn		; Engine is on...
+
+	move.l	#Flg_LevelInit,Game_Flags	; Init flags
+	move.w	#0,Game_FirstWall		; Init walls
+	move.w	#0,Game_LastWall		;
+
+	lea	Plyr_Name,a0			; IF Plyr_Name="MOTHERGOOSE"
+	move.l	(a0)+,d0			;
+	cmp.l	#"MOTH",d0			;
+	bne.b	.nocht				;
+	move.l	(a0)+,d0			;
+	cmp.l	#"ERGO",d0			;
+	bne.b	.nocht				;
+	move.l	(a0)+,d0			;
+	cmp.l	#$4f534500,d0			;
+	bne.b	.nocht				;
+	move.w	#9,Plyr_Ships			;   Plyr_Ships=9
+	move.l	#29950,Plyr_Time		;   Plyr_Time=9:59
+	move.b	#TRUE,Plyr_Cheat		;   Plyr_Cheat=TRUE
+	bra.b	.Done				; ELSE
+.nocht	move.l	Game_LevelPtr,a0		;   
+	move.w	Level_Ships(a0),Plyr_Ships	;   Plyr_Ships=Level_Ships
+	move.l	Level_Time(a0),Plyr_Time	;   Plyr_Time=Level_Time
+	move.b	#FALSE,Plyr_Cheat		;   Plyr_Cheat=FALSE
+
+	; Finished ------------------------------------------------------------
+.Done	
+	rts
+	
+
+; *****************************************************************************
+; GameLoop
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: -
+; Notes      : -
+; Scratch    : -
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+	ALIGNLONG
+	
+GameLoop
+        ; Sync display --------------------------------------------------------
+
+.busy	tst.w   bltbsy				; Wait for C2P finished
+ 	bne.b 	.busy				; (bltbsy=0)
+
+	bsr.w	WaitVBL				; Wait for vertical blank
+
+	move.l	RealTimeCnt,RealTime		; Store realtime counter
+	move.l	#0,RealTimeCnt			; Reset realtime counter
+
+	move.l	DispCop,$dff080			; Display copperlist
+
+	move.l	RendBL,d0			; Do double buffering
+	move.l	DispBL,RendBL			;
+	move.l	d0,DispBL			;
+	move.l	RendCh,d1			;
+	move.l	DispCh,RendCh			;
+	move.l	d1,DispCh			;
+	move.l	RendCop,d2			;
+	move.l	DispCop,RendCop			;
+	move.l	d2,DispCop			;
+
+        ; Start C2P -----------------------------------------------------------
+
+	move.l	DispBL,bltpc			; Blitterlist
+   	move.w 	#1,bltbsy        		; Important!
+   	move.w 	#$8040,$dff09c   		; Request blitter interrupt
+
+	; Render stuff --------------------------------------------------------
+
+	bsr.w	DrawTunnel			;
+	bsr.w	DoWalls				;
+	bsr.w	DoPlayer			;
+	bsr.b	DoStatus			;
+
+	IFNE	SHOW				;
+	move.w	#$f00,$dff182			; Show rastertiming
+	ENDC					;
+
+	; Quit ? --------------------------------------------------------------
+
+	cmp.l	#Flg_Quit,Game_Flags		; Quit gameloop ?
+   	bne.w 	GameLoop			;
+
+.c2pend	tst.w 	bltbsy 				; Make sure C2P is finished
+ 	bne.b 	.c2pend				; before we continue
+
+	; Finished ------------------------------------------------------------
+.Done
+	bsr.w	mt_end				; Stop music
+	move.l	#IFlg_TrackSel,Intro_Flags	; Restart intro at Track Select
+   	rts
+
+
+; *****************************************************************************
+; DoStatus
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Draws status stuff in chunky buffer.
+; Notes      : -
+; Scratch    : -
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+DoStatus
+	cmp.l	#Flg_LevelInit,Game_Flags	; IF Game_Flags=Flg_LevelInit
+	beq.b	.Done				; THEN don't draw status
+	cmp.l	#Flg_GetReady,Game_Flags	; IF Game_Flags=Flg_GetReady
+	beq.b	.Done				; THEN don't draw status
+	cmp.l	#Flg_LevelDone,Game_Flags	; IF Game_Flags=Flg_LevelDone
+	beq.b	.Done				; THEN don't draw status
+	
+	; Number of ships -----------------------------------------------------
+
+	move.w	Plyr_Ships,d1			;
+	CPUTNUM	d1,#160+160-10			;
+
+	; Time left -----------------------------------------------------------
+
+	move.l	#160,a4				;
+	move.l	Plyr_Time,d5			;
+	bsr.w	CWriteTime			;
+	
+	; Finished ------------------------------------------------------------
+.Done
+	rts
+	
+	
+; *****************************************************************************
+; DoPlayer
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Does player things.
+; Notes      : -
+; Scratch    : None
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+	ALIGNLONG
+	
+DoPlayer
+	movem.l	d0-d7/a0-a6,-(sp)		; Save regs
+	
+	; Normal mode ---------------------------------------------------------
+
+	cmp.l	#Flg_Normal,Game_Flags		; Normal mode ?
+	beq.w	.Player				; 
+
+	; LevelInit -----------------------------------------------------------
+
+	cmp.l	#Flg_LevelInit,Game_Flags	; Level starts
+	bne.b	.getrdy				;
+
+	sub.w	#ZAccel,Plyr_ZSpd		; Plyr_ZSpd -= ZAccel
+	cmp.w	#0,Plyr_ZSpd			; IF Plyr_ZSpd < 0
+	bge.w	.Keys				;   
+	move.w	#0,Plyr_ZSpd			;   Plyr_ZSpd = 0
+	move.l	#Flg_GetReady,Game_Flags	;   Game_Flags=Flg_GetReady
+	move.w	#FALSE,Plyr_EngineOn		;   Stop Engine
+	bra.w	.Keys				; ENDIF
+
+	; GetReady ------------------------------------------------------------
+
+.getrdy	cmp.l	#Flg_GetReady,Game_Flags	; Waiting until player ready
+	bne.w	.nwship				;
+
+.0	CPUTSTR	txt_track,#40+38*160		; Write "TRACK"
+	move.w	Plyr_Level,d1			;
+	add.w	#1,d1				; +1 !!!
+	CPUTNUM	d1,#112+38*160			; Write Plyr_Level
+
+	CPUTSTR	txt_time,#40+48*160		; Write "TIME"
+	move.l	#88+48*160,a4			;
+	move.l	Plyr_Time,d5			;
+	bsr.w	CWriteTime			;
+
+	CPUTSTR	txt_ships,#40+58*160		; Write "SHIPS"
+	move.w	Plyr_Ships,d1			;
+	CPUTNUM	d1,#112+58*160			; Write Plyr_Ships
+		
+	tst.l	Toggle				; IF Toggle-bit set
+	beq.b	.gtrdy2				;
+	CPUTSTR	txt_press,#40+84*160		; THEN Write "PRESS"
+	CPUTSTR	txt_fire,#88+84*160		;      Write "FIRE"
+	
+.gtrdy2	bsr.w	GetJoy1				;
+	tst.b	Joy1Fire			; IF Fire-button
+	beq.w	.Keys				;
+	move.l	#Flg_Normal,Game_Flags		;   Game_Flags=Flg_Normal
+	bra.w	.Keys				; ENDIF
+
+	; NewShip -------------------------------------------------------------
+
+.nwship	cmp.l	#Flg_NewShip,Game_Flags		; Player has been resurrected
+	bne.b	.ldone				;
+
+	tst.l	Toggle				; IF Toggle-bit set
+	beq.b	.nwshp2				;
+	CPUTSTR	txt_press,#40+84*160		; THEN Write "PRESS"
+	CPUTSTR txt_fire,#88+84*160		;      Write "FIRE"
+	
+.nwshp2	bsr.w	GetJoy1				;
+	tst.b	Joy1Fire			; IF Fire-button
+	beq.w	.Keys				;
+	move.l	#Flg_Normal,Game_Flags		;   Game_Flags=Flg_Normal
+	bra.w	.Keys				; ENDIF
+
+	; LevelDone -----------------------------------------------------------
+	
+.ldone	cmp.l	#Flg_LevelDone,Game_Flags	; Level is completed
+	bne.w	.coll				;
+
+	move.w	#0,Plyr_XSpd			; No X/Y Speed
+	move.w	#0,Plyr_YSpd			;
+	move.w	#TRUE,Plyr_EngineOn		; Activate engine
+	
+	cmp.w	#28*256,Plyr_ZSpd		; IF Plyr_ZSpd > xxxx
+	blt.b	.lt				;
+	sub.w	#ZAccel,Plyr_ZSpd		; THEN Plyr_ZSpd -= ZAccel
+	bra.b	.ldone1				;
+.lt	add.w	#ZAccel,Plyr_ZSpd		; ELSE Plyr_ZSpd += ZAccel
+
+.ldone1	tst.l	Toggle				; IF Toggle-bit set
+	beq.w	.ldone3				;
+	CPUTSTR	txt_track,#24+60*160		; THEN Write "TRACK"
+	CPUTSTR	txt_complete,#72+60*160		;      Write "COMPLETE"
+
+.ldone2	move.l	Game_LevelPtr,a1		; a1 = Pointer to Level array 
+	cmp.b	#TRUE,Plyr_Cheat		;
+	bne.w	.ld0				; IF Plyr_Cheat=TRUE
+	move.l	#29950,d1			; THEN d1 = 9:59
+	bra.b	.ld1				;
+.ld0	move.l	Level_Time(a1),d1		; ELSE d1 = Level_Time
+.ld1	sub.l	Plyr_Time,d1			; d1 = Level_Time - Plyr_Time
+	lea	BestTimes,a2			; a2 = Pointer to BestTimes
+	move.w	Plyr_Level,d2			; d2 = Plyr_Level
+	move.l	(a2,d2.w*4),d3			; d3 = BestTime for Plyr_Level
+	cmp.l	d3,d1				; IF d1 <= d3
+	bgt.b	.ldone3				;
+	CPUTSTR	txt_best,#20+40*160		; THEN Write "BEST" 
+	CPUTSTR	txt_track,#56+40*160		;      Write "TRACK"
+	CPUTSTR	txt_time,#108+40*160		;      Write "TIME"
+	move.l	d1,(a2,d2.w*4)			; Write time in BestTimes
+	lea	BestNames,a2			; a2 = Pointer to BestNames
+	mulu.w	#12,d2				; d2 = Offset in BestNames
+	move.w	#12-1,d7			;
+	lea	Plyr_Name,a3			; a3 = Pointer to player name
+.lcopy	move.b	(a3)+,(a2,d2.w)			; Copy character
+	addq.w	#1,d2				; Update dest. pointer
+	dbf	d7,.lcopy			;
+
+.ldone3	cmp.l	#250,FlgTimer			; IF FlgTimer = 5 secs
+	ble.w	.Keys				;
+	move.l	#Flg_Quit,Game_Flags		;   Game_Flags=Flg_Quit
+	bra.w	.Keys				; ENDIF
+
+	; Collision -----------------------------------------------------------
+
+.coll	cmp.l	#Flg_Collision,Game_Flags	; Collision with wall
+	bne.w	.outtim				;
+
+	move.w	#Plyr_XInit,Plyr_X		; Restore player stuff
+	move.w	#Plyr_YInit,Plyr_Y		;
+	move.w	#0,Plyr_XSpd			;
+	move.w	#0,Plyr_YSpd			;
+	move.w	#0,Plyr_ZSpd			;
+	move.w	#0,Plyr_EngineCnt		;
+	move.w	#FALSE,Plyr_EngineOn		;
+
+	cmp.l	#50,FlgTimer			; IF 0 <= FlgTimer < 50
+	bge.b	.coll1				;   Explosion handled by VBLint
+	bra.w	.Keys				; ENDIF
+	
+.coll1	tst.w	Plyr_Ships			; IF Plyr_Ships = 0
+	bne.b	.coll2				;
+	move.l	#Flg_RaceOver,Game_Flags	;   Game_Flags=Flg_RaceOver
+	bra.w	.Keys				; ENDIF
+
+.coll2	cmp.l	#100,FlgTimer			; IF 50 <= FlgTimer < 100
+	bge.b	.coll3				;
+	move.l	RealTime,d0			;
+ 	mulu.w	#10,d0				;
+	add.l	d0,Plyr_Z			;   Move forward through tunnel
+	move.l	RealTime,d0			;   
+ 	mulu.w	#2560,d0			;
+	add.w	d0,Plyr_Scroll			;   until wall has disappeared
+	bra.w	.Keys				; ENDIF
+		
+.coll3	move.l	#Flg_NewShip,Game_Flags		; IF FlgTimer = 100
+	bra.w	.Keys				; THEN Game_Flags=Flg_NewShip
+
+	; OutOfTime -----------------------------------------------------------
+
+.outtim	cmp.l	#Flg_OutOfTime,Game_Flags	; No time left
+	bne.w	.racovr				;
+
+	sub.w	#ZAccel,Plyr_ZSpd		; Plyr_ZSpd -= ZAccel
+	cmp.w	#0,Plyr_ZSpd			; IF Plyr_ZSpd < 0
+	bge.b	.outt0				;   Plyr_ZSpd = 0
+	move.w	#0,Plyr_ZSpd			; ENDIF
+	move.w	#0,Plyr_XSpd			;
+	move.w	#0,Plyr_YSpd			;
+	move.w	#FALSE,Plyr_EngineOn		; Stop engine
+
+.outt0	tst.l	Toggle				; IF Toggle-bit set
+	beq.b	.outt1				;
+	CPUTSTR	txt_out,#36+60*160		; THEN Write "OUT"
+	CPUTSTR	txt_of,#68+60*160		;      Write "OF"
+	CPUTSTR	txt_time,#92+60*160		;      Write "TIME"
+
+.outt1	cmp.l	#250,FlgTimer			; IF FlgTimer > 5 secs
+	ble.w	.Keys				;
+	move.l	#Flg_Quit,Game_Flags		;   Game_Flags=Flg_Quit
+	bra.w	.Keys				; ENDIF
+
+	; RaceOver ------------------------------------------------------------
+
+.racovr	cmp.l	#Flg_RaceOver,Game_Flags	; Race Over
+	bne.b	.pause				;
+
+	tst.l	Toggle				; IF Toggle-bit set
+	beq.b	.racov1				;
+	CPUTSTR	txt_race,#44+60*160		; THEN Write "RACE"
+	CPUTSTR	txt_over,#84+60*160		;      Write "OVER"
+
+.racov1	cmp.l	#250,FlgTimer			; IF FlgTimer > 5 secs
+	ble.w	.Keys				;
+	move.l	#Flg_Quit,Game_Flags		;   Game_Flags=Flg_Quit
+	bra.w	.Keys				; ENDIF
+
+	; Pause ---------------------------------------------------------------
+
+.pause	cmp.l	#Flg_Pause,Game_Flags		; Game paused
+	bne.b	.EndFlg				; 
+
+	tst.l	Toggle				; IF Toggle-bit set
+	beq.b	.pause1				;
+	CPUTSTR	txt_pause,#60+60*160		; THEN Write "PAUSE"
+
+.pause1	bsr.w	GetKey				; Read keyboard
+	cmp.b	#KEY_NEW,KeyState		; IF previous key repeated
+	bne.w	.Done				; THEN skip everything
+	cmp.b	#KEY_P,KeyRaw			; 
+	bne.w	.Done				; IF P was pressed
+	move.l	#Flg_Normal,Game_Flags		;   Resume game
+	bra.w	.Done				; ENDIF
+
+.EndFlg	bra.w	.Keys				; Unknown flag. Never get here!
+	
+	; Handle joystick input -----------------------------------------------
+
+.Player	bsr.w	GetJoy1			; Read joystick
+
+	move.l	RealTime,d0		; 
+	move.l	#ZAccel,d1		; ZAccel = RealTime * ZAccel
+	mulu.w	d0,d1			;
+	move.l	#XAccel,d2		; XAccel = RealTime * XAccel
+	mulu.w	d0,d2			;
+	move.l	#YAccel,d3		; YAccel = RealTime * YAccel
+	mulu.w	d0,d3			;
+
+	tst.b	Joy1Fire		; Fire ?
+	beq.b	.nofire			;
+
+	move.w	#TRUE,Plyr_EngineOn	;   Activate engine
+
+	add.w	d1,Plyr_ZSpd		;   Plyr_ZSpd += ZAccel
+	cmp.w	#MaxSpd,Plyr_ZSpd	;   IF Plyr_ZSpd > MaxSpd
+	ble.b	.tstup			;
+	move.w	#MaxSpd,Plyr_ZSpd	;     Plyr_ZSpd = MaxSpd
+	bra.b	.tstup			;   ENDIF
+.nofire
+	move.w	#FALSE,Plyr_EngineOn	;   Stop engine
+	
+	sub.w	d1,Plyr_ZSpd		;   Plyr_ZSpd -= ZAccel
+	cmp.w	#MinSpd,Plyr_ZSpd	;   IF Plyr_ZSpd < MinSpd
+	bge.b	.tstup			;     Plyr_ZSpd = MinSpd
+	move.w	#MinSpd,Plyr_ZSpd	;   ENDIF
+.tstup					;   
+	tst.b	Joy1Up			; Up ?
+	beq.b	.noup			;
+	sub.w	d3,Plyr_YSpd		;   Plyr_YSpd -= YAccel
+	bra.b	.tstdn			;
+.noup	tst.w	Plyr_YSpd		;   IF Plyr_YSpd < 0
+	bpl.b	.tstdn			;
+	add.w	d3,Plyr_YSpd		;     Plyr_YSpd += YAccel
+	bmi.b	.tstdn			;     IF Plyr_YSpd > 0 THEN Plyr_YSpd=0
+	move.w	#0,Plyr_YSpd            ;   ENDIF
+.tstdn					;   
+	tst.b	Joy1Down		; Down ?
+	beq.b	.nodn			;
+	add.w	d3,Plyr_YSpd		;   Plyr_YSpd += YAccel
+	bra.b	.tstlt			;
+.nodn	tst.w	Plyr_YSpd		;   IF Plyr_YSpd > 0
+	bmi.b	.tstlt			;
+	sub.w	d3,Plyr_YSpd		;     Plyr_YSpd -= YAccel
+	bpl.b	.tstlt			;     IF Plyr_YSpd < 0 THEN Plyr_YSpd=0
+	move.w	#0,Plyr_YSpd            ;   ENDIF    
+.tstlt					;   
+	tst.b	Joy1Left		; Left ?
+	beq.b	.nolt			;
+	sub.w	d2,Plyr_XSpd		;   Plyr_XSpd -= XAccel
+	bra.b	.tstrt			;
+.nolt	tst.w	Plyr_XSpd		;   IF Plyr_XSpd < 0
+	bpl.b	.tstrt			;
+	add.w	d2,Plyr_XSpd		;     Plyr_XSpd += XAccel
+	bmi.b	.tstrt			;     IF Plyr_XSpd > 0 THEN Plyr_XSpd=0
+	move.w	#0,Plyr_XSpd            ;   ENDIF    
+.tstrt					;   
+	tst.b	Joy1Right		; Right ?
+	beq.b	.nort			;
+	add.w	d2,Plyr_XSpd		;   Plyr_XSpd += XAccel
+	bra.b	.Keys			;
+.nort	tst.w	Plyr_XSpd		;   IF Plyr_XSpd > 0
+	bmi.b	.Keys			;
+	sub.w	d2,Plyr_XSpd		;     Plyr_XSpd -= XAccel
+	bpl.b	.Keys			;     IF Plyr_XSpd < 0 THEN Plyr_XSpd=0
+	move.w	#0,Plyr_XSpd            ;   ENDIF
+
+	; Handle keyboard input -----------------------------------------------
+
+.Keys	bsr.w	GetKey			; Read keyboard input
+	cmp.b	#KEY_NEW,KeyState	; IF previous key repeated
+	bne.b	.move           	; THEN skip this part
+	
+	move.b	KeyRaw,d0		;
+	cmp.b	#KEY_ESC,d0		; IF ESC pressed ?
+	bne.b	.P			;  
+	move.l	#Flg_Quit,Game_Flags	;   Game_Flags=Flg_Quit
+	bra.w	.Done			; ENDIF
+
+.P	cmp.b	#KEY_P,d0		; IF P pressed ?
+	bne.b	.move			;   
+	cmp.l	#Flg_Normal,Game_Flags	;   IF Game_Flags=Flg_Normal
+	bne.b	.move			;   
+	move.l	#Flg_Pause,Game_Flags	;   THEN Game_Flags=Flg_Pause
+	bra.w	.Done			; ENDIF
+
+	; Move player ---------------------------------------------------------
+
+.move	moveq	#0,d0			; 
+	move.w	Plyr_ZSpd,d0		; Plyr_Scroll += Plyr_ZSpd
+	add.w	d0,Plyr_Scroll		;
+	lsr.w	#8,d0			; Plyr_Z += (Plyr_ZSpd/256)
+	add.l	d0,Plyr_Z		;
+
+	move.w	Plyr_XSpd,d0		; Plyr_X += Plyr_XSpd
+	add.w	d0,Plyr_X		;
+	move.w	Plyr_YSpd,d0		; Plyr_Y += Plyr_YSpd
+	add.w	d0,Plyr_Y		;
+
+	; Check for boundaries ------------------------------------------------
+
+	move.w	Plyr_X,d0		;
+	cmp.w	#Plyr_XMin,d0		; IF Plyr_X < Plyr_XMin
+	bge.b	.chkrt			;
+	move.w	#Plyr_XMin,Plyr_X	;   Plyr_X = Plyr_XMin
+	move.w	#0,Plyr_XSpd		;   Plyr_XSpd = 0
+	bra.b	.chkup			;
+.chkrt	cmp.w	#Plyr_XMax,d0		; ELSEIF Plyr_X > Plyr_XMax
+	ble.b	.chkup			;   Plyr_X = Plyr_XMax
+	move.w	#Plyr_XMax,Plyr_X	;   Plyr_XSpd = 0
+	move.w	#0,Plyr_XSpd		; ENDIF
+.chkup	move.w	Plyr_Y,d0		; 
+	cmp.w	#Plyr_YMin,d0		; IF Plyr_Y < Plyr_YMin
+	bge.b	.chkdn			;
+	move.w	#Plyr_YMin,Plyr_Y	;   Plyr_Y = Plyr_YMin
+	move.w	#0,Plyr_YSpd		;   Plyr_YSpd = 0
+	bra.b	.Time			;
+.chkdn	cmp.w	#Plyr_YMax,d0		; ELSEIF Plyr_Y > Plyr_YMax
+	ble.b	.Time			;   Plyr_Y = Plyr_YMax
+	move.w	#Plyr_YMax,Plyr_Y	;   Plyr_YSpd = 0
+	move.w	#0,Plyr_YSpd		; ENDIF
+
+	; Check Time ----------------------------------------------------------
+
+.Time	cmp.l	#Flg_Normal,Game_Flags		; IF Flg_Normal not set
+	bne.b	.Done				; THEN skip this part
+	cmp.l	#0,Plyr_Time			;
+	bgt.b	.Done				; IF Plyr_Time <= 0
+	move.l	#0,Plyr_Time			; THEN Plyr_Time=0
+	move.l	#Flg_OutOfTime,Game_Flags	;      Game_Flags=Flg_OutOfTime
+
+	; Finished ------------------------------------------------------------
+.Done
+
+	IFNE 	DEBUG				;
+   	btst 	#2,$dff016			; Check right mousebutton 
+	bne.b	.z				;
+	move.l	#Flg_Quit,Game_Flags		;
+.z	ENDC					;
+
+	movem.l	(sp)+,d0-d7/a0-a6		; Restore regs
+	rts
+
+
+; *****************************************************************************
+; DrawPlayer
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Draws player. Draws shadow. Changes engine colour.
+; Notes      : -
+; Scratch    : All
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+	ALIGNLONG
+	
+DrawPlayer
+	cmp.l	#Flg_Collision,Game_Flags	; IF Flg_Collision
+	beq.w	.Done				; THEN don't draw player 
+	cmp.l	#Flg_RaceOver,Game_Flags	; IF Flg_RaceOver
+	beq.w	.Done				; THEN don't draw player
+
+	; Calculate destination pointers --------------------------------------
+	
+	movem.l	d0-d7/a0-a6,-(sp)	;
+	move.l	RendCh,a1		; a1 = Pointer for ship
+	moveq	#0,d0			;
+	moveq	#0,d1			;
+	move.w	Plyr_Y,d0		;
+	sub.w	#12,d0			; Adjust Y-position
+	move.w	d0,d1			; }
+	lsl.w	#7,d0			; }_ Y * 160
+	lsl.w	#5,d1			; }
+	add.w	d1,d0			; }
+	add.l	d0,a1			;
+	move.w	Plyr_X,d1		;
+	sub.w	#21,d1			; Adjust X-position
+	add.l	d1,a1			; 
+
+	move.l	RendCh,a3		; a3 = Pointer for shadow
+	add.l	d1,a3			; 
+	add.l	#100*160,a3		; Y-position
+
+	; In what column is player ? ------------------------------------------
+
+	moveq	#0,d1			;	
+	move.w	Plyr_X,d1		; 
+	sub.w	#32-12,d1		; Adjust X-postion
+	divu.w	#24,d1			; Col.nr = X-position / Column_width
+	move.w	d1,d0			;
+	move.w	d1,d4			; ShadowFrame.nr = Col.nr
+	lsl.w	#2,d0			; Frame.nr = Col.nr * 5
+	add.w	d1,d0			; 
+
+	; In what row is player ? ---------------------------------------------
+
+	moveq	#0,d2			;
+	move.w	Plyr_Y,d2		;
+	sub.w	#32-8,d2		; Adjust Y-position
+	lsr.w	#4,d2			; Row.nr = Y-postion / Row_height
+	add.w	d2,d0			; Frame.nr += Row.nr
+	move.w	d0,Plyr_Frame		; Store frame number (for coll. checks)
+
+	; Draw shadow ---------------------------------------------------------
+
+	lea	Shadow_Anim,a2		;
+	move.l	(a2,d4.w*4),a0		; Get source pointer
+	
+	move.l	#25-1,d6		; Height = 25 lines
+.sloop1	move.w	#48-1,d7		; Width  = 48 columns (actually 42!)
+.sloop2	move.b	(a0)+,d1		; Read byte
+	beq.b	.sskip			; IF transparent THEN skip write
+	move.b	d1,(a3)			; Write byte		
+.sskip	addq.l	#1,a3			; Go to next pixel
+	dbf	d7,.sloop2		;
+	add.l	#160-48,a3		; Go to next row
+	dbf	d6,.sloop1		;
+
+	; Draw ship -----------------------------------------------------------
+
+	lea	Ship_Anim,a2		;
+	move.l	(a2,d0.w*4),a0		; Get source pointer
+
+	move.l	#25-1,d6		; Height = 25 lines
+.loop1	move.w	#48-1,d7		; Width  = 48 columns (actually 42!)
+.loop2	move.b	(a0)+,d0		; Read byte
+	beq.b	.skip			; IF transparent THEN skip write
+	move.b	d0,(a1)			; Write byte		
+.skip	addq.l	#1,a1			; Go to next pixel
+	dbf	d7,.loop2		;
+	add.l	#160-48,a1		; Go to next row
+	dbf	d6,.loop1		;
+
+	; Change engine colour in copperlist ----------------------------------
+
+	move.w	Plyr_EngineCnt,d0	; d0 = Offset in colour table
+	cmp.w	#TRUE,Plyr_EngineOn	; IF Plyr_EngineOn = TRUE
+	bne.b	.false			;
+	addq.w	#1,d0			;   Plyr_EngineCnt += 1
+	cmp.w	#7,d0			;   IF Plyr_EngineCnt > 7
+	ble.b	.store			;   THEN Plyr_EngineCnt = 7
+	moveq	#7,d0			;
+	bra.b	.store			; ELSE
+.false	subq.w	#1,d0			;   Plyr_EngineCnt -= 1
+	bpl.b	.store			;   IF Plyr_EngineCnt < 0
+	moveq	#0,d0			;   THEN Plyr_EngineCnt = 0
+.store	move.w	d0,Plyr_EngineCnt	; ENDIF	
+
+ 	lea	EnginePal,a1		; a1 = Pointer to colour table
+	move.l	(a1,d0.w*4),d1		; d1 = Colour (24-Bit HLi)
+
+	move.l	RendCop,a0		; a0 = Pointer to copperlist
+	add.l	#CopCol-Cop+394,a0	;
+	move.w	d1,132(a0)		; Write low 12 bits
+	swap	d1			;
+	move.w	d1,(a0)			; Write high 12 bits
+
+	movem.l	(sp)+,d0-d7/a0-a6	;
+
+	; Finished ------------------------------------------------------------
+.Done
+	rts
+
+		
+; *****************************************************************************
+; DoWalls
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Draws all visible walls and player.
+; Notes      : -
+; Scratch    : All
+; History    : -
+; *****************************************************************************
+
+	ALIGNLONG
+	
+DoWalls
+	; Check if FirstWall is still visible ---------------------------------
+
+	move.l	Game_LevelPtr,a1	; a1 = Pointer to Level array
+	move.w	Level_NumWall(a1),d1	;
+	subq.w	#1,d1			; d1 = Level_NumWall-1
+
+	move.l	Game_WallZ,a4		; a4 = Pointer to Wall_Z array
+	move.l	Plyr_Z,d2		; d2 = Plyr_Z
+	move.w	Game_FirstWall,d0	; d0 = Game_FirstWall
+	move.l	(a4,d0.w*4),d3		; d3 = Wall_Z[Game_FirstWall]
+	cmp.l	d2,d3			;
+	bgt.b	.levcpl			; IF d3 <= d2
+	addq.w	#1,d0			; THEN Game_FirstWall += 1
+	move.w	d0,Game_FirstWall	;
+
+	; Check if level is completed -----------------------------------------
+	
+.levcpl	cmp.l	#Flg_Normal,Game_Flags	; IF Game_Flags <> Flg_Normal
+	bne.b	.chk1			; THEN skip this bit
+	move.l	(a4,d0.w*4),d3		; d3 = Wall_Z[Game_FirstWall]
+	sub.l	d2,d3			; d3 = Wall_Z[FW]-Plyr_Z
+	cmp.l	#RealZ,d3		;
+	bge.b	.chk1			; IF d3 < RealZ
+	cmp.w	d1,d0			;
+	bne.b	.chk1			; AND Game_FirstWall = Level_NumWall-1
+	move.l	#Flg_LevelDone,Game_Flags ; THEN level complete !!!
+	
+	; Check if a new wall becomes visible ---------------------------------
+
+.chk1	move.w	Game_LastWall,d0	; d0 = Game_LastWall
+	cmp.w	d1,d0			;
+	blt.b	.chk2			; IF Game_LastWall >= Level_NumWall-1
+	move.w	d1,Game_LastWall	; THEN Game_LastWall = Level_NumWall-1
+	bra.b	.Draw
+.chk2	addq.w	#1,d0			; d0 = Game_LastWall+1
+	move.l	(a4,d0.w*4),d1		; d1 = Wall_Z[Game_LastWall+1]
+	add.l	#ViewD,d2		; d2 = Plyr_Z + ViewD
+	cmp.l	d2,d1			;  
+	bge.b	.Draw			; IF d1 < d2
+	move.w	d0,Game_LastWall	; THEN Game_LastWall += 1
+	
+	; Draw the visible walls back to front --------------------------------
+.Draw
+	move.l	#WallLut_X,a1		;
+	move.l	#WallLut_Y,a2		;
+	move.l	#WallLut_S,a3		;
+	move.w	Game_LastWall,d7	;
+	move.w	d7,d0			; t=LastWall
+	sub.w	Game_FirstWall,d7	; d7=LastWall-FirstWall (loop counter)
+	sub.w	#1,d7			; d7=LastWall-FirstWall-1 
+	bmi.b	.First			; 
+.drwlop					; FOR (t=LastWall; t>=FirstWall-1; t--)
+	move.l	(a4,d0.w*4),d1		;   d1 = Wall_Z[t]
+	sub.l	Plyr_Z,d1		;   RelZ = Wall_Z[t] - Plyr_Z
+		
+	movem.l	d0/d1/d7/a0-a3,-(sp)	;
+	move.l	(a1,d1.w*4),d2		;   BufferX
+	move.l	(a2,d1.w*4),d3		;   BufferY
+	move.l  (a3,d1.w*4),d4		;   Size
+	
+	move.l	Game_WallType,a1	;   a1 = Pointer to Wall_Type array
+	move.l	#Type_Bitmap,a0		;
+	move.w	(a1,d0.w*2),d6		;   d6 = Wall_Type[t]
+	move.l	(a0,d6.w*4),a0 		;   SourcePtr = Type_Bitmap[Wall_Type[t]]
+	move.l	RendCh,a1		;   BufferPtr
+	bsr.w	ScaleWall		;
+	movem.l	(sp)+,d0/d1/d7/a0-a3	;
+
+	subq.w	#1,d0			;   	
+	dbf	d7,.drwlop		; NEXT t
+
+	; Draw FirstWall and player -------------------------------------------
+.First
+	move.l	(a4,d0.w*4),d1		; d1 = Wall_Z[t]
+	sub.l	Plyr_Z,d1		; RelZ = Wall_Z[t] - Plyr_Z
+
+	cmp.l	#ViewD,d1		; IF d1 < ViewD
+	bcs.b	.visible		; THEN FirstWall is visible
+	bsr.w	DrawPlayer		; ELSE DrawPlayer 
+	bra.w	.Done			;      and leave !!!
+.visible
+	move.l	(a1,d1.w*4),d2		; BufferX
+	move.l	(a2,d1.w*4),d3		; BufferY
+	move.l  (a3,d1.w*4),d4		; Size
+	move.l	Game_WallType,a1	; a1 = Pointer to Wall_Type array
+	move.l	#Type_Bitmap,a0		;
+	move.w	(a1,d0.w*2),d6		; d6 = Wall_Type[FirstWall]
+	move.l	(a0,d6.w*4),a0 		; SourcePtr = Type_Bitmap[Wall_Type[FW]]
+	move.l	RendCh,a1		; BufferPtr
+
+	move.l	d1,a4			; save RelZ
+	move.l	d6,a6			; save Wall_Type[FirstWall]
+	cmp.l	#RealZ,d1		; IF d1 < RealZ
+	bge.b	.else			;
+	bsr.w	DrawPlayer		;   DrawPlayer()
+	bsr.w	ScaleWall		;   ScaleWall()
+	bra.b	.TstColl		; ELSE
+.else	bsr.w	ScaleWall		;   ScaleWall()
+	bsr.w	DrawPlayer		;   DrawPlayer()
+
+	; Test for collision --------------------------------------------------
+.TstColl
+	cmp.l	#Flg_Normal,Game_Flags	; IF Game_Flags <> Flg_Normal
+	bne.b	.Done			; THEN skip collision check
+	
+	move.l	a4,d1			; restore RelZ
+	move.l	a6,d0			; restore Wall_Type[FirstWall]
+	cmp.l	#RealZ,d1		; IF RelZ <= RealZ
+	bgt.b	.Done			;
+	move.w	Plyr_ZSpd,d2		;
+	lsr.w	#8,d2			;
+	move.w	#RealZ,d3		;
+	sub.w	d2,d3			;
+	cmp.w	d3,d1			; AND RelZ >= (RealZ-Plyr_ZSpd/256)
+	blt.b	.Done			;
+	bsr.b	InHole			; AND InHole(Wall_Type[FirstWall])==0
+	bne.b	.Done			;
+	move.l	#Flg_Collision,Game_Flags ; THEN Collision !
+	sub.w	#1,Plyr_Ships		;   Plyr_Ships -= 1
+
+	; Finished ------------------------------------------------------------
+.Done
+	rts
+
+
+; *****************************************************************************
+; InHole
+; -----------------------------------------------------------------------------
+; Inputs     : d0.w = Type of wall
+; Output     : d0.l = 0 : Outside hole
+;              d0.l = 1 : Inside hole
+; Description: Determines if ship is _completely_ inside the hole a wall.
+; Notes      : -
+; Scratch    : d0
+; History    : -
+; *****************************************************************************
+
+	ALIGNLONG
+	
+InHole
+	movem.l	d1-d4/a0-a1,-(sp)		; Save registers
+	
+	lea	Type_Hole,a0			; Hole data
+	lea	Coll_Bounds,a1			; Collision bounds data
+	move.w	Plyr_Frame,d3			; Current player frame number
+
+	move.w	Type_HoleX1(a0,d0.w*8),d2	; IF (Plyr_X-Coll_BoundsX1)
+	move.w	Plyr_X,d1			;    < Type_HoleX1[Type] 
+	move.w	Coll_BoundsX1(a1,d3.w*8),d4	;    
+	add.w	d4,d1				;
+	cmp.w	d2,d1				; 
+	blt.b	.Ret0				; THEN return 0
+
+	move.w	Type_HoleX2(a0,d0.w*8),d2	; IF (Plyr_X+Coll_BoundsX2)
+	move.w	Plyr_X,d1			;    > Type_HoleX2[Type]
+	move.w	Coll_BoundsX2(a1,d3.w*8),d4	;
+	add.w	d4,d1				;
+	cmp.w	d2,d1				;
+	bgt.b	.Ret0				; THEN return 0
+
+	move.w	Type_HoleY1(a0,d0.w*8),d2	; IF (Plyr_Y-Coll_BoundsY1)
+	move.w	Plyr_Y,d1			;    < Type_HoleY1[Type]
+	move.w	Coll_BoundsY1(a1,d3.w*8),d4	;
+	add.w	d4,d1				;   
+	cmp.w	d2,d1				;
+	blt.b	.Ret0				; THEN return 0
+
+	move.w	Type_HoleY2(a0,d0.w*8),d2	; IF (Plyr_Y+Coll_BoundsY2)
+	move.w	Plyr_Y,d1			;    > Type_HoleY2[Type]
+	move.w	Coll_BoundsY2(a1,d3.w*8),d4	;
+	add.w	d4,d1				;
+	cmp.w	d2,d1				;    
+	bgt.b	.Ret0				; THEN return 0
+
+.Ret1	moveq	#1,d0				; Return 1
+	movem.l	(sp)+,d1-d4/a0-a1		; Restore registers
+	rts
+.Ret0	moveq	#0,d0				; Return 0
+	movem.l	(sp)+,d1-d4/a0-a1		; Restore registers
+	rts
+
+
+; *****************************************************************************
+; DrawTunnel
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Outputs    : -
+; Description: Draws the tunnel into the chunky buffer.
+; Notes      : -
+; Scratch    : d0,d1,d7,a0,a1,a2
+; Author     : Matthijs Hollemans
+; History    : 24 Dec 1996
+;              04 Jan 1997, Major speedup: writes longs instead of bytes.
+; *****************************************************************************
+
+	ALIGNLONG
+	
+DrawTunnel
+	moveq	#0,d0
+	move.w	#160*128/4-1,d7		; 20480 pixels
+	move.l	RendCh,a0
+	move.l	#txt,a1			; Pointer to texture
+	move.l	#TxtLut,a2		; Pointer to texture LookUpTable
+	move.w	Plyr_Scroll,d1
+.loop	move.w	d1,d0			; d0  = Scroll
+	add.w	(a2)+,d0		; d0 += Texture offset
+	move.b	(a1,d0.l),d2		; xxxxxxAA
+	lsl.w	#8,d2			; xxxxAAxx
+	move.w	d1,d0			; d0  = Scroll
+	add.w	(a2)+,d0		; d0 += Texture offset
+	move.b	(a1,d0.l),d2		; xxxxAABB
+	swap	d2			; AABBxxxx
+	move.w	d1,d0			; d0  = Scroll
+	add.w	(a2)+,d0		; d0 += Texture offset
+	move.b	(a1,d0.l),d2		; AABBxxCC
+	lsl.w	#8,d2			; AABBCCxx
+	move.w	d1,d0			; d0  = Scroll
+	add.w	(a2)+,d0		; d0 += Texture offset
+	move.b	(a1,d0.l),d2		; AABBCCDD
+	move.l	d2,(a0)+		; Store 4 pixels in chunky buffer
+	dbf	d7,.loop
+	rts
+
+
+; *****************************************************************************
+; ScaleWall
+; -----------------------------------------------------------------------------
+; Inputs     : a0   = SourcePtr
+;  	       a1   = BufferPtr
+;              d2.l = BufferX
+;              d3.l = BufferY
+;              d4.l = Destination Size (= width = height)
+;              d6.w = Walltype
+; Output     : -
+; Description: Scales a 128x128 chunky image.
+; Notes      : o Performs clipping.
+;              o Does not perform mirroring.
+;              o Destination coordinates are allowed to be negative.
+;              o Colour 0 is transparent.
+; Scratch    : d0-d7/a0-a3/a5
+; Author     : Matthijs Hollemans
+; History    : 27 Dec 1996
+;              04 Jan 1997, On some walls (WT_Left/Right/Up/Down) a lot of
+;                           transparent pixels were scaled, wasting time.
+; *****************************************************************************
+
+	ALIGNLONG
+	
+ScaleWall
+	; Determine step size -------------------------------------------------
+
+	move.l	d4,d5			; ClipW = ClipH = Destination Size
+	move.l	#$8000,d0		; XStep = SourceW << 8
+	divu	d4,d0			; XStep = (SourceW << 8) / DestW
+	andi.l	#$ffff,d0		; Get rid of remainder
+	move.l	d0,d1			; YStep = XStep
+
+	; Special type ? ------------------------------------------------------
+
+	cmp.w	#WT_Left,d6		; IF Walltype=WT_Left
+	bne.b	.nolt			;
+	lsr.l	#1,d4			;   ClipW /= 2
+	bra.b	.Clip			; ENDIF
+.nolt	cmp.w	#WT_Right,d6		; IF Walltype=WT_Right
+	bne.b	.nort			;
+	lsr.l	#1,d4			;   ClipW / 2
+	move.l	#CenterX,d2		;   BufferX = CenterX
+	bra.b	.Clip			; ENDIF
+.nort	cmp.w	#WT_Up,d6		; IF Walltype=WT_Up
+	bne.b	.noup			;
+	lsr.l	#1,d5			;   ClipH / 2 
+	bra.b	.Clip			; ENDIF
+.noup	cmp.w	#WT_Down,d6		; IF Walltype=WT_Down
+	bne.b	.Clip			;   ClipH / 2
+	lsr.l	#1,d5			;   BufferY = CenterY
+	move.l	#CenterY,d3		; ENDIF
+	
+	; Clipping ------------------------------------------------------------
+
+.Clip	moveq	#0,d6			; SY = 0
+	cmp.l	#ClipT,d3		; IF BufferY < ClipT
+	bge.b	.Bottom			;
+	move.l	#ClipT,d6		;   d6 = ClipT
+	sub.l	d3,d6			;   d6 = ClipT - BufferY
+	sub.l	d6,d5			;   d5 -= ClipT - BufferY
+	mulu	d1,d6			;   d6 = (ClipT - BufferY) * YStep
+	move.l	#ClipT,d3		;   d3 = ClipT
+.Bottom					; ENDIF
+	move.l	d3,d7			; d7 = BufferY
+	add.l	d5,d7			; d7 = BufferY + ClipH
+	cmp.l	#ClipB,d7		; IF (BufferY + ClipH) > ClipB
+	ble.b	.Left			;
+	move.l	#ClipB,d5		;   d5 = ClipB
+	sub.l	d3,d5			;   d5 = ClipB - BufferY
+	addq.l	#1,d5			;   d5 = ClipB - BufferY + 1
+.Left					; ENDIF
+	mulu	#BufferW,d3		; d3 = BufferY * BufferW
+	add.l	d3,a1			; a1 += BufferY * BufferW
+	moveq	#0,d3			; StartSX = 0
+
+	cmp.l	#ClipL,d2		; IF BufferX < ClipL
+	bge.b	.Right			;
+	move.l	#ClipL,d3		;   d3 = ClipL
+	sub.l	d2,d3			;   d3 = ClipL - BufferX
+	sub.l	d3,d4			;   d4 -= (ClipL - BufferX)
+	mulu	d0,d3			;   d3 = (ClipL - BufferX) * XStep
+	move.l	#ClipL,d2		;   d2 = ClipL
+.Right					; ENDIF
+	move.l	d2,d7			; d7 = BufferX
+	add.l	d4,d7			; d7 = BufferX + ClipW
+	cmp.l	#ClipR,d7		; IF (BufferX + ClipW) > ClipR
+	ble.b	.ClpEnd			;
+	move.l	#ClipR,d4		;   d4 = ClipR
+	sub.l	d2,d4			;   d4 = ClipR - BufferX
+	addq.l	#1,d4			;   d4 = ClipR - BufferX + 1
+.ClpEnd					; ENDIF
+	add.l	d2,a1			; a1 += BufferX
+	move.l	#BufferW,a3		; a3 = BufferW
+	sub.l	d4,a3			; a3 = BufferW - ClipW
+	subq.l	#1,d4			; ClipW-1
+	bmi.b	.Done			; IF ClipW < 0 THEN Done
+	subq.l	#1,d5			; ClipH-1
+	bmi.b	.Done			; IF ClipH < 0 THEN Done
+	move.l	d3,a5			; a5 = StartSX
+		
+	; Scaling -------------------------------------------------------------
+
+	; a0 = SourcePtr, a1 = BufferPtr, a2 = SourceLoop, a3 = BufferStep
+	; a5 = StartSX
+	; d0 = XStep, d1 = YStep, d2 = SX (only in ColLoop)
+	; d3 = scratch, d4 = ColLoop counter backup
+	; d5 = RowLoop counter, d6 = SY, d7 = ColLoop counter
+
+.RowLoop				; FOR (i=0; i < ClipH; i++)
+	move.l	d6,d2			;   d2 = SY
+	movea.l	a0,a2			;   a2 = SourcePtr
+
+	lsr.l	#1,d2			;   d2 = (SY >> 8)
+	andi.l	#$ffffff80,d2		;   d2 = (SY >> 8) * SourceW
+	add.l	d2,a2			;   a2 = SourcePtr + (SY >> 8)*SourceW
+
+	move.l	a5,d2			;   d2 = StartSX
+	move.l	d4,d7			;   FOR (j=0; j < ClipW; j++)
+.ColLoop				;	
+	move.l	d2,d3			;
+	lsr.l	#8,d3			;     d3 = SX >> 8
+	add.l	d0,d2			;     d2 += XStep
+	move.b	(a2,d3.w),d3		;     d3 = *(SourceLoop + (SX >> 8))
+	beq.b	.NxtCol			;     IF d3 == 0 THEN don't draw
+	move.b	d3,(a1)			;     *BufferPtr = d3
+.NxtCol	addq.l	#1,a1			;     BufferPtr += 1
+	dbf	d7,.ColLoop		;   ENDFOR
+
+	adda.l	a3,a1			;   a1 += BufferStep
+	add.l	d1,d6			;   d6 += YStep
+	dbf	d5,.RowLoop		; ENDFOR
+
+	; Finished ------------------------------------------------------------
+.Done	
+	rts
+
+
+; *****************************************************************************
+; MyVBLHandler
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Custom VBL interrupt handler. Takes care of timers and stuff.
+; Notes      : Called from int3.
+; Scratch    : -
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+MyVBLHandler
+	; Toggle --------------------------------------------------------------
+	
+	move.l	ToggleCnt,d0			; ToggleCnt += 1
+	add.l	#1,d0				;
+	cmp.l	#20,d0				; IF ToggleCnt > 20
+	blt.b	.notogl				;
+	bchg	#0,Toggle			;   Toggle
+	moveq	#0,d0				;   ToggleCnt=0
+.notogl	move.l	d0,ToggleCnt			; ENDIF
+
+	; RealTime ------------------------------------------------------------
+
+	add.l	#1,RealTimeCnt			; RealTimeCnt += 1
+
+	; Timers --------------------------------------------------------------
+
+	cmp.l	#Flg_Normal,Game_Flags		; IF Flg_Normal
+	bne.b	.spcial				;
+	move.l	#0,FlgTimer			; THEN FlgTimer = 0
+	sub.l	#1,Plyr_Time			;      Plyr_Time -= 1
+	bra.b	.tstcol				; 
+.spcial	add.l	#1,FlgTimer			; ELSE FlgTimer += 1
+
+.tstcol	cmp.l	#Flg_Collision,Game_Flags	; IF Flg_Collision
+	bne.b	.Coll				;
+	sub.l	#1,Plyr_Time			; THEN Plyr_Time -= 1
+	
+	; Collision Fade ------------------------------------------------------
+.Coll
+	cmp.l	#Flg_Collision,Game_Flags	; IF not collision
+	beq.b	.coll1				; 
+	cmp.l	#Flg_RaceOver,Game_Flags	; OR race over
+	bne.b	.Done				; THEN skip this part
+
+.coll1	cmp.l	#1,FlgTimer			; IF FlgTimer = 1
+	blt.b	.Done				;
+	bgt.b	.coll0				;
+	move.l	RendCop,a0			;
+	add.l	#CopCol-Cop,a0			;
+	move.l	#WhitePal,a1			;
+	bsr.w	SetPal24			;   Make screen totally white
+	move.l	#WhitePal,a0			;
+	move.l	#TempPal,a1			;
+	bsr.w	CopyPal24			;
+	move.b	#5,d0				;
+	bsr.w	InitXFade			;   Initialise crossfade
+	bra.b	.Done				;
+.coll0	move.l	#TempPal,a0			; ELSEIF FlgTimer > 1
+	move.l	#GamePal,a1			;
+	bsr.w	XFade				;
+	move.l	RendCop,a0			;   Crossfade white to 
+	add.l	#CopCol-Cop,a0			;   original game palette
+	move.l	#TempPal,a1			;
+	bsr.w	SetPal24			; ENDIF
+
+	; Finished ------------------------------------------------------------
+.Done
+	rts
+
+
+; *****************************************************************************
+; LoadScores
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Stores default values in BestTimes and BestNames arrays.
+; Notes      : -
+; Scratch    : All
+; Author     : Matthijs Hollemans
+; History    : 23 Jan 1997
+; *****************************************************************************
+
+	ALIGNLONG
+	
+LoadScores
+	lea	BestTimes,a0		;
+	lea	BestNames,a1		;
+	move.w	#9-1,d7			; 
+.loop0	move.l	#29950,(a0)+		; Write default time
+	move.l	#"NOBO",(a1)+		; }
+	move.l	#"DY  ",(a1)+		; }- Write default name
+	move.l	#$20202000,(a1)+	; }
+	dbf	d7,.loop0		;
+	rts
+
+
+; =============================================================================
+; 
+;                             S U B R O U T I N E S
+;
+; =============================================================================
+
+
+; *****************************************************************************
+; PPutChr 
+; -----------------------------------------------------------------------------
+; Inputs     : a1   = Pointer to first bitplane
+; 	       d0.l = ASCII character
+; Output     : -
+; Description: Planar Put Character.
+; Notes      : -
+; Scratch    : d0,d1,d2,d7,a2,a3,a5
+; Author     : Matthijs Hollemans
+; History    : 06 Jan 1997
+; *****************************************************************************
+
+	ALIGNLONG
+	
+PPutChr
+	lea	IntroFont,a2		; a2 = Pointer to gfx
+	sub.l	#32,d0			; Convert ASCII
+	move.l	d0,d1			; d0 = Offset for plane 7 gfx
+	add.w	#1024,d1		; d1 = Offset for plane 8 gfx
+	move.l	a1,a5			;
+	add.l	#20480,a5		; a5 = Pointer to plane 8
+	move.l	a1,a3			; a3 = Pointer to plane 7
+	move.w	#16-1,d7		; Draw 16 lines
+.copy	move.b	(a2,d0.w),(a3)		; Write to plane 7
+	move.b	(a2,d1.w),(a5)		; Write to plane 8
+	add.l	#40,a3			; Next line in plane 7
+	add.l	#40,a5			; Next line in plane 8
+	add.l	#64,a2			; Next line in gfx
+	dbf	d7,.copy		; Draw next line
+	rts
+	
+
+; *****************************************************************************
+; PPutStr 
+; -----------------------------------------------------------------------------
+; Inputs     : a0 = Pointer to null-terminated string
+;              a1 = Pointer to first bitplane
+; Output     : -
+; Description: Planar Put String.
+; Notes      : -
+; Scratch    : All
+; Author     : Matthijs Hollemans
+; History    : 06 Jan 1997
+; *****************************************************************************
+
+	ALIGNLONG
+	
+PPutStr
+	moveq	#0,d0
+.loop	move.b	(a0)+,d0		; Read next character
+	beq.b	.Done			; NULL byte ? then we're done
+	bsr.b	PPutChr			; Write character
+	addq.l	#1,a1			; Next position on screen
+	bra.b	.loop			; Next character
+.Done	rts				; Finished
+
+
+; *****************************************************************************
+; CPutStr
+; -----------------------------------------------------------------------------
+; Inputs     : a0 = Pointer to null-terminated string
+;	       a1 = Pointer to chunky buffer.
+; Output     : -
+; Description: Chunky Put String
+; Notes      : -
+; Scratch    : d0,d1,d2,d6,d7,a1,a2,a3
+; Author     : Matthijs Hollemans
+; History    : 08 Jan 1996
+; *****************************************************************************
+
+	ALIGNLONG
+	
+CPutStr
+	moveq	#0,d0
+.loop	move.b	(a0)+,d0		; Read next character
+	beq.b	.Done			; NULL byte ? then we're done
+	bsr.b	CPutChr			; Write character
+	addq.l	#8,a1			; Next position on screen
+	bra.b	.loop			; Next character
+.Done	rts				; Finished
+
+
+; *****************************************************************************
+; CPutChr
+; -----------------------------------------------------------------------------
+; Inputs     : a1   = Pointer to chunky buffer
+;	       d0.l = ASCII character
+; Output     : -
+; Description: Chunky Put Character.
+; Notes      : -
+; Scratch    : d0,d1,d2,d6,d7,a2,a3
+; Author     : Matthijs Hollemans
+; History    : 08 Jan 1996
+; *****************************************************************************
+
+	ALIGNLONG
+	
+CPutChr
+	lea	ChunkyFont,a2		; a2 = Pointer to gfx
+	sub.l	#32,d0			; Convert ASCII
+	move.l	d0,d1			;
+	lsl.l	#3,d1			; d1 = Offset for gfx 
+	add.l	d1,a2			; a2 += offset
+	move.l	a1,a3			; a3 = Pointer to chunkybuffer
+	move.w	#7,d6			; }_ 8x8 character
+.y	move.w	#7,d7			; }
+.x	move.b	(a2),d2			; Read gfx byte
+	beq.b	.skip			; 0 ? Then transparent, skip write
+	move.b	d2,(a3)			; Write gfx byte 
+.skip	add.l	#1,a3			; Next pixel in chunky buffer
+	add.l 	#1,a2			; Next pixel in gfx
+	dbf	d7,.x			; 
+	add.l	#BufferW-8,a3		; Next row in chunky buffer
+	add.l	#512-8,a2		; Next row in gfx
+	dbf	d6,.y			; 
+	rts
+
+
+; *****************************************************************************
+; CWriteTime, PWriteTime
+; -----------------------------------------------------------------------------
+; Inputs     : a4.l = Offset in chunky buffer
+;	       d5.l = Time (in ticks)
+; Output     : -
+; Description: CWriteTime: writes time as M:SS in chunky buffer.
+;              PWriteTime: writes time as M:SS on 2-bitplane screen.
+; Notes      : -
+; Scratch    : All
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+CalcTime
+	divu.w	#50,d5			; Total secs = Ticks / 50
+	and.l	#$ffff,d5		; kill remainder
+	divu.w	#60,d5			; Min = Total secs / 60
+	move.l	d5,d3			; 
+	and.l	#$f,d5			; kill remainder
+	swap	d3			; Sec = Total secs MOD 60
+	and.l	#$ffff,d3		; kill msw
+	divu	#10,d3			; 
+	move.l	d3,d4			;
+	swap	d4			; Get second
+	and.l	#$f,d3			;
+	and.l	#$f,d4			;
+	rts
+
+CWriteTime
+	bsr.b	CalcTime		; Calculate time
+	CPUTNUM	d5,a4			; X:xx
+	addq.l	#8,a4			;
+	CPUTCHR	#58,a4			; :
+	addq.l	#8,a4			;
+	CPUTNUM	d3,a4			; x:Xx
+	addq.l	#8,a4			;
+	CPUTNUM	d4,a4			; x:xX
+	rts
+
+PWriteTime
+	bsr.w	CalcTime		; Calculate time
+	PPUTNUM	d5,a4			; X:xx
+	addq.l	#1,a4			;
+	PPUTCHR	#58,a4			; :
+	addq.l	#1,a4			;
+	PPUTNUM	d3,a4			; x:Xx
+	addq.l	#1,a4			;
+	PPUTNUM	d4,a4			; x:xX
+	rts
+
+	
+; *****************************************************************************
+; SetPal24
+; -----------------------------------------------------------------------------
+; Inputs     : a0 = Pointer to coplist colors
+;              a1 = Palette
+; Output     : -
+; Description: Copies a 24-bit 256-colour palette into a coplist.
+; Notes      : Palette has to be ordered like this:
+;              $00RrGgBb,$00RrGgBb,...,$00RrGgBb
+; Scratch    : d6,d7,a0,a1
+; Author     : Matthijs Hollemans
+; History    : 4 Jan 1996
+; *****************************************************************************
+
+	ALIGNLONG
+	
+SetPal24
+	add.l	#6,a0			; 
+	move.w	#8-1,d6			; Set 8 banks
+.loop0  move.w	#32-1,d7		; Set 32 colour registers
+
+.loop1	move.l	(a1)+,d0		; d0 = 00RrGgBb
+	move.w	d0,d1			; d1 = GgBb
+	lsr.w	#8,d1			; d1 = 00Gg
+	and.w	#$f0,d1			; d1 = 00G0
+	move.w	d0,d2			; d2 = GgBb
+	and.w	#$f0,d2			; d2 = 00B0
+	lsr.w	#4,d2			; d2 = 000B
+	or.w	d1,d2			; d2 = 00GB
+	move.l	d0,d1			; d1 = 00RrGgBb
+	swap	d1			; d1 = GgBb00Rr
+	and.w	#$f0,d1			; d1 = 00R0
+	lsl.w	#4,d1			; d1 = 0R00
+	or.w	d1,d2			; d2 = 0RGB
+
+	move.w	d2,(a0)			; Write high 12-bits in copperlist
+	
+	move.w	d0,d1			; d1 = GgBb
+	and.w	#$f00,d1		; d1 = 0g00
+	lsr.w	#4,d1			; d1 = 00g0
+	move.w	d0,d2			; d2 = GgBb
+	and.w	#$f,d2			; d2 = 000b
+	or.w	d1,d2			; d2 = 00gb
+	swap	d0			; d0 = GgBb00Rr
+	and.w	#$f,d0			; d0 = 000r
+	lsl.w	#8,d0			; d0 = 0r00
+	or.w	d0,d2			; d2 = 0rgb
+
+	move.w	d2,132(a0)		; Write low 12-bits in copperlist
+	
+	add.l	#4,a0			; Next colour
+	dbf	d7,.loop1		; 
+	add.l	#128+4+4,a0		; 
+	dbf	d6,.loop0		;
+	rts				;
+
+
+; *****************************************************************************
+; CopyPal24
+; -----------------------------------------------------------------------------
+; Inputs     : a0 = Source palette
+;              a1 = Destination palette
+; Output     : -
+; Description: Copies 24-bit source palette into 24-bit destination palette.
+; Notes      : - 
+; Scratch    : All
+; Author     : Matthijs Hollemans
+; History    : 23 Jan 1997
+; *****************************************************************************
+
+CopyPal24
+	move.l	#256-1,d7		; 256 colours
+.loop	move.l	(a0)+,(a1)+		; Copy 24-bit colour 
+	dbf	d7,.loop		;
+	rts				
+
+
+; *****************************************************************************
+; InitXFade 
+; -----------------------------------------------------------------------------
+; Inputs     : d0.b = Stepsize (positive value)
+; Output     : -
+; Description: Initialises XFade.
+; Notes      : Call once before calling XFade.
+; Scratch    : -
+; Author     : Matthijs Hollemans
+; History    : 23 Jan 1997
+; *****************************************************************************
+
+InitXFade
+	and.l	#$ff,d0			; Extend d0 to long (unsigned)
+	move.b	d0,XFadeStep		; XFadeStep = Stepsize
+	move.l	#$ff,d1			;
+	divu.w	d0,d1			; XFadeCount = 255 / Stepsize
+	move.w	d1,XFadeCount		;
+	rts
+
+
+; *****************************************************************************
+; XFade 
+; -----------------------------------------------------------------------------
+; Inputs     : a0 = Source palette
+;              a1 = Destination palette
+; Output     : -
+; Description: Fades 24-bit source palette to 24-bit destination palette. 
+; Notes      : If XFadeCount is negative, then fading is ready and the
+;              routine exits. Start a new fade by calling InitXFade.
+; Scratch    : All
+; Author     : Matthijs Hollemans
+; History    : 23 Jan 1997
+; *****************************************************************************
+
+	ALIGNLONG
+	
+XFade
+	tst.w	XFadeCount		; IF XFadeCount < 0
+	bmi.b	.Done			; THEN xfade is ready
+
+	move.b	XFadeStep,d3		; d3 = Step
+	ext.w	d3			; Extend d3 to word size !
+	move.b	d3,d4			;
+	neg.b	d4			; d4 = -Step
+	ext.w	d4			; Extend d4 to word size !
+	move.l	#256-1,d7		; Process 256 colours
+.loop	addq.l	#1,a0			; }_ Skip first byte
+	addq.l	#1,a1			; }
+	moveq	#3-1,d6			; Loop 3 times (r,g and b)
+.rgb	moveq	#0,d0			; }_ Clear registers
+	move.l	d0,d2			; }
+	move.b	(a0),d0			; d0 = Source component
+	move.b	(a1)+,d1		; d1 = Dest component
+	move.b	d1,d2			;
+	sub.w	d0,d2			; d2 = Dest-Source (word!!!)
+	cmp.w	d3,d2			; IF d2 > Step
+	ble.b	.0			;
+	add.b	d3,d0			;   Source += Step
+	bra.b	.write			;
+.0	cmp.w	d4,d2			; ELSEIF d2 < -Step
+	bge.b	.1			;
+	sub.b	d3,d0			;   Source -= Step
+	bra.b	.write			;
+.1	move.b	d1,d0			; ELSE Source = Dest
+.write	move.b	d0,(a0)+		; Write new source component
+	dbf	d6,.rgb			;
+	dbf	d7,.loop		;
+	sub.w	#1,XFadeCount		; XFadeCount -= 1
+.Done					;
+	rts				;
+
+XFadeCount	dc.w	0
+XFadeStep	dc.b	0
+
+
+; *****************************************************************************
+; GetJoy1
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Outputs    : -
+; Description: Reads position of joystick 1.
+; Notes      : Results in Joy1Up, Joy1Down, Joy1Left, Joy1Right, Joy1Fire.
+; Scratch    : -
+; Author     : Matthijs Hollemans
+; History    : 24 Dec 1996
+; *****************************************************************************
+
+	ALIGNLONG
+	
+GetJoy1	movem.l	d0/d1,-(sp)
+	move.w	$dff00c,d0		; JOY1DAT
+	btst	#1,d0
+	sne	Joy1Right
+	btst	#9,d0
+	sne	Joy1Left
+	move.w	d0,d1
+	lsr.w	#1,d1
+	eor.w	d0,d1
+	btst	#0,d1
+	sne	Joy1Down
+	btst	#8,d1
+	sne	Joy1Up
+	moveq	#0,d0
+	btst.b	#7,$bfe001		; CIA-A PRA
+	seq	Joy1Fire
+	movem.l	(sp)+,d0/d1
+	rts
+
+
+; *****************************************************************************
+; WaitVBL
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Waits for vertical blank.
+; Notes      : -
+; Scratch    : None
+; Author     : -
+; History    : -
+; *****************************************************************************
+
+	ALIGNLONG
+	
+WaitVBL	move.l	d0,-(sp)
+	move.b	$bfe801,d0
+.wait	cmp.b	$bfe801,d0
+	beq.b	.wait
+	move.l	(sp)+,d0
+	rts
+
+
+; *****************************************************************************
+; GetKey 
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : KeyState and KeyRaw
+; Description: Gets keyboard input
+; Notes      : -
+; Scratch    : d0,d1
+; Author     : Fabio Bizetti
+; History    : 11 Jan 1997, modified by Matthijs Hollemans
+; *****************************************************************************
+
+GetKey
+	move.w	$dff01c,d1		; Save INTENA
+        or.w 	#$c000,d1		; 
+ 	move.w	#$7fff,$dff09a		; Disable all interrupts
+
+	moveq	#0,d0			;
+ 	move.b	$bfec01,d0		; Get byte from CIA-A serial port
+ 	
+ 	bset.b	#6,$bfee01		; Set serial port to output
+ 	move.b	#$40,$bfe401		; }_ CIA-A TimerA = 64
+ 	move.b	#$00,$bfe501		; }
+ 	move.b	#$51,$bfee01		; Handshake
+ 	tst.b	$bfed01			;
+ 	tst.b	$bfed01			;
+.Wait	btst.b	#0,$bfed01		; }_ Wait for TimerA to finish
+ 	beq.b	.Wait			; }
+ 	bclr.b	#6,$bfee01		; Set serial port to input
+ 	
+ 	not.b	d0			; Datalines are low active
+ 	ror.b	#1,d0			; Bits are sent as 6-5-4-3-2-1-0-7
+ 	bpl.b	.Down			; IF Key was released
+ 	move.b	#KEY_NONE,KeyState	;   KeyState = KEY_NONE
+ 	move.b	d0,KeyRaw		;   KeyRaw = new key with bit 7 set!
+	bra.b	.Done			; ENDIF
+.Down	cmp.b	KeyRaw,d0		; IF old key == new key 
+	bne.b	.New			;
+	move.b	#KEY_REPEAT,KeyState	;   KeyState = KEY_REPEAT
+	bra.b	.Done			; ENDIF
+.New 	move.b	d0,KeyRaw		; KeyRaw = new key
+	move.b	#KEY_NEW,KeyState	; KeyState = KEY_NEW
+ 	
+.Done	move.w	d1,$dff09a		; Restore interrupts
+	rts				;
+
+
+; *****************************************************************************
+; GetStr
+; -----------------------------------------------------------------------------
+; Inputs     : -
+; Output     : -
+; Description: Gets string input from user and stores it in Plyr_Name.
+; Notes      : Could rewrite this to be somewhat more universal, but then
+;              again, why bother ;)
+; Scratch    : -
+; Author     : Matthijs Hollemans
+; History    : 21 Jan 1997
+; *****************************************************************************
+
+GetStr
+	movem.l	d0-d7/a0-a6,-(sp)	; Save registers
+	
+	lea	Plyr_Name,a0		; Destination address
+	move.l	a0,a1			; Store pointer
+	lea	Raw2ASCII,a2		; Translation table
+	move.b	#0,d7			; Size = 0
+	move.l	#388*40+25,d6		; Start position on screen
+	PPUTCHR	#94,d6			; Write cursor
+
+.loop	bsr.w	WaitVBL			; REPEAT
+	bsr.w	GetKey			;   Read key
+	cmp.b	#KEY_NEW,KeyState	; 
+	bne.b	.loop			; UNTIL KeyState = KEY_NEW
+	
+	cmp.b	#KEY_ENTER,KeyRaw	; IF KeyRaw = KEY_ENTER
+	bne.b	.noent			;
+	move.b	#0,(a1)			;   Add NULL-character to end of string
+	bra.w	.Done			;   Finished
+.noent  cmp.b	#KEY_ESC,KeyRaw		; ELSEIF KeyRaw = KEY_ESC
+	bne.b	.noesc			;
+	move.b	#0,(a0)			;   NULL-character at start of string
+	bra.w	.Done			;   Finished
+.noesc	cmp.b	#KEY_BACKSPACE,KeyRaw	; ELSEIF KeyRaw = KEY_BACKSPACE
+	bne.b	.nobs			;
+	tst.b	d7			;   IF Size > 0
+	ble.b	.endif			; 
+	subq.b	#1,d7			;     Size -= 1
+	subq.b	#1,d6			;     Position -= 1
+	subq.l	#1,a1			;     Decrease string pointer
+	bra.b	.endif			;   ENDIF
+.nobs	cmp.b	#$40,KeyRaw		; ELSEIF (KeyRaw <= $40)
+	bgt.b	.endif			;
+	cmp.b	#$10,KeyRaw		;        AND (KeyRaw >= $10)
+	blt.b	.endif			;
+	cmp.b	#MaxStrLen,d7		;   IF Size = MaxStrLen
+	bge.b	.endif			;   THEN skip this part
+	moveq	#0,d1			;
+	move.b	KeyRaw,d1		;   Convert Raw to ASCII
+	move.b	(a2,d1.w),d1		;   
+	beq.b	.endif			;   IF ASCII=0 THEN illegal key
+	move.b  d1,(a1)+		;   Write ASCII value in string
+	PPUTCHR	d1,d6			;   Write ASCII value on screen
+	addq.b	#1,d7			;   Size += 1	
+	addq.b	#1,d6			;   Position += 1
+.endif	move.l	d6,d5			; ENDIF
+	PPUTCHR	#94,d5			; Write cursor
+	add.l	#1,d5			;
+	PPUTCHR	#32,d5			; Write empty space behind cursor
+	PPUTCHR	#95,#389*40-3		; Restore frame ;)
+	bra.w	.loop			;
+.Done					; Finished
+	movem.l	(sp)+,d0-d7/a0-a6	; Restore registers
+	rts				;
+
+
+; =============================================================================
+;
+;                           B L I T T E R S C R E E N
+;
+; =============================================================================
+
+	ALIGNLONG
+	
+timer 		dc.l 	0   	; some vbl-timers...
+timer2 		dc.l 	0
+oldtimer 	dc.l 	0
+
+show2 		equ 	0	; equ 1 show rastertiming of blitterpasses
+
+; *****************************************************************************
+; Macro's
+; *****************************************************************************
+
+waitblt MACRO				; Hardware WaitBlit()
+   	btst #6,$dff002 		; Old blitters said to have bug...
+waitblt\@:				;
+   	btst #6,$dff002			;
+   	bne waitblt\@			;
+  	ENDM				;
+
+; *****************************************************************************
+; mkbltscr
+; -----------------------------------------------------------------------------
+; Inputs     : a0 = Copperlist
+;              a1 = Screen
+; Output     :
+; Description: Makes copperlist for blitterscreen.
+; Notes      : -
+; History    : ??.??.1995, Jurgen "Rally" Fischer
+;              26.12.1996, Matthijs Hollemans
+; *****************************************************************************
+
+	ALIGNLONG
+	
+mkbltscr:
+	; Write bitplane pointers in copperlist header ------------------------
+
+	move.l	#CopBpl,a2		; a2=Position in copperlist header
+	move.l	a1,d0			; d0=Screen address
+   	move.w 	#8-1,d7			; Write 8 bitplanes
+.mkbpl	swap	d0			;
+	move.w	d0,2(a2)		;
+	swap	d0			;
+	move.w	d0,6(a2)		;
+	addq.l	#8,a2			; Next position in copperlist
+	add.l	#320*128/8,d0		; Next bitplane
+	dbf	d7,.mkbpl		;
+
+	; Copy copperlist header into chipmem ---------------------------------
+
+	move.l	#Cop,a2			;
+	move.w	#CopEnd-Cop-1,d7	;
+.cpycop	move.b	(a2)+,(a0)+		;
+	dbf	d7,.cpycop		;
+		
+	; 2xY stuff -----------------------------------------------------------
+
+   	move.l 	chipmem,a2 		;
+ 	add.l 	#sprbuf,a2		; a2=Sprite buffer
+   	move.l 	a1,d0   		; d0=Screen 
+  	move.l 	#40,d2 			; YStart 
+   	move.l 	#128,d3 		; Number of lines 
+   	move.l 	#40*128,d4 		; Planesize (in bytes)
+   	move.l 	#40,d5     		; Linesize (in bytes)
+   	jsr 	mk2xY			;
+
+	; End copperlist (feel free to add your own copper stuff) ------------
+
+   	move.l 	#$fffffffe,(a0)+	
+   	rts
+
+
+; ****************************************************************************
+; int3
+; ----------------------------------------------------------------------------
+; Hardware-hack interrupt handler
+; ****************************************************************************
+
+	ALIGNLONG
+	
+int3:
+   	btst 	#6,$dff01f		; BLIT3 set ?
+   	beq.b 	nobltint		; Nope, interrupt not caused by blitter
+   					
+bltint:
+   	move.w 	#$0040,$dff09c		; Clear BLIT3 
+
+   	movem.l d0-d1/a5/a6,-(sp)
+   	move.l 	#$dff000,a5
+   	move.l 	bltpc(pc),a6		; a6 = "program counter" for blitlist
+
+   	IFNE 	show2
+   	move.w 	#$0ff,$dff180  		;blt reload
+   	ENDC
+
+bltsetreg:
+   	move.l 	(a6)+,d0
+   	move.w 	d0,d1 
+ 	beq.b 	bltintend 
+ 	swap 	d0
+   	move.w 	d0,0(a5,d1.w)
+
+   	cmp.w 	#$5e,d1 
+	beq.b 	bltstarted
+   	cmp.w 	#$58,d1 
+ 	bne.b 	bltsetreg
+* ---
+bltstarted:
+   	move.l a6,bltpc
+   	movem.l (sp)+,d0-d1/a5/a6
+
+   	IFNE show2
+   	move.w #$800,$dff180  ;blt works
+   	ENDC
+   	rte
+
+bltintend:
+   	clr.w bltbsy
+   	movem.l (sp)+,d0-d1/a5/a6
+
+   	IFNE show2
+   	move.w #$000,$dff180 ;blt rdy
+   	ENDC
+   	rte
+
+nobltint:				; No blitter interrupt
+   	btst #5,$dff01f			; Was it a VBL interrupt?
+   	bne.b vblint
+   	btst #4,$dff01f			; Or a copper interrupt ?
+  	bne.b copint
+* huh ?					; Fuckup !
+   	move.w #$3fff,$dff09c 		; kill all requests to avoid(?) delirium
+   	rte
+
+	ALIGNLONG
+	
+bltpc 	dc.l 0  ;pointer to blitterinstructions to be done
+bltbsy 	dc.w 0 	;this is 0 if all blitter-passes are done
+
+	ALIGNLONG
+	
+vblint:
+   	move.w 	#$0020,$dff09c		; remove vblank interrupt
+   	movem.l d0-d7/a0-a6,-(sp)
+
+   	move.l 	customvbl,a0 
+ 	jsr 	(a0) 			; CUSTOM ROUTINE HERE!
+
+   	add.l 	#1,timer 
+	add.l 	#1,timer2
+
+   	move.w 	#$0020,$dff09c
+   	movem.l (sp)+,d0-d7/a0-a6
+   	rte
+
+copint: ;theoretically you never get here... copints are disabled ;)
+   	move.w #$0010,$dff09c		; remove copper interrupt
+   	rte
+
+customvbl 	dc.l MyVBLHandler	; Pointer to custom vblank routine
+
+
+; *****************************************************************************
+; mk2xY
+; -----------------------------------------------------------------------------
+; Inputs     : a0   = Copperlist
+;              a2   = Sprite Buffer (size = 312*4*2*8)
+;              d0.l = Plane0
+;              d2   = Ystart
+;              d3   = Number of lines (0-127)
+;              d4.l = Planesize
+;              d5   = Linesize
+; Output     : -
+; Description: Make a special 2x2 or 2x1 screen, needed for c2bs.
+; Notes      : All buffers in CHIP mem.
+;              2x2 or 2x1 depends on modulo/doublescan-bit in coplist header.
+;              Make sure sprites are 64-bit (fmode 3), highest priority and
+;              choose the spritebank that has got a dark color at offset 1
+;              (eg. col 1, 17, 33, ...).
+; History    : 1995, Jurgen "Rally" Fischer
+; *****************************************************************************
+
+	ALIGNLONG
+	
+mfpoffs 	dc.l 0 ;not used by caller
+mfloffs 	dc.l 0
+
+mk2xY:
+   	jsr 	mspr 	;gen cover-sprites in (a2)+ and copmoves in (a0)+
+
+* PLANES
+   	movem.l d0-d7/a1-a6,-(sp) 	;a0=(ptr)copl
+
+   	move.l 	d4,mfpoffs 
+ 	ext.l 	d5 
+ 	move.l 	d5,mfloffs
+
+* gen planeptr moves
+   	movem.l d3/d0,-(sp)
+   	move.w 	#$00e0,d3 
+ 	move.w 	#4-1,d7
+mf256genhi:
+   	move.w 	d3,(a0)+ 
+	addq.w 	#2,d3 
+ 	move.l 	d0,(a0)+  ;store hiwd ! -2(a0)
+   	move.w 	d3,-2(a0) 
+ 	addq.w 	#2,d3 
+ 	move.w 	d0,(a0)+ ;store lowd
+;every 2nd plane same data
+   	move.w 	d3,(a0)+ 
+ 	addq.w 	#2,d3 
+ 	move.l 	d0,(a0)+  ;store hiwd ! -2(a0)
+   	move.w 	d3,-2(a0) 
+ 	addq.w 	#2,d3 
+ 	move.w 	d0,(a0)+ ;store lowd
+
+   	add.l 	mfpoffs,d0
+   	dbra 	d7,mf256genhi
+* end gen ptrs
+   	movem.l (sp)+,d3/d0
+
+   	and.l 	#$ff,d2 
+ 	sub.b 	#1,d2 
+ 	ror.l 	#8,d2   ;sub #1: prev line
+   	move.l 	#$00e1fffe,d4 
+ 	or.l 	d2,d4           ;WAS: 00df
+*
+   	move.w 	d3,d5
+   	subq.w 	#1,d5
+mf256yanz:
+   	move.l 	#$1020010,d7
+  	move.w 	#2-1,d6
+mf256do2:
+   	move.l 	d4,(a0)+ 
+ 	add.l 	#$01000000,d4  ;cwait
+   	move.l 	d7,(a0)+ 
+ 	eor.l 	#$00000031,d7  ;horiz shift
+                     ;             ^---- 3: 1 -> 2 -> 1 -> 2 ....
+   	dbra 	d6,mf256do2
+
+   	add.l 	mfloffs,d0
+   	dbra 	d5,mf256yanz
+
+   	movem.l (sp)+,d0-d7/a1-a6 ;a0=(ptr)copl
+   	rts
+
+
+; ****************************************************************************
+; mspr
+; ----------------------------------------------------------------------------
+; Inputs     : a0 = Copperlist
+;              a2 = Sprite Buffer (coplist: FMODE=$F, $dff104=$003f)
+; Output     : -
+; Description: Sprites that mask out doubleplane-data-rubbish.
+; Notes      : mksprites into sprbuf=(a2)+ and according coppermoves in (a0)+
+; History    : 1995, Jurgen "Rally" Fischer.
+; ***************************************************************************
+
+	ALIGNLONG
+	
+mspr:
+   	movem.l d0-d7/a1-a6,-(sp) ;no a0! coz *copl
+
+   	move.l 	#$00968020,(a0)+ ;rehash sprites (for safety)
+
+   	lea 	mf2sprdat,a1
+
+   	move.l 	a2,d0
+   	add.l 	#15,d0
+   	and.l 	#$fffffff0,d0
+  	move.l 	d0,a2 ;align
+
+   	move.w 	#$0120,d1 ;spr0pth
+	
+   	move.w 	#8-1,d7 ;sprcnt
+mf2mkspr:
+* cmoves for sprptr in copl
+
+   	move.l 	a2,d0
+  	move.w 	d1,(a0)+
+   	addq.w 	#2,d1 ;hiptr -> loptr
+   	swap 	d0
+   	move.w 	d0,(a0)+
+   	swap 	d0 ;hiwd
+   	move.w 	d1,(a0)+
+   	addq.w	#2,d1 ;next sprptr
+   	move.w 	d0,(a0)+
+
+* make sprbuf
+   	move.l 	(a1)+,(a2)+ ;ctl1
+   	move.l 	#0,(a2)+    ;dummy for 64bit fetchmode
+   	move.l 	(a1)+,(a2)+ ;ctl2
+   	move.l 	#0,(a2)+    ;dummy for 64bit fetchmode
+
+   	move.l 	(a1)+,d2
+   	move.l 	(a1)+,d3
+   	move.l 	d2,d4
+   	ror.l 	#1,d4
+  	move.l 	d3,d5
+   	ror.l 	#1,d5
+
+   	move.w #128-1,d6
+mf2mksprdat:
+   	move.l d2,(a2)+
+   	move.l d2,(a2)+
+   	move.l d3,(a2)+
+   	move.l d3,(a2)+
+;2nd line
+   	move.l d4,(a2)+
+   	move.l d4,(a2)+
+   	move.l d5,(a2)+
+   	move.l d5,(a2)+                ;2nd plane
+
+   	dbra d6,mf2mksprdat
+
+	move.l #$0,(a2)+
+   	move.l #$0,(a2)+
+  	move.l #$0,(a2)+
+   	move.l #$0,(a2)+
+
+   	dbra d7,mf2mkspr
+
+   	movem.l (sp)+,d0-d7/a1-a6 ;ohne a0! weil *copl
+   	rts
+
+* ctl 1, ctl 2, plane 0, plane 1 (to be lsr'd for 2nd line)
+mf2sprdat:
+   	dc.l $28400000,$a7020000,$aaaaaaaa,$00000000
+   	dc.l $28600000,$a7020000,$aaaaaaaa,$00000000 ;1 & 2 nonattached, col 1 :)
+   	dc.l $28800000,$a7020000,$aaaaaaaa,$00000000
+   	dc.l $28800000,$a7820000,$00000000,$00000000
+   	dc.l $28a00000,$a7020000,$aaaaaaaa,$00000000
+   	dc.l $28a00000,$a7820000,$00000000,$00000000
+   	dc.l $28c00000,$a7020000,$aaaaaaaa,$00000000
+   	dc.l $28c00000,$a7820000,$00000000,$00000000
+
+
+; ****************************************************************************
+; c2bs
+; ----------------------------------------------------------------------------
+; Inputs     : a0   = Chunky Buffer
+;              a1   = Screen
+;              a2   = Pass Buffer (half size of chunky buffer)
+;              a3   = Scramble Buffer (at size of chunky buffer)
+;              a6   = Blitter-list Buffer (size less than 2k)
+;              d0.l = Number of chunky pixels
+;              d1.l = Plane Offset (number of bytes between planes)
+; Outputs    : -
+; Description: Non-scrambled chunky-to-planar conversion. 
+;              Not really C2P, destination is special 2x2 or 2x1 screen.
+; Notes      : All buffers in CHIP memory, except Blitter-list (a6).
+; History    : 1995, Jurgen "Rally" Fischer.
+; ****************************************************************************
+
+	ALIGNLONG
+	
+c2bs:
+
+   	tst.w 	bltbsy 
+	bne.b 	c2bs 		;for the very unlikely case your mapping-
+                           	;engine renders faster than blitterc2p ;)
+                                                      
+   	move.l 	a6,bltpc 	;handler starts at bltpc
+
+   	movem.l d0-d1/a0-a3,-(sp)
+   	move.l 	a3,a4 ;well....
+
+*** init values
+
+   	move.l 	#$04000096,(a6)+
+  	move.l 	#$80400096,(a6)+
+
+   	move.l 	#$ffff0044,(a6)+
+   	move.l 	#$ffff0046,(a6)+
+
+*** scrambling passes
+;subpass 1
+  	lea 	(a0),a3
+   	move.l 	a3,(a6)+ 
+ 	move.w 	#$004c,-2(a6) ;B
+   	move.w 	a3,(a6)+ 
+ 	move.w 	#$004e,(a6)+
+  	lea 	4(a0),a3
+   	move.l 	a3,(a6)+ 
+ 	move.w 	#$0050,-2(a6) ;A
+   	move.w 	a3,(a6)+ 
+ 	move.w 	#$0052,(a6)+
+  	lea 	(a4),a3
+  	move.l 	a3,(a6)+ 
+ 	move.w	#$0054,-2(a6) ;D
+   	move.w 	a3,(a6)+ 
+ 	move.w 	#$0056,(a6)+
+
+   	move.l #$8de40040,(a6)+
+   	move.l #$00000042,(a6)+
+   	move.l #$00ff0070,(a6)+ ;cdat
+
+   	move.l #$00060064,(a6)+ 
+ 	move.l #$00060062,(a6)+ ;a/b mod
+   	move.l #$00060066,(a6)+ ;d mod
+
+   	move.l d0,d6 
+	lsr.l #3,d6 ;1/4 of scr, words => /8
+   	move.w d6,(a6)+
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+;subpass2
+  	lea 2(a0),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$004c,-2(a6) ;B
+   	move.w a3,(a6)+ 
+ 	move.w #$004e,(a6)+
+  	lea 6(a0),a3
+  	move.l a3,(a6)+ 
+ 	move.w #$0050,-2(a6) ;A
+   	move.w a3,(a6)+ 
+	move.w #$0052,(a6)+
+  	lea 2(a4),a3
+   	move.l a3,(a6)+ 
+	move.w #$0054,-2(a6) ;D
+   	move.w a3,(a6)+ 
+ 	move.w #$0056,(a6)+
+
+ 	move.l #$8de40040,(a6)+
+   	move.l #$00000042,(a6)+
+  	move.l #$00ff0070,(a6)+ ;cdat
+
+   	move.l #$00060064,(a6)+ 
+ 	move.l #$00060062,(a6)+ ;a/b mod
+   	move.l #$00060066,(a6)+ ;d mod
+
+   	move.l d0,d6 
+ 	lsr.l #3,d6 ;1/4 of scr, words => /8
+   	move.w d6,(a6)+
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+;subpass 3
+  	lea -4(a0,d0.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$004c,-2(a6) ;B
+   	move.w a3,(a6)+ 
+ 	move.w #$004e,(a6)+
+  	lea -8(a0,d0.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0050,-2(a6) ;A
+   	move.w a3,(a6)+ 
+ 	move.w #$0052,(a6)+
+  	lea -4(a4,d0.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0054,-2(a6) ;D
+  	move.w a3,(a6)+ 
+ 	move.w #$0056,(a6)+
+
+   	move.l #$8de40040,(a6)+
+   	move.l #$00020042,(a6)+
+   	move.l #$ff000070,(a6)+ ;cdat
+
+   	move.l #$00060064,(a6)+ 
+	move.l #$00060062,(a6)+ ;a/b mod
+   	move.l #$00060066,(a6)+ ;d mod
+
+   	move.l d0,d6 
+ 	lsr.l #3,d6 ;1/4 of scr, words => /8
+  	move.w d6,(a6)+
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+;subpass 4
+  	lea -2(a0,d0.l),a3
+   	move.l a3,(a6)+ 
+	move.w #$004c,-2(a6) ;B
+   	move.w a3,(a6)+ 
+ 	move.w #$004e,(a6)+
+  	lea -6(a0,d0.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0050,-2(a6) ;A
+   	move.w a3,(a6)+ 
+ 	move.w #$0052,(a6)+
+  	lea -2(a4,d0.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0054,-2(a6) ;D
+   	move.w a3,(a6)+ 
+ 	move.w #$0056,(a6)+
+
+   	move.l #$8de40040,(a6)+
+   	move.l #$00020042,(a6)+
+   	move.l #$ff000070,(a6)+ ;cdat
+
+   	move.l #$00060064,(a6)+ 
+	move.l #$00060062,(a6)+ ;a/b mod
+   	move.l #$00060066,(a6)+ ;d mod
+
+   	move.l d0,d6 
+	lsr.l #3,d6 ;1/4 of scr, words => /8
+   	move.w d6,(a6)+
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+***
+   	movem.l (sp)+,d0-d1/a0-a3
+
+   	move.l a3,a0                  ;scrambled data is now there
+
+*** init values
+   	move.l #$04000096,(a6)+
+   	move.l #$80400096,(a6)+
+
+   	move.l #$ffff0044,(a6)+
+   	move.l #$ffff0046,(a6)+
+
+;offsets to end of buffers for blitter DESCing
+   	move.l d0,d6                   ;len of chscr
+   	move.l d6,d5 
+ 	lsr.l #1,d5     ;len of buf2
+   	move.l d6,d4 
+ 	lsr.l #2,d4     ;len of 1 plane = 320*128/8, ok.
+
+*** Pass 1, planes 7654
+
+  	lea (a0),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$004c,-2(a6) ;B
+  	move.w a3,(a6)+ 
+ 	move.w #$004e,(a6)+
+  	lea 2(a0),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0050,-2(a6) ;A
+   	move.w a3,(a6)+ 
+ 	move.w #$0052,(a6)+
+
+   	move.l a2,(a6)+ 
+	move.w #$0054,-2(a6) ;D
+   	move.w a2,(a6)+ 
+	move.w #$0056,(a6)+
+
+   	move.l #$4de40040,(a6)+
+   	move.l #$00000042,(a6)+
+   	move.l #$0f0f0070,(a6)+ ;cdat
+
+   	move.l #$00020064,(a6)+ 
+	move.l #$00020062,(a6)+ ;a/b mod
+   	move.l #$00000066,(a6)+ ;d mod
+
+   	move.w d4,(a6)+         ;d4: nr_pix/4 (words!)
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+*** Pass 2, planes 76
+
+  	lea (a2),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$004c,-2(a6) ;B
+  	move.w a3,(a6)+ 
+ 	move.w #$004e,(a6)+
+  	lea 2(a2),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0050,-2(a6) ;A
+   	move.w a3,(a6)+ 
+ 	move.w #$0052,(a6)+
+  	lea (a1),a3
+  	add.w d1,a3 
+	add.w d1,a3 
+ 	add.w d1,a3   ;4th "doubleplane"
+  	move.l a3,(a6)+ 
+ 	move.w #$0054,-2(a6) ;D
+   	move.w a3,(a6)+ 
+ 	move.w #$0056,(a6)+
+
+   	move.l #$2de40040,(a6)+
+   	move.l #$00000042,(a6)+
+   	move.l #$33330070,(a6)+ ;cdat
+
+   	move.l #$00020064,(a6)+ 
+ 	move.l #$00020062,(a6)+ ;a/b mod
+   	move.l #$00000066,(a6)+ ;d mod
+
+   	move.w d4,d0 
+ 	lsr.w #1,d0
+   	move.w d0,(a6)+         ;d4: nr_pix/8 (words!)
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+*** Pass 2, planes 54
+
+  	lea -2(a2,d5.l),a3
+   	move.l a3,(a6)+ 
+	move.w #$004c,-2(a6) ;B
+   	move.w a3,(a6)+ 
+ 	move.w #$004e,(a6)+
+  	lea -4(a2,d5.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0050,-2(a6) ;A
+   	move.w a3,(a6)+ 
+ 	move.w #$0052,(a6)+
+  	lea -2(a1,d4.l),a3
+  	add.w d1,a3 
+ 	add.w d1,a3   ;3rd "doubleplane"
+   	move.l a3,(a6)+ 
+ 	move.w #$0054,-2(a6) ;D
+   	move.w a3,(a6)+ 
+ 	move.w #$0056,(a6)+
+
+   	move.l #$2de40040,(a6)+
+   	move.l #$00020042,(a6)+                ;DESC
+  	move.l #$cccc0070,(a6)+ ;cdat
+
+   	move.l #$00020064,(a6)+ 
+ 	move.l #$00020062,(a6)+ ;a/b mod
+   	move.l #$00000066,(a6)+ ;d mod
+
+   	move.w d4,d0 
+ 	lsr.w #1,d0
+   	move.w d0,(a6)+         ;d4: nr_pix/8 (words!)
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+*** Pass 1, planes 3210
+
+  	lea -2(a0,d6.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$004c,-2(a6) ;B
+   	move.w a3,(a6)+ 
+ 	move.w #$004e,(a6)+
+  	lea -4(a0,d6.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0050,-2(a6) ;A
+   	move.w a3,(a6)+ 
+ 	move.w #$0052,(a6)+
+   	lea -2(a2,d5.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0054,-2(a6) ;D
+   	move.w a3,(a6)+ 
+ 	move.w #$0056,(a6)+
+
+  	move.l #$4de40040,(a6)+
+   	move.l #$00020042,(a6)+
+   	move.l #$f0f00070,(a6)+ ;cdat
+
+  	move.l #$00020064,(a6)+ 
+ 	move.l #$00020062,(a6)+ ;a/b mod
+   	move.l #$00000066,(a6)+ ;d mod
+
+   	move.w d4,(a6)+         ;d4: nr_pix/4 (words!)
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+*** Pass 2, planes 32
+
+  	lea (a2),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$004c,-2(a6) ;B
+   	move.w a3,(a6)+ 
+ 	move.w #$004e,(a6)+
+  	lea 2(a2),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0050,-2(a6) ;A
+   	move.w a3,(a6)+ 
+ 	move.w #$0052,(a6)+
+  	lea (a1),a3
+   	add.w d1,a3   ;2nd "doubleplane"
+   	move.l a3,(a6)+ 
+ 	move.w #$0054,-2(a6) ;D
+   	move.w a3,(a6)+ 
+ 	move.w #$0056,(a6)+
+
+   	move.l #$2de40040,(a6)+
+   	move.l #$00000042,(a6)+
+   	move.l #$33330070,(a6)+ ;cdat
+
+   	move.l #$00020064,(a6)+ 
+ 	move.l #$00020062,(a6)+ ;a/b mod
+   	move.l #$00000066,(a6)+ ;d mod
+
+  	move.w d4,d0 
+ 	lsr.w #1,d0
+   	move.w d0,(a6)+         ;d4: nr_pix/8 (words!)
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+*** Pass 2, planes 10
+
+  	lea -2(a2,d5.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$004c,-2(a6) ;B
+   	move.w a3,(a6)+ 
+ 	move.w #$004e,(a6)+
+  	lea -4(a2,d5.l),a3
+   	move.l a3,(a6)+ 
+ 	move.w #$0050,-2(a6) ;A
+  	move.w a3,(a6)+ 
+ 	move.w #$0052,(a6)+
+  	lea -2(a1,d4.l),a3
+     	;1st "doubleplane"
+   	move.l a3,(a6)+ 
+	move.w #$0054,-2(a6) ;D
+   	move.w a3,(a6)+ 
+ 	move.w #$0056,(a6)+
+
+   	move.l #$2de40040,(a6)+
+   	move.l #$00020042,(a6)+                ;DESC
+   	move.l #$cccc0070,(a6)+ ;cdat
+
+   	move.l #$00020064,(a6)+ 
+ 	move.l #$00020062,(a6)+ ;a/b mod
+   	move.l #$00000066,(a6)+ ;d mod
+
+   	move.w d4,d0 
+ 	lsr.w #1,d0
+   	move.w d0,(a6)+         ;d4: nr_pix/8 (words!)
+   	move.w #$5C,(a6)+       ;SIZV
+
+   	move.l #$0001005E,(a6)+ ;SIZH+start
+
+*** end of initblit
+   	move.l #0,(a6)+
+
+   	move.w #1,bltbsy ;!!!
+   	waitblt
+   	move.w #$8040,$dff09c ;activate blit intreq
+   	rts
+
+
+; =============================================================================
+;
+;                            M U S I C   P L A Y E R
+;
+; =============================================================================
+
+;**************************************************
+;*    ----- Protracker V2.3A Playroutine -----    *
+;**************************************************
+
+DMAWait = 200 ; Set this as low as possible without losing low notes.
+
+; CIA Version 1:
+; Call SetCIAInt to install the interrupt server. Then call mt_init
+; to initialize the song. Playback starts when the mt_enable flag
+; is set to a nonzero value. To end the song and turn off all voices,
+; call mt_end. At last, call ResetCIAInt to remove the interrupt.
+
+; This playroutine is not very fast, optimized or well commented,
+; but all the new commands in PT2.3 should work.
+; If it's not good enough, you'll have to change it yourself.
+; We'll try to write a faster routine soon...
+
+; Changes from V1.0C playroutine:
+; - Vibrato depth changed to be compatible with Noisetracker 2.0.
+;   You'll have to double all vib. depths on old PT modules.
+; - Funk Repeat changed to Invert Loop.
+; - Period set back earlier when stopping an effect.
+
+;---- CIA Interrupt ----
+
+AddICRVector	=   -6
+RemICRVector	=  -12
+LVOOpenResource	= -498
+LVOOpenLibrary 	= -552
+LVOCloseLibrary	= -414
+LVODelay	= -198
+
+ciatalo = $400
+ciatahi = $500
+ciatblo = $600
+ciatbhi = $700
+ciacra  = $E00
+ciacrb  = $F00
+
+SetCIAInt
+	MOVEQ	#2,D6
+	LEA	$BFD000,A5
+	MOVE.B	#'b',CIAAname+3
+SetCIALoop
+	MOVEQ	#0,D0
+	LEA	CIAAname(PC),A1
+	MOVE.L	4.W,A6
+	JSR	LVOOpenResource(A6)
+	MOVE.L	D0,CIAAbase
+	BEQ.W	mt_Return
+
+	LEA	GfxName(PC),A1
+	MOVEQ	#0,D0
+	JSR	LVOOpenLibrary(A6)
+	TST.L	D0
+	BEQ.W	ResetCIAInt
+	MOVE.L	D0,A1
+	MOVE.W	206(A1),D0	; DisplayFlags
+	BTST	#2,D0		; PAL?
+	BEQ.S	WasNTSC
+	MOVE.L	#1773447,D7 ; PAL
+	BRA.S	sciask
+WasNTSC	MOVE.L	#1789773,D7 ; NTSC
+sciask	MOVE.L	D7,TimerValue
+	DIVU	#125,D7 ; Default to normal 50 Hz timer
+	JSR	LVOCloseLibrary(A6)
+
+	MOVE.L	CIAAbase(PC),A6
+	CMP.W	#2,D6
+	BEQ.S	TryTimerA
+TryTimerB
+	LEA	MusicIntServer(PC),A1
+	MOVEQ	#1,D0	; Bit 1: Timer B
+	JSR	AddICRVector(A6)
+	MOVE.L	#1,TimerFlag
+	TST.L	D0
+	BNE.S	CIAError
+	MOVE.L	A5,CIAAaddr
+	MOVE.B	D7,ciatblo(A5)
+	LSR.W	#8,D7
+	MOVE.B	D7,ciatbhi(A5)
+	BSET	#0,ciacrb(A5)
+	RTS
+
+TryTimerA
+	LEA	MusicIntServer(PC),A1
+	MOVEQ	#0,D0	; Bit 0: Timer A
+	JSR	AddICRVector(A6)
+	CLR.L	TimerFlag
+	TST.L	D0
+	BNE.S	CIAError
+	MOVE.L	A5,CIAAaddr
+	MOVE.B	D7,ciatalo(A5)
+	LSR.W	#8,D7
+	MOVE.B	D7,ciatahi(A5)
+	BSET	#0,ciacra(A5)
+	RTS
+
+CIAError
+	MOVE.B	#'a',CIAAname+3
+	LEA	$BFE001,A5
+	SUBQ.W	#1,D6
+	BNE.W	SetCIALoop
+	CLR.L	CIAAbase
+	RTS
+
+ResetCIAInt
+	MOVE.L	CIAAbase(PC),D0
+	BEQ.W	mt_Return
+	CLR.L	CIAAbase
+	MOVE.L	D0,A6
+	MOVE.L	CIAAaddr(PC),A5
+	TST.L	TimerFlag
+	BEQ.S	ResTimerA
+
+	BCLR	#0,ciacrb(A5)
+	MOVEQ	#1,D0
+	BRA.S	RemInt
+
+ResTimerA
+	BCLR	#0,ciacra(A5)
+	MOVEQ	#0,D0
+RemInt	LEA	MusicIntServer(PC),A1
+	MOVEQ	#0,d0
+	JSR	RemICRVector(A6)
+	RTS
+
+;---- Tempo ----
+
+SetTempo
+	MOVE.L	CIAAbase(PC),D2
+	BEQ.W	mt_Return
+	CMP.W	#32,D0
+	BHS.S	setemsk
+	MOVEQ	#32,D0
+setemsk	MOVE.W	D0,RealTempo
+	MOVE.L	TimerValue(PC),D2
+	DIVU	D0,D2
+	MOVE.L	CIAAaddr(PC),A4
+	MOVE.L	TimerFlag(PC),D0
+	BEQ.S	SetTemA
+	MOVE.B	D2,ciatblo(A4)
+	LSR.W	#8,D2
+	MOVE.B	D2,ciatbhi(A4)
+	RTS
+
+SetTemA	MOVE.B	D2,ciatalo(A4)
+	LSR.W	#8,D2
+	MOVE.B	D2,ciatahi(A4)
+	RTS
+
+RealTempo	dc.w 125
+CIAAaddr	dc.l 0
+CIAAname	dc.b "ciaa.resource",0
+CIAAbase	dc.l 0
+TimerFlag	dc.l 0
+TimerValue	dc.l 0
+GfxName		dc.b "graphics.library",0,0
+
+MusicIntServer
+	dc.l 0,0
+	dc.b 2,5 ; type, priority
+	dc.l musintname
+	dc.l 0,mt_music
+
+musintname	dc.b "Protracker MusicInt",0
+
+;---- Playroutine ----
+
+n_note		EQU	0  ; W
+n_cmd		EQU	2  ; W
+n_cmdlo		EQU	3  ; B
+n_start		EQU	4  ; L
+n_length	EQU	8  ; W
+n_loopstart	EQU	10 ; L
+n_replen	EQU	14 ; W
+n_period	EQU	16 ; W
+n_finetune	EQU	18 ; B
+n_volume	EQU	19 ; B
+n_dmabit	EQU	20 ; W
+n_toneportdirec	EQU	22 ; B
+n_toneportspeed	EQU	23 ; B
+n_wantedperiod	EQU	24 ; W
+n_vibratocmd	EQU	26 ; B
+n_vibratopos	EQU	27 ; B
+n_tremolocmd	EQU	28 ; B
+n_tremolopos	EQU	29 ; B
+n_wavecontrol	EQU	30 ; B
+n_glissfunk	EQU	31 ; B
+n_sampleoffset	EQU	32 ; B
+n_pattpos	EQU	33 ; B
+n_loopcount	EQU	34 ; B
+n_funkoffset	EQU	35 ; B
+n_wavestart	EQU	36 ; L
+n_reallength	EQU	40 ; W
+
+	ALIGNLONG
+mt_data	dc.l	0
+
+mt_init	
+	move.l	mt_data,a0		; Altered by me...allows for multiple
+	MOVE.L	A0,mt_SongDataPtr	; modules in one source.
+	MOVE.L	A0,A1
+	LEA	952(A1),A1
+	MOVEQ	#127,D0
+	MOVEQ	#0,D1
+mtloop	MOVE.L	D1,D2
+	SUBQ.W	#1,D0
+mtloop2	MOVE.B	(A1)+,D1
+	CMP.B	D2,D1
+	BGT.S	mtloop
+	DBRA	D0,mtloop2
+	ADDQ.B	#1,D2
+			
+	LEA	mt_SampleStarts(PC),A1
+	ASL.L	#8,D2
+	ASL.L	#2,D2
+	ADD.L	#1084,D2
+	ADD.L	A0,D2
+	MOVE.L	D2,A2
+	MOVEQ	#30,D0
+mtloop3	CLR.L	(A2)
+	MOVE.L	A2,(A1)+
+	MOVEQ	#0,D1
+	MOVE.W	42(A0),D1
+	ASL.L	#1,D1
+	ADD.L	D1,A2
+	ADD.L	#30,A0
+	DBRA	D0,mtloop3
+
+	OR.B	#2,$BFE001
+	MOVE.B	#6,mt_speed
+	CLR.B	mt_counter
+	CLR.B	mt_SongPos
+	CLR.W	mt_PatternPos
+mt_end	SF	mt_Enable
+	LEA	$DFF000,A0
+	CLR.W	$A8(A0)
+	CLR.W	$B8(A0)
+	CLR.W	$C8(A0)
+	CLR.W	$D8(A0)
+	MOVE.W	#$F,$DFF096
+	RTS
+
+	ALIGNLONG
+	
+mt_music
+	MOVEM.L	D0-D4/A0-A6,-(SP)
+	TST.B	mt_Enable
+	BEQ.W	mt_exit
+	ADDQ.B	#1,mt_counter
+	MOVE.B	mt_counter(PC),D0
+	CMP.B	mt_speed(PC),D0
+	BLO.S	mt_NoNewNote
+	CLR.B	mt_counter
+	TST.B	mt_PattDelTime2
+	BEQ.S	mt_GetNewNote
+	BSR.S	mt_NoNewAllChannels
+	BRA.W	mt_dskip
+
+mt_NoNewNote
+	BSR.S	mt_NoNewAllChannels
+	BRA.W	mt_NoNewPosYet
+
+mt_NoNewAllChannels
+	LEA	$DFF0A0,A5
+	LEA	mt_chan1temp(PC),A6
+	BSR.W	mt_CheckEfx
+	LEA	$DFF0B0,A5
+	LEA	mt_chan2temp(PC),A6
+	BSR.W	mt_CheckEfx
+	LEA	$DFF0C0,A5
+	LEA	mt_chan3temp(PC),A6
+	BSR.W	mt_CheckEfx
+	LEA	$DFF0D0,A5
+	LEA	mt_chan4temp(PC),A6
+	BRA.W	mt_CheckEfx
+
+mt_GetNewNote
+	MOVE.L	mt_SongDataPtr(PC),A0
+	LEA	12(A0),A3
+	LEA	952(A0),A2	;pattpo
+	LEA	1084(A0),A0	;patterndata
+	MOVEQ	#0,D0
+	MOVEQ	#0,D1
+	MOVE.B	mt_SongPos(PC),D0
+	MOVE.B	(A2,D0.W),D1
+	ASL.L	#8,D1
+	ASL.L	#2,D1
+	ADD.W	mt_PatternPos(PC),D1
+	CLR.W	mt_DMACONtemp
+
+	LEA	$DFF0A0,A5
+	LEA	mt_chan1temp(PC),A6
+	BSR.S	mt_PlayVoice
+	LEA	$DFF0B0,A5
+	LEA	mt_chan2temp(PC),A6
+	BSR.S	mt_PlayVoice
+	LEA	$DFF0C0,A5
+	LEA	mt_chan3temp(PC),A6
+	BSR.S	mt_PlayVoice
+	LEA	$DFF0D0,A5
+	LEA	mt_chan4temp(PC),A6
+	BSR.S	mt_PlayVoice
+	BRA.W	mt_SetDMA
+
+mt_PlayVoice
+	TST.L	(A6)
+	BNE.S	mt_plvskip
+	BSR.W	mt_PerNop
+mt_plvskip
+	MOVE.L	(A0,D1.L),(A6)
+	ADDQ.L	#4,D1
+	MOVEQ	#0,D2
+	MOVE.B	n_cmd(A6),D2
+	AND.B	#$F0,D2
+	LSR.B	#4,D2
+	MOVE.B	(A6),D0
+	AND.B	#$F0,D0
+	OR.B	D0,D2
+	TST.B	D2
+	BEQ.W	mt_SetRegs
+	MOVEQ	#0,D3
+	LEA	mt_SampleStarts(PC),A1
+	MOVE	D2,D4
+	SUBQ.L	#1,D2
+	ASL.L	#2,D2
+	MULU	#30,D4
+	MOVE.L	(A1,D2.L),n_start(A6)
+	MOVE.W	(A3,D4.L),n_length(A6)
+	MOVE.W	(A3,D4.L),n_reallength(A6)
+	MOVE.B	2(A3,D4.L),n_finetune(A6)
+	MOVE.B	3(A3,D4.L),n_volume(A6)
+	MOVE.W	4(A3,D4.L),D3 ; Get repeat
+	TST.W	D3
+	BEQ.S	mt_NoLoop
+	MOVE.L	n_start(A6),D2	; Get start
+	ASL.W	#1,D3
+	ADD.L	D3,D2		; Add repeat
+	MOVE.L	D2,n_loopstart(A6)
+	MOVE.L	D2,n_wavestart(A6)
+	MOVE.W	4(A3,D4.L),D0	; Get repeat
+	ADD.W	6(A3,D4.L),D0	; Add replen
+	MOVE.W	D0,n_length(A6)
+	MOVE.W	6(A3,D4.L),n_replen(A6)	; Save replen
+	MOVEQ	#0,D0
+	MOVE.B	n_volume(A6),D0
+	MOVE.W	D0,8(A5)	; Set volume
+	BRA.S	mt_SetRegs
+
+mt_NoLoop
+	MOVE.L	n_start(A6),D2
+	ADD.L	D3,D2
+	MOVE.L	D2,n_loopstart(A6)
+	MOVE.L	D2,n_wavestart(A6)
+	MOVE.W	6(A3,D4.L),n_replen(A6)	; Save replen
+	MOVEQ	#0,D0
+	MOVE.B	n_volume(A6),D0
+	MOVE.W	D0,8(A5)	; Set volume
+mt_SetRegs
+	MOVE.W	(A6),D0
+	AND.W	#$0FFF,D0
+	BEQ.W	mt_CheckMoreEfx	; If no note
+	MOVE.W	2(A6),D0
+	AND.W	#$0FF0,D0
+	CMP.W	#$0E50,D0
+	BEQ.S	mt_DoSetFineTune
+	MOVE.B	2(A6),D0
+	AND.B	#$0F,D0
+	CMP.B	#3,D0	; TonePortamento
+	BEQ.S	mt_ChkTonePorta
+	CMP.B	#5,D0
+	BEQ.S	mt_ChkTonePorta
+	CMP.B	#9,D0	; Sample Offset
+	BNE.S	mt_SetPeriod
+	BSR.W	mt_CheckMoreEfx
+	BRA.S	mt_SetPeriod
+
+mt_DoSetFineTune
+	BSR.W	mt_SetFineTune
+	BRA.S	mt_SetPeriod
+
+mt_ChkTonePorta
+	BSR.W	mt_SetTonePorta
+	BRA.W	mt_CheckMoreEfx
+
+mt_SetPeriod
+	MOVEM.L	D0-D1/A0-A1,-(SP)
+	MOVE.W	(A6),D1
+	AND.W	#$0FFF,D1
+	LEA	mt_PeriodTable(PC),A1
+	MOVEQ	#0,D0
+	MOVEQ	#36,D2
+mt_ftuloop
+	CMP.W	(A1,D0.W),D1
+	BHS.S	mt_ftufound
+	ADDQ.L	#2,D0
+	DBRA	D2,mt_ftuloop
+mt_ftufound
+	MOVEQ	#0,D1
+	MOVE.B	n_finetune(A6),D1
+	MULU	#36*2,D1
+	ADD.L	D1,A1
+	MOVE.W	(A1,D0.W),n_period(A6)
+	MOVEM.L	(SP)+,D0-D1/A0-A1
+
+	MOVE.W	2(A6),D0
+	AND.W	#$0FF0,D0
+	CMP.W	#$0ED0,D0 ; Notedelay
+	BEQ.W	mt_CheckMoreEfx
+
+	MOVE.W	n_dmabit(A6),$DFF096
+	BTST	#2,n_wavecontrol(A6)
+	BNE.S	mt_vibnoc
+	CLR.B	n_vibratopos(A6)
+mt_vibnoc
+	BTST	#6,n_wavecontrol(A6)
+	BNE.S	mt_trenoc
+	CLR.B	n_tremolopos(A6)
+mt_trenoc
+	MOVE.L	n_start(A6),(A5)	; Set start
+	MOVE.W	n_length(A6),4(A5)	; Set length
+	MOVE.W	n_period(A6),D0
+	MOVE.W	D0,6(A5)		; Set period
+	MOVE.W	n_dmabit(A6),D0
+	OR.W	D0,mt_DMACONtemp
+	BRA.W	mt_CheckMoreEfx
+ 
+mt_SetDMA
+	MOVE.W	#300,D0
+mt_WaitDMA
+	DBRA	D0,mt_WaitDMA
+	MOVE.W	mt_DMACONtemp(PC),D0
+	OR.W	#$8000,D0
+	MOVE.W	D0,$DFF096
+	MOVE.W	#300,D0
+mt_WaitDMA2
+	DBRA	D0,mt_WaitDMA2
+
+	LEA	$DFF000,A5
+	LEA	mt_chan4temp(PC),A6
+	MOVE.L	n_loopstart(A6),$D0(A5)
+	MOVE.W	n_replen(A6),$D4(A5)
+	LEA	mt_chan3temp(PC),A6
+	MOVE.L	n_loopstart(A6),$C0(A5)
+	MOVE.W	n_replen(A6),$C4(A5)
+	LEA	mt_chan2temp(PC),A6
+	MOVE.L	n_loopstart(A6),$B0(A5)
+	MOVE.W	n_replen(A6),$B4(A5)
+	LEA	mt_chan1temp(PC),A6
+	MOVE.L	n_loopstart(A6),$A0(A5)
+	MOVE.W	n_replen(A6),$A4(A5)
+
+mt_dskip
+	ADD.W	#16,mt_PatternPos
+	MOVE.B	mt_PattDelTime,D0
+	BEQ.S	mt_dskc
+	MOVE.B	D0,mt_PattDelTime2
+	CLR.B	mt_PattDelTime
+mt_dskc	TST.B	mt_PattDelTime2
+	BEQ.S	mt_dska
+	SUBQ.B	#1,mt_PattDelTime2
+	BEQ.S	mt_dska
+	SUB.W	#16,mt_PatternPos
+mt_dska	TST.B	mt_PBreakFlag
+	BEQ.S	mt_nnpysk
+	SF	mt_PBreakFlag
+	MOVEQ	#0,D0
+	MOVE.B	mt_PBreakPos(PC),D0
+	CLR.B	mt_PBreakPos
+	LSL.W	#4,D0
+	MOVE.W	D0,mt_PatternPos
+mt_nnpysk
+	CMP.W	#1024,mt_PatternPos
+	BLO.S	mt_NoNewPosYet
+mt_NextPosition	
+	MOVEQ	#0,D0
+	MOVE.B	mt_PBreakPos(PC),D0
+	LSL.W	#4,D0
+	MOVE.W	D0,mt_PatternPos
+	CLR.B	mt_PBreakPos
+	CLR.B	mt_PosJumpFlag
+	ADDQ.B	#1,mt_SongPos
+	AND.B	#$7F,mt_SongPos
+	MOVE.B	mt_SongPos(PC),D1
+	MOVE.L	mt_SongDataPtr(PC),A0
+	CMP.B	950(A0),D1
+	BLO.S	mt_NoNewPosYet
+	CLR.B	mt_SongPos
+mt_NoNewPosYet	
+	TST.B	mt_PosJumpFlag
+	BNE.S	mt_NextPosition
+mt_exit	MOVEM.L	(SP)+,D0-D4/A0-A6
+	RTS
+
+mt_CheckEfx
+	BSR.W	mt_UpdateFunk
+	MOVE.W	n_cmd(A6),D0
+	AND.W	#$0FFF,D0
+	BEQ.S	mt_PerNop
+	MOVE.B	n_cmd(A6),D0
+	AND.B	#$0F,D0
+	BEQ.S	mt_Arpeggio
+	CMP.B	#1,D0
+	BEQ.W	mt_PortaUp
+	CMP.B	#2,D0
+	BEQ.W	mt_PortaDown
+	CMP.B	#3,D0
+	BEQ.W	mt_TonePortamento
+	CMP.B	#4,D0
+	BEQ.W	mt_Vibrato
+	CMP.B	#5,D0
+	BEQ.W	mt_TonePlusVolSlide
+	CMP.B	#6,D0
+	BEQ.W	mt_VibratoPlusVolSlide
+	CMP.B	#$E,D0
+	BEQ.W	mt_E_Commands
+SetBack	MOVE.W	n_period(A6),6(A5)
+	CMP.B	#7,D0
+	BEQ.W	mt_Tremolo
+	CMP.B	#$A,D0
+	BEQ.W	mt_VolumeSlide
+mt_Return
+	RTS
+
+mt_PerNop
+	MOVE.W	n_period(A6),6(A5)
+	RTS
+
+mt_Arpeggio
+	MOVEQ	#0,D0
+	MOVE.B	mt_counter(PC),D0
+	DIVS	#3,D0
+	SWAP	D0
+	CMP.W	#0,D0
+	BEQ.S	mt_Arpeggio2
+	CMP.W	#2,D0
+	BEQ.S	mt_Arpeggio1
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	LSR.B	#4,D0
+	BRA.S	mt_Arpeggio3
+
+mt_Arpeggio1
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#15,D0
+	BRA.S	mt_Arpeggio3
+
+mt_Arpeggio2
+	MOVE.W	n_period(A6),D2
+	BRA.S	mt_Arpeggio4
+
+mt_Arpeggio3
+	ASL.W	#1,D0
+	MOVEQ	#0,D1
+	MOVE.B	n_finetune(A6),D1
+	MULU	#36*2,D1
+	LEA	mt_PeriodTable(PC),A0
+	ADD.L	D1,A0
+	MOVEQ	#0,D1
+	MOVE.W	n_period(A6),D1
+	MOVEQ	#36,D3
+mt_arploop
+	MOVE.W	(A0,D0.W),D2
+	CMP.W	(A0),D1
+	BHS.S	mt_Arpeggio4
+	ADDQ.L	#2,A0
+	DBRA	D3,mt_arploop
+	RTS
+
+mt_Arpeggio4
+	MOVE.W	D2,6(A5)
+	RTS
+
+mt_FinePortaUp
+	TST.B	mt_counter
+	BNE.S	mt_Return
+	MOVE.B	#$0F,mt_LowMask
+mt_PortaUp
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	mt_LowMask(PC),D0
+	MOVE.B	#$FF,mt_LowMask
+	SUB.W	D0,n_period(A6)
+	MOVE.W	n_period(A6),D0
+	AND.W	#$0FFF,D0
+	CMP.W	#113,D0
+	BPL.S	mt_PortaUskip
+	AND.W	#$F000,n_period(A6)
+	OR.W	#113,n_period(A6)
+mt_PortaUskip
+	MOVE.W	n_period(A6),D0
+	AND.W	#$0FFF,D0
+	MOVE.W	D0,6(A5)
+	RTS	
+ 
+mt_FinePortaDown
+	TST.B	mt_counter
+	BNE.W	mt_Return
+	MOVE.B	#$0F,mt_LowMask
+mt_PortaDown
+	CLR.W	D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	mt_LowMask(PC),D0
+	MOVE.B	#$FF,mt_LowMask
+	ADD.W	D0,n_period(A6)
+	MOVE.W	n_period(A6),D0
+	AND.W	#$0FFF,D0
+	CMP.W	#856,D0
+	BMI.S	mt_PortaDskip
+	AND.W	#$F000,n_period(A6)
+	OR.W	#856,n_period(A6)
+mt_PortaDskip
+	MOVE.W	n_period(A6),D0
+	AND.W	#$0FFF,D0
+	MOVE.W	D0,6(A5)
+	RTS
+
+mt_SetTonePorta
+	MOVE.L	A0,-(SP)
+	MOVE.W	(A6),D2
+	AND.W	#$0FFF,D2
+	MOVEQ	#0,D0
+	MOVE.B	n_finetune(A6),D0
+	MULU	#36*2,D0 ;37?
+	LEA	mt_PeriodTable(PC),A0
+	ADD.L	D0,A0
+	MOVEQ	#0,D0
+mt_StpLoop
+	CMP.W	(A0,D0.W),D2
+	BHS.S	mt_StpFound
+	ADDQ.W	#2,D0
+	CMP.W	#36*2,D0 ;37?
+	BLO.S	mt_StpLoop
+	MOVEQ	#35*2,D0
+mt_StpFound
+	MOVE.B	n_finetune(A6),D2
+	AND.B	#8,D2
+	BEQ.S	mt_StpGoss
+	TST.W	D0
+	BEQ.S	mt_StpGoss
+	SUBQ.W	#2,D0
+mt_StpGoss
+	MOVE.W	(A0,D0.W),D2
+	MOVE.L	(SP)+,A0
+	MOVE.W	D2,n_wantedperiod(A6)
+	MOVE.W	n_period(A6),D0
+	CLR.B	n_toneportdirec(A6)
+	CMP.W	D0,D2
+	BEQ.S	mt_ClearTonePorta
+	BGE.W	mt_Return
+	MOVE.B	#1,n_toneportdirec(A6)
+	RTS
+
+mt_ClearTonePorta
+	CLR.W	n_wantedperiod(A6)
+	RTS
+
+mt_TonePortamento
+	MOVE.B	n_cmdlo(A6),D0
+	BEQ.S	mt_TonePortNoChange
+	MOVE.B	D0,n_toneportspeed(A6)
+	CLR.B	n_cmdlo(A6)
+mt_TonePortNoChange
+	TST.W	n_wantedperiod(A6)
+	BEQ.W	mt_Return
+	MOVEQ	#0,D0
+	MOVE.B	n_toneportspeed(A6),D0
+	TST.B	n_toneportdirec(A6)
+	BNE.S	mt_TonePortaUp
+mt_TonePortaDown
+	ADD.W	D0,n_period(A6)
+	MOVE.W	n_wantedperiod(A6),D0
+	CMP.W	n_period(A6),D0
+	BGT.S	mt_TonePortaSetPer
+	MOVE.W	n_wantedperiod(A6),n_period(A6)
+	CLR.W	n_wantedperiod(A6)
+	BRA.S	mt_TonePortaSetPer
+
+mt_TonePortaUp
+	SUB.W	D0,n_period(A6)
+	MOVE.W	n_wantedperiod(A6),D0
+	CMP.W	n_period(A6),D0
+	BLT.S	mt_TonePortaSetPer
+	MOVE.W	n_wantedperiod(A6),n_period(A6)
+	CLR.W	n_wantedperiod(A6)
+
+mt_TonePortaSetPer
+	MOVE.W	n_period(A6),D2
+	MOVE.B	n_glissfunk(A6),D0
+	AND.B	#$0F,D0
+	BEQ.S	mt_GlissSkip
+	MOVEQ	#0,D0
+	MOVE.B	n_finetune(A6),D0
+	MULU	#36*2,D0
+	LEA	mt_PeriodTable(PC),A0
+	ADD.L	D0,A0
+	MOVEQ	#0,D0
+mt_GlissLoop
+	CMP.W	(A0,D0.W),D2
+	BHS.S	mt_GlissFound
+	ADDQ.W	#2,D0
+	CMP.W	#36*2,D0
+	BLO.S	mt_GlissLoop
+	MOVEQ	#35*2,D0
+mt_GlissFound
+	MOVE.W	(A0,D0.W),D2
+mt_GlissSkip
+	MOVE.W	D2,6(A5) ; Set period
+	RTS
+
+mt_Vibrato
+	MOVE.B	n_cmdlo(A6),D0
+	BEQ.S	mt_Vibrato2
+	MOVE.B	n_vibratocmd(A6),D2
+	AND.B	#$0F,D0
+	BEQ.S	mt_vibskip
+	AND.B	#$F0,D2
+	OR.B	D0,D2
+mt_vibskip
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$F0,D0
+	BEQ.S	mt_vibskip2
+	AND.B	#$0F,D2
+	OR.B	D0,D2
+mt_vibskip2
+	MOVE.B	D2,n_vibratocmd(A6)
+mt_Vibrato2
+	MOVE.B	n_vibratopos(A6),D0
+	LEA	mt_VibratoTable(PC),A4
+	LSR.W	#2,D0
+	AND.W	#$001F,D0
+	MOVEQ	#0,D2
+	MOVE.B	n_wavecontrol(A6),D2
+	AND.B	#$03,D2
+	BEQ.S	mt_vib_sine
+	LSL.B	#3,D0
+	CMP.B	#1,D2
+	BEQ.S	mt_vib_rampdown
+	MOVE.B	#255,D2
+	BRA.S	mt_vib_set
+mt_vib_rampdown
+	TST.B	n_vibratopos(A6)
+	BPL.S	mt_vib_rampdown2
+	MOVE.B	#255,D2
+	SUB.B	D0,D2
+	BRA.S	mt_vib_set
+mt_vib_rampdown2
+	MOVE.B	D0,D2
+	BRA.S	mt_vib_set
+mt_vib_sine
+	MOVE.B	(A4,D0.W),D2
+mt_vib_set
+	MOVE.B	n_vibratocmd(A6),D0
+	AND.W	#15,D0
+	MULU	D0,D2
+	LSR.W	#7,D2
+	MOVE.W	n_period(A6),D0
+	TST.B	n_vibratopos(A6)
+	BMI.S	mt_VibratoNeg
+	ADD.W	D2,D0
+	BRA.S	mt_Vibrato3
+mt_VibratoNeg
+	SUB.W	D2,D0
+mt_Vibrato3
+	MOVE.W	D0,6(A5)
+	MOVE.B	n_vibratocmd(A6),D0
+	LSR.W	#2,D0
+	AND.W	#$003C,D0
+	ADD.B	D0,n_vibratopos(A6)
+	RTS
+
+mt_TonePlusVolSlide
+	BSR.W	mt_TonePortNoChange
+	BRA.W	mt_VolumeSlide
+
+mt_VibratoPlusVolSlide
+	BSR.S	mt_Vibrato2
+	BRA.W	mt_VolumeSlide
+
+mt_Tremolo
+	MOVE.B	n_cmdlo(A6),D0
+	BEQ.S	mt_Tremolo2
+	MOVE.B	n_tremolocmd(A6),D2
+	AND.B	#$0F,D0
+	BEQ.S	mt_treskip
+	AND.B	#$F0,D2
+	OR.B	D0,D2
+mt_treskip
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$F0,D0
+	BEQ.S	mt_treskip2
+	AND.B	#$0F,D2
+	OR.B	D0,D2
+mt_treskip2
+	MOVE.B	D2,n_tremolocmd(A6)
+mt_Tremolo2
+	MOVE.B	n_tremolopos(A6),D0
+	LEA	mt_VibratoTable(PC),A4
+	LSR.W	#2,D0
+	AND.W	#$001F,D0
+	MOVEQ	#0,D2
+	MOVE.B	n_wavecontrol(A6),D2
+	LSR.B	#4,D2
+	AND.B	#$03,D2
+	BEQ.S	mt_tre_sine
+	LSL.B	#3,D0
+	CMP.B	#1,D2
+	BEQ.S	mt_tre_rampdown
+	MOVE.B	#255,D2
+	BRA.S	mt_tre_set
+mt_tre_rampdown
+	TST.B	n_vibratopos(A6)
+	BPL.S	mt_tre_rampdown2
+	MOVE.B	#255,D2
+	SUB.B	D0,D2
+	BRA.S	mt_tre_set
+mt_tre_rampdown2
+	MOVE.B	D0,D2
+	BRA.S	mt_tre_set
+mt_tre_sine
+	MOVE.B	(A4,D0.W),D2
+mt_tre_set
+	MOVE.B	n_tremolocmd(A6),D0
+	AND.W	#15,D0
+	MULU	D0,D2
+	LSR.W	#6,D2
+	MOVEQ	#0,D0
+	MOVE.B	n_volume(A6),D0
+	TST.B	n_tremolopos(A6)
+	BMI.S	mt_TremoloNeg
+	ADD.W	D2,D0
+	BRA.S	mt_Tremolo3
+mt_TremoloNeg
+	SUB.W	D2,D0
+mt_Tremolo3
+	BPL.S	mt_TremoloSkip
+	CLR.W	D0
+mt_TremoloSkip
+	CMP.W	#$40,D0
+	BLS.S	mt_TremoloOk
+	MOVE.W	#$40,D0
+mt_TremoloOk
+	MOVE.W	D0,8(A5)
+	MOVE.B	n_tremolocmd(A6),D0
+	LSR.W	#2,D0
+	AND.W	#$003C,D0
+	ADD.B	D0,n_tremolopos(A6)
+	RTS
+
+mt_SampleOffset
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	BEQ.S	mt_sononew
+	MOVE.B	D0,n_sampleoffset(A6)
+mt_sononew
+	MOVE.B	n_sampleoffset(A6),D0
+	LSL.W	#7,D0
+	CMP.W	n_length(A6),D0
+	BGE.S	mt_sofskip
+	SUB.W	D0,n_length(A6)
+	LSL.W	#1,D0
+	ADD.L	D0,n_start(A6)
+	RTS
+mt_sofskip
+	MOVE.W	#$0001,n_length(A6)
+	RTS
+
+mt_VolumeSlide
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	LSR.B	#4,D0
+	TST.B	D0
+	BEQ.S	mt_VolSlideDown
+mt_VolSlideUp
+	ADD.B	D0,n_volume(A6)
+	CMP.B	#$40,n_volume(A6)
+	BMI.S	mt_vsuskip
+	MOVE.B	#$40,n_volume(A6)
+mt_vsuskip
+	MOVE.B	n_volume(A6),D0
+	MOVE.W	D0,8(A5)
+	RTS
+
+mt_VolSlideDown
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+mt_VolSlideDown2
+	SUB.B	D0,n_volume(A6)
+	BPL.S	mt_vsdskip
+	CLR.B	n_volume(A6)
+mt_vsdskip
+	MOVE.B	n_volume(A6),D0
+	MOVE.W	D0,8(A5)
+	RTS
+
+mt_PositionJump
+	MOVE.B	n_cmdlo(A6),D0
+	SUBQ.B	#1,D0
+	MOVE.B	D0,mt_SongPos
+mt_pj2	CLR.B	mt_PBreakPos
+	ST 	mt_PosJumpFlag
+	RTS
+
+mt_VolumeChange
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	CMP.B	#$40,D0
+	BLS.S	mt_VolumeOk
+	MOVEQ	#$40,D0
+mt_VolumeOk
+	MOVE.B	D0,n_volume(A6)
+	MOVE.W	D0,8(A5)
+	RTS
+
+mt_PatternBreak
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	MOVE.L	D0,D2
+	LSR.B	#4,D0
+	MULU	#10,D0
+	AND.B	#$0F,D2
+	ADD.B	D2,D0
+	CMP.B	#63,D0
+	BHI.S	mt_pj2
+	MOVE.B	D0,mt_PBreakPos
+	ST	mt_PosJumpFlag
+	RTS
+
+mt_SetSpeed
+	MOVEQ	#0,D0
+	MOVE.B	3(A6),D0
+	BEQ.W	mt_end
+	CMP.B	#32,D0
+	BHS.W	SetTempo
+	CLR.B	mt_counter
+	MOVE.B	D0,mt_speed
+	RTS
+
+mt_CheckMoreEfx
+	BSR.W	mt_UpdateFunk
+	MOVE.B	2(A6),D0
+	AND.B	#$0F,D0
+	CMP.B	#$9,D0
+	BEQ.W	mt_SampleOffset
+	CMP.B	#$B,D0
+	BEQ.W	mt_PositionJump
+	CMP.B	#$D,D0
+	BEQ.S	mt_PatternBreak
+	CMP.B	#$E,D0
+	BEQ.S	mt_E_Commands
+	CMP.B	#$F,D0
+	BEQ.S	mt_SetSpeed
+	CMP.B	#$C,D0
+	BEQ.W	mt_VolumeChange
+	BRA.W	mt_PerNop
+
+mt_E_Commands
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$F0,D0
+	LSR.B	#4,D0
+	BEQ.S	mt_FilterOnOff
+	CMP.B	#1,D0
+	BEQ.W	mt_FinePortaUp
+	CMP.B	#2,D0
+	BEQ.W	mt_FinePortaDown
+	CMP.B	#3,D0
+	BEQ.S	mt_SetGlissControl
+	CMP.B	#4,D0
+	BEQ.W	mt_SetVibratoControl
+	CMP.B	#5,D0
+	BEQ.W	mt_SetFineTune
+	CMP.B	#6,D0
+	BEQ.W	mt_JumpLoop
+	CMP.B	#7,D0
+	BEQ.W	mt_SetTremoloControl
+	CMP.B	#9,D0
+	BEQ.W	mt_RetrigNote
+	CMP.B	#$A,D0
+	BEQ.W	mt_VolumeFineUp
+	CMP.B	#$B,D0
+	BEQ.W	mt_VolumeFineDown
+	CMP.B	#$C,D0
+	BEQ.W	mt_NoteCut
+	CMP.B	#$D,D0
+	BEQ.W	mt_NoteDelay
+	CMP.B	#$E,D0
+	BEQ.W	mt_PatternDelay
+	CMP.B	#$F,D0
+	BEQ.W	mt_FunkIt
+	RTS
+
+mt_FilterOnOff
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#1,D0
+	ASL.B	#1,D0
+	AND.B	#$FD,$BFE001
+	OR.B	D0,$BFE001
+	RTS	
+
+mt_SetGlissControl
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	AND.B	#$F0,n_glissfunk(A6)
+	OR.B	D0,n_glissfunk(A6)
+	RTS
+
+mt_SetVibratoControl
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	AND.B	#$F0,n_wavecontrol(A6)
+	OR.B	D0,n_wavecontrol(A6)
+	RTS
+
+mt_SetFineTune
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	MOVE.B	D0,n_finetune(A6)
+	RTS
+
+mt_JumpLoop
+	TST.B	mt_counter
+	BNE.W	mt_Return
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	BEQ.S	mt_SetLoop
+	TST.B	n_loopcount(A6)
+	BEQ.S	mt_jumpcnt
+	SUBQ.B	#1,n_loopcount(A6)
+	BEQ.W	mt_Return
+mt_jmploop	MOVE.B	n_pattpos(A6),mt_PBreakPos
+	ST	mt_PBreakFlag
+	RTS
+
+mt_jumpcnt
+	MOVE.B	D0,n_loopcount(A6)
+	BRA.S	mt_jmploop
+
+mt_SetLoop
+	MOVE.W	mt_PatternPos(PC),D0
+	LSR.W	#4,D0
+	MOVE.B	D0,n_pattpos(A6)
+	RTS
+
+mt_SetTremoloControl
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	LSL.B	#4,D0
+	AND.B	#$0F,n_wavecontrol(A6)
+	OR.B	D0,n_wavecontrol(A6)
+	RTS
+
+mt_RetrigNote
+	MOVE.L	D1,-(SP)
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	BEQ.S	mt_rtnend
+	MOVEQ	#0,D1
+	MOVE.B	mt_counter(PC),D1
+	BNE.S	mt_rtnskp
+	MOVE.W	(A6),D1
+	AND.W	#$0FFF,D1
+	BNE.S	mt_rtnend
+	MOVEQ	#0,D1
+	MOVE.B	mt_counter(PC),D1
+mt_rtnskp
+	DIVU	D0,D1
+	SWAP	D1
+	TST.W	D1
+	BNE.S	mt_rtnend
+mt_DoRetrig
+	MOVE.W	n_dmabit(A6),$DFF096	; Channel DMA off
+	MOVE.L	n_start(A6),(A5)	; Set sampledata pointer
+	MOVE.W	n_length(A6),4(A5)	; Set length
+	MOVE.W	#300,D0
+mt_rtnloop1
+	DBRA	D0,mt_rtnloop1
+	MOVE.W	n_dmabit(A6),D0
+	BSET	#15,D0
+	MOVE.W	D0,$DFF096
+	MOVE.W	#300,D0
+mt_rtnloop2
+	DBRA	D0,mt_rtnloop2
+	MOVE.L	n_loopstart(A6),(A5)
+	MOVE.L	n_replen(A6),4(A5)
+mt_rtnend
+	MOVE.L	(SP)+,D1
+	RTS
+
+mt_VolumeFineUp
+	TST.B	mt_counter
+	BNE.W	mt_Return
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$F,D0
+	BRA.W	mt_VolSlideUp
+
+mt_VolumeFineDown
+	TST.B	mt_counter
+	BNE.W	mt_Return
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	BRA.W	mt_VolSlideDown2
+
+mt_NoteCut
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	CMP.B	mt_counter(PC),D0
+	BNE.W	mt_Return
+	CLR.B	n_volume(A6)
+	MOVE.W	#0,8(A5)
+	RTS
+
+mt_NoteDelay
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	CMP.B	mt_counter,D0
+	BNE.W	mt_Return
+	MOVE.W	(A6),D0
+	BEQ.W	mt_Return
+	MOVE.L	D1,-(SP)
+	BRA.W	mt_DoRetrig
+
+mt_PatternDelay
+	TST.B	mt_counter
+	BNE.W	mt_Return
+	MOVEQ	#0,D0
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	TST.B	mt_PattDelTime2
+	BNE.W	mt_Return
+	ADDQ.B	#1,D0
+	MOVE.B	D0,mt_PattDelTime
+	RTS
+
+mt_FunkIt
+	TST.B	mt_counter
+	BNE.W	mt_Return
+	MOVE.B	n_cmdlo(A6),D0
+	AND.B	#$0F,D0
+	LSL.B	#4,D0
+	AND.B	#$0F,n_glissfunk(A6)
+	OR.B	D0,n_glissfunk(A6)
+	TST.B	D0
+	BEQ.W	mt_Return
+mt_UpdateFunk
+	MOVEM.L	A0/D1,-(SP)
+	MOVEQ	#0,D0
+	MOVE.B	n_glissfunk(A6),D0
+	LSR.B	#4,D0
+	BEQ.S	mt_funkend
+	LEA	mt_FunkTable(PC),A0
+	MOVE.B	(A0,D0.W),D0
+	ADD.B	D0,n_funkoffset(A6)
+	BTST	#7,n_funkoffset(A6)
+	BEQ.S	mt_funkend
+	CLR.B	n_funkoffset(A6)
+
+	MOVE.L	n_loopstart(A6),D0
+	MOVEQ	#0,D1
+	MOVE.W	n_replen(A6),D1
+	ADD.L	D1,D0
+	ADD.L	D1,D0
+	MOVE.L	n_wavestart(A6),A0
+	ADDQ.L	#1,A0
+	CMP.L	D0,A0
+	BLO.S	mt_funkok
+	MOVE.L	n_loopstart(A6),A0
+mt_funkok
+	MOVE.L	A0,n_wavestart(A6)
+	MOVEQ	#-1,D0
+	SUB.B	(A0),D0
+	MOVE.B	D0,(A0)
+mt_funkend
+	MOVEM.L	(SP)+,A0/D1
+	RTS
+
+
+mt_FunkTable dc.b 0,5,6,7,8,10,11,13,16,19,22,26,32,43,64,128
+
+mt_VibratoTable	
+	dc.b   0, 24, 49, 74, 97,120,141,161
+	dc.b 180,197,212,224,235,244,250,253
+	dc.b 255,253,250,244,235,224,212,197
+	dc.b 180,161,141,120, 97, 74, 49, 24
+
+mt_PeriodTable
+; Tuning 0, Normal
+	dc.w	856,808,762,720,678,640,604,570,538,508,480,453
+	dc.w	428,404,381,360,339,320,302,285,269,254,240,226
+	dc.w	214,202,190,180,170,160,151,143,135,127,120,113
+; Tuning 1
+	dc.w	850,802,757,715,674,637,601,567,535,505,477,450
+	dc.w	425,401,379,357,337,318,300,284,268,253,239,225
+	dc.w	213,201,189,179,169,159,150,142,134,126,119,113
+; Tuning 2
+	dc.w	844,796,752,709,670,632,597,563,532,502,474,447
+	dc.w	422,398,376,355,335,316,298,282,266,251,237,224
+	dc.w	211,199,188,177,167,158,149,141,133,125,118,112
+; Tuning 3
+	dc.w	838,791,746,704,665,628,592,559,528,498,470,444
+	dc.w	419,395,373,352,332,314,296,280,264,249,235,222
+	dc.w	209,198,187,176,166,157,148,140,132,125,118,111
+; Tuning 4
+	dc.w	832,785,741,699,660,623,588,555,524,495,467,441
+	dc.w	416,392,370,350,330,312,294,278,262,247,233,220
+	dc.w	208,196,185,175,165,156,147,139,131,124,117,110
+; Tuning 5
+	dc.w	826,779,736,694,655,619,584,551,520,491,463,437
+	dc.w	413,390,368,347,328,309,292,276,260,245,232,219
+	dc.w	206,195,184,174,164,155,146,138,130,123,116,109
+; Tuning 6
+	dc.w	820,774,730,689,651,614,580,547,516,487,460,434
+	dc.w	410,387,365,345,325,307,290,274,258,244,230,217
+	dc.w	205,193,183,172,163,154,145,137,129,122,115,109
+; Tuning 7
+	dc.w	814,768,725,684,646,610,575,543,513,484,457,431
+	dc.w	407,384,363,342,323,305,288,272,256,242,228,216
+	dc.w	204,192,181,171,161,152,144,136,128,121,114,108
+; Tuning -8
+	dc.w	907,856,808,762,720,678,640,604,570,538,508,480
+	dc.w	453,428,404,381,360,339,320,302,285,269,254,240
+	dc.w	226,214,202,190,180,170,160,151,143,135,127,120
+; Tuning -7
+	dc.w	900,850,802,757,715,675,636,601,567,535,505,477
+	dc.w	450,425,401,379,357,337,318,300,284,268,253,238
+	dc.w	225,212,200,189,179,169,159,150,142,134,126,119
+; Tuning -6
+	dc.w	894,844,796,752,709,670,632,597,563,532,502,474
+	dc.w	447,422,398,376,355,335,316,298,282,266,251,237
+	dc.w	223,211,199,188,177,167,158,149,141,133,125,118
+; Tuning -5
+	dc.w	887,838,791,746,704,665,628,592,559,528,498,470
+	dc.w	444,419,395,373,352,332,314,296,280,264,249,235
+	dc.w	222,209,198,187,176,166,157,148,140,132,125,118
+; Tuning -4
+	dc.w	881,832,785,741,699,660,623,588,555,524,494,467
+	dc.w	441,416,392,370,350,330,312,294,278,262,247,233
+	dc.w	220,208,196,185,175,165,156,147,139,131,123,117
+; Tuning -3
+	dc.w	875,826,779,736,694,655,619,584,551,520,491,463
+	dc.w	437,413,390,368,347,328,309,292,276,260,245,232
+	dc.w	219,206,195,184,174,164,155,146,138,130,123,116
+; Tuning -2
+	dc.w	868,820,774,730,689,651,614,580,547,516,487,460
+	dc.w	434,410,387,365,345,325,307,290,274,258,244,230
+	dc.w	217,205,193,183,172,163,154,145,137,129,122,115
+; Tuning -1
+	dc.w	862,814,768,725,684,646,610,575,543,513,484,457
+	dc.w	431,407,384,363,342,323,305,288,272,256,242,228
+	dc.w	216,203,192,181,171,161,152,144,136,128,121,114
+
+mt_chan1temp	dc.l	0,0,0,0,0,$00010000,0,  0,0,0,0
+mt_chan2temp	dc.l	0,0,0,0,0,$00020000,0,  0,0,0,0
+mt_chan3temp	dc.l	0,0,0,0,0,$00040000,0,  0,0,0,0
+mt_chan4temp	dc.l	0,0,0,0,0,$00080000,0,  0,0,0,0
+
+mt_SampleStarts	dc.l	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+		dc.l	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+mt_SongDataPtr	dc.l 0
+mt_speed	dc.b 6
+mt_counter	dc.b 0
+mt_SongPos	dc.b 0
+mt_PBreakPos	dc.b 0
+mt_PosJumpFlag	dc.b 0
+mt_PBreakFlag	dc.b 0
+mt_LowMask	dc.b 0
+mt_PattDelTime	dc.b 0
+mt_PattDelTime2	dc.b 0
+mt_Enable	dc.b 0
+mt_PatternPos	dc.w 0
+mt_DMACONtemp	dc.w 0
+
+;/* End of File */
+
+
+
+; =============================================================================
+;
+;                                   D A T A
+;
+; =============================================================================
+   	
+; *****************************************************************************
+; Copperlist header
+; *****************************************************************************
+
+	ALIGNQUAD
+
+COL32	MACRO
+	dc.l	$01800000,$01820000,$01840000,$01860000,$01880000,$018a0000
+	dc.l    $018c0000,$018e0000,$01900000,$01920000,$01940000,$01960000
+	dc.l	$01980000,$019a0000,$019c0000,$019e0000,$01a00000,$01a20000
+	dc.l	$01a40000,$01a60000,$01a80000,$01aa0000,$01ac0000,$01ae0000
+	dc.l	$01b00000,$01b20000,$01b40000,$01b60000,$01b80000,$01ba0000
+	dc.l	$01bc0000,$01be0000
+	ENDM
+	
+Cop
+     	dc.l 	$01fc400f 		;FMODE   Bpl=3, Spr=3, ScanDouble (2x2)
+     	dc.l 	$00968100       	;DMACON  Plane dma on line 0
+     	dc.l 	$01000211 		;BPLCON0 Lores, 8 planes, ECS on 
+     	dc.l 	$01020000		;BPLCON1
+     	dc.l 	$0104003f       	;BPLCON2 Sprite priority!
+     	dc.l 	$01060020       	;BPLCON3 BBlank
+     	dc.l 	$010c0000       	;BPLCON4 Sprite-colorbank (!)
+     	dc.l 	$0108ffd8 		;BPL1MOD 2x2: modulo = -40
+     	dc.l 	$010a0000		;BPL2MOD
+     	dc.l 	$008e2881 		;
+     	dc.l	$009028c1		;
+     	dc.l 	$00920038 		;
+	dc.l 	$009400a0		;
+
+CopBpl					; Bitplane pointers
+     	dc.l 	$00e00000,$00e20000
+     	dc.l 	$00e40000,$00e60002
+     	dc.l 	$00e80000,$00ea0004
+     	dc.l 	$00ec0000,$00ee0006
+     	dc.l 	$00f00000,$00f20008
+     	dc.l 	$00f40000,$00f6000a
+     	dc.l 	$00f80000,$00fa000c
+     	dc.l 	$00fc0000,$00fe000e
+
+CopCol					; Colour registers (24 bit HL)
+	dc.l	$01060c60		
+	COL32
+	dc.l	$01060e60		
+	COL32
+	dc.l	$01062c60		
+	COL32
+	dc.l	$01062e60
+	COL32
+	dc.l	$01064c60
+	COL32
+	dc.l	$01064e60
+	COL32
+	dc.l	$01066c60
+	COL32
+	dc.l	$01066e60
+	COL32
+	dc.l	$01068c60
+	COL32
+	dc.l	$01068e60
+	COL32
+	dc.l	$0106ac60
+	COL32
+	dc.l	$0106ae60
+	COL32
+	dc.l	$0106cc60
+	COL32
+	dc.l	$0106ce60
+	COL32
+	dc.l	$0106ec60
+	COL32
+	dc.l	$0106ee60
+	COL32
+
+CopEnd
+
+
+; *****************************************************************************
+; Variables 
+; *****************************************************************************
+
+	ALIGNLONG
+
+Joy1Left	dc.b 	0		; Joystick direction
+Joy1Right	dc.b	0
+Joy1Up		dc.b	0
+Joy1Down	dc.b	0
+Joy1Fire	dc.b	0
+
+KeyRaw		dc.b	0		; Raw code of last pressed key
+KeyState	dc.b	0 		; State of last pressed key
+
+	ALIGNLONG
+
+RendCh		dc.l	0		; }_ Chunky buffer
+DispCh		dc.l	0		; }
+RendBL		dc.l	0		; }_ Blitterlist
+DispBL		dc.l	0		; }
+RendCop		dc.l	0 		; }_ Copperlist
+DispCop		dc.l	0		; }
+
+Plyr_Z		dc.l	0		; Z-position
+Plyr_ZSpd	dc.w	0		; Tunnel scroll speed (in texels)
+Plyr_Scroll	dc.w	0		; Tunnel scroll position (in texels)
+Plyr_X		dc.w	0		; }_ Center-coordinates of player ship
+Plyr_Y		dc.w	0		; }
+Plyr_XSpd	dc.w	0		; }_ Speed
+Plyr_YSpd	dc.w	0		; }
+Plyr_Level	dc.w	0		; Current level number
+Plyr_Ships	dc.w	0		; Number of remaining ships
+Plyr_Time	dc.l	0		; Time left for this level
+Plyr_Frame	dc.w	0		; Animation frame number
+Plyr_EngineCnt	dc.w	0		; Engine colour counter
+Plyr_EngineOn	dc.w	0		; True is engine is on, false if off
+Plyr_Name	dcb.b	MaxStrLen+1,0	; Name of player
+Plyr_Cheat	dc.b	0		; Cheatmode on / off
+
+		ALIGNLONG
+		
+Game_Flags	dc.l	0		; Game-loop status flags
+Game_FirstWall	dc.w	0		; Number of first visible wall
+Game_LastWall	dc.w	0		; Number of last visible wall
+Game_WallZ	dc.l	0		; Pointer to Wall_Z array
+Game_WallType	dc.l	0		; Pointer to Wall_Type array
+Game_LevelPtr	dc.l	0		; Pointer to Level array
+
+Toggle		dc.l	0		; Toggles between 0 and 1 
+ToggleCnt	dc.l	0		; Time depends on max. ToggleCnt
+
+FlgTimer	dc.l	0		; Gameloop statusflag timer thing
+
+BestTimes	dcb.l	9,0		; Best track times
+BestNames	dcb.b	9*12,0		; Names of best racers
+
+RealTimeCnt	dc.l	0		; RealTime counter
+RealTime	dc.l	0		; RealTime value
+		
+Intro_Timer	dc.l	0		; Intro timer
+Intro_Flags	dc.l	0		; Intro status-flags
+Intro_WarpIn	dc.b	0		; Intro warp-in is active
+Intro_WarpOut	dc.b	0		; Intro warp-out is active
+Intro_WarpCount	dc.w	0		; Intro warp-in/out counter
+Intro_Level	dc.w	0		; Levelnr for Track Select
+
+
+
+; *****************************************************************************
+; Level Data
+; *****************************************************************************
+
+	ALIGNLONG
+
+Level		; Level 1 -----------------------------------------------------
+		dc.w	34,3		; NumWalls, Ships
+		dc.l	1500		; Time
+		; Level 2 -----------------------------------------------------
+		dc.w	34,4
+		dc.l	1500
+		; Level 3 -----------------------------------------------------
+		dc.w	34,2
+		dc.l	1000
+		; Level 4 -----------------------------------------------------
+		dc.w	14,1
+		dc.l	500
+		; Level 5 -----------------------------------------------------
+		dc.w	50,3
+		dc.l	2000
+
+Wall_Z		; Level 1 -----------------------------------------------------
+		dc.l	512
+		dc.l	01*1024,02*1024,03*1024,04*1024
+		dc.l	05*1024,06*1024,07*1024,08*1024
+		dc.l	09*1024,10*1024,11*1024,12*1024
+		dc.l	13*1024,14*1024,15*1024,16*1024
+		dc.l	17*1024,18*1024,19*1024,20*1024
+		dc.l	21*1024,22*1024,23*1024,24*1024
+		dc.l	25*1024,26*1024,27*1024,28*1024
+		dc.l	29*1024,30*1024,31*1024,32*1024
+		dc.l	33*1024
+		dcb.l	MaxWall-34,0
+		; Level 2 -----------------------------------------------------
+		dc.l	512
+		dc.l	04*512,05*512,06*512,07*512
+		dc.l	10*512,11*512,12*512,13*512
+		dc.l	16*512,17*512,18*512,19*512
+		dc.l	22*512,23*512,24*512,25*512
+		dc.l	28*512,29*512,30*512,31*512
+		dc.l	32*512,33*512,34*512,35*512
+		dc.l	36*512,37*512,38*512,39*512
+		dc.l	40*512,41*512,42*512,43*512
+		dc.l	46*512
+		dcb.l	MaxWall-34,0
+		; Level 3 -----------------------------------------------------
+		dc.l	512
+		dc.l	02*512,03*512,05*512,06*512
+		dc.l	08*512,09*512,11*512,12*512
+		dc.l	14*512,15*512,17*512,18*512
+		dc.l	20*512,21*512,23*512,24*512
+		dc.l	26*512,27*512,29*512,30*512
+		dc.l	32*512,33*512,35*512,36*512
+		dc.l	38*512,39*512,41*512,42*512
+		dc.l	44*512,45*512,47*512,48*512
+		dc.l	50*512
+		dcb.l	MaxWall-34,0
+		; Level 4 -----------------------------------------------------
+		dc.l	512
+		dc.l	04*512,05*512,11*256,06*512
+		dc.l	07*512,08*512,17*256,09*512
+		dc.l	10*512,11*512,23*256,12*512
+		dc.l	14*512
+		dcb.l	MaxWall-14,0
+		; Level 5 -----------------------------------------------------
+		dc.l	512
+		dc.l	02*512,04*512,05*512,05*512+256
+		dc.l	08*512,09*512,12*512,13*512
+		dc.l	16*512,18*512,19*512,19*512+256
+		dc.l	22*512,23*512,26*512,27*512
+		dc.l	30*512,31*512,32*512,33*512
+		dc.l	34*512,35*512,36*512,37*512
+		dc.l	40*512,41*512,42*512,43*512
+		dc.l	44*512,45*512,46*512,47*512
+		dc.l	50*512,51*512,51*512+256,51*512+256+128
+		dc.l	52*512,52*512+256,53*512,53*512+256
+		dc.l	54*512,55*512,55*512+256,55*512+256+128
+		dc.l	56*512,56*512+256,57*512,57*512+256
+		dc.l	60*512
+		dcb.l	MaxWall-50,0
+
+Wall_Type	; Level 1 -----------------------------------------------------
+		dc.w	WT_Start
+		dc.w	WT_Left,WT_Left,WT_Left,WT_Left
+		dc.w	WT_Right,WT_Right,WT_Right,WT_Right
+		dc.w	WT_Left,WT_Left,WT_Right,WT_Right
+		dc.w	WT_Left,WT_Left,WT_Right,WT_Right
+		dc.w	WT_Up,WT_Up,WT_Down,WT_Down
+		dc.w	WT_Up,WT_Up,WT_Down,WT_Down
+		dc.w	WT_Up,WT_Down,WT_Up,WT_Down
+		dc.w	WT_Up,WT_Down,WT_Up,WT_Down
+		dc.w	WT_Finish
+		dcb.w	MaxWall-34,0
+		; Level 2 -----------------------------------------------------
+		dc.w	WT_Start
+		dc.w	WT_Left,WT_Up,WT_Right,WT_Down
+		dc.w	WT_Up,WT_Left,WT_Down,WT_Right
+		dc.w	WT_Right,WT_Up,WT_Down,WT_Left
+		dc.w	WT_Down,WT_Left,WT_Right,WT_Up
+		dc.w	WT_Left,WT_Up,WT_Right,WT_Down
+		dc.w	WT_Up,WT_Left,WT_Down,WT_Right
+		dc.w	WT_Right,WT_Up,WT_Down,WT_Left
+		dc.w	WT_Down,WT_Left,WT_Right,WT_Up
+		dc.w	WT_Finish
+		dcb.w	MaxWall-34,0
+		; Level 3 -----------------------------------------------------
+		dc.w	WT_Start
+		dc.w	WT_Right,WT_Up,WT_Left,WT_Down
+		dc.w	WT_Right,WT_Up,WT_Left,WT_Down
+		dc.w	WT_Left,WT_Up,WT_Right,WT_Down
+		dc.w	WT_Left,WT_Up,WT_Right,WT_Down
+		dc.w	WT_Right,WT_Down,WT_Left,WT_Up
+		dc.w	WT_Right,WT_Down,WT_Left,WT_Up
+		dc.w	WT_Left,WT_Down,WT_Right,WT_Up
+		dc.w	WT_Left,WT_Down,WT_Right,WT_Up
+		dc.w	WT_Finish
+		dcb.w	MaxWall-34,0
+		; Level 4 -----------------------------------------------------
+		dc.w	WT_Start
+		dc.w	WT_Down,WT_Up,WT_Left,WT_Down
+		dc.w	WT_Up,WT_Down,WT_Right,WT_Up
+		dc.w	WT_Down,WT_Up,WT_Left,WT_Right
+		dc.w	WT_Finish
+		dcb.w	MaxWall-14,0
+		; Level 5 -----------------------------------------------------
+		dc.w	WT_Start
+		dc.w	WT_Left,WT_Down,WT_Up,WT_Right
+		dc.w	WT_Left,WT_Right,WT_Left,WT_Right
+		dc.w	WT_Left,WT_Down,WT_Up,WT_Right
+		dc.w	WT_Down,WT_Up,WT_Down,WT_Up
+		dc.w	WT_Right,WT_Right,WT_Down,WT_Up
+		dc.w	WT_Left,WT_Left,WT_Up,WT_Up
+		dc.w	WT_Right,WT_Right,WT_Up,WT_Down
+		dc.w	WT_Left,WT_Left,WT_Up,WT_Up
+		dc.w	WT_Left,WT_Down,WT_Up,WT_Right
+		dc.w	WT_Left,WT_Right,WT_Left,WT_Right
+		dc.w	WT_Left,WT_Down,WT_Up,WT_Right
+		dc.w	WT_Down,WT_Up,WT_Down,WT_Up
+		dc.w	WT_Finish
+		dcb.w	MaxWall-50,0				
+
+
+; *****************************************************************************
+; Constant data
+; *****************************************************************************
+
+		ALIGNLONG
+		
+Type_Bitmap	dc.l	wt_start		; Pointers to bitmaps
+		dc.l	wt_finish
+		dc.l	wt_left
+		dc.l	wt_right
+		dc.l	wt_up
+		dc.l	wt_down
+		
+Type_Hole	dc.w	0,0,159,127		; WT_Start
+		dc.w	0,0,159,127		; WT_Finish
+		dc.w	80,0,159,127		; WT_Left
+		dc.w	0,0,79,127		; WT_Right
+		dc.w	0,64,159,127		; WT_Up
+		dc.w	0,0,159,63		; WT_Down
+
+Ship_Anim	dc.l 	Ship01,Ship02,Ship03,Ship04,Ship05	; Pointers to
+		dc.l 	Ship06,Ship07,Ship08,Ship09,Ship10	; animation
+		dc.l 	Ship11,Ship12,Ship13,Ship14,Ship15	; frames
+		dc.l 	Ship16,Ship17,Ship18,Ship19,Ship20	;
+		dc.l 	Ship21,Ship22,Ship23,Ship24,Ship25	;
+
+Shadow_Anim	dc.l	Shadow01,Shadow02,Shadow03,Shadow04	; Pointers to
+		dc.l	Shadow05				; anim frames
+
+Coll_Bounds	dc.w	-21,-10,20,9,	-20,-10,20,9	; Collision
+		dc.w	-19,-10,20,9,	-20,-10,20,9	; boundaries
+		dc.w	-20,-10,21,9,	-21,-8,20,7	; for player ship
+		dc.w	-19,-8,20,7,	-19,-8,19,6	
+		dc.w	-20,-8,19,7,	-20,-8,21,7
+		dc.w	-20,-7,21,7,	-19,-7,20,6
+		dc.w	-19,-7,19,6,	-20,-7,19,6
+		dc.w	-21,-7,20,7,	-20,-12,20,10
+		dc.w	-19,-12,20,9,	-19,-12,20,8
+		dc.w	-20,-12,19,9,	-20,-12,20,10
+		dc.w	-20,-12,20,13,	-19,-12,19,12
+		dc.w	-19,-12,20,11,	-19,-12,19,12
+		dc.w	-20,-12,20,13
+		
+Raw2ASCII	dc.b	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		   ; 00..0F
+		dc.b	81,87,69,82,84,89,85,73,79,80,0,0,0,0,0,0  ; 10..1F
+		dc.b	65,83,68,70,71,72,74,75,76,00,0,0,0,0,0,0  ; 20..2F
+		dc.b	00,90,88,67,86,66,78,77,00,00,0,0,0,0,0,0  ; 30..3F
+		dc.b	32					   ; 40
+
+; *****************************************************************************
+; Graphics, text, etc...
+; *****************************************************************************
+
+	ALIGNLONG
+	
+	incdir "fantasy:tunn3l/inc/"
+
+TxtLut		incbin 	"Txt.LUT"		; 160x128x2 Texture LookUpTable
+WallLut_S	incbin 	"Wall_S.LUT"		; }
+WallLut_X	incbin 	"Wall_X.LUT"		; }- 2048x4 Wall LookUpTable 
+WallLut_Y	incbin 	"Wall_Y.LUT"	        ; }
+
+txt		incbin 	"TunnelTxt.CKY"		; 256x256 tunnel texture
+
+Ship01		incbin	"Ship01.CKY"		; 48x25 ship images
+Ship02		incbin	"Ship02.CKY"		; 
+Ship03		incbin	"Ship03.CKY"		; 
+Ship04		incbin	"Ship04.CKY"		; 
+Ship05		incbin	"Ship05.CKY"		; 
+Ship06		incbin	"Ship06.CKY"		; 
+Ship07		incbin	"Ship07.CKY"		; 
+Ship08		incbin	"Ship08.CKY"		; 
+Ship09		incbin	"Ship09.CKY"		; 
+Ship10		incbin	"Ship10.CKY"		; 
+Ship11		incbin	"Ship11.CKY"		; 
+Ship12		incbin	"Ship12.CKY"		; 
+Ship13		incbin	"Ship13.CKY"		; 
+Ship14		incbin	"Ship14.CKY"		; 
+Ship15		incbin	"Ship15.CKY"		; 
+Ship16		incbin	"Ship16.CKY"		; 
+Ship17		incbin	"Ship17.CKY"		; 
+Ship18		incbin	"Ship18.CKY"		; 
+Ship19		incbin	"Ship19.CKY"		; 
+Ship20		incbin	"Ship20.CKY"		; 
+Ship21		incbin	"Ship21.CKY"		; 
+Ship22		incbin	"Ship22.CKY"		; 
+Ship23		incbin	"Ship23.CKY"		; 
+Ship24		incbin	"Ship24.CKY"		; 
+Ship25		incbin	"Ship25.CKY"		; 
+
+Shadow01	incbin	"Shadow01.CKY"		; 48x25 shadow images
+Shadow02	incbin	"Shadow02.CKY"		;
+Shadow03	incbin	"Shadow03.CKY"		;
+Shadow04	incbin	"Shadow04.CKY"		;
+Shadow05	incbin	"Shadow05.CKY"		;
+
+wt_start	incbin 	"WT_Start.CKY"		; Wall graphics
+wt_finish	incbin 	"WT_Finish.CKY"		;
+wt_left		incbin 	"WT_Left.CKY"		;
+wt_right	incbin 	"WT_Right.CKY"		;
+wt_up		incbin 	"WT_Up.CKY"		;
+wt_down		incbin 	"WT_Down.CKY"		;
+
+IntroPal	incbin 	"IntroPal.PAL"		; Intro palette (24-bit)
+GamePal		incbin  "GamePal.PAL"		; Game palette (24-bit)
+EnginePal	incbin	"EnginePal.PAL"		; Engine colour palette
+
+WhitePal	dcb.l	256,$00ffffff		; Totally white palette
+TempPal		dcb.l	256,$00000000		; Temporary palette for fades
+ 
+IntroWarp	incbin 	"IntroWarp.LUT"		; Warp LookUpTable
+IntroFont	incbin 	"IntroFont.RAW"		; Intro font graphics
+
+ChunkyFont	incbin	"ChunkyFont.CKY"	; Game font
+
+txt_track	dc.b	"TRACK",0		; Texts
+txt_complete	dc.b	"COMPLETE",0
+txt_out		dc.b	"OUT",0
+txt_of		dc.b	"OF",0
+txt_time	dc.b	"TIME",0
+txt_ships	dc.b	"SHIPS",0
+txt_press	dc.b	"PRESS",0
+txt_fire	dc.b	"FIRE",0
+txt_race	dc.b	"RACE",0
+txt_over	dc.b	"OVER",0
+txt_best	dc.b 	"BEST",0
+txt_pause	dc.b	"PAUSE",0
+
+itxt_0		dc.b	"    ZERO GRAVITY",0	; Intro texts
+itxt_1		dc.b	"   **************",0
+itxt_2		dc.b	"     CREATED BY",0
+itxt_3		dc.b	" MATTHIJS HOLLEMANS",0
+itxt_4		dc.b	"       @ 1997",0
+itxt_5		dc.b	"  #[[[[[[[[[[[[[[$",0
+itxt_6		dc.b	"  \ FIRE = START _",0
+itxt_7		dc.b	"  \ ESC  =  QUIT _",0
+itxt_8		dc.b	"  &]]]]]]]]]]]]]];",0
+
+itxt_10		dc.b	"     INTRO MUSIC",0
+itxt_11		dc.b	"     ZOLTAR/DOOM",0
+itxt_12		dc.b	"    IN-GAME MUSIC",0
+itxt_13		dc.b	"        RADIUM",0
+itxt_14		dc.b	"     C2P CODE BY",0
+itxt_15		dc.b	"   JUERGEN FISCHER",0
+itxt_19		dc.b	"   [[[[[[[[[[[[[[[",0
+
+itxt_20		dc.b	"  #[[[[[[[[[[[[[[$",0
+itxt_21		dc.b	"  \ HALL OF FAME _",0
+itxt_22		dc.b	"  &]]]]]]]]]]]]]];",0
+
+ian_0		dc.b	"   ENTER YOUR NAME",0
+ian_1		dc.b	"   #[[[[[[[[[[[[[$",0
+ian_2		dc.b	"   \             _",0
+ian_3		dc.b	"   &]]]]]]]]]]]]];",0
+
+its_0		dc.b	"  #[[[[[[[[[[[[[[$",0
+its_1		dc.b	"  \ TRACK SELECT _",0
+its_2		dc.b	"  &]]]]]]]]]]]]]];",0
+
+its_3		dc.b	"     TRACK    0",0
+its_4		dc.b	"     TIME  0:00",0
+its_5		dc.b	"     SHIPS    0",0
+
+its_6		dc.b	"    BEST TIME BY",0
+its_7		dc.b	"#[[[[[[[[[[[[[[[[[[$",0
+its_8		dc.b	"\ FIRE  =     PLAY _",0
+its_9		dc.b	"\ LEFT  = PREVIOUS _",0
+its_10		dc.b	"\ RIGHT =     NEXT _",0
+its_11		dc.b	"&]]]]]]]]]]]]]]]]]];",0
+
+
+version		dc.b	"$VER: ZeroGravity 1.0 (C) 1997 Matthijs Hollemans",0
+
+
+; =============================================================================
+;
+;                                C H I P D A T A
+;
+; =============================================================================
+
+	SECTION	ChipData,DATA_C
+
+; *****************************************************************************
+; Intro copperlist
+; *****************************************************************************
+	
+IntroCop
+    	dc.l 	$01fc0000 		;FMODE   
+	
+     	dc.l 	$01000210 		;BPLCON0 Lores, 8 planes
+     	dc.l 	$01020000		;BPLCON1
+     	dc.l 	$01040000       	;BPLCON2
+     	dc.l 	$01060000       	;BPLCON3
+     	dc.l 	$01080000 		;BPL1MOD
+     	dc.l 	$010a0000		;BPL2MOD
+     	dc.l 	$010c0000       	;BPLCON4
+     	dc.l 	$008e2c81 		;
+     	dc.l	$00902cc1		;
+     	dc.l 	$00920038 		;
+	dc.l 	$009400d0		;
+
+IntroCopBpl				; Bitplane pointers
+     	dc.l 	$00e00000,$00e20000	
+     	dc.l 	$00e40000,$00e60000
+     	dc.l 	$00e80000,$00ea0000
+     	dc.l 	$00ec0000,$00ee0000
+     	dc.l 	$00f00000,$00f20000
+     	dc.l 	$00f40000,$00f60000
+     	dc.l 	$00f80000,$00fa0000
+     	dc.l 	$00fc0000,$00fe0000
+
+IntroCopCol				; Colour registers (24 bit HL)
+	dc.l	$01060c40		; Bank0, Hi 12-bits
+	COL32
+	dc.l	$01060e40		; Bank0, Lo 12-bits
+	COL32
+	dc.l	$01062c40		; Bank1, Hi 12-bits
+	COL32
+	dc.l	$01062e40		; Bank1, Lo 12-bits
+	COL32
+	dc.l	$01064c40		; etc...
+	COL32
+	dc.l	$01064e40
+	COL32
+	dc.l	$01066c40
+	COL32
+	dc.l	$01066e40
+	COL32
+	dc.l	$01068c40
+	COL32
+	dc.l	$01068e40
+	COL32
+	dc.l	$0106ac40
+	COL32
+	dc.l	$0106ae40
+	COL32
+	dc.l	$0106cc40
+	COL32
+	dc.l	$0106ce40
+	COL32
+	dc.l	$0106ec40
+	COL32
+	dc.l	$0106ee40
+	COL32
+
+IntroCopSpr
+	dc.l	$01200000,$01220000,$01240000,$01260000	
+	dc.l	$01280000,$012a0000,$012c0000,$012e0000	
+	dc.l	$01300000,$01320000,$01340000,$01360000
+	dc.l	$01380000,$013a0000,$013c0000,$013e0000
+
+IntroCopRainbow
+	dc.l	$2c0ffffe,$1060c40,$1be0346,$1060e40,$1be07b0	; StartY=44
+	dc.l	$2d0ffffe,$1060c40,$1be0345,$1060e40,$1be06ae
+	dc.l	$2e0ffffe,$1060c40,$1be0345,$1060e40,$1be059d
+	dc.l	$2f0ffffe,$1060c40,$1be0345,$1060e40,$1be048c
+	dc.l	$300ffffe,$1060c40,$1be0345,$1060e40,$1be047b
+	dc.l	$310ffffe,$1060c40,$1be0345,$1060e40,$1be0369
+	dc.l	$320ffffe,$1060c40,$1be0345,$1060e40,$1be0258
+	dc.l	$330ffffe,$1060c40,$1be0345,$1060e40,$1be0247
+	dc.l	$340ffffe,$1060c40,$1be0345,$1060e40,$1be0136
+	dc.l	$350ffffe,$1060c40,$1be0345,$1060e40,$1be0025
+	dc.l	$360ffffe,$1060c40,$1be0345,$1060e40,$1be0013
+	dc.l	$370ffffe,$1060c40,$1be0245,$1060e40,$1be0f02
+	dc.l	$380ffffe,$1060c40,$1be0235,$1060e40,$1be0ef1
+	dc.l	$390ffffe,$1060c40,$1be0235,$1060e40,$1be0de0
+	dc.l	$3a0ffffe,$1060c40,$1be0234,$1060e40,$1be0dde
+	dc.l	$3b0ffffe,$1060c40,$1be0234,$1060e40,$1be0ccd
+	dc.l	$3c0ffffe,$1060c40,$1be0234,$1060e40,$1be0bbc
+	dc.l	$3d0ffffe,$1060c40,$1be0234,$1060e40,$1be0bab
+	dc.l	$3e0ffffe,$1060c40,$1be0234,$1060e40,$1be0a9a
+	dc.l	$3f0ffffe,$1060c40,$1be0234,$1060e40,$1be0988
+	dc.l	$400ffffe,$1060c40,$1be0234,$1060e40,$1be0987
+	dc.l	$410ffffe,$1060c40,$1be0234,$1060e40,$1be0876
+	dc.l	$420ffffe,$1060c40,$1be0234,$1060e40,$1be0765
+	dc.l	$430ffffe,$1060c40,$1be0234,$1060e40,$1be0754
+	dc.l	$440ffffe,$1060c40,$1be0234,$1060e40,$1be0642
+	dc.l	$450ffffe,$1060c40,$1be0234,$1060e40,$1be0531
+	dc.l	$460ffffe,$1060c40,$1be0234,$1060e40,$1be0420
+	dc.l	$470ffffe,$1060c40,$1be0233,$1060e40,$1be041f
+	dc.l	$480ffffe,$1060c40,$1be0233,$1060e40,$1be030d
+	dc.l	$490ffffe,$1060c40,$1be0223,$1060e40,$1be02fc
+	dc.l	$4a0ffffe,$1060c40,$1be0223,$1060e40,$1be02eb
+	dc.l	$4b0ffffe,$1060c40,$1be0223,$1060e40,$1be01da
+	dc.l	$4c0ffffe,$1060c40,$1be0223,$1060e40,$1be00c9
+	dc.l	$4d0ffffe,$1060c40,$1be0223,$1060e40,$1be00b7
+	dc.l	$4e0ffffe,$1060c40,$1be0123,$1060e40,$1be0fa6
+	dc.l	$4f0ffffe,$1060c40,$1be0123,$1060e40,$1be0e95
+	dc.l	$500ffffe,$1060c40,$1be0123,$1060e40,$1be0d84
+	dc.l	$510ffffe,$1060c40,$1be0123,$1060e40,$1be0d73
+	dc.l	$520ffffe,$1060c40,$1be0123,$1060e40,$1be0c61
+	dc.l	$530ffffe,$1060c40,$1be0123,$1060e40,$1be0b50
+	dc.l	$540ffffe,$1060c40,$1be0122,$1060e40,$1be0b5f
+	dc.l	$550ffffe,$1060c40,$1be0122,$1060e40,$1be0a4e
+	dc.l	$560ffffe,$1060c40,$1be0122,$1060e40,$1be093c
+	dc.l	$570ffffe,$1060c40,$1be0122,$1060e40,$1be092b
+	dc.l	$580ffffe,$1060c40,$1be0122,$1060e40,$1be081a
+	dc.l	$590ffffe,$1060c40,$1be0122,$1060e40,$1be0709
+	dc.l	$5a0ffffe,$1060c40,$1be0112,$1060e40,$1be07f8
+	dc.l	$5b0ffffe,$1060c40,$1be0112,$1060e40,$1be06e6
+	dc.l	$5c0ffffe,$1060c40,$1be0112,$1060e40,$1be05d5
+	dc.l	$5d0ffffe,$1060c40,$1be0112,$1060e40,$1be04c4
+	dc.l	$5e0ffffe,$1060c40,$1be0112,$1060e40,$1be04b3
+	dc.l	$5f0ffffe,$1060c40,$1be0112,$1060e40,$1be03a2
+	dc.l	$600ffffe,$1060c40,$1be0112,$1060e40,$1be0290
+	dc.l	$610ffffe,$1060c40,$1be0111,$1060e40,$1be028f
+	dc.l	$620ffffe,$1060c40,$1be0111,$1060e40,$1be017e
+	dc.l	$630ffffe,$1060c40,$1be0111,$1060e40,$1be006d
+	dc.l	$640ffffe,$1060c40,$1be0111,$1060e40,$1be005b
+	dc.l	$650ffffe,$1060c40,$1be0011,$1060e40,$1be0f4a
+	dc.l	$660ffffe,$1060c40,$1be0011,$1060e40,$1be0e39
+	dc.l	$670ffffe,$1060c40,$1be0011,$1060e40,$1be0d28
+	dc.l	$680ffffe,$1060c40,$1be0011,$1060e40,$1be0d27
+	dc.l	$690ffffe,$1060c40,$1be0011,$1060e40,$1be0c15
+	dc.l	$6a0ffffe,$1060c40,$1be0011,$1060e40,$1be0b04
+	dc.l	$6b0ffffe,$1060c40,$1be0001,$1060e40,$1be0bf3
+	dc.l	$6c0ffffe,$1060c40,$1be0001,$1060e40,$1be0ae2
+	dc.l	$6d0ffffe,$1060c40,$1be0001,$1060e40,$1be09d1
+	dc.l	$6e0ffffe,$1060c40,$1be0000,$1060e40,$1be09cf
+	dc.l	$6f0ffffe,$1060c40,$1be0000,$1060e40,$1be08be
+	dc.l	$700ffffe,$1060c40,$1be0000,$1060e40,$1be07ad
+	dc.l	$710ffffe,$1060c40,$1be0000,$1060e40,$1be079c
+	dc.l	$720ffffe,$1060c40,$1be0000,$1060e40,$1be068a
+	dc.l	$730ffffe,$1060c40,$1be0000,$1060e40,$1be0579
+	dc.l	$740ffffe,$1060c40,$1be0000,$1060e40,$1be0468
+	dc.l	$750ffffe,$1060c40,$1be0000,$1060e40,$1be0457
+	dc.l	$760ffffe,$1060c40,$1be0000,$1060e40,$1be0346
+	dc.l	$770ffffe,$1060c40,$1be0000,$1060e40,$1be0234
+	dc.l	$780ffffe,$1060c40,$1be0000,$1060e40,$1be0223
+	dc.l	$790ffffe,$1060c40,$1be0000,$1060e40,$1be0112
+	dc.l	$7a0ffffe,$1060c40,$1be0000,$1060e40,$1be0001
+	dc.l	$7b0ffffe,$1060c40,$1be0000,$1060e40,$1be0000
+	dc.l	$ac0ffffe,$1060c40,$1be098b,$1060e40,$1be0ebc	; Restore COL31
+
+IntroCopEnd	
+	dc.l 	$fffffffe			; End of copperlist
+
+; *****************************************************************************
+; Chip graphics, music, etc...
+; *****************************************************************************
+
+		ALIGNQUAD
+SpriteData	dc.l	0,0,0,0			; Empty sprite
+
+IntroPic	incbin	"Intro.RAW"		; 320x256x64 Intro picture
+
+GameMusic	incbin	"GameMusic.MOD"		; In-game music module
+IntroMusic	incbin	"IntroMusic.MOD"	; Intro music module
+
+; *****************************************************************************

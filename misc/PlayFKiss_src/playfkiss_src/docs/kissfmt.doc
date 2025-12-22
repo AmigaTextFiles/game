@@ -1,0 +1,291 @@
+
+This is a partial translation of KISS224C.DOC, a document included in 
+KISS224C.LZH (Kiss for PC-9801 ver.2.24c)
+
+-------------------------------------------------------------------------------
+
+	PC-9801
+	Kisekae program KISS.EXE ver 2.24c
+
+	Data Creation Manual
+
+-------------------------------------------------------------------------------
+
+
+
+1. FUNCTION AND LIMITATIONS OF KISS
+
+	KISS is an image display program with transparency processing. 
+	It comforms to the hardware of NEC PC-9801 series and therefore
+	has the limitations:
+
+	* Pictures are limited to 16 colors out of a palette of 4096 colors.
+
+	The KISS program
+
+	* Can overlap up to 128 pictures.
+
+	And it has object manipulation functions with mouse manipulation
+	so that it can be used as kisekae.
+
+	* You can move the clothes and other objects with the mouse.
+
+	In addition you can
+
+	* Save the allocation of objects you have made.
+
+
+
+2.	DATA FILES
+
+	KISS has the following types of data files:
+
+	* Cel files
+
+		These specify the individual elements of picture data.
+		There are 16 available colors, and color #0 is transparent.
+
+	* Palette file
+
+		This specifies the palette of 16 colors.
+		You can at one time use 16 out of 4096 colors.
+		A set of 16 colors forms a palette group.
+		You can select one of 10 palette groups.
+
+	* Configuration file
+
+		This specifies how to overlap or locate cel data.
+		Since it is a text file it can be made with a text editor.
+
+		WARNING:
+		A part of it may be overwritten by the KISS program when 
+		the Save function is invoked.
+
+		N.B.
+		Most KISS data are created in the MS-DOS environment,
+		thus the end-of-line codes in the configuration file are 
+		usually CR/LF. You may as well convert them into appropriate 
+		ones for your system before you play. e.g. CR for Macintosh,
+		LF for UNIX (X window system).
+
+
+
+3.	TERMINOLOGY
+
+	Cel		A minimum picture unit KISS deals with.
+
+	Object		A picture that consists of one or more cels.
+			It is a basic unit moved with a mouse.
+
+	Palette group	Palette information of 16 colors out of 4096.
+
+	Set		A pattern of picture that consists of 
+			a palette group and allocated objects.
+
+
+
+4.	CONFIGURATION FILE (.CNF) FORMAT
+
+	The leftmost character of each line determines the function of 
+	the line.
+
+
+	'='	Memory Size
+
+		synopsis: =<memory>K
+
+		Specifies the amount of memory KISS needs as the data area
+		when starting up. This directive exists for compatibility 
+		with ver.1 and is ignored in ver.2. It is recommended not 
+		to specify it.
+
+		e.g.
+
+		=260K
+
+	'('	Screen Size
+
+		synopsis: (width,height)
+
+		Specifies the size of the kisekae screen. Default is 
+		(448,320), which is compatible with ver.2.18.
+		The maximum is (640,400).
+
+		e.g.
+
+		(640,400)
+
+	'%'	Palette File
+
+		synopsis: %<palette file name>
+
+		Specifies the palette file.
+
+		e.g.
+
+		%COL.KCF
+
+	'['	Border Color
+
+		synopsis: [<border color code>
+
+		Specifies the border color. The range is within 0 - 15.
+
+		e.g.
+
+		[12
+
+	'#'	Cel Files (multiple instances permitted)
+
+		synopsys: #<mark>[.<fixed value>] <cel file name> [:<set#> ...]
+
+		<mark>		The object ID. The cels of the same <mark>
+				value will be treated as one object.
+				The range is within 0 - 127.
+
+		<fixed value>	Specifies that the object cannot be moved 
+				in normal operation.
+				The range is within 0 - 32767.
+				The default is 0 (movable).
+
+		<cel file name>	Extensions cannot be omitted.
+
+		<set#>		You should specify this if you want the cel 
+				data to be available only in particular sets.
+				The range is within 0 - 9.
+				If omitted, the cel is available in all sets.
+
+		If multiple cel files are specified (you cannot play kisekae
+		with only one cel, so you usually specify multiple cels), 
+		the order of specifications represents the priority of cels.
+		Up to 128 cels can be specified.
+
+		e.g.
+
+		#2	data1.cel			; upper cel
+		#3	data2.cel	:2 3 4		; 
+		#4.255	data3.cel			; fixed
+		#2	data1_.cel			; lower cel
+
+		In this example data1.cel and data1_.cel are treated as 
+		one object. Between them data2.cel and data3.cel can
+		go through.
+
+	'$'	Set Information (multiple instances permitted)
+
+		synopsis: $<palette group> [{<x-coord,y-coord>|*} ...]
+
+		Specifies the palette group and the coordinates of every 
+		object in each set.
+		The first specification corresponds set #0, and you can
+		specify up to 10 sets.
+		This directive is generated automatically with the Save
+		function of KISS, therefore users seldom ever need to edit 
+		it directly.
+
+		If this directive exceeds one line, the rest is written 
+		in the next line as a continued line. The leftmost character
+		of continued lines is ' ' (space).
+
+		<palette group>	0 - 9.
+		<x-,y-coord>	Coordinates of the objects. (up to 128)
+				The order of appearance corresponds to 
+				the <mark> value of objects.
+				'*' is specified as a filler for unused
+				objects in the set.
+
+		e.g.
+
+		$2 192,11 * 56,176 55,21 259,62 15,24 375,63
+		$3 43,115 154,62 372,108 253,156 * * * 165,207
+		 * 162,198 * 119,56 152,44 * * * 
+		 16,355 394,362 108,355 * * * 125,261
+		$0 192,11 * 56,176 55,21 259,62 15,24 375,63
+
+	';'	Comment
+
+		synopsis: ;<comment>
+
+		Will be ignored.
+
+
+
+5.	CEL FILE (.CEL) FORMAT
+
+	offset	contents
+	------	--------
+	+0	width  (16 bits, little endian, <= 640)
+	+2	height (16 bits, little endian, <= 400)
+	+4~	image data
+
+	image data format:
+	Each nibble(4 bits) represents one pixel.
+	If the width is an odd number an additional pixel of color #0 is 
+	appended at the rightmost.
+
+
+
+6.	PALETTE FILE (.KCF) FORMAT
+
+	A color is specified with 16 bits (little endian).
+	Each RGB component is 4 bits, resulting in a palette of 4096 colors.
+
+	MSB			  LSB
+	| 0000 | gggg | rrrr | bbbb |
+
+	In the bytewise hex dump they look like:
+
+		RB 0G RB 0G .. ..
+
+	16 bits x 16 colors x 10 groups = 320 bytes
+
+
+
+7.	COMPARISON WITH KISS VER 2.18
+
+	item			KISS ver 2.24c		KISS ver 2.18
+	------------		--------------		-------------
+	Kisekae area		640x400			448x320
+	Max# of objects		128			48
+	Max# of cels		128			48
+	# of sets		 10			10
+	# of palette groups	 10			10
+
+
+
+8.	DEBUG INFORMATION
+
+	Debug information is output when the -d option is specified.
+
+	* Cel loading info
+
+	$1b61:0  12763 Bytes/ 172 x  25    0   0 plate.cel
+	$1e7f:0   5670 Bytes/  68 x  45   12   0 shoes2.cel
+	$1fe2:0	  4475 Bytes/  67 x  32   11   0 shoes1.cel
+	-------	------------ ----------  --- --- ----------
+	1)	2)	     3)          4)  5)  6)
+
+	1)	Memory address of a cel loaded (segment:offset)
+	2)	Size of cel loaded (includes expanded memory)
+	3)	Size of cel (width x height)
+	4)	Value of <mark>
+	5)	Fixed value
+	6)	File name
+
+	* Object click info
+
+	1st line		2nd line
+	  8:( 20,105)		   5 /   2
+	--- ----------		----  ----
+	1)  2)			3)    4)
+
+	1) Value of <mark>
+	2) Coordinates (x,y)
+	3) Fixed value (current)
+	4) Fixed value (initial)
+
+-------------------------------------------------------------------------------
+
+If you have any questions feel free to ask in rec.arts.anime or 
+send E-mail to yuki@is.s.u-tokyo.ac.jp.
+

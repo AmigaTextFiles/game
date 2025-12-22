@@ -1,0 +1,260 @@
+DEFBYT "a-z"
+@preferences
+@permutationen
+@init_vars
+OPENW #win,0,0,640,256,0,15
+WHILE ver<anzver
+  @anzeigen
+  @abfragen
+  INC ver
+  @ausrechnen
+WEND
+PRINT "Ich hab es leider nicht herausbekommen!"
+END
+> PROCEDURE preferences
+anzbuc=26
+anzbr=4
+anzver=10
+fbuc=65
+win=1
+li=2
+ob=2
+RETURN
+> PROCEDURE init_vars
+ERASE st(),ri()
+DIM st(anzver,anzbr),ri(anzver,2)
+DIM cou(anzbr)
+DIM rpa(anzbr)
+ARRAYFILL st(),0
+ARRAYFILL ri(),0
+ver=0
+stopp!=TRUE
+first!=TRUE
+FOR n=1 TO anzbr
+REPEAT
+  a=RANDOM(anzbuc)
+  FOR n2=1 TO n-1
+    IF a=st(0,n2)
+      stopp!=FALSE
+      EXIT IF TRUE
+    ELSE
+      stopp!=TRUE
+    ENDIF
+  NEXT n2
+UNTIL stopp!
+st(0,n)=a
+NEXT n
+RETURN
+> PROCEDURE permutationen
+LOCAL i,j,k,l%,m
+DIM f%(anzbr)
+f%(0)=1
+FOR i=1 TO anzbr
+f%(i)=f%(i-1)*i
+NEXT i
+DIM p(f%(anzbr),anzbr)
+p(1,1)=1
+FOR m=2 TO anzbr
+FOR k=1 TO m-1
+FOR l%=1 TO f%(m-1)
+  p(l%,m)=m
+  q%=k*f%(m-1)+l%
+  FOR j=1 TO m-1
+    p(q%,j)=p(l%,j)
+    IF p(q%,j)=m-k
+      p(q%,j)=m
+      p(q%,m)=m-k
+    ENDIF
+  NEXT j
+NEXT l%
+NEXT k
+NEXT m
+RETURN
+> PROCEDURE anzeigen
+FOR n=1 TO anzbr
+PRINT AT(li+n-1,ob+ver);CHR$(st(ver,n)+fbuc)
+NEXT n
+RETURN
+> PROCEDURE abfragen
+' O - richtige Farbe
+' X - richtiger Platz
+ri$=SPACE$(anzbr)
+li2=li+anzbr+2
+ob2=ob+ver
+cu=0
+pa=5
+do1:
+DO
+PRINT AT(li2,ob2);ri$
+i$=INKEY$
+EXIT IF i$<>""
+PAUSE pa
+PRINT AT(li2+cu,ob2);"_"
+i$=INKEY$
+EXIT IF i$<>""
+PAUSE pa
+LOOP
+PRINT AT(li2,ob2);ri$
+IF ASC(i$)=155
+i2$=MID$(i$,2)
+IF i2$=CHR$(68) AND cu>0
+DEC cu
+ELSE IF i2$=CHR$(67) AND cu<anzbr-1
+INC cu
+ENDIF
+ELSE
+i$=UPPER$(i$)
+IF i$="X" OR i$=" " OR i$="O"
+MID$(ri$,cu+1,1)=i$
+IF cu<anzbr-1
+INC cu
+ENDIF
+ENDIF
+ENDIF
+IF ASC(i$)=13
+GOTO next1
+ENDIF
+GOTO do1
+next1:
+FOR n=1 TO anzbr
+IF MID$(ri$,n,1)="O"
+INC ri(ver,0)
+ELSE IF MID$(ri$,n,1)="X"
+INC ri(ver,1)
+ENDIF
+NEXT n
+IF ri(ver,1)=anzbr
+@bestaetigung
+RUN
+ENDIF
+RETURN
+> PROCEDURE ausrechnen
+loop:
+weiter!=FALSE
+' Gleiche Buchstaben in einer Zeile ?
+FOR n=1 TO anzbr
+FOR n2=1 TO n-1
+IF cou(n2)=cou(n)
+weiter!=TRUE
+EXIT IF TRUE
+ENDIF
+NEXT n2
+EXIT IF weiter!
+NEXT n
+IF weiter!
+GOTO weiter
+ENDIF
+' Untersuchen mittels gleicher Buchstabe, falscher Platz
+FOR n=0 TO ver-1
+anzg=0
+FOR n2=1 TO anzbr
+FOR n3=1 TO anzbr
+IF cou(n3)=st(n,n2)
+INC anzg
+ENDIF
+NEXT n3
+NEXT n2
+IF anzg<>ri(n,0)+ri(n,1)
+weiter!=TRUE
+EXIT IF TRUE
+ENDIF
+NEXT n
+IF weiter!
+GOTO weiter
+ENDIF
+' Untersuchen mittels richtiger Platz
+nrp%=1
+ripl:
+weiter!=FALSE
+FOR n2=1 TO anzbr
+rpa(n2)=cou(p(nrp%,n2))
+NEXT n2
+@richtiger_platz
+IF weiter!=TRUE AND nrp%<f%(anzbr)
+INC nrp%
+GOTO ripl
+ENDIF
+IF weiter!=FALSE
+GOTO fertig
+ENDIF
+IF nrp%>=f%(anzbr)
+nrp%=1
+GOTO weiter
+ENDIF
+'
+weiter:
+@schleife
+GOTO loop
+'
+fertig:
+FOR n=1 TO anzbr
+st(ver,n)=rpa(n)
+NEXT n
+RETURN
+> PROCEDURE schleife
+' Schleifenkonstruktion mit beliebig vielen Ebenen
+n=anzbr
+schl:
+IF cou(n)<anzbuc-1
+INC cou(n)
+GOTO ret1
+ELSE
+IF n>1
+cou(n)=cou(n-1)
+DEC n
+GOTO schl
+ELSE
+PRINT "Lösung nicht möglich! Du hast Dich irgendwo geirrt."
+STOP
+RUN
+ENDIF
+ENDIF
+ret1:
+RETURN
+> PROCEDURE richtiger_platz
+FOR n3=0 TO ver-1
+anzg=0
+FOR n2=1 TO anzbr
+IF rpa(n2)=st(n3,n2)
+INC anzg
+ENDIF
+NEXT n2
+IF anzg<>ri(n3,1)
+weiter!=TRUE
+EXIT IF TRUE
+ENDIF
+NEXT n3
+RETURN
+> PROCEDURE bestaetigung
+LOCAL a$,b$,c$
+RESTORE antworten
+PRINT
+INPUT "Na, wie war ich? ",b$
+DO
+READ a$,c$
+EXIT IF a$="stop"
+IF UPPER$(b$)=UPPER$(a$)
+PRINT c$
+EXIT IF TRUE
+ENDIF
+LOOP
+IF a$="stop"
+PRINT "Du kennst aber komische Wörter!"
+ENDIF
+STOP
+antworten:
+DATA "","Keine Meinung?"
+DATA "gut","Dankeschön!"
+DATA "sehr gut","Das ehrt mich aber!"
+DATA "schlecht","Blödmann!"
+DATA "gar nicht","Natürlich war ich."
+DATA "nicht gut","... aber auch nicht schlecht, oder?"
+DATA "nicht schlecht","... aber nicht ganz gut, wie?"
+DATA "langsam","Gib nur nicht so an!"
+DATA "schnell","Tja, bin ich immer, mit 7,14 Mhz."
+DATA "blöd","Ganz schön frech!"
+DATA "nervend","Du haust ja auch immer so auf meine Tasten!"
+DATA "es geht","Wer geht?"
+DATA "geht so","Du bist ja bloß neidisch!"
+DATA "stop","stop"
+RETURN

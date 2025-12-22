@@ -1,0 +1,1693 @@
+'
+' DALEKS Amiga
+' (C) 1992 By Girv
+'
+DEFWRD "a-z"
+@initialise
+wclose!=FALSE
+ON MESSAGE GOSUB whatis_idcmp
+'
+REPEAT
+  gadno&=0
+  @interruptproc
+  SLEEP
+  RANDOMIZE TIMER
+  key$=UPPER$(INKEY$)
+  IF INSTR("NQATSL123456789",key$)=0
+    key$=""
+  ENDIF
+  IF (NOT wclose!) AND (laststand! OR gadno&<>0 OR key$<>"")
+    @main
+  ENDIF
+UNTIL wclose!
+'
+IF newhi!
+  @savehiscore
+ENDIF
+@cleanup
+END
+'
+> PROCEDURE initialise
+OPTION BASE 0
+DIM wave|(255)
+FOR i&=0 TO 240 STEP 16
+  FOR j&=i& TO i&+15
+    wave|(j&)=(i& MOD 32)*5
+  NEXT j&
+NEXT i&
+WAVE 1,wave|()
+'
+custom%=&HDFF000
+gameover!=TRUE
+startlev&=1
+active!=TRUE
+high&=0
+low&=0
+xmin&=2
+xmax&=47
+ymin&=5
+ymax&=28
+maxdal&=99
+sc_used!=FALSE
+DIM dx&(maxdal&),dy&(maxdal&)
+' arena!() tells isf a space is occupied (=true) or not (=false)
+DIM arena!(xmax&-xmin&,ymax&-ymin&)
+' status!() tells if a dalek is alive (=true) or wrecked (=false)
+DIM status!(maxdal&)
+' crashed&() holds the numbers of daleks that have collided
+DIM crashed&(maxdal&)
+' Setup hiscore table - either load from disk or create from DATA
+DIM hisc&(4),hidr$(4)
+hif$="sys:daleks.hiscore"
+IF EXIST(hif$)
+  OPEN "i",#1,hif$
+  FOR i&=0 TO 4
+    INPUT #1,hisc&(i&)
+    INPUT #1,hidr$(i&)
+  NEXT i&
+  CLOSE #1
+ELSE
+  RESTORE initsctab
+  FOR i&=0 TO 4
+    READ hi$
+    hidr$(i&)=hi$+SPACE$(10-LEN(hi$))
+    hisc&(i&)=(5-i&)*(70+RANDOM(30))
+  NEXT i&
+ENDIF
+newhi!=FALSE
+hisclite&=5
+' Read comments for start & end of levels
+RESTORE startcom
+READ nscom&
+DIM startcom$(nscom&)
+FOR i&=0 TO nscom&
+  READ startcom$(i&)
+NEXT i&
+'
+RESTORE endcom
+READ necom&
+DIM endcom$(necom&)
+FOR i&=0 TO necom&
+  READ endcom$(i&)
+NEXT i&
+' Read synonyms (I think that's right!) for "kill"
+RESTORE ksyn
+READ nkill&
+DIM kill$(nkill&)
+FOR i&=0 TO nkill&
+  READ kill$(i&)
+NEXT i&
+prevsc&=0
+prevec&=0
+prevkill&=0
+'
+' Read player movement offsets
+DIM pxoff&(8),pyoff&(8)
+RESTORE move_offsets
+FOR i&=0 TO 8
+  READ pxoff&(i&),pyoff&(i&)
+NEXT i&
+' Setup teleport destination probabilities
+dest_long&=7000
+dest_trand&=8500
+dest_short&=9300
+dest_beside&=9900
+'
+@setup_bigwindow
+@setup_graphics
+@attractmode
+RETURN
+'
+> PROCEDURE setup_graphics
+LOCAL i&,x$
+' Sets up the strings to hold the various graphics used
+RESTORE putdata
+DIM dal$(3)
+x$=SPACE$(22)
+FOR i&=0 TO 3
+@readput(x$)
+dal$(i&)=x$
+NEXT i&
+@readput(drwho$)
+RETURN
+'
+> PROCEDURE readput(VAR p$)
+LOCAL d&,b&,b$,t$
+t$=CHR$(0)+CHR$(1)+CHR$(0)+CHR$(7)+CHR$(0)+CHR$(7)
+FOR d&=1 TO 8
+READ b$
+b&=VAL("&H"+b$)
+t$=t$+CHR$(b&)+CHR$(0)
+NEXT d&
+p$=t$
+RETURN
+'
+> PROCEDURE interruptproc
+' This routine is called about every 1/10 sec
+' Handles cycling of level/number left display during game & hiscore table
+' when game is over
+INC low&
+IF low&>30
+low&=0
+INC high&
+high&=high& AND 31
+IF gameover!
+@attractmode
+ELSE
+@printlev
+ENDIF
+ENDIF
+RETURN
+'
+> PROCEDURE attractmode
+LOCAL i&,hi$
+' Cycles hiscore table and "Hit new game to start" message
+@mbox
+IF EVEN(high&)
+COLOR 1
+@centre(12,"Welcome, Doctor")
+@centre(14,"Click NEW GAME to start")
+ELSE
+COLOR 2
+@centre(10,"MASTER DALEK KILLERS")
+FOR i&=0 TO 4
+IF i&=hisclite&
+COLOR 3
+ELSE
+COLOR 1
+ENDIF
+@centre(12+i&,hidr$(i&)+" "+@pad$(hisc&(i&)))
+NEXT i&
+ENDIF
+RETURN
+'
+> PROCEDURE new_game
+score&=0
+oldhs&=hiscore&
+hisclite&=99
+level&=startlev&-1
+sc_bonus&=0
+nleft&=0
+nwreck&=0
+ndal&=0
+laststand!=FALSE
+@new_level
+RETURN
+'
+> PROCEDURE new_level
+ARRAYFILL dx&(),0
+ARRAYFILL dy&(),0
+ARRAYFILL arena!(),FALSE
+ARRAYFILL status!(),FALSE
+ARRAYFILL crashed&(),maxdal&+1
+@clear
+' Calculate number of daleks for this level based on level & performance
+INC level&
+' Lots of wrecks=more daleks (environmental pollution is bad !)
+IF nwreck&<>0 AND level&>2
+ndal&=-2*(ndal& DIV nwreck&<3)
+ENDIF
+' ndal& increased by: laststand used, large score, daleks left alive
+'                       higher level
+ADD ndal&,(level&-(level&>7)-laststand!+nleft&+nleft&)*2+(score& DIV 30)
+IF ndal&>maxdal&
+ndal&=maxdal&
+ENDIF
+nleft&=ndal&
+'
+firstmove!=TRUE
+laststand!=FALSE
+sc_used!=FALSE
+dmove!=FALSE
+ntele&=0
+nwreck&=0
+ok_bonus&=0
+ls_bonus&=0
+ex_bonus&=0
+nlast&=0
+lastdeath&=0
+@printscores
+@printlev
+@mbox
+COLOR 1
+@centre(11,"LEVEL "+STR$(level&))
+@centre(13,STR$(ndal&)+" Daleks to "+kill$(@comno(nkill&,prevkill&))+".")
+COLOR 2
+@centre(15,startcom$(@comno(nscom&,prevsc&)))
+PAUSE 120
+COLOR 0
+PBOX 7,37,380,229
+@setup_daleks
+@setup_player
+RETURN
+'
+> PROCEDURE level_complete
+LOCAL bonus&
+COLOR 1
+PUT pxx&,pyy&,drwho$
+PAUSE 30
+TEXT pxx&,pyy&+6," "
+GRAPHMODE 2
+COLOR 3
+@tele_cross_out
+@tele_cross_out
+GRAPHMODE 1
+PAUSE 30
+@mbox
+' Calculate bonus points & add to score
+IF nleft&=0
+COLOR 2
+@centre(10,endcom$(@comno(necom&,prevec&)))
+' Cumulative bonus for not using the screwdriver
+IF NOT sc_used!
+ADD sc_bonus&,2
+ELSE
+sc_bonus&=0
+ENDIF
+' Bonus for general excellence of play
+' low number of teleports & wrecks; not doing a "cheat" laststand
+' killing daleks quickly
+ADD ex_bonus&,level&
+IF ntele&<level&*2
+ADD ex_bonus&,ntele&
+ENDIF
+IF nwreck&<>0
+ADD ex_bonus&,(ndal& DIV nwreck&)-2
+ENDIF
+ADD ex_bonus&,10*(laststand! AND nlast&<=1 AND NOT exls!)
+'
+PCOLOR 1
+PRINT AT(13,12);"Last Stand bonus : ";@pad$(ls_bonus&)
+PRINT AT(13,13);"Screwdriver bonus: ";@pad$(sc_bonus&)
+PRINT AT(13,14);"Overkill bonus   : ";@pad$(ok_bonus&)
+PRINT AT(13,15);"Excellence bonus : ";@pad$(ex_bonus&)
+PCOLOR 2
+PRINT AT(13,16);"------------------------"
+bonus&=ls_bonus&+sc_bonus&+ok_bonus&+ex_bonus&
+PCOLOR 1
+PRINT AT(13,17);"TOTAL            : ";
+IF bonus&<=0
+PCOLOR 3
+PRINT "NO BONUS"
+ELSE
+PRINT @pad$(bonus&)
+ADD score&,bonus&
+@printscores
+ENDIF
+ELSE
+COLOR 2
+@centre(12,"LEVEL INCOMPLETE")
+DEC level&
+ENDIF
+'
+PAUSE 240
+@new_level
+RETURN
+'
+> PROCEDURE printscores
+LOCAL hi$
+PCOLOR 1
+IF score&>hisc&(0)
+PRINT AT(14,3);"     HISCORE: ";
+PCOLOR 3
+PRINT @pad$(score&)+"      "
+ELSE
+PRINT AT(14,3);"HISCORE:";@pad$(hisc&(0));" by ";hidr$(0)
+ENDIF
+'
+PCOLOR 1
+PRINT AT(2,3);"SCORE:";
+IF score&>hisc&(4)
+PCOLOR 3
+ENDIF
+PRINT @pad$(score&)
+RETURN
+'
+> PROCEDURE printlev
+LOCAL t$,x$
+PCOLOR 1
+t$="DALEKS ... "
+SELECT high& MOD 6
+CASE 0
+x$="Level "+STR$(level&)
+CASE 1
+x$=STR$(nleft&)+" left"
+CASE 2
+IF laststand!
+x$="Last stand !"
+ELSE
+x$="Screwdriver "
+IF sc_used!
+x$=x$+"un"
+ENDIF
+x$=x$+"available"
+ENDIF
+CASE 3
+x$="(C)1992 by John Girvin"
+CASE 4
+x$="Be excellent to each other"
+CASE 5
+x$="Party on, dudes !"
+ENDSELECT
+TITLEW #0,t$+x$
+RETURN
+'
+> FUNCTION pad$(x&)
+LOCAL x$
+x$=STR$(x&)
+IF LEN(x$)<4
+x$=STRING$(4-LEN(x$)," ")+x$
+ENDIF
+RETURN x$
+ENDFUNC
+'
+> PROCEDURE setup_bigwindow
+' Open the main game window, add gadgets etc.
+@reserve_memory
+OPENW #0,0,0,387,250,&H240,&H1100E
+TITLEW #0,"DALEKS"
+wadd%=WINDOW(0)
+@setup_textattr
+@setup_borders
+@setup_gtext
+@setup_gadgets
+@setup_images
+@setup_boxes
+@setup_requester
+'
+' Finally, link the gadgets together & add the to the window
+' Movement gadgets aren't added yet - they are added only if the corresponding
+' direction is "available"
+LONG{new_g%}=screw_g%
+LONG{screw_g%}=tele_g%
+LONG{tele_g%}=quit_g%
+LONG{quit_g%}=about_g%
+LONG{about_g%}=last_g%
+~AddGList(wadd%,new_g%,-1,6,0)
+~RefreshGadgets(new_g%,wadd%,0)
+'
+@clear
+RETURN
+'
+> PROCEDURE reserve_memory
+LOCAL c%
+IF AvailMem(1)<6*16+10*20+15*44+8*20 OR AvailMem(2)<128+4662+6616
+ALERT 1,"> TOTALLY BAD NEWS <||Daleks couldn't get|enough memory to run !",1,"Go buy more memory",c%
+END
+ENDIF
+' Get chip memory for images & samples
+pics%=AllocMem(128,2)
+waah%=AllocMem(4662,2)
+gotim%=AllocMem(6616,2)
+' Copy samples to chip memory
+INLINE waahsamp%,4662
+INLINE gotimsamp%,6616
+BMOVE waahsamp%,waah%,4662
+BMOVE gotimsamp%,gotim%,6616
+'
+' Space for border structures
+new_b%=AllocMem(6*16,1)
+screw_b%=new_b%+16
+tele_b%=new_b%+32
+quit_b%=new_b%+48
+about_b%=new_b%+64
+last_b%=new_b%+80
+' Store border offsets in word arrays
+DIM new_xy&(10),screw_xy&(10),tele_xy&(10)
+DIM quit_xy&(10),about_xy&(10),last_xy&(10)
+' Space for intuitext structures
+new_it%=AllocMem(10*20,1)
+screw_it%=new_it%+20
+tele_it%=new_it%+40
+quit_it%=new_it%+60
+about_it%=new_it%+80
+last_it%=new_it%+100
+svebod_it%=new_it%+120
+svepos_it%=new_it%+140
+sveneg_it%=new_it%+160
+svebod2_it%=new_it%+180
+' Space for gadget structures
+new_g%=AllocMem(15*44,1)
+screw_g%=new_g%+44
+tele_g%=new_g%+88
+quit_g%=new_g%+132
+about_g%=new_g%+176
+last_g%=new_g%+220
+' Space for player movement gadgets
+u_g%=new_g%+264
+d_g%=new_g%+308
+l_g%=new_g%+352
+r_g%=new_g%+396
+ul_g%=new_g%+440
+ur_g%=new_g%+484
+dl_g%=new_g%+528
+dr_g%=new_g%+572
+st_g%=new_g%+616
+' Space for image structures for movement gadgets
+u_img%=AllocMem(8*20,1)
+d_img%=u_img%+20
+l_img%=u_img%+40
+r_img%=u_img%+60
+ul_img%=u_img%+80
+ur_img%=u_img%+100
+dl_img%=u_img%+120
+dr_img%=u_img%+140
+' TextAttr structure
+tattr%=AllocMem(8,1)
+' Everything ok ?
+IF tattr%=0 OR new_b%=0 OR new_it%=0 OR new_g%=0 OR u_img%=0 OR pics%=0 OR waah%=0 OR gotim%=0
+@cleanup
+END
+ENDIF
+RETURN
+'
+> PROCEDURE setup_textattr
+' Setup TextAttr Structure to give topaz 80 in gadgets
+fontname%=@strmake("topaz.font")
+LONG{tattr%+0}=fontname%       !pointer to name
+WORD{tattr%+4}=8               !y size
+BYTE{tattr%+6}=0               !style (normal)
+BYTE{tattr%+7}=&X1000001       !flags (romfont,designed)
+textfont%=OpenFont(tattr%)
+x&=SetFont(0,textfont%)
+RETURN
+'
+> PROCEDURE setup_borders
+' Setup border structures
+WORD{new_b%+0}=0               !leftedge
+WORD{new_b%+2}=0               !topedge
+WORD{new_b%+4}=&H200           !frontpen,backpen
+WORD{new_b%+6}=&H5             !drawmode,count
+LONG{new_b%+8}=V:new_xy&(0)    !pointer to xy structure
+LONG{new_b%+12}=0              !next border
+' Copy this basic structure to the others, then change xy pointers
+BMOVE new_b%,screw_b%,16
+LONG{screw_b%+8}=V:screw_xy&(0)
+BMOVE new_b%,tele_b%,16
+LONG{tele_b%+8}=V:tele_xy&(0)
+BMOVE new_b%,quit_b%,16
+LONG{quit_b%+8}=V:quit_xy&(0)
+BMOVE new_b%,about_b%,16
+LONG{about_b%+8}=V:about_xy&(0)
+BMOVE new_b%,last_b%,16
+LONG{last_b%+8}=V:last_xy&(0)
+RETURN
+'
+> PROCEDURE setup_gtext
+' Copy text for gadgets to memory
+new_tx%=@strmake("New Game")
+screw_tx%=@strmake("Sonic Screwdriver")
+tele_tx%=@strmake("Teleport")
+quit_tx%=@strmake("Quit Daleks")
+about_tx%=@strmake("About Daleks")
+last_tx%=@strmake("Last Stand")
+svebod_tx%=@strmake("Save hiscores, dude?")
+svepos_tx%=@strmake("Yeah !")
+sveneg_tx%=@strmake("No way !")
+svebod2_tx%=@strmake("Saves to SYS:daleks.hiscore")
+'
+' Setup Intuitext structures
+BYTE{new_it%+0}=1           !frontpen
+BYTE{new_it%+1}=0           !backpen
+BYTE{new_it%+2}=0           !mode
+BYTE{new_it%+3}=10          !alignment byte
+WORD{new_it%+4}=3           !x
+WORD{new_it%+6}=3           !y
+LONG{new_it%+8}=tattr%      !use topaz 80 font
+LONG{new_it%+12}=new_tx%    !pointer to text
+LONG{new_it%+16}=0          !no more
+' Copy this basic structure to others, then change text pointers
+BMOVE new_it%,screw_it%,20
+LONG{screw_it%+12}=screw_tx%
+BMOVE new_it%,tele_it%,20
+LONG{tele_it%+12}=tele_tx%
+BMOVE new_it%,quit_it%,20
+LONG{quit_it%+12}=quit_tx%
+BMOVE new_it%,about_it%,20
+LONG{about_it%+12}=about_tx%
+BMOVE new_it%,last_it%,20
+LONG{last_it%+12}=last_tx%
+'
+BMOVE new_it%,svebod_it%,20
+LONG{svebod_it%+12}=svebod_tx%
+LONG{svebod_it%+16}=svebod2_it%
+BMOVE new_it%,svebod2_it%,20
+LONG{svebod2_it%+12}=svebod2_tx%
+BMOVE new_it%,svepos_it%,20
+LONG{svepos_it%+12}=svepos_tx%
+BMOVE new_it%,sveneg_it%,20
+LONG{sveneg_it%+12}=sveneg_tx%
+RETURN
+'
+> PROCEDURE setup_gadgets
+' Setup Gadget structures
+LONG{new_g%+0}=0            ! Next Gadget
+WORD{new_g%+4}=0            ! X
+WORD{new_g%+6}=0            ! Y
+WORD{new_g%+8}=0            ! Width
+WORD{new_g%+10}=13          ! Height
+WORD{new_g%+12}=0           ! flags
+WORD{new_g%+14}=3           ! Activation (relverify,gadgimmediate)
+WORD{new_g%+16}=1           ! Gadgettype (boolean)
+LONG{new_g%+18}=new_b%      ! pointer to border
+LONG{new_g%+22}=0           ! same as above
+LONG{new_g%+26}=new_it%     ! text for gadget
+LONG{new_g%+30}=0           ! mutualexclude
+LONG{new_g%+34}=0           ! no specialinfo
+WORD{new_g%+38}=1           ! gadgetid
+LONG{new_g%+40}=0           ! userinfo
+' Copy this basic structure to others, then change border & IText pointers
+' and change GadgetID
+@setgadg(screw_g%,screw_b%,screw_it%,6)
+@setgadg(tele_g%,tele_b%,tele_it%,5)
+@setgadg(quit_g%,quit_b%,quit_it%,2)
+@setgadg(about_g%,about_b%,about_it%,4)
+@setgadg(last_g%,last_b%,last_it%,16)
+RETURN
+'
+> PROCEDURE setup_images
+LOCAL arrow&,d&,b&
+' Read data for arrow pictures & put in chip memory
+RESTORE arrowdata
+FOR arrow&=0 TO 7
+FOR d&=0 TO 6
+READ b&
+BYTE{pics%+arrow&*14+d&+d&}=b&
+BYTE{pics%+arrow&*14+d&+d&+1}=0
+NEXT d&
+NEXT arrow&
+' Set up image structures for movement gadgets
+WORD{ul_img%+0}=0                 ! Left edge (changes as player moves)
+WORD{ul_img%+2}=0                 ! Top edge  ( "     "      "  )
+WORD{ul_img%+4}=7                 ! Width
+WORD{ul_img%+6}=7                 ! Height
+WORD{ul_img%+8}=1                 ! Depth
+LONG{ul_img%+10}=0                ! Picture data (set up later)
+BYTE{ul_img%+14}=2                ! PlanePick
+BYTE{ul_img%+15}=0                ! PlaneOnOff
+LONG{ul_img%+16}=0                ! NextImage
+' Copy basic gadget structure to other movement gadget structures
+' Also set up picture pointers in image structures
+BMOVE new_g%,ul_g%,44
+WORD{ul_g%+8}=7                  ! Width
+WORD{ul_g%+10}=7                 ! Height
+WORD{ul_g%+12}=5                 ! Flags=gadghbox,gadgimage
+LONG{ul_g%+26}=0                 ! No IntuiText for these gadgets
+@setmgadg(ul_g%,ul_img%,7)
+@setmgadg(u_g%,u_img%,8)
+@setmgadg(ur_g%,ur_img%,9)
+@setmgadg(l_g%,l_img%,10)
+@setmgadg(r_g%,r_img%,11)
+@setmgadg(dl_g%,dl_img%,12)
+@setmgadg(d_g%,d_img%,13)
+@setmgadg(dr_g%,dr_img%,14)
+' "stand still" gadget has no image, so set it up separately
+BMOVE ul_g%,st_g%,44
+LONG{st_g%+18}=0              ! no image pointer
+WORD{st_g%+12}=1              ! clear gadgdimage flag
+WORD{st_g%+38}=15             ! id
+'
+RETURN
+'
+> PROCEDURE setup_boxes
+' Make border/hit box structures and fill in IText coords for gadgets
+@make_boxes(10,12,8,new_g%,new_xy&())
+@make_boxes(136,12,11,quit_g%,quit_xy&())
+@make_boxes(275,12,12,about_g%,about_xy&())
+'
+@make_boxes(10,234,8,tele_g%,tele_xy&())
+@make_boxes(120,234,17,screw_g%,screw_xy&())
+@make_boxes(293,234,10,last_g%,last_xy&())
+RETURN
+'
+> PROCEDURE setup_requester
+' Finishes off setting up the "Save hiscores ?" requester
+BYTE{svebod_it%+0}=0
+WORD{svebod_it%+4}=7
+WORD{svebod_it%+6}=7
+'
+BYTE{svebod2_it%+0}=0
+WORD{svebod2_it%+4}=7
+WORD{svebod2_it%+6}=17
+'
+BYTE{svepos_it%+0}=2
+WORD{svepos_it%+4}=7
+WORD{svepos_it%+6}=3
+'
+BYTE{sveneg_it%+0}=2
+WORD{sveneg_it%+4}=7
+WORD{sveneg_it%+6}=3
+RETURN
+'
+> PROCEDURE setgadg(g%,b%,it%,id&)
+BMOVE new_g%,g%,44
+LONG{g%+18}=b%                ! Border structure
+LONG{g%+26}=it%               ! Text
+WORD{g%+38}=id&               ! ID
+RETURN
+'
+> PROCEDURE setmgadg(g%,im%,id&)
+BMOVE ul_g%,g%,44             ! Copy gadget & image structures
+BMOVE ul_img%,im%,20
+LONG{g%+18}=im%               ! Pointer to image structure
+WORD{g%+38}=id&               ! Gadget ID
+LONG{im%+10}=(id&-7)*14+pics% ! Pointer to image data
+RETURN
+'
+> PROCEDURE cleanup
+' Close windows etc.
+@free(pics%,128)
+@free(waah%,4662)
+@free(gotim%,6616)
+@free(new_b%,6*16)
+@free(new_it%,10*20)
+@free(new_g%,15*44)
+@free(u_img%,8*20)
+@free(textattr%,8)
+@freestr(new_tx%)
+@freestr(screw_tx%)
+@freestr(tele_tx%)
+@freestr(quit_tx%)
+@freestr(about_tx%)
+@freestr(last_tx%)
+@freestr(svebod_tx%)
+@freestr(svebod2_tx%)
+@freestr(sveneg_tx%)
+@freestr(svepos_tx%)
+@freestr(fontname%)
+CLOSEW #0
+RETURN
+'
+> PROCEDURE free(s%,l%)
+IF s%<>0
+~MFREE(s%,l%)
+ENDIF
+RETURN
+'
+> PROCEDURE freestr(s%)
+LOCAL l%
+IF s%<>0
+l%=-1
+REPEAT
+INC l%
+UNTIL BYTE{s%+l%}=0
+~MFREE(s%,l%+1)
+ENDIF
+RETURN
+'
+> FUNCTION strmake(src$)
+LOCAL l%,d%
+' Copies src$ to memory & puts a zero at the end. Returns address of string
+src$=src$+CHR$(0)
+l%=LEN(src$)
+d%=AllocMem(l%,1)
+IF d%<>0
+BMOVE V:src$,d%,l%
+ELSE
+@cleanup
+END
+ENDIF
+RETURN d%
+ENDFUNC
+'
+> PROCEDURE make_boxes(x&,y&,txl&,gdg%,VAR xy&())
+w&=txl&*8+4                   ! "Width" of boxes
+'
+' Create xy structure (for border)
+xy&(0)=0
+xy&(1)=0
+xy&(2)=w&
+xy&(3)=0
+xy&(4)=w&
+xy&(5)=12
+xy&(6)=0
+xy&(7)=12
+xy&(8)=0
+xy&(9)=0
+' Setup hit box details
+WORD{gdg%+4}=x&
+WORD{gdg%+6}=y&
+WORD{gdg%+8}=w&+1
+RETURN
+'
+> PROCEDURE whatis_idcmp
+SELECT MENU(1)
+CASE 512              ! Close gadget
+wclose!=TRUE
+CASE 64               ! Gadgetup message
+gadno&=WORD{MENU(4)+38}
+ENDSELECT
+RETURN
+'
+> PROCEDURE main
+' Main "process user request" bit
+'
+' Assume players action is ok & daleks can move after it
+dmove!=TRUE
+'
+IF gadno&=1 OR key$="N"               ! New game
+@new_game
+gameover!=FALSE
+ELSE IF gadno&=2 OR key$="Q"          ! Quit
+wclose!=TRUE
+gameover!=TRUE
+ELSE IF gadno&=4 OR key$="A"          ! About daleks
+IF gameover!
+@about
+ENDIF
+dmove!=FALSE
+ENDIF
+'
+' Other actions ignored unless game is in progress
+IF NOT gameover!
+@ingame_actions
+ENDIF
+RETURN
+'
+> PROCEDURE about
+LOCAL y&
+' Let user read the text for the "about" gadget
+RESTORE abouttext
+a$=""
+REPEAT
+@clear
+y&=5
+a$=""
+REPEAT
+IF LEFT$(a$)="*"
+COLOR 2
+a$=RIGHT$(a$,LEN(a$)-1)
+ELSE IF LEFT$(a$)="#"
+COLOR 3
+a$=RIGHT$(a$,LEN(a$)-1)
+ELSE
+COLOR 1
+ENDIF
+@centre(y&,a$)
+READ a$
+INC y&
+UNTIL a$="*" OR a$="**"
+IF a$<>"**"
+COLOR 3
+@centre(27,"Press a key or click to continue")
+REPEAT
+UNTIL INKEY$<>"" OR MOUSEK<>0
+ENDIF
+UNTIL a$="**"
+@clear
+@attractmode
+RETURN
+'
+> PROCEDURE ingame_actions
+' Handles actions that player can take during a game
+'
+' Can't do anything if laststand was selected
+IF laststand!
+INC ls_bonus&
+INC nlast&
+ELSE
+@process_pmove
+ENDIF
+'
+IF dmove!
+SOUND 200,1,255,1
+' Move daleks & handle any crashes
+IF (NOT firstmove!)          ! Daleks don't move on the first go
+@move_daleks
+@col_detect
+ENDIF
+ENDIF
+'
+' See if all daleks are now dead
+IF nleft&=0 OR (nleft&=1 AND nwreck&=0)
+@level_complete
+ELSE
+' Redraw player
+IF NOT gameover!
+IF NOT laststand!
+PUT pxx&,pyy&,drwho$
+@add_movegadgets
+ENDIF                   ! if not laststand!...
+ELSE
+@gameover_thang
+ENDIF                     ! if not gameover!...
+ENDIF                       ! if nleft&=0...
+'
+firstmove!=FALSE
+RETURN
+'
+> PROCEDURE process_pmove
+' Erases player and changes their coords according to the action they selected
+IF NOT firstmove!
+COLOR 1
+TEXT pxx&,pyy&+6," "
+@remove_movegadgets
+ENDIF
+'
+key&=ASC(key$)
+IF gadno&=5 OR key$="T"                ! Teleport
+@teleport
+ELSE IF gadno&=6 OR key$="S"           ! Sonic screwdriver
+IF NOT sc_used!
+@screwdriver
+sc_used!=TRUE
+ELSE
+dmove!=FALSE
+ENDIF
+ELSE IF gadno&=16 OR key$="L"           ! Last stand
+laststand!=TRUE
+PUT pxx&,pyy&,drwho$
+' Extra bonus if daleks aren't lined up with player when ls hit
+exls!=FALSE
+FOR i&=0 TO ndal&-1
+IF status!(i&) AND dx&(i&)<>px& AND dy&(i&)<>py&
+ADD ls_bonus&,MIN(ABS(SUB(px&,dx&(i&))),ABS(SUB(py&,dy&(i&))))
+exls!=TRUE
+ENDIF
+NEXT i&
+SUB ls_bonus&,(nwreck&=0)*5
+ADD ls_bonus&,(NOT exls! AND nleft&<4)*10
+ELSE IF (gadno&>=7 AND gadno&<=15) OR (key&>=49 AND key&<=57)
+@player_movement
+ELSE
+dmove!=FALSE
+ENDIF
+'
+pxx&=@charx2pix(px&)
+pyy&=@chary2pix(py&)
+RETURN
+'
+> PROCEDURE player_movement
+LOCAL c&
+c&=8
+IF gadno&<>0
+c&=gadno&-7
+ELSE
+SELECT ASC(key$)
+CASE 49 TO 51
+c&=ASC(key$)-44
+CASE 52             ! left
+c&=3
+CASE 53             ! stand still
+c&=8
+CASE 54             ! right
+c&=4
+CASE 55 TO 57
+c&=ASC(key$)-55
+ENDSELECT
+ENDIF
+'
+IF c&<>8
+' Only move if movement was valid
+IF (old_mgf& AND 2^c&)<>0
+px&=px&+pxoff&(c&)
+py&=py&+pyoff&(c&)
+ELSE
+dmove!=FALSE
+ENDIF
+ENDIF
+RETURN
+'
+> PROCEDURE screwdriver
+' Sonic screwdriver routine
+' Destroys all daleks immediately next to player
+COLOR 3
+GRAPHMODE 2
+FOR r&=0 TO 20 STEP 5
+ELLIPSE pxx&+4,pyy&+6,r&,r&
+SOUND RANDOM(500)+300,1,255,1
+NEXT r&
+PAUSE 0.5
+FOR r&=20 TO 0 STEP -5
+ELLIPSE pxx&+4,pyy&+6,r&,r&
+SOUND RANDOM(500)+300,1,255,1
+NEXT r&
+GRAPHMODE 1
+FOR x&=-1 TO 1
+FOR y&=-1 TO 1
+xx&=px&+x&
+yy&=py&+y&
+IF @xy_ok(xx&,yy&)
+' If this space is ok & occupied, find which dalek is there & kill it
+IF arena!(xx&-xmin&,yy&-ymin&)
+i&=-1
+REPEAT
+INC i&
+UNTIL (dx&(i&)=xx& AND dy&(i&)=yy&) OR i&>ndal&
+IF i&<=ndal& AND status!(i&)
+' Only delete "live" daleks, not dalek remains
+dx&(i&)=0 ! Screwdrivered daleks can't cause collisons
+dy&(i&)=0
+arena!(xx&-xmin&,yy&-ymin&)=FALSE
+status!(i&)=FALSE
+TEXT @charx2pix(xx&),@chary2pix(yy&)+6," "
+DEC nleft&
+ENDIF
+ENDIF
+ENDIF
+NEXT y&
+NEXT x&
+RETURN
+'
+> PROCEDURE teleport
+LOCAL destpick&,lim&
+' Teleport routine - moves player to a random location
+COLOR 3
+GRAPHMODE 2
+@tele_cross_out
+@tele_cross_out
+'
+' Choose where player is to go
+destpick&=RANDOM(10000)
+lim&=level&*256+ntlete&*128
+IF destpick&<dest_long&-lim&
+' Pick a dalek & put player a "long" way from it
+@tele_pickdest(5,10,1,1)
+ELSE IF destpick&<dest_trand&-lim& DIV 2
+@tele_trand
+ELSE IF destpick&<dest_short&-lim& DIV 8
+' Pick a dalek & put player a short distance from it
+' Offsets are plus/minus 2-4, exclude 1
+@tele_pickdest(4,2,1,1)
+ELSE IF destpick&<dest_beside&-lim& DIV 16
+' Pick a dalek & put player beside it
+' Offsets are plus/minus 2
+@tele_pickdest(1,1,2,99)
+ELSE
+' Put player where dalek can kill them immediately (unfair? me?)
+' Offsets are plus/minus 1
+@tele_pickdest(1,1,1,99)
+ENDIF
+'
+pxx&=@charx2pix(px&)
+pyy&=@chary2pix(py&)
+@tele_cross_in
+@tele_cross_in
+GRAPHMODE 1
+INC ntele&
+RETURN
+'
+> PROCEDURE tele_cross_out
+LOCAL i&
+' Draws the cross thing for teleports going out
+FOR i&=1 TO 10
+@tele_cross_main
+NEXT i&
+RETURN
+'
+> PROCEDURE tele_cross_in
+LOCAL i&
+' Draws the cross thing for teleports going out
+FOR i&=10 DOWNTO 1
+@tele_cross_main
+NEXT i&
+RETURN
+'
+> PROCEDURE tele_cross_main
+' Actually draw the teleport cross
+IF @xy_ok(px&,py&+i&)
+TEXT pxx&,pyy&+6+i&*8,"|"
+ENDIF
+IF @xy_ok(px&,py&-i&)
+TEXT pxx&,pyy&+6-i&*8,"|"
+ENDIF
+IF @xy_ok(px&-i&,py&)
+TEXT pxx&-i&*8,pyy&+6,"-"
+ENDIF
+IF @xy_ok(px&+i&,py&)
+TEXT pxx&+i&*8,pyy&+6,"-"
+ENDIF
+SOUND 500+i&*32,2,255,1
+RETURN
+'
+> PROCEDURE tele_trand
+' Totally random destination
+REPEAT
+px&=RANDOM(10000) MOD (xmax&-xmin&)+xmin&
+py&=RANDOM(10000) MOD (ymax&-ymin&)+ymin&
+UNTIL NOT (arena!(px&-xmin&,py&-ymin&))
+RETURN
+'
+> PROCEDURE tele_pickdest(maxoff&,minoff&,factor&,exclude&)
+LOCAL xo&,yo&,timeout&
+' Picks a destination for teleport
+' Calculated as offsets from dalek coords - max/minoff& are limits
+' Offsets are multiplied by factor&
+' Offsets are guaranteed to be different than +-exclude&
+timeout&=0
+REPEAT
+REPEAT
+dal&=RANDOM(ndal&-1)
+end!=FALSE
+REPEAT
+INC timeout&
+xo&=(RANDOM(maxoff&-minoff&)+minoff&)*factor&
+yo&=(RANDOM(maxoff&-minoff&)+minoff&)*factor&
+IF RANDOM(1000)<500
+xo&=-xo&
+ENDIF
+IF RANDOM(1000)<500
+yo&=-yo&
+ENDIF
+'
+IF (xo&<>0 OR yo&<>0) AND ABS(xo&)<>exclude& AND ABS(yo&)<>exclude&
+end!=TRUE
+ENDIF
+UNTIL end! OR timeout&>50
+px&=dx&(dal&)+xo&
+py&=dy&(dal&)+yo&
+UNTIL @xy_ok(px&,py&) OR timeout&>50
+UNTIL (NOT arena!(px&-xmin&,py&-ymin&)) OR timeout&>50
+' If couldn't get destination as required, pick a random one
+IF timeout&>50
+@tele_trand
+ENDIF
+RETURN
+'
+> PROCEDURE gameover_thang
+' Run "Game over" thang
+TITLEW #0,"DALEKS ... Got you ! Heeheeheehee !"
+@playsamp(waah%,2331,&H230,38)
+COLOR 3
+TEXT pxx&,pyy&+6,"X"
+PAUSE 5
+TEXT pxx&,pyy&+6,"*"
+PAUSE 5
+TEXT pxx&,pyy&+6,"+"
+PAUSE 5
+TEXT pxx&,pyy&+6," "
+PAUSE 15
+@mbox
+COLOR 1
+@centre(11,"You have just been")
+COLOR 3
+@centre(13,"E X T E R M I N A T E D !!")
+COLOR 2
+@centre(15,">>> GAME OVER <<<")
+PAUSE 120
+TITLEW #0,"DALEKS"
+IF score&>hisc&(4)
+@gethiscore
+ENDIF
+RETURN
+'
+> PROCEDURE gethiscore
+LOCAL pos&,n$
+' Gets players name & adds it to hiscore table
+@mbox
+COLOR 3
+@centre(10,"EXCELLENT SCORE, DOCTOR !")
+COLOR 1
+@centre(12,"Record your name for posterity")
+@centre(14,">>>            <<<")
+PCOLOR 2
+LOCATE 19,14
+FORM INPUT 10,n$
+'
+IF n$=""
+n$="Lazy"
+ENDIF
+IF LEN(n$)<10
+n$=n$+SPACE$(10-LEN(n$))
+ENDIF
+PRINT AT(19,14);n$
+'
+pos&=0
+WHILE pos&<=4 AND hisc&(pos&)>=score&
+INC pos&
+WEND
+INSERT hisc&(pos&)=score&
+INSERT hidr$(pos&)=n$
+hisclite&=pos&
+newhi!=TRUE
+PAUSE 60
+RETURN
+'
+> PROCEDURE savehiscore
+LOCAL c!
+' See if player wants to save hiscore table before quitting
+SIZEW #0,220,10
+TITLEW #0,"DALEKS"
+c!=AutoRequest(wadd%,svebod_it%,svepos_it%,sveneg_it%,0,0,250,70)
+IF c!
+OPEN "o",#1,hif$
+FOR i&=0 TO 4
+PRINT #1,hisc&(i&)
+PRINT #1,hidr$(i&)
+NEXT i&
+CLOSE #1
+ENDIF
+RETURN
+'
+> PROCEDURE setup_daleks
+LOCAL i&,x&,y&
+' Initialises coord arrays for "ndal&" daleks (2-200) and draws them
+FOR i&=0 TO ndal&-1
+REPEAT
+x&=RANDOM(xmax&-xmin&)+xmin&
+y&=RANDOM(ymax&-ymin&)+ymin&
+UNTIL NOT arena!(x&-xmin&,y&-ymin&)
+arena!(x&-xmin&,y&-ymin&)=TRUE
+dx&(i&)=x&
+dy&(i&)=y&
+status!(i&)=TRUE
+NEXT i&
+@draw_daleks
+RETURN
+'
+> PROCEDURE setup_player
+' Gives the player a starting position and err... puts them there!
+' Movement gadgets are added
+REPEAT
+px&=RANDOM(xmax&-xmin&)+xmin&
+py&=RANDOM(ymax&-ymin&)+ymin&
+UNTIL NOT (arena!(px&-xmin&,py&-ymin&))
+pxx&=@charx2pix(px&)
+pyy&=@chary2pix(py&)
+p_mgadflags&=0
+COLOR 3
+GRAPHMODE 2
+@tele_cross_in
+@tele_cross_in
+GRAPHMODE 1
+@add_movegadgets
+PUT pxx&,pyy&,drwho$
+RETURN
+'
+> PROCEDURE move_daleks
+LOCAL i&
+' Erases daleks, moves them as they should be moved (sensible, really)
+' and draws them at their new positions
+' The arena!() array is also changed to reflect the new dalek positions
+COLOR 1
+FOR i&=0 TO ndal&-1
+IF status!(i&)
+x&=dx&(i&)
+y&=dy&(i&)
+TEXT @charx2pix(x&),@chary2pix(y&)+6," "
+arena!(x&-xmin&,y&-ymin&)=FALSE
+x&=x&+SGN(px&-x&)
+y&=y&+SGN(py&-y&)
+arena!(x&-xmin&,y&-ymin&)=TRUE
+dx&(i&)=x&
+dy&(i&)=y&
+ENDIF
+NEXT i&
+@draw_daleks
+RETURN
+'
+> PROCEDURE draw_daleks
+LOCAL i&
+' Draws ndal& daleks at coords in dx&() and dy&()
+COLOR 1
+FOR i&=0 TO ndal&-1
+IF status!(i&)
+PUT @charx2pix(dx&(i&)),@chary2pix(dy&(i&)),dal$(0)
+ENDIF
+NEXT i&
+RETURN
+'
+> PROCEDURE col_detect
+LOCAL i&,j&,p&,ix&,iy&,icrash!,jcrash!
+' Sees if daleks have collided with...
+' 1) each other - mark them as dead & add them to the crashed list
+' 2) the player - set the gameover! flag
+' Animates any crashes, updates the status!() array and score
+p&=0                                   ! p points to next free space in list
+FOR i&=0 TO ndal&-2
+IF dx&(i&)=px& AND dy&(i&)=py&   ! Hit player ?
+gameover!=TRUE
+i&=ndal&-2
+p&=0
+ELSE
+ix&=dx&(i&)                    ! No - check other daleks/wrecks
+iy&=dy&(i&)
+j&=i&+1
+icrash!=FALSE
+jcrash!=FALSE
+REPEAT
+IF ix&=dx&(j&) AND iy&=dy&(j&)
+IF status!(j&) AND status!(i&)
+INC nwreck&
+ENDIF
+IF status!(j&)
+crashed&(p&)=j&
+INC p&
+jcrash!=TRUE
+status!(j&)=FALSE
+ENDIF
+icrash!=status!(i&)
+ENDIF
+INC j&
+UNTIL j&>ndal&-1 OR jcrash!
+ENDIF
+' Main (i&) dalek need only be added to list once
+IF icrash!
+crashed&(p&)=i&
+INC p&
+status!(i&)=FALSE
+ENDIF
+NEXT i&
+DEC p&
+'
+' Last dalek isn't checked against player by the above loop, so...
+IF dx&(ndal&-1)=px& AND dy&(ndal&-1)=py&
+gameover!=TRUE
+ENDIF
+'
+' Now animate any crashed daleks
+IF p&<>-1
+FOR i&=1 TO 3
+FOR j&=0 TO p&
+PUT @charx2pix(dx&(crashed&(j&))),@chary2pix(dy&(crashed&(j&))),dal$(i&)
+NEXT j&
+VSYNC
+VSYNC
+NEXT i&
+@playsamp(gotim%,3300,&H12C,27)
+' Update score & number of daleks left
+IF p&>2             ! Extra overkill bonus if >3 daleks killed at once
+ADD ok_bonus&,p&*3
+IF firstmove!     ! and even more if this was the first move ...
+ADD ok_bonus&,p&*3
+ENDIF
+ENDIF
+IF lastdeath&<4 AND NOT laststand!
+ADD ex_bonus&,4-lastdeath&
+ENDIF
+lastdeath&=-1
+' Update scores
+ADD score&,p&+1
+SUB ls_bonus&,laststand!*(p&+1)
+SUB nleft&,p&+1
+@printscores
+ENDIF
+INC lastdeath&
+RETURN
+'
+> PROCEDURE add_movegadgets
+' Adds players movement gadgets - only for "available" directions
+'
+WORD{st_g%+4}=@charx2pix(px&)         ! Adds "stand still" gadget
+WORD{st_g%+6}=@chary2pix(py&)
+~AddGList(wadd%,st_g%,-1,1,0)
+@add_mg(-1,-1,ul_g%,0)
+@add_mg(0,-1,u_g%,1)
+@add_mg(1,-1,ur_g%,2)
+@add_mg(-1,0,l_g%,3)
+@add_mg(1,0,r_g%,4)
+@add_mg(-1,1,dl_g%,5)
+@add_mg(0,1,d_g%,6)
+@add_mg(1,1,dr_g%,7)
+~RefreshGList(st_g%,wadd%,0,9)
+RETURN
+'
+> PROCEDURE remove_movegadgets
+LOCAL x&,y&,xx&,yy&
+~RemoveGadget(wadd%,st_g%)
+@remove_mg(0,ul_g%)
+@remove_mg(1,u_g%)
+@remove_mg(2,ur_g%)
+@remove_mg(3,l_g%)
+@remove_mg(4,r_g%)
+@remove_mg(5,dl_g%)
+@remove_mg(6,d_g%)
+@remove_mg(7,dr_g%)
+old_mgf&=p_mgadflags&
+p_mgadflags&=0
+COLOR 2
+FOR x&=-1 TO 1
+FOR y&=-1 TO 1
+xx&=px&+x&
+yy&=py&+y&
+IF (x&<>0 OR y&<>0) AND @xy_ok(xx&,yy&)
+IF NOT arena!(xx&-xmin&,yy&-ymin&)
+TEXT @charx2pix(xx&),@chary2pix(yy&)+5," "
+ENDIF
+ENDIF
+NEXT y&
+NEXT x&
+RETURN
+'
+> PROCEDURE remove_mg(b&,g%)
+' Checks player movement gadget flags and removes a gadget if its bit is set
+IF (p_mgadflags& AND 2^b&)<>0
+~RemoveGadget(wadd%,g%)
+ENDIF
+RETURN
+'
+> PROCEDURE add_mg(xo&,yo&,g%,b&)
+LOCAL x&,y&
+' Checks to see if the space at px+xo,py+yo is occupied
+' If it isn't, gadget g% is added to the gadget list, and bit b& of
+' p_mgadflags& is set
+'
+x&=px&+xo&
+y&=py&+yo&
+IF @xy_ok(x&,y&)
+IF NOT arena!(x&-xmin&,y&-ymin&)
+WORD{g%+4}=@charx2pix(x&)           ! Setup x coord
+WORD{g%+6}=@chary2pix(y&)           ! ... y coord
+~AddGList(wadd%,g%,-1,1,0)          ! Add to window
+p_mgadflags&=p_mgadflags& OR 2^b&
+ENDIF
+ENDIF
+RETURN
+'
+> PROCEDURE mbox
+COLOR 0
+PBOX 50,76,330,151
+COLOR 3
+BOX 50,76,330,151
+RETURN
+'
+> PROCEDURE playsamp(s%,l&,p&,w&)
+LOCAL k$,t&,i&
+~Forbid()
+~Disable()
+'
+WORD{custom%+&HA4}=l&            !Length
+LONG{custom%+&HA0}=s%            !address
+WORD{custom%+&HA8}=64            !vol
+WORD{custom%+&HA6}=p&            !period
+WORD{custom%+&H96}=&H8201        !Enable aud0 dma
+'
+t&=0
+REPEAT
+i&=BYTE{&HBFE801}
+REPEAT
+UNTIL i&<>BYTE{&HBFE801}
+INC t&
+UNTIL t&>w&
+'
+WORD{custom%+&H9C}=&H80          !Clear aud0 interrupt
+WORD{custom%+&H96}=1             !Disable aud0 dma
+~Enable()
+~Permit()
+REPEAT
+k$=INKEY$
+UNTIL k$=""
+RETURN
+'
+> PROCEDURE centre(y&,t$)
+LOCAL t&,x&
+' Centralises text in t$
+t&=LEN(t$)
+IF t&<=xmax&-xmin&
+t&=xmin&+(xmax&-xmin&-t&)
+x&=@charx2pix(t& DIV 2)+10
+IF ODD(t&)
+ADD x&,4
+ENDIF
+TEXT x&,@chary2pix(y&)+10,t$
+ENDIF
+RETURN
+'
+> FUNCTION charx2pix(c&)
+' Converts a character x-coord into a pixel coord
+RETURN (c&-1)*8+1
+ENDFUNC
+'
+> FUNCTION chary2pix(c&)
+' Converts a character y-coord into a pixel coord
+RETURN c&*8-1
+ENDFUNC
+'
+> FUNCTION xy_ok(a&,b&)
+RETURN a&>=xmin& AND a&<=xmax& AND b&>=ymin& AND b&<=ymax&
+ENDFUNC
+'
+> FUNCTION comno(num&,VAR prev&)
+LOCAL n&
+REPEAT
+n&=RANDOM(100000) MOD num&
+UNTIL n&<>prev&
+prev&=n&
+RETURN n&
+ENDFUNC
+'
+> PROCEDURE clear
+' Clear main game area
+COLOR 0
+PBOX 5,37,380,231
+COLOR 2
+BOX 4,36,381,232
+RETURN
+'
+' Data for arrow pictures
+arrowdata:
+DATA &X11110000
+DATA &X11100000
+DATA &X11100000
+DATA &X10010000
+DATA &X00001000
+DATA &X00000100
+DATA &X00000010
+'
+DATA &X00010000
+DATA &X00111000
+DATA &X01111100
+DATA &X00010000
+DATA &X00010000
+DATA &X00010000
+DATA &X00010000
+'
+DATA &X00011110
+DATA &X00001110
+DATA &X00001110
+DATA &X00010010
+DATA &X00100000
+DATA &X01000000
+DATA &X10000000
+'
+DATA &X00000000
+DATA &X00100000
+DATA &X01100000
+DATA &X11111110
+DATA &X01100000
+DATA &X00100000
+DATA &X00000000
+'
+DATA &X00000000
+DATA &X00001000
+DATA &X00001100
+DATA &X11111110
+DATA &X00001100
+DATA &X00001000
+DATA &X00000000
+'
+DATA &X00000010
+DATA &X00000100
+DATA &X00001000
+DATA &X10010000
+DATA &X11100000
+DATA &X11100000
+DATA &X11110000
+'
+DATA &X00010000
+DATA &X00010000
+DATA &X00010000
+DATA &X00010000
+DATA &X01111100
+DATA &X00111000
+DATA &X00010000
+'
+DATA &X10000000
+DATA &X01000000
+DATA &X00100000
+DATA &X00010010
+DATA &X00001110
+DATA &X00001110
+DATA &X00011110
+'
+' Data for the PUTs used to draw everything
+putdata:
+DATA 7C,90,90,FE,F0,F8,FC,0
+DATA 0,F8,64,90,FC,FA,FC,0
+DATA 0,0,58,64,f8,E4,FE,0
+DATA 0,0,0,1C,78,CA,FE,0
+DATA 38,10,7C,92,38,44,44,C6
+'
+' Data for movement offsets
+move_offsets:
+DATA -1,-1,0,-1,1,-1
+DATA -1,0,1,0
+DATA -1,1,0,1,1,1
+DATA 0,0
+'
+' Data for start-of-level comments
+startcom:
+DATA 11
+DATA "You're gonna win ... NOT !"
+DATA "Ready to rumble ?"
+DATA "Armageddon of the Daleks ?"
+DATA "Kick Dalek ass !"
+DATA "You die now, Doctor."
+DATA "Exterminate the muthas !"
+DATA "Lets PARRRTEEEEE !!!!!"
+DATA "I don't think they like you..."
+DATA "Feel lucky, punk ?"
+DATA "We're gonna get you..."
+DATA "Need any help ?"
+DATA "Want to go home yet ?"
+DATA "Party on, dude !"
+'
+' Data for end-of-level comments
+endcom:
+DATA 20
+DATA "Awesome !"
+DATA "Unbelieveable !"
+DATA "Incredible !"
+DATA "Most non-non non-non non-heinous !"
+DATA "Bodacious moves, dude !"
+DATA "Got the basts !"
+DATA "Excellent !"
+DATA "Radical !"
+DATA "Well done, old bean !"
+DATA "Unprecedented dalek casualties !"
+DATA "Most atypical !"
+DATA "Waytago, Doctor !"
+DATA "Somebody call the scrapyard !"
+DATA "Alright !"
+DATA "Is there a Doctor in the house ?"
+DATA "Most triumphant !"
+DATA "You totally killed them, dude !"
+DATA "Stellar !"
+DATA "Full on dalek trashing, Doctor !"
+DATA "Well sound !"
+DATA "You are one well 'ard Timelord !"
+'
+' Data for "kill" synonymns
+ksyn:
+DATA 12
+DATA kill,destroy,exterminate,terminate,eradicate,wipe out,waste,total,trash
+DATA bash,knacker,write off,smash
+'
+' Data for initial hiscore table names
+initsctab:
+DATA Girv,GPW,MadMark,Jem,Abslom
+'
+' Data for about gadget
+abouttext:
+DATA *DALEKS Amiga ... By John Girvin
+DATA ""
+DATA #INSTRUCTIONS
+DATA ""
+DATA "You are The Doctor (who?), and you"
+DATA are trapped on the Dalek planet. Your
+DATA only hope of escape is to destroy
+DATA all the Daleks on each level.
+DATA ""
+DATA This genocide is made possible by
+DATA the Daleks total stupidity. You kill
+DATA them by crashing them into each
+DATA "other, since they are too stupid to"
+DATA stop themselves !
+DATA ""
+DATA "Daleks exist only to kill you,"
+DATA and will move directly towards
+DATA your current position - use this
+DATA fact to direct them into each
+DATA other and the wrecks of ex-daleks.
+DATA *
+DATA #INSTRUCTIONS
+DATA ""
+DATA You have two weapons (apart from
+DATA terminally thick enemies): your teleport
+DATA and famous Sonic Screwdriver. Use them
+DATA to get out of otherwise bogus situations.
+DATA ""
+DATA The teleport instantly moves you to
+DATA another place on the surface. But it
+DATA "is only an experimental model, and"
+DATA occaisionally puts you right beside
+DATA one of the metal muthas. It also becomes
+DATA more unreliable with continuous use...
+DATA ""
+DATA The screwdriver destroys any dalek
+DATA immediately next to you when it is used.
+DATA ""
+DATA The teleport may be used any number of
+DATA "times, but the screwdriver may be used"
+DATA only once per level.
+DATA *
+DATA #INSTRUCTIONS
+DATA ""
+DATA If you are in an unassailable position
+DATA "at the end of a level, you may use the"
+DATA LAST STAND gadget. Once this is selected
+DATA you may take no further action for the
+DATA remainder of the level. But you get a
+DATA "major bonus, so its not all bad !"
+DATA ""
+DATA Bonuses are also given for NOT using
+DATA "the screwdriver, killing LOTS of daleks"
+DATA QUICKLY and generally excellent play
+DATA (NOT littering the surface with loads
+DATA "of Dalek wreckage, using the teleport"
+DATA "as LITTLE AS POSSIBLE, using laststand"
+DATA with LOTS of SPREAD OUT Daleks etc.)
+DATA ""
+DATA The high score table can be saved (if
+DATA you like) to SYS:daleks.hiscore
+DATA *
+DATA #INSTRUCTIONS
+DATA ""
+DATA Use the arrow and other gadgets to control
+DATA "The Doctor, or these keys..."
+DATA ""
+DATA Numeric keypad:
+DATA "7  8  9"
+DATA " \ | / "
+DATA "  \|/  "
+DATA "4--5--6"
+DATA "  /|\  "
+DATA " / | \ "
+DATA "1  2  3"
+DATA ""
+DATA Other gadgets can be selected by
+DATA pressing the first letter of their
+DATA title eg: press T for Teleport etc.
+DATA *
+DATA #DALEKS - THE CREDITS AND STUFF
+DATA ""
+DATA Daleks Amiga converted by John Girvin
+DATA from a Macintosh (spit) original
+DATA provided by Graeme 'Roger' Wilson.
+DATA ""
+DATA Daleks is totally PD and may be freely
+DATA "spread about the cosmos, provided"
+DATA that (a) You don't make vast amounts
+DATA "of loot from selling it, and (b) the"
+DATA program is'nt changed.
+DATA ""
+DATA Daleks is (C) 1992 John Girvin (me!)
+DATA Written in GFA Basic 3.51 - buy it !
+DATA ""
+DATA Mac original provided by Graeme Wilson.
+DATA Useless comments by Dave Ewing.
+DATA Music for late night debugging by Oceanic.
+DATA Caffeine for late night debugging by Coke.
+DATA Interference & interruptions by university.
+DATA *
+DATA #DALEKS - THE LAST WORD
+DATA ""
+DATA Contact me (Girv) at...
+DATA "*25 Moorgate Street,"
+DATA "*Belfast BT5 5BZ,"
+DATA *Northern Ireland.
+DATA ...for anything at all (bugs/ideas/parties)
+DATA ""
+DATA "Don't feel like you have to, but if you"
+DATA like Daleks enough then throw a few shiny
+DATA "pennies my way. No obligation, but it"
+DATA would be nice to know there are a few
+DATA caring souls out there in userland *:-)
+DATA ""
+DATA *'How's it going?' s go out to...
+DATA (OhNoIts) Graeme Wilson - BANZAI ROGER !
+DATA Mark Gowdy - Ex ST fan who saw the light
+DATA "Yo! HalibutSoft: Dave,Judith,Cath,Gav,Mark"
+DATA ""
+DATA *Party on !
+DATA *,**

@@ -1,0 +1,92 @@
+;It Came From The Desert Bug Fix V1.3 installer by Spyridon Papakotsis
+(if (= @installer-version 0)
+    (set #esc "")
+    (set #esc "[2p")
+)
+(set #showw 0)
+(set @abort-button "Abort Patch")
+(set #string_game "It Came From The Desert")
+(set #pn "icfd_fix")
+
+(message ((cat ("\n%s - Bug Fix (v1.3)\nby Spyridon Papakotsis\n\n" #string_game)
+    "This program fixes the \"Billy Bob Bug\",  which causes the game to crash if you choose to \"Flee\" when Billy Bob Morse pulls out a knife at the Neptune Hall."
+    ))
+)
+
+(if #showw (welcome))
+
+(set #inst_media
+    (askchoice
+        (prompt ("Where do you play \"%s\" from?" #string_game))
+        (choices
+            (cat #esc "Hard Disk")
+            (cat #esc "Floppy Disks")
+        )
+        (help (cat "If you have the game installed on your Hard Disk (including WHDLoad installations), "
+                   "please select the \"Hard Disk\" option and you will be asked for its location when you click on Proceed.\n"
+                   "\nIf you play from floppies, please select the \"Floppy Disks\" option and you will be asked to insert a disk when you click on Proceed."))
+        (default 0)
+    )
+)
+
+(if (= #inst_media 0)
+    (set #instdir
+        (askdir
+            (prompt ("Please select the drawer where \"%s\" is installed" #string_game))
+            (default "Work:")(disk)
+            (help (cat ("Navigate to your \"%s\" installation drawer and click on Proceed to apply the patch.\n" #string_game)
+                       "\nIf you use the WHDLoad version, the patch should find the files in the \"data\" drawer unless you have renamed it to something else.\n"
+                       "In that case, navigate to the renamed data drawer and click on Proceed to apply the patch."))
+        )
+    )
+    (
+        (set #instdir "Desert2:")
+        (askdisk
+            (prompt ("\nPlease insert %s - Reel 2 in any drive.\n\nThe volume name should be \"%s\".\n\nUse a backup disk.\nDon\'t insert your original disk! " #string_game #instdir))
+            (dest "Desert2")
+            (help (cat ("Please insert Disk 2 of the game (named \"%s\") and make sure it is not write protected.\n" #instdir)
+                       "\nDo not insert your original disk, but use a write enabled backup disk instead.\n" 
+                       "\nYou can also patch a disk image by mounting it, if you prefer."))
+        )
+    )
+)
+
+(if (= #inst_media 0)
+    (
+        (set #new_script
+            (askchoice
+                (prompt "Would you like your \"HDesert\" script to be replaced by a new one, which doesn\'t require Disk-1 to be inserted when playing from Hard Disk?\nWHDLoad users don't need this and should select \"No\"")
+                (choices
+                    (cat #esc "Yes")
+                    (cat #esc "No")
+                )
+                (help (cat "The original HDesert requires you to have Disk-1 inserted in DF0:, in order to play."
+                   "\nBy selecting \"Yes\", your HDesert will be replaced by a new one. Then you'll be able to play from Hard Disk by double-clicking on its icon, without being asked to insert that floppy disk."
+                   "\n\nIf you play the WHDLoad version, you should select \"No\"."))
+                (default 1)
+            )
+        )
+
+        (if (= #new_script 0)
+            ((copyfiles (source "extra/HDesert") (dest #instdir) (infos)))
+        )
+
+    )
+)
+
+(working "Applying Patch...")
+
+(set #pn_out ("%s.run" #pn))
+(set #res (run ("%s > ENV:%s \"%s\"" #pn #pn_out #instdir)))
+(set #pn_log (getenv #pn_out))
+(delete ("ENV:%s" #pn_out))
+(if (> #res 0)
+    (abort #pn_log)
+    ((if (= @installer-version 0)
+         (  (working #pn_log)
+            (set #res (run "C:wait 8"))
+            (if (> #res 0)(exit #pn_log)(exit (quiet)))
+         )
+         (exit #pn_log (quiet))
+    ))    
+)

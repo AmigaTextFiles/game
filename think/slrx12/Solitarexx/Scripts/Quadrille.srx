@@ -1,0 +1,108 @@
+/*********************************\
+** Quadrille v1.0 for Solitarexx **
+**     by Michal Szafranski      **
+\*********************************/
+OPTIONS RESULTS
+
+tex = 'Quadrille'
+wintex = '"We Have a Winner"'
+seq.4 = 'B 0 2 4 6 8 10 12 E'
+seq.5 = 'B 1 3 5 7 9 11 E'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 tex 6
+SELECTGUI 1
+
+SCREENSIZE 3 0 7 0
+DO i = 0 TO 8
+	NEWSTACK 3 0 0 (i%3)+4 (i//3)
+	stack.i = RESULT
+END
+DO i = 0 TO 3
+	NEWSTACK 4 0 i+2 (i//4)
+	base.i = RESULT
+END
+DO i = 4 TO 7
+	NEWSTACK 5 0 0 (i//4) 1
+	base.i = RESULT
+END
+NEWSTACK 1 0 1 1 2 0 0
+deck = RESULT
+NEWSTACK 2 32+8+1 1 2 2 0 0 2 2
+waste = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SETGADGET 14 STR tex
+	SELECTGUI 4
+	sel = 0
+	fin = 0
+	DO i=0 TO 8
+		CARDSELECT deck 1
+		MOVECARDS deck stack.i REVERSE
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sid=1 THEN CALL DODECK
+			WHEN sel=0 & card>0 & sid<4 THEN sel = stack
+			WHEN sel>0 & (sel = stack | sid > 3) THEN CALL DOBASE
+			OTHERWISE ERRBEEP
+		END
+		IF act = 3 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+	END
+RETURN
+DODECK:
+	sel=0
+	CARDSELECT deck 1
+	MOVECARDS deck waste REVERSE
+RETURN
+DOBASE:
+	IF sel~=stack THEN CALL CHBASE
+	ELSE DO i= 0 TO 7 UNTIL ok=0
+		sid = 4+(i%4)
+		stack = base.i
+		CALL CHBASE
+	END
+	IF ok=0 THEN DO
+		fin = fin +1
+		MOVECARDS sel stack
+		IF fin = 52 THEN SETGADGET 14 STR wintex
+		IF sel ~= waste THEN DO
+			CARDSELECT waste 1
+			IF RESULT ~= '' THEN MOVECARDS waste sel
+			ELSE DO
+				CARDSELECT deck 1
+				MOVECARDS deck sel REVERSE
+			END
+		END
+	END
+	ELSE ERRBEEP
+	sel = 0
+RETURN
+CHBASE:
+	CARDSELECT sel 1
+	PARSE VAR RESULT kolors wars xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT kolor war xxx
+	IF kolor = '' THEN DO
+		kolor = kolors
+		war = 'B'
+	END
+	IF kolor = kolors & FIND(seq.sid,war wars)>0 THEN ok = 0
+	ELSE ok = 1
+RETURN

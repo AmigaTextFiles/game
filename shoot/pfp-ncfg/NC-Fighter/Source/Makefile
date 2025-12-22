@@ -1,0 +1,40 @@
+#Makefile for NC-Fighter
+project = NCurses Fighter
+file_out = NC-Fighter
+CC = gcc
+version = 0.1
+header = main.h
+libs  = -lpdcurses -lSDL_gfx -lSDL_net -lSDL_image -ltiff -lpng -ljpeg -lz -lSDL_mixer -lsmpeg -lvorbisfile -lvorbis -logg -lstdc++ -lSDL_ttf -lfreetype -lz -lsdlmain -lsdl -lauto -lpthread -lm
+flags = -Wall
+dist = /usr/local/bin/
+c_files = edges.c main.c objects.c
+obj = edges.o main.o objects.o
+
+
+all : ${file_out} ${header}
+
+${file_out}: ${obj} 
+	@echo "Linking!"
+	${CC} ${flags} -g ${obj} ${libs} -o ${file_out} 
+
+${obj}: ${c_files}
+	@echo "Compiling!"
+	${CC} ${flags} -c ${c_files}
+
+install : all
+	@cp ${file_out} ${dist}${file_out}
+	@echo "Installing ${project}"
+	@echo "Output file is in ${dist}${file_out}"
+
+uninstall:
+	@rm ${dist}${file_out} -Rf 
+	@echo "Deleting ${project}"
+	@echo "File was deleted from ${dist}${file_out}"
+
+clean: 
+	@rm *.o -Rf 
+	@rm ${file_out} -Rf
+	@echo "Deleting objects and output files"
+	@echo "Objects: ${obj} | output file: ${file_out}"
+
+clear: clean

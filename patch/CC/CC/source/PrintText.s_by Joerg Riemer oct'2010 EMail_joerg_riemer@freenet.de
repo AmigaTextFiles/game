@@ -1,0 +1,173 @@
+
+PrintText	move.l	(SP),A0
+		lea	TextBuf00(pc),A1
+		move.l	(A0)+,(A1)+		;TextBuf00+$400
+		move.w	(A0)+,(A1)		;TextBuf02+$400
+		move.l	A0,(SP)
+		lea	TextPos00(pc),A0
+		bsr.b	lbC000662
+		lea	TextTab00(pc),A0
+		move.w	TextBuf00(pc),D0
+		bsr.b	lbC000638
+		lea	TextPos01(pc),A0
+		bsr.b	lbC000662
+		lea	TextTab01(pc),A0
+		move.w	TextBuf01(pc),D0
+		bsr.b	lbC000638
+		lea	TextPos02(pc),A0
+		bsr.b	lbC000662
+		lea	TextTab02(pc),A0
+		move.w	TextBuf02(pc),D0
+		bsr.b	lbC000638
+		rts
+
+*****************************************************************************
+
+lbC000638	add.w	D0,D0
+		add.w	(A0,D0.W),A0		;move.w	$00(A0,D0.W),A0
+		move.l	A0,-(SP)
+		lea	Text00(pc),A0
+		bsr.b	lbC000662
+		move.l	(SP)+,A0
+
+lbC000662	movem.l	D0-D7/A1-A5,-(SP)
+		clr.w	D1
+		clr.w	D2
+		move.b	lbB000FE3(pc),D1
+		move.b	lbB000FE4(pc),D2
+		bsr.b	lbC000684
+		lea	lbB000FE3(pc),A1
+		move.b	D1,(A1)			;lbB000FE3+$400
+		move.b	D2,1(A1)		;lbB000FE4+$400
+		movem.l	(SP)+,D0-D7/A1-A5
+		rts
+
+*****************************************************************************
+
+lbC000684	clr.w	D0
+		move.b	(A0)+,D0
+		bmi	lbC000712
+		cmp.b	#$06,D0
+		bls.b	lbC0006A6
+		cmp.b	#$0D,D0
+		beq.b	lbC00069E
+		bsr	lbC000738
+		bra.b	lbC000684
+
+lbC00069E	move.b	lbB000FE2(pc),D1
+		addq.w	#8,D2
+		bra.b	lbC000684
+
+lbC0006A6	tst.b	D0
+		beq	lbC00072C
+		subq.b	#1,D0
+		beq.b	lbC000700
+		subq.b	#1,D0
+		beq.b	lbC000704
+		subq.b	#1,D0
+		beq.b	lbC00070A
+		subq.b	#1,D0
+		beq.b	lbC0006FA
+		subq.b	#1,D0
+		beq.b	lbC0006CE
+
+lbC0006C0	move.b	(A0)+,D0
+		beq.b	lbC00072C
+		cmp.b	#$20,D0
+		beq.b	lbC0006C0
+		subq.w	#1,A0
+		bra.b	lbC000684
+
+lbC0006CE	move.b	(A0)+,D0
+		bsr.b	lbC0006D6
+		bra.b	lbC000684
+
+lbC0006D6	move.b	D0,D4
+		lsr.b	#4,D4
+		moveq	#3,D3
+		lea	PatchCode(PC),A1
+lbC0006E0	lsr.b	#1,D0
+		scc	D5
+		lsr.b	#1,D4
+		scs	D6
+		eor.b	D5,D6
+		move.b	D6,(A1)
+		move.b	D5,4(A1)
+		lea	$10(A1),A1
+		dbra	D3,lbC0006E0
+		rts
+
+lbC0006FA	lea	lbB000FE2(pc),A1
+		move.b	D1,(A1)			;lbB000FE2+$400
+		bra.b	lbC000684
+
+lbC000700	move.b	(A0)+,D1
+		bra.b	lbC000684
+
+lbC000704	move.b	(A0)+,D2
+		bra	lbC000684
+
+lbC00070A	move.b	(A0)+,D1
+		move.b	(A0)+,D2
+		bra	lbC000684
+
+lbC000712	move.l	A0,-(SP)
+		and.w	#$7F,D0
+		add.w	D0,D0
+		move.w	lbW00072E(PC,D0.W),D0
+		lea	lbL000734(PC,D0.W),A0
+		bsr	lbC000684
+		move.l	(SP)+,A0
+		bra	lbC000684
+
+lbC00072C	rts
+
+*****************************************************************************
+
+lbW00072E	dc.w	$0000,$0001,$0002
+lbL000734	dc.l	$00000000
+
+*****************************************************************************
+
+lbC000738	lea	$77400,A5
+		move.w	D2,D3
+		lsl.w	#5,D3
+		move.w	D3,D5
+		add.w	D3,D3
+		add.w	D3,D3
+		add.w	D5,D3
+		add.w	D3,A5
+		sub.w	#$20,D0
+		add.w	D0,D0
+		add.w	D0,D0
+		add.w	D0,D0
+		lea	CharTable(pc),A4
+		add.w	D0,A4
+		add.w	D1,A5
+		addq.w	#1,D1
+		moveq	#7,D0
+lbC000764	move.b	(A4)+,D6
+		move.b	D6,D5
+		or.b	#0,D5			;patch 1
+PatchCode	equ	*-1
+		eor.b	#0,D5			;patch 1a
+		move.b	D5,(A5)
+		lea	$28(A5),A5
+		move.b	D6,D5
+		or.b	#0,D5			;patch 2
+		eor.b	#0,D5			;patch 2a
+		move.b	D5,(A5)
+		lea	$28(A5),A5
+		move.b	D6,D5
+		or.b	#0,D5			;patch 3 
+		eor.b	#0,D5			;patch 3a
+		move.b	D5,(A5)
+		lea	$28(A5),A5
+		move.b	D6,D5
+		or.b	#0,D5			;patch 4
+		eor.b	#0,D5			;patch 4a
+		move.b	D5,(A5)
+		lea	$28(A5),A5
+		dbra	D0,lbC000764
+		rts
+

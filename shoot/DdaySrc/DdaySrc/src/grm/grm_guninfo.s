@@ -1,0 +1,289 @@
+	.file	"grm_guninfo.c"
+gcc2_compiled.:
+	.section	".sdata","aw"
+	.align 2
+	.type	 GlobalUserDLLList,@object
+	.size	 GlobalUserDLLList,4
+GlobalUserDLLList:
+	.long 0
+	.globl grmguninfo
+	.section	".data"
+	.align 2
+	.type	 grmguninfo,@object
+grmguninfo:
+	.long 4
+	.space	12
+	.long 71
+	.space	12
+	.long 6
+	.long 73
+	.long 58
+	.long 61
+	.long .LC0
+	.long 49
+	.space	8
+	.long .LC1
+	.long 54
+	.space	8
+	.long .LC2
+	.long 0
+	.long 1
+	.long 25
+	.long 0x0
+	.long 0
+	.space	12
+	.long 4
+	.space	12
+	.long 86
+	.space	12
+	.long 16
+	.long 98
+	.long 78
+	.long 78
+	.long .LC3
+	.long 70
+	.space	8
+	.long .LC4
+	.long 62
+	.long 76
+	.space	4
+	.long .LC5
+	.long .LC6
+	.long 3
+	.long 100
+	.long 0x0
+	.long 17
+	.space	12
+	.long 4
+	.long 5
+	.space	8
+	.long 79
+	.long 80
+	.space	8
+	.long 5
+	.long 80
+	.long 71
+	.long 71
+	.long .LC7
+	.long 47
+	.space	8
+	.long .LC8
+	.long 64
+	.space	8
+	.long .LC9
+	.long 0
+	.long 10
+	.long 25
+	.long 0x0
+	.long 0
+	.space	12
+	.long 4
+	.long 5
+	.space	8
+	.long 79
+	.long 80
+	.space	8
+	.long 5
+	.long 80
+	.long 71
+	.long 71
+	.long .LC10
+	.long 48
+	.space	8
+	.long .LC11
+	.long 66
+	.space	8
+	.long .LC12
+	.long 0
+	.long 4
+	.long 35
+	.long 0x0
+	.long 0
+	.space	12
+	.long 21
+	.long 22
+	.space	8
+	.long 86
+	.long 87
+	.space	8
+	.long 22
+	.long 87
+	.long 79
+	.long 79
+	.long .LC13
+	.long 4
+	.long 65
+	.space	4
+	.long .LC14
+	.long 13
+	.long 74
+	.space	4
+	.long .LC15
+	.long 0
+	.long 5
+	.long 50
+	.long 0x0
+	.long 0
+	.space	12
+	.long 4
+	.space	12
+	.long 73
+	.space	12
+	.long 5
+	.long 75
+	.long 65
+	.long 65
+	.long .LC16
+	.long 0
+	.space	8
+	.long .LC17
+	.long 59
+	.space	8
+	.long .LC18
+	.long 0
+	.long 8
+	.long 1000
+	.long 0x43fa0000
+	.long 0
+	.space	12
+	.long 4
+	.space	12
+	.long 52
+	.long 60
+	.long 75
+	.long 80
+	.long 26
+	.long 80
+	.long 43
+	.long 43
+	.long .LC19
+	.long 31
+	.long 42
+	.space	4
+	.long .LC20
+	.long 37
+	.space	8
+	.long .LC21
+	.long .LC22
+	.long 11
+	.long 100
+	.long 0x0
+	.long 0
+	.long .LC23
+	.long 66
+	.space	4
+	.section	".rodata"
+	.align 2
+.LC23:
+	.string	"grm/m98ks/bolt.wav"
+	.align 2
+.LC22:
+	.string	"grm/m98ks/lastround.wav"
+	.align 2
+.LC21:
+	.string	"grm/m98ks/fire.wav"
+	.align 2
+.LC20:
+	.string	"grm/m98ks/reload.wav"
+	.align 2
+.LC19:
+	.string	"grm/m98ks/unload.wav"
+	.align 2
+.LC18:
+	.string	"grm/panzer/fire.wav"
+	.align 2
+.LC17:
+	.string	"grm/panzer/reload.wav"
+	.align 2
+.LC16:
+	.string	"grm/panzer/unload.wav"
+	.align 2
+.LC15:
+	.string	"grm/mg42/fire.wav"
+	.align 2
+.LC14:
+	.string	"grm/mg42/reload.wav"
+	.align 2
+.LC13:
+	.string	"grm/mg42/unload.wav"
+	.align 2
+.LC12:
+	.string	"grm/mp43/fire.wav"
+	.align 2
+.LC11:
+	.string	"grm/mp43/reload.wav"
+	.align 2
+.LC10:
+	.string	"grm/mp43/unload.wav"
+	.align 2
+.LC9:
+	.string	"grm/mp40/fire.wav"
+	.align 2
+.LC8:
+	.string	"grm/mp40/reload.wav"
+	.align 2
+.LC7:
+	.string	"grm/mp40/unload.wav"
+	.align 2
+.LC6:
+	.string	"grm/m98k/lastround.wav"
+	.align 2
+.LC5:
+	.string	"grm/m98k/fire.wav"
+	.align 2
+.LC4:
+	.string	"grm/m98k/reload.wav"
+	.align 2
+.LC3:
+	.string	"grm/m98k/unload.wav"
+	.align 2
+.LC2:
+	.string	"grm/p38/fire.wav"
+	.align 2
+.LC1:
+	.string	"grm/p38/reload.wav"
+	.align 2
+.LC0:
+	.string	"grm/p38/unload.wav"
+	.size	 grmguninfo,812
+	.comm	g_edicts,4,4
+	.comm	team_list,8,4
+	.comm	id_GameCmds,492,4
+	.lcomm	UserDLLImports,48,4
+	.comm	grm_index,4,4
+	.comm	is_silenced,4,4
+	.comm	Pickup_Weapon,4,4
+	.comm	Drop_Weapon,4,4
+	.comm	Use_Weapon,4,4
+	.comm	Pickup_Ammo,4,4
+	.comm	Drop_Ammo,4,4
+	.comm	ptrgi,4,4
+	.comm	ptrGlobals,4,4
+	.comm	ptrlevel,4,4
+	.comm	ptrGame,4,4
+	.comm	PlayerInsertCommands,4,4
+	.comm	PlayerFindFunction,4,4
+	.comm	PlayerInsertItem,4,4
+	.comm	FindItem,4,4
+	.comm	SpawnItem,4,4
+	.comm	FindItemByClassname,4,4
+	.comm	Weapon_Generic,4,4
+	.comm	Weapon_Grenade,4,4
+	.comm	ifchangewep,4,4
+	.comm	fire_bullet,4,4
+	.comm	AngleVectors,4,4
+	.comm	P_ProjectSource,4,4
+	.comm	PlayerNoise,4,4
+	.comm	Cmd_Reload_f,4,4
+	.comm	fire_rifle,4,4
+	.comm	VectorScale,4,4
+	.comm	fire_rocket,4,4
+	.comm	PBM_FireFlameThrower,4,4
+	.comm	Weapon_Pistol_Fire,4,4
+	.comm	Weapon_Rifle_Fire,4,4
+	.comm	Weapon_Submachinegun_Fire,4,4
+	.comm	Weapon_LMG_Fire,4,4
+	.comm	Weapon_HMG_Fire,4,4
+	.comm	Weapon_Rocket_Fire,4,4
+	.comm	Weapon_Sniper_Fire,4,4
+	.ident	"GCC: (GNU) 2.95.3 20010315 (release)"

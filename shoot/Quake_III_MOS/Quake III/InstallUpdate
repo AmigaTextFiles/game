@@ -1,0 +1,73 @@
+;
+; MorphOS Quake3 internet update installer
+; Copyright (C) 2005 Harry Sintonen <sintonen@iki.fi>
+;
+.KEY QUIET/S
+.BRA {
+.KET }
+
+failat 21
+
+if not "{QUIET}" eq "QUIET"
+  requestchoice >env:q3choice "MorphOS Quake3 Installer" "Would you like to install Quake3 updates from the internet?" "Yes|No"
+  if val "$q3choice" eq "0"
+    unsetenv q3choice
+    quit 5
+  endif
+  unsetenv q3choice
+endif
+
+set URL1  "ftp://ftp.sunet.se/pub/pc/games/idgames/idstuff/quake3/linux/linuxq3apoint-1.32b-3.x86.run"
+set URL2  "ftp://ftp.idsoftware.com/idstuff/quake3/linux/linuxq3apoint-1.32b-3.x86.run"
+set SIZE  30923961
+set USIZE 30915710
+
+bin/wget --passive-ftp --continue --tries 3 --waitretry 10 -O q3update.tmp "$URL1"
+set RES "$RC"
+if not val "$RES" eq "0"
+  bin/wget --passive-ftp --continue --tries 10 --waitretry 10 -O q3update.tmp "$URL2"
+  set RES "$RC"
+endif
+
+if val "$RES" eq "0"
+  list q3update.tmp lformat "%l" > env:updatelen
+  if val "$updatelen" eq "$SIZE"
+    echo "*NProcessing file..."
+    bin/tail -c $USIZE < q3update.tmp > q3update.tar.gz
+    if val "$RC" eq "0"
+      delete >nil: force q3update.tmp
+      echo "Decompressing Quake3 update files..."
+      bin/tar --use-compress-program bin/gzip -x -f q3update.tar.gz "baseq3*"
+      if val "$RC" eq "0"
+        delete >nil: force q3update.tar.gz
+        echo "Quake3 update installed ok."
+        delete >nil: force bin/gzip bin/tail bin/tar bin/wget InstallUpdate InstallUpdate.info
+        delete >nil: force bin
+      else
+        echo "Error extracting files from the update archive, giving up."
+        quit 5
+      endif
+      delete >nil: force q3update.tar.gz
+    else
+      echo "Error extracting files from the update archive, giving up."
+      quit 5
+    endif
+    delete >nil: force q3update.tmp
+  else
+    echo "Update file size is wrong, giving up."
+    quit 5
+  endif
+  unsetenv updatelen
+else
+  echo "Failed to fetch file linuxq3apoint-1.32b-3.x86.run, giving up"
+  quit 5
+endif
+
+unset RES
+unset USIZE
+unset SIZE
+unset URL2
+unset URL1
+
+echo "*NAll done. Thank you for using the automatic Quake3 update installer."
+wait 3

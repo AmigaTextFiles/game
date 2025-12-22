@@ -1,0 +1,4016 @@
+' Plasma Bubble. Amiga version. By Francis Irving.
+'
+' Compiler Options:
+$%3
+$*&
+$m192072
+$S&
+$S>
+$E#
+$P>
+kon&=1 ! Change to 1 for compilation, 0 for interpreter, 1 for 3.51 interpreter
+'
+' Yes! The graphics were drawn (on Degas Elite on an ST, loaded into ST GFA
+' Basic, saved in a silly format taking up lots of room, sent down a serial
+' cable to an Amiga, loaded into AmigaBasic and saved as ACBM, loaded into
+' the ACBM-PUT$ GFA Basic program, then INLINEd into the program proper.
+'
+' Why? First part was when I had an ST (don't worry, I've recovered) and
+' wrote an ST version, then a friend tried to write an Amiga version in
+' (shock) AmigaBasic (indrawn breath), and now I'm using GFA again.
+'
+' Started:        3rd November  1990.
+' Last Modified: 14th December  1990.
+'                13th February  1991.
+'                22nd June      1991.
+'                27th September 1991.
+'                 6th October   1991.
+'                17th May       1992.
+'                11th June      1992.
+'                 9th August    1992.
+'                23rd August    1992.
+'                30th September 1992
+'                17th December  1992
+'                 2nd July      1994
+'
+' Fn: 155, 47+n, 126
+'
+' Uncomment these for ASCII codes of strange keys
+' OPENW #5
+' DO
+'  i$=INKEY$
+'  IF i$<>""
+'    PRINT LEN(i$),ASC(MID$(i$,1)),ASC(MID$(i$,2)),ASC(MID$(i$,3))
+'  ENDIF
+' LOOP
+'
+GOSUB init
+DO
+  GOSUB menu
+  SELECT menu&
+  CASE 1
+    GOSUB game
+  CASE 2
+    GOSUB edit
+  CASE 4
+    GOSUB opts
+  ENDSELECT
+LOOP
+'
+' Program Control
+PROCEDURE init
+  er!=FALSE
+  ON ERROR GOSUB trap
+  GOSUB openscreens
+  GOSUB graphinit
+  GOSUB variables
+  GOSUB displaymove
+  GOSUB soundinit
+  FOR f&=1 TO 10
+    GOSUB soundplay(2,0)   ! this is an incredible kludge
+  NEXT f&
+  FRONTS sit&
+RETURN
+PROCEDURE trap
+  ON ERROR GOSUB trap
+  FRONTS 2
+  ~DisplayBeep(SCREEN(2))
+  PRINT ERR$(ERR)
+  EDIT
+  IF ERR=89
+    EDIT
+  ENDIF
+  RESUME leaveproc
+RETURN
+PROCEDURE game
+  GOSUB selectlevel
+  IF brk!
+    x$="Sorry, no level found with"
+    GOSUB text((height&/2)-10,1)
+    x$="that password."
+    GOSUB text((height&/2)+10,1)
+    GOSUB fade(15)
+    GOSUB pause
+    GOSUB fade(0)
+    CLEARW #sit&
+    GOTO ret
+  ENDIF
+  '
+  cancel!=FALSE
+  '
+  x$=default$
+  GOSUB text((height&/2)-60,1)
+  x$="Author: "+author$
+  GOSUB text((height&/2)-20,1)
+  x$="Diamonds Needed: "+STR$(needed&)
+  GOSUB text((height&/2),1)
+  x$="Pushable Walls: "+STR$(pushywall&)
+  GOSUB text((height&/2)+20,1)
+  x$="Map Type: "
+  SELECT map&
+  CASE 1
+    x$=x$+"Full"
+  CASE 0
+    x$=x$+"None"
+  CASE 2
+    x$=x$+"Progressive"
+  ENDSELECT
+  GOSUB text((height&/2)+40,1)
+  x$="Press fire or any key to play."
+  GOSUB text((height&/2)+80,1)
+  GOSUB fade(15)
+  GOSUB pause
+  GOSUB fade(0)
+  CLEARW #sit&
+  '
+  REPEAT
+    GOSUB backplay
+    IF NOT gotit!
+      x$="Hard luck. Do you want to"
+      GOSUB text((height&/2)-33,1)
+      x$="give "+default$+" just one more try?"
+      GOSUB text((height&/2)-22,1)
+      GOSUB yesno
+      GOSUB fade(0)
+      CLEARW #sit&
+      IF yesno&=2
+        cancel!=TRUE
+      ENDIF
+    ENDIF
+  UNTIL cancel! OR gotit!
+RETURN
+PROCEDURE play
+  GOSUB eachtime
+  '
+  OPENW #1
+  GOSUB makescene
+  OPENW #2
+  GOSUB makescene ! Same scene to both screen
+  '
+  GOSUB sprite
+  GOSUB movesprite
+  '
+  sit&=2
+  FRONTS sit&
+  GOSUB levelscan
+  IF NOT dead!
+    GOSUB fade(15) ! Fade front screen into view
+    GOSUB allfall
+    GOSUB swapscreen
+  ENDIF
+  '
+  DO UNTIL dead! OR gotit!
+    GOSUB input
+    GOSUB move
+  LOOP ! And now, number one, the idosyncratic loop...
+  '
+  IF dead!
+    GOSUB soundplay(2,63) ! Evil cackle
+  ENDIF
+  '
+  sit&=2
+  FRONTS sit&
+  GOSUB fade(0)
+  GOSUB nosprite
+  '
+  CLEARW #sit&
+  CLEARW #3-sit&
+  OPENW #sit&
+  IF gotit!
+    x$="Congratulations! You've"
+    GOSUB text((height&/2)-20,1)
+    x$="completed "+default$+"."
+    GOSUB text((height&/2),1)
+    IF LEFT$(next$,4)="END:"
+      x$="(The next password used to"
+      GOSUB text((height&/2)+70,1)
+      x$="edit "+default$+" is "+next$+")"
+      GOSUB text((height&/2)+90,1)
+      x$="You have finished this stream! Well done!"
+    ELSE
+      x$="The next password is "+next$+"."
+      IF next$<>"NONE"
+        autoload$=next$
+      ENDIF
+    ENDIF
+    GOSUB text((height&/2)+20,1)
+    IF menu&=1
+      default$=next$
+    ENDIF
+    GOSUB fade(15)
+    REPEAT ! Clear key buffer
+      PAUSE 1
+    UNTIL INKEY$=""
+    GOSUB pause
+    GOSUB fade(0)
+    CLEARW #sit&
+  ENDIF
+RETURN
+PROCEDURE edit
+  GOSUB selectlevel
+  IF brk!
+    x$="I can't find that one, do you want"
+    GOSUB text((height&/2)-32,1)
+    x$="to make a new level called "+type$+"?"
+    GOSUB text((height&/2)-22,1)
+    GOSUB yesno
+    GOSUB fade(0)
+    CLEARW #sit&
+    IF yesno&=2
+      GOTO ret
+    ENDIF
+    ARRAYFILL b&(),0
+    FOR f&=1 TO 30
+      b&(1,f&)=4
+      b&(20,f&)=4
+    NEXT f&
+    FOR g&=1 TO 20
+      b&(g&,1)=4
+      b&(g&,30)=4
+    NEXT g&
+    b&(2,2)=2
+    manx&=2
+    many&=2
+    default$=type$
+    map&=1
+    next$="NONE"
+    gravity&=1
+    author$="Unknown"
+    ARRAYFILL tele&(),0
+  ELSE
+    x$="Enter next Password for "+default$+":"
+    GOSUB text((height&/2)-12,1)
+    GOSUB fade(15)
+    PRINT AT(width&/16-3,height&/16+1);
+    IF debug!=TRUE
+      nexty$=next$
+    ELSE
+      FORM INPUT 8,nexty$
+    ENDIF
+    GOSUB fade(0)
+    CLEARW #sit&
+    IF UPPER$(nexty$)<>next$
+      x$="Sorry, you were wrong."
+      GOSUB text((height&/2)-10,1)
+      x$="Permission to edit level denied."
+      GOSUB text((height&/2)+10,1)
+      GOSUB fade(15)
+      GOSUB pause
+      GOSUB fade(0)
+      CLEARW #sit&
+      GOTO ret
+    ENDIF
+  ENDIF
+  GOSUB editlevel
+RETURN
+PROCEDURE saveopts
+  $U
+  OPEN "o",#1,"DEFAULT.LVL"
+  $U
+  FRONTS 2
+  PRINT #1;default$
+  PRINT #1;dispx&
+  PRINT #1;dispy&
+  PRINT #1;path$
+  PRINT #1;spritex&
+  PRINT #1;spritey&
+  CLOSE #1
+RETURN
+PROCEDURE quit
+  GOSUB soundquit
+  CLOSEW #1
+  CLOSEW #2
+  CLOSES 1
+  CLOSES 2
+  CLOSES 3
+  ~OpenWorkBench()
+  EDIT
+RETURN
+'
+PROCEDURE menu
+  IF autoload!
+    autoload!=FALSE
+    menu&=2
+    GOTO leaveproc
+  ENDIF
+  IF autoload$<>""
+    menu&=1
+    GOTO leaveproc
+  ENDIF
+  menu&=1
+  GOSUB menset
+  x$="Written by Francis Irving"
+  GOSUB text(height&/2+55,1)
+  x$="Graphics by Raymond Irving"
+  GOSUB text(height&/2+67,1)
+  PUT (width&-236)/2-2,20,title$
+  GOSUB fadetwo(15)
+  '
+  GOSUB mouse
+  oy&=height&-y&-40
+  REPEAT
+    joy&=STICK(1)
+    ink$=INKEY$
+    GOSUB mouse
+    omenu&=menu&
+    IF (y&<height&/2-20 AND oy&>=height&/2-20)
+      menu&=1
+    ENDIF
+    IF (y&>=height&/2-20 AND y&<height&/2+60 AND (oy&<height&/2-20 OR oy&=>height&/2+60))
+      menu&=2
+    ENDIF
+    IF (y&>=height&/2+60 AND oy&<height&/2+60)
+      menu&=4
+    ENDIF
+    IF joy&=1 OR ink$=CHR$(155)+CHR$(65)
+      DIV menu&,2
+    ENDIF
+    IF joy&=2 OR ink$=CHR$(155)+CHR$(66)
+      MUL menu&,2
+    ENDIF
+    IF menu&<1
+      menu&=1
+    ENDIF
+    IF menu&>4
+      menu&=4
+    ENDIF
+    IF menu&<>omenu&
+      GOSUB menset
+    ENDIF
+    IF joy&
+      REPEAT
+      UNTIL STICK(1)=0
+    ENDIF
+    oy&=y&
+  UNTIL b& OR ink$=CHR$(13) OR STRIG(1)
+  '
+  GOSUB fadetwo(0)
+  CLEARW #sit&
+RETURN
+PROCEDURE menset
+  x$="Play the Game"
+  GOSUB text((height&/2)-12,SGN(menu& AND 1)+8)
+  x$="Edit a Level"
+  GOSUB text((height&/2)+12,SGN(menu& AND 2)+8)
+  x$="Options Menu"
+  GOSUB text((height&/2)+104,SGN(menu& AND 4)+8)
+RETURN
+'
+PROCEDURE yesno
+  yesno&=1
+  GOSUB yesnoset
+  GOSUB fade(15)
+  '
+  GOSUB mouse
+  oy&=height&-y&-40
+  REPEAT
+    joy&=STICK(1)
+    ink$=INKEY$
+    GOSUB mouse
+    oyesno&=yesno&
+    IF (y&<height&/2-10 AND oy&>=height&/2-10) OR joy&=1 OR ink$=CHR$(155)+CHR$(65)
+      yesno&=1
+    ENDIF
+    IF (y&>=height&/2-10 AND oy&<height&/2-10) OR joy&=2 OR ink$=CHR$(155)+CHR$(66)
+      yesno&=2
+    ENDIF
+    IF yesno&<>oyesno&
+      GOSUB yesnoset
+    ENDIF
+    oy&=y&
+  UNTIL b& OR ink$=CHR$(13) OR STRIG(1)
+  '
+  GOSUB fade(0)
+  CLEARW #sit&
+RETURN
+PROCEDURE yesnoset
+  x$="Yes. Please."
+  GOSUB text((height&/2),(3-yesno&))
+  x$="No, Thanks."
+  GOSUB text((height&/2)+20,yesno&)
+RETURN
+'
+PROCEDURE options
+  menu&=1
+  GOSUB optset
+  x$="Version 3.0 - 2nd July 1994"
+  GOSUB text(height&/2-120,1)
+  GOSUB fadetwo(15)
+  '
+  GOSUB mouse
+  oy&=height&-y&-40
+  REPEAT
+    joy&=STICK(1)
+    ink$=INKEY$
+    GOSUB mouse
+    omenu&=menu&
+    IF (y&<height&/2-44 AND oy&>=height&/2-44)
+      menu&=1
+    ENDIF
+    IF (y&>=height&/2-44 AND y&<height&/2-20 AND (oy&<height&/2-44 OR oy&=>height&/2-20))
+      menu&=2
+    ENDIF
+    IF (y&>=height&/2-20 AND y&<height&/2+4 AND (oy&<height&/2-20 OR oy&=>height&/2+4))
+      menu&=4
+    ENDIF
+    IF (y&>=height&/2+4 AND y&<height&/2+28 AND (oy&<height&/2+4 OR oy&=>height&/2+28))
+      menu&=8
+    ENDIF
+    IF (y&>=height&/2+28 AND oy&<height&/2+28)
+      menu&=16
+    ENDIF
+    IF joy&=1 OR ink$=CHR$(155)+CHR$(65)
+      DIV menu&,2
+    ENDIF
+    IF joy&=2 OR ink$=CHR$(155)+CHR$(66)
+      MUL menu&,2
+    ENDIF
+    IF menu&<1
+      menu&=1
+    ENDIF
+    IF menu&>16
+      menu&=16
+    ENDIF
+    IF menu&<>omenu&
+      GOSUB optset
+    ENDIF
+    IF joy&
+      REPEAT
+      UNTIL STICK(1)=0
+    ENDIF
+    oy&=y&
+  UNTIL b& OR ink$=CHR$(13) OR STRIG(1)
+  '
+  GOSUB fadetwo(0)
+  CLEARW #sit&
+RETURN
+PROCEDURE optset
+  x$="Centre the Display"
+  GOSUB text((height&/2)-36,SGN(menu& AND 1)+8)
+  x$="Change Level Directory"
+  GOSUB text((height&/2)-12,SGN(menu& AND 2)+8)
+  x$="Quit the Game"
+  GOSUB text((height&/2)+12,SGN(menu& AND 4)+8)
+  x$="Save Options"
+  GOSUB text((height&/2)+36,SGN(menu& AND 8)+8)
+  x$="Return to Main Menu"
+  GOSUB text((height&/2)+104,SGN(menu& AND 16)+8)
+RETURN
+PROCEDURE opts
+  REPEAT
+    GOSUB options
+    SELECT menu&
+    CASE 1
+      GOSUB centre
+    CASE 2
+      GOSUB directory
+    CASE 4
+      GOSUB quit
+    CASE 8
+      GOSUB saveopts
+    ENDSELECT
+  UNTIL menu&=16
+RETURN
+PROCEDURE centre
+  x$="Centre the Display"
+  GOSUB text((height&/2)-40,1)
+  x$="Use the mouse. The large white"
+  GOSUB text((height&/2)-20,1)
+  x$="frame is the screen border."
+  GOSUB text((height&/2)+0,1)
+  x$="Click when finished."
+  GOSUB text((height&/2)+20,1)
+  COLOR 1
+  BOX 0,0,width&-1,height&-1
+  GOSUB fade(15)
+  GOSUB mouse
+  startx&=x&+dispx&+18
+  starty&=y&+dispy&+18
+  odispx&=dispx&
+  odispy&=dispy&
+  '
+  REPEAT
+    REPEAT
+      GOSUB mouse
+    UNTIL x&<>ox& OR y&<>oy& OR b&
+    dispx&=x&-(startx&-dispx&-18)+odispx&
+    dispy&=y&-(starty&-dispy&-18)+odispy&
+    IF dispy&<-29
+      dispy&=-29
+    ENDIF
+    GOSUB displaymove
+    ox&=x&
+    oy&=y&
+  UNTIL b&
+  REPEAT
+  UNTIL MOUSEK=0
+  GOSUB fade(0)
+  CLEARW #sit&
+RETURN
+PROCEDURE directory
+  REPEAT
+    x$="Enter Directory:"
+    GOSUB text((height&/2)-12,1)
+    x$="(Return for "+path$+")"
+    GOSUB text((height&/2)+16,1)
+    GOSUB fade(15)
+    '
+    PRINT AT(width&/16-15,height&/16+1);
+    oldpath$=path$
+    FORM INPUT 32,path$
+    GOSUB fade(0)
+    CLEARW #sit&
+    '
+    path$=UPPER$(path$)
+    IF path$=""
+      path$=oldpath$
+    ENDIF
+    '
+    nuke!=TRUE
+    IF NOT (EXIST(path$))
+      nuke!=FALSE
+      x$="I can't find that directory."
+      GOSUB text((height&/2)-10,1)
+      x$="Please try again."
+      GOSUB text((height&/2)+10,1)
+      GOSUB fade(15)
+      GOSUB pause
+      GOSUB fade(0)
+      CLEARW #sit&
+    ENDIF
+  UNTIL nuke!
+RETURN
+'
+' Screen & Colour
+PROCEDURE openscreens
+  ~CloseWorkBench()
+  IF AvailMem(2)<105000
+    ~OpenWorkBench()
+    EDIT
+  ENDIF
+  OPENS 3,0,0,16,16,1,0 ! Don't ask (it's to do with O/S incompatibility (1.3 vs. 2.0))
+  width&=360
+  height&=280
+  FOR sit&=1 TO 2
+    OPENS sit&,0,0,width&,height&,4,16384 ! The last term for sprites
+    OPENW #sit&,0,0,width&,height&,0,4096+2048+65536+131072
+    TITLES #sit&,"Plasma Bubble Screen "+STR$(sit&)
+    TITLEW #sit&,""
+    CLEARW #sit&
+    IF sit&=1
+      GOSUB fullcolour
+    ELSE
+      GOSUB nocolour
+    ENDIF
+  NEXT sit&
+  CLEARW #1
+  CLEARW #2
+  sit&=2
+RETURN
+PROCEDURE displaymove
+  ' This lot moves the top-left coordinates of each screen up and
+  ' left a few pixels - So it's Panoramic!
+  FOR f&=1 TO 2
+    adr%=SCREEN(f&)+72 ! Find Viewport DX adress
+    DPOKE (adr%),dispx&
+    DPOKE (adr%+2),dispy&
+  NEXT f&
+  ~RemakeDisplay() ! Make this move show on the display
+RETURN
+PROCEDURE swapscreen
+  FRONTS sit&
+  sit&=3-sit&
+  OPENW #sit&
+RETURN
+PROCEDURE fullcolour
+  RESTORE col
+  FOR f&=0 TO 15
+    READ r&,g&,b&
+    SETCOLOR f&,r&,g&,b&
+  NEXT f&
+  SETCOLOR 22,15,15,15
+  SETCOLOR 26,15,15,15
+RETURN
+PROCEDURE nocolour
+  FOR f&=0 TO 15
+    SETCOLOR f&,0,0,0
+  NEXT f&
+RETURN
+PROCEDURE fade(dir&)
+  sit&=2
+  FRONTS sit&
+  FOR i=15-dir& TO dir& STEP SGN(dir&-7)
+    f=i/15
+    RESTORE col
+    FOR h&=0 TO 15
+      READ red&,green&,blue&
+      SETCOLOR h&,red&*f,green&*f,blue&*f
+    NEXT h&
+    SETCOLOR 22,15*f,15*f,15*f
+    SETCOLOR 26,15*f,15*f,15*f
+  NEXT i
+RETURN
+PROCEDURE fadetwo(dir&)
+  sit&=2
+  FRONTS sit&
+  FOR i=15-dir& TO dir& STEP SGN(dir&-7)
+    f=i/15
+    RESTORE coltwo
+    FOR h&=0 TO 15
+      READ red&,green&,blue&
+      SETCOLOR h&,red&*f,green&*f,blue&*f
+    NEXT h&
+  NEXT i
+  coltwo:
+  DATA 0,0,0, 13,13,13, 10,10,11, 8,8,7, 6,7,8, 8,6,7
+  DATA 4,4,4, 3,3,3, 15,15,15, 12,0,0, 0,0,0, 15,13,10
+  DATA 0,8,2, 0,15,15, 15,9,7, 15,15,15
+RETURN
+PROCEDURE colourdatum
+  col:
+  DATA 0,0,0, 15,15,15, 12,0,0, 5,14,5, 5,8,11, 2,12,12
+  DATA 13,14,0, 15,11,4, 9,9,9, 7,7,7, 9,15,2, 14,15,0
+  DATA 0,9,0, 6,10,11, 14,8,6, 13,13,13
+RETURN
+'
+' Graphics
+PROCEDURE graphinit
+  graphfile$="PlasmaGraphics"
+  '
+  IF NOT (EXIST(graphfile$))
+    IF EXIST("PlasmaBubble:")
+      CHDIR "PlasmaBubble:"
+    ENDIF
+  ENDIF
+  '
+  IF NOT (EXIST(graphfile$))
+    x$="Unable to find the graphics file"
+    GOSUB text((height&/2)-30,1)
+    x$="called """+graphfile$+"""."
+    GOSUB text((height&/2)-10,1)
+    x$="CD to Plasma Bubble's directory"
+    GOSUB text((height&/2)+10,1)
+    x$="before running the game."
+    GOSUB text((height&/2)+30,1)
+    GOSUB fade(15)
+    GOSUB pause
+    GOSUB fade(0)
+    CLEARW #sit&
+    GOSUB quit
+  ELSE
+    GOSUB inlines
+  ENDIF
+RETURN
+PROCEDURE inlines
+  ' No longer inlines - the name is kept for prosterity.
+  ' We load the graphics now to save memory, so two copies
+  ' don't have to be kept at once.
+  ' 966 is the length of a 40 by 40 chunk of screen, when GETed
+  '
+  num&=50 ! Of shapes
+  '
+  OPEN "i",#1,graphfile$
+  FRONTS sit&
+  DIM a$(num&+10)
+  DIM mini$(num&+10)
+  DIM man$(4)
+  DIM egg$(7)
+  hatchy$=SPACE$(966)
+  DIM flappy$(4)
+  DIM fig$(9)
+  DIM exp$(6)
+  '
+  GET 0,0,39,39,a$(0)           ! Main graphics
+  FOR f&=1 TO num&+8
+    IF f&<>2 AND f&<>7 AND f&<>17 AND f&<>18 AND f&<>19 AND f&<>30 AND f&<>num&+1
+      a$(f&)=INPUT$(966,#1)
+    ENDIF
+  NEXT f&
+  '
+  FOR f&=1 TO num&+8           ! map/editor mini images
+    IF f&<>27 AND f&<>30 AND (f&<num&+2 OR f&>num&+8)
+      mini$(f&)=INPUT$(70,#1)
+    ENDIF
+  NEXT f&
+  GET 0,0,7,7,mini$(0)  ! nothing
+  COLOR 9
+  BOX 0,0,7,7
+  GET 0,0,7,7,mini$(30) ! editor invisible wall
+  DEFFILL 2
+  PBOX 0,0,7,7
+  COLOR 6
+  BOX 1,1,6,6
+  GET 0,0,7,7,mini$(27) ! map teleport
+  mini$(num&+2)=mini$(45)
+  mini$(num&+3)=mini$(46)
+  FOR f&=num&+4 TO num&+8
+    mini$(f&)=mini$(28)
+  NEXT f&
+  '
+  FOR f&=1 TO 4             ! player's four directions
+    man$(f&)=INPUT$(966,#1)
+  NEXT f&
+  '
+  FOR f&=1 TO 6             ! explosion animation
+    exp$(f&)=INPUT$(966,#1)
+  NEXT f&
+  '
+  FOR f&=1 TO 7             ! cracking egg
+    egg$(f&)=INPUT$(966,#1)
+  NEXT f&
+  '
+  hatchy$=INPUT$(966,#1)    ! hatchling's other wings
+  FOR f&=1 TO 4             ! and bouncy's other wings
+    flappy$(f&)=INPUT$(966,#1)
+  NEXT f&
+  '
+  FOR f&=0 TO 9             ! sprite numbers for diamond count
+    fig$(f&)=INPUT$(88,#1)
+    dummy$=INPUT$(8,#1) ! we don't want the bottom bit
+  NEXT f&
+  '
+  title$=INPUT$(9606,#1)    ! logo
+  CLOSE #1
+  '
+  a$(2)=man$(4)       ! Fill the rest of the main graphics in: first yourself
+  a$(7)=a$(3)         ! Falling diamond
+  a$(17)=a$(4)        ! Pushy wall
+  a$(18)=a$(2)        ! Manikin
+  a$(19)=egg$(1)      ! Cracking egg (waiting)
+  a$(30)=a$(0)        ! Invisible wall
+  a$(num&+1)=egg$(1)  ! Actual cracking egg
+RETURN
+PROCEDURE makescene
+  FOR f&=manx&-4 TO manx&+4
+    FOR g&=many&-3 TO many&+3
+      px&=(f&-manx&+4)*40
+      py&=(g&-many&+3)*40
+      IF f&>0 AND f&<31 AND g&>0 AND g&<21
+        PUT px&,py&,a$(b&(g&,f&))
+        map!(g&,f&)=TRUE
+      ELSE
+        PUT px&,py&,a$(0)
+      ENDIF
+    NEXT g&
+  NEXT f&
+RETURN
+PROCEDURE move
+  IF b&(many&,manx&)<>2
+    GOTO ret
+  ENDIF
+  '
+  SELECT joy& ! Pump new man grapics into place
+  CASE 1
+    a$(2)=man$(3)
+  CASE 8
+    a$(2)=man$(2)
+  CASE 2
+    a$(2)=man$(4)
+  CASE 4
+    a$(2)=man$(1)
+  ENDSELECT
+  '
+  IF dmanx&<>0 AND dmanx&=-odmanx& ! smoother rotation of you between opposite directions
+    PUT 160,120,man$(RANDOM(2)+3)
+    GOSUB swapscreen
+    PAUSE 3
+  ENDIF
+  IF dmany&<>0 AND dmany&=-odmany&
+    PUT 160,120,man$(RANDOM(2)+1)
+    GOSUB swapscreen
+    PAUSE 3
+  ENDIF
+  PUT 160,120,a$(2) ! Initial rotation
+  GOSUB swapscreen
+  '
+  ' Scroll!
+  b&(many&,manx&)=0
+  ADD many&,dmany&
+  ADD manx&,dmanx&
+  IF s!(b&(many&,manx&),8)
+    INC score&
+    '    SOUND 2092.8,1,255,0
+    IF score&=needed&
+      gotit!=TRUE
+    ENDIF
+    GOSUB sprite
+  ENDIF
+  tele!=FALSE
+  IF b&(many&,manx&)=27
+    tele!=TRUE
+  ENDIF
+  b&(many&,manx&)=2
+  IF dmanx&<>0
+    f&=manx&+4
+    IF dmanx&=-1
+      f&=manx&-4
+    ENDIF
+    FOR h&=1 TO 2
+      SCROLL -40*dmanx&,0,0,0,width&,height&
+      FOR g&=many&-3 TO many&+3
+        px&=(f&-manx&+4)*40
+        py&=(g&-many&+3)*40
+        IF f&>0 AND f&<31 AND g&>0 AND g&<21
+          PUT px&,py&,a$(b&(g&,f&))
+          map!(g&,f&)=TRUE
+        ENDIF
+      NEXT g&
+      PUT 160,120,a$(2)
+      GOSUB put(many&-dmany&,manx&-dmanx&)
+      IF push!
+        GOSUB put(many&+dmany&,manx&+dmanx&)
+      ENDIF
+      IF h&=1
+        IF monster!
+          GOSUB monsters
+        ENDIF
+        GOSUB swapscreen
+      ENDIF
+    NEXT h&
+    IF monster!
+      GOSUB monother
+    ENDIF
+  ENDIF
+  IF dmany&<>0
+    g&=many&+3
+    IF dmany&=-1
+      g&=many&-3
+    ENDIF
+    FOR h&=1 TO 2
+      SCROLL 0,-40*dmany&,0,0,width&,height&
+      FOR f&=manx&-4 TO manx&+4
+        px&=(f&-manx&+4)*40
+        py&=(g&-many&+3)*40
+        IF f&>0 AND f&<31 AND g&>0 AND g&<21
+          PUT px&,py&,a$(b&(g&,f&))
+          map!(g&,f&)=TRUE
+        ENDIF
+      NEXT f&
+      PUT 160,120,a$(2)
+      GOSUB put(many&-dmany&,manx&-dmanx&)
+      IF push!
+        GOSUB put(many&+dmany&,manx&+dmanx&)
+      ENDIF
+      IF h&=1
+        IF monster!
+          GOSUB monsters
+        ENDIF
+        GOSUB swapscreen
+      ENDIF
+    NEXT h&
+    IF monster!
+      GOSUB monother
+    ENDIF
+  ENDIF
+  '
+  IF monster!
+    GOSUB monfall
+  ENDIF
+  '
+  IF tele!
+    GOSUB teleport
+  ENDIF
+  '
+  IF bang!
+    GOSUB explode(many&+dmany&,manx&+dmanx&)
+  ENDIF
+  IF NOT tele!
+    GOSUB check(many&-dmany&,manx&-dmanx&)
+  ENDIF
+  GOSUB check(many&,manx&)
+  '
+  odmanx&=dmanx&
+  odmany&=dmany&
+  IF dead! AND prin!
+    IF b&(many&,manx&)=2
+      b&(many&,manx&)=0
+      GOSUB explode(many&,manx&)
+    ENDIF
+  ENDIF
+  IF push!
+    IF s!(b&(many&+dmany&,manx&+dmanx&),1)
+      GOSUB fallch(many&+dmany&,manx&+dmanx&)
+    ENDIF
+    GOSUB check(many&+dmany&,manx&+dmanx&)
+  ENDIF
+RETURN
+PROCEDURE text(vert&,col&)
+  COLOR col&
+  TEXT (width&-LEN(x$)*8)/2,vert&,x$
+RETURN
+PROCEDURE put(yy&,xx&)
+  LOCAL x&,y&
+  x&=xx&
+  y&=yy&
+  px&=x&-manx&+4
+  py&=y&-many&+3
+  IF px&=>0 AND py&=>0 AND px&<9 AND py&<7
+    PUT px&*40,py&*40,a$(b&(y&,x&))
+    onscr!=TRUE
+  ENDIF
+RETURN
+PROCEDURE explode(yy&,xx&)
+  LOCAL x&,y&
+  x&=xx&
+  y&=yy&
+  px&=x&-manx&+4
+  py&=y&-many&+3
+  IF px&=>0 AND py&=>0 AND px&<9 AND py&<7
+    '    GOSUB soundplay(1,63) ! Explode noise
+    FOR f&=1 TO 6
+      PUT px&*40,py&*40,exp$(f&)
+      GOSUB swapscreen
+      PAUSE 2
+    NEXT f&
+    PUT px&*40,py&*40,a$(b&(y&,x&))
+    GOSUB swapscreen
+    PUT px&*40,py&*40,a$(b&(y&,x&))
+  ENDIF
+RETURN
+PROCEDURE map
+  GOSUB swapscreen
+  OPENW #2
+  FRONTS 2
+  GRAPHMODE 0
+  temp$=mini$(7)
+  mini$(7)=mini$(3) ! Falling diamonds look normal
+  temp2$=mini$(17)
+  mini$(17)=mini$(4)! Pushable walls are indistinguishable
+  temp3$=mini$(30)
+  mini$(30)=mini$(0)! Invisible walls are, er., invisible
+  x$=default$+" by "+author$
+  GOSUB text(17,1)
+  x$="Diamonds Needed: "+STR$(needed&-score&)
+  GOSUB nosprite
+  GOSUB text(37,1)
+  x$="Initial Pushable Walls: "+STR$(pushywall&)
+  GOSUB text(54,1)
+  IF map&<>0
+    x$="Press P for a Printout"
+    GOSUB text(250,1)
+  ENDIF
+  IF map&>0
+    DEFFILL 0
+    PBOX 8+(width&/2)-127,8+(height&/2)-84,31*8-1+(width&/2)-127,21*8-1+(height&/2)-84
+    DEFFILL 3
+    BOX 7+(width&/2)-127,7+(height&/2)-84,31*8+(width&/2)-127,21*8+(height&/2)-84
+    FOR y&=1 TO 10
+      FOR x&=1 TO 15
+        GOSUB mapx(y&,x&)
+        GOSUB mapx(21-y&,x&)
+        GOSUB mapx(y&,31-x&)
+        GOSUB mapx(21-y&,31-x&)
+      NEXT x&
+    NEXT y&
+  ELSE
+    x$="No map on this level."
+    GOSUB text(width&/2+4,1)
+  ENDIF
+  mini$(7)=temp$
+  mini$(17)=temp2$
+  mini$(30)=temp3$
+  rewait:
+  GRAPHMODE 1
+  GOSUB pause
+  IF map&<>0 AND UPPER$(ink$)="P"
+    DEFFILL 0
+    PBOX 0,0,width&,8+(height&/2)-84
+    PBOX 0,0,8+(width&/2)-127,height&
+    PBOX 31*8-1+(width&/2)-127,0,width&,height&
+    PBOX 0,21*8-1+(height&/2)-84,width&,height&
+    x$=default$+" by "+author$
+    GOSUB text(17,1)
+    x$="Diamonds Needed: "+STR$(needed&-score&)
+    GOSUB nosprite
+    GOSUB text(37,1)
+    x$="Initial Pushable Walls: "+STR$(pushywall&)
+    GOSUB text(54,1)
+    SETCOLOR 1,0,0,0
+    SETCOLOR 0,15,15,15
+    HARDCOPY
+    PRINT "Done hardcopy"
+    GOSUB fullcolour
+  ENDIF
+  GOSUB sprite
+  GOSUB movesprite
+  FRONTS 1
+  GOSUB makescene
+  GOSUB swapscreen
+RETURN
+PROCEDURE mapx(f&,g&)
+  IF b&(f&,g&)<>0 AND (map!(f&,g&) OR map&=1)
+    PUT g&*8+(width&/2)-127,f&*8+(height&/2)-84,mini$(b&(f&,g&))
+  ENDIF
+RETURN
+PROCEDURE teleport
+  beforemanx&=manx&
+  beforemany&=many&
+  FRONTS 2
+  FOR h&=1 TO 26
+    IF (many&=tele&(h&,1) AND manx&=tele&(h&,2))
+      many&=tele&(h&,3)
+      manx&=tele&(h&,4)
+      EXIT IF 1
+    ELSE IF (many&=tele&(h&,3) AND manx&=tele&(h&,4))
+      many&=tele&(h&,1)
+      manx&=tele&(h&,2)
+      EXIT IF 1
+    ENDIF
+  NEXT h&
+  IF manx&=0 AND many&=0 ! If only one teleport of that type
+    dead!=TRUE           ! then your journey is fatal.
+    prin!=TRUE
+    manx&=beforemanx&
+    many&=beforemany&
+  ELSE ! Teleport them
+    b&(many&,manx&)=b&(beforemany&,beforemanx&) ! Just in case nothing is being ported
+    b&(beforemany&,beforemanx&)=0
+    '
+    mul&=(RANDOM(2)*2)-1
+    FOR ff&=1 TO 9
+      ADD dispx&,mul&*(ff&^2)
+      GOSUB displaymove
+    NEXT ff&
+    GOSUB nocolour
+    '
+    OPENW #2
+    GOSUB makescene
+    OPENW #1
+    GOSUB makescene
+    '
+    GOSUB fullcolour
+    FOR ff&=9 DOWNTO 1
+      SUB dispx&,mul&*(ff&^2)
+      GOSUB displaymove
+    NEXT ff&
+    '
+    GOSUB swapscreen
+    GOSUB check(beforemany&,beforemanx&)
+    GOSUB check(beforemany&-dmany&,beforemanx&-dmanx&)
+  ENDIF
+RETURN
+'
+PROCEDURE sprite
+  sprite!=TRUE
+  fig$="   "
+  RSET fig$=STR$(ABS(needed&-score&))
+  FOR spr&=1 TO 3
+    IF MID$(fig$,spr&,1)>="0" AND MID$(fig$,spr&,1)<=":"
+      SPRITE #spr&+1,fig$(ASC(MID$(fig$,spr&,1))-48)
+    ELSE
+      SPRITE #spr&+1,fig$(0)
+    ENDIF
+  NEXT spr&
+RETURN
+PROCEDURE nosprite
+  IF sprite!
+    sprite!=FALSE
+    SPRITE #2
+    SPRITE #3
+    SPRITE #4
+  ENDIF
+RETURN
+PROCEDURE movesprite
+  IF sprite!
+    FOR spr&=1 TO 3
+      SPRITE #spr&+1,spritex&+spr&*16,spritey&
+    NEXT spr&
+  ENDIF
+RETURN
+'
+' Input
+PROCEDURE pause
+  REPEAT
+    ink$=INKEY$
+  UNTIL ink$<>"" OR MOUSEK OR STRIG(1)
+RETURN
+PROCEDURE input
+  t=TIMER
+  trol=TIMER
+  REPEAT
+    REPEAT
+      ink$=INKEY$
+    UNTIL ink$<>oink$ OR ink$=""! Clear the keyboard buffer
+    joy&=0
+    b&=0
+    WHILE joy&=0 AND ink$="" AND b&<>1 AND NOT dead!
+      IF monster!
+        IF TIMER>t+50
+          GOSUB monsters
+          GOSUB swapscreen
+          GOSUB monother
+          GOSUB monfall
+          t=TIMER
+        ENDIF
+      ENDIF
+      IF TIMER>trol+800 AND odmany&<>1
+        IF odmany&=-1
+          PUT 160,120,man$(RANDOM(2)+1)
+          GOSUB swapscreen
+          PAUSE 3
+        ENDIF
+        a$(2)=man$(4)
+        GOSUB put(many&,manx&)
+        GOSUB swapscreen
+        GOSUB put(many&,manx&)
+        GOSUB swapscreen
+        odmanx&=0
+        odmany&=1
+      ENDIF
+      joy&=STICK(1)
+      IF STRIG(1)
+        joy&=16
+      ENDIF
+      ink$=UPPER$(INKEY$)
+      GOSUB mouse
+      '
+      IF (x&<>oldx& OR y&<>oldy&) AND b&=2
+        oldx&=x&
+        oldy&=y&
+        SUB x&,22-dispx&
+        ADD y&,8
+        LET spritex&=x&
+        LET spritey&=y&
+        FRONTS 2
+        GOSUB movesprite
+      ENDIF
+      '
+      IF ink$="P" OR ink$=" "
+        trolalol=t-TIMER
+        trolalolalol=trol-TIMER
+        GRAPHMODE 0
+        x$="Game Paused"
+        GOSUB text(height&/2,1)
+        GRAPHMODE 1
+        GOSUB swapscreen
+        GOSUB pause
+        GOSUB swapscreen
+        GOSUB makescene
+        t=TIMER+trolalol
+        trol=TIMER+trolalolalol
+        ink$=""
+      ENDIF
+    WEND
+    dmanx&=0
+    dmany&=0
+    IF LEFT$(ink$,1)=CHR$(155)
+      SELECT RIGHT$(ink$,1) ! Detect cursors
+      CASE "A"
+        joy&=1
+      CASE "B"
+        joy&=2
+      CASE "C"
+        joy&=8
+      CASE "D"
+        joy&=4
+      ENDSELECT
+    ENDIF
+    oink$=ink$
+    IF ink$=CHR$(27) ! Escape?
+      dead!=TRUE
+      prin!=TRUE
+    ENDIF
+    push!=FALSE
+    bang!=FALSE
+    EXIT IF dead!
+    IF ink$=CHR$(155)+CHR$(63)+CHR$(126) OR UPPER$(ink$)="M" OR b&=1 OR joy&=16 OR ink$=CHR$(13) ! Help, M, Click, Fire, Return
+      GOSUB map
+      trol=TIMER
+    ENDIF
+    SELECT joy& ! Set Delta X and Delta Y as per Joy&
+    CASE 1
+      DEC dmany&
+    CASE 8
+      INC dmanx&
+    CASE 2
+      INC dmany&
+    CASE 4
+      DEC dmanx&
+    ENDSELECT
+    IF s!(b&(many&+dmany&,manx&+dmanx&),7) ! Pushable?
+      IF (s!(b&(many&+dmany&*2,manx&+dmanx&*2),4) AND b&(many&+dmany&,manx&+dmanx&)<>28) OR (b&(many&+dmany&,manx&+dmanx&)=28 AND s!(b&(many&+dmany&*2,manx&+dmanx&*2),10))! Pushthroughable?
+        push!=TRUE
+        IF s!(b&(many&+dmany&*2,manx&+dmanx&*2),3)
+          bang!=TRUE
+          b&(many&+dmany&*2,manx&+dmanx&*2)=0
+        ELSE
+          b&(many&+dmany&*2,manx&+dmanx&*2)=b&(many&+dmany&,manx&+dmanx&)
+          IF b&(many&+dmany&,manx&+dmanx&)=19 OR b&(many&+dmany&,manx&+dmanx&)=10 OR b&(many&+dmany&,manx&+dmanx&)=num&+1
+            FOR i&=1 TO maxmon&
+              IF egg&(i&,3)<>3 AND many&+dmany&=egg&(i&,1) AND manx&+dmanx&=egg&(i&,2)
+                ADD egg&(i&,1),dmany&
+                ADD egg&(i&,2),dmanx&
+              ENDIF
+            NEXT i&
+          ENDIF
+        ENDIF
+        b&(many&+dmany&,manx&+dmanx&)=0
+      ENDIF
+    ENDIF
+    IF b&(many&+dmany&,manx&+dmanx&)=45 AND dmanx&=-1 ! Set off bubble
+      IF odmanx&=1
+        PUT 160,120,man$(RANDOM(2)+3)
+        GOSUB swapscreen
+        PAUSE 3
+      ENDIF
+      a$(2)=man$(1)
+      GOSUB startbubmac(many&+dmany&,manx&+dmanx&)
+      GOSUB put(many&+dmany&,manx&+dmanx&)
+      GOSUB put(many&+dmany&-1,manx&+dmanx&)
+      GOSUB put(many&,manx&)
+      GOSUB swapscreen
+      GOSUB put(many&+dmany&,manx&+dmanx&)
+      GOSUB put(many&+dmany&-1,manx&+dmanx&)
+      GOSUB put(many&,manx&)
+      GOSUB swapscreen
+      odmanx&=-1
+      odmany&=0
+      t=TIMER
+      trol=TIMER
+    ENDIF
+    IF b&(many&+dmany&,manx&+dmanx&)=46 AND dmanx&=1
+      IF odmanx&=-1
+        PUT 160,120,man$(RANDOM(2)+3)
+        GOSUB swapscreen
+        PAUSE 3
+      ENDIF
+      a$(2)=man$(2)
+      GOSUB startbubmac(many&+dmany&,manx&+dmanx&)
+      GOSUB put(many&+dmany&,manx&+dmanx&)
+      GOSUB put(many&+dmany&-1,manx&+dmanx&)
+      GOSUB put(many&,manx&)
+      GOSUB swapscreen
+      GOSUB put(many&+dmany&,manx&+dmanx&)
+      GOSUB put(many&+dmany&-1,manx&+dmanx&)
+      GOSUB put(many&,manx&)
+      GOSUB swapscreen
+      odmanx&=1
+      odmany&=0
+      t=TIMER
+      trol=TIMER
+    ENDIF
+  UNTIL s!(b&(many&+dmany&,manx&+dmanx&),2) OR push! ! Can they move thataway?
+  IF s!(b&(many&+dmany&,manx&+dmanx&),3)
+    dead!=TRUE
+    prin!=TRUE
+  ENDIF
+RETURN
+PROCEDURE mouse
+  y%=DPEEK(SCREEN(3)+16) ! Don't ask
+  x%=DPEEK(SCREEN(3)+18)
+  b&=MOUSEK
+  IF x%>32767
+    x%=0
+  ENDIF
+  IF y%>32767
+    y%=0
+  ENDIF
+  x&=x%
+  y&=y%
+  SUB x&,dispx&+18
+  SUB y&,dispy&+18
+RETURN
+'
+' Boulder/Monster Calculations
+PROCEDURE makeegg
+  FOR i&=1 TO maxmon&
+    IF egg&(i&,3)=3
+      monster!=TRUE
+      egg&(i&,1)=e&
+      egg&(i&,2)=t&
+      IF crack!
+        egg&(i&,3)=0
+        egg&(i&,4)=1
+        b&(e&,t&)=num&+1
+      ELSE
+        egg&(i&,3)=1
+        egg&(i&,4)=1
+        crack!=TRUE
+        b&(e&,t&)=19
+        a$(19)=egg$(1)
+      ENDIF
+      EXIT IF 1
+    ENDIF
+  NEXT i&
+  IF i&=maxmon&+1
+    b&(e&,t&)=10
+  ENDIF
+  GOSUB put(e&,t&) ! ***
+  GOSUB swapscreen
+  GOSUB put(e&,t&)
+RETURN
+PROCEDURE makehatchy
+  FOR i&=1 TO maxmon&
+    IF egg&(i&,3)=3
+      monster!=TRUE
+      egg&(i&,1)=e&
+      egg&(i&,2)=t&
+      '
+      egg&(i&,3)=2
+      egg&(i&,4)=1
+      '
+      egg&(i&,9)=0
+      '
+      GOSUB put(e&,t&)
+      GOSUB swapscreen ! ***
+      GOSUB put(e&,t&)
+      EXIT IF 1
+    ENDIF
+  NEXT i&
+RETURN
+PROCEDURE makebouncy
+  FOR i&=1 TO maxmon&
+    IF egg&(i&,3)=3
+      monster!=TRUE
+      egg&(i&,1)=e&
+      egg&(i&,2)=t&
+      egg&(i&,3)=5
+      egg&(i&,11)=0
+      egg&(i&,9)=0
+      GOSUB put(e&,t&)
+      GOSUB swapscreen ! ***
+      GOSUB put(e&,t&)
+      EXIT IF 1
+    ENDIF
+  NEXT i&
+RETURN
+PROCEDURE swaphatch
+  SWAP hatchy$,a$(20)
+  FOR hf&=1 TO 4
+    dummy$=a$(40+hf&)
+    a$(40+hf&)=flappy$(hf&)
+    flappy$(hf&)=dummy$
+  NEXT hf&
+RETURN
+PROCEDURE monsters
+  GOSUB swaphatch
+  count&=0
+  FOR j&=1 TO maxmon&
+    begg&=b&(egg&(j&,1),egg&(j&,2))
+    IF (egg&(j&,3)=0 AND begg&<>num&+1) OR (egg&(j&,3)=1 AND begg&<>19) OR (egg&(j&,3)=2 AND begg&<>20 AND begg&<>31) OR (egg&(j&,3)=4 AND begg&<>21 AND begg&<>22 AND begg&<>31) OR (egg&(j&,3)=5 AND (begg&<41 OR begg&>44) AND begg&<>31) ! it's dead
+      IF egg&(j&,3)=1
+        crack!=FALSE
+      ENDIF
+      egg&(j&,3)=3
+    ENDIF
+    IF (egg&(j&,3)=7 AND (begg&<47 OR begg&>50) AND begg&<>31) ! death-check IF cont.
+      egg&(j&,3)=3
+    ENDIF
+    IF egg&(j&,3)<>3
+      INC count&
+    ENDIF
+    IF egg&(j&,3)=2
+      IF begg&<>31
+        dy&=0
+        dx&=0
+        IF manx&>egg&(j&,2)
+          dx&=1
+        ENDIF
+        IF manx&<egg&(j&,2)
+          dx&=-1
+        ENDIF
+        gointo&=b&(egg&(j&,1),egg&(j&,2)+dx&)
+        IF gointo&=0 OR gointo&=31
+          GOTO moveit
+        ENDIF
+        dx&=0
+        IF many&>egg&(j&,1)
+          dy&=1
+        ENDIF
+        IF many&<egg&(j&,1)
+          dy&=-1
+        ENDIF
+        gointo&=b&(egg&(j&,1)+dy&,egg&(j&,2))
+        IF gointo&=0
+          GOTO moveit
+        ENDIF
+        GOTO nocanmove
+        moveit:
+        IF gointo&=0
+          SWAP b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&),b&(egg&(j&,1),egg&(j&,2))
+        ELSE IF gointo&=31
+          b&(egg&(j&,1),egg&(j&,2))=0 ! gone into monsterport
+          egg&(j&,9)=dx&
+        ENDIF
+        egg&(j&,5)=egg&(j&,1)
+        egg&(j&,6)=egg&(j&,2)
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+        ADD egg&(j&,1),dy&
+        ADD egg&(j&,2),dx&
+        IF gointo&=31
+          GOSUB monsterport
+        ENDIF
+        nocanmove:
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+        endit:
+      ELSE
+        dx&=egg&(j&,9)
+        IF b&(egg&(j&,1),egg&(j&,2)+dx&)=0 ! left monsterport
+          egg&(j&,5)=egg&(j&,1)
+          egg&(j&,6)=egg&(j&,2)
+          b&(egg&(j&,1),egg&(j&,2)+dx&)=20 ! put creature back
+          GOSUB put(egg&(j&,1),egg&(j&,2))
+          ADD egg&(j&,2),dx&
+          GOSUB put(egg&(j&,1),egg&(j&,2))
+        ELSE IF b&(egg&(j&,1),egg&(j&,2)+dx&)=31
+          egg&(j&,5)=egg&(j&,1)
+          egg&(j&,6)=egg&(j&,2)
+          ADD egg&(j&,2),dx&
+          GOSUB monsterport
+        ELSE
+          egg&(j&,5)=egg&(j&,1)
+          egg&(j&,6)=egg&(j&,2)
+          egg&(j&,9)=-egg&(j&,9)
+          dx&=-dx&
+          GOSUB monsterport
+        ENDIF
+      ENDIF
+    ENDIF
+    IF egg&(j&,3)=1
+      INC egg&(j&,4)
+      IF egg&(j&,4)=8
+        INC egg&(j&,3)
+        INC b&(egg&(j&,1),egg&(j&,2))
+        crack!=FALSE
+        egg&(j&,7)=1
+      ELSE
+        a$(19)=egg$(egg&(j&,4))
+      ENDIF
+      GOSUB put(egg&(j&,1),egg&(j&,2))
+    ENDIF
+    IF egg&(j&,3)=0 AND crack!=FALSE
+      egg&(j&,3)=1
+      egg&(j&,4)=1
+      crack!=TRUE
+      b&(egg&(j&,1),egg&(j&,2))=19
+      a$(19)=egg$(1)
+      GOSUB put(egg&(j&,1),egg&(j&,2))
+    ENDIF
+    IF egg&(j&,3)=4 OR egg&(j&,3)=5 ! Lefty/Righty OR Bouncy
+      dy&=0
+      dx&=0
+      IF begg&=22 OR begg&=44
+        dx&=1
+      ENDIF
+      IF begg&=21 OR begg&=42
+        dx&=-1
+      ENDIF
+      IF begg&=41
+        dy&=-1
+      ENDIF
+      IF begg&=43
+        dy&=1
+      ENDIF
+      IF begg&=31
+        dx&=egg&(j&,9)
+        dy&=0
+      ENDIF
+      push2!=FALSE
+      IF b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=2 OR b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=18 ! killed you or manikin
+        mainky&=100
+        manikx&=100
+        IF b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=18
+          maniky&=egg&(j&,1)+dy&
+          manikx&=egg&(j&,2)+dx&
+        ENDIF
+        b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=2
+        IF begg&<>31
+          b&(egg&(j&,1),egg&(j&,2))=0
+        ENDIF
+        egg&(j&,5)=egg&(j&,1)
+        egg&(j&,6)=egg&(j&,2)
+        dead!=TRUE
+        GOTO jud
+      ENDIF
+      IF s!(b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&),7) ! Pushable?
+        IF (s!(b&(egg&(j&,1)+dy&*2,egg&(j&,2)+dx&*2),4) AND b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)<>28) OR (b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=28 AND s!(b&(egg&(j&,1)+dy&*2,egg&(j&,2)+dx&*2),10))! Pushthroughable?
+          egg&(j&,11)=dx&
+          egg&(j&,12)=dy&
+          IF s!(b&(egg&(j&,1)+dy&*2,egg&(j&,2)+dx&*2),3)
+            egg&(j&,11)=dx&*2
+            egg&(j&,12)=dy&*2
+            b&(egg&(j&,1)+dy&*2,egg&(j&,2)+dx&*2)=0
+          ELSE
+            b&(egg&(j&,1)+dy&*2,egg&(j&,2)+dx&*2)=b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)
+            IF b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=19 OR b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=10 OR b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=num&+1
+              FOR i&=1 TO maxmon&
+                IF egg&(i&,3)<>3 AND egg&(j&,1)+dy&=egg&(i&,1) AND egg&(j&,2)+dx&=egg&(i&,2)
+                  ADD egg&(i&,2),dx&
+                  ADD egg&(i&,1),dy&
+                ENDIF
+              NEXT i&
+            ENDIF
+          ENDIF
+          b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=0
+          GOSUB put(egg&(j&,1)+dy&*2,egg&(j&,2)+dx&*2)
+          push2!=TRUE
+        ENDIF
+      ENDIF
+      IF b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=0 OR push2!
+        IF begg&=31
+          IF egg&(j&,3)=4 !lefty/righty
+            b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=(egg&(j&,9)+1)/2+21 ! leaving monsterport
+          ELSE
+            b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=(egg&(j&,9)+1)+42 ! leaving monsterport
+          ENDIF
+        ELSE
+          SWAP b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&),b&(egg&(j&,1),egg&(j&,2))
+        ENDIF
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+        egg&(j&,5)=egg&(j&,1)
+        egg&(j&,6)=egg&(j&,2)
+        ADD egg&(j&,2),dx&
+        ADD egg&(j&,1),dy&
+      ELSE IF b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=31 AND dy&=0 ! gone into monsterport
+        egg&(j&,9)=dx& ! remember way that it's facing
+        IF begg&<>31
+          b&(egg&(j&,1),egg&(j&,2))=0
+        ENDIF
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+        egg&(j&,5)=egg&(j&,1)
+        egg&(j&,6)=egg&(j&,2)
+        ADD egg&(j&,2),dx& ! move into teleport
+        GOSUB monsterport
+      ELSE
+        IF begg&=31 ! turned round inside monsterport
+          egg&(j&,9)=-egg&(j&,9)
+          GOSUB monsterport
+        ELSE
+          IF egg&(j&,3)=4 !lefty/righty
+            b&(egg&(j&,1),egg&(j&,2))=43-begg&
+          ELSE
+            INC b&(egg&(j&,1),egg&(j&,2))
+            IF b&(egg&(j&,1),egg&(j&,2))=45
+              SUB b&(egg&(j&,1),egg&(j&,2)),4
+            ENDIF
+          ENDIF
+        ENDIF
+        IF b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=45 AND dx&=-1 ! Pushed bubmac
+          inlefty!=TRUE
+          GOSUB startbubmac(egg&(j&,1)+dy&,egg&(j&,2)+dx&)
+          inlefty!=FALSE
+          GOSUB put(egg&(j&,1)+dy&,egg&(j&,2)+dx&)
+          GOSUB put(egg&(j&,1)+dy&-1,egg&(j&,2)+dx&)
+        ENDIF
+        IF b&(egg&(j&,1)+dy&,egg&(j&,2)+dx&)=46 AND dx&=1 ! Pushed bubmac
+          inlefty!=TRUE
+          GOSUB startbubmac(egg&(j&,1)+dy&,egg&(j&,2)+dx&)
+          inlefty!=FALSE
+          GOSUB put(egg&(j&,1)+dy&,egg&(j&,2)+dx&)
+          GOSUB put(egg&(j&,1)+dy&-1,egg&(j&,2)+dx&)
+        ENDIF
+      ENDIF
+      jud:
+      GOSUB put(egg&(j&,1),egg&(j&,2))
+    ENDIF
+    IF egg&(j&,3)=6 AND egg&(j&,8)<>1 ! bubble machine (not just started by monster)
+      egg&(j&,5)=egg&(j&,1)
+      egg&(j&,6)=egg&(j&,2)
+      IF begg&>=num&+4 AND begg&<=num&+7  ! Next anim frame
+        INC b&(egg&(j&,1),egg&(j&,2))
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+      ELSE IF begg&=num&+8                ! Bubble finished
+        b&(egg&(j&,1),egg&(j&,2))=28
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+        INC egg&(j&,1)
+        SUB b&(egg&(j&,1),egg&(j&,2)),(num&-43)
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+        egg&(j&,7)=1 ! Do fall check
+      ELSE IF begg&<>45 AND begg&<>46     ! Bubble destroyed while being made
+        INC egg&(j&,1)
+        SUB b&(egg&(j&,1),egg&(j&,2)),(num&-43)
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+      ENDIF
+    ENDIF
+    IF egg&(j&,3)=7 ! round-the-wall'er
+      egg&(j&,5)=egg&(j&,1)
+      egg&(j&,6)=egg&(j&,2)
+      egg&(j&,7)=egg&(j&,1)
+      egg&(j&,8)=egg&(j&,2)
+      SELECT begg&
+      CASE 47
+        aheady&=egg&(j&,1)
+        aheadx&=egg&(j&,2)-1
+        belowy&=egg&(j&,1)+1
+        belowx&=egg&(j&,2)
+      CASE 48
+        aheady&=egg&(j&,1)-1
+        aheadx&=egg&(j&,2)
+        belowy&=egg&(j&,1)
+        belowx&=egg&(j&,2)-1
+      CASE 49
+        aheady&=egg&(j&,1)
+        aheadx&=egg&(j&,2)+1
+        belowy&=egg&(j&,1)-1
+        belowx&=egg&(j&,2)
+      CASE 50
+        aheady&=egg&(j&,1)+1
+        aheadx&=egg&(j&,2)
+        belowy&=egg&(j&,1)
+        belowx&=egg&(j&,2)+1
+      ENDSELECT
+      IF begg&=31
+        IF b&(egg&(j&,1),egg&(j&,2)+egg&(j&,9))=0
+          b&(egg&(j&,1),egg&(j&,2)+egg&(j&,9))=49-egg&(j&,9) ! -1=d 1=u
+          ADD egg&(j&,2),egg&(j&,9)
+        ELSE IF b&(egg&(j&,1),egg&(j&,2)+egg&(j&,9))=31
+          ADD egg&(j&,2),egg&(j&,9)
+          GOSUB monsterport
+        ELSE
+          GOSUB monsterport
+          egg&(j&,9)=-egg&(j&,9)
+        ENDIF
+        GOTO quitmport
+      ENDIF
+      oeggn&=egg&(j&,9)
+      egg&(j&,9)=0
+      cornery&=aheady&+belowy&-egg&(j&,1)
+      cornerx&=aheadx&+belowx&-egg&(j&,2)
+      IF b&(belowy&,belowx&)=0 ! Nothing to support it
+        IF gravity&<>0
+          IF begg&=48 OR begg&=50
+            b&(egg&(j&,1),egg&(j&,2))=47-gravity&+1 ! Left if gravity&=1, right if -1
+          ELSE IF begg&<>47-gravity&+1
+            b&(egg&(j&,1),egg&(j&,2))=50
+          ENDIF
+          egg&(j&,10)=1 ! Make it fall!
+        ENDIF
+      ELSE IF b&(belowy&,belowx&)=31 AND (begg&=48 OR begg&=50) AND oeggn&=0
+        egg&(j&,9)=belowx&-egg&(j&,2)
+        egg&(j&,2)=belowx&
+        dx&=egg&(j&,9)
+        GOSUB monsterport
+        b&(egg&(j&,5),egg&(j&,6))=0
+        GOSUB put(egg&(j&,5),egg&(j&,6))
+      ELSE IF b&(aheady&,aheadx&)<>0 ! something ahead so rotate right, onto it
+        INC b&(egg&(j&,1),egg&(j&,2))
+        IF b&(egg&(j&,1),egg&(j&,2))=51
+          b&(egg&(j&,1),egg&(j&,2))=47
+        ENDIF
+      ELSE IF b&(cornery&,cornerx&)<>0 ! something to advance onto
+        egg&(j&,1)=aheady&
+        egg&(j&,2)=aheadx&
+        b&(egg&(j&,1),egg&(j&,2))=b&(egg&(j&,5),egg&(j&,6))
+        b&(egg&(j&,5),egg&(j&,6))=0
+        GOSUB put(egg&(j&,5),egg&(j&,6))
+      ELSE ! rotate to left and go round corner
+        egg&(j&,1)=cornery&
+        egg&(j&,2)=cornerx&
+        egg&(j&,7)=aheady&
+        egg&(j&,8)=aheadx&
+        b&(egg&(j&,1),egg&(j&,2))=b&(egg&(j&,5),egg&(j&,6))-1
+        IF b&(egg&(j&,1),egg&(j&,2))=46
+          b&(egg&(j&,1),egg&(j&,2))=50
+        ENDIF
+        b&(egg&(j&,5),egg&(j&,6))=0
+        b&(egg&(j&,7),egg&(j&,8))=0
+        GOSUB put(egg&(j&,5),egg&(j&,6))
+        GOSUB put(egg&(j&,7),egg&(j&,8))
+      ENDIF
+      quitmport:
+      GOSUB put(egg&(j&,1),egg&(j&,2))
+    ENDIF
+  NEXT j&
+  IF count&=0
+    monster!=FALSE
+  ENDIF
+RETURN
+PROCEDURE monsterport
+  FOR noth&=1 TO 26 ! loop to find destination
+    IF (egg&(j&,1)=tele&(noth&,1) AND egg&(j&,2)=tele&(noth&,2))
+      egg&(j&,1)=tele&(noth&,3)
+      egg&(j&,2)=tele&(noth&,4)
+      EXIT IF 1
+    ELSE IF (egg&(j&,1)=tele&(noth&,3) AND egg&(j&,2)=tele&(noth&,4))
+      egg&(j&,1)=tele&(noth&,1)
+      egg&(j&,2)=tele&(noth&,2)
+      EXIT IF 1
+    ENDIF
+  NEXT noth&
+  IF egg&(j&,1)=0 AND egg&(j&,2)=0 ! it's been killed
+    egg&(j&,9)=2*SGN(dx&)
+  ENDIF
+RETURN
+PROCEDURE monother
+  FOR j&=1 TO maxmon& ! And jam into other screen
+    IF egg&(j&,3)=1
+      GOSUB put(egg&(j&,1),egg&(j&,2))
+    ENDIF
+    IF egg&(j&,3)=0 AND crack!=FALSE
+      GOSUB put(egg&(j&,1),egg&(j&,2))
+    ENDIF
+    IF egg&(j&,3)=2 OR egg&(j&,3)=4 OR egg&(j&,3)=5 OR (egg&(j&,3)=6 AND egg&(j&,8)<>1)
+      GOSUB put(egg&(j&,5),egg&(j&,6))
+      GOSUB put(egg&(j&,1),egg&(j&,2))
+    ENDIF
+    IF egg&(j&,3)=7
+      GOSUB put(egg&(j&,5),egg&(j&,6))
+      GOSUB put(egg&(j&,7),egg&(j&,8))
+      GOSUB put(egg&(j&,1),egg&(j&,2))
+    ENDIF
+    IF egg&(j&,8)=1 AND egg&(j&,3)=6
+      GOSUB put(egg&(j&,1),egg&(j&,2))
+      GOSUB put(egg&(j&,1)+1,egg&(j&,2))
+      egg&(j&,8)=0
+    ENDIF
+    IF egg&(j&,11)<>0 OR egg&(j&,12)<>0
+      GOSUB put(egg&(j&,1)+SGN(egg&(j&,12)),egg&(j&,2)+SGN(egg&(j&,11)))
+    ENDIF
+  NEXT j&
+  FOR j&=1 TO maxmon&
+    IF ABS(egg&(j&,11))=2 OR ABS(egg&(j&,12))=2
+      GOSUB explode(egg&(j&,1)+SGN(egg&(j&,12)),egg&(j&,2)+SGN(egg&(j&,11)))
+    ENDIF
+    IF ABS(egg&(j&,9))=2 ! monsterport explodes on lefty/righty/bouncy
+      IF b&(egg&(j&,5),egg&(j&,6)+SGN(egg&(j&,9)))=31 ! and not already blown up
+        b&(egg&(j&,5),egg&(j&,6)+SGN(egg&(j&,9)))=0
+        GOSUB put(egg&(j&,5),egg&(j&,6)+SGN(egg&(j&,9)))
+        GOSUB swapscreen
+        GOSUB put(egg&(j&,5),egg&(j&,6)+SGN(egg&(j&,9)))
+        GOSUB explode(egg&(j&,5),egg&(j&,6)+SGN(egg&(j&,9)))
+      ENDIF
+    ENDIF
+  NEXT j&
+  IF manikx&<>0 OR maniky&<>0
+    IF manikx&<>100 AND maniky&<>100
+      b&(maniky&,manikx&)=0
+      GOSUB explode(maniky&,manikx&)
+    ENDIF
+    IF b&(many&,manx&)=2
+      b&(many&,manx&)=0
+      GOSUB explode(many&,manx&)
+    ENDIF
+    manikx&=0
+    mainky&=0
+  ENDIF
+RETURN
+PROCEDURE monfall
+  FOR j&=1 TO maxmon&
+    IF egg&(j&,5)<>egg&(j&,1) OR egg&(j&,6)<>egg&(j&,2)
+      GOSUB check(egg&(j&,5),egg&(j&,6))
+    ENDIF
+    IF egg&(j&,7)=1 AND egg&(j&,3)=2
+      GOSUB check(egg&(j&,1),egg&(j&,2))
+      egg&(j&,7)=0
+    ENDIF
+    IF egg&(j&,7)=1 AND egg&(j&,3)=6
+      IF s!(b&(egg&(j&,1)-1,egg&(j&,2)),1)
+        GOSUB fallch(egg&(j&,1)-1,egg&(j&,2))
+      ENDIF
+      egg&(j&,7)=0
+    ENDIF
+    IF egg&(j&,11)<>0
+      GOSUB check(egg&(j&,1),egg&(j&,2))
+      egg&(j&,11)=0
+    ENDIF
+    IF egg&(j&,12)<>0
+      GOSUB check(egg&(j&,1),egg&(j&,2))
+      egg&(j&,12)=0
+    ENDIF
+    IF egg&(j&,3)=7 AND (egg&(j&,7)<>egg&(j&,1) OR egg&(j&,8)<>egg&(j&,2))
+      GOSUB check(egg&(j&,7),egg&(j&,8))
+    ENDIF
+    IF egg&(j&,10)=1 AND egg&(j&,3)=7
+      ' fall roundy
+      WHILE b&(egg&(j&,1)+gravity&,egg&(j&,2))=0
+        b&(egg&(j&,1)+gravity&,egg&(j&,2))=47-gravity&+1
+        b&(egg&(j&,1),egg&(j&,2))=0
+        onscr!=FALSE
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+        GOSUB put(egg&(j&,1)+gravity&,egg&(j&,2))
+        IF onscr!
+          GOSUB swapscreen ! ***
+        ENDIF
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+        GOSUB put(egg&(j&,1)+gravity&,egg&(j&,2))
+        ADD egg&(j&,1),gravity&
+      WEND
+      IF b&(egg&(j&,1),egg&(j&,2))<>47-gravity&+1 ! if not had time to rotate as falling
+        b&(egg&(j&,1),egg&(j&,2))=47-gravity&+1
+        onscr!=FALSE
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+        IF onscr!
+          GOSUB swapscreen ! ***
+        ENDIF
+        GOSUB put(egg&(j&,1),egg&(j&,2))
+      ENDIF
+      egg&(j&,10)=0
+    ENDIF
+    IF ABS(egg&(j&,9))=2 ! fall check when monsterport explodes due to no destination
+      GOSUB check(egg&(j&,5),egg&(j&,6)+SGN(egg&(j&,9)))
+      egg&(j&,9)=0
+      egg&(j&,3)=3 ! monster dead
+    ENDIF
+  NEXT j&
+RETURN
+PROCEDURE startbubmac(bmy&,bmx&)
+  IF b&(bmy&-1,bmx&)=0
+    b&(bmy&,bmx&)=b&(bmy&,bmx&)-43+num&
+    b&(bmy&-1,bmx&)=num&+4
+    found!=flase
+    FOR bml&=1 TO maxmon&
+      IF egg&(bml&,1)=bmy& AND egg&(bml&,2)=bmx&
+        found!=TRUE
+        DEC egg&(bml&,1)
+        IF inlefty!
+          egg&(bml&,8)=1 ! record that we were set of by lefty/righty/bouncy
+        ENDIF
+        EXIT IF 1
+      ENDIF
+    NEXT bml&
+    IF NOT (found!)
+      PRINT AT(10,10);"Not found!"
+      EDIT
+    ENDIF
+  ENDIF
+RETURN
+' change "allfall" for monsters as well
+PROCEDURE variables
+  debug!=FALSE
+  autoload!=FALSE
+  sprite!=FALSE
+  oink$="!"
+  default$="TRAINING"
+  dispx&=-18
+  dispy&=-18
+  LET spritex&=252
+  LET spritey&=10
+  maxmaxmon&=100 ! Number of monsters maximum
+  de&=5 ! Shake distance
+  autoload$="" ! Long comment... humn. (Don't mind me, you get mad after a few hours - as a mathematician said, "I hate programming, for example I spent three hours yesterday getting the caption to look right on the laser printout. Just the caption. Yuck
+  '
+  RESTORE paths
+  REPEAT
+    READ path$
+    IF EXIST(path$+"DEFAULT.LVL")
+      $U
+      OPEN "i",#1,path$+"DEFAULT.LVL"
+      $U
+      FRONTS 2
+      INPUT #1;default$
+      INPUT #1;dispx&
+      INPUT #1;dispy&
+      INPUT #1;path$
+      IF NOT (EOF(#1))
+        INPUT #1;spritex&
+        INPUT #1;spritey&
+      ENDIF
+      CLOSE #1
+      EXIT IF 1
+    ENDIF
+    EXIT IF EXIST(path$)
+  UNTIL path$="***"
+  IF path$="***"
+    path$=""
+  ENDIF
+  '
+  paths:
+  DATA "","Levels/","PlasmaBubble:","PlasmaBubble:Levels/","***"
+  '
+  DIM b&(21,31)   ! Playing board - extra 0 & 21, 0 & 31 for curvify - nulls round edge?
+  DIM ob&(21,31)  ! Editor board
+  DIM gt|(20,30) ! Get/Put area
+  CLR gtx&,gty&
+  DIM tele&(26,4) ! SourceY, SourceX, DestY, DestX
+  DIM s!(num&+10,12)  ! Stats on objects
+  DIM pr$(num&+10,2) ! Printer character & Text Description
+  DIM map!(20,30)
+  DIM match&(5) ! used by Splurge! procedure
+  '
+  egg&=8 ! Maximum cracky/hatchy
+  crack!=FALSE
+  DIM egg&(maxmaxmon&,12) ! Y, X, State (0 Wait, 1 Crack, 2 Hatchy, 3 Dead, 4 Lefty/Righty, 5 Bouncy, 6 Bub. Mac.)
+  '                       ! Anim, LastY, LastX, Check?, 8=BubMac, 9=Face, 11=BangX! 12=BangY!
+  '
+  RESTORE stat
+  FOR f&=0 TO num&+8
+    FOR g&=1 TO 12
+      READ s!(f&,g&)
+    NEXT g&
+    READ pr$(f&,1),pr$(f&,2)
+  NEXT f&
+  '
+  stat:
+  ' Fall? Walk thro'? Kill? Push/Fall Thro'? Roll left? Roll right? Push? Score?
+  ' Explode? Bubble go thro'? Roll bottom left? Roll bottom right?
+  DATA 0,1,0,1,0,0,0,0,0,1,0,0, ,Nothing
+  DATA 1,0,0,0,1,1,1,0,0,0,1,1,O,Boulder
+  DATA 0,0,0,0,1,1,0,0,0,0,1,1,@,You
+  DATA 0,1,0,0,1,1,0,1,0,0,1,1,^,Diamond
+  DATA 0,0,0,0,0,0,0,0,0,0,0,0,#,Wall
+  DATA 0,1,0,0,0,0,0,0,0,1,0,0,E,Earth
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,*,Mine
+  DATA 1,1,0,0,1,1,0,1,0,0,1,1,^,Falling Diamond
+  DATA 0,0,0,0,0,1,0,0,0,0,0,0,\,Top Right Curve
+  DATA 0,0,0,0,1,0,0,0,0,0,0,0,/,Top Left Curve
+  '
+  DATA 1,0,0,0,1,1,1,0,0,0,1,1,&,Egg
+  DATA 0,0,0,0,0,0,0,0,0,0,0,1,/,Low Right Curve
+  DATA 0,0,0,0,0,0,0,0,0,0,1,0,\,Low Left Curve
+  DATA 0,1,0,1,0,0,0,0,0,1,0,0,.,Plant 1
+  DATA 0,1,0,1,0,0,0,0,0,1,0,0,.,Plant 2
+  DATA 0,1,0,1,0,0,0,0,0,1,0,0,.,Plant 3
+  DATA 0,1,0,1,0,0,0,0,0,1,0,0,.,Hanging Plant
+  DATA 0,0,0,0,0,0,1,0,0,0,0,0,#,Pushable Wall
+  DATA 0,0,0,0,1,1,0,0,0,0,1,1,M,Manikin
+  DATA 1,0,0,0,1,1,1,0,0,0,1,1,&,Cracking Egg
+  '
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,"",Hatchling
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,<,Lefty
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,>,Righty
+  DATA 0,0,0,0,1,1,0,0,0,0,0,0,#,Top Curve
+  DATA 0,0,0,0,0,0,0,0,0,0,1,1,#,Bottom Curve
+  DATA 0,0,0,0,1,0,0,0,0,0,1,0,(,Left Curve
+  DATA 0,0,0,0,0,1,0,0,0,0,0,1,),Right Curve
+  DATA 0,1,0,0,0,0,0,0,0,0,0,0,T,Teleport
+  DATA 1,0,0,0,1,1,1,0,0,0,1,1,B,Bubble
+  DATA 0,0,0,0,1,1,0,0,0,0,1,1,#,Circular Wall
+  '
+  DATA 0,0,0,0,0,0,0,0,0,0,0,0,#,Invisible Wall
+  DATA 0,0,0,0,0,0,0,0,0,0,0,0,-,Monsterport
+  DATA 0,0,0,0,1,0,0,0,0,0,0,0,/,Top Left Diag.
+  DATA 0,0,0,0,0,1,0,0,0,0,0,0,\,Top Right Diag.
+  DATA 0,0,0,0,0,0,0,0,0,0,1,0,\,Low Left Diag.
+  DATA 0,0,0,0,0,0,0,0,0,0,0,1,/,Low Right Diag.
+  DATA 0,0,0,0,1,1,0,0,0,0,0,0,#,Top Pointy
+  DATA 0,0,0,0,0,1,0,0,0,0,0,1,),Right Pointy
+  DATA 0,0,0,0,0,0,0,0,0,0,1,1,#,Bottom Pointy
+  DATA 0,0,0,0,1,0,0,0,0,0,1,0,(,Left Pointy
+  '
+  DATA 0,0,0,0,1,1,0,0,0,0,1,1,#,Rhombus Wall
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,U,Bouncy Up
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,L,Bouncy Left
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,D,Bouncy Down
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,R,Bouncy Right
+  DATA 0,0,0,0,0,0,0,0,0,0,0,0,#,Bub Machine R
+  DATA 0,0,0,0,0,0,0,0,0,0,0,0,#,Bub Machine L
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,l,Roundy Left
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,u,Roundy Up
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,r,Roundy Right
+  '
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,d,Roundy Down
+  '
+  DATA 1,0,0,0,1,1,1,0,0,0,1,1,&,Waiting Crack
+  DATA 0,0,0,0,0,0,0,0,0,0,0,0,#,Bub Mac. 2 R
+  DATA 0,0,0,0,0,0,0,0,0,0,0,0,#,Bub Mac. 2 L
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,*,Mac. Anim. 1
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,*,Mac. Anim. 2
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,*,Mac. Anim. 3
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,*,Mac. Anim. 4
+  DATA 0,1,1,1,0,0,0,0,1,0,0,0,*,Mac. Anim. 5
+  '
+  ' Fall? Walk thro'? Kill? Push/Fall Thro'? Roll left? Roll right? Push? Score?
+  ' Explode? Bubble go thro'?
+RETURN
+PROCEDURE eachtime
+  score&=0
+  dead!=FALSE
+  gotit!=FALSE
+  monster!=FALSE
+  crack!=FALSE
+  prin!=FALSE
+  manikx&=0
+  maniky&=0
+  ARRAYFILL egg&(),3
+  ARRAYFILL map!(),FALSE
+  a$(19)=egg$(1)
+  odmanx&=0
+  odmany&=1
+  a$(2)=man$(4)
+RETURN
+PROCEDURE check(y&,x&)
+  IF s!(b&(y&-1,x&),1)
+    GOSUB fallch(y&-1,x&)
+  ENDIF
+  IF s!(b&(y&-1,x&-1),1)
+    GOSUB fallch(y&-1,x&-1)
+  ENDIF
+  IF s!(b&(y&-1,x&+1),1)
+    GOSUB fallch(y&-1,x&+1)
+  ENDIF
+  IF s!(b&(y&+1,x&),1)
+    GOSUB fallch(y&+1,x&)
+  ENDIF
+  IF s!(b&(y&+1,x&-1),1)
+    GOSUB fallch(y&+1,x&-1)
+  ENDIF
+  IF s!(b&(y&+1,x&+1),1)
+    GOSUB fallch(y&+1,x&+1)
+  ENDIF
+  IF s!(b&(y&,x&-1),1)
+    GOSUB fallch(y&,x&-1)
+  ENDIF
+  IF s!(b&(y&,x&+1),1)
+    GOSUB fallch(y&,x&+1)
+  ENDIF
+RETURN
+PROCEDURE fallch(ee&,tt&)
+  LOCAL mov!,e&,t&,jackdiddley&,dir&,flag!,fnarl&,updown&,check&
+  e&=ee&
+  t&=tt&
+  mov!=FALSE
+  updown&=gravity& ! 1 - Things fall down, -1 - Things fall up
+  check&=4 ! Which part of s! holds things this thing can fall thro'
+  IF b&(e&,t&)=28
+    updown&=-1
+    check&=10
+  ENDIF
+  IF updown&=0
+    GOTO ret
+  ENDIF
+  CLR jackdiddley&
+  IF b&(e&,t&)=num&+1 OR b&(e&,t&)=19 ! If cracking egg, find it's number
+    FOR i&=1 TO maxmon&
+      IF egg&(i&,3)<>3 AND e&=egg&(i&,1) AND t&=egg&(i&,2)
+        jackdiddley&=i&
+      ENDIF
+    NEXT i&
+  ENDIF
+  fnarl&=29 ! Fnarl is an idosyncratic variable used to replace whatever
+  '         ! is falling with an unfallable wall otherwise identicle to
+  '         ! all falling objects. This prevents the object falling in the
+  '         ! recursive routines it calls.
+  fallch:
+  ' fall sequence in order of priority
+  IF mov! AND (b&(e&+updown&,t&)=2 OR b&(e&+updown&,t&)=18) ! You or Manikins die!
+    b&(e&,t&)=0
+    GOSUB put(e&,t&)
+    GOSUB swapscreen ! ***
+    GOSUB put(e&,t&)
+    IF b&(e&+updown&,t&)=18
+      b&(e&+updown&,t&)=0
+      GOSUB explode(e&+updown&,t&)
+    ENDIF
+    IF b&(many&,manx&)=2
+      b&(many&,manx&)=0
+      GOSUB explode(many&,manx&)
+    ENDIF
+    b&(e&+updown&,t&)=0
+    dead!=TRUE
+    GOTO ret
+  ENDIF
+  IF mov! AND b&(e&,t&)=10 AND NOT s!(b&(e&+updown&,t&),check&)
+    GOSUB makeegg
+    jackdiddley&=i&
+  ENDIF
+  IF mov! AND (NOT s!(b&(e&+updown&,t&),check&)) AND t&=>manx&-4 AND e&>many&-3 AND t&<manx&+5 AND e&<many&+4 AND b&(e&,t&)<>28 AND b&(e&,t&)<>7   ! Shake screen (?)
+    shx&=RANDOM(2)*2-1
+    shy&=RANDOM(2)*2-1
+    de&=5
+    SUB dispx&,de&*shx&
+    SUB dispy&,de&*shy&
+    GOSUB displaymove
+    ADD dispx&,de&*shx&
+    ADD dispy&,de&*shy&
+    GOSUB displaymove
+  ENDIF
+  IF s!(b&(e&+updown&,t&),check&)
+    IF s!(b&(e&+updown&,t&),9) ! Mine
+      b&(e&+updown&,t&)=0
+      b&(e&,t&)=0
+      GOSUB put(e&,t&)
+      GOSUB swapscreen ! ***
+      GOSUB put(e&,t&)
+      GOSUB explode(e&+updown&,t&)
+      GOSUB check(e&,t&)
+      GOSUB check(e&+updown&,t&)
+      GOTO ret
+    ENDIF
+    b&(e&+updown&,t&)=b&(e&,t&)
+    b&(e&,t&)=0
+    mov!=TRUE
+    '
+    onscr!=FALSE
+    GOSUB put(e&,t&)
+    GOSUB put(e&+updown&,t&)
+    IF onscr!
+      GOSUB swapscreen ! ***
+    ENDIF
+    GOSUB put(e&,t&)
+    GOSUB put(e&+updown&,t&)
+    '
+    ADD e&,updown&
+    SWAP b&(e&,t&),fnarl&
+    GOSUB jackdiddle
+    GOSUB check(e&-updown&,t&)
+    SWAP b&(e&,t&),fnarl&
+    GOTO fallch
+  ENDIF
+  flag!=FALSE
+  FOR dir&=-1 TO 1 STEP 2 ! Check for roling in each direction
+    IF s!(b&(e&+updown&,t&),5+SGN(dir&+1)+3*(1-updown&)) AND s!(b&(e&,t&+dir&),check&) AND s!(b&(e&+updown&,t&+dir&),check&)
+      IF s!(b&(e&,t&+dir&),9) ! Mine
+        b&(e&,t&+dir&)=0
+        b&(e&,t&)=0
+        GOSUB put(e&,t&)
+        GOSUB swapscreen ! ***
+        GOSUB put(e&,t&)
+        GOSUB explode(e&,t&+dir&)
+        GOSUB check(e&,t&+dir&)
+        GOSUB check(e&,t&)
+        ADD t&,dir&
+        LET dir&=2
+      ELSE
+        b&(e&,t&+dir&)=b&(e&,t&)
+        b&(e&,t&)=0
+        mov!=TRUE
+        '
+        onscr!=FALSE
+        GOSUB put(e&,t&)
+        GOSUB put(e&,t&+dir&)
+        IF onscr!
+          GOSUB swapscreen ! ***
+        ENDIF
+        GOSUB put(e&,t&)
+        GOSUB put(e&,t&+dir&)
+        '
+        ADD t&,dir&
+        SWAP b&(e&,t&),fnarl&
+        GOSUB jackdiddle
+        GOSUB check(e&,t&-dir&)
+        SWAP b&(e&,t&),fnarl&
+        flag!=TRUE
+      ENDIF
+    ENDIF
+    EXIT IF flag!
+  NEXT dir&
+  IF flag!
+    GOTO fallch
+  ENDIF
+  ret:
+  GOSUB jackdiddle
+RETURN
+PROCEDURE jackdiddle
+  IF jackdiddley& AND mov!
+    egg&(jackdiddley&,1)=e&
+    egg&(jackdiddley&,2)=t&
+  ENDIF
+RETURN
+PROCEDURE levelscan
+  LOCAL e&,t&
+  maxmon&=0
+  FOR e&=1 TO 20
+    FOR t&=1 TO 30
+      IF b&(e&,t&)=10 OR (b&(e&,t&)=>19 AND b&(e&,t&)<=22) OR (b&(e&,t&)=>41 AND b&(e&,t&)<=50)
+        INC maxmon&
+      ENDIF
+    NEXT t&
+  NEXT e&
+  IF maxmon&>maxmaxmon&
+    OPENW #2
+    CLEARW #2
+    FRONTS 2
+    x$="Over "+STR$(maxmaxmon&)+" monsters/bubble"
+    GOSUB text((height&/2)-10,1)
+    x$="machines on this level. Please use less."
+    GOSUB text((height&/2)+10,1)
+    GOSUB nosprite
+    GOSUB fade(15)
+    GOSUB pause
+    dead!=TRUE
+    GOTO leaveproc
+  ENDIF
+RETURN
+PROCEDURE allfall
+  FOR e&=1 TO 20
+    FOR t&=1 TO 30
+      IF b&(e&,t&)=19 ! Already cracking egg
+        GOSUB makeegg
+      ENDIF
+      IF b&(e&,t&)=20 ! Hatchling at start
+        GOSUB makehatchy
+      ENDIF
+      IF b&(e&,t&)=21 OR b&(e&,t&)=22
+        FOR i&=1 TO maxmon&
+          IF egg&(i&,3)=3
+            monster!=TRUE
+            egg&(i&,1)=e&
+            egg&(i&,2)=t&
+            egg&(i&,3)=4
+            egg&(i&,11)=0
+            egg&(i&,9)=0
+            EXIT IF 1
+          ENDIF
+        NEXT i&
+      ENDIF
+      IF b&(e&,t&)>=41 AND b&(e&,t&)<=44
+        GOSUB makebouncy
+      ENDIF
+      IF b&(e&,t&)=45 OR b&(e&,t&)=46
+        FOR i&=1 TO maxmon&
+          IF egg&(i&,3)=3
+            monster!=TRUE
+            egg&(i&,1)=e&
+            egg&(i&,2)=t&
+            egg&(i&,3)=6
+            egg&(i&,7)=0
+            EXIT IF 1
+          ENDIF
+        NEXT i&
+      ENDIF
+      IF b&(e&,t&)=>47 AND b&(e&,t&)<=50
+        FOR i&=1 TO maxmon&
+          IF egg&(i&,3)=3
+            monster!=TRUE
+            egg&(i&,1)=e&
+            egg&(i&,2)=t&
+            egg&(i&,3)=7
+            egg&(i&,9)=0
+            egg&(i&,10)=0
+            EXIT IF 1
+          ENDIF
+        NEXT i&
+      ENDIF
+    NEXT t&
+  NEXT e&
+  FOR e&=1 TO 20
+    FOR t&=1 TO 30
+      IF s!(b&(e&,t&),1)
+        GOSUB fallch(e&,t&)
+      ENDIF
+    NEXT t&
+  NEXT e&
+RETURN
+'
+' Level Manipulation
+PROCEDURE selectlevel
+  again:
+  IF autoload$=""
+    x$="Enter Password:"
+    GOSUB text((height&/2)-12,1)
+    x$="(Return for "+default$+")"
+    GOSUB text((height&/2)+16,1)
+    IF menu&=1
+      x$="(Try these levels: TUTORIAL, TRAINING,"
+      GOSUB text((height&/2)+97,1)
+      x$="SENSIBLE, ROCKHARD, AAAARGH!)"
+      GOSUB text((height&/2)+115,1)
+    ENDIF
+    GOSUB fade(15)
+    PRINT AT(width&/16-3,height&/16+1);
+    FORM INPUT 8,type$
+    '
+    GOSUB fade(0)
+  ELSE
+    type$=autoload$
+    autoload$=""
+  ENDIF
+  type$=UPPER$(type$)
+  IF type$=""
+    type$=default$
+  ENDIF
+  SWAP type$,default$
+  GOSUB encode
+  file$=path$+encoded$+".PLASMA"
+  brk!=FALSE
+  CLEARW #sit&
+  IF encoded$="@xa2nQ"
+    debug!=FALSE
+    x$="Debug mode deactivated."
+    GOSUB text((height&/2),1)
+    GOSUB fade(15)
+    GOSUB pause
+    GOSUB fade(0)
+    SWAP type$,default$
+    CLEARW #sit&
+    GOTO again
+  ENDIF
+  IF LEFT$(default$,4)="END:"
+    x$="Passwords commencing ""END:"" signify"
+    GOSUB text((height&/2)-20,1)
+    x$="the end of a stream, and can only be"
+    GOSUB text((height&/2)+0,1)
+    x$="used to edit the last level."
+    GOSUB text((height&/2)+20,1)
+    GOSUB fade(15)
+    GOSUB pause
+    GOSUB fade(0)
+    SWAP type$,default$
+    CLEARW #sit&
+    GOTO again
+  ENDIF
+  IF encoded$="ghkHcdl^"
+    debug!=TRUE
+    x$="Hello Francis."
+    GOSUB text((height&/2)-10,1)
+    x$="Debug mode activated."
+    GOSUB text((height&/2)+10,1)
+    GOSUB fade(15)
+    GOSUB pause
+    GOSUB fade(0)
+    SWAP type$,default$
+    CLEARW #sit&
+    GOTO again
+  ENDIF
+  IF encoded$="u6<<*Xgx"
+    x$="I'm sorry, my friend, but that"
+    GOSUB text((height&/2)-10,1)
+    x$="debug code has been changed."
+    GOSUB text((height&/2)+10,1)
+    GOSUB soundplay(2,63)
+    GOSUB fade(15)
+    GOSUB pause
+    GOSUB fade(0)
+    SWAP type$,default$
+    CLEARW #sit&
+    GOTO again
+  ENDIF
+  IF encoded$="=X6`0R!="
+    x$="""Enter Password:"""
+    GOSUB text((height&/2)-20,1)
+    x$="And what does he type?"
+    GOSUB text((height&/2)-0,1)
+    x$="""Password."" Smart arse."
+    GOSUB text((height&/2)+20,1)
+    GOSUB fade(15)
+    GOSUB pause
+    GOSUB fade(0)
+    SWAP type$,default$
+    CLEARW #sit&
+    GOTO again
+  ENDIF
+  IF NOT EXIST(file$)
+    FRONTS 2
+    SWAP type$,default$
+    brk!=TRUE
+    GOTO ret
+  ENDIF
+  ARRAYFILL tele&(),0
+  pushywall&=0
+  '
+  $U
+  OPEN "i",#1,file$
+  $U
+  FRONTS 2
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      b&(f&,g&)=INP(#1)
+      IF b&(f&,g&)=17
+        INC pushywall&
+      ENDIF
+      IF b&(f&,g&)=2
+        manx&=g&
+        many&=f&
+      ENDIF
+      IF b&(f&,g&)>100
+        tel&=b&(f&,g&)-100
+        type&=31    ! monsterports in the 100s
+        IF tel&>100 ! ordinary portals in the 200s
+          tel&=tel&-100
+          type&=27
+        ENDIF
+        IF tele&(tel&,1)=0 AND tele&(tel&,2)=0
+          tele&(tel&,1)=f&
+          tele&(tel&,2)=g&
+          b&(f&,g&)=type&
+        ELSE IF tele&(tel&,3)=0 AND tele&(tel&,4)=0
+          tele&(tel&,3)=f&
+          tele&(tel&,4)=g&
+          b&(f&,g&)=type&
+        ELSE
+          b&(f&,g&)=0
+        ENDIF
+      ENDIF
+      IF b&(f&,g&)>num& OR b&(f&,g&)<0
+        b&(f&,g&)=0
+      ENDIF
+      IF EOF(#1)
+        brk!=TRUE
+        EXIT IF 1
+      ENDIF
+    NEXT g&
+    EXIT IF brk!
+  NEXT f&
+  IF NOT EOF(#1)
+    needed&=CVI(INPUT$(2,#1))
+    map&=INP(#1)
+    len&=INP(#1)
+    next$=""
+    FOR f&=1 TO len&
+      next$=next$+CHR$(INP(#1)-87)
+    NEXT f&
+  ENDIF
+  IF NOT EOF(#1)
+    gravity&=INP(#1)-1
+  ELSE
+    gravity&=1
+  ENDIF
+  IF NOT EOF(#1)
+    LINE INPUT #1,author$
+  ELSE
+    author$="Unknown"
+  ENDIF
+  CLOSE #1
+RETURN
+PROCEDURE savelevel
+  GOSUB encode
+  file$=path$+encoded$+".PLASMA"
+  IF NOT (EXIST(path$))
+    FRONTS 2
+    ~DisplayBeep(SCREEN(2))
+    GOTO leaveproc
+  ENDIF
+  $U
+  OPEN "o",#1,file$
+  $U
+  FRONTS 2
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      IF b&(f&,g&)<>27 AND b&(f&,g&)<>31 ! Teleport
+        OUT #1,b&(f&,g&)
+      ELSE
+        FOR h&=1 TO 26
+          IF (f&=tele&(h&,1) AND g&=tele&(h&,2)) OR (f&=tele&(h&,3) AND g&=tele&(h&,4))
+            IF b&(f&,g&)=27
+              OUT #1,200+h&
+            ELSE
+              OUT #1,100+h&
+            ENDIF
+            EXIT IF 1
+          ENDIF
+        NEXT h&
+      ENDIF
+    NEXT g&
+  NEXT f&
+  PRINT #1;MKI$(needed&);
+  OUT #1,map& MOD 256
+  OUT #1,LEN(next$)
+  FOR f&=1 TO LEN(next$)
+    OUT #1,(ASC(MID$(next$,f&,1))+87) MOD 256
+  NEXT f&
+  OUT #1,gravity&+1
+  PRINT #1,author$
+  CLOSE #1
+  leaveproc:
+RETURN
+PROCEDURE drawlevel
+  xb&=8
+  yb&=8
+  tog&=28
+  GOSUB icons
+  tele&=1
+  GOSUB teleletter
+  GET xb&,yb&+171,xb&+221,yb&+171+98,tog1$
+  tog&=0
+  GOSUB icons
+  GOSUB teleletter
+  GET xb&,yb&+171,xb&+221,yb&+171+98,tog0$
+  GOSUB buttons
+  PRINT AT(30,32+kon&);"Diamonds: ";needed&
+  BOX xb&+302,yb&-kon&+246,xb&+344,yb&-kon&+258
+  PRINT AT(30,30+kon&);"Next: ";next$
+  BOX xb&+270,yb&-kon&+230,xb&+344,yb&-kon&+242
+  PRINT AT(30,28+kon&);"This: ";default$
+  BOX xb&+270,yb&-kon&+214,xb&+344,yb&-kon&+226
+  GOSUB encode
+  PRINT AT(30,26+kon&);"File: ";encoded$
+  select&=0
+  COLOR 2
+  line&=0
+  linex&=-1
+  liney&=-1
+  '
+  COLOR 1
+  BOX xb&+255,yb&+8*14-4,xb&+266,yb&+8*14+10 ! Boxes for X flip
+  BOX xb&+318,yb&+8*14-4,xb&+329,yb&+8*14+10 !       for Y flip
+  BOX xb&+255,yb&+3*14-4,xb&+292,yb&+3*14+10 !   and for Save/Load
+  '
+  COLOR 2
+  GOSUB box(select&)
+  GOSUB putbig
+  PRINT AT(30,23+kon&);pr$(select&+tog&,2)
+  GOSUB fade(15)
+  COLOR 1
+  FOR y&=1 TO 10
+    FOR x&=1 TO 15
+      GOSUB fillsquare(y&,x&)
+      GOSUB fillsquare(21-y&,x&)
+      GOSUB fillsquare(y&,31-x&)
+      GOSUB fillsquare(21-y&,31-x&)
+    NEXT x&
+  NEXT y&
+RETURN
+PROCEDURE fillsquare(f&,g&)
+  IF b&(f&,g&)<>0
+    PUT g&*8+xb&,f&*8+yb&,mini$(b&(f&,g&))
+  ENDIF
+  IF b&(f&,g&)=27 OR b&(f&,g&)=31
+    FOR h&=1 TO 26
+      IF (f&=tele&(h&,1) AND g&=tele&(h&,2)) OR (f&=tele&(h&,3) AND g&=tele&(h&,4))
+        IF b&(f&,g&)=31
+          COLOR 3
+        ENDIF
+        TEXT g&*8+xb&,f&*8+yb&+6,CHR$(h&+64)
+        COLOR 1
+      ENDIF
+    NEXT h&
+  ENDIF
+RETURN
+PROCEDURE encode
+  encoded$=""
+  k%=0
+  ' loop to generate constant for randomization from password.
+  FOR f&=1 TO LEN(default$)
+    j%=ASC(MID$(default$,f&,1))
+    ADD k%,j%
+    MUL k%,j%
+    k%=k% MOD 256
+  NEXT f&
+  FOR f&=1 TO LEN(default$)
+    j%=ASC(MID$(default$,f&,1))
+    ADD j%,k%*f&
+    j%=j% MOD 94
+    ADD j%,33
+    IF j%=ASC("/") OR j%=ASC(":") ! These confuse filing system
+      INC j%
+    ENDIF
+    encoded$=encoded$+CHR$(j%)
+  NEXT f&
+RETURN
+PROCEDURE editlevel
+  GOSUB drawlevel
+  lastsel&=0
+  exit!=FALSE
+  REPEAT
+    REPEAT
+      GOSUB mouse
+      ink$=UPPER$(INKEY$)
+      joy&=STICK(1)
+      IF ink$=CHR$(13) OR STRIG(1)
+        b&=1
+      ENDIF
+      IF LEFT$(ink$,1)=CHR$(155)
+        SELECT RIGHT$(ink$,1) ! Detect cursors
+        CASE "A"
+          joy&=1
+        CASE "B"
+          joy&=2
+        CASE "C"
+          joy&=8
+        CASE "D"
+          joy&=4
+        ENDSELECT
+      ENDIF
+      IF joy& OR ink$=" " OR (ink$>="A" AND ink$<="[")
+        oldsel&=select&
+        IF ink$=" "
+          ADD select&,tog&
+          SWAP select&,lastsel&
+          IF select&=0 AND tog&<>0
+            GOSUB flip
+            oldsel&=0
+          ENDIF
+          SUB select&,tog&
+        ELSE
+          SELECT joy&
+          CASE 1
+            DEC select&
+          CASE 2
+            INC select&
+          CASE 8
+            ADD select&,8
+          CASE 4
+            SUB select&,8
+          ENDSELECT
+        ENDIF
+        IF select&<0 AND tog&<>0
+          ADD select&,28
+          GOSUB flip
+          oldsel&=0
+        ENDIF
+        IF select&>27 AND tog&=0
+          SUB select&,28
+          GOSUB flip
+          oldsel&=0
+        ENDIF
+        IF select&<0 OR select&>27 OR select&>num&-tog&
+          select&=oldsel&
+        ENDIF
+        IF ink$=>"A" AND ink$<="["
+          IF tog&=0
+            select&=27
+          ELSE
+            select&=3
+          ENDIF
+        ENDIF
+        IF select&<>oldsel&
+          COLOR 1
+          GOSUB box(oldsel&)
+          COLOR 2
+          GOSUB box(select&)
+          GOSUB putbig
+        ENDIF
+        REPEAT
+        UNTIL STICK(1)=0
+      ENDIF
+      IF ink$=>"A" AND ink$=<"["
+        tele&=ASC(ink$)-64
+        GOSUB teleletter
+      ENDIF
+      IF LEFT$(ink$,1)=CHR$(155) AND RIGHT$(ink$,1)=CHR$(126)
+        fn&=ASC(MID$(ink$,2,1))-47
+        IF fn&=10
+          INC fn&
+        ENDIF
+        b&=1
+        x&=255-xb&
+        y&=(fn&*14)-4-yb&
+      ENDIF
+      IF ink$=CHR$(13) OR STRIG(1) ! Test
+        b&=1
+        x&=255-xb&
+        y&=(2*14)-4-yb&
+      ENDIF
+      IF b&=2
+        GOSUB flip
+        REPEAT
+        UNTIL MOUSEK<>2
+      ENDIF
+      IF b&=3 AND debug!=TRUE
+        GOSUB listlevels
+      ENDIF
+      IF lastsel&<>0 AND select&+tog&<>0
+        lastsel&=0
+      ENDIF
+    UNTIL b&=1
+    ADD y&,yb&
+    ADD x&,xb&
+    IF y&<21*8 AND x&<31*8
+      g&=x& DIV 8
+      f&=y& DIV 8
+      SELECT line&
+      CASE 0
+        GOSUB changesquare
+      CASE 1
+        IF linex&<>-1 AND liney&<>-1
+          GOSUB resetline
+          toy&=f&
+          tox&=g&
+          IF toy&<liney&
+            SWAP liney&,toy&
+          ENDIF
+          IF tox&<linex&
+            SWAP tox&,linex&
+          ENDIF
+          FOR f&=liney& TO toy&
+            FOR g&=linex& TO tox&
+              GOSUB changesquare
+              IF INKEY$=" "
+                g&=tox&
+                f&=toy&
+              ENDIF
+            NEXT g&
+          NEXT f&
+          liney&=-1
+          linex&=-1
+        ELSE
+          liney&=f&
+          linex&=g&
+          COLOR 1
+          BOX g&*8+xb&,f&*8+yb&,g&*8+xb&+7,f&*8+yb&+7
+        ENDIF
+        REPEAT
+        UNTIL MOUSEK=0
+      CASE 2
+        jab|=b&(f&,g&)
+        IF select&+tog&<>jab| AND select&+tog&<>2 AND select&+tog&<>27 AND select&+tog&<>31
+          ARRAYFILL ob&(),0
+          level&=0
+          GOSUB recurse(f&,g&)
+        ENDIF
+      CASE 3
+        IF linex&<>-1 AND liney&<>-1
+          GOSUB resetline
+          toy&=f&
+          tox&=g&
+          IF toy&<liney&
+            SWAP liney&,toy&
+          ENDIF
+          IF tox&<linex&
+            SWAP tox&,linex&
+          ENDIF
+          FOR g&=linex& TO tox&
+            FOR f&=liney& TO toy&
+              gt|(f&-liney&,g&-linex&)=b&(f&,g&)
+            NEXT f&
+          NEXT g&
+          gty&=toy&-liney&
+          gtx&=tox&-linex&
+          liney&=-1
+          linex&=-1
+          COLOR 1
+          TEXT xb&+257,yb&+11*14+5,"Put Area"
+          line&=4
+        ELSE
+          liney&=f&
+          linex&=g&
+          COLOR 1
+          BOX g&*8+xb&,f&*8+yb&,g&*8+xb&+7,f&*8+yb&+7
+        ENDIF
+        REPEAT
+        UNTIL MOUSEK=0
+      CASE 4
+        toy&=f&
+        tox&=g&
+        oldsel&=select&
+        FOR f&=toy& TO toy&+gty&
+          FOR g&=tox& TO tox&+gtx&
+            IF f&>0 AND f&<21 AND g&>0 AND g&<31
+              select&=gt|(f&-toy&,g&-tox&)-tog&
+              GOSUB changesquare
+            ENDIF
+          NEXT g&
+        NEXT f&
+        select&=oldsel&
+      ENDSELECT
+    ENDIF
+    IF y&>21*8 AND x&<31*8
+      xx&=(x&-2) DIV 54
+      yy&=(y&-171) DIV 12
+      news&=yy&+xx&*8
+      IF news&<>select& AND news&<=(num&-tog&) AND news&<=27
+        COLOR 1
+        GOSUB box(select&)
+        select&=news&
+        COLOR 2
+        GOSUB box(select&)
+        GOSUB putbig
+      ENDIF
+    ENDIF
+    IF x&=>270 AND y&=>230-kon& AND x&<=344 AND y&<=242-kon&
+      COLOR 2
+      BOX xb&+270,yb&-kon&+230,xb&+344,yb&-kon&+242
+      PRINT AT(36,30+kon&);
+      FORM INPUT 8 AS next$
+      next$=UPPER$(next$)
+      PRINT AT(36,30+kon&);SPACE$(8)
+      PRINT AT(36,30+kon&);next$
+      COLOR 1
+      BOX xb&+270,yb&-kon&+230,xb&+344,yb&-kon&+242
+    ENDIF
+    IF x&=>270 AND y&=>214-kon& AND x&<=344 AND y&<=226-kon&
+      COLOR 2
+      BOX xb&+270,yb&-kon&+214,xb&+344,yb&-kon&+226
+      PRINT AT(36,28+kon&);
+      old$=default$
+      FORM INPUT 8 AS default$
+      default$=UPPER$(default$)
+      GOSUB encode
+      IF old$<>default$
+        IF EXIST(path$+encoded$+".PLASMA")
+          GET 0,0,width& DIV 2,height&,get1$
+          GET width& DIV 2,0,width&,height&,get2$
+          GOSUB fade(0)
+          CLEARW #sit&
+          x$="The level "+default$+" already"
+          GOSUB text((height&/2)-42,1)
+          x$="exists on the disk. Do you really"
+          GOSUB text((height&/2)-32,1)
+          x$="want to use that name?"
+          GOSUB text((height&/2)-22,1)
+          GOSUB yesno
+          PUT 0,0,get1$
+          PUT width& DIV 2,0,get2$
+          IF yesno&=2
+            default$=old$
+            GOSUB encode
+          ENDIF
+          GOSUB fade(15)
+        ENDIF
+      ENDIF
+      PRINT AT(36,28+kon&);SPACE$(8)
+      PRINT AT(36,28+kon&);default$
+      PRINT AT(36,26+kon&);SPACE$(8)
+      PRINT AT(36,26+kon&);encoded$
+      COLOR 1
+      BOX xb&+270,yb&-kon&+214,xb&+344,yb&-kon&+226
+    ENDIF
+    IF x&=>302 AND y&=>246-kon& AND x&<=344 AND y&<=258-kon&
+      COLOR 2
+      BOX xb&+302,yb&-kon&+246,xb&+344,yb&-kon&+258
+      PRINT AT(40,32+kon&);
+      need$=STR$(needed&)
+      FORM INPUT 3 AS need$
+      needed&=VAL(need$)
+      IF UPPER$(need$)="MAX"
+        FOR f&=1 TO 20
+          FOR g&=1 TO 30
+            IF s!(b&(f&,g&),8)
+              INC needed&
+            ENDIF
+          NEXT g&
+        NEXT f&
+      ENDIF
+      PRINT AT(40,32+kon&);"   ";
+      PRINT AT(40,32+kon&);needed&
+      COLOR 1
+      BOX xb&+302,yb&-kon&+246,xb&+344,yb&-kon&+258
+    ENDIF
+    IF x&>254
+      GOSUB clickbuts
+    ENDIF
+  UNTIL exit!
+RETURN
+PROCEDURE recurse(f&,g&)
+  LOCAL a|,b|
+  INC level&
+  a|=f&
+  b|=g&
+  old&=b&(f&,g&)
+  GOSUB changesquare
+  IF a|>1
+    IF ob&(a|-1,b|)=0
+      ob&(a|-1,b|)=level&
+    ENDIF
+  ENDIF
+  IF a|<20
+    IF ob&(a|+1,b|)=0
+      ob&(a|+1,b|)=level&
+    ENDIF
+  ENDIF
+  IF b|>1
+    IF ob&(a|,b|-1)=0
+      ob&(a|,b|-1)=level&
+    ENDIF
+  ENDIF
+  IF b|<30
+    IF ob&(a|,b|+1)=0
+      ob&(a|,b|+1)=level&
+    ENDIF
+  ENDIF
+  IF b&(f&,g&)<>old&
+    IF a|>1
+      IF b&(a|-1,b|)=jab| AND ob&(a|-1,b|)=level&
+        GOSUB recurse(a|-1,b|)
+      ENDIF
+    ENDIF
+    IF a|<20
+      IF b&(a|+1,b|)=jab| AND ob&(a|+1,b|)=level&
+        GOSUB recurse(a|+1,b|)
+      ENDIF
+    ENDIF
+    IF b|>1
+      IF b&(a|,b|-1)=jab| AND ob&(a|,b|-1)=level&
+        GOSUB recurse(a|,b|-1)
+      ENDIF
+    ENDIF
+    IF b|<30
+      IF b&(a|,b|+1)=jab| AND ob&(a|,b|+1)=level&
+        GOSUB recurse(a|,b|+1)
+      ENDIF
+    ENDIF
+  ENDIF
+  DEC level&
+RETURN
+PROCEDURE icons
+  x&=0
+  y&=-1
+  COLOR 1
+  FOR f&=tog& TO tog&+27
+    INC y&
+    IF y&>7
+      INC x&
+      y&=0
+    ENDIF
+    FOR g&=0 TO 5
+      PUT xb&+x&*54+g&*8+8,yb&+172+y&*12,mini$(f&)
+    NEXT g&
+    GOSUB box(f&-tog&)
+    EXIT IF f&=num&
+  NEXT f&
+RETURN
+PROCEDURE flip
+  tog&=28-tog&
+  IF tog&=0
+    PUT xb&,yb&+171,tog0$
+  ELSE
+    PUT xb&,yb&+171,tog1$
+  ENDIF
+  IF select&>(num&-tog&)
+    select&=num&-tog&
+  ENDIF
+  COLOR 2
+  GOSUB box(select&)
+  COLOR 1
+  GOSUB teleletter
+  GOSUB putbig
+RETURN
+PROCEDURE putbig
+  PUT xb&+174,yb&+220,a$(select&+tog&)
+  PRINT AT(30,23+kon&);SPC(15)
+  PRINT AT(30,23+kon&);pr$(select&+tog&,2)
+RETURN
+PROCEDURE box(n&)
+  xplot&=xb&+(n& DIV 8)*54+8
+  yplot&=yb&+172+(n& MOD 8)*12-1
+  BOX xplot&,yplot&,xplot&+6*8,yplot&+10
+RETURN
+PROCEDURE buttons
+  RESTORE butts
+  FOR f&=1 TO 11
+    READ read$
+    TEXT xb&+257,yb&+f&*14+5,read$
+    IF f&=3
+      TEXT xb&+256+8*5,yb&+f&*14+5,"Load"
+    ENDIF
+    IF f&=8
+      TEXT xb&+256+8*8,yb&+f&*14+5,"Y"
+    ENDIF
+    GOSUB butbox(f&)
+  NEXT f&
+  butts:
+  DATA "","Test","Save ","Clear"
+  DATA "Max Diam.","Delete",""
+  DATA "X Flip  ","Exit","Specials"
+  DATA "Draw"
+  SELECT map&
+  CASE 0
+    x$="Map Off  "
+  CASE 1
+    x$="Map On   "
+  CASE 2
+    x$="Map Half "
+  ENDSELECT
+  TEXT xb&+257,yb&+1*14+5,x$
+  SELECT gravity&
+  CASE -1
+    x$="Grav Up  "
+  CASE 0
+    x$="Grav Off "
+  CASE 1
+    x$="Grav Down"
+  ENDSELECT
+  TEXT xb&+257,yb&+7*14+5,x$
+RETURN
+PROCEDURE butbox(n&)
+  BOX xb&+255,yb&+n&*14-4,xb&+329,yb&+n&*14+10
+RETURN
+PROCEDURE changesquare
+  ADD select&,tog&
+  doit!=FALSE
+  IF f&>1 AND f&<20 AND g&>1 AND g&<30 ! check it's inside
+    doit!=TRUE
+  ENDIF
+  IF (f&=1 OR f&=20 OR g&=1 OR g&=30) AND (select&=4 OR select&=8 OR select&=9 OR select&=11 OR select&=12 OR (select&>22 AND select&<27) OR select&=29 OR select&=30 OR (select&>=32 AND select&<=40))
+    doit!=TRUE ! You can overwrite outer wall with curved wall, si tu veux. (And invisible walls and...)
+  ENDIF
+  IF f&<1 OR f&>20 OR g&<1 OR g&>30 ! check it's not outside
+    doit!=FALSE
+  ENDIF
+  IF doit! AND (f&<>many& OR g&<>manx&)
+    PUT g&*8+xb&,f&*8+yb&,mini$(select&)
+    IF b&(f&,g&)=27 OR b&(f&,g&)=31 ! Teleport erased
+      FOR h&=1 TO 26
+        IF (f&=tele&(h&,1) AND g&=tele&(h&,2))
+          tele&(h&,1)=0
+          tele&(h&,2)=0
+          EXIT IF 1
+        ELSE IF (f&=tele&(h&,3) AND g&=tele&(h&,4))
+          tele&(h&,3)=0
+          tele&(h&,4)=0
+          EXIT IF 1
+        ENDIF
+      NEXT h&
+    ENDIF
+    b&(f&,g&)=select&
+    IF select&=27 OR select&=31 ! Teleport placed
+      IF b&(tele&(tele&,1),tele&(tele&,2))<>select& AND tele&(tele&,1)<>0 AND tele&(tele&,2)<>0
+        PUT tele&(tele&,2)*8+xb&,tele&(tele&,1)*8+yb&,mini$(0)
+        b&(tele&(tele&,1),tele&(tele&,2))=0
+        tele&(tele&,1)=0
+        tele&(tele&,2)=0
+      ENDIF
+      IF b&(tele&(tele&,3),tele&(tele&,4))<>select& AND tele&(tele&,3)<>0 AND tele&(tele&,4)<>0
+        PUT tele&(tele&,4)*8+xb&,tele&(tele&,3)*8+yb&,mini$(0)
+        b&(tele&(tele&,3),tele&(tele&,4))=0
+        tele&(tele&,3)=0
+        tele&(tele&,4)=0
+      ENDIF
+      IF tele&(tele&,1)=0 AND tele&(tele&,2)=0
+        tele&(tele&,1)=f&
+        tele&(tele&,2)=g&
+      ELSE IF tele&(tele&,3)=0 AND tele&(tele&,4)=0
+        tele&(tele&,3)=f&
+        tele&(tele&,4)=g&
+      ELSE
+        PUT tele&(tele&,2)*8+xb&,tele&(tele&,1)*8+yb&,mini$(0)
+        b&(tele&(tele&,1),tele&(tele&,2))=0
+        tele&(tele&,1)=tele&(tele&,3)
+        tele&(tele&,2)=tele&(tele&,4)
+        tele&(tele&,3)=f&
+        tele&(tele&,4)=g&
+      ENDIF
+      COLOR 1
+      IF select&=31
+        COLOR 3
+      ENDIF
+      TEXT g&*8+xb&,f&*8+yb&+6,CHR$(tele&+64)
+      COLOR 1
+    ENDIF
+    IF select&=2
+      PUT manx&*8+xb&,many&*8+yb&,mini$(0)
+      b&(many&,manx&)=0
+      manx&=g&
+      many&=f&
+    ENDIF
+  ENDIF
+  SUB select&,tog&
+RETURN
+PROCEDURE clickbuts
+  yy&=(y&+4) DIV 14
+  IF (yy&>0 AND yy&<3) OR (yy&>3 AND yy&<8) OR (yy&>=9 AND yy&<=11)
+    COLOR 2
+    GOSUB butbox(yy&)
+  ENDIF
+  SELECT yy&
+  CASE 1
+    INC map&
+    IF map&=3
+      map&=0
+    ENDIF
+    SELECT map&
+    CASE 0
+      x$="Map Off  "
+    CASE 1
+      x$="Map On   "
+    CASE 2
+      x$="Map Half "
+    ENDSELECT
+    COLOR 1
+    TEXT xb&+257,yb&+1*14+5,x$
+  CASE 2
+    GOSUB fade(0)
+    GET 0,0,width& DIV 2,height&,get1$
+    GET width& DIV 2,0,width&,height&,get2$
+    GOSUB backplay
+    autoload$=""
+    PUT 0,0,get1$
+    PUT width& DIV 2,0,get2$
+    GOSUB fade(15)
+  CASE 3
+    COLOR 2
+    IF x&<292
+      ' Save
+      BOX xb&+255,yb&+3*14-4,xb&+292,yb&+3*14+10
+      GOSUB savelevel
+      COLOR 1
+      BOX xb&+255,yb&+3*14-4,xb&+292,yb&+3*14+10
+    ELSE
+      ' Load
+      BOX xb&+292,yb&+3*14-4,xb&+329,yb&+3*14+10
+      GET 0,0,width& DIV 2,height&,get1$
+      GET width& DIV 2,0,width&,height&,get2$
+      GOSUB fade(0)
+      CLEARW #sit&
+      x$="Hey! Have you saved it? Do you"
+      GOSUB text((height&/2)-32,1)
+      x$="really want to load a new level?"
+      GOSUB text((height&/2)-22,1)
+      x$="Remember, the next password is "+next$+"."
+      GOSUB text((height&/2)+42,1)
+      GOSUB yesno
+      IF yesno&=2
+        PUT 0,0,get1$
+        PUT width& DIV 2,0,get2$
+        GOSUB fade(15)
+        COLOR 1
+        BOX xb&+292,yb&+3*14-4,xb&+329,yb&+3*14+10
+      ELSE
+        default$=next$
+        autoload!=TRUE
+        exit!=TRUE
+      ENDIF
+    ENDIF
+  CASE 4
+    GET 0,0,width& DIV 2,height&,get1$
+    GET width& DIV 2,0,width&,height&,get2$
+    GOSUB fade(0)
+    CLEARW #sit&
+    x$="Careful! Do you really"
+    GOSUB text((height&/2)-32,1)
+    x$="want to clear the level?"
+    GOSUB text((height&/2)-22,1)
+    GOSUB yesno
+    PUT 0,0,get1$
+    PUT width& DIV 2,0,get2$
+    IF yesno&=1
+      FOR f&=2 TO 29
+        FOR g&=2 TO 19
+          b&(g&,f&)=0
+        NEXT g&
+      NEXT f&
+      ARRAYFILL tele&(),0
+      b&(2,2)=2
+      manx&=2
+      many&=2
+      DEFFILL 0
+      PBOX xb&+16,yb&+16,xb&+239,yb&+159
+      PUT manx&*8+xb&,many&*8+yb&,mini$(2)
+    ENDIF
+    GOSUB fade(15)
+  CASE 11
+    INC line&
+    IF line&=5
+      line&=0
+    ENDIF
+    IF line&=4 AND gtx&=0 AND gty&=0
+      line&=0
+    ENDIF
+    SELECT line&
+    CASE 0
+      x$="Draw     "
+    CASE 1
+      x$="Box/Line "
+    CASE 2
+      x$="Fill     "
+    CASE 3
+      x$="Get Area "
+    CASE 4
+      x$="Put Area "
+    ENDSELECT
+    COLOR 1
+    TEXT xb&+257,yb&+11*14+5,x$
+    GOSUB resetline
+    liney&=-1
+    linex&=-1
+  CASE 5
+    GOSUB maxdiamonds
+  CASE 6
+    GET 0,0,width& DIV 2,height&,get1$
+    GET width& DIV 2,0,width&,height&,get2$
+    GOSUB fade(0)
+    CLEARW #sit&
+    x$="Careful! Do you definately want"
+    GOSUB text((height&/2)-42,1)
+    x$="to permanently erase this level"
+    GOSUB text((height&/2)-32,1)
+    x$="from disk?"
+    GOSUB text((height&/2)-22,1)
+    GOSUB yesno
+    GOSUB encode
+    IF yesno&=1
+      file$=path$+encoded$+".PLASMA"
+      IF NOT (EXIST(file$))
+        x$="That level is not on the disk."
+        GOSUB text((height&/2),1)
+        GOSUB fade(15)
+        GOSUB pause
+        GOSUB fade(0)
+      ELSE
+        KILL file$
+      ENDIF
+    ENDIF
+    PUT 0,0,get1$
+    PUT width& DIV 2,0,get2$
+    GOSUB fade(15)
+  CASE 7
+    INC gravity&
+    IF gravity&=2
+      gravity&=-1
+    ENDIF
+    SELECT gravity&
+    CASE -1
+      x$="Grav Up  "
+    CASE 0
+      x$="Grav Off "
+    CASE 1
+      x$="Grav Down"
+    ENDSELECT
+    COLOR 1
+    TEXT xb&+257,yb&+7*14+5,x$
+  CASE 8
+    IF gtx&=0 OR gty&=0
+      ~DisplayBeep(SCREEN(2))
+    ELSE
+      COLOR 2
+      IF x&<292
+        ' X Flip
+        BOX xb&+255,yb&+8*14-4,xb&+266,yb&+8*14+10
+        FOR f&=0 TO gty&
+          FOR g&=0 TO gtx& DIV 2
+            GOSUB xcomp
+            SWAP gt|(f&,g&),gt|(f&,gtx&-g&)
+            IF g&<>gtx&-g&
+              GOSUB xcomp
+            ENDIF
+          NEXT g&
+        NEXT f&
+        COLOR 1
+        BOX xb&+255,yb&+8*14-4,xb&+266,yb&+8*14+10
+      ELSE
+        ' Y Flip
+        BOX xb&+318,yb&+8*14-4,xb&+329,yb&+8*14+10
+        FOR f&=0 TO gty& DIV 2
+          FOR g&=0 TO gtx&
+            GOSUB ycomp
+            SWAP gt|(f&,g&),gt|(gty&-f&,g&)
+            IF f&<>gty&-f&
+              GOSUB ycomp
+            ENDIF
+          NEXT g&
+        NEXT f&
+        COLOR 1
+        BOX xb&+318,yb&+8*14-4,xb&+329,yb&+8*14+10
+      ENDIF
+    ENDIF
+  CASE 9
+    GET 0,0,width& DIV 2,height&,get1$
+    GET width& DIV 2,0,width&,height&,get2$
+    GOSUB fade(0)
+    CLEARW #sit&
+    x$="Hey! Have you saved it? Do you"
+    GOSUB text((height&/2)-32,1)
+    x$="really want to leave the editor? "
+    GOSUB text((height&/2)-22,1)
+    x$="Remember, the next password is "+next$+"."
+    GOSUB text((height&/2)+42,1)
+    GOSUB yesno
+    IF yesno&=2
+      PUT 0,0,get1$
+      PUT width& DIV 2,0,get2$
+      GOSUB fade(15)
+    ELSE
+      exit!=TRUE
+    ENDIF
+  CASE 10
+    GOSUB specs
+  ENDSELECT
+  REPEAT
+  UNTIL MOUSEK=0
+  IF ((yy&>0 AND yy&<3) OR (yy&>3 AND yy&<8) OR (yy&=>9 AND yy&<=11)) AND exit!=FALSE
+    COLOR 1
+    GOSUB butbox(yy&)
+  ENDIF
+  IF exit!=FALSE
+    COLOR 2
+  ENDIF
+RETURN
+PROCEDURE maxdiamonds
+  needed&=0
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      IF s!(b&(f&,g&),8)
+        INC needed&
+      ENDIF
+    NEXT g&
+  NEXT f&
+  PRINT AT(40,32+kon&);"   ";
+  PRINT AT(40,32+kon&);needed&
+RETURN
+PROCEDURE ycomp
+  SELECT gt|(f&,g&)
+  CASE 8
+    ADD gt|(f&,g&),3
+  CASE 9
+    ADD gt|(f&,g&),3
+  CASE 12
+    SUB gt|(f&,g&),3
+  CASE 11
+    SUB gt|(f&,g&),3
+  CASE 23,24
+    gt|(f&,g&)=47-gt|(f&,g&)
+  CASE 32,34
+    gt|(f&,g&)=66-gt|(f&,g&)
+  CASE 33,35
+    gt|(f&,g&)=68-gt|(f&,g&)
+  CASE 36,38
+    gt|(f&,g&)=74-gt|(f&,g&)
+  CASE 41,43
+    gt|(f&,g&)=84-gt|(f&,g&)
+  CASE 48,50
+    gt|(f&,g&)=98-gt|(f&,g&)
+  ENDSELECT
+RETURN
+PROCEDURE xcomp
+  SELECT gt|(f&,g&)
+  CASE 8
+    INC gt|(f&,g&)
+  CASE 9
+    DEC gt|(f&,g&)
+  CASE 12
+    DEC gt|(f&,g&)
+  CASE 11
+    INC gt|(f&,g&)
+  CASE 25,26
+    gt|(f&,g&)=51-gt|(f&,g&)
+  CASE 21,22
+    gt|(f&,g&)=43-gt|(f&,g&)
+  CASE 32,33
+    gt|(f&,g&)=65-gt|(f&,g&)
+  CASE 34,35
+    gt|(f&,g&)=69-gt|(f&,g&)
+  CASE 37,39
+    gt|(f&,g&)=76-gt|(f&,g&)
+  CASE 42,44
+    gt|(f&,g&)=86-gt|(f&,g&)
+  CASE 45,46
+    gt|(f&,g&)=91-gt|(f&,g&)
+  CASE 47,49
+    gt|(f&,g&)=96-gt|(f&,g&)
+  ENDSELECT
+RETURN
+PROCEDURE resetline
+  IF linex&<>-1 AND liney&<>-1
+    PUT linex&*8+xb&,liney&*8+yb&,mini$(b&(liney&,linex&))
+    IF b&(liney&,linex&)=27 OR b&(liney&,linex&)=31
+      FOR h&=1 TO 26
+        IF (liney&=tele&(h&,1) AND linex&=tele&(h&,2)) OR (liney&=tele&(h&,3) AND linex&=tele&(h&,4))
+          IF b&(linex&,liney&)=31
+            COLOR 3
+          ENDIF
+          TEXT linex&*8+xb&,liney&*8+yb&+6,CHR$(h&+64)
+          COLOR 1
+        ENDIF
+      NEXT h&
+    ENDIF
+  ENDIF
+RETURN
+PROCEDURE teleletter
+  FOR g&=1 TO 4 STEP 3
+    IF tog&=0
+      COLOR 1
+      TEXT xb&+3*54+g&*8+8,yb&+172+3*12+6,CHR$(tele&+64)
+    ELSE
+      COLOR 3
+      TEXT xb&+g&*8+8,yb&+172+3*12+6,CHR$(tele&+64)
+    ENDIF
+  NEXT g&
+RETURN
+PROCEDURE listlevels ! DEBUG
+  GOSUB fade(0)
+  GET 0,0,width& DIV 2,height&,get1$
+  GET width& DIV 2,0,width&,height&,get2$
+  CLEARW #sit&
+  COLOR 1
+  TEXT xb&+5,yb&+8,"List of Levels.    Free Memory: "+STR$(FRE(0))
+  TEXT xb&+5,yb&+24,"NAME      MAP   GRAVITY  NEEDED  AUTHOR"
+  GOSUB fade(15)
+  '
+  numlev&=0
+  totdia&=0
+  vert&=yb&+36
+  olddefault$=default$
+  DO
+    EXIT IF INKEY$<>""
+    GOSUB encode
+    file$=path$+encoded$+".PLASMA"
+    '
+    IF NOT EXIST(file$)
+      TEXT xb&+5,vert&+5,"Not Found: "+default$
+      EXIT IF 1
+    ENDIF
+    '
+    $U
+    OPEN "i",#1,file$
+    $U
+    FRONTS 2
+    void$=INPUT$(600,#1)
+    oneed&=CVI(INPUT$(2,#1))
+    omap&=INP(#1)
+    len&=INP(#1)
+    void$=""
+    FOR f&=1 TO len&
+      void$=void$+CHR$(INP(#1)-87)
+    NEXT f&
+    IF NOT EOF(#1)
+      gravity&=INP(#1)-1
+    ELSE
+      gravity&=1
+    ENDIF
+    IF NOT EOF(#1)
+      LINE INPUT #1,oauthor$
+    ELSE
+      oauthor$="Unknown"
+    ENDIF
+    CLOSE #1
+    '
+    INC numlev&
+    ADD totdia&,oneed&
+    '
+    SWAP void$,default$
+    void$=void$+SPACE$(8-LEN(void$))
+    SELECT omap&
+    CASE 1
+      void$=void$+"  ON  "
+    CASE 0
+      void$=void$+"  OFF "
+    CASE 2
+      void$=void$+"  HALF"
+    ENDSELECT
+    SELECT gravity&
+    CASE 1
+      void$=void$+"  DOWN   "
+    CASE -1
+      void$=void$+"  UP     "
+    CASE 0
+      void$=void$+"  OFF    "
+    ENDSELECT
+    void$=void$+"  "+STR$(oneed&,6)+"  "+oauthor$
+    TEXT xb&+5,vert&,void$
+    IF vert&-yb&>230
+      TEXT xb&+5,vert&+14,"Press a key for more"
+      GOSUB pause
+      vert&=yb&+27
+      CLEARW #sit&
+      TEXT xb&+5,yb&+8,"List of Levels.    Free Memory: "+STR$(FRE(0))
+      TEXT xb&+5,yb&+24,"NAME      MAP   GRAVITY  NEEDED  AUTHOR"
+    ENDIF
+    ADD vert&,9
+  LOOP
+  '
+  void$="Levels: "+STR$(numlev&)
+  IF numlev&>0
+    void$=void$+"  Av. Diamonds: "+STR$(totdia&/numlev&)
+  ENDIF
+  TEXT xb&+5,vert&+14,void$
+  default$=olddefault$
+  GOSUB pause
+  GOSUB fade(0)
+  PUT 0,0,get1$
+  PUT width& DIV 2,0,get2$
+  GOSUB fade(15)
+RETURN
+PROCEDURE backplay
+  pushywall&=0
+  oldmanx&=manx&
+  oldmany&=many&
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      ob&(f&,g&)=b&(f&,g&)
+      IF b&(f&,g&)=17
+        INC pushywall&
+      ENDIF
+    NEXT g&
+  NEXT f&
+  GOSUB play
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      b&(f&,g&)=ob&(f&,g&)
+    NEXT g&
+  NEXT f&
+  many&=oldmany&
+  manx&=oldmanx&
+RETURN
+'
+' Specials menu
+PROCEDURE specials
+  specmenu&=1
+  GOSUB specset
+  x$="Editor Specials Menu"
+  GOSUB text(height&/2-80,1)
+  GOSUB fadetwo(15)
+  '
+  GOSUB mouse
+  oy&=height&-y&-40
+  REPEAT
+    joy&=STICK(1)
+    ink$=INKEY$
+    GOSUB mouse
+    ospecmenu&=specmenu&
+    IF (y&<height&/2-44 AND oy&>=height&/2-44)
+      specmenu&=1
+    ENDIF
+    IF (y&>=height&/2-44 AND y&<height&/2-20 AND (oy&<height&/2-44 OR oy&=>height&/2-20))
+      specmenu&=2
+    ENDIF
+    IF (y&>=height&/2-20 AND y&<height&/2+4 AND (oy&<height&/2-20 OR oy&=>height&/2+4))
+      specmenu&=4
+    ENDIF
+    IF (y&>=height&/2+4 AND y&<height&/2+28 AND (oy&<height&/2+4 OR oy&=>height&/2+28))
+      specmenu&=8
+    ENDIF
+    IF (y&>=height&/2+28 AND y&<height&/2+52 AND (oy&<height&/2+28 OR oy&=>height&/2+52))
+      specmenu&=16
+    ENDIF
+    IF (y&>=height&/2+52 AND y&<height&/2+76 AND (oy&<height&/2+52 OR oy&=>height&/2+76))
+      specmenu&=32
+    ENDIF
+    IF (y&>=height&/2+76 AND oy&<height&/2+100)
+      specmenu&=64
+    ENDIF
+    IF joy&=1 OR ink$=CHR$(155)+CHR$(65)
+      DIV specmenu&,2
+    ENDIF
+    IF joy&=2 OR ink$=CHR$(155)+CHR$(66)
+      MUL specmenu&,2
+    ENDIF
+    IF specmenu&<1
+      specmenu&=1
+    ENDIF
+    IF specmenu&>64
+      specmenu&=64
+    ENDIF
+    IF specmenu&<>ospecmenu&
+      GOSUB specset
+    ENDIF
+    IF joy&
+      REPEAT
+      UNTIL STICK(1)=0
+    ENDIF
+    oy&=y&
+  UNTIL b& OR ink$=CHR$(13) OR STRIG(1)
+  '
+  GOSUB fadetwo(0)
+  CLEARW #sit&
+RETURN
+PROCEDURE specset
+  x$="Alter Level's Author"
+  GOSUB text((height&/2)-36,SGN(specmenu& AND 1)+8)
+  x$="Change Level Directory"
+  GOSUB text((height&/2)-12,SGN(specmenu& AND 2)+8)
+  x$="Splurge! the Level"
+  GOSUB text((height&/2)+12,SGN(specmenu& AND 4)+8)
+  x$="Curvify Walls"
+  GOSUB text((height&/2)+36,SGN(specmenu& AND 8)+8)
+  x$="Diagonalify Walls"
+  GOSUB text((height&/2)+60,SGN(specmenu& AND 16)+8)
+  x$="Swap Curves & Diagonals"
+  GOSUB text((height&/2)+84,SGN(specmenu& AND 32)+8)
+  x$="Return to Editor"
+  GOSUB text((height&/2)+108,SGN(specmenu& AND 64)+8)
+RETURN
+PROCEDURE specs
+  GET 0,0,width& DIV 2,height&,get1$
+  GET width& DIV 2,0,width&,height&,get2$
+  GOSUB fade(0)
+  CLEARW #sit&
+  GOSUB specials
+  SELECT specmenu&
+  CASE 1
+    x$="Enter Author's Name:"
+    GOSUB text((height&/2)-12,1)
+    GOSUB fade(15)
+    PRINT AT(width&/16-15,height&/16+1);
+    FORM INPUT 32 AS author$
+    GOSUB fade(0)
+  CASE 2
+    GOSUB directory
+  CASE 4
+    x$="Watch out! This operation will"
+    GOSUB text((height&/2)-32,1)
+    x$="devastate your level. Continue?"
+    GOSUB text((height&/2)-22,1)
+    GOSUB yesno
+    PUT 0,0,get1$
+    PUT width& DIV 2,0,get2$
+    GOSUB fade(15)
+    IF yesno&=1
+      get1$="" ! Much needed memory
+      get2$=""
+      GOSUB splurge
+    ENDIF
+  CASE 8
+    x$="Do you really want to change all the"
+    GOSUB text((height&/2)-32,1)
+    x$="walls so that the corners are curved?"
+    GOSUB text((height&/2)-22,1)
+    GOSUB yesno
+    PUT 0,0,get1$
+    PUT width& DIV 2,0,get2$
+    GOSUB fade(15)
+    IF yesno&=1
+      GOSUB curvify
+    ENDIF
+  CASE 16
+    x$="Do you really want to change all the"
+    GOSUB text((height&/2)-32,1)
+    x$="walls so the corners are diagonal?"
+    GOSUB text((height&/2)-22,1)
+    GOSUB yesno
+    PUT 0,0,get1$
+    PUT width& DIV 2,0,get2$
+    GOSUB fade(15)
+    IF yesno&=1
+      GOSUB diagonalify
+    ENDIF
+  CASE 32
+    x$="Do you really want to swap curved"
+    GOSUB text((height&/2)-32,1)
+    x$="walls with diagonal walls?"
+    GOSUB text((height&/2)-22,1)
+    GOSUB yesno
+    PUT 0,0,get1$
+    PUT width& DIV 2,0,get2$
+    GOSUB fade(15)
+    IF yesno&=1
+      GOSUB swapify
+    ENDIF
+  ENDSELECT
+  IF specmenu&<>4 AND specmenu&<>8 AND specmenu&<>16 AND specmenu&<>32
+    PUT 0,0,get1$
+    PUT width& DIV 2,0,get2$
+    GOSUB fade(15)
+  ENDIF
+RETURN
+PROCEDURE splurge
+  '  SETCOLOR 0,8,0,0
+  '
+  ' Store level to use as data for Splurge!
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      ob&(f&,g&)=b&(f&,g&)
+    NEXT g&
+  NEXT f&
+  '
+  FOR f&=2 TO 29
+    FOR g&=2 TO 19
+      b&(g&,f&)=-1
+    NEXT g&
+  NEXT f&
+  '
+  ARRAYFILL tele&(),0
+  DEFFILL 0
+  PBOX xb&+16,yb&+16,xb&+239,yb&+159
+  PBOX xb&,yb&+171,xb&+221,yb&+171+98
+  COLOR 1
+  TEXT xb&+15,yb&+209,"This may take some time."
+  TEXT xb&+3,yb&+219,"If you get bored, push Esc."
+  manx&=-1
+  many&=-1
+  '
+  filled&=0
+  '
+  finish!=FALSE
+  FOR loop&=1 TO 2500
+    f&=RANDOM(28)+2
+    g&=RANDOM(18)+2
+    GOSUB splurgesquare
+    i$=INKEY$
+    IF i$=CHR$(27)
+      finish!=TRUE
+    ENDIF
+    EXIT IF finish!
+  NEXT loop&
+  '
+  FOR f&=2 TO 29
+    FOR g&=2 TO 19
+      GOSUB splurgesquare
+      i$=INKEY$
+      IF i$=CHR$(27)
+        finish!=TRUE
+      ENDIF
+      EXIT IF finish!
+    NEXT g&
+    EXIT IF finish!
+  NEXT f&
+  '
+  FOR f&=2 TO 29
+    FOR g&=2 TO 19
+      IF b&(g&,f&)=-1
+        b&(g&,f&)=0
+      ENDIF
+    NEXT g&
+  NEXT f&
+  '
+  IF manx&=-1 OR many&=-1
+    manx&=RANDOM(28)+2
+    many&=RANDOM(18)+2
+    PUT manx&*8+xb&,many&*8+yb&,mini$(2)
+    b&(many&,manx&)=2
+  ENDIF
+  '
+  GOSUB maxdiamonds
+  '
+  author$="Splurge! (from "+default$+")"
+  '
+  default$=UPPER$("SPLURGE!")
+  GOSUB encode
+  PRINT AT(36,28+kon&);SPACE$(8)
+  PRINT AT(36,28+kon&);default$
+  PRINT AT(36,26+kon&);SPACE$(8)
+  PRINT AT(36,26+kon&);encoded$
+  next$="NONE"
+  PRINT AT(36,30+kon&);SPACE$(8)
+  PRINT AT(36,30+kon&);next$
+  '
+  IF tog&=0
+    PUT xb&,yb&+171,tog0$
+  ELSE
+    PUT xb&,yb&+171,tog1$
+  ENDIF
+  '
+  SETCOLOR 0,0,0,0
+RETURN
+PROCEDURE flattoother
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      here&=b&(f&,g&)
+      IF here&<>8 AND here&<>9 AND here&<>11 AND here&<>12 AND here&<>23 AND here&<>24 AND here&<>25 AND here&<>26 AND here&<>29 AND here&<>17 AND here&<>32 AND here&<>33 AND here&<>34 AND here&<>35 AND (here&<36 OR here&>40)
+        ob&(f&,g&)=here&
+      ELSE
+        ob&(f&,g&)=4
+      ENDIF
+    NEXT g&
+  NEXT f&
+RETURN
+PROCEDURE curvify
+  GOSUB flattoother
+  '
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      IF ob&(f&,g&)=4
+        PUT g&*8+xb&,f&*8+yb&,mini$(17)
+        tally&=0
+        IF ob&(f&-1,g&)=4 ! Up
+          ADD tally&,8
+        ENDIF
+        IF ob&(f&+1,g&)=4 ! Down
+          ADD tally&,4
+        ENDIF
+        IF ob&(f&,g&-1)=4 ! Left
+          ADD tally&,2
+        ENDIF
+        IF ob&(f&,g&+1)=4 ! Right
+          ADD tally&,1
+        ENDIF
+        SELECT tally&
+        CASE 10
+          here&=11
+        CASE 9
+          here&=12
+        CASE 6
+          here&=8
+        CASE 5
+          here&=9
+        CASE 0
+          here&=29
+        CASE 8
+          here&=24
+        CASE 4
+          here&=23
+        CASE 2
+          here&=26
+        CASE 1
+          here&=25
+        DEFAULT
+          here&=4
+        ENDSELECT
+        IF b&(f&,g&)=17
+          here&=17
+        ENDIF
+        b&(f&,g&)=here&
+        PUT g&*8+xb&,f&*8+yb&,mini$(b&(f&,g&))
+      ENDIF
+    NEXT g&
+  NEXT f&
+RETURN
+PROCEDURE diagonalify
+  GOSUB flattoother
+  '
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      IF ob&(f&,g&)=4
+        PUT g&*8+xb&,f&*8+yb&,mini$(17)
+        tally&=0
+        IF ob&(f&-1,g&)=4 ! Up
+          ADD tally&,8
+        ENDIF
+        IF ob&(f&+1,g&)=4 ! Down
+          ADD tally&,4
+        ENDIF
+        IF ob&(f&,g&-1)=4 ! Left
+          ADD tally&,2
+        ENDIF
+        IF ob&(f&,g&+1)=4 ! Right
+          ADD tally&,1
+        ENDIF
+        SELECT tally&
+        CASE 10
+          here&=35
+        CASE 9
+          here&=34
+        CASE 6
+          here&=33
+        CASE 5
+          here&=32
+        CASE 0
+          here&=40
+        CASE 8
+          here&=38
+        CASE 4
+          here&=36
+        CASE 2
+          here&=37
+        CASE 1
+          here&=39
+        DEFAULT
+          here&=4
+        ENDSELECT
+        IF b&(f&,g&)=17
+          here&=17
+        ENDIF
+        b&(f&,g&)=here&
+        PUT g&*8+xb&,f&*8+yb&,mini$(b&(f&,g&))
+      ENDIF
+    NEXT g&
+  NEXT f&
+RETURN
+PROCEDURE swapify
+  GOSUB flattoother
+  '
+  FOR f&=1 TO 20
+    FOR g&=1 TO 30
+      IF ob&(f&,g&)=4
+        PUT g&*8+xb&,f&*8+yb&,mini$(17)
+        SELECT b&(f&,g&)
+        CASE 8
+          here&=33
+        CASE 33
+          here&=8
+        CASE 9
+          here&=32
+        CASE 32
+          here&=9
+        CASE 11
+          here&=35
+        CASE 35
+          here&=11
+        CASE 12
+          here&=34
+        CASE 34
+          here&=12
+        CASE 23
+          here&=36
+        CASE 36
+          here&=23
+        CASE 24
+          here&=38
+        CASE 38
+          here&=24
+        CASE 25
+          here&=39
+        CASE 39
+          here&=25
+        CASE 26
+          here&=37
+        CASE 37
+          here&=26
+        CASE 29
+          here&=40
+        CASE 40
+          here&=29
+        DEFAULT
+          here&=b&(f&,g&)
+        ENDSELECT
+        b&(f&,g&)=here&
+        PUT g&*8+xb&,f&*8+yb&,mini$(b&(f&,g&))
+      ENDIF
+    NEXT g&
+  NEXT f&
+RETURN
+PROCEDURE splurgesquare
+  IF b&(g&+1,f&)<>-1 OR b&(g&-1,f&)<>-1 OR b&(g&,f&+1)<>-1 OR b&(g&,f&-1)<>-1 ! Ensure some trigger
+    IF b&(g&,f&)=-1
+      counter&=0
+      donebar!=FALSE   ! Duh. Dum bah.
+      ARRAYFILL match&(),-1
+      REPEAT
+        REPEAT
+          spf&=RANDOM(28)+2
+          spg&=RANDOM(18)+2
+        UNTIL ob&(spg&,spf&)<>27 AND ob&(spg&,spf&)<>31 AND (ob&(spg&,spf&)<>2 OR manx&=-1 OR many&=-1)
+        match&=0
+        IF ob&(spg&+1,spf&)=b&(g&+1,f&) OR b&(g&+1,f&)=-1
+          INC match&
+        ENDIF
+        IF ob&(spg&-1,spf&)=b&(g&-1,f&) OR b&(g&-1,f&)=-1
+          INC match&
+        ENDIF
+        IF ob&(spg&,spf&+1)=b&(g&,f&+1) OR b&(g&,f&+1)=-1
+          INC match&
+        ENDIF
+        IF ob&(spg&,spf&-1)=b&(g&,f&-1) OR b&(g&,f&-1)=-1
+          INC match&
+        ENDIF
+        match&(match&)=ob&(spg&,spf&)
+        INC counter&
+      UNTIL counter&>=1200 OR match&(4)<>-1
+      '
+      b&(g&,f&)=ob&(spg&,spf&)
+      FOR zoomerama&=1 TO 4
+        IF match&(zoomerama&)<>-1
+          b&(g&,f&)=match&(zoomerama&)
+        ENDIF
+      NEXT zoomerama&
+      INC filled&
+      TEXT xb&+100,yb&+239,STR$(100*filled& DIV (28*18),3)+"%"
+      '
+      IF b&(g&,f&)=2
+        manx&=f&
+        many&=g&
+      ENDIF
+      PUT f&*8+xb&,g&*8+yb&,mini$(b&(g&,f&))
+    ENDIF
+  ENDIF
+RETURN
+'
+' Sound
+PROCEDURE soundinit
+  sound!=FALSE
+  '
+  saquiet%=AllocMem(16,65538)
+  hardbase%=14675968   ! hardware regs base address
+  salen%=51940
+  soundfile$="PlasmaSounds"
+  samem%=AllocMem(salen%,65538)
+  samchan%=0
+  '
+  IF samem%<=0 OR saquiet%<=0
+    x$="Insufficient chip memory to load"
+    GOSUB text((height&/2)-20,1)
+    x$="sounds in. Free some before running,"
+    GOSUB text((height&/2),1)
+    x$="buy a memory expansion or go without."
+    GOSUB text((height&/2)+20,1)
+    GOSUB fade(15)
+    GOSUB pause
+    GOSUB fade(0)
+    CLEARW #sit&
+    GOSUB soundquit
+    GOTO ret2
+  ENDIF
+  '
+  IF NOT (EXIST(soundfile$))
+    FRONTS sit&
+    x$="Unable to find the sound file called"
+    GOSUB text((height&/2)-30,1)
+    x$=""""+soundfile$+""". If you want sounds"
+    GOSUB text((height&/2)-10,1)
+    x$="then put that file in the current"
+    GOSUB text((height&/2)+10,1)
+    x$="directory before running."
+    GOSUB text((height&/2)+30,1)
+    GOSUB fade(15)
+    GOSUB pause
+    GOSUB fade(0)
+    CLEARW #sit&
+    GOSUB soundquit
+    GOTO ret2
+  ELSE
+    FRONTS sit&
+    BLOAD soundfile$,samem%
+    FRONTS sit&
+    sound!=TRUE
+  ENDIF
+  ret2:
+RETURN
+PROCEDURE soundplay(samnum%,invol%)
+  RESTORE sounddata
+  IF sound!
+    SELECT samchan%
+    CASE 0
+      samchan%=1
+    CASE 1
+      samchan%=3
+    CASE 3
+      samchan%=2
+    CASE 2
+      samchan%=0
+    ENDSELECT
+    FRONTS sit&
+    samrep!=FALSE
+    samadr%=samem%
+    samlen%=0
+    FOR whichisit%=1 TO ABS(samnum%)
+      ADD samadr%,samlen%
+      READ samlen%,samper%
+    NEXT whichisit%
+    samlen%=samlen%/2 ! In words not bytes
+    samvol%=invol%
+    GOSUB sam ! Play it again, Sam! (sorry, couldn't resist)
+  ENDIF
+  sounddata:
+  DATA 0,307
+  DATA 51940,400
+RETURN
+PROCEDURE soundquit
+  DPOKE hardbase%+150,1+2+4+8 ! turn off playing of blank sounds
+  IF samem%>0
+    VOID FreeMem(samem%,salen%)
+  ENDIF
+  IF saquiet%>0
+    VOID FreeMem(saquiet%,16)
+  ENDIF
+RETURN
+PROCEDURE sam
+  ' Illegaly play sample, going
+  ' against all the usual prinicpals
+  ' of shared resources in a multitasking
+  ' environment:
+  ADD hardbase%,samchan%*16
+  PAUSE 1
+  LPOKE hardbase%+160,samadr%           ! start
+  DPOKE hardbase%+164,samlen%           ! length
+  DPOKE hardbase%+166,samper%           ! speed (period)
+  DPOKE hardbase%+168,samvol%               ! volume
+  DPOKE hardbase%+150-samchan%*16,33280+2^samchan% ! start audio DMA
+  '
+  IF NOT rep!
+    LPOKE hardbase%+160,saquiet%        ! turn off sample after, by repeated playing
+    DPOKE hardbase%+164,1               ! of an empty word at saquiet%
+    DPOKE hardbase%+150-samchan%*16,33280+2^samchan%
+  ENDIF
+  '
+  SUB hardbase%,samchan%*16
+  ' Let's hit that metal! Humn.
+RETURN

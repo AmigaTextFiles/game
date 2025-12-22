@@ -1,0 +1,164 @@
+;****************************
+
+(set #sub-dir "")		;sub directory containing data files
+(set #readme-file "README")	;name of readme file
+(set #cleanup "c/legend")		;files to delete after install
+
+;****************************
+
+;----------------------------
+; Checks if given program is reachable via the path
+; if not abort install
+; IN:  #program - to check
+; OUT: -
+
+(procedure P_chkrun
+  (if
+    (= 0 (run ("cd SYS:\nWhich %s" #program)))
+    ("")
+    (abort ("You must install \"%s\" first !\nIt must be accessible via the path.\nYou can find it in the whdload package." #program))
+  )
+)
+
+;----------------------------
+; Wait for inserting disk
+; IN:  #AD_disk - name of disk
+; OUT: -
+
+(procedure P_disk
+  (askdisk
+    (dest #AD_disk)
+    (prompt ("\nInsert Disk \"%s\" in any drive !" #AD_disk))
+    (help @askdisk-help)
+  )
+)
+
+;****************************
+
+(set #program "WHDLoad")
+(P_chkrun)
+
+(set #program "Reloc")
+(P_chkrun)
+
+(set @default-dest
+  (askdir
+    (prompt ("Where should \"%s\" installed ?\nA drawer \"%s\" will automatically be created." @app-name @app-name))
+    (help @askdir-help)
+    (default @default-dest)
+    (disk)
+  )
+)
+(set #dest (tackon @default-dest @app-name))
+(if
+  (exists #dest)
+  (
+    (set #choice
+      (askbool
+        (prompt ("\nDirectory \"%s\" already exists.\n Should it be deleted ?" #dest))
+        (default 1)
+        (choices "Delete" "Skip")
+        (help @askbool-help)
+      )
+    )
+    (if
+      (= #choice 1)
+      (run ("Delete \"%s\" \"%s.info\" All" #dest #dest))
+    )
+  )
+)
+(makedir #dest
+  (help @makedir-help)
+  (infos)
+)
+
+;----------------------------
+
+(copyfiles
+  (help @copyfiles-help)
+  (source ("wol.slave"))
+  (dest #dest)
+)
+(copyfiles
+  (help @copyfiles-help)
+  (source ("Empire.inf"))
+  (newname ("Empire.info"))
+  (dest #dest)
+)
+(copyfiles
+  (help @copyfiles-help)
+  (source ("getsavedisk.slave"))
+  (dest #dest)
+)
+(copyfiles
+  (help @copyfiles-help)
+  (source ("Install_Savedisk"))
+  (dest #dest)
+)
+(copyfiles
+  (help @copyfiles-help)
+  (source ("Install_savedisk.inf"))
+  (newname ("Install_Savedisk.info"))
+  (dest #dest)
+)
+(if
+  (exists #readme-file)
+  (copyfiles
+    (help @copyfiles-help)
+    (source #readme-file)
+    (dest #dest)
+  )
+)
+(if
+  (= #sub-dir "")
+  ("")
+  (
+    (set #dest (tackon #dest #sub-dir))
+    (makedir #dest
+      (help @makedir-help)
+    )
+  )
+)
+
+;----------------------------
+
+(set #AD_disk "Empire Boot")
+(P_disk)
+(copyfiles
+  (help @copyfiles-help)
+  (source ("%s:" #AD_disk))
+  (dest #dest)
+  (pattern "~(s)")
+)
+;(rename (tackon #dest "10") (tackon #dest "exe"))
+(if
+  (= 0 (run "Reloc" (tackon #dest "c/legend") (tackon #dest "c/legend.10000") "ADR=$10000" "QUIET" ">con://///WAIT/CLOSE/AUTO"))
+  ("")
+  (abort "\"Reloc\" has failed")
+)
+
+(set #AD_disk "Empire World")
+(P_disk)
+(copyfiles
+  (help @copyfiles-help)
+  (source ("%s:" #AD_disk))
+  (dest #dest)
+  (pattern "#?")
+)
+
+
+;----------------------------
+
+(run ("Delete %s ALL QUIET FORCE" #cleanup))
+
+(if
+  (exists #readme-file)
+  (if 
+    (= 0 (run ("SYS:Utilities/Multiview %s" #readme-file)))
+    ("")
+    (run ("SYS:Utilities/More %s" #readme-file))
+  )
+)
+
+(exit)
+

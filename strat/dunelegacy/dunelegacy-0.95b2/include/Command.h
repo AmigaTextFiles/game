@@ -1,0 +1,77 @@
+/*
+ *  This file is part of Dune Legacy.
+ *
+ *  Dune Legacy is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Dune Legacy is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Dune Legacy.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef COMMAND_H
+#define COMMAND_H
+
+#include <misc/Stream.h>
+
+#include <vector>
+#include <SDL.h>
+
+typedef enum {
+	CMD_NONE,
+	CMD_TEST_SYNC,                      ///< TEST_SYNC(CURRENT_RANDGEN_SEED)
+	CMD_PLACE_STRUCTURE,				///< PLACE_STRUCTURE(BUILDER_ID, ITEM_ID, X, Y)
+	CMD_UNIT_MOVE2POS,					///< UNIT_MOVE2POS(OBJECT_ID,X,Y,BFORCED)
+	CMD_UNIT_MOVE2OBJECT,				///< UNIT_MOVE2OBJECT(OBJECT_ID,TARGET_OBJECT_ID)
+	CMD_UNIT_ATTACKPOS,					///< UNIT_ATTACKPOS(OBJECT_ID,X,Y)
+	CMD_UNIT_ATTACKOBJECT,				///< UNIT_ATTACKOBJECT(OBJECT_ID,TARGET_OBJECT_ID)
+	CMD_UNIT_SETMODE,					///< UNIT_SETMODE(OBJECT_ID,MODE)
+	CMD_CARRYALL_SETDEPLOYSTRUCTURE,	///< CARRYALL_SETDEPLOYSTRUCTURE(OBJECT_ID)
+	CMD_DEVASTATOR_STARTDEVASTATE,		///< DEVASTATOR_STARTDEVASTATE(OBJECT_ID)
+	CMD_MCV_DEPLOY,						///< MCV_DEPLOY(OBJECT_ID)
+	CMD_STRUCTURE_SETDEPLOYPOSITION,	///< STRUCTURE_SETDEPLOYPOSITION(OBJECT_ID,X,Y)
+	CMD_STRUCTURE_REPAIR,				///< STRUCTURE_REPAIR(OBJECT_ID)
+	CMD_BUILDER_UPGRADE,				///< BUILDER_UPGRADE(OBJECT_ID,B_START)
+	CMD_BUILDER_PRODUCEITEM,			///< BUILDER_PRODUCEITEM(OBJECT_ID,ITEM_ID,B_MULTIMODE)
+	CMD_BUILDER_CANCELITEM,				///< BUILDER_PRODUCEITEM(OBJECT_ID,ITEM_ID,B_MULTIMODE)
+	CMD_BUILDER_SETONHOLD,				///< BUILDER_SETONHOLD(OBJECT_ID, B_HOLD)
+	CMD_PALACE_SPECIALWEAPON,			///< PALACE_SPECIALWEAPON(OBJECT_ID)
+	CMD_STARPORT_PLACEORDER,			///< CMD_STARPORT_PLACEORDER(OBJECT_ID)
+	CMD_STARPORT_CANCELORDER,			///< CMD_STARPORT_CANCELORDER(OBJECT_ID)
+	CMD_TURRET_ATTACKOBJECT,			///< TURRET_ATTACKOBJECT(OBJECT_ID,TARGET_OBJECT_ID)
+	CMD_MAX
+} CMDTYPE;
+
+class Command {
+public:
+	Command(CMDTYPE id);
+	Command(CMDTYPE id, Uint32 parameter1);
+	Command(CMDTYPE id, Uint32 parameter1, Uint32 parameter2);
+	Command(CMDTYPE id, Uint32 parameter1, Uint32 parameter2, Uint32 parameter3);
+	Command(CMDTYPE id, Uint32 parameter1, Uint32 parameter2, Uint32 parameter3, Uint32 parameter4);
+	Command(Uint8* data, Uint32 length);
+	Command(Stream& stream);
+
+	virtual ~Command();
+
+	void save(Stream& stream) const;
+
+	void load(Stream& stream);
+
+	void executeCommand();
+
+private:
+	CMDTYPE CommandID;
+	std::vector<Uint32> Parameter;
+};
+
+
+
+
+#endif // COMMAND_H

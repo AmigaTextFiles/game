@@ -1,0 +1,796 @@
+/*
+/* This is the graal.main script file for Hammy Town, 
+/* the dodgiest ever GRAAL Graphic Adventure. Heavily annotated.
+/*
+/* If there's a statement or command that you wish to know more
+/* about, just put the cursor over the statement or command name and
+/* press the HELP key. (This requires the GRAAL.guide file to be
+/* in the same directory as the script file and the editor...)
+/*
+
+
+/* ===================================================================== */
+/*                                                                       */
+/*     General adventure and player interface set-up comes first...      */
+/*                                                                       */
+/* ===================================================================== */
+
+/* NAME: string
+/*
+/*   The name of the adventure
+/*
+NAME: "Esape From Hammy Town"
+
+/* VERSION: string
+/*
+/*   The version number of the adventure
+/*
+VERSION: 1.10
+
+/* Well, actually it's 1.20, but if I leave it at 1.10, then
+/* saved games from version 1.10 should load in OK.
+
+
+/* MAX_CACHE: number of files
+/*
+/*   This number is the maximum number of files to be
+/*   buffered in RAM: of machines with memory to spare.
+/*
+/*   A good practice is to set to 0 during development
+/*   and to 100 when playing (or testing without altering
+/*   too much in the files).
+/*
+/*   Normally, the true number of cached files are
+/*   calculated according to the available memory - if
+/*   you have put together a weird game where your
+/*   files average more then 50K, you may want to lower
+/*   the cache to just a few files - say 10 or 20. Normally, 
+/*   100 should be just fine, though.
+/*
+MAX_CACHE: 100
+
+/* WALK_BUTTON: LEFT or RIGHT
+/*
+/*   This is the button used for "walking about"
+/*
+WALK_BUTTON: LEFT
+
+/* EXIT_COL: colour
+/*
+/*   The colour of the text marking the exits
+/*
+EXIT_COL: 8
+
+/* OBJ_COL: colour
+/*
+/*   The colour of the text marking the objects
+/*
+OBJ_COL: 1
+
+/* START_ROOM: roomnumber;entrance
+/*
+/*   This is the room where the whole adventure starts
+/*
+START_ROOM: 1;1
+
+/* MAX_ROOM: rooms
+/*
+/*   The highest room number used. Don't forget to alter this
+/*   when higher numbered rooms are added to the game!!
+/*
+MAX_ROOM: 50
+
+/* MAX_SECTION: sections
+/*
+/*   The highest section number used. Don't forget to alter this
+/*   as sections are added to the game!
+/*
+MAX_SECTION: 2
+
+/* MAX_DACT: direct_room_actions
+/*
+/*   The maximum number of direct room actions used anywhere in a
+/*   room file. Keep an eye on this value as your adventure
+/*   gets more complex...
+/*
+MAX_DACT: 50
+
+MAX_ACTION: 100
+MAX_DLG: 10
+
+/* GLOBALOBJS: number
+/*
+/*   Specifies the number of global objects. These are the
+/*   objects which can be used throughout the whole adventure, 
+/*   and also all objects with which you can talk using dialogues
+/*
+GLOBALOBJS: 50
+
+/* SECTIONOBJS: number
+/*
+/*   Specifies the number of objects that only exists when
+/*   visiting a certain section.
+/*
+/*   Note that all object flags, new
+/*   names and states are lost when the section is exited, 
+/*   so any states must be saved and restored using
+/*   room flags!!!
+/*
+SECTIONOBJS: 2
+
+/* ROOMOBJS: number
+/*
+/*   Specifies the number of objects that only exist within one room.
+/*   Note that no altered flags, states or names for these objects
+/*   remain between visits to the room: Any state changes must
+/*   be saved and stored using room flags!!!
+/*
+ROOMOBJS: 20
+
+/* N_GLOBALBOBS: number
+/*
+/*   Specifies the number of global BOBs that can be
+/*   used. Actual BOB numbers for these start with 11 and
+/*   not 1, since BOB image bank slots 1-10 are reserved
+/*   for system use.
+/*
+N_GLOBALBOBS: 80
+
+/* N_SECTIONBOBS: number
+/*
+/*   Specifies the number of section BOB images. These are
+/*   replaced each time the game enters a new section.
+/*
+N_SECTIONBOBS: 2
+
+/* N_ROOMBOBS: number
+/*
+/*   Specifies the number of room BOB images. These are
+/*   always replaced when entering a new room.
+/*
+N_ROOMBOBS: 70
+
+/* MSGFONT: fontname;fontsize
+/*
+/*   This is the font used for text displayed in the scene area
+/*   by SAY, THINK, RESP and TEXT commands.
+/*
+/*   The specified font and fontsize must be installed in the
+/*   FONT drawer of the currently used boot disk. Also, remember
+/*   to run FIXFONTS on the FONTS: drawer, or it won't work.
+/*
+MSGFONT: hires-5a;8
+
+/* COMFONT: fontname;fontsize
+/*
+/*   This is the font used for the text displayed in the
+/*   command area.
+/*
+/*   The specified font and fontsize must be installed in the
+/*   FONT drawer of the currently used boot disk. Also, remember
+/*   to run FIXFONTS on the FONTS: drawer, or it won't work.
+/*
+COMFONT: garnet;9
+
+/* TITLEFONT1: fontname;fontsize
+/*
+/*   This font can be used by TYPE and other commands.
+/*
+/*   The specified font and fontsize must be installed in the
+/*   FONT drawer of the currently used boot disk. Also, remember
+/*   to run FIXFONTS on the FONTS: drawer, or it won't work.
+/*
+TITLEFONT1: garnet;9
+
+/* TITLEFONT2: fontname;fontsize
+/*
+/*   This font can be used by TYPE and other commands.
+/*
+/*   The specified font and fontsize must be installed in the
+/*   FONT drawer of the currently used boot disk. Also, remember
+/*   to run FIXFONTS on the FONTS: drawer, or it won't work.
+/*
+TITLEFONT2: garnet;9
+
+
+/* CLPART: filename
+/*
+/*   This is the screen from which all subsequent BOB images
+/*   are grabbed. Once you've grabbed the graphics
+/*   BOBS, another CLPART and further BOBS may be specified...
+/*
+CLPART: hammy.iff
+
+/* BOBS: no;startbob;x1;y1;w;h;x-offset;hotspot
+/*
+/*   This statement grabs a single BOB image or a horizontally arranged
+/*   sequence of BOBs.
+/*
+/*   If the default setup of the command area is used, the following
+/*   images must be loaded in using BOBS: statements:
+/*
+/*          3 - Up arrow for use in the command (and dialogue) area lists
+/*          4 - Down arrow -"-
+/*          5 - Blank plate used to erase up and down arrows (1 and 2)
+/*          6 - Cut-scene indicator (a movie camera in Olaf).
+/*
+/*          INV_UP:, INV_DOWN:, DLG_UP:, DLG_DOWN:, and CUTSCENE_LAYOUT:
+/*          statements can be used to
+/*          specify other bob image numbers for these tasks if you so wish.
+/*
+/* Let's grab Hammy!!!
+/*
+BOBS: 10;11;1;1;31;47;32;0
+BOBS: 10;21;1;49;31;47;32;0
+BOBS: 10;31;1;97;31;47;32;0
+/* ...and the new mouse pointers
+CLPART: hammy_cursors.iff
+BOBS: 1;75;23;16;17;17;0;0
+BOBS: 1;76;3;16;17;17;0;0
+
+CLPART: hammy_Symbols.iff
+/* Inventory and dialogue arrows
+BOBS: 2;77;163;5;18;15;23;0
+BOBS: 2;79;163;21;18;15;23;0
+/* Cutscene indicator
+BOBS: 1;6;89;1;59;29;0;$11
+/* 41-49 CD, certificate, empty glass, full glass, £2, squeaky toy, spade, saw, crowbar
+BOBS: 9;41;0;43;51;21;50;0
+/* 50-58 knife, screwdriver, empty, spanner, lamp, fork, £1, £14, Az-Bulb.
+BOBS: 9;50;0;63;51;21;50;0
+/* 59-67 Az-Transmitter, Az-Teleporter, Golden Hamster, 9 Hamsters, Tape, seeds, loadsa seeds, safe key, radio.
+BOBS: 9;59;0;83;51;21;50;0
+/* 68-68 Penny.
+BOBS: 1;68;0;103;51;21;50;0
+
+
+/* INV_LAYOUT: x1;y1;x2;y2;rows;cols;ICONS|TEXT;VERTICAL|HORIZONTAL; 
+/*             ink/image_number;bg
+/*
+/*   This statement defines the layout of the inventory in the
+/*   command area. VERTICAL|HORIZONTAL determines the scroll
+/*   direction. image_number is the image number of the icon
+/*   used for vacant slots in the inventory list.
+/*
+INV_LAYOUT: 306;20;605;59;2;6;ICONS;VERTICAL;52;8
+
+/* INV_UP: x1;y1;w;h;image;image2
+/*
+/*   This defines the area and image for the inventory scroll "up"
+/*   (or "left") arrow.
+/*
+/*   "image" is the image when the function is available.
+/*   "image2" is the image when the function is unavailable.
+/*
+INV_UP: 283;24;17;14;78;77
+
+/* INV_DOWN: See "INV_UP:"
+/*
+INV_DOWN: 283;43;17;14;80;79
+
+/* DLG_UP: Same as "INV_UP:", but for the dialogue alternatives.
+/*
+DLG_UP: 8;6;17;14;78;77
+
+/* DLG_DOWN: See "DLG_UP:"
+/*
+DLG_DOWN: 8;43;17;14;80;79
+
+/* N_VERBS: number
+/*
+/*   Sets thenumber of verbs, or commands if you will, available
+/*   to the player. If anything else than 9, A VERB_TEXT and a
+/*   VERB_ZONE statement must be included for each verb. (9 was
+/*   the old GRAAL 1 default.)
+/*
+N_VERBS: 9
+
+/* VERB_TEXT: verb_no;text
+/*
+VERB_TEXT: 1;Give
+
+/* VERB_ZONE: verb_no;x1;y1;x2;y2
+/*
+/*   This is the "clickable area" in the command area corresponding
+/*   to the verb
+/*
+VERB_ZONE: 1;6;18;83;30;0;0; 
+
+VERB_TEXT: 2;Pick up
+VERB_ZONE: 2;90;18;167;30;0;0; 
+VERB_TEXT: 3;Use
+VERB_ZONE: 3;174;18;251;30;0;0; 
+VERB_TEXT: 4;Open
+VERB_ZONE: 4;6;33;83;45;0;0; 
+VERB_TEXT: 5;Talk to
+VERB_ZONE: 5;90;33;167;45;0;0; 
+VERB_TEXT: 6;Push
+VERB_ZONE: 6;174;33;250;45;0;0; 
+VERB_TEXT: 7;Close
+VERB_ZONE: 7;6;48;83;60;0;0; 
+VERB_TEXT: 8;Look at
+VERB_ZONE: 8;90;48;167;60;0;0; 
+VERB_TEXT: 9;Pull
+VERB_ZONE: 9;174;48;251;60;0;0; 
+
+/* LINE_LENGTH: characters
+/*
+/*   This is the maximum number of characters on one line when
+/*   text is displayed with SAY, THINK, etc. Line breaks are
+/*   inserted automatically. You can control line breaks manually
+/*   by providing \ characters in the string with shorter
+/*   intervals than this number indicates.
+/*
+LINE_LENGTH: 34
+
+/* NORMAL_WAIT: waitlength
+/*
+/*   The larger this value, the longer texts and sentences
+/*   spoken remain on screen. Default is 100: If that is not
+/*   enough, try other nice, round numbers like 200 or 400
+/*
+NORMAL_WAIT: 50
+
+/* SENTENCE_LAYOUT: x1;y1;x2;y2;ink;inkhi;bg
+/*
+/*   This is the box in the command area where the sentence
+/*   under construction is being shown.
+/*
+SENTENCE_LAYOUT: 6;2;634;14;3;11;8
+
+/* CUTSCENE_LAYOUT: x1;y1;x2;y2;bg;ulx;uly;image
+/*
+/*   Specifies the properties of the cutscene indicator
+/*   x1;y1;x2;y2 is the area to be blanked out
+/*   bg is the colour to use in blanking
+/*   ulx;uly is the place to paste the indicator
+/*   image is the image of the indicator.
+/*
+CUTSCENE_LAYOUT: 4;17;253;61;8;101;26;6
+
+/* ARROW_CURSOR: image;hotspotx;hotspoty
+/*
+/*   An alternative image for the arrow-shaped mouse pointer.
+/*   Image must be lowres and 4 colours. Bot the x and y hotspot
+/*   value must be set for the "sensitive point" of the cursor.
+/*
+ARROW_CURSOR: 76;0;0
+
+/* CROSSHAIR_CURSOR: image;hotspotx;hotspoty
+/*
+/*   An alternative image for the "crosshair" mouse pointer.
+/*   Image must be lowres and 4 colours. Bot the x and y hotspot
+/*   value must be set for the "sensitive point" of the cursor.
+/*
+CROSSHAIR_CURSOR: 75;7;7
+
+/* CURSOR_PALETTE: RGB;RGB;RGB
+/*
+/*   These are the three colour used for the mouse pointer in
+/*   the command and dialogue area. In the scene area, the
+/*   colours used are always colours 16,17, and 18 of the
+/*   backdrop picture palette
+/*
+CURSOR_PALETTE: 811;999;DDD
+
+/* MODE_SWITCH: ROLL|INSTANT
+/*
+/*   Sets the way the command area and dialogue area are switched
+/*
+MODE_SWITCH: INSTANT
+
+/* AREA_SIZES: scene_height;command_height
+/*
+/*   Sets the proportions of the split-screen display
+/*
+AREA_SIZES: 120;80
+
+/* COMMAND_AREA: file
+/*
+/*   Specify the name of the picture file containing the graphics
+/*   for the command area.
+/*
+COMMAND_AREA: Hammycomm.iff;NORMAL
+
+/* DLG_AREA: file
+/*
+/*   Specify the name of the picture file containing the graphics
+/*   for the dialogue input area.
+/*
+DLG_AREA: Hammydlg.iff
+
+DLG_LAYOUT: 32;3;633;58;4;9;8;14
+
+/* RESOURCE: file
+/*
+/*   This file is a resource bank used for
+/*   dialogue boxes, requesters, etc.
+/*
+/*   DEFAULT means GRAAL's built-in bank will be used - this
+/*   produces gray-scale, "neutral" requesters.
+/*
+/* RESOURCE: DEFAULT
+RESOURCE: Wood.Rsb
+
+
+/* ===================================================================== */
+/*                                                                       */
+/* Here is data describing the standard attributes of the main character */
+/*                                                                       */
+/* ===================================================================== */
+
+
+/* CHARACTER_HEIGHT: pixels
+/*
+/*   approximate or "average" height
+/*
+CHARACTER_HEIGHT: 40
+
+/* CHARACTER_WIDTH: pixels
+/*
+CHARACTER_WIDTH: 22
+
+/* CHARACTER_COL: colorindex
+/*
+/*   Tells the colour of the dialogue text
+/*
+CHARACTER_COL: 9
+
+/* STILL_xxxxx: BOB image
+/*
+/*   These are the character's standard poses when faces in
+/*   the respective direction.
+/*   ($8000+hex number makes the image flip horisontally.)
+/*
+STILL_RIGHT: 14
+STILL_LEFT: $800E
+STILL_BACK: 12
+STILL_FRONT: 11
+
+/* PAUSE_xxxxx: BOB image
+/*
+/*   These are the character's standard poses when pausing
+/*   between moves. (More "ready-for-action" poses than the
+/*   STILL_xxxxxx images, although they may be the same if
+/*   you like it that way.)
+/*   ($8000+hex number makes the image flip horisontally.)
+/*
+PAUSE_RIGHT: 13
+PAUSE_LEFT: $800D
+PAUSE_BACK: 12
+PAUSE_FRONT: 11
+
+/* WALK_xxxxx: amalsequence
+/*
+/*   These are the default animation sequences for moving in the
+/*   four main directions.
+/*
+WALK_RIGHT: A 0,(16,3)(15,3)(14,3)(17,3)(18,3)(17,3)(14,3)(15,3)
+WALK_LEFT: A 0,($8010,3)($800F,3)($800E,3)($8011,3)($8012,3)($8011,3)($800E,3)($800F,3)
+WALK_AWAY: A 0,(29,4)(30,4)(31,4)(30,4)
+WALK_TOWARD: A 0,(26,4)(27,4)(28,4)(27,4)
+
+/* WALK_SPEED: characterspeed
+/*
+/*   Adjust this number to match the animation speed, making the
+/*   character actually walk around rather than "float about".
+/*
+WALK_SPEED: 0.8
+
+/* TALK_MAP: stillimage;animation
+/*
+/*   The speech animation used depends upon the still image
+/*   displayed before it begins. This keyword maps the animations
+/*   to the still images. Max. 8 talk_maps may be specified.
+/*   direction is one of FRONT, BACK, RIGHT or LEFT. If imagenumbers
+/*   point to reverse images, the correct form is $FFFF8000+$imagenumber
+/*
+TALK_MAP: 11;A 0,(20,18)(11,12)(20,12)(11,6)(19,12)(11,12)(20,6)(11,6)
+TALK_MAP: 12;A 0,(21,24)(12,16)(22,36)(12,48)(22,18)(12,32)
+TALK_MAP: 13;A 0,(20,18)(11,12)(20,12)(11,6)(19,12)(11,12)(20,6)(11,6)
+TALK_MAP: $FFFF800D;A 0,(20,18)(11,12)(20,12)(11,6)(19,12)(11,12)(20,6)(11,6)
+TALK_MAP: 14;A 0,(23,18)(14,12)(23,12)(14,6)(23,12)(14,12)(23,6)(14,12)(24,6)(14,18)
+TALK_MAP: $FFFF800E;A 0,($8017,18)($800E,12)($8017,12)($800E,6)($8017,12)($800E,12)($8017,6)($800E,12)($8018,6)($800E,18)
+
+/* HANDLE_MAP: stillimage;handlelow;handlemid;handlehigh
+/*
+/*   sets the animations for character handling things much the
+/*   same way as TALK_MAP maps the speech animations.
+/*
+HANDLE_MAP: 11;A 1,(11,12)(36,1);A 1,(11,12)(34,1);A 1,(11,12)(35,1)
+HANDLE_MAP: 12;A 1,(12,12)(38,1);A 1,(12,12)(39,1);A 1,(12,12)(40,1)
+HANDLE_MAP: 14;A 1,(14,12)(32,1);A 1,(14,12)(33,1);A 1,(14,12)(37,1)
+HANDLE_MAP: $FFFF800E;A 1,($800E,12)($8020,1);A 1,($800E,12)($8021,1);A 1,($800E,12)($8025,1)
+
+
+/* ===================================================================== */
+/*                                                                       */
+/*                   Objects, dialogues, etc. set up below               */
+/*                                                                       */
+/* ===================================================================== */
+
+
+/* OBJECT: no;name;startloc;visible;bob;startimg/anim;xpos;ypos; 
+/*         coffsx;coffsy;cstill;prep;pickable;animch;command;icon;handlepos; 
+/*         types;w1;w2;w3
+/*
+/*   This is the data for an object.
+/*   no = object number, used in coding so if you change this be sure
+/*        to change or erase all code that goes with it...
+/*   name = a string containing the (initial) inventory name for the object
+/*   startloc = object starts in room number ...
+/*   visible = is the object shown? NVIS = False, VIS = True
+/*   startbob = starting bob number for displaying object
+/*   startimg/startanim = bob image or amalsequence used for this object.
+/*                        LBOBs can be used, as long as these LBOB numbers
+/*                        are valid for each and every room where the
+/*                        object can appear!
+/*   xpos;ypos = display object in this position.
+/*   coffs;coffsy = offset of character relative object when handling
+/*   cstill = still image of character when walking to object
+/*   prep = object preposition. If not blank, "Use" will require 2nd object
+/*   pickable = Can character pick this up? NPICK = False, PICK = True
+/*   animch = Amal channel to use for this object
+/*   command = This is the verb executed if the player right-clicks the
+/*             object. 0 for no "quick command"
+/*   icon = This is the image number for the icon used in the
+/*          inventory display.
+/*   handlepos: LOW, MID or HIGH determines animation for handling object.
+/*   type = string of characters indicating object type.
+/*          Standard types: M=male character, F=female character, G=group
+/*          A=animal, C=container, D=Dead, V=Alive
+/*          -=Abstract (unreachable, consisting of air, etc.)
+/*          Other types: S=Stone, W=Wood, T=Metal, L=Liquid, - it's up to you.
+/*   w1;w2;w3 = have to look these up in the grammar book. Anyway, deals with
+/*              how you speak about the objects, as you can see below.
+/*
+/* OBJECT: no;name;startloc;visible;bob;startimg/anim;xpos;ypos; 
+/*         coffsx;coffsy;cstill;prep;pickable;animch;command;icon;handlepos; 
+/*         types;w1;w2;w3
+/*
+/* Object 0 is a dummy object - icon image used for "empty places" in the
+/* inventory display.
+/*
+
+OBJECT: 1;bartender;3;VIS;55;A 0,(RBOB3,36)(RBOB2,48)(RBOB3,24)(RBOB2,36)(RBOB3,36)(RBOB2,48)(RBOB3,24)(RBOB2,36)(RBOB3,64)(RBOB2,100);210;52;-22;31;14; ;NPICK;8;5;0;HIGH;MV;a;this;him
+OBJECT: 2;shop owner;4;VIS;50;A 0,(RBOB1,40)(RBOB2,30)(RBOB3,50)(RBOB2,10);291;84;-17;3;14; ;NPICK; ;5; ;MID;MV;a;the;him
+OBJECT: 3;boat owner;5;VIS;50;RBOB1;193;61;-16;19;14; ;NPICK; ;5; ;HIGH;MV;a;it;him
+OBJECT: 4;restaurant owner;6;VIS;50;RBOB1;193;91;-25;3;14; ;NPICK; ;5; ;MID;MV;a;the;him
+OBJECT: 5;electronics bloke;20;VIS;50;RBOB1;148;39;-16;25;14; ;NPICK; ;5; ;MID;MV;a; ;him
+OBJECT: 6;ivan;21;VIS;53;RBOB4;107;57;-17;27;14; ;NPICK; ;5; ;HIGH;MV; ; ;him
+OBJECT: 7;mod bloke;17;VIS;50;A 0,(RBOB1,40)(RBOB9,5)(RBOB2,30)(RBOB9,5);516;85;-14;-1;14; ;NPICK; ;5; ;MID;MV;a ;this;him
+OBJECT: 8;vicious dog;17;VIS;51;A 0,(RBOB4,20)(RBOB5,30)(RBOB6,40)(RBOB5,10);542;83;-18;4;14; ;NPICK; ;8; ;LOW;AV;a;this ;him
+
+OBJECT: 10;cd;4;VIS;52;RBOB9;144;57;-25;25;14;with;PICK; ;8;41;HIGH; ;a;this;it
+OBJECT: 11;glass;9;VIS;53;RBOB2;152;76;-17;5;14;with;PICK; ;8;43;MID; ;a;this;it
+OBJECT: 12;certificate;9;VIS;54;RBOB3;120;50;-21;24;14; ;PICK; ;8;42;HIGH;P;a;this;it
+OBJECT: 13;two pounds;6;NVIS; ; ; ; ; ; ; ; ; ; ;8;45; ;TG; ;these;them
+OBJECT: 14;Squeaky Toy;10;NVIS; ; ; ; ; ; ; ; ;PICK; ;8;46; ; ;a;this;it
+
+OBJECT: 15;Spade;12;VIS;54;RBOB2;142;92;-14;1;14;on;PICK; ;8;47;MID;XTW;a;this;it
+OBJECT: 16;Saw;12;VIS;55;RBOB3;164;92;14;2;$800E;on;PICK; ;8;48;MID;XTW;a;this;it
+OBJECT: 17;Crowbar;12;VIS;56;RBOB5;198;89;13;0;$800E;on;PICK; ;8;49;MID;XT;a;this;it
+OBJECT: 18;Knife;12;VIS;57;RBOB8;69;65;0;19;$800E;on;PICK; ;8;50;MID;XT;a;this;it
+OBJECT: 19;Screwdriver;12;NVIS; ; ; ; ; ; ; ;on; ; ;8;51; ;XT;a;this;it
+OBJECT: 20;Spanner;12;NVIS; ; ; ; ; ; ; ;on; ; ;8;53; ;XT;a;this;it
+
+OBJECT: 21;Lamp;7;VIS;52;RBOB3;137;40;-9;36;14;in;PICK; ;8;54;HIGH; ;a;this;it
+OBJECT: 22;Fork;7;VIS;53;RBOB4;188;39;-9;37;14;with;PICK; ;8;55;HIGH;TX;a;this;it
+
+OBJECT: 23;One Pound;6;NVIS; ; ; ; ; ; ; ;in; ; ;8;56; ; ;a;this;it
+OBJECT: 24;Fourteen Pounds;6;NVIS; ; ; ; ; ; ; ; ; ; ;8;57; ; ;a;this;it
+
+OBJECT: 25;Az-Bulb;20;VIS;51;RBOB4;187;61;-11;2;14;in;PICK; ;8;58;LOW; ;a;this;it
+OBJECT: 26;Az-Transmitter;20;VIS;52;RBOB5;197;61;-6;1;14; ;PICK; ;8;59;LOW; ;a;this;it
+OBJECT: 27;Az-Teleporter;20;VIS;53;RBOB6;208;61;-13;2;14;on;PICK; ;8;60;LOW; ;a;this;it
+
+OBJECT: 28;Golden Hamster;3;NVIS; ; ; ; ; ; ; ;in; ; ;8;61; ;TAD;a;this;it
+OBJECT: 29;Dodgy Tape;21;NVIS; ; ; ; ; ; ; ;in; ; ;8;63; ; ;a;this;it
+OBJECT: 30;Mini;21;VIS;50;RBOB1;283;69;17;-2;$800E; ;NPICK; ;8; ;MID;T;a;this;it
+OBJECT: 31;Sunflower Seeds;4;NVIS; ; ; ; ; ; ; ;in; ; ;8;64; ; ;some;these;them
+OBJECT: 32;Key;22;NVIS; ; ; ; ; ; ; ;in; ; ;8;66; ;T;a;this;it
+OBJECT: 33;Radio;11;NVIS; ; ; ; ; ; ; ;on; ; ;8;67; ; ;a;this;it
+
+OBJECT: 34;One Penny;1;NVIS; ; ; ; ; ; ; ;in; ; ;8;68; ;T; ;this;it
+
+
+/* DLG: no;dlgobj;dlgcol;dlgoffs;dlganim
+/*
+/*   This sets up the characters and animations used
+/*   by the various dialogue partners. You MUST one DLG statement
+/*   for each dialogue there is, but you can actually use any of them
+/*   in any of the RESP statements of any dialogue! (Flexible, but
+/*   not really that useful.)
+/*
+/*   dlgcol = the colour index of the dialogue text
+/*   dlgoffs = dialogue text offset from character hotspot
+/*
+/* 1 is bartender
+DLG: 1;1;11;-20;A 0,(RBOB4,12)(RBOB3,24)(RBOB4,18)(RBOB3,6)(RBOB2,12)(RBOB3,18)(RBOB2,20)(RBOB4,12)(RBOB3,30)
+/* 2 is shop owner
+DLG: 2;2;6;-26;A 0,(RBOB1,24)(RBOB4,18)(RBOB5,30)(RBOB4,24)(RBOB5,6)(RBOB6,3)(RBOB7,3)(RBOB6,3)
+/* 3 is pleasure boat owner
+DLG: 3;3;12;-20;A 0,(RBOB1,12)(RBOB2,6)(RBOB3,18)(RBOB2,12)(RBOB3,24)
+/* 4 is floating restaurant owner
+DLG: 4;4;13;-40;A 0,(RBOB1,15)(RBOB2,19)(RBOB3,10)(RBOB2,8)(RBOB3,25)
+/* 5 is E.M. Cloud, owner of Cloud Electronics
+DLG: 5;5;5;15;A 0,(RBOB1,15)(RBOB2,20)(RBOB3,30)(RBOB2,7)(RBOB3,12)
+/* 6 is Ivan, the owner of the garage.
+DLG: 6;6;12;-30;A 0,(RBOB4,6)(RBOB5,6)(RBOB6,3)(RBOB5,5)(RBOB4,6)
+/* 7 is the MOD bloke.
+DLG: 7;7;12;-40;A 0,(RBOB1,10)(RBOB3,25)(RBOB1,15)(RBOB3,30)
+/* 8 is the dodgy MOD dog.
+DLG: 8;8;5;-15;A 0,(RBOB4,15)(RBOB5,25)(RBOB6,10)(RBOB7,40)(RBOB6,20)
+
+
+
+
+/* ===================================================================== */
+/*                                                                       */
+/*               Here come the global actions, working everywhere        */
+/*                                                                       */
+/* ===================================================================== */
+
+
+/* ACTION: verbno;condition;...;command;...
+
+ACTION: -2;TRACK OFF;EXIT
+
+/*
+/* Action 1 - Give
+/* ---------------
+/*
+ACTION: 1;IFOBJ 34;IFTYPE2 M|F;SAY Yeah, give #W23 one penny! That would really be useful.;EXIT
+ACTION: 1;IFOBJ 34;IFTYPE2 A;SAY Are you going to try and choke it or what?!;EXIT
+
+ACTION: 1;IFOBJ 11;IFOF 11,1=1;IFTYPE2 A;SAY I don't want to make the poor thing drunk!;EXIT
+ACTION: 1;IFOBJ 11;IFOF 11,1=2;IFTYPE2 M|F;SAY Sorry, I am not into poisoning people.;EXIT
+ACTION: 1;IFOBJ 11;IFOF 11,1=2;IFTYPE2 A;SAY You really are a nasty person.;SAY You're willing to poison the poor animal with this muck just to get further in the game!;SAY Well, you can forget that idea.;EXIT
+
+ACTION: 1;IFTYPE2 M|F;SAY I'm not a charitable organisation!|No thanks, I want to keep it for the time being.|I don't think my gift would be appreciated.;EXIT
+
+ACTION: 1;IFPICK;SAY There's no point in that!;EXIT
+ACTION: 1;SAY I can't do that!;EXIT
+
+/*
+/* Action 2- Pick up
+/* -----------------
+/*
+ACTION: 2;IFCARR;SAY I've already got it!;EXIT
+ACTION: 2;IFPICK;MOBJ;HANDLE;W 12;PICK;HANDLE -1;EXIT
+ACTION: 2;IFTYPE F;SAY I'd love to but I don't think she'd appreciate it.!;EXIT
+ACTION: 2;IFTYPE M;SAY Err..... no thanks!;EXIT
+ACTION: 2;IFTYPE -;SAY I think you're taking the piss now.;EXIT
+ACTION: 2;SAY I can't pick that up.|Sorry, can't do that.;EXIT
+
+/*
+/* Action 3 - Use
+/* --------------
+/*
+
+ACTION: 3;IFOBJ 26;IFOF 1=0;SAY I don't know what frequency I have to transmit on!;EXIT
+ACTION: 3;IFOBJ 26;IFOF 1=1;SAY I think I've done enough playing about with that.;EXIT
+ACTION: 3;IFOBJ 33;IFOBJ2 26;IFOF 26,1=1;SAY I've already put the frequency in.;EXIT
+ACTION: 3;IFOBJ 33;IFOBJ2 26;SAY Okay, let's transfer the frequency over...;W 50;SAY Okay, that's done.;SETOF 26,1=1;SAY Let's transmit!;SAY <Hey, John, we got a bit of a problem at the back of the airfield here...>
+ACTION: 3;IFOBJ 33;IFOBJ2 26;SAY <Could you give us a hand here?>;TEXT -1, ,5,<Yeah, roger that, I'm on my way.>;W 50;SAY Well, that seemed to work!;EXIT
+
+ACTION: 3;IFOBJ 19;IFOBJ2 25|26|27|29|33;SAY There is no point in taking that apart.;EXIT
+ACTION: 3;IFTYPE X;IFOBJ2 25|26|27;SAY You can't break it like that!;SAY Aztec equipment is unbreakable, remember?;EXIT
+
+ACTION: 3;IFOBJ 25;IFOBJ2 21;IFOF 21,2=0;IFCARR 25;OBJ1 21;SETOF 2=1;SAY Okay, the lamp is now fitted with an Aztec bulb!;NAME Lamp with Aztec Bulb!;REMOVE 25,U,0;EXIT
+
+ACTION: 3;IFOBJ 14;SAY Who do you think I am, a little kid?|That would be very childish.;EXIT
+
+ACTION: 3;IFOBJ 11;IFOF 1=0;IFTYPE2 M|F;SAY It's not very nice to glass people!;EXIT
+ACTION: 3;IFTYPE X;IFTYPE2 T;SAY I think that would hurt the #OBJ1 more than the #OBJ2!;EXIT
+ACTION: 3;IFTYPE X;IFTYPE2 W;SAY I'm not a vandal, you know!;EXIT
+ACTION: 3;IFTYPE X;IFTYPE2 M|F;SAY That is not a very nice thing to do!|You can't go round hurting people like that!;EXIT
+ACTION: 3;IFTYPE X;IFTYPE2 A;SAY Aww, no, I don't want to hurt the poor little animal!;EXIT
+
+ACTION: 3;IFTYPE -;SAY Oh, come on!;EXIT
+ACTION: 3;IFTYPE M|F;SAY Use #OBJ1? You can't just use people like that!;EXIT
+ACTION: 3;SAY I don't follow you.|How would that help me?|Sounds a bit pointless to me.|Try something more logical next time!;EXIT
+
+/*
+/* Action 4 - Open
+/* ---------------
+/*
+
+ACTION: 4;IFTYPE M|F|A;SAY I'm not qualified to perform surgery!;EXIT
+ACTION: 4;SAY I can't open #W13.|Sorry, I can't open that.|It won't open.;EXIT
+
+/*
+/* Action 5 - Talk to
+/* ------------------
+/*
+ACTION: 5:IFTYPE D;IFTYPE G;SAY I could, but #OBJ1 make a lousy audience!;EXIT
+ACTION: 5;IFTYPE G;SAY I'd rather not disturb them.;EXIT
+ACTION: 5;IFTYPE A;SAY Yeah, right. I'm going to get a lot of sense out of it!;EXIT
+ACTION: 5;IFTYPE F;SAY I think I'll leave her alone for the minute.;EXIT
+ACTION: 5;IFTYPE M;SAY Why would I want to talk to him?;EXIT
+ACTION: 5;SAY I can talk to #W12 #OBJ1 all day, but I will not get any response.|If you like talking to inanimate objects, that is fine, but don't expect me to.;EXIT
+
+/*
+/* Action 6 - Push
+/* ---------------
+/*
+ACTION: 6;IFTYPE -;SAY I reckon you're a bit drunk!;EXIT
+ACTION: 6;IFTYPE M;SAY No thanks, he'll probably thump me one.;EXIT
+ACTION: 6;IFTYPE F;SAY Why would I want to push a woman?;SAY Who do you think I am?;EXIT
+ACTION: 6;IFTYPE A;SAY I don't think I will... it looks vicious.;EXIT
+ACTION: 6;SAY That would not accomplish anything.|Why should I do that?|There is no point in doing that.;EXIT
+
+/*
+/* Action 7 - Close
+/* ----------------
+/*
+ACTION: 7;IFTYPE M;SAY I'd have a hard job to shut him up!;EXIT
+ACTION: 7;IFTYPE F|A;SAY No can do, I'm afraid.;EXIT
+ACTION: 7;SAY I can't close that!|There is nothing that can be shut.|Why don't you try closing your mouth instead?;EXIT
+
+/*
+/* Action 8 - Look at
+/* ------------------
+/*
+ACTION: 8;MOBJ
+
+ACTION: 8;IFOBJ 34;SAY It's a one penny coin.;SAY I'm rich!;EXIT
+
+ACTION: 8;IFOBJ 33;SAY It says "John's Receiver. MOD Property.";SAY It's tuned to an MOD frequency.;SAY I can occasionally hear some bloke waffling.;EXIT
+
+ACTION: 8;IFOBJ 31;IFOF 1=0;SAY Some sunflower seeds.;EXIT
+ACTION: 8;IFOBJ 31;IFOF 1=1;SAY Loadsa sunflower seeds!;EXIT
+ACTION: 8;IFOBJ 29;SAY It says on the label: "Leader's rave tracks.";SAY "Recorded on super Lo-Fi-tone tape on Basheewa system.";SAY Bet it sounds really good! (NOT);EXIT
+
+ACTION: 8;IFOBJ 28;IFOF 1=0;SAY It's a golden hamster!;SAY Not a real one, just a gold plated plastic one.;EXIT
+ACTION: 8;IFOBJ 28;SAY Wow, nine golden hamsters!;EXIT
+
+ACTION: 8;IFOBJ 27;SAY Aztec Teleporter. Beta version.;EXIT
+ACTION: 8;IFOBJ 26;SAY Aztec Transmitter. Transmit on any frequency!;EXIT
+ACTION: 8;IFOBJ 25;SAY Aztec Light Bulb. The Ultimate in lighting technology!;EXIT
+
+ACTION: 8;IFOBJ 24;SAY Fourteen pounds, cash.;EXIT
+ACTION: 8;IFOBJ 23;SAY One pound coin.;SAY Jack pays terrible wages.;EXIT
+
+ACTION: 8;IFOBJ 21;IFOF 1=0;SAY It's a standard mains lamp.;EXIT
+ACTION: 8;IFOBJ 21;IFOF 2=0;SAY It's a standard mains lamp with a bulb that doesn't work!;EXIT
+ACTION: 8;IFOBJ 21;IFOF 3=0;SAY It's a standard mains lamp, but it is fitted with an Aztec light bulb!;EXIT
+ACTION: 8;IFOBJ 21;SAY It's a mains lamp, but the Aztec Bulb seems to be lighting even though it is not plugged in!;EXIT
+
+ACTION: 8;IFOBJ 22;SAY It's a fork. Quite a bendy one, too.;EXIT
+
+ACTION: 8;IFOBJ 20;SAY Well, it's a spanner. What else do I need so say?;EXIT
+ACTION: 8;IFOBJ 19;SAY It's a flatblade screwdriver.;EXIT
+ACTION: 8;IFOBJ 18;SAY It's a sharp retractable knife.;EXIT
+ACTION: 8;IFOBJ 17;SAY Essential for burglary!;SAY (Joke);EXIT
+ACTION: 8;IFOBJ 16;SAY Look, it's a saw, okay! What do you expect me to say about it?;EXIT
+ACTION: 8;IFOBJ 15;SAY Perfect for digging.;EXIT
+ACTION: 8;IFOBJ 14;SAY It's a squeaky toy, which looks vaguely like a rat.;SAY If you squeeze it, it squeaks!;EXIT
+ACTION: 8;IFOBJ 13;SAY Two pound coins.;SAY I'm not sure what ingredients you can buy with that, but never mind.;EXIT
+ACTION: 8;IFOBJ 11;IFOF 1=0;SAY It's an empty glass.;EXIT
+ACTION: 8;IFOBJ 11;IFOF 1=1;SAY It's a glass filled with whisky.;EXIT
+ACTION: 8;IFOBJ 11;IFOF 1=2;SAY It's a glass filled with Cockroach and Whisky stew.;SAY I bet it tastes disgusting but I'm not going to try it.;EXIT
+ACTION: 8;IFOBJ 12;SAY Chef's certificate:\\This is to certify that Kevin Burns...;SAY ...is qualified to cook food to the standard required for public consumption.;EXIT
+ACTION: 8;IFOBJ 10;SAY "Turbo Guitar". Hmm.;SAY After paying £2 for this, I wonder if it is any good?;EXIT
+
+ACTION: 8;IFTYPE F;SAY No thanks, she might get the wrong idea.;EXIT
+ACTION: 8;IFTYPE A;SAY What a cute looking thing.;EXIT
+ACTION: 8;SAY Nothing special about it.|Just #W11 #OBJ1!|Just a boring #OBJ1!;EXIT
+
+/*
+/* Action 9 - Pull
+/* ---------------
+/*
+ACTION: 9;IFTYPE G;SAY What do you mean - pull their legs??;EXIT
+ACTION: 9;IFTYPE M;SAY I don't think he'll budge.;EXIT
+ACTION: 9;IFTYPE F;SAY I'm trying to find a way out, not pull the birds!;EXIT
+ACTION: 9;IFTYPE A;SAY No thanks, it might bite me or something.;EXIT
+ACTION: 9;SAY It won't budge.|That won't help anything.|There's no point in doing that;EXIT
+
+/*
+/* Action 10 - Score
+/* -----------------
+/*
+ACTION: 10;TEXT -1,0,11,You have scored #R#0#20# points so far.;EXIT
+/* End of boot file - There must be some comments here, otherwise the last
+/* command is not regarded.

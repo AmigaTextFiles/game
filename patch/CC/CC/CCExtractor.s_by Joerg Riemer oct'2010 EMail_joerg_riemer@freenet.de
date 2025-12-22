@@ -1,0 +1,477 @@
+*****************************************************************************
+*									    *
+*	PROGRAM: CCExtractor						    *
+*	VERSION: 1.3							    *
+*   SOURCE CODE: 17 (29.10.2010)					    *
+*	   DATE: 15.01.2001 - 9.2.2001					    *
+*      LANGUAGE: Assembler (DevPac V3.14)				    *
+*	 SYSTEM: A1200	KS 40.68 WB 40.42 2MB chip 64MB fast 68030/50mhz    *
+*									    *
+*	 AUTHOR: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+*      FUNCTION: program/datafile extractor for carrier command masterdisk  *
+*									    *
+* 29.10.10 #017: #1 DOS _LVOExecute "run >NIL: SetClock Load" replaced by   *
+*		 subroutine SetClock. due to the interupts disabled for	    *
+*		 a longer time, SetClock tries to reset the system-time	    *
+*		 afterwards without any information to the user.	    *
+*		 #2 DOS _LVOCheckSignal downgraded to be compatible	    *
+*		 with my old beloved A2000 (KS 1.3)			    *
+*		 #3 output style a bit changed. let's blink (just for fun)  *
+* 									    *
+*****************************************************************************
+
+	output	ram:CCExtractor
+
+*****************************************************************************
+
+	include	source/custom.i
+
+*****************************************************************************
+
+* exec calls
+
+_LVOAllocMem		equ -0198 -$0C6 (byteSize,requirements)(d0/d1)
+_LVOFreeMem		equ -0210 -$0D2 (memoryBlock,byteSize)(a1,d0)
+_LVOSetSignal		equ -0306 -$132 (newSignals,signalSet)(d0/d1)
+_LVOCloseLibrary	equ -0414 -$19E (library)(a1)
+_LVOOpenDevice		equ -0444 -$1BC (devName,unit,ioRequest,flags)(a0,d0/a1,d1)
+_LVOCloseDevice		equ -0450 -$1C2 (ioRequest)(a1)
+_LVODoIO		equ -0456 -$1C8 (ioRequest)(a1)
+_LVOOpenResource	equ -0498 -$1F2 (resName)(a1)
+_LVOOpenLibrary		equ -0552 -$228 (libName,version)(a1,d0)
+
+SIGBREAKF_CTRL_C	equ  0012
+
+* battclock calls
+
+_LVOReadBattClock	equ -0012 -$00C ()()
+
+TR_SETSYSTIME		equ  0011
+
+* dos calls
+
+_LVOOpen		equ -0030 -$01E (name,accessMode)(d1/d2)
+_LVOClose		equ -0036 -$024 (file)(d1)
+_LVORead		equ -0042 -$02A (file,buffer,length)(d1/d2/d3)
+_LVOWrite		equ -0048 -$030 (file,buffer,length)(d1/d2/d3)
+_LVOInput		equ -0054 -$036 ()()
+_LVOOutput		equ -0060 -$03C ()()
+
+MODE_NEWFILE		equ  $3EE
+
+*****************************************************************************
+
+INTENAsave	rs.w	1
+
+	include	source/DBStructure.i
+
+*****************************************************************************
+
+	cmp.b	#"?",(A0)
+	bne	CCRead
+
+Start	moveq	#00,D0			;set last supported version
+	lea	DosName(pc),A1		;get library name
+	movea.l	$4.w,A6			;set execbase to call a function
+	jsr	-$228(A6)		;use EXEC to (openlibrary)
+	tst.l	D0			;be sure it's open
+	beq.b	Quit			;quit if not
+	movea.l	D0,A6			;set dosbase to call a function
+	jsr	-$3C(A6)		;use DOS to find (output)
+	move.l	D0,D1			;set them
+	lea	InfoText(pc),A0		;get textbase
+	move.l	A0,D2			;set base of text
+	move.l	#TextSize,D3		;set size of text
+	jsr	-$30(A6)		;use DOS to (write) text
+	movea.l	A6,A1			;set dosbase for close
+	movea.l	$4.w,A6			;set execbase to call a function
+	jsr	-$19e(A6)		;use EXEC to (closelibrary)
+	moveq	#0,D0			;clear returncode
+Quit	rts				;back to console
+
+*****************************************************************************
+
+InfoText
+
+  dc.b	$A," CARRIER COMMAND FILE-EXTRACTOR",$A,$A
+
+  dc.b	" especially file-reader program for CARRIER COMMAND",$A
+  dc.b	" RAINBIRD DISK: version A1.2 (19.08.1988) / A1200-fix TML!'2001",$A,$A
+
+  dc.b  " this one extracts all data files to the current directory",$A,$A
+
+  dc.b	" by joerg riemer oct'2010  email: <joerg_riemer@freenet.de>",$A,$A,0
+
+TextSize  equ	*-InfoText-1
+
+*****************************************************************************
+
+		cnop	0,4
+
+CCRead		moveq	#20,d7
+		moveq	#00,D0
+		lea	DosName(PC),A1
+		move.l	$04.w,A6
+		jsr	_LVOOpenLibrary(A6)
+		move.l	D0,A5
+		beq	Fail
+		
+		lea	InfoText00(PC),A4
+		bsr	PrintText
+
+		bsr	WaitReturn
+
+		lea	InfoText07(PC),A4
+		move.b	Error(pc),D0
+		bne	QuitProg
+
+		lea	TextStyle(pc),A4	;get some parameter for style
+		move.w	#$9B30,(A4)		;cursor off
+		bsr	PrintText
+
+		lea	InfoText05(pc),a4
+		bsr	PrintText
+
+		movem.l	A5/A6,-(SP)
+		bsr	ReadDisk
+		movem.l	(SP)+,A5/A6
+
+		lea	TextStyle(pc),A4	;get some parameter for style
+		move.w	#$0d9B,(A4)		;carriage return & cursor on
+		bsr	PrintText
+
+		lea	InfoText02(PC),A4
+		lea	DataBase(pc),A0
+		tst.b	TrackError(A0)
+		bne	QuitProg
+
+		lea	InfoText06(PC),A4
+		bsr	PrintText
+
+		bsr	WaitReturn
+
+		lea	InfoText07(PC),A4
+		move.b	Error(pc),D0
+		bne	QuitProg
+
+****************
+
+		lea	InfoText03(PC),A4
+		move.l	#FileName1,D1
+		move.l	#MODE_NEWFILE,D2
+		move.l	A5,A6
+		jsr	_LVOOpen(A6)
+		move.l	D0,D7
+		beq	QuitProg
+
+		lea	InfoText04(PC),A4
+
+		move.l	D7,D1
+		move.l	#FileData1,D2
+		move.l	#FileSize1,D3
+		move.l	A5,A6
+		jsr	_LVOWrite(A6)
+		cmp.l	#FileSize1,D0
+		bne	Closefile
+
+		move.l	D7,D1
+		move.l	A5,A6
+		jsr	_LVOClose(A6)
+
+****************
+
+		lea	InfoText03(PC),A4
+		move.l	#FileName2,D1
+		move.l	#MODE_NEWFILE,D2
+		move.l	A5,A6
+		jsr	_LVOOpen(A6)
+		move.l	D0,D7
+		beq	QuitProg
+
+		lea	InfoText04(PC),A4
+
+		move.l	D7,D1
+		move.l	#FileData2,D2
+		move.l	#FileSize2,D3
+		move.l	A5,A6
+		jsr	_LVOWrite(A6)
+		cmp.l	#FileSize2,D0
+		bne	Closefile
+
+		move.l	D7,D1
+		move.l	A5,A6
+		jsr	_LVOClose(A6)
+
+****************
+
+		lea	InfoText03(PC),A4
+		move.l	#FileName3,D1
+		move.l	#MODE_NEWFILE,D2
+		move.l	A5,A6
+		jsr	_LVOOpen(A6)
+		move.l	D0,D7
+		beq.b	QuitProg
+
+		lea	InfoText04(PC),A4
+
+		move.l	D7,D1
+		move.l	#FileData3,D2
+		move.l	#FileSize3,D3
+		move.l	A5,A6
+		jsr	_LVOWrite(A6)
+		cmp.l	#FileSize3,D0
+		bne.b	Closefile
+
+		move.l	D7,D1
+		move.l	A5,A6
+		jsr	_LVOClose(A6)
+
+****************
+
+		lea	InfoText03(PC),A4
+		move.l	#FileName4,D1
+		move.l	#MODE_NEWFILE,D2
+		move.l	A5,A6
+		jsr	_LVOOpen(A6)
+		move.l	D0,D7
+		beq.b	QuitProg
+
+		lea	InfoText04(PC),A4
+
+		move.l	D7,D1
+		move.l	#FileData4,D2
+		move.l	#FileSize4,D3
+		move.l	A5,A6
+		jsr	_LVOWrite(A6)
+		cmp.l	#FileSize4,D0
+		bne.b	Closefile
+
+		lea	InfoText08(pc),A4
+
+****************
+
+Closefile	move.l	D7,D1
+		move.l	A5,A6
+		jsr	_LVOClose(A6)
+
+****************
+
+QuitProg	bsr	PrintText
+		bsr	SetClock
+
+		move.l	A5,A1
+		move.l	$04.w,A6
+		jsr	_LVOCloseLibrary(A6)
+
+		moveq	#0,d7
+Fail		move.l	d7,d0
+		rts
+
+*****************************************************************************
+
+	dc.b	"$VER: CCExtractor 1.3 (29.10.2010)",0
+
+*****************************************************************************
+
+		cnop	0,4
+
+WaitReturn	lea	TextStyle(pc),A4	;get some parameter for style
+		move.w	#$9B30,(A4)		;cursor off
+		bsr.b	PrintText
+
+		st	Error
+
+.loop		lea	InfoText01(PC),A4
+		eor.b	#3,10(a4)
+		eor.b	#3,41(a4)
+		bsr.b	PrintText
+
+		lea	TextStyle(pc),A4	;get some parameter for style
+		move.w	#$0d9B,(A4)		;carriage return & cursor on
+
+.ChkBreak	moveq	#0,d0
+		moveq	#0,d1
+		movea.l	$4.w,a6
+		jsr	_LVOSetSignal(A6)
+		btst	#12,d0			;SIGBREAKF_CTRL_C
+		bne.b	.Cancel
+
+		move.l	A5,A6
+		jsr	_LVOInput(A6)
+		move.l	D0,D1			;set input
+		move.l	#500000,D2		;set timeout
+		jsr	-$CC(A6)		;use DOS to (waitforchar)
+		tst.l	D0			;must be (DOS)true
+		beq.b	.loop			;loop if not
+
+		lea	CharBuffer(pc),A2
+		clr.b	(A2)			;clear buffer
+
+		jsr	_LVOInput(A6)
+		move.l	D0,D1			;set input
+		move.l	A2,D2			;set buffer
+		moveq	#1,D3			;chars to read
+		jsr	-$2A(A6)		;use DOS to (read)
+	 	cmp.b	#$A,(A2)		;check for <LINEFEED>
+		bne.b	.loop			;loop if not
+
+		sf	Error
+
+		lea	TextStyle(pc),A4	;get some parameter for style
+		move.w	#$0b9B,(A4)		;vertical tab & cursor on
+
+.Cancel		bsr.b	PrintText
+
+		rts
+
+*****************************************************************************
+
+PrintText	move.l	A5,A6
+		jsr	_LVOOutput(A6)
+		move.l	D0,D1
+		move.l	A4,D2
+		move.l	d2,d3
+.getsize	tst.b	(A4)+
+		bne.b	.getsize
+		sub.l	a4,d3
+		not.l	 d3
+		jsr	_LVOWrite(A6)
+		rts
+
+*****************************************************************************
+
+SetClock	lea	BatResName(pc),A1	; Resource name setzen
+		movea.l	$4.w,A6			; Library Basis holen
+		jsr	_LVOOpenResource(A6)	; Resource öffnen
+		tst.l	D0			; Uhr-Chip vorhanden
+		beq.b	QuitSetClock0		; nein, weiter
+
+		movea.l	D0,A2			; Resource Basis sichern
+
+		moveq	#$28,D0			; Grösse des IORequests
+		move.l	#$10001,D1		; Speicher Typ (public,clear)
+		jsr	_LVOAllocMem(A6)	; und allokieren
+		tst.l	D0			; Speicher erhalten
+		beq.b	QuitSetClock0		; nein, weiter
+
+		move.l	D0,A3			; Basis merken
+
+		movea.l	D0,A1			; Basis setzen
+		lea	TimerName(pc),A0	; Device Name holen
+		moveq	#0,D0			; Register vorbereiten
+		move.l	D0,D1			; Register vorbereiten
+		jsr	_LVOOpenDevice(A6)	; Device öffnen
+		tst.b	D0			; offen?
+		bne.b	QuitSetClock1		; nein, weiter
+
+		movea.l	A2,A6			; Resource Basis setzen
+		jsr	_LVOReadBattClock(A6)	; Uhrzeit lesen
+
+		move.l	D0,$20(A3)		; Uhrzeit setzen
+		move.w	#TR_SETSYSTIME,$1C(A3)	; Systemzeit neu setzen
+		movea.l	A3,A1			; Basis IORequest setzen
+		movea.l	$4.w,A6			; Library Basis holen
+		jsr	_LVODoIO(A6)		; und Uhrzeit neu schreiben
+
+		movea.l	A3,A1			; Basis IORequest setzen
+		jsr	_LVOCloseDevice(A6)	; Device wieder schliessen
+
+QuitSetClock1	movea.l	A3,A1			; Basis Speicher setzen
+		moveq	#$28,D0			; Speicher grösse setzen
+		jsr	_LVOFreeMem(A6)		; Speicher wieder freigeben
+
+QuitSetClock0	rts				; und zurück
+
+*****************************************************************************
+
+BatResName	dc.b	"battclock.resource",0,0
+TimerName	dc.b	"timer.device",0,0
+
+*****************************************************************************
+
+DosName		dc.b	"dos.library",0
+
+FileName1	dc.b	"CCBackupper.bin",0
+FileName2	dc.b	"CCPicture.bin",0
+FileName3	dc.b	"CCGame.bin",0
+FileName4	dc.b	"CCTitleSound.bin",0
+
+InfoText00	dc.b	"CARRIER COMMAND FILE-EXTRACTOR",$A
+		dc.b	"by joerg riemer oct'2010  email: <joerg_riemer@freenet.de>",$A
+		dc.b	"insert original disk RAINBIRD carrier command in df0:",$A,0
+
+InfoText01	dc.b	$9B,"0mhit <",$9B,"31mRETURN",$9B,"0m> to continue or <",$9B,"32mCTRL-C",$9B,"0m> to abort.",$D,0
+
+InfoText02	dc.b	"ERROR: reading tracks... (corrupt/wrong disk)",$A,0
+InfoText03	dc.b	"ERROR: Couldn't open file for writing...",$A,0
+InfoText04	dc.b	"ERROR: Couldn't save file...",$A,0
+InfoText05	dc.b	"be patient, reading disk...",$D,0
+InfoText06	dc.b	"ready for write files to the current directory.",$A,0
+InfoText07	dc.b	"*** break",$A,0
+InfoText08	dc.b	"all files saved, done!!!",$A,0
+		even
+TextStyle	dc.b	$00,$00,$20,$70,$9b,$4b,0 ;vert.tab, csr off/on, clearEOL
+
+CharBuffer	dc.b	$00
+Error		dc.b	$00
+
+		cnop	0,4
+
+*****************************************************************************
+
+ReadDisk	include	source/SCode.s
+
+*****************************************************************************
+
+		moveq	#1,D0		;(load game datas) first track
+		moveq	#79,D1		;tracks to read
+		moveq	#0,D2		;diskside
+		moveq	#0,D3		;drive number
+		lea	FileData1,A0	;base of mem
+		lea	TrackBuffer,A1	;dma buffer
+		bsr.b	LoadDatas	;read tracks
+		beq.b	.1
+		rts
+
+.1		moveq	#0,D0		;(load titlesound) first track
+		moveq	#80,D1		;tracks to read
+		moveq	#1,D2		;diskside
+		moveq	#0,D3		;drive number
+		lea	FileData4,A0	;base of mem
+		lea	TrackBuffer,A1	;dma buffer
+
+*****************************************************************************
+
+		include	source/LoadDatas.s
+
+*****************************************************************************
+
+		cnop	0,4
+
+DataBase	dcb.b	BSS_Size,0
+
+*****************************************************************************
+
+		SECTION	FileReader_02,BSS
+
+*****************************************************************************
+
+FileData1	ds.b	512*10*1			;Backup.prg
+FileSize1	equ	*-FileData1
+FileData2	ds.b	512*10*7			;Title.pic
+FileSize2	equ	*-FileData2
+FileData3	ds.b	512*10*71			;CCGame.prg
+FileSize3	equ	*-FileData3
+FileData4	ds.b	512*10*80			;Title.snd
+FileSize4	equ	*-FileData4
+
+*****************************************************************************
+
+		SECTION	FileReader_03,BSS_C
+
+*****************************************************************************
+
+TrackBuffer	ds.l	4096
+
+ end ************************************************************************

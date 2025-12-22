@@ -1,0 +1,297 @@
+; ETW Installer Utility
+;
+; Written by Gabriele Greco
+; for Eat The Whistle
+;
+; Copyright © 1998,1999 Hurricane Studios/Epic Marketing
+;
+
+(
+   ;================================================================
+   ; Setup
+   ;================================================================
+
+   ; script variables...
+
+   (set programname "ETW-France98")           ; name of program
+   (set drawername "ETW")               ; name of drawer to make for program
+   (set cd_name "EatTheWhistle-CD:")          ; install disk name
+   (set bytesreq "300kb")                    ; HD space required
+
+   ; system information...
+
+   (set osver (/ (getversion) 65536))        ; os version
+   (set cputype (database "cpu"))            ; cpu type
+
+   (set initialdir @default-dest)            ; defaults to biggest drive
+
+   ;-------------------
+   ; Ask where to install it...
+
+   (message "Welcome to Eat The Whistle 2.0!\n\n"
+		"This new version includes three different 'game' executables, "
+		"68k/blit, 68k/chunky, PPC/chunky. The PPC and Chunky version "
+		"include a lot of new features."
+		"Please visit <http://surf.to/etw> to get a lot of intresting "
+		"Eat The Whistle files!\n"
+   )
+
+   (set wheredir
+      (askdir
+         (prompt "Select a directory where you would like to place the "
+		 "updated binaries... (About 1MB required if you install only the binaries, note "
+		 "that the chunky versions will need more space since it will convert once launched "
+		 "the game objects to a new format).")
+         (help "If you have installed ETW to HD you can install the patch "
+               "over the old version, your settings will be preserved.")
+         (default initialdir)
+      )
+   )
+
+   (set chosendir wheredir)
+
+   ;-------------------
+   ; Determine whether we are upgrading or installing new
+   (if (exists (tackon wheredir "game"))
+      (
+         ; Installing into an old ETW directory.
+         (set writeover 1)
+;         (set wheredir (tackon wheredir "/"))
+         (message "The version of ETW in `" wheredir "' will be updated.  If this is correct, click `Proceed'.")
+      )
+      ;
+      (
+         (set writeover 0)
+         (message	"The patched executables will be placed in "
+			"a new drawer called `" drawername "' in '" wheredir 
+			"'.  If this is correct, click `Proceed'.")
+	 (set wheredir (tackon wheredir "ETW"))
+	 (makedir wheredir (infos))
+      )
+   )
+
+   (set @default-dest wheredir)
+
+   (askdisk
+      (prompt "Please insert " cd_name " in any drive.")
+      (help "")
+      (dest (substr cd_name 0 (- (strlen cd_name) 1)))
+      (assigns)
+   )
+
+   (working "I'm patching 'etw'...")
+   (run ("spatch -o%s -petw.pch %s" (tackon wheredir "etw") (tackon cd_name "etw")))
+   (working "I'm patching 'game'...")
+   (run ("spatch -o%s -pgame.pch %s" (tackon wheredir "game") (tackon cd_name "game")))
+   (working "I'm building 'game_chunky'...")	
+   (run ("spatch -o%s -pgame_chunky.pch %s" (tackon wheredir "game_chunky") (tackon cd_name "game")))
+   (working "I'm building 'gameppc'...")	
+   (run("copy gameppc.pch %s" (tackon wheredir "gameppc")))
+   (working "Installing new graphics...")
+   (run("copy newgfx %s all" (tackon wheredir "newgfx")))
+
+   (if
+	(askbool (prompt "This new version of Eat The Whistle includes about 500 worldwide club teams,"
+			"would you like to install them?")
+		(help "The installer will let you choose WHICH team set you want to install."
+			)
+	(choices "Yes" "No")
+	(default 1)
+	)
+	(
+	   (working "Installing standard team files...")
+
+	   (makedir (tackon wheredir "teams"))
+	   (copyfiles
+	      (prompt "")
+	      (help "")
+	      (source (tackon cd_name "teams"))
+	      (dest (tackon wheredir "teams"))
+	      (choices "default" "arcade")
+	   )
+
+	   (copyfiles
+	      (prompt "Select the teams you want to install:")
+	      (help "Each file contains the first division teams and often also second and third division ones!")
+	      (source "teams/")
+	      (dest (tackon wheredir "teams"))
+	      (optional)
+	      (choices  "Austria98-99" "Belgium97-98" "Brazil98-99" "Croatia98-99" "Denmark98-99" "England97-98"
+			"Finland96-97" "France98-99" 
+			"Germany98-99" "Holland97-98" "Italy97-98" "Italy98-99"  "Latvia98-99"
+			"Portugal97-98" "Russia98-99" "Scotland97-98"  "Spain98-99" "Switzerland98-99" 
+			"Turkey97-98" "USA98-99" )
+	      (confirm)
+	   )
+	)
+   )
+
+   (if
+	(
+	   (working "Installing locale translations...")
+
+	   (makedir (tackon wheredir "catalogs"))
+
+	   (copyfiles
+	      (prompt "Select the translations you want to install:")
+	      (help "empty.ct and etw.cd can be used to create other translations.")
+	      (source "catalogs/")
+	      (dest (tackon wheredir "catalogs"))
+	      (optional)
+	      (choices "deutsch" "italiano" "türkçe" "empty.ct" "etw.cd")
+	      (confirm)
+	   )
+	)
+   )
+
+   (if
+	(askbool (prompt "Do you want to install the ASCII manual?")
+		(help "Since the first copies of the ETW CD are wrongly shipped"
+			" without printed manual we provide it in ASCII format"
+			" with this patch.")
+	(choices "Yes" "No")
+	(default 1)
+	)
+	(
+	   (copyfiles
+	      (prompt "")
+	      (help "")
+	      (source "")
+	      (dest wheredir)
+	      (optional)
+	      (infos)
+	      (choices "EatTheWhistle.doc" "history.doc")
+	      (confirm)
+	   )
+	)
+   )
+
+   (copyfiles
+      (prompt "")
+      (help "")
+      (source cd_name)
+      (dest wheredir)
+      (choices "ETW.info")
+   )
+
+   (run ("copy %s %s" (tackon cd_name "developers.info") (tackon chosendir "ETW.info")))
+
+;   (copyfiles
+;      (prompt "")
+;      (help "")
+;      (source diskname1)
+;      (dest "RAM:")
+;      (choices "lhex")
+;   )
+
+   (if
+	(askbool (prompt "Would you like to install the WHOLE game to Hard Disk? "
+		"(by default only the patched executables will be installed)")
+		(help "The WHOLE game will need about 20MB of free space in the "
+			"selected partition.")
+	(choices "Yes, full installation" "No, Only patches")
+	(default 0)
+	)
+   (
+   
+   (complete 0)
+
+   (working "ETW: Copying system related files...")
+   (run("copy %s %s all" (tackon cd_name "catalogs/") (tackon wheredir "catalogs")))
+
+   (copylib
+	(prompt "Installing lowlevel.library")
+	(help "ETW needs lowlevel.library for the input handling!\n")
+	(source (tackon cd_name "libs/lowlevel.library"))   
+	(dest "libs:")
+	(confirm)
+   )
+
+   (complete 5)
+
+   (if	(askbool (prompt "Would you like to install the game intros?") 
+		(help	"If you have not enough space on your HD you can choose to not install"
+			"the game intros, you can also delete it after the installation"
+			"removing the intro subdirectory from the ETW directory."
+			"The intros requires about 2MB of hard disk space.")
+		(choices "Yes" "No")
+		(default 1)
+     	)
+	(
+	   (working "ETW: Installing Intros...")
+	   (run("copy %s %s all" (tackon cd_name "intro/") (tackon wheredir "intro")))
+	)
+	(
+	   (run("copy %s %s" (cat cd_name "intro/~(#?.anim)") (tackon wheredir "intro")))
+	)
+   )
+
+   (complete 10)
+
+   (working "ETW: Installing menu graphics...")
+   (run("copy %s %s all" (tackon cd_name "menugfx/") (tackon wheredir "menugfx")))
+
+   (complete 25)
+
+   (working "ETW: Installing game graphics...")
+   (run("copy %s %s all" (tackon cd_name "gfx/") (tackon wheredir "gfx")))
+
+   (complete 55)
+
+   (working "ETW: Installing teams...")
+   (run("copy %s %s all" (tackon cd_name "teams/") (tackon wheredir "teams")))
+
+   (complete 58)
+
+   (working "ETW: Installing tactics...")
+   (run("copy %s %s all" (tackon cd_name "tct/") (tackon wheredir "tct")))
+
+   (complete 60)
+   (working "ETW: Installing fonts...")
+   (run("copy %s %s all" (tackon cd_name "fonts/") (tackon wheredir "fonts")))
+
+   (complete 62)
+
+   (working "ETW: Installing sounds...")
+   (run("copy %s %s all" (tackon cd_name "snd/") (tackon wheredir "snd")))
+   (complete 65)
+   (run("copy %s %s all" (tackon cd_name "arcadesnd/") (tackon wheredir "arcadesnd")))
+   (complete 70)
+   (run("copy %s %s all" (tackon cd_name "crowd/") (tackon wheredir "crowd")))
+
+   (complete 80)
+   (working "ETW: Installing spoken comment...")
+   (run("copy %s %s all" (tackon cd_name "talk/") (tackon wheredir "talk")))
+
+   (makedir (tackon wheredir "saves"))
+   
+   (complete 90)
+   (working "ETW: Installing musics...")
+   (run("copy %s %s all" (tackon cd_name "music/") (tackon wheredir "music")))
+
+   (complete 98)
+
+   (if	(askbool
+		(prompt "Would you like to install the developer tools and documentation?")
+		(help	"This option let you install a directory with the ETW tactics editor, the team editor,"
+			"catalog descriptors, infos to create a custom spoken comment and more!")
+		(choices "Yes" "No")
+		(default 1)	
+	)
+	(
+	   (working "ETW: Installing Developer Tools...")
+	   (run("copy %s %s all" (tackon cd_name "developers/") (tackon wheredir "developers")))		
+	)
+   )
+		
+   (complete 100)
+ )
+)
+)
+
+;-----------------------------------------------------------------------
+; Revision History:
+;
+; 21-11-98 First version
+; 29-12-98 Updated for 1.2 version
+; 13-4-99 Updated for 2.0 version

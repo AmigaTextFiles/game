@@ -1,0 +1,122 @@
+;Installer-script for Color-Riddle
+;$VER: Color-Riddle 1.0 (16.12.94)
+
+
+;********************************* texts ************************************
+
+(if (= @language "deutsch")
+;********** german texts
+    ((set #nohelp "Zu diser Option gibt es keinen Hilfs-Text.")
+     (set #getdevice "In welchem Verzeichnis soll Color-Riddle installiert werden? (Ein neues Verzeichnis wird erstellt.)")
+     (set #copyicons "Welche Icons sollen kopiert werden?\n\nDie MagicWB-Icons sind spezielle Icons mit einer 8-farbigen Palette.\nMagicWB ist © von Martin Huttenloher.")
+     (set #productinfo "\nSoll das Product-Info für KingFisher 2.0 und andere ähnliche Tools kopiert werden?\n")
+     (set #cdtext "Soll das .cd-File für Katalogübersetzungen kopiert werden?"))
+
+;********** english texts
+    ((set #nohelp "Sorry, no help-text available.")
+     (set #getdevice "Please choose the the directory, Color-Riddle should be installed. (A new directory will be created.)")
+     (set #copyicons "Which icons should be copied?\n\nThe MagicWB-Icons are special Icons with a 8-color-palette.\nMagicWB is © by Martin Huttenloher.")
+     (set #productinfo "\nCopy the Product-Info for KingFisher 2.0 and other similar tools?\n")
+     (set #cdtext "Do you want to install the .cd-file for catalog translations?")))
+
+
+;********************************** main ************************************
+
+;********** get the @default-dest
+(set @default-dest (askdir (prompt #getdevice)
+                           (help @askdir-help)
+                           (default @default-dest)
+                           (disk)))
+(makedir (tackon @default-dest "Color-Riddle"))
+
+;********** get the from-dir
+(set fromdir (tackon (pathonly @icon) "/"))
+
+;********** copy color-riddle
+(copyfiles (source fromdir)
+           (dest (tackon @default-dest "Color-Riddle"))
+           (choices "Color-Riddle")
+           (infos)
+           (optional fail))
+
+;********** copy icons
+(if (askbool (prompt #copyicons)
+             (help #nohelp)
+             (choices "Standard" "MagicWB")
+             (default 1))
+    ((set icons "Standard"))
+    ((set icons "MagicWB")))
+
+(if (= icons "MagicWB")
+    ((copyfiles (source (tackon fromdir "icons/Color-Riddle.drawer.info"))
+               (dest @default-dest)
+               (newname "Color-Riddle.info")
+               (optional fail))
+     (copyfiles (source (tackon fromdir "icons/Color-Riddle.info"))
+               (dest (tackon @default-dest "Color-Riddle"))
+               (optional fail)))
+    (copyfiles (source (tackon fromdir "/Color-Riddle.info"))
+               (dest @default-dest)
+               (newname "Color-Riddle.info")
+               (optional fail)))
+(set @default-dest (tackon @default-dest "Color-Riddle"))
+
+;********** copy the .catalog and the .guide-file
+(if (= @language "deutsch")
+;   *** copy catalogs if locale.library is present
+    ((if (<> (getversion "LIBS:locale.library") 0)
+         ((makedir (tackon @default-dest "catalogs"))
+          (copyfiles (source fromdir)
+                     (dest (tackon @default-dest "catalogs/deutsch"))
+                     (choices "catalogs/deutsch/Color-Riddle.catalog")
+                     (optional fail))))
+     (copyfiles (source fromdir)
+                (dest @default-dest)
+                (choices "docs/Color-Riddle.deutsch")
+                (optional fail))
+     (rename (tackon @default-dest "Color-Riddle.deutsch")
+             (tackon @default-dest "Color-Riddle.guide")))
+    ((copyfiles (source fromdir)
+                (dest @default-dest)
+                (choices "docs/Color-Riddle.english")
+                (optional fail))
+     (rename (tackon @default-dest "Color-Riddle.english")
+             (tackon @default-dest "Color-Riddle.guide"))))
+
+(if (= icons "Standard")
+    ((copyfiles (source fromdir)
+                (dest @default-dest)
+                (choices "docs/Color-Riddle.english.info")
+                (optional fail))
+     (rename (tackon @default-dest "Color-Riddle.english.info")
+             (tackon @default-dest "Color-Riddle.guide.info")))
+    ((copyfiles (source fromdir)
+                (dest @default-dest)
+                (choices "Icons/Color-Riddle.guide.info")
+                (optional fail))))
+
+;********** copy the Product-Info
+(if (= @user-level 2)
+    (if (=
+         (askbool (prompt #productinfo)
+                  (help #nohelp)
+                  (default 1))
+         1)
+        (copyfiles (source fromdir)
+                   (dest @default-dest)
+                   (choices "Product-Info")
+                   (optional nofail)))
+    (copyfiles (source fromdir)
+               (dest @default-dest)
+               (choices "Product-Info")
+               (optional nofail)))
+
+;********** copy the .cd-file
+(if (= @user-level 2)
+    (if (askbool (prompt #cdtext)
+                 (help #nohelp)
+                 (default 0))
+        (copyfiles (source (tackon fromdir "catalogs/Color-Riddle.cd"))
+                   (dest (tackon @default-dest "catalogs"))
+                   (optional nofail))))
+

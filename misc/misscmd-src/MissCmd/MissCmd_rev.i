@@ -1,0 +1,18 @@
+VERSION		EQU	0
+REVISION	EQU	9
+
+DATE	MACRO
+		dc.b '1.11.2006'
+		ENDM
+
+VERS	MACRO
+		dc.b 'MissCmd 0.9'
+		ENDM
+
+VSTRING	MACRO
+		dc.b 'MissCmd 0.9 (1.11.2006)',13,10,0
+		ENDM
+
+VERSTAG	MACRO
+		dc.b 0,'$VER: MissCmd 0.9 (1.11.2006)',0
+		ENDM

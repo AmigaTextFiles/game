@@ -1,0 +1,1 @@
+-L/SDK/Local/clib2/lib -L/gcc/lib/gcc/ppc-amigaos/3.4.4/clib2/lib -lSDL -lSDL_image -lSDL_mixer -ljpeg -lpng -lsmpeg -lGLU -lz -lstdc++

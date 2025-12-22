@@ -1,0 +1,633 @@
+/*
+ * Amiga MUD
+ *
+ * Copyright (c) 1997 by Chris Gray
+ */
+
+/*
+ * quests.m - define the quest setup for the starter scenario.
+ */
+
+private tp_quests CreateTable()$
+use tp_quests
+
+/* define some Quest stuff here so that we can refer to it from everywhere */
+
+define tp_quests p_pQuestDoneList CreateThingListProp()$
+define tp_quests Questor CreateThing(nil)$
+define tp_quests p_rQuestUser CreateThingProp()$
+define tp_quests p_sQuestName CreateStringProp()$
+define tp_quests p_sQuestDesc CreateActionProp()$
+define tp_quests p_sQuestChecker CreateActionProp()$
+define tp_quests p_sQuestHint CreateActionProp()$
+define tp_quests p_sQuestType CreateIntProp()$
+define tp_quests QUEST_DIRECT	0$
+define tp_quests QUEST_GIVE	1$
+define tp_quests QUEST_TELL	2$
+define tp_quests p_sQuestList CreateThingListProp()$
+
+Questor@p_sQuestList := CreateThingList()$
+
+define t_quests proc QuestDirect(string name; action desc, checker, hint)void:
+    thing quest;
+
+    if desc = nil or checker = nil or hint = nil then
+	Print("*** Invalid action given to QuestDirect.\n");
+    else
+	quest := CreateThing(nil);
+	quest@p_sQuestName := name;
+	quest@p_sQuestDesc := desc;
+	quest@p_sQuestChecker := checker;
+	quest@p_sQuestHint := hint;
+	quest@p_sQuestType := QUEST_DIRECT;
+	AddTail(Questor@p_sQuestList, quest);
+    fi;
+corp;
+
+define t_quests proc QuestGive(string name; action desc, checker, hint)void:
+    thing quest;
+
+    if desc = nil or checker = nil or hint = nil then
+	Print("*** Invalid action given to QuestGive.\n");
+    else
+	quest := CreateThing(nil);
+	quest@p_sQuestName := name;
+	quest@p_sQuestDesc := desc;
+	quest@p_sQuestChecker := checker;
+	quest@p_sQuestHint := hint;
+	quest@p_sQuestType := QUEST_GIVE;
+	AddTail(Questor@p_sQuestList, quest);
+    fi;
+corp;
+
+define t_quests proc public GiveToQuestor(string what)void:
+    thing me;
+
+    me := TrueMe();
+    SPrint(me, "You give the " + what + " to Questor.\n");
+    /* No-one should be able to see this message, but in case SysAdmin
+       *poofs* into the Questor's Office to watch, or some other wizard
+       similarly gets in, we'll do it "right". */
+    ABPrint(AgentLocation(me), me, nil,
+	    Capitalize(CharacterNameS(me)) + AAn(" gives", what) +
+	    " to Questor.\n");
+corp;
+
+define t_quests proc QuestTell(string name; action desc, checker, hint)void:
+    thing quest;
+
+    if desc = nil or checker = nil or hint = nil then
+	Print("*** Invalid action given to QuestTell.\n");
+    else
+	quest := CreateThing(nil);
+	quest@p_sQuestName := name;
+	quest@p_sQuestDesc := desc;
+	quest@p_sQuestChecker := checker;
+	quest@p_sQuestHint := hint;
+	quest@p_sQuestType := QUEST_TELL;
+	AddTail(Questor@p_sQuestList, quest);
+    fi;
+corp;
+
+define tp_quests proc completeQuest(thing player, quest)bool:
+    list thing lt;
+
+    lt := player@p_pQuestDoneList;
+    if lt = nil then
+	lt := CreateThingList();
+	player@p_pQuestDoneList := lt;
+    fi;
+    if FindElement(lt, quest) ~= -1 then
+	SPrint(player, "You have already completed the " +
+	    quest@p_sQuestName + " quest!\n");
+	false
+    else
+	AddTail(lt, quest);
+	APrint("\n" + Capitalize(CharacterNameS(player)) +
+	    " has completed a quest!!\n\n");
+	true
+    fi
+corp;
+
+define t_quests proc public DoQuest(action checker)void:
+    list thing quests, lt;
+    thing me, quest;
+    int i;
+
+    me := Me();
+    quests := Questor@p_sQuestList;
+    for i from 0 upto Count(quests) - 1 do
+	quest := quests[i];
+	if quest@p_sQuestChecker = checker then
+	    ignore completeQuest(me, quest);
+	fi;
+    od;
+corp;
+
+define t_quests proc public DoneQuest(action checker)bool:
+    list thing lt;
+    int i;
+    bool found;
+
+    found := false;
+    lt := Me()@p_pQuestDoneList;
+    if lt ~= nil then
+	for i from 0 upto Count(lt) - 1 do
+	    if lt[i]@p_sQuestChecker = checker then
+		found := true;
+	    fi;
+	od;
+    fi;
+    found
+corp;
+
+define t_quests proc ShowQuests(thing who; bool wantDetail)bool:
+    list thing lt;
+    int count, i, oldIndent;
+
+    lt := who@p_pQuestDoneList;
+    if lt = nil then
+	false
+    else
+	count := Count(lt);
+	if count = 0 then
+	    false
+	else
+	    Print(Capitalize(CharacterNameS(who)));
+	    if wantDetail then
+		oldIndent := GetIndent();
+		SetIndent(oldIndent + 2);
+		Print(" has completed the following quests:");
+		for i from 0 upto count - 1 do
+		    Print(" " + lt[i]@p_sQuestName);
+		od;
+		SetIndent(oldIndent);
+		Print("\n");
+	    else
+		Print(" has completed ");
+		if count = 1 then
+		    Print("one quest.\n");
+		else
+		    IPrint(count);
+		    Print(" quests.\n");
+		fi;
+	    fi;
+	    true
+	fi
+    fi
+corp;
+
+define tp_quests QUESTROOM_ID NextEffectId()$
+define tp_quests proc drawQuestRoom()void:
+
+    if not KnowsEffect(nil, QUESTROOM_ID) then
+	DefineEffect(nil, QUESTROOM_ID);
+	GSetImage(nil, "Town/questRoom");
+	IfFound(nil);
+	    ShowCurrentImage();
+	Else(nil);
+	    TextBox("Complete your", "quests here", "");
+	Fi(nil);
+	EndEffect();
+    fi;
+    CallEffect(nil, QUESTROOM_ID);
+corp;
+
+define tp_quests r_questRoom CreateThing(nil)$
+SetupRoom(r_questRoom, "in Questor's office",
+    "The office is old-fashioned, but quite opulent in its way. The walls "
+    "are lined with shelves and racks containing all sorts of trophies. "
+    "There are fine collections of Bushman spears, Watusi shields, "
+    "Aborigine horns, Iroquois pipes, samurai swords, Malay masks, "
+    "modern skateboards, Meershaum pipes, etc. One large case contains "
+    "a zoo of live-looking animals, many of which you cannot classify. "
+    "A shelf contains jars, each filled with smaller, very dead-looking "
+    "animals. Many appear to have faces and hands. Questor's desk is a "
+    "large construction of red-swirled marble. It is quite neat and tidy, "
+    "with a couple of piles of papers, a fine onyx pen-stand and a trio "
+    "of Fabergé eggs. Behind the desk is a matching marble chair with "
+    "purple velvet cushions and a pair of huge gems as handrests. Arching "
+    "over Questor's head (for he is sitting in the chair watching you as "
+    "you stare around) is a cobra with flaring hood, carved from pure "
+    "white marble. The cobra's eyes are deep red and it seems to be watching "
+    "you.")$
+r_questRoom@p_rNoMachines := true$
+Scenery(r_questRoom,
+    "wall,shelf,shelves,rack,trophy,trophies,collection,case;fine,large."
+    "spear;Bushman."
+    "shield;Watusi."
+    "horn;Aborigine."
+    "pipe;Iroquois."
+    "sword;samurai."
+    "mask;Malay."
+    "skateboard,board;skate,modern."
+    "pipe;Meerschaum."
+    "zoo."
+    "animal;live-looking,live,looking,dead-looking,dead."
+    "jar."
+    "face,hand."
+    "desk;large,red-swirled,red,swirled,marble."
+    "paper,pile;piles,of."
+    "pen-stand,stand;pen,fine,onyx."
+    "egg;Faberge,Fabergé,trio,of."
+    "chair;matching,marble."
+    "cushion;purple,velvet."
+    "gem,handrest,rest;hand,pair,of,huge,gem."
+    "beard,mustache,eyebrow,brow;eye,long,flowing,massive,white."
+    "cloak,satin;long,flowing,jet-black,jet,black,satin."
+    "pendant;extremely,large,ugly."
+    "q,'q';letter."
+    "chain,link;chain,of,iron.")$
+RoomGraphics(r_questRoom, "Questor's", "Office", NextMapGroup(), 0.0, 0.0,
+	     drawQuestRoom)$
+FakeObject(CreateThing(nil), r_questRoom,
+    "cobra,hood,snake;with,flaring,hood,pure,white,marble",
+    "Other than being made of white marble and having deep red eyes that "
+    "seem to be staring at you, there is nothing special about the cobra.")$
+FakeObject(CreateThing(nil), r_questRoom, "eye;Questor's,Questor",
+    "Questor's eyes are not something you want to stare at.")$
+FakeObject(CreateThing(nil), r_questRoom,
+    "eye;cobra's,snake's,cobra,snake,deep,red",
+    "The stone cobra's eyes seem to be watching you.")$
+FakeObject(CreateThing(nil), r_questRoom, "office",
+    "Just use 'look' to look at the office.")$
+
+/*
+ * Just in case some wise-guy wizard tries to force him out.
+ */
+
+define tp_quests proc questorExit()status:
+
+    if Me() = Questor then
+	fail
+    else
+	continue
+    fi
+corp;
+AddAnyLeaveChecker(r_questRoom, questorExit, false)$
+
+define tp_quests proc resetQuestor()void:
+    list thing lt;
+    int i;
+    thing th;
+
+    lt := Questor@p_pCarrying;
+    i := Count(lt);
+    while i ~= 0 do
+	i := i - 1;
+	th := lt[i];
+	ZapObject(th);
+	DelElement(lt, th);
+    od;
+    Questor -- p_rQuestUser;
+corp;
+
+define tp_quests proc questActiveAction()void:
+
+    Print("\n* You were moved out of Questor's office on a server "
+	  "restart. *\n\n");
+    DelElement(Me()@p_pEnterActions, questActiveAction);
+corp;
+
+define tp_quests proc questRestart(thing th)void:
+    thing who;
+
+    who := Questor@p_rQuestUser;
+    if who ~= nil then
+	SetCharacterLocation(ThingCharacter(who), r_questRoom@p_rExit);
+	AddTail(who@p_pEnterActions, questActiveAction);
+	resetQuestor();
+    fi;
+corp;
+
+RegisterActiveAction(Questor, questRestart)$
+
+define tp_quests proc questIdle()void:
+
+    DelElement(Me()@p_pExitActions, questIdle);
+    resetQuestor();
+    SetLocation(r_questRoom@p_rExit);
+corp;
+
+define tp_quests proc questEnter()status:
+    thing who, me;
+
+    who := Questor@p_rQuestUser;
+    if who = nil then
+	me := Me();
+	if CharacterNameS(me) ~= "Packrat" then
+	    Questor@p_rQuestUser := me;
+	    Print(
+		"The huge door opens easily, and you enter Questor's office.\n"
+		"NOTE: no-one else can enter the office while you are in it - "
+		"please keep your stay as short as possible. Thank-you.\n");
+	    AddHead(me@p_pExitActions, questIdle);
+	fi;
+	continue
+    else
+	Print("The huge door will not open - you cannot enter. Questor is "
+	    "currently in conference with " + CharacterNameS(who) + ".\n");
+	fail
+    fi
+corp;
+
+define tp_quests proc questExit()status:
+
+    DelElement(Me()@p_pExitActions, questIdle);
+    resetQuestor();
+    Print("You open the huge door and go outside. "
+	"Questor can now deal with other players.\n");
+    continue
+corp;
+
+define tp_quests proc showQuests()string:
+    list thing lt;
+    int count, i, oldIndent;
+    thing quest;
+    string result;
+
+    lt := Questor@p_sQuestList;
+    count := Count(lt);
+    if count = 0 then
+	result := "There are no quests yet.";
+    else
+	result := "The current quests are:";
+	oldIndent := GetIndent();
+	for i from 0 upto count - 1 do
+	    quest := lt[i];
+	    result := result + "\n  " + quest@p_sQuestName + " quest: " +
+		call(quest@p_sQuestDesc, string)();
+	od;
+	result := result + "\nIf you need a hint on a quest, just ask.";
+    fi;
+    result
+corp;
+
+define tp_quests proc questHint(string what)bool:
+    list thing lt;
+    thing quest;
+    int count, i;
+    bool found;
+
+    if what = "" then
+	Print("Use 'hint <quest-name>' to get a hint for a given quest.\n");
+	false
+    else
+	lt := Questor@p_sQuestList;
+	count := Count(lt);
+	if count = 0 then
+	    Print("There are no quests yet!\n");
+	    false
+	else
+	    if SubString(what, 0, 6) = "quest;" then
+		what := SubString(what, 6, Length(what) - 6);
+	    fi;
+	    found := false;
+	    for i from 0 upto count - 1 do
+		quest := lt[i];
+		if quest@p_sQuestName == what then
+		    Print(call(quest@p_sQuestHint, string)() + "\n");
+		    found := true;
+		fi;
+	    od;
+	    if not found then
+		Print("There is no '" + what + "' quest.\n");
+		false
+	    else
+		true
+	    fi
+	fi
+    fi
+corp;
+
+define tp_quests proc questorStep()void:
+corp;
+
+define tp_quests proc questorSay(string what)void:
+    list thing lt;
+    thing quest, player;
+    int count, i;
+    bool found, toPackrat, first;
+    string who, word, specialWord;
+
+    player := Questor@p_rQuestUser;
+    /* so that the checker procs can find the player in question */
+    SetIt(player);
+    who := SetSay(what);
+    found := false;
+    toPackrat := false;
+    first := true;
+    specialWord := "";
+    while
+	word := GetWord();
+	word ~= "" and not found
+    do
+	if first then
+	    if word == "Packrat" then
+		toPackrat := true;
+	    fi;
+	    first := false;
+	fi;
+	lt := Questor@p_sQuestList;
+	count := Count(lt);
+	i := 0;
+	while i ~= count and not found do
+	    quest := lt[i];
+	    if quest@p_sQuestType = QUEST_TELL and
+		call(quest@p_sQuestChecker, bool)(word)
+	    then
+		found := true;
+		i := count;
+		if completeQuest(player, quest) then
+		    SPrint(player,
+			"Questor smiles warmly and says: Congratulations " +
+			who + ", you have completed the " +
+			quest@p_sQuestName + " quest!\n");
+		fi;
+	    else
+		if word == "quest" or word == "quests" or
+		    word == "info" or word == "information" or
+		    word == "help" or word == "hint" or word == "hints"
+		then
+		    specialWord := word;
+		fi;
+		i := i + 1;
+	    fi;
+	od;
+    od;
+    if not found then
+	if specialWord ~= "" then
+	    if specialWord == "hint" or specialWord == "hints" then
+		DoSay("Go outside and ask - don't bother me!");
+	    else
+		DoSay("To find out about quests, read the sign outside!");
+	    fi;
+	elif who ~= "Packrat" and not toPackrat then
+	    DoSay("Quit gabbing and get on with your business!");
+	fi;
+    fi;
+corp;
+
+define tp_quests proc questorWhisperMe(string what)void:
+
+    if SetWhisperMe(what) ~= "" then
+	DoSay("Don't try to get familiar with me!");
+    fi;
+corp;
+
+define tp_quests proc questorOverhear(string what)void:
+
+    DoSay("Whispering is impolite!");
+corp;
+
+define tp_quests proc questorSaw(string what)void:
+
+    DoSay("Stop messing around!");
+corp;
+
+define tp_quests proc questorNoNo()status:
+
+    Print("Questor glares at you, and so does the cobra!\n");
+    fail
+corp;
+
+define tp_quests proc questorCreate()void:
+
+    Questor@p_pStandard := true;
+    SetupMachine(Questor);
+    Questor@p_pDesc :=
+	"Questor is a tall, skinny man with a long, flowing white beard and "
+	"an equally long and flowing mustache. His massive white eyebrows "
+	"don't flow quite as much. He wears a long, flowing (naturally) cloak "
+	"of jet-black satin with no decorations. His head is bare (and a "
+	"little bit bald on top), but on his chest is an extremely large "
+	"and ugly pendant in the shape of the letter 'Q'. It is supported on "
+	"a massive chain of iron links. Wearing this may account for his "
+	"perpetual look of annoyance. All of these things you notice only "
+	"briefly, before you look at his eyes, which are bright grey, and "
+	"seem to penetrate to your very core.";
+    CreateMachine("Questor", Questor, r_questRoom, questorStep);
+    ignore SetMachineActive(Questor, questorStep);
+    ignore SetMachineSay(Questor, questorSay);
+    ignore SetMachineWhisperMe(Questor, questorWhisperMe);
+    ignore SetMachineWhisperOther(Questor, questorOverhear);
+    ignore SetMachinePose(Questor, questorSaw);
+    GNewIcon(Questor, makeQuestorIcon());
+    Questor@p_oTouchChecker := questorNoNo;
+    Questor@p_oSmellChecker := questorNoNo;
+    Questor@p_oPushChecker := questorNoNo;
+    Questor@p_oPullChecker := questorNoNo;
+    Questor@p_oTurnChecker := questorNoNo;
+    Questor@p_oLiftChecker := questorNoNo;
+    Questor@p_oLowerChecker := questorNoNo;
+    Questor@p_oEatChecker := questorNoNo;
+    Questor@p_Image := "Characters/Questor";
+corp;
+questorCreate();
+ignore DeleteSymbol(tp_quests, "questorCreate")$
+
+define tp_quests proc questorPre()status:
+    list thing lt;
+    thing me, item, quest;
+    int count, i;
+    status st;
+    bool found;
+
+    me := TrueMe();
+    item := It();
+    lt := Questor@p_sQuestList;
+    count := Count(lt);
+    found := false;
+    i := 0;
+    while i ~= count do
+	quest := lt[i];
+	if quest@p_sQuestType = QUEST_GIVE then
+	    st := call(quest@p_sQuestChecker, status)();
+	    if st ~= continue then
+		found := true;
+		i := count;
+		if st = succeed then
+		    if completeQuest(me, quest) then
+			SPrint(me,
+			    "Questor smiles warmly and says: Congratulations "+
+			      me@p_pName +  ", you have completed the " +
+			      quest@p_sQuestName + " quest!\n");
+		    fi;
+		fi;
+		ZapObject(item);
+		DelElement(me@p_pCarrying, item);
+	    else
+		i := i + 1;
+	    fi;
+	else
+	    i := i + 1;
+	fi;
+    od;
+    if found then succeed else continue fi
+corp;
+
+Questor@p_pGivePre := questorPre$
+
+define tp_quests questSign CreateThing(nil)$
+
+/*
+ * SetupQuestorOffice - set things up so that the given direction from the
+ *	given location leads to Questor's office.
+ */
+
+define t_quests proc SetupQuestorOffice(thing where; int dir)void:
+
+    Connect(where, r_questRoom, dir);
+    Connect(where, r_questRoom, D_ENTER);
+    AddDirChecker(where, dir, questEnter, false);
+    AddDirChecker(r_questRoom, DirBack(dir), questExit, false);
+    AddEnterChecker(where, questEnter, false);
+    AddExitChecker(r_questRoom, questExit, false);
+    ExtendDesc(where,
+	"The building here appears to be constructed from solid granite "
+	"blocks and is quite featureless. The door is a large one of foot-"
+	"thick oak beams strengthed with iron straps. There are no windows. "
+	"In the center of the door is the letter 'Q', pounded out of thick "
+	"iron. Beside the door, a discreet sign labelled \"Quests\" has a "
+	"list of some kind.");
+    Scenery(where,
+	"block,granite;solid,granite."
+	"building;featureless."
+	"door,beam;foot-thick,foot,thick,oak."
+	"strap;iron."
+	"q,'q',letter;letter,thick,pounded,iron");
+    FakeObject(questSign, where,
+	"sign;discreet.sign,list,quest;discreet,quest,quests", "");
+    questSign@p_oReadAction := showQuests;
+    where@p_rHintAction := questHint;
+corp;
+
+/* setup the 'quests' verb */
+
+define tp_quests proc v_quests()bool:
+    string name;
+    thing who;
+
+    name := GetWord();
+    if name = "" then
+	if not ShowQuests(Me(), true) then
+	    Print("You have not yet completed any quests.\n");
+	fi;
+	true
+    else
+	who := FindAgent(name);
+	if who ~= nil then
+	    if not ShowQuests(who, IsWizard()) then
+		Print(name + " has not yet completed any quests.\n");
+	    fi;
+	    true
+	else
+	    Print("There is no " + name + " here.\n");
+	    false
+	fi
+    fi
+corp;
+
+VerbTail(G, "quests", v_quests)$
+
+unuse tp_quests

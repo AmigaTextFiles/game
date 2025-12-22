@@ -1,0 +1,108 @@
+AmigaMUD, Copyright 1995 by Chris Gray
+
+
+		    The 'SMUD' Client Program
+
+The SMUD program is a simple text-only client for use with an AmigaMUD
+server running on the same machine. It can be run only from a shell
+since it relies on standard input and output working. SMUD is good for
+quick runs since it is much smaller than the full 'MUD' client
+program. SMUD can also be valuable on a system with limited memory. I
+typically use SMUD for compiling the standard scenario, with
+
+    SMUD <st:go
+
+where 'st:' is an assign to the directory containing the scenario
+sources, and 'go' is a small source file there that mainly just
+sources all the rest of the files in the correct order. I also use
+SMUD for quick SysAdmin runs.
+
+SMUD accepts a few flags on the command line:
+
+    -a - tells SMUD that the device it is talking to is not an Amiga
+	console device or other device that accepts ANSI control
+	sequences. SMUD will then not try to blank passwords.
+
+    -r - tells SMUD that it is running remotely. This disables its
+	ability to run an editor. If a BBS system uses SMUD to allow
+	text-only connections through some kind of pipe device, it
+	should specify this flag.
+
+    -T - tells SMUD to use 'MUD test port' as the name of the port to
+	connect to the AmigaMUD server on.
+
+    -N <name> - use <name> as the name of the character for the the
+	first playing session, rather than prompting for a name.
+
+    -W <word> - use <word> as the password for the first playing
+	session. If it is incorrect, it counts as the first attempt,
+	and only two attempts remain. This is normally used in
+	conjunction with -N, but can be used without it.
+
+    -t<value> - use value as an inactivity timeout. If no user input
+	occurs after the given interval (which is given in minutes),
+	then the client will be disconnected from the server.
+	Unfortunately, since there is no way to abort a Dos read
+	request, SMUD itself cannot exit until its pending read
+	request returns. Using the -p flag allows the timeouts to work
+	correctly, but at the expense of continual extra system load.
+
+    -f<value> - the given decimal number is passed to "mud.library"
+	to control some client caching. There must be no spaces
+	between the 'f' and the value. The value is the sum of the
+	following:
+
+	    1 - cache procs. SMUD will cache the definitions (but not
+		the bodies) of builtin and user procs in the AmigaMUD
+		language. This saves refetching them when parsing
+		procs (such as after editing one).
+
+	    2 - cache symbols. SMUD will cache the values of symbols
+		that it has fetched from the server. Again, this cuts
+		down on communications when parsing AmigaMUD procs.
+
+	Note that both of these flags increase the amount of memory
+	consumed by SMUD. This memory is not freed until SMUD exits.
+	The default value of 'FLAGS' is 3, i.e. both caches on. Note
+	that this is the opposite of the default for the full MUD
+	client program.
+
+    -p - this flag puts SMUD into a polling mode. Normally SMUD uses
+	the standard Amiga asychronous I/O using DOS packets. This
+	latter is the proper way to do I/O on the Amiga.
+	Unfortunately, the console.device does not respond to a
+	request to abort an outstanding read request. This means that
+	when the server uses "NukeClient" to shut down a client that
+	is connected via SMUD, SMUD itself cannot exit until that read
+	request is satisfied (typically by the user hitting RETURN).
+	In polling mode, there is no outstanding read request - SMUD
+	continually (every 1/10 second) checks for available
+	characters, and will only issue a read if characters are
+	available. This way, "NukeClient" can cause SMUD to exit, and
+	thus return back to a BBS which can drop the line. Note,
+	however, that this mode continually uses extra CPU time on the
+	host machine, whether the player is doing anything or not.
+
+
+SMUD is able to start up an external editor for editing strings and
+AmigaMUD procedures, just like the full MUD program. It also does this
+based on the "EDITOR" environment variable, and will default the
+editor name to be "Ed". If a scenario uses the enquiry routines to ask
+about the nature of the effects available on a SMUD client, it will
+reply with all empty and zero values.
+
+SMUD uses the Amiga OS packet interface to do asynchronous I/O with
+its standard input and output connection. It does not use "RAW" mode
+on a console screen. It is possible to call up SMUD from a BBS system
+which is not capable of calling up the full MUDAgent program. This
+will allow users of that BBS to access AmigaMUD, but they will not get
+the graphics/audio/mouse capabilities. Some BBS operators will want to
+use the -p option when doing this, so that they can boot players out
+of the SMUD program. This also allows the inactivity timeout to
+operate.
+
+SMUD requires a stack of at least 10000 bytes. It will exit right away
+if the stack is less than that size. Use the shell 'Stack' command to
+setup a larger stack. When parsing extremely deeply nested AmigaMUD
+code, an even larger stack might be needed, but I have not needed one
+for parsing all of the standard scenario.

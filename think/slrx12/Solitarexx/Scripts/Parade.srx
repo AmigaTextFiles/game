@@ -1,0 +1,102 @@
+/*************************\
+** Parade for Solitarexx **
+** by Michal Szafranski  **
+\*************************/
+OPTIONS RESULTS
+
+tex = '"Parade for Solitarexx"'
+win = '"We Have a Winner"'
+seq.0 = '1 4 7 10 .'
+seq.1 = '2 5 8 11 .'
+seq.2 = '3 6 9 12 .'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDSPACE 6 9
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 tex 6
+SELECTGUI 1
+
+SCREENSIZE 4 10 9 0
+DO i = 0 TO 3
+	DO j = 0 TO 7
+		NEWSTACK i 8 0 j i 0 i 1+(i=3)*6
+		stack.i.j = RESULT
+	END
+END
+NEWSTACK 5 8 1 8 1
+waste = RESULT
+NEWSTACK 6 8 1 8 0
+deck = RESULT
+ADDCARDS deck
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SETGADGET 14 STR tex
+	SELECTGUI 4
+	sel = 0
+	fin = 0
+	b. = 0
+	DO i=0 TO 2
+		DO j = 0 TO 7
+			CARDSELECT deck 1
+			PARSE VAR RESULT . v .
+			IF v = 0 THEN MOVECARDS deck waste REVERSE
+			ELSE MOVECARDS deck stack.i.j REVERSE
+			IF v = i+1 THEN DO
+				stack = stack.i.j
+				b.stack = 1
+			END
+		END
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		SELECT
+		WHEN act = 1 THEN EXIT
+		WHEN act = 2 & sid = 6 THEN CALL DODECK
+		WHEN act = 2 & sel = 0 & card>0 & sid<4 & ~b.stack THEN sel = stack
+		WHEN act = 2 & sel > 0 & sid<3 THEN CALL DOSTACKS
+		WHEN act = 3 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+		OTHERWISE DO
+			sel = 0
+			ERRBEEP
+		END
+		END
+	END
+RETURN
+DODECK:
+	DO j = 0 TO 7
+		CARDSELECT deck 1
+		PARSE VAR RESULT . v .
+		IF v = 0 THEN MOVECARDS deck waste REVERSE
+		ELSE MOVECARDS deck stack.3.j REVERSE
+	END
+RETURN
+DOSTACKS:
+	CARDSELECT sel 0 RELATIVE
+	PARSE VAR RESULT kolors wars xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT kolor war xx
+	IF kolor = '' & wars = sid+1 THEN DO
+		MOVECARDS sel stack
+		b.stack = 1
+	END
+	ELSE IF FIND(seq.sid,war wars)>0 & kolor = kolors & b.stack THEN DO
+		MOVECARDS sel stack
+		fin = fin +1
+		IF fin = 72 THEN SETGADGET 14 STR win
+	END
+	ELSE ERRBEEP
+	sel = 0
+RETURN

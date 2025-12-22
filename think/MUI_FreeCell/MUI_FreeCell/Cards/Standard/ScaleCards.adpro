@@ -1,0 +1,73 @@
+/*
+** ScaleToFillArea.adpro
+**
+** $VER: ScaleToFillArea.adpro 1.0.0 (22.11.93)
+**
+** This ARexx program allows the user to scale an image to fill
+** a specific area, but preserving the image aspect of the original.
+**
+** This script requires ADPro v2.5.0 (or higher).
+**
+** Copyright © 1993 ASDG, Incorporated
+** All Rights Reserved
+*/
+
+
+ADDRESS "ADPro"
+OPTIONS RESULTS
+
+NL = '0A'X
+SQ = '27'X
+DQ = '22'X
+TRUE  = 1
+FALSE = 0
+TempDefaults = "T:TempADProDefaults"
+
+
+/*
+** Save the current environment.
+*/
+
+SAVE_DEFAULTS TempDefaults
+
+
+/*
+** See what type of data is loaded in ADPro/MorphPlus.
+
+CALL "FREDSCRIPTS:FREDFunctions/CheckForRawImageData" TRUE
+IF (RESULT ~= 0) THEN
+    CALL ErrorOut 10
+*/
+
+CALL "FREDSCRIPTS:FREDFunctions/GetADir" '"Cards directory"' '""""' TRUE
+IF (RESULT = '""""' DQ) THEN DO
+        ADPRO_TO_FRONT
+        CALL ErrorOut 10
+END
+SrcDir = RESULT
+SrcTemplate = SrcDir || "/CARD"
+
+do i = 3 to 54
+  LOADER "UNIVERSAL" DQ || SrcTemplate || right(i,2,'0') || ".big" || DQ
+  PCT_SCALE 69 69
+  EXECUTE
+  SAVER "IFF" DQ || SrcTemplate || right(i,2,'0') || DQ "IMAGE"
+end
+
+CALL ErrorOut 0
+
+
+ErrorOut:
+    PARSE ARG ExitCode
+
+    IF (EXISTS( TempDefaults )) THEN DO
+        LOAD_DEFAULTS TempDefaults
+        IF (RC ~= 0) THEN DO
+            ADPRO_TO_FRONT
+            OKAY1 "Error restoring settings."
+        END
+
+        ADDRESS COMMAND "Delete >NIL:" TempDefaults
+    END
+
+    EXIT ExitCode

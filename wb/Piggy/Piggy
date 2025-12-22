@@ -1,0 +1,448 @@
+/****************************************************************************/
+/*              Piggy Version 2.0 By Kevin R. Sherman                       */
+/*                                                                          */
+/* Enabled multi-player option.                                             */
+/*                                                                          */
+/****************************************************************************/
+
+IF ~SHOW(l,'rexxsupport.library') THEN CALL ADDLIB('rexxsupport.library',0,-30,0)
+CALL OPEN(OUT,'con:20/20/640/165/Piggy rexx by Kevin R. Sherman/nosize/plain',W)
+MaxPlayers = 5
+
+quote.1 = "Come on, baby needs a new pair of shoes!"
+quote.2 = "And the dice say....."
+quote.3 = "One more time with fealing."
+quote.4 = "Hay, are these dice loaded!?!?!"
+quote.5 = "Ooooohhhhhh, I'm HOT tonight!"
+quote.6 = "Come on baby give be those boxcars!"
+quote.7 = "Gotta be cool now, gotta take care...."
+quote.8 = "Think positive thoughts. The dice are my friend. The dice are my..."
+quote.9 = "And there coming out of there shoot...."
+quote.10 = "Look out there hot stuff coming through...."
+quote.11 = "Please GOD give me a good roll and I'll never ask for anything again."
+quote.12 = "Rattle, rattle, rattle and the dice say...."
+quote.13 = "You sure your not cheating?"
+quote.14 = "Come on, come on... Looking for that hot streak!"
+quote.15 = "Like shooting fish in a pond."
+quote.16 = "Oooh, maybe I should't roll this time."
+quote.17 = "Fealing lucky punk? Well do you?!"
+quote.18 = "Is it hot in here or is it just the dice?"
+quote.19 = "What were the rules again?"
+quote.20 = "OK, just one more time."
+esc = x2c('1B')
+cls = x2c(1B63)
+LF = '0A'x
+
+MAIN:
+  CALL HEADER
+  DO Tries = 1 to 5
+    CALL WRITECH(OUT,"Continue, quit, or help? Enter=C/h/q: "esc'[J')
+    CALL GetAns
+    SELECT
+      WHEN answer = "C" | answer =  "" THEN CALL START
+      WHEN answer = "H" THEN CALL SHOW_HELP
+      WHEN answer = "Q" THEN CALL FINISHED
+      OTHERWISE CALL WRITECH(OUT,'07'x||esc'[1A')
+    END
+  END
+
+FINISHED:
+  CALL CLOSE(OUT)
+EXIT
+
+HEADER:
+  CALL WRITELN(OUT,cls)
+  CALL WRITELN(OUT,"                                Introducing")
+  CALL WRITELN(OUT,"                             PIGGY Version 2.0"LF)
+  CALL WRITELN(OUT,"                            by Kevin R. Sherman"LF)
+  CALL WRITELN(OUT,"                          Original game & concept")
+  CALL WRITELN(OUT,"                             by Basil Barnes"LF)
+  CALL WRITELN(OUT,"                       A very adictive game of dice."COPIES(LF,2))
+RETURN
+
+START:
+  CALL PlayerStat
+  CALL MixPlayers
+  DO ind = 1
+    i = STRIP(WORD(jumble,ind),B)
+    IF POS('00'x,Player.i) ~= 0 THEN CALL computerroll
+    ELSE CALL userroll
+    CALL CK_Winner
+    IF ind + 1 > PlayerNum THEN ind = 0
+  END
+RETURN
+
+CK_Winner:
+  HighScore = 0
+  HighScorer = 0
+  DO w = 1 to PlayerNum
+    IF Player.w.Total > HighScore THEN
+      DO
+        HighScore = Player.w.Total
+        HighScorer = w
+      END
+  END
+  IF HighScore < 150 THEN RETURN
+  IF i = Last THEN CALL GAME_END
+RETURN
+
+GAME_TOTAL:
+  CALL WRITELN(OUT,cls)
+  CALL WRITELN(OUT,"                           " esc||"[1;4mGame Stats"||esc||"[0m"||LF)
+  CALL WRITELN(OUT,"  First to roll:" RIGHT(TRANSLATE(Player.First,,'00'x),8) "                    Last to roll:" Player.Last)
+  CALL WRITELN(OUT," Highest Scorer:" RIGHT(TRANSLATE(Player.HighScorer,,'00'x),8) "              Current High Score:" LEFT(HighScore,4))
+  CALL WRITELN(OUT,esc||"[1m Current Player:" RIGHT(TRANSLATE(Player.i,,'00'x),8) "                      Your Score:" LEFT(Player.i.Total,4)||esc"[0m")
+RETURN
+
+CLEARLN:
+  DO TypeAhead = 0 to LINES(OUT) - 1
+    Junk = READLN(OUT)
+  END
+RETURN
+
+GetAns:
+  CALL CLEARLN
+  answer = UPPER(READCH(OUT,1))
+  IF C2X(answer) = '0A' THEN answer = ''
+RETURN
+
+PlayerStat:
+  CALL WRITELN(OUT,cls)
+  CALL WRITECH(OUT,"How many players? (2 to" MaxPlayers||"): ")
+  CALL CLEARLN
+  PlayerNum = STRIP(READLN(OUT),B)
+  IF PlayerNum = '' THEN PlayerNum = 2
+  DO WHILE ~DATATYPE(PlayerNum,WHOLE) | PlayerNum > MaxPlayers | PlayerNum < 2
+    CALL WRITECH(OUT,'07'x||esc||'[1A'||esc||'[K')
+    CALL WRITECH(OUT,"How many players? (2 to" MaxPlayers||"): ")
+    CALL CLEARLN
+    PlayerNum = STRIP(READLN(OUT),B)
+    IF PlayerNum = '' THEN PlayerNum = 2
+  END
+  DO I = 1 to PlayerNum
+    CALL WRITECH(OUT,"Please enter a name for player number" I "(Enter = Amiga): ")
+    CALL CLEARLN
+    Player.I = READLN(OUT)
+    Player.I = LEFT(STRIP(Player.I,B),8)
+    IF Player.I = '' THEN Player.I = 'Amiga' I||'00'x
+      DO Loop = 1 to PlayerNum
+        IF Loop = i THEN ITERATE Loop
+        IF Player.i = Player.Loop THEN
+          DO
+            CALL WRITELN(OUT,'07'x||esc||'[1A'||esc||'[K'||esc||'[1m'||STRIP(Player.Loop,B) esc||'[0mbeing used by' esc||'[1mplayer' Loop esc||'[0m, please enter another name...')
+            CALL DELAY(200)
+            CALL WRITECH(OUT,esc||"[1A"||esc||"[KPlease enter a name for player number" I "(Enter = Amiga): ")
+            CALL CLEARLN
+            Player.I = READLN(OUT)
+            Player.I = LEFT(STRIP(Player.I,B),8)
+            IF Player.I = '' THEN Player.I = 'Amiga' I||'00'x
+            Loop = Loop - 1
+            ITERATE Loop
+          END
+      END
+    Player.I.Total = 0
+    Player.0 = ''
+  END
+RETURN
+
+MixPlayers:
+  RANDOM(,, TIME(s))
+  j = ''
+  DO i = 1 TO PlayerNum
+   j = j i
+  END
+  jumble = ''
+  DO i = PlayerNum - 1 to 0 BY -1
+   ran = WORD(j,RANDOM(1,i + 1))
+   Jumble = jumble STRIP(WORD(j,ran),B)
+   j = STRIP(DELWORD(j,ran,1),B)
+  END
+  jumble = STRIP(jumble,B) STRIP(j,B)
+  CALL WRITELN(OUT,CLS||LF||COPIES(' ',33)||esc||"[1;4mPlaying  Order"||esc||"[0m"||LF)
+  DO i = 1 to PlayerNum
+   PlayerOrd = STRIP(word(jumble,i),B)
+   WRITELN(OUT,COPIES(' ',32) i 'is:' Player.PlayerOrd)
+  END
+  First = WORD(jumble,1)
+  Last = WORD(jumble,PlayerNum)
+  CALL WRITECH(OUT,"Press Enter to continue...")
+  CALL GetAns
+  CALL CK_Winner
+RETURN
+
+COMPUTERROLL:
+  RollTotal = 0
+  IF HighScore < 150 THEN
+    DO RollNum = 1 TO RANDOM(2,10)
+      CALL SHOW_DICE
+      SELECT
+        WHEN roll = 2 THEN
+          DO
+            CALL WRITELN(OUT,"Drat!! I rolled snake eyes I start back at 0")
+            Player.i.Total = 0
+            CALL DELAY(200)
+            RETURN
+          END
+        WHEN dice.1 = 1 | dice.2 = 1 THEN
+          DO
+            CALL WRITELN(OUT,"I rolled a one. My turn is over.")
+            CALL DELAY(200)
+            RETURN
+          END
+        WHEN Player.i.Total + rolltotal > 150 & Last = i THEN
+          DO
+            Player.i.Total = Player.i.Total + rolltotal
+            CALL WRITELN(OUT,"Hehehehe. I'm the piggest!!! I won!")
+            CALL DELAY(200)
+            RETURN
+          END
+        OTHERWISE CALL DELAY(100)
+      END
+    END
+  ELSE
+    DO RollNum = 1
+      CALL SHOW_DICE
+      SELECT
+        WHEN roll = 2 THEN
+          DO
+            Player.i.Total = 0
+            CALL WRITELN(OUT,"Ahhhh!! I rolled snake eyes!! I lost big time dag nabit!!")
+            CALL DELAY(100)
+            RETURN
+          END
+        WHEN dice.1 = 1 | dice.2 = 1 THEN
+          DO
+            CALL WRITELN(OUT,"Not Now! Not a ONE! Ahhhhh!!!")
+            CALL DELAY(100)
+            RETURN
+          END
+        WHEN Player.i.Total + rolltotal > HighScore THEN
+          DO
+            DO LastTry = 3 to RANDOM(0,5)
+              RollNum = RollNum + LastTry
+              CALL SHOW_DICE
+              SELECT
+                WHEN roll = 2 THEN
+                  DO
+                    Player.i.Total = 0
+                    CALL WRITELN(OUT,"Ahhhh SNAKE EYES!! Dang, I was too much of a pig!!")
+                    CALL DELAY(100)
+                    RETURN
+                  END
+                WHEN dice.1 = 1 | dice.2 = 1 THEN
+                  DO
+                    CALL WRITELN(OUT,"Darn it, I just wanted a little more!!!")
+                    CALL DELAY(100)
+                    RETURN
+                  END
+                OTHERWISE CALL DELAY(100)
+              END
+            END
+            LEAVE RollNum
+          END
+        OTHERWISE CALL DELAY(100)
+      END
+    END
+  Player.i.Total = Player.i.Total + rolltotal
+  IF Player.i.Total >= 150 THEN
+    DO
+      CALL WRITELN(OUT,"OK, let's see who can beat that now!")
+      CALL DELAY(200)
+      RETURN
+    END
+  CALL WRITELN(OUT,"That's it for me this time.")
+  CALL DELAY(200)
+RETURN
+
+USERROLL:
+  RollTotal = 0
+  CALL GAME_TOTAL
+  CALL WRITECH(OUT,esc"[15;1HWould you like to roll the dice? Enter=Y/N: ")
+  DO RollNum = 1
+    CALL GetAns
+    SELECT
+      WHEN answer = "N" THEN
+        DO
+          Player.i.Total = rolltotal + Player.i.Total
+          SELECT
+            WHEN Player.i.Total >= 150 & Player.i = Player.Last THEN CALL GAME_END
+            WHEN Player.i.Total < 150 & Highscore >= 150 THEN
+              DO
+                CALL WRITELN(OUT,"You're not a piggy... You're a chicken!!!")
+                CALL DELAY(200)
+                RETURN
+              END
+            WHEN Player.i.Total >= 150 & Highscore < 150 THEN CALL WRITELN(OUT,"Look's like we have someone who smells victory!!")
+            OTHERWISE NOP
+          END
+          CALL DELAY(200)
+          RETURN
+        END
+      WHEN answer = "Y" | answer = "" THEN
+        DO
+          CALL SHOW_DICE
+          SELECT
+            WHEN roll = 2 THEN
+              DO
+                Player.i.Total = 0
+                IF Highscore > 150 THEN
+                  DO
+                    CALL WRITELN(OUT,"That roll couldn't have come at a worse time.")
+                    CALL WRITELN(OUT,"Guess we know who is not winning! You shouldn't have been so PIGGY.")
+                    CALL DELAY(200)
+                    RETURN
+                  END
+                ELSE CALL WRITELN(OUT,"Tough break, you rolled snake eyes you start back at 0.")
+                CALL DELAY(200)
+                RETURN
+              END
+            WHEN dice.1 = 1 | dice.2 = 1 THEN
+              DO
+                IF HighScore >= 150 THEN
+                  DO
+                    CALL WRITELN(OUT,"Aaawwww, such bad luck. Well that's what you get for being such a PIGGY.")
+                    CALL DELAY(200)
+                    RETURN
+                  END
+                CALL WRITELN(OUT,"You rolled a one, this turn was all for nothing.")
+                CALL DELAY(200)
+                RETURN
+              END
+            OTHERWISE NOP
+          END
+        END
+      WHEN RollNum < 2 THEN
+        DO
+          CALL WRITECH(OUT,esc'[1AWould you like to roll the dice? Enter=Y/N: 'esc'[J')
+          RollNum = 0
+          ITERATE RollNum
+        END
+      OTHERWISE
+        DO
+          CALL WRITECH(OUT,esc'[1AWant to roll again? Enter=Y/N: 'esc'[J')
+          RollNum = RollNum - 1
+          ITERATE RollNum
+        END
+    END
+    CALL WRITECH(OUT,esc"[15;1HWant to roll again? Enter=Y/N: ")
+  END
+RETURN
+
+SHOW_DICE:
+  CALL RANDOM(,, TIME(s))
+  dice.1 = RANDOM(1, 6)
+  dice.2 = RANDOM(1, 6)
+  roll = dice.1 + dice.2
+  rolltotal = roll + rolltotal
+  CALL GAME_TOTAL
+  RANDOM(,, TIME(s))
+  q = RANDOM(1,20)
+  CALL WRITELN(OUT,LF||quote.q||LF)
+  dicepos1 = random(1,40,time(s))
+  dicepos2 = random(dicepos1 + 7,75,time(s))
+  CALL WRITELN(OUT,esc"[10;"dicepos1"H"esc"[42m     "esc"[10;"dicepos2"H     ")
+  CALL WRITELN(OUT,esc"[11;"dicepos1"H"esc"[42m     "esc"[11;"dicepos2"H     ")
+  CALL WRITELN(OUT,esc"[12;"dicepos1"H"esc"[42m     "esc"[12;"dicepos2"H     ")
+  SELECT
+    WHEN dice.1 = 1 THEN CALL WRITELN(OUT,esc"[11;"dicepos1 + 2"H*")
+    WHEN dice.1 = 2 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos1"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos1 + 4"H*")
+      END
+    WHEN dice.1 = 3 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos1"H*")
+        CALL WRITELN(OUT,esc"[11;"dicepos1 + 2"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos1 + 4"H*")
+      END
+    WHEN dice.1 = 4 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos1"H*"esc"[10;"dicepos1 + 4"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos1"H*"esc"[12;"dicepos1 + 4"H*")
+      END
+    WHEN dice.1 = 5 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos1"H*"esc"[10;"dicepos1 + 4"H*")
+        CALL WRITELN(OUT,esc"[11;"dicepos1 + 2"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos1"H*"esc"[12;"dicepos1 + 4"H*")
+      END
+    WHEN dice.1 = 6 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos1"H*"esc"[10;"dicepos1 + 4"H*")
+        CALL WRITELN(OUT,esc"[11;"dicepos1"H*"esc"[11;"dicepos1 + 4"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos1"H*"esc"[12;"dicepos1 + 4"H*")
+      END
+  END
+  SELECT
+    WHEN dice.2 = 1 THEN CALL WRITELN(OUT,esc"[11;"dicepos2 + 2"H*")
+    WHEN dice.2 = 2 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos2"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos2 + 4"H*")
+      END
+    WHEN dice.2 = 3 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos2"H*")
+        CALL WRITELN(OUT,esc"[11;"dicepos2 + 2"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos2 + 4"H*")
+      END
+    WHEN dice.2 = 4 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos2"H*"esc"[10;"dicepos2 + 4"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos2"H*"esc"[12;"dicepos2 + 4"H*")
+      END
+    WHEN dice.2 = 5 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos2"H*"esc"[10;"dicepos2 + 4"H*")
+        CALL WRITELN(OUT,esc"[11;"dicepos2 + 2"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos2"H*"esc"[12;"dicepos2 + 4"H*")
+      END
+    WHEN dice.2 = 6 THEN
+      DO
+        CALL WRITELN(OUT,esc"[10;"dicepos2"H*"esc"[10;"dicepos2 + 4"H*")
+        CALL WRITELN(OUT,esc"[11;"dicepos2"H*"esc"[11;"dicepos2 + 4"H*")
+        CALL WRITELN(OUT,esc"[12;"dicepos2"H*"esc"[12;"dicepos2 + 4"H*")
+      END
+  END
+  CALL WRITELN(OUT,esc"[0m")
+  IF dice.1 = 1 | dice.2 = 1 THEN rolltotal = 0
+  CALL WRITELN(OUT,esc"[14;1HOn roll number" RollNum "the dice came up as:" dice.1 'AND' dice.2 "Current total:" Player.i.Total + rolltotal)
+RETURN
+
+GAME_END:
+  CALL WRITELN(OUT,cls||LF||"                 We have a winner... and the winner is...."LF||LF||LF)
+  CALL DELAY(100)
+  CALL WRITELN(OUT,STRIP(Player.HighScorer,B) 'is the winner with a winning score of' HighScore)
+  CALL WRITELN(OUT,LF||COPIES(" ",37)||esc||"[1;4mSCORES"||esc||"[0m"||LF)
+  DO i = 1 to PlayerNum
+    Player.i = STRIP(TRANSLATE(Player.i,'','00'x),B)
+    IF Highscorer = i THEN
+      CALL WRITELN(OUT,ESC||"[1m"||RIGHT(LEFT(Player.i,20,"."),49)||RIGHT(Player.i.Total,3,".")||esc||"[0m")
+    ELSE CALL WRITELN(OUT,RIGHT(LEFT(Player.i,20,"."),49)||RIGHT(Player.i.Total,3,"."))
+  END
+  CALL WRITECH(OUT,LF||'Want to play again? Enter=N: 'esc'[J')
+  CALL GetAns
+  IF answer = 'Y' THEN CALL MAIN
+  CALL FINISHED
+RETURN
+
+SHOW_HELP:
+  CALL WRITELN(OUT,cls)
+  CALL WRITELN(OUT,"Piggy  is  a dice game that is played to 150 points.  The object of the game")
+  CALL WRITELN(OUT,"is  to  have  the highest  points at the end of the game.  Selection of play")
+  CALL WRITELN(OUT,"order  is  random.   Turns  continue  until  someone has reached 150 or more")
+  CALL WRITELN(OUT,"points and the last player has compleated their roll."||LF)
+  CALL WRITELN(OUT,"Points  are  accumulated  by  adding the players current roll total to their")
+  CALL WRITELN(OUT,"accumulated  total.  During play if a one is rolled on EITHER dice then that")
+  CALL WRITELN(OUT,"player  loses  their  turn  and all points that were accumulated during that")
+  CALL WRITELN(OUT,"turn.  If  BOTH  dice  come  up  one's then the player loses their turn, all")
+  CALL WRITELN(OUT,"accumulated  points  in that turn, and  also  loses  their total accumulated")
+  CALL WRITELN(OUT,"points.  In other words if you roll snake eyes you start over."||LF)
+  CALL WRITELN(OUT,"Once  the last player has rolled the dice and someone has reached 150 points")
+  CALL WRITELN(OUT,"or  more  a winner will be determined.  Therefor it is of some  advantage to")
+  CALL WRITELN(OUT,"be the last player."||LF||LF)
+  CALL WRITECH(OUT,"Enter to continue.")
+  CALL GetAns
+  CALL HEADER
+RETURN

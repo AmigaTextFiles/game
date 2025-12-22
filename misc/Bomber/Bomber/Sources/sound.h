@@ -1,0 +1,12 @@
+/*
+ * sound.h
+ *
+ */
+
+enum {
+	SOUND_CLICK = 0,
+	SOUND_EXPLOSION,
+	SOUND_SIEG,
+	SOUND_ANFANG,
+	SOUND_HIGHSCORE,
+	SOUND_ANZAHL };

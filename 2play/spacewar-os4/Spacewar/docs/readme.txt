@@ -1,0 +1,51 @@
+README
+------
+
+Legal blah blah:
+This game is copyrighted under the terms of the GNU General Public license.
+
+Well this is spacewar. The mission is to destroy the enemy ship... Not much more
+to say about that. Ah almost forgot when you hold the fire button your ship will
+fire as fast as possible (currently half a second delay between shots).
+
+Keys
+----
+Player 1:
+UP = up
+DOWN = down
+LEFT = left
+RIGHT = right
+FIRE = right control
+
+Player 2:
+UP = t
+DOWN = g
+LEFT = f
+RIGHT = h
+FIRE = s
+
+Screenshots
+-----------
+Since version 0.2 it is possible to take a screenshot of the game. Just press 
+'p' and the screenshot will be written to disk as a bitmap named screenshot.bmp 
+in the bin directory. Please note that older versions will be overwritten when 
+saving a new screenshot.
+
+Troubleshooting
+---------------
+
+Low framerates in Linux:
+Make sure your desktop is set to 16 bits before you run the game. At my box this
+trick improved the framerate by 150% so it might be of use :-).
+
+Low framerates in Windows:
+In windows, SDL_Flip() waits for a vertical blank. So every frame, the game
+waits until the screen is ready to display a new image. This means that the
+framerate can never be higher ( or its a round-up error ofcourse ) than the
+monitor's refresh frequency. So if your monitor has a refresh frequency of 75Hz,
+the framerate wont be any higher than that.
+
+--
+Enjoy,
+Sijmen
+

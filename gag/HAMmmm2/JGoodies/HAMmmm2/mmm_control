@@ -1,0 +1,88 @@
+\ Top level control of HAMmmm program which
+\ demonstrates Amiga HAM graphics, double buffering,
+\ and local sound.
+\
+\ Author: Phil Burk
+\ Copyright 1987 Phil Burk
+\ This code is considered to be in the public domain and
+\ may be freely distributed but may not be sold for profit.
+
+ANEW TASK-MMM_CONTROL
+
+: HAM.CHECK.EVENTS { | rmessage mcode -- , process any events }
+\ Check for an IntuiMesssage
+    gr-curwindow @ ..@ wd_userport call exec_lib GetMsg ?dup
+    IF  >rel -> rmessage
+        rmessage ..@ im_code -> mcode
+        rmessage ..@ im_class
+        rmessage >abs call exec_lib ReplyMsg drop
+        CASE
+            MENUPICK
+            OF  mcode dup MENUNULL =
+                IF drop ham.continue  ( restart graphics )
+                ELSE control-menu ezmenu.exec ( DO MENU! )
+                THEN
+            ENDOF
+\
+\ Make sure double buffering is turned off because it would
+\ make the menus flash.
+            MENUVERIFY  
+            OF  ham-enable-graphics off
+            ENDOF
+        ENDCASE
+    THEN
+;
+    
+: HAM.LOOP ( -- , Create drawings until key hit. )
+    false ham-demo-quit !
+    BEGIN
+        ham-enable-graphics @
+        IF  ham.moving.lines
+            change.sound
+\
+\ Randomly change drawing modes and sound.
+            50 choose 0=
+            IF ham.change.mode
+               change.chord
+            THEN
+        THEN
+        ham.check.events
+        ?terminal ham-demo-quit @ or
+    UNTIL
+;
+
+\ Seed the random number generator with the current time
+\ so that HAMmmm will always produce different animation.
+: RANDOM.INIT ( -- , seed random number generator with time )
+\ CurrentTime will write current time into variable.
+    rand-seed >abs dup callvoid intuition_lib CurrentTime
+;
+
+: HAM.INIT  ( -- window | NULL , Initialize HAMmmm system )
+    ham.open dup
+    IF  ham.set.colors
+        random.init
+        ham.setup.pos
+        ham.setup.vel
+        buffers.init
+        ham.menu.init
+        sound.init
+        ham-enable-graphics on
+    THEN
+;
+
+: HAM.TERM ( -- , Cleanup afterwards. )
+    ham.menu.term
+    sound.term
+    buffers.term
+    ham.close
+;
+
+: HAMmmm  ( -- , top word of demo, does all )
+    ham.init
+    IF ham.loop
+    THEN
+    ham.term
+;
+
+cr ." Enter:     HAMmmm     to see demo!" cr

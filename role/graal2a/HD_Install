@@ -1,0 +1,399 @@
+; 
+; ====================
+; PERFORMANCE SOFTWARE
+; ====================
+; 
+; GRAAL 2.3 Installer Script
+; (c) 1998 Per Thulin
+; 
+(welcome)
+
+; Set up some variables
+; 
+(set #path (pathonly @icon))
+
+(set #diskname_a "GRAAL 2.3 - Disk A")
+(set #diskname_b "GRAAL 2.3 - Disk B")
+(set #diskname_c "GRAAL 2.3 - Disk C")
+(set #diskname_d "GRAAL 2.3 - Disk D")
+
+(set #source_a (cat #diskname_a ":"))
+(set #source_b (cat #diskname_b ":"))
+(set #source_c (cat #diskname_c ":"))
+(set #source_d (cat #diskname_d ":"))
+
+(set #diskprompt_a (cat "Please insert disk " #source_a))
+(set #diskprompt_b (cat "Please insert disk " #source_b))
+(set #diskprompt_c (cat "Please insert disk " #source_c))
+(set #diskprompt_d (cat "Please insert disk " #source_d))
+
+(set #hd_run 1)
+
+; if all the above exists in current dir, we assume ALL files
+; are in the same dir!
+
+(if (not (exists "GRAAL_2" (noreq)))
+  (set #hd_run 0)
+  ) ; end if
+(if (not (exists "Demo_Solution.text" (noreq)))
+  (set #hd_run 0)
+  ) ; end if
+(if (not (exists "GRAAL.guide" (noreq)))
+  (set #hd_run 0)
+  ) ; end if
+(if (not (exists "gpro" (noreq)))
+  (set #hd_run 0)
+  ) ; end if
+
+(set #helpdisk
+  (cat
+    "Installation from diskettes requires the disks to be named exactly"
+    " as requested. If you have created the disks from the Aminet archives,"
+    " just rename them properly before running the installer."
+    )
+  )
+
+(select
+  (askchoice
+    (prompt "Please select the type of installation you want to perform:")
+    (help
+      (cat "Install the GRAAL 2.3 system:\n\n"
+        "Choose this if you have not installed or used GRAAL before,"
+        " or if you want to install the new demo adventure"
+        " or the updated manual.\n\n"
+        "Update an old development drawer:\n\n"
+        "Choose this if you just want to update the GRAAL tools and"
+        " documentation in an existing directory, without harming the rest"
+        " of its contents."
+        ) ; end cat
+      ) ; end help
+    (choices
+      "Install the GRAAL 2.3 system"
+      "Update an old development drawer"
+      ) ; end choices
+    (default 0)
+    ) ; end askdir
+
+  ( ; Installation sequence
+    (complete 5)
+    (set #instoptions
+      (askoptions
+        (prompt "Please select the parts you wish to install:")
+        (help
+          (cat
+            "All selected parts will be copied to the same (new)"
+            " hard disk drawer.\n\n"
+            "Demo Adventure:\n\n"
+            "This installs the graal driver program and all files"
+            " necessary to run the demo adventure.\n\n"
+            "Developer files:\n\n"
+            "This installs all programs and documentation necessary"
+            " to develop GRAAL adventures.\n\n"
+            "GRAAL 2.3 Manual\n\n"
+            "This installs the GRAAL Manual (HTML format).\n\n"
+            ) ; end cat
+          ) ; end help
+          (choices
+            "Demo adventure"
+            "Developer files"
+            "GRAAL 2.3 Manual (HTML)"
+            ) ; end choices
+        ) ; end askoptions
+      ) ; end set #instoptions
+    ; 
+    ; Set the installation directory
+    ; 
+    (complete 10)
+    (set #instdir
+      (askdir
+        (prompt
+          (cat
+            "Please select the place where GRAAL should be installed."
+            " A new drawer called GRAAL_2 will be created in the chosen"
+            " location."
+            ) ; end cat
+          ) ; end prompt
+        (help
+          (cat
+            "You do not need to make any assigns to use GRAAL. However,"
+            " keeping the GRAAL tools and the adventure script files in"
+            " the same drawer is important.)"
+            ) ; end cat
+          ) ; end help
+        (default @default-dest)
+        ) ; end askdir
+      ) ; end set #instdir
+    ; 
+    ; Check if drawer needs to be created
+    ; 
+    (complete 15)
+    (set #instdir (tackon #instdir "GRAAL_2"))
+    (set @default-dest #instdir)
+    (if (not (exists #instdir))
+      (makedir #instdir (infos))
+      ) ; end if
+
+    (if (= #hd_run 0)
+      (
+      ; 
+      ; Check if we should install demo files
+      ; 
+      (if (in #instoptions 0)
+        ( ; demo installation sequence - fd
+          (askdisk
+            (prompt #diskprompt_a)
+            (help #helpdisk)
+            (dest #diskname_a)
+            ) ; end askdisk
+          (copyfiles
+            (source #source_a)
+            (dest #instdir)
+            (all)
+            (infos)
+            ) ; end copyfiles
+          (askdisk
+            (prompt #diskprompt_b)
+            (help #helpdisk)
+            (dest #diskname_b)
+            ) ; end askdisk
+          (copyfiles
+            (source #source_b)
+            (dest #instdir)
+            (all)
+            (infos)
+            ) ; end copyfiles
+          ) ; end demo installation sequence - fd
+        ) ; end if instoptions = demofiles
+      ; 
+      ; Check if we should install developer files
+      ; 
+      (complete 50)
+      (if (in #instoptions 1)
+        ( ; developer installation sequence - fd
+          (if (not (exists (tackon #instdir "GRAAL_2")))
+            (
+            ( ; install driver
+              (askdisk
+                (prompt #diskprompt_a)
+                (help #helpdisk)
+                (dest #diskname_a)
+                ) ; end askdisk
+              (copyfiles
+                (source #source_a)
+                (dest #instdir)
+                (choices "GRAAL_2")
+                (infos)
+                ) ; end copyfiles
+              ) ; end install driver
+            )
+            ) ; end if
+          (askdisk
+            (prompt #diskprompt_c)
+            (help #helpdisk)
+            (dest #diskname_c)
+            ) ; end askdisk
+          (copyfiles
+            (source #source_c)
+            (dest #instdir)
+            (choices
+              "GRAAL_Editor"
+              "GRAAL.guide"
+              "GRAAL23.readme"
+              ) ; end choices
+            (infos)
+            ) ; end copyfiles
+          (askdisk
+            (prompt #diskprompt_d)
+            (help #helpdisk)
+            (dest #diskname_d)
+            ) ; end askdisk
+          (copyfiles
+            (source #source_d)
+            (dest #instdir)
+            (choices
+              "gpro"
+              "gdc"
+              "grep"
+              ) ; end choices
+            (infos)
+            ) ; end copyfiles
+          ) ; end developer installation sequence - fd
+        ) ; end if instoptions = developerfiles
+      ; 
+      ; Check if we should install manual
+      ; 
+      (complete 90)
+      (if (in #instoptions 2)
+        ( ; manual installation sequence - fd
+          (askdisk
+            (prompt #diskprompt_d)
+            (help #helpdisk)
+            (dest #diskname_d)
+            ) ; end askdisk
+          (copyfiles
+            (source #source_d)
+            (dest #instdir)
+            (choices "GRAAL_Manual.html")
+            (infos)
+            ) ; end copyfiles
+          ) ; end manual installation sequence - fd
+        ) ; end if instoptions = manual
+        )
+      ) ; end if #hd_run = 0
+    ; 
+    ; "hd" installation - all files copied from the installation
+    ; script's directory!!!
+    ; 
+    (if (= #hd_run 1)
+      ( ; hd installation sequence
+      (if (in #instoptions 0)
+        ( ; demo installation sequence - hd
+          (copyfiles
+            (source #path)
+            (dest #instdir)
+            (all)
+            (infos)
+            ) ; end copyfiles
+          ) ; end demo installation sequence - hd
+        ) ; end if instoptions = demofiles
+      ; 
+      ; Check if we should install developer files
+      ; 
+      (complete 50)
+      (if (in #instoptions 1)
+        ( ; developer installation sequence - hd
+          (if (not (exists (tackon #instdir "GRAAL_Editor")))
+            (
+            (copyfiles
+              (source #path)
+              (dest #instdir)
+              (choices
+                "GRAAL_2"
+                "GRAAL_Editor"
+                "GRAAL.guide"
+                "GRAAL23.readme"
+                ) ; end choices
+              (infos)
+              ) ; end copyfiles
+            )
+            ) ; end if not copied before
+          ) ; end developer installation sequence - hd
+        ) ; end if instoptions = developer files
+      ; 
+      ; Check if we should install manual
+      ; 
+      (complete 90)
+      (if (in #instoptions 2)
+        ( ; manual installation sequence - hd
+          (copyfiles
+            (source #path)
+            (dest #instdir)
+            (choices "GRAAL_Manual.html")
+            (infos)
+            ) ; end copyfiles
+          ) ; end manual installation sequence - hd
+        ) ; end if instoptions = manual
+        ) ; end hd installation sequence
+      ) ; end if #hd_run = 1
+
+    ) ; end of installation sequence
+
+  ( ; Update sequence
+    (complete 5)
+    (set #instdir
+      (askdir
+        (prompt
+          (cat
+            "Please point to the development directory to be updated with"
+            " the new GRAAL tools and documentation."
+            ) ; end cat
+          ) ; end prompt
+        (help
+          (cat
+            "All old GRAAL tools and documentation files will be removed"
+            " and replaced with the new versions. However, renamed copies of"
+            " GRAAL_2 (or the older versions GRAAL_Dev or GRAAL_Run) will NOT"
+            " be handled automatically.\n\n"
+            "When the installation has finished, you must deal with them"
+            " and optionally rename the new GRAAL_2 file to your liking"
+            " manually."
+            ) ; end cat
+          ) ; end help
+        (default @default-dest)
+        ) ; end askdir
+      ) ; end set #instdir
+    (set @default-dest #instdir)
+    (complete 10)
+    (delete (tackon #instdir "GRAAL_2") (infos))
+    (delete (tackon #instdir "GRAAL_Run") (infos))
+    (delete (tackon #instdir "GRAAL_Dev") (infos))
+    (delete (tackon #instdir "GRAAL_Manual.text") (infos))
+    (delete (tackon #instdir "GRAAL_Manual.html") (infos))
+    (delete (tackon #instdir "GRAAL_Editor") (infos))
+    (delete (tackon #instdir "GRAAL.guide") (infos))
+    (if (= #hd_run 0)
+      ( ; developer update sequence - fd
+        (askdisk
+          (prompt #diskprompt_a)
+          (help #helpdisk)
+          (dest #diskname_a)
+          ) ; end askdisk
+        (copyfiles
+          (source #source_a)
+          (dest #instdir)
+          (choices "GRAAL_2")
+          (infos)
+          ) ; end copyfiles
+        (complete 30)
+        (askdisk
+          (prompt #diskprompt_c)
+          (help #helpdisk)
+          (dest #diskname_c)
+          ) ; end askdisk
+        (copyfiles
+          (source #source_c)
+          (dest #instdir)
+          (all)
+          (infos)
+          ) ; end copyfiles
+        (complete 70)
+        (askdisk
+          (prompt #diskprompt_d)
+          (help #helpdisk)
+          (dest #diskname_d)
+          ) ; end askdisk
+        (copyfiles
+          (source #source_d)
+          (dest #instdir)
+          (choices
+            "gpro"
+            "gdc"
+            "grep"
+            ) ; end choices
+          (infos)
+          ) ; end copyfiles
+        ) ; end developer update sequence - fd
+      ) ; end if hd_run = 0
+    (if (= #hd_run 1)
+      ( ; developer update sequence - hd
+        (copyfiles
+          (source #path)
+          (dest #instdir)
+          (choices
+            "GRAAL_2"
+            "GRAAL_Editor"
+            "GRAAL.guide"
+            "GRAAL22.readme"
+            "gpro"
+            "gdc"
+            "grep"
+            ) ; end choices
+          (infos)
+          ) ; end copyfiles
+        ) ; end developer update sequence - hd
+      ) ; end if hd_run = 1
+    ) ; end of update sequence
+
+  ) ; end select
+
+(complete 100)

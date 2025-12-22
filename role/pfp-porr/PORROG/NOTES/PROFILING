@@ -1,0 +1,94 @@
+PROFILING notes for Porrog
+
+I built makemap with profiling, ran it and held down 'm' for a while
+to have it regenerate the map countless times over. Then I quit and
+ran the profiler on it.
+This was to get a thorough idea of how best to speed up the map generator
+(not that it's *painfully* slow, I just feel it's not a very efficient
+algorithm to start with, I'd like to shave as much time off it as poss).
+
+The VAST majority of the time turns out to be consumed by the make_map()
+function itself. Unfortunately, this function is HUGE and mostly MONOLITHIC!
+
+About an eighth of the time consumed by make_map is consumed by all the
+calls to attempt_joining(), which really is what does the hard stuff
+(finding paths between rooms that'll join areas that aren't yet joined).
+
+Almost all of the time spent in attempt_joining() is from its child
+functions, especially get_area() (which itself is almost entirely spent
+in find_area()). Quite a bit (but not as much) is spent in
+merge_areas() (which I don't believe could be much improved),...
+AHA most of merge_areas comes from show_areas() which was just for
+testing consistency.
+A vague amount of time is spent in build_tunnel() and probe_path(),
+but both these put together take less than merge_areas() with
+the slow testing code, which as I say takes a fraction of get_area().
+
+find_room() takes a little but not enough to worry about.
+
+----
+There's already stuff in place to let find_area() get a pointer to
+tunnel near immediately (from an array parallel with the map array
+with, funnily enough, pointers to any tunnels at each point!)
+So that could be done easily enough (but needs checking to see
+that the area returned by that method gives the same area as
+the old one).
+
+show_areas() can be removed from merge_areas() as it doesn't seem
+to have shown up the bug I've been searching for. But that bug
+still ought to be found, as there's something going wrong there.
+
+Ultimately the code can't be properly profiled without breaking up
+make_map() into its component parts (even if they get put back
+together again later!) to see which parts of THAT are most
+time consuming. The other functions are really just drops in
+the ocean :(
+
+----
+DONE that: I split it into 4 main phases, with the original
+make_map() changed to basically just call the other parts.
+As I'd kind of suspected, the lion's share of the time
+appears to be in the loop that picks the midpoints for rooms,
+which has to do lots of scanning acrolls the map. It really
+is pretty lame.
+
+About half as much as that section is in the next section, that
+works out suitable dimensions for each room and carves them out.
+
+Half as much as *that* is spent in the first phase where
+we reset the map array to a block of rock surrounded by
+permanent walls. That phase can't well be avoided, and is
+pretty tight already.
+
+The final phase consumes a similar amount (to the first phase)
+but next to none of that time is spent in function- attempt_joining()
+takes up most of it, with pick_room() taking nearly all the rest.
+
+Solutions:
+  mkmap_p2() I managed to improve a GREAT deal just by speeding up
+ the way the loop ran, so I didn't have to think about altering the
+ algorithm itself (which again, is probably very stupid).
+ I seem to have reduced it to about a quarter of the time.
+
+  mkmap_p3() I did similar stuff with, halved the time. Could
+ do more, but by now, holding down 'm' (to regenerate the map)
+ makes them pour past like a BLUR whereas they were going maybe
+ 2 or 3 pers second before profiling.
+
+ I love gprof now :)
+
+----
+Previous profiling showed that roll_dX() was actually *slower* than
+the system random function, whereas I'd been expecting it to be
+faster (as it didn't use very complex maths). As it was of the
+same order of magnitude, I poked about with it a bit. Spotted
+there were a few modulo operations, which it occurred to me weren't
+usually that fast. Profiling the modulo operation separately with
+an alternative that worked with the same argument range showed
+that the alternative was about twice as fast! Unfortunately both
+operations were so fast that the profiling seemed to have a lot
+of inaccuracy. But anyways...
+I replaced the modulo operations in roll_dX() with the faster
+alternatives, and reprofiled. The functions now seem *marginally*
+faster, but faster nonetheless.
+

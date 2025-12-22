@@ -1,0 +1,201 @@
+; $Id: Install Quid,v 1.0 97/05/15 17:39:10 lee Exp $
+; $VER: Install-Quid 1.0
+
+(set app_prefix "Quid?_")
+(set app_disk1  "1")
+(set app_disk2  "2")
+(set app_disk3  "3")
+
+(set app_volume1 (cat app_prefix app_disk1 ":"))
+(set app_volume2 (cat app_prefix app_disk2 ":"))
+(set app_volume3 (cat app_prefix app_disk3 ":"))
+
+
+
+
+; standard amiga error codes
+(set RC_OK     0
+     RC_WARN   5
+     RC_ERROR 10
+     RC_FATAL 20
+     )
+;
+; determine AmigaDos version and revision numbers
+;
+(set AmigaDos_Number   (getversion))
+(set AmigaDos_Version  (/ AmigaDos_Number 65536))
+(set AmigaDos_Revision (- AmigaDos_Number (* AmigaDos_Version 65536)))
+
+; --------------------------------------------------------------------
+
+(procedure get_lhex
+
+        (if ( = (exists "ram:lhex" (noreq)) 0)
+                (
+                (working "Sto copiando LHEX in Ram...\n")
+                (copyfiles (source ("LHEX")) (dest "ram:"))
+               )
+        )
+)
+
+(procedure get_disk
+
+        (if (= #Want_disk 1)
+                (set #DiskName (cat app_prefix app_disk1))
+                (set #DiskName (cat app_prefix app_disk2)))
+        (if (= #Want_disk 3)
+                (set #DiskName (cat app_prefix app_disk3))
+         )
+        (askdisk
+                (prompt #Title_msg
+                        "\nPrego inserire il disco \""#DiskName"\".")
+                (help "Inserire questo disco in un floppy drive per continuare l'installazione.")
+                (assigns)
+                (dest #DiskName)
+        )
+        (set #Current_disk #Want_disk)
+)
+
+(procedure setup_hd_install
+   (message 
+      "\nQUID? verra' ora installato in un nuovo cassetto chiamato \"Quid?\"."
+      "Ti verra' chiesto dove creare questo nuovo cassetto.")
+   (set app_path (tackon
+       (askdir
+         (prompt "Indicare perfavore dove deve essere creato il cassetto di Quid?. ")
+         (help @askdir-help)
+        (default @default-dest)
+                          )
+                 "Quid")
+    )
+   (makedir app_path)
+)
+
+
+
+(procedure copy_volume1
+  (complete 5)
+  (get_lhex)
+  (copyfiles
+         (prompt "Sto copiando data.lha ...")
+         (source ("data.lha"))
+         (dest   app_path)
+         (help @copyfiles-help)
+         (infos)
+         (fonts)
+         )
+  (complete 10)
+  (copyfiles
+         (prompt "Sto copiando levels01.lha ...")
+         (source ("levels01.lha"))
+         (dest   app_path)
+         (help @copyfiles-help)
+         (infos)
+         (fonts)
+         )
+  (complete 20)
+  (copyfiles
+         (prompt "Sto copiando levels02.lha ...")
+         (source ("levels02.lha"))
+         (dest   app_path)
+         (help @copyfiles-help)
+         (infos)
+         (fonts)
+         )
+  (complete 30)
+    (set options
+      (askoptions
+          (prompt "Quale dei seguenti Amiga Guide vuoi installare?")
+          (choices "English" "Italiano" "Deutsh")
+          (help "\n"
+           @askoptions-help)
+          )
+      )
+  (if (bitand 1 options)
+  (copyfiles
+         (prompt "Sto copiando QuidENG.guide ...")
+         (source ("QuidENG.guide"))
+         (dest   app_path)
+         (help @copyfiles-help)
+         (infos)
+         (fonts)
+         ))
+  (if (bitand 2 options)
+  (copyfiles
+         (prompt "Sto copiando QuidITA.guide ...")
+         (source ("QuidITA.guide"))
+         (dest   app_path)
+         (help @copyfiles-help)
+         (infos)
+         (fonts)
+         ))
+  (if (bitand 4 options)
+  (copyfiles
+         (prompt "Sto copiando QuidDE.guide ...")
+         (source ("QuidDE.guide"))
+         (dest   app_path)
+         (help @copyfiles-help)
+         (infos)
+         (fonts)
+         ))
+  (complete 40)
+  (set @default-dest app_path)
+)
+
+(procedure dearchive
+ (complete 60)
+ (working "Sto decomprimendo \"data.lha\".\nUn po' di pazienza...")
+ (run (cat (cat "ram:lhex  <NIL: \"-w=" app_path)(cat (cat "/\" x \"" app_path) "/data.lha\"")))
+ (complete 70)
+  (working "Sto decomprimendo  \"levels01.lha\".\nUn po' di pazienza...")
+ (run (cat (cat "ram:lhex  <NIL: \"-w=" app_path)(cat (cat "/\" x \"" app_path) "/levels01.lha\"")))
+ (complete 80)
+  (working "Sto decomprimendo  \"levels02.lha\".\nUn po' di pazienza...")
+ (run (cat (cat "ram:lhex  <NIL: \"-w=" app_path)(cat (cat "/\" x \"" app_path) "/levels02.lha\"")))
+ (complete 97)
+ (delete (cat app_path "/levels01.lha"))
+ (delete (cat app_path "/levels02.lha"))
+ (delete (cat app_path "/data.lha"))
+ (delete "ram:lhex")
+ (rename (cat app_path "/levels/level00") (cat app_path "/levels/LEVEL00"))
+ (rename (cat app_path "/levels/level01") (cat app_path "/levels/LEVEL01"))
+ (rename (cat app_path "/levels/level02") (cat app_path "/levels/LEVEL02"))
+ (rename (cat app_path "/levels/level03") (cat app_path "/levels/LEVEL03"))
+)
+
+; --------------------------------------------------------------------
+; do_exit
+;   does the language installation
+;   does the program registrations if requested
+;   puts up regcard reminder and says thanks...
+;
+(procedure do_exit
+
+(complete 99)
+(message "\nRicordati che Quid? e' mailware...se ti piace e se pui, spediscimi"
+           "un'email all'indirizzo:\n"
+           "gtoffoli@leonardo.math.unipd.it\n\n"
+
+           "Grazie ancora per aver installato Quid?.\n"
+           "Buon divertimento !"
+           )
+  (exit)
+)
+
+
+; --------------------------------------------------------------------
+;                   This is the actual Install Script
+; --------------------------------------------------------------------
+
+(if (< AmigaDos_Version 39)
+    (
+      (abort
+         "Quid? non funziona con questa versione di AmigaOS. "
+         "E' richiesta come minimo la versione 3.0 del Sistema Operativo."
+         )
+    )
+)
+    (setup_hd_install)
+(copy_volume1)
+(dearchive)
+(do_exit)

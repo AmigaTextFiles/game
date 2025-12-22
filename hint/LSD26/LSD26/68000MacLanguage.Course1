@@ -1,0 +1,1687 @@
+
+  Another great doc for the budding assembly langage programmers.
+         Parts 1-5 of of the 68000 Machine Language Course
+                  Brought to you by Sewer Software
+ 
+     68000 MACHINE LANGUAGE COURSE PART I by Mark van de Boer
+
+ As  the  title  already says this is the first  part  of  an 68000 
+ assembly language programming course.  This course is intended for 
+ people  who  already have a little experience with programming  in 
+ assembly  language  on microprocessors like the 6502 (6510  is  in 
+ fact the same) and the 68xx (like 6800,  6801, 6805, 6809) series. 
+ In   this  course  these  two  microprocessor-families   will   be 
+ referenced by their most famous members, the 6502 and the 6809. At 
+ this  time it is not exactly known how many articles  this  course 
+ will have. I think it will be about six articles long.
+ Now  I will describe some features of the 68000.  The 68000  is  a 
+ sixteen-bit  microprocessor.  This means that an opcode is  always 
+ sixteen bits (On the 6502 and 6809 an opcode is 8 bits,  therefore 
+ they are called 8-bit microprocessors).  The databus of the  68000 
+ is  16 bits wide,  this means that 16 bits can be  transferred  at 
+ once  by the 68000 (The 6502 and 6809 both have a databus that  is 
+ eight  bits wide,  so they can transfer 8 bits at  once).
+
+
+ Another  important feature of the 68000 is its impressive  set  of 
+ registers.  First there are the eight data registers, numbered D0-
+ D7. They are 32 bits wide and can be used for operations on 8-bit, 
+ 16-bit and 32-bit quantities.  Data registers can be compared with 
+ the  A-register  (Accumulator)  on  the  6502  and   6809,   their 
+ function  same,  but  the use of the data registers is  much  more 
+ convenient.   Second,  there  are  the  eight  address  registers, 
+ numbered from A0-A7.  They are 32 bits wide as well and their only 
+ use  is  in  addressing memory.  However,  the upper  8  bits  are 
+ ignored  by  the  68000 since its address bus is  'only'  24  bits 
+ wide,  meaning  that the 68000 can address up to 16  megabytes  of 
+ memory.  Register  A7  has a special function;  it is  called  the 
+ system  stackpointer.  This  means  that  if  you  execute  a  JSR 
+ instruction,  some data will be saved on the address contained  in 
+ this  register.  By the way,  you can use every  address  register 
+ very  easily as a stackpointer.  The third class consists  of  one 
+ register, the PC (program counter). This register always  contains
+ the address of the instruction  to  be  executed next.  Of course,
+ the upper eight bits of the PC are also ignored. The  fourth class
+ consists of one 16 bit register, the status register, called SR.
+
+
+ This register is built up like this:
+
+ -------------------------------------------------------------
+ | T |   | S |   | I0| I1| I2|   |   |   | X | N | Z | V | C |
+ -------------------------------------------------------------
+     system-byte             |          user-byte
+
+ The  upper 8 bits are called the system byte.  This byte  contains 
+ information that is important to the system.  Normally you can not 
+ change this byte if you run an application.  Bit 15 is called  the 
+ trace-bit.  If  this  bit is set,  every time after  executing  an 
+ instruction  the 68000 will generate an exception (This is  called 
+ an interrupt on the 6502 and 6809). This is especially useful when 
+ debugging programs. Bit 13 is called the supervisor bit. When this 
+ bit  is  set the 68000 is in supervisor mode;  when  this  bit  is 
+ cleared,  however,  the 68000 is in user mode.  When executing  in 
+ supervisor  mode,  the 68000 can execute the so called  privileged 
+ instructions,  which are not available in user mode.  For example, 
+ it is illegal trying to change the upper 8 bits of the SR when  in 
+ user  mode.  Bits 8,  9 and 10 are called the interrupt  mask.  In 
+ total they can contain eight different values ranging from zero to 
+ seven.  For  instance,  if  bits  8 and 10 are set and  bit  9  is 
+ cleared,  the  value of the interrupt mask is 5.  This means  that 
+ only interrupts with a level of 5 and higher are recognized by the
+ 68000  and  interrupts  with a level lower  than  5  are  ignored. 
+ Interrupts of level 7 can be considered as non maskable interrupts
+ (compare this to the NMI  on the 6502 and 6809).  The lower 8 bits
+ are   called  the  conditioncode  register,   CCR  (this  can   be 
+ compared to the CC of the 6502 and 6809). The CCR contains 5 bits,
+ which contain useful data.  Bit 0 is the carry-flag (C),  bit 1 is 
+ the overflow-flag (V),  bit 2 is the zero-flag (Z),  bit 3 is  the 
+ negative-flag  (N).  The  meanings of these bits are  exactly  the 
+ same as on the 6502 and 6809.  Then there is bit 4 which is called 
+ the extend-flag (X).  It is nearly exactly the same as the  carry-
+ flag,  but  is not affected by every instruction that affects  the 
+ carry-flag. This feature of the extend-flag  is  especially useful
+ when  using  multiple precision  arithmetic,  e.g.  adding  64-bit 
+ numbers.
+
+
+ Another  feature of the 68000 is its ability to access three  data 
+ formats: byte (8 bits), word (16 bits) and longword (32 bits). You 
+ can  indicate  this  with a suffix  in  the  mnemonic  field.  The 
+ suffixes are .b for byte,  .w for word and .l for  longword.  E.g. 
+ asr.b d0  ,   asr.w   d0    , asr.l   d0. These instructions shift 
+ data register d0 one place to the right.
+ I  think  this is enough new stuff for today.  Next  time  I  will 
+ explain  the  addressing  modes of the  68000.  If  you  have  any 
+ comments  or  questions  on this  article,  please  write  to  the 
+ correspondence address and I'll take your notes into account. 
+
+ A good Motorola MC 68000 book is:
+ The Motorola 68000 programming guide,  which unfortunately is  not 
+ available in the stores.
+ Further there are a number of books on the 68000.  I would like to 
+ mention the book written by Lance Leventhal & Gerry Kane,  which I 
+ think gives good value for its money.  Another good book is  Steve 
+ Williams' "Programming the 68000". 
+
+
+  
+  68000 ASSEMBLY LANGUAGE COURSE PART II by Mark van den Boer
+
+ Welcome to part II of this course.  In part I,  some fundamentals 
+ of  the 68000 were shown.  In this part,  I will show  you  which 
+ addressing modes the 68000 uses.  First an example of  addressing 
+ modes which the 6502 and 6809 use:
+
+ lda #10   * immediate addressing
+ lda $10   * zero-page (6502) or direct-page addressing (6809)
+ inx       * inherent (6502)
+ inca      * inherent (6809)
+
+ Now, what does a line of code in 68000 assembler look like?
+
+ LABEL   OPCODE  OPER1,OPER2      COMMENT
+
+ The meanings of these fields are:
+ label:   A  name  given to this line  of  code.  Some  assemblers 
+ require  a :  to follow the label-name.  This  field  is 
+ optional.
+
+
+ opcode:  This field specifies the operation you wish to perform. 
+          It is the only field that isn't optional.  Depending  on 
+          the opcode the 68000 expects 0, 1 or 2 operands.
+ oper1:   The  first  operand  to  appear  with  the  opcode.  The 
+          appearance  of  this  field  depends  on  the  specified 
+          opcode.
+ oper2:   The  second  operand  to appear  with  the  opcode.  The 
+          appearance of this field depends (surprise, surprise) on 
+          the specified opcode.
+ comment: Another optional field which is used for commenting  all 
+          tricks  people put in their  programs.  Most  assemblers 
+          require a * as the first character of the comment field. 
+          The comment field is optional.
+
+ Now what does an addressing mode do? An addressing mode specifies 
+ on which data the opcode (instruction) must operate.
+ The  68000 has a total of 14 addressing modes,  all of which  now 
+ will  explained.  As examples in all addressing modes I will  use 
+ the MOVE instruction. MOVE can have the .b, .w and .l suffixes as 
+ mentioned in part I of the course. The MOVE instruction moves the 
+ data specified by oper1 to the place specified by oper2.   
+
+ Example:  MOVE.B $1,$2 performs exactly the same operation as the 
+ following 6502 and 6809 code: LDA $1    STA $2.
+
+ The addressing modes:
+
+ 1. Inherent addressing
+
+ In  this  addressing mode there are no operands  since  they  are 
+ already supplied by the opcode.
+ E.g.: RESET    * reset all peripherals
+ RESET is an 68000 instruction which is used to reset all the 
+ peripherals.
+
+ 2. DATA REGISTER DIRECT ADDRESSING
+
+ Assembler syntax: Dn (n can range from 0 to 7)
+ In this addressing mode a data register contains the operand.
+ E.g.:
+
+
+
+
+ Instruction          Before             After
+ MOVE.B D1,D0      d0=ffffffff         d0=ffffff67
+                   d1=01234567         d1=01234567
+ MOVE.W D1,D0      d0=ffffffff         d0=ffff4567
+                   d1=01234567         d1=01234567
+ MOVE.L D1,D0      d0=ffffffff         d0=01234567
+                   d1=01234567         d1=01234567
+ 
+ As  you might have noticed,  an instruction with .b as  a  suffix 
+ only  changes  the  lowest  8  bits  of  the   destination,   and 
+ instructions  with .w as a suffix only change the lowest 16  bits 
+ of the destination.  Instructions with .l as a suffix change  all 
+ 32 bits of the destination.
+
+ 3. ADDRESS REGISTER DIRECT ADDRESSING
+
+ Assembler syntax: An (n can range from 0 to 7)
+ In this addressing mode an address register contains the operand. 
+ Byte  operators  (those with .b suffix) are not allowed  in  this 
+ addressing mode. When using the address register as a destination 
+ and  it  is a word operation (suffix is .w),  the word  is  sign-
+ extended into a longword.  This means that during a  wordtransfer 
+ into a data register the upper 16 bits are filled with the  value 
+ of  the  most-significant bit (this is bit 15) of  the  word.  An 
+ example below will show you how it's done.
+ E.g.:
+
+ Instruction          Before             After
+ MOVE.W A1,D0       d0=ffffffff        d0=ffff4567
+                    a1=01234567        a1=01234567
+ MOVE.W D0,A1       d0=01234567        d0=01234567
+                    a1=ffffffff        a1=00004567  <- extend!!
+ MOVE.W D0,A1       d0=0000ffff        d0=0000ffff
+                    a1=00000000        a1=ffffffff  <- extend!!
+ MOVE.L A1,D0       d0=ffffffff        d0=01234567
+                    a1=01234567        a1=01234567
+
+ 4. ADDRESS REGISTER INDIRECT ADDRESSING
+
+ Assembler syntax: (An)   (n between 0 and 7)
+ In  this  addressing  mode,  the address  register  contains  the 
+ address of the operand.  In assembler this is being denotated  by 
+ putting parentheses around an address registers name,  e.g. (a0). 
+ The contents of a0 points to the address where the data has to be 
+ fetched from. When using word (.w) or longword (.l) addressing it 
+ is  absolutely  necessary that the address register  contains  an 
+ even number (I will explain the reason for this in a  forthcoming 
+ article).
+ E.g.:
+
+ Instruction          Before             After
+ MOVE.L (A1),D0    d0=ffffffff        d0=01234567
+                   a1=00001000        a1=00001000
+             address $1000 contains 01234567
+ MOVE.L D0,(A1)    d0=76543210        d0=76543210
+                   a1=00001000        a1=00001000
+             address $1000 now contains 76543210
+ 
+ 5. ADDRESS REGISTER INDIRECT ADDRESSING WITH POST-INCREMENT
+
+ Assembler syntax: (An)+     (n between 0 and 7)
+ This  addressing  mode resembles the  address  register  indirect 
+ addressing mode. The only difference is that after having fetched 
+ or  stored the data,  the address register  is  incremented.  The 
+ increment depends on the suffix used in the opcode. If the suffix 
+ is  .b then the address register will be incremented by  one.  If 
+ the suffix is .w then the address register will be incremented by 
+ two (one word is two bytes). If the suffix is .l then the address 
+ register  will  be  incremented by four  (one  longword  is  four 
+ bytes). In assembler this addressing mode is denotated by putting 
+ the address register within parentheses followed by a + sign. For 
+  example: (a7)+
+ E.g.:
+
+ Instruction          Before             After
+ MOVE.L (A1)+,D0   d0=ffffffff        d0=01234567
+                   a1=00001000        a1=00001004
+             address $1000 contains 01234567
+ MOVE.W (A1)+,D0   d0=ffffffff        d0=ffff0123
+                   a1=00001000        a1=00001002
+             address $1000 contains 01234567
+ MOVE.B (A1)+,D0   d0=ffffffff        d0=ffffff01
+                   a1=00001000        a1=00001001
+             address $1000 contains 01234567
+ MOVE.L D0,(A1)+   d0=76543210        d0=76543210
+                   a1=00001000        a1=00001004
+             address $1000 now contains 76543210
+
+ 6. ADDRESS REGISTER INDIRECT ADDRESSING WITH PRE-DECREMENT
+
+ Assembler syntax: -(An)     (n between 0 and 7)
+ This  addressing  mode resembles the  address  register  indirect 
+ addressing  mode.  The  only  difference  is  that  after  before 
+ fetching  or  storing the data,  the address register  is  decre-
+ mented.  The decrement depends on the suffix used in the  opcode. 
+ If the suffix is .b then the address register will be decremented 
+ by  one.  If the suffix is .w then the address register  will  be 
+ decremented by two (one word is two bytes).  If the suffix is  .l 
+ then  the  address  register will be  decremented  by  four  (one 
+ longword  is four bytes).  In assembler this addressing  mode  is 
+ denotated  by  putting the address  register  within  parentheses 
+ preceded by a - sign. For example: -(a7)
+ E.g.: 
+
+
+
+
+
+
+
+ Instruction          Before             After
+ MOVE.L -(A1),D0   d0=ffffffff        d0=01234567
+                   a1=00001004        a1=00001000
+             address $1000 contains 01234567
+ MOVE.W -(A1),D0   d0=ffffffff        d0=ffff4567
+                   a1=00001004        a1=00001002
+             address $1000 contains 01234567
+ MOVE.B -(A1),D0   d0=ffffffff        d0=ffffff67
+                   a1=00001004        a1=00001003
+             address $1000 contains 01234567
+ MOVE.L D0,-(A1)   d0=76543210        d0=76543210
+                   a1=00001004        a1=00001000
+             address $1000 now contains 76543210
+
+ 7. ADDRESS REGISTER INDIRECT ADDRESSING WITH DISPLACEMENT
+
+ Assembler syntax: w(An)    (w stands for word displacement)
+ This  addressing  is  also rather  similar  to  address  register 
+ indirect  addressing.  The only difference lies in the fact  that 
+ before  fetching or moving the data a 16-bit signed  displacement 
+ is  added  to the contents of the address register  (the  address 
+ register  itself does not change).  In assembler this  addressing 
+ mode  is  denotated  by enclosing the address  register  name  in 
+ parentheses  preceded by a 16-bit constant.  For  example:  8(a6) 
+ denotes  the memory location whose address is the contents of  a6 
+ plus 8.  This addressing method comes in very handy when  passing 
+ parameters to subroutines.
+ By the way, did you ever wonder why the ATARI ST has a resolution 
+ of  640  by  400  pixels?
+ Here's one reason:  640*400=256000 bits=32000 bytes.  Since 32000 
+ bytes  can  be  addressed using 16  bits,  the  address  register 
+ indirect with displacement is an easy way to address the screen.
+ E.g.: 
+
+ Instruction          Before             After
+ MOVE.L 8(A1),D0   d0=ffffffff        d0=01234567
+                   a1=00001000        a1=00001000
+             address $1008 contains 01234567
+ MOVE.L D0,-6(A1)  d0=76543210        d0=76543210
+                   a1=00001006        a1=00001006
+             address $1000 now contains 76543210
+
+
+
+ 8. ADDRESS REGISTER INDIRECT ADDRESSING WITH INDEX
+ 
+ Assembler syntax: b(An,Rn.w) or b(An,Rn.l)
+ (  b  stands for byte,  w and l for word and longword and  R  for 
+ register).
+ This  addressing mode makes it possible to add a  variable  index 
+ (contained in an address or data register) to an address register 
+ and  also an eight bit signed displacement.   The variable  index 
+ may be either word or longword.  Both the index and  displacement 
+ are sign extended before they are added to the address register.
+ E.g.:
+
+ Instruction            Before             After
+ MOVE.L 8(A1,A0.L),D0   d0=ffffffff        d0=01234567
+                        a1=00001000        a1=00001000
+                        a0=00078000        a0=00078000
+                    address $79008 contains 01234567
+ MOVE.L 8(A1,A0.W),D0   d0=ffffffff        d0=01234567
+                        a1=00001000        a1=00001000
+                        a0=00078000        a0=00078000
+ *** a0.w=8000 -> sign-extend gives ffff8000 ***
+                    address $ffff8008 contains 01234567
+ MOVE.W 8(A1,D0.L),D0   d0=0001fffe        d0=00010123
+                        a1=00001000        a1=00001000
+ *** 00001000 (contents of a1)
+     0001fffe (contents of d0.l)
+     00000008 (sign-extended byte displacement)
+     ---------
+     00021006
+                    address $21006 contains 01234567
+ MOVE.L 8(A1,D0.W),D0   d0=0001fffe        d0=01234567
+                        a1=00001000        a1=00001000
+ *** 00001000 (contents of a1)
+     fffffffe (sign-extended contents of d0.w)
+     00000008 (sign-extended byte displacement)
+     ---------
+     00001006
+                    address $1006 contains 01234567 
+
+ 9. ABSOLUTE SHORT ADDRESSING
+
+ Assembler syntax: x  (x is a 16 bit constant)
+ With  absolute short addressing it is only possible to specify  a 
+ 16  bit constant.  At execution time the 68000 sign  extends  the 
+ word into a long address,  meaning that only addresses 0 to  7fff 
+ and ffff8000 to ffffffff can be addressed using this  form.  This 
+ addressing mode can be compared with zero-page addressing on  the 
+ 6502 and direct-page addressing on the 6809.Like on the 6502  and 
+ 6809  this mode is faster than any other  mode.  This  addressing 
+ mode  can be compared with zero-page addressing on the  6502  and 
+ direct-page addressing on the 6809.
+ By the way, on the Atari ST, the lower 32 K of memory can only be 
+ accessed in supervisor-mode (the S-bit in SR is set, see part I).
+ E.g.:
+
+ Instruction            Before             After
+ MOVE.L $1234,D0      d0=ffffffff       d0=01234567
+                     address 1234 contains 01234567
+                    ( the $ sign is used to denote a hex digit)
+ MOVE.L $8000,D0      d0=ffffffff       d0=76543210
+                     address $ffff8000 contains 76543210 
+
+
+
+
+
+ 10. ABSOLUTE LONG ADDRESSING
+
+ Assembler syntax: l   (l is 32 bit constant)
+ With this addressing mode a long address is supplied.  It is very 
+ similar to absolute short addressing.
+ E.g.:
+ Instruction              Before             After
+ MOVE.L $12345678,D0   d0=ffffffff         d0=01234567
+                       address $00345678 contains 01234567
+ Note  that since the address bus is only 24 bits wide  the  upper 
+ byte of the address is ignored by the 68000. 
+
+ 11. PROGRAM COUNTER WITH DISPLACEMENT
+
+ Assembler syntax: x(PC)    (x is a 16 bit constant)
+ This  addressing  mode is in fact the same  as  address  register 
+ indirect  with  displacement.  The only difference  is  that  the 
+ address register is replaced with the PC (the PC is in fact  also 
+ an address register).
+ E.g.:
+
+
+ Instruction          Before             After
+ MOVE.L 8(PC),D0   d0=ffffffff        d0=01234567
+                   pc=00001000        pc=00001000
+             address $1008 contains 01234567
+
+ 12. PROGRAM COUNTER WITH INDEX
+ 
+ Assembler syntax: b(PC,Rn.L) or b(PC,Rn.w)   (b is 8 bits)
+ This  mode  is  in  fact  the  same  address  register   indirect 
+ addressing with index.
+ E.g.:
+
+ Instruction            Before             After
+ MOVE.L 8(PC,A0.L),D0   d0=ffffffff        d0=01234567
+                        pc=00001000        pc=00001000
+                        a0=00078000        a0=00078000
+                    address $79008 contains 01234567
+ MOVE.L 8(PC,A0.W),D0   d0=ffffffff        d0=01234567
+                        pc=00001000        pc=00001000
+                        a0=00078000        a0=00078000
+ *** a0.w=8000 -> sign-extend gives ffff8000 ***
+                    address $ffff8008 contains 01234567
+ MOVE.W 8(PC,D0.L),D0   d0=0001fffe        d0=00010123
+                        pc=00001000        pc=00001000
+ *** 00001000 (contents of pc)
+     0001fffe (contents of d0.l)
+     00000008 (sign-extended byte displacement)
+     ---------
+     00021006
+                    address $21006 contains 01234567
+ MOVE.L 8(PC,D0.W),D0   d0=0001fffe        d0=01234567
+                        pc=00001000        pc=00001000
+ *** 00001000 (contents of pc)
+     fffffffe (sign-extended contents of d0.w)
+     00000008 (sign-extended byte displacement)
+     ---------
+     00001006
+                    address $1006 contains 01234567
+
+ 13. IMMEDIATE ADDRESSING
+
+ Assembler syntax: #x   (x is byte, word or longword)
+ The  data for the operation is the value x.  Programmers  of  the 
+ 6502  and 6809 will recognize this addressing mode.  For  example 
+ (6502 and 6809) LDA #$21.
+ E.g.:
+
+ Instruction               Before             After
+ MOVE.L #$A03B4C11,D0    d0=00000000       d0=a03b4c11 
+
+ 14. STATUS REGISTER ADDRESSING
+
+ Assembler syntax: SR or CCR
+ This mode is used to control the contents of this  register.  See 
+ part  I  of this course for the individual meanings of  the  bits 
+ contained  in this register.  Changes to the SR can only be  made 
+ when in user-mode. Changes to the CCR can be made in any mode.
+ E.g.:
+
+ Instruction            Before             After
+ MOVE.W SR,D0        d0=87654321        d0=87652700
+                     sr=2700            sr=2700
+ MOVE.W #$0500,SR    sr=2700            sr=0500
+ Notice that the 68000 was in supervisor mode before executing the 
+ instruction  but  after  completion it is  in  user  mode!!  This 
+ operation isn't possible the other way around.
+ To  conclude  this  part,  I  will give  you  a  summary  of  the 
+ addressing modes of the 68000.
+
+ SYNTAX          NAME
+ -----------------------------------
+ Dn          | Data register direct
+ An          | Address register direct
+ (An)        | Address register indirect
+ (An)+       | Address register indirect with post-increment
+ -(An)       | Address register indirect with pre-decrement
+ w(An)       | Address register with displacement
+ b(An,Rn)    | Address register with index
+ w           | Absolute short
+ l           | Absolute long
+ w(PC)       | PC with displacement
+ b(PC,Rn)    | PC with index
+ #x          | Immediate
+ SR or CCR   | Status register
+
+
+
+
+ b is a byte constant
+ w is a word constant
+ l is a long constant
+ x any of b, l or w
+ n is a register number ranging from 0 to 7
+ R is a register specifier, either A or D
+
+ If you have any comments on these courses, please let me know!
+
+
+
+68000 MACHINE LANGUAGE COURSE PART III by Mark van den Boer
+
+In  part  I & II the basics of programming the  68000  have  been 
+introduced.  In the following parts of this course I will discuss 
+the  instructions of the 68000.  To understand this part and  the 
+coming  ones  I suggest you keep a printed copy of part  II  (the 
+addressing modes) in close range, so you can look things up.
+Before discussing the individual instructions of the 68000 I will 
+divide its instructions into eight classes.
+These classes are:
+- Data movement operations. 
+- Integer  arithmetic  operations  (on  two's  complement  binary 
+numbers.
+- Logical operations.
+- Shift and rotate operations.
+- Bit manipulation operations.
+- Binary Coded Decimal (BCD) operations.
+- Program control instructions.
+- System control operations.
+
+
+
+In  this  part  and  the following  parts  all  classes  will  be 
+discussed.  This approach is somewhat different of the one chosen 
+by  other authors (the alphabetic order).  For an explanation  of 
+the source and destination addressing modes I refer to the  table 
+at the end of part II.
+To  specify  the  operands  of  the  instructions  the  following 
+conventions are used:
+
+Rn   stands for either a data- or addressregister
+An   stands for an address register
+Dn   stands for a data register
+<ea> stands  for an effective address operand.  This  means  that 
+     after the operand after evaluation must yield an address.
+#    stands for immediate data
+
+All other symbols which appear in either field of the 
+instruction's assembler syntax will be explained.
+One  suggestion  before  the  explanation  starts:   Since  68000 
+instructions  may operate on bytes,  words and longwords,  it  is 
+wise  to always specify which size you want to  manipulate.  This 
+way will considerably reduce the amount of very hard to find bugs 
+in your program.  Since assemblers take defaults when no size  is 
+specified you can get very odd results.  E.g.  BSET  (instruction 
+will  be explained later) operates only on bytes  and  longwords. 
+The assembler makes the default for you. Suppose you want a word-
+operation  to  be  performed  and you  don't  specify  the  size, 
+thinking  that the default is nearly always word.  Well  in  this 
+case the default isn't word, so the assembler thinks your code is 
+alright, but it doesn't do what you want.
+
+Data movement operations
+
+Instruction:   EXG
+Syntax:        EXG Rn,Rn
+Data sizes:    Long
+Condition codes affected: None
+Addressing modes:
+source:   Dn
+          An
+destination:
+          Dn
+          An
+Function:      Exchange the contents of two registers
+
+Example:
+Instruction              Before         After
+EXG a0,d0                d0=11111111    d0=22222222
+                         a0=22222222    a0=11111111
+
+Instruction:   LEA
+Syntax:        LEA <ea>,An
+Data sizes:    Long
+Condition code affected: None
+Addressing modes:
+Source:
+     (An)
+     w(An)
+     b(An,Rn)
+     w
+     l
+     w(PC)
+     b(PC,Rn)
+Destination:
+     An
+Function:      Load an address register with a value.  LEA stands 
+               for Load Effective Address.
+Example:
+Instruction              Before         After
+LEA (a1),a0              a0=00000000    a0=12345678
+                         a1=12345678    a1=12345678
+LEA 9(a0),a0             a0=00111111    a0=00111119
+LEA 5(a0,d0.w)           a0=10000100    a0=10001111
+                         d0=0000100b    d0=0000100b
+LEA $12345678,a0         a0=00000000    a0=12345678
+
+Instruction:   LINK
+Syntax:        LINK An,#
+Data sizes:    None
+Condition codes affected: None
+Addressing modes:
+source:   An
+destination:
+          #w
+
+
+
+
+
+Function:      Create  temporary  space  on  stack.   The  source 
+               (address register) is pushed onto the  stack,  the 
+               stack-pointer  (a7) is copied into the source  and 
+               the destination is added to the stack-pointer. The 
+               destination-operand  is usually  negative  because 
+               the  68000-stack grows downward  in  memory.  This 
+               instruction  is  used  very  much  by   high-level 
+               languages such as C and PASCAL.  This  instruction 
+               has  the  advantage  that  local  variables  in  a 
+               subroutine  can  be accessed through  the  source-
+               address register. 
+               E.g.:  Every C-compiler on the Atari St uses  this 
+               instruction at the beginning of every subroutine.
+Example:
+Instruction              Before         After
+LINK a6,#-4              a6=12345678    a6=44444444
+                         a7=44444448    a7=44444440
+Let's analyse: First  a6 is pushed onto the  stack:  a7=44444444. 
+               Then the stack-pointer is copied into a6. Then the 
+               destination-operand is added to a7.
+
+
+Instruction:   UNLK
+Syntax:        UNLK source
+Data sizes:    None
+Condition codes affected: None
+Addressing modes:
+source:   An
+Function:      The opposite of LINK. Also used by all C-compilers 
+               at the end of functions.
+Example:
+For values see LINK
+Instruction              Before         After
+UNLK a6                  a6=44444444    a6=12345678
+                         a7=????????    a7=44444448
+               First a6 is copied into a7:  a7=44444444.  Then a6 
+               is pulled from the stack,  which yields the  final 
+               values of a6 and a7
+
+Instruction:   MOVE
+Syntax:        MOVE <ea>,<ea>
+Data sizes:    Byte, Word, Long
+Condition codes affected: N,Z (conditionally set/cleared),
+                          V,C (always cleared)
+Addressing modes:
+source:   Dn
+          An
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+          #x
+destination:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function:      Move   the   contents  of  the   source   to   the 
+               destination.   This   instruction  is   the   most 
+               frequently  used  68000-instruction  and  is  very 
+               powerful.  Note  that the  PC-relative  addressing 
+               modes are not allowed as destination-operand. This 
+               seems illogical, but there's a good reason for it. 
+               In the view of the designers at Motorola it is bad 
+               practice to have self-modifying code in a program.
+Example:
+See part II of this course for examples on the MOVE-instruction.
+
+Instruction:   MOVE to CCR
+Syntax:        MOVE <ea>,CCR
+Data sizes:    Byte
+Condition  codes  affected:   All  as  a  direct  result  of  the 
+instruction.
+
+
+
+
+
+
+Addressing modes:
+source:   Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+          #x
+Function: Set some condition codes. With this instruction you can 
+          clear/set the N,Z,V,C and X flag.
+Example: See part II
+
+Instruction:   MOVE to SR
+Syntax:        MOVE <ea>,SR
+Data sizes:    Word
+Condition  codes  affected:   All  as  a  direct  result  of  the 
+instruction. This instruction is priviliged .
+
+Addressing modes:
+source:   Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+          #x
+Function: Set condition codes.
+Example: See part II
+
+Instruction:   MOVE from SR
+Syntax:        MOVE SR,<ea>
+Data sizes:    Word
+Condition codes affected: None.
+Addressing modes:
+source:   SR
+
+destination:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: Request   condition  codes.   This  function   is   not 
+          priviliged on the 68000 and 68008, but is priviliged on 
+          all other members of the 68000-family.
+Example: See part II
+
+Instruction:   MOVE to/from USP
+Syntax:        MOVE USP,An   or   MOVE An,USP
+Data sizes:    Long
+Condition codes affected: None.
+Addressing modes: see Syntax
+
+
+
+Function: This instruction is priviliged.  The instruction exists 
+          because the 68000 has in fact two stack-pointers.  They 
+          are both contained in a7.  This is possible because the 
+          68000 has two modes of operation: user- and supervisor-
+          mode.  When in usermode it is impossible to access  the 
+          supervisor  stackpointer.  It  is rather  logical  that 
+          there are in fact two stackpointers.  If there had been 
+          only  one  it would have been possible to mess  up  the 
+          stack  in  such  a way that  the  system  would  crash. 
+          However, the supervisor must have the ability to access 
+          the user-stackpointer (for parameter-passing etc.).
+Example:
+Instruction              Before         After
+MOVE USP,a6              USP=12345678   USP=12345678
+                         a6=33333333    a6=12345678
+
+Instruction:   MOVEA
+Syntax:        MOVEA <ea>,An
+Data sizes:    Word, Long
+Condition codes affected: None
+
+
+Addressing modes:
+source:   Dn
+          An
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+          #x
+destination:
+          An
+
+
+
+
+
+
+
+Function: Load an address register with a value. If the operation 
+          is word-sized then the address is  sign-extended.  Most 
+          assemblers will accept MOVE <ea>,An as well. However, I 
+          think it is better to write MOVEA instead of just MOVE. 
+          When  you  intend  to  move a  value  into  an  address 
+          register but you forget to specify an address  register 
+          and  specify  something else,  the assembler  will  not 
+          generate an error. E.g. you want to move $12345678 into 
+          a0.  MOVE.L #$12345678,d0   will not generate an error, 
+          while MOVEA.L #$12345678,d0 will generate an error.
+Example: See part II
+
+Instruction:   MOVEM
+Syntax:        MOVEM register list,<ea>      or
+               MOVEM <ea>,register list
+               register list is a set of registers.  Suppose  you 
+               want  to  specify  all  data-register.  You  could 
+               write:  d0-d7  or d0/d1/d2/d3/d4/d5/d6/d7  or  d0-
+               d3/d4/d5-d7. A number of registers in a row can be 
+               denotated with a minus ('-') between them.  Single 
+               registers  can  be specified with  a  slash  ('/') 
+               between them.
+Data sizes:    Word or Long
+Condition codes affected: None
+Addressing modes:
+destination:
+          (An)
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+source:   (An)
+          (An)+
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+
+
+
+
+Example:
+Instruction:             Before         After
+MOVEM.W $1000,d0/d3      $1000=$1234    d0=$1234
+                         $1002=$5678    d1=$5678
+MOVEM.L d0-d7/a0-a6,-(a7) will push all registers onto the stack.
+MOVEM.L (a7)+,d0-d7/a0-a6 will pull all registers from the stack.
+
+Instruction:   MOVEP
+Syntax:        MOVEP Dn,w(An)   or   MOVEP w(An),Dn
+Data sizes:    Word, Long
+Condition codes affected: None
+Function: Transfer data from or to a peripheral. This instruction 
+          has been specially designed for communication with  all 
+          devices  which have been originally designed for  8-bit 
+          micro-processors.  This  way the 68000 can  communicate 
+          with these devices.  E.g.  in the Atari are two  ACIA's 
+          present.  ACIA's  are designed for 8-bit  computers.  I 
+          won't  explain the operation of this  instruction  here 
+          for it is rather seldom used,  especially by beginners. 
+          If  you  want  to know all  about  this  instruction  I 
+          suggest you contact the writer of this article.
+
+Instruction:   MOVEQ
+Syntax:        MOVEQ #,Dn
+Data sizes:    Long
+Condition codes affected: See move.
+Function: This  instruction  provides an efficient way  (both  in 
+          space  and  time) to set a data register to  a  value). 
+          Values range from -128 to +127 decimal. Most assemblers 
+          will generate MOVEQ-instructions where possible.
+Example:
+Instruction              Before         After
+MOVEQ #$34,d0            d0=ffffffff    d0=00000034
+
+Instruction:   PEA
+Syntax:        PEA <ea>
+Data sizes:    Long
+Condition codes affected: None
+
+
+
+
+
+
+Addressing modes:
+source:   (An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+Function: Push  an address onto the stack.  This  instruction  is 
+          often used to write position independent code.  It  has 
+          nearly the same function as MOVE.L <ea>,-(a7).
+Example:
+Instruction              Before         After
+PEA (a6)                 a6=12345678    a6=12345678
+                         a7=44444444    a7=44444448
+
+Instruction:   SWAP
+Syntax:        SWAP Dn
+Data sizes:    None
+Condition codes affected: V, C: always cleared
+                          Z set if the result is 0
+                          N set if bit 31 of the result is 1
+Function: exchange upper and lower half of a data register.  This 
+          instruction  is  often  used in  conjunction  with  the 
+          divide operation (will be explained further)
+Example:
+Instruction              Before         After
+SWAP d0                  d0=12345678    d0=56781234
+
+Next  time I will discuss the integer arithmetic  operations.  By 
+the  way:  I'm beginning to believe that this course is the  best 
+there is,  since I don't get any comments!!! If you read this and 
+react you can earn yourself a surprise.
+
+
+
+MC 68000 MACHINE LANGUAGE COURSE PART IV by Mark van den Boer
+
+What a pity!!  You missed the mega-surprise of part 3.  Next time 
+better luck! I am gonna take that holiday to Hawaii myself!
+
+This time I will discuss the Integer Arithmetic Instructions. The 
+syntax used is of course the same as in part 3,  so when in doubt 
+refer  to  part  3.  This class of instructions  is  used  to  do 
+mathematical  calculations.  This  group is very  often  used  by 
+assembly  language programmers,  especially the instructions  for 
+adding and subtracting.
+
+
+Integer Arithmetic Instructions
+
+
+Instruction:   ADD
+Syntax:        ADD Dn,<ea>
+               ADD <ea>,Dn
+Data sizes:    byte, word, long
+
+
+Condition codes affected:
+               X, C set by carry out of the most significant bit
+               N    set if the result was negative, cleared otherwise
+               Z    set if the result was zero, cleared otherwise
+               V    set if the result overflowed, cleared otherwise
+Addressing modes:
+Source: (destination is Dn)
+          Dn
+          An
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+
+
+
+
+Destination:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: Add  source  to  destination  and  put  the  result  in 
+          destination.
+Examples:
+Instruction              Before         After
+ADD.W d0,d1              d0=00000011    d0=00000011
+                         d1=0000FFFA    d1=0000000B
+                         XNZVC=00000    XNZVC=11001
+ADD.L (a0),d0            d0=00000022    d0=00000027
+                         a0=12345678    a0=12345678
+                    12345678 contains 5
+                         XNZVC=00000    XNZVC=00000
+
+
+Instruction:   ADDA
+Syntax:        ADDA <ea>,An
+Data sizes:    word, long
+Condition codes affected: None
+Addressing modes:
+Source:
+          Dn
+          An
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+          #
+Destination:
+          An
+
+
+Function: Add a value to an address register. This operation does 
+          not change any of the condition code values.  Note that 
+          most  operations  that have an address  register  as  a 
+          destination does not change the condition codes.
+Example:
+Instruction              Before         After
+ADDA.L a0,a0             a0=00000002    a0=00000004
+Notice  that this instruction has the same effect as  multiplying 
+the address register with two (if this was possible).
+
+
+Instruction:   ADDI
+Syntax:        ADDI #,<ea>
+This instruction has exactly the same characteristics as the  ADD 
+instruction, except that the source can only be a constant.
+
+Instruction:   ADDQ
+Syntax:        ADDQ #,<ea>
+Same story as for ADDI,  except that the immediate values in  the 
+source  field  can only range from 1 to 8.  Q stands  for  Quick, 
+since this instruction is the fastest way to add a number from  1 
+to 8 to a destination operand.
+A note on ADD, ADDI, ADDQ:
+Most assemblers accept the following instruction: ADD #1,Dn
+and will translate it automatically to ADDQ #1,Dn    thus  saving 
+a few bytes of object code and some clock cycles execution time.
+
+
+Instruction:   ADDX
+Syntax:        ADDX Dn,Dn
+               ADDX -(An),-(An)
+Data sizes:    byte, word, long
+Condition codes affected: see ADD
+Function: Add  X-bit  and  source to destination  and  store  the 
+          result  in destination.  This instruction is  used  for 
+          multiple  precision  operations and is  therefore  only 
+          available with the two addressing modes mentioned.
+Example:
+Instruction              Before         After
+ADDX.B -(a0),-(a1)       a0=10001001    a0=10001000
+                         a1=10002001    a1=10002000
+                 10001000 contains AA   the same
+                 10002000 contains 5A   10002000 contains 4
+                         X=0            X=1
+ADDX.B -(a0),-(a1)        a0=10001000    a0=10000fff
+                         a1=10002000    a1-10001fff
+                 10000fff contains 0    the same
+                 10001fff contains 0    10001fff contains 1
+                         X=1            X=0
+In this example the word that begins at 10000fff is added to  the 
+word that begins at 10001fff.  If one should try to do this  with 
+two  ADD.W instruction an address error would occur  since  words 
+always must be aligned to even addresses. This instruction can be 
+compared to the ADC instruction of the 6502 and 6809.
+
+
+Instruction:   CLR
+Syntax:        CLR <ea>
+Data sizes:    byte, word, long
+Condition codes affected:
+               N    always cleared
+               Z    always set
+               V    always cleared
+               C    always cleared
+
+
+Addressing modes:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: Set an effective address to zero. You will have noticed 
+          that you can't CLR an address register.  However,  most 
+          assemblers  allow  the  programmer to  CLR  an  address 
+          register  by  substituting CLR a0 with SUB.L  a0,a0   . 
+          This instruction has exactly the same result.
+Example:
+Instruction              Before         After
+CLR.W d0                 d0=ffffffff    d0=00000000
+                         NZVC=1011      NZVC=0100
+
+
+
+
+Instruction:   CMP
+Syntax:        CMP <ea>,Dn
+Data sizes:    byte, word, long
+Condition codes affected: NZVC (X is not affected)
+Addressing modes (source):
+          Dn
+          An
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+Function: compare an effective address with a data  register.  In 
+          fact  all  condition codes are set as  if  Dn-<ea>  was 
+          performed.  So CMP is kind of a subtraction which  only 
+          affects the conditon codes.
+
+
+Example:
+Instruction              Before         After
+CMP.L d0,d1              d0=00000001    d0=00000001
+                         d1=00000002    d1=00000002
+                         NZVC=1111      NZVC=0000
+
+
+Instruction:   CMPA
+Syntax:        CMPA <ea>,An
+Data sizes:    word, long
+Function: This  instruction  differs only from CMP  in  that  the 
+          second  operand  is an address register and  that  byte 
+          isn't allowed as a data size.
+
+
+Instruction:   CMPI
+Syntax:        CMPI #,Dn
+Function: Yes,  it is nearly exactly the same as compare but  now 
+          the first operand must be a constant.
+
+
+
+Instruction:   CMPM
+Syntax:        CMPM (An)+,(An)+
+Function: Again, nearly exactly the same as CMP, but now both the 
+          source  and  destination operand must  be  (An)+.  This 
+          instruction  is used to compare areas  of  memory.  For 
+          those of you who have a working knowledge of C:  strcmp 
+          can be programmed easy with this instruction.
+
+Note on all CMPx instructions.
+Most assemblers accept instructions like:
+CMP.W (a0)+,(a1)+
+CMP.L #3,d0
+Substitution of CMPM,  CMPI and CMPA are automatically  performed 
+by the assembler.
+
+
+Instruction:   DIVS
+Syntax:        DIVS <ea>,Dn
+Data sizes:    word
+
+
+
+Condition codes affected:
+               N    behaves normal; undefined on overflow
+               Z    behaves normal; undefined on overflow
+               V    behaves normal
+               C    always cleared
+Addressing modes (source):
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+          #
+
+
+
+
+
+Function: Guess  what?   This  instruction  performs  a  division 
+          between two signed numbers. The 
+          destination  register  is  always a  longword  and  the 
+          source operand is always a word. After the division the 
+          destination operand contains the result.  The  quotient 
+          is always in the lower word and the remainder is always 
+          in the high order word of the data register! This way a 
+          modulo operation is also performed,  you just SWAP  the 
+          data  register  and you have your result in  the  lower 
+          word  of the data register.  Overflow occurs  when  you 
+          attempt to divide a large number by a small number e.g. 
+          ffffff divided by 1,  the result doesn't fit in a word. 
+          Another error occurs when attempting to divide by zero. 
+          In this case the 68000 generates an exception and  will 
+          trap  to  a special routine which handles  division  by 
+          zero erros.  On the Atari you must set up this  routine 
+          yourself.  E.g.  FLOYD  (a  machine  language  monitor) 
+          responds  to  a  division by zero  with  the  following 
+          sentence "The answer is 42". Remember, don't panic when 
+          you see such an answer.
+
+
+Example:
+Instruction              Before         After
+DIVS #3,d0               d0=0000000B    d0=00020003
+                         NZVC=1111      NZVC=0000
+
+
+Instruction: DIVU
+Function: Nearly  exactly the same as DIVS,  only this time  both 
+          operands are assumed to be unsigned.
+
+
+Instruction:   EXT
+Syntax:        EXT Dn
+Data sizes:    word, long
+Condition codes affected:
+               N    behaves normal
+               Z    behaves normal
+               V    always cleared
+               C    always cleared
+
+
+
+Function: turn  a byte into a word,  or turn a word into a  long. 
+          This  instruction provides a convenient way to  turn  a 
+          word into a long and still have the same value for that 
+          register. If the high order bit of the data register is 
+          0,  so the data register is positive, zeroes are padded 
+          in, otherwise ones are padded in.
+Example:
+Instruction              Before         After
+EXT.W d0                 d0=000000ff    d0=0000ffff
+EXT.L d0                 d0=ffff0000    d0=00000000
+
+
+Instruction:   MULS
+Syntax:        MULS <ea>,Dn
+Data sizes:    word
+Condition codes affected:
+               N    behaves normal
+               Z    behaves normal
+               V    always cleared
+               C    always cleared
+
+
+Addressing modes (source):
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+          #
+Function: Ah!  another very handy instruction.  This  instruction 
+          performs a multiplication of the source and destination 
+          operand, putting the result in the destination operand.
+Example:
+Instruction              Before         After
+MULS #3,d0               d0=0000000B    d0=00000021
+                         NZVC=1111      NZVC=0000
+
+
+
+Instruction: MULU
+Function: Nearly  exactly the same as MULUS,  only this time  both 
+          operands are assumed to be unsigned.
+
+
+Instruction:   NEG
+Syntax:        NEG <ea>
+Data sizes:    byte, word, long
+Condition codes affected: XNZVC (all behave normal)
+Addressing modes:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: negate  an effective address operand.  In a high  level 
+          language it would look like this: a = -a
+
+
+Example:
+Instruction              Before         After
+NEG.L d0                 d0=00000001    d0=ffffffff
+
+
+Instruction:   NEGX
+Syntax:        NEGX <ea>
+Data sizes:    byte, word, long
+Condition codes affected: XNZVC (all behave normal)
+Addressing modes:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: negate  an effective address operand and add the  X-bit 
+          to  the  result.  This  is  another  instruction  which 
+          provides a way to handle multi-precision  (e.g.  8-byte 
+          integers).
+Example:
+Instruction              Before         After
+NEGX.L d0                d0=00000001    d0=00000000
+                         X=1            X=1
+
+
+Instructions: SUB, SUBA, SUBI, SUBQ, SUBX
+All these instruction perform subtractions.  They only differ  in 
+that   way   from   from  the   ADD   instructions,   all   other 
+characteristics are the same.
+
+
+Instruction:   TAS
+Syntax:        TAS <ea>
+Data sizes:    byte
+Condition codes affected:
+               N    evaluated before setting the byte
+               Z    evaluated before setting the byte
+               V    always cleared
+               C    always cleared
+
+
+Addressing modes:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: First  test  the operand and set the  condition  codes, 
+          then set the high-order bit to 1.  People who know what 
+          semaphores (in programming of course...) are,  immedia-
+          tely  will love this instruction.  For those who  don't 
+          know what semaphores are: M. Ben Ari has written a good 
+          book  on the subject called "Principles  of  Concurrent 
+          Programming".  Never,  I repeat never,  read a book  on 
+          this subject written by a certain Ir.  E.H.H.  Dijkstra 
+          (not the famous Dijkstra,  this Dijkstra will never  be 
+          famous).
+
+
+
+Example:
+Instruction              Before         After
+TAS $436                 $436=00        $436=80
+                         NZVC=1111      NZVC=0100
+TAS $436                 $436=FF        $436=FF
+                         NZVC=1111      NZVC=1000
+
+
+Instruction:   TST
+Syntax:        TST <ea>
+Data sizes:    byte, word, long
+Condition codes affected:
+               N    behaves normal
+               Z    behaves normal
+               V    always cleared
+               C    always cleared
+
+
+
+
+
+
+Addressing modes:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: test an effective address operand. This instruction can 
+          be  seen as CMP <ea>,d0 where d0 is 0.  TST  is  nearly 
+          always followed by a branch instruction (more on  these 
+          later)
+
+
+
+MACHINE LANGUAGE COURSE PART V by Mark van den Boer
+
+Logical Operations
+
+Instruction:   AND
+Syntax:        AND <ea>,Dn
+               AND Dn,<ea>
+Data sizes:    byte, word, long
+Condition codes affected:
+               X    not affected
+               N    set to the most significant bit of the result
+               Z    set if the result is zero, cleared otherwise
+               V,C  always cleared
+
+
+
+
+
+
+
+
+
+Addressing modes:
+Source: (destination is Dn)
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+Destination: (source is Dn)
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: Perform   a   boolean  bitwise  AND   from   source   to 
+          destination.
+Examples:
+Instruction              Before         After
+AND.B d0,d1              d0=33333333    d0=33333333
+                         d1=ffffffff    d1=ffffffcc
+AND.W d0,d1              d0=33333333    d0=33333333
+                         d1=ffffffff    d1=ffffcccc
+AND.L d0,d1              d0=33333333    d0=33333333
+                         d1=ffffffff    d1=cccccccc
+
+
+Instruction:   ANDI
+Syntax:        ANDI #,<ea>
+Data sizes:    byte, word, long
+Condition codes affected:
+               X    not affected
+               N    set to the most significant bit of the result
+               Z    set if the result is zero, cleared otherwise
+               V,C  always cleared
+
+
+
+
+Addressing modes:
+Destination:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          CCR, SR
+Function: Perform   a   boolean  bitwise  AND   from   source   to 
+          destination.
+Examples:
+Instruction              Before         After
+ANDI.B #7,d0             d0=33333333    d0=33333330
+ANDI.W #$ff00,SR         SR=ffff        SR=ff00
+
+
+
+
+
+Instruction:   EOR
+Syntax:        EOR Dn,<ea>
+Data sizes:    byte, word, long
+Condition codes affected:
+               X    not affected
+               N    set to the most significant bit of the result
+               Z    set if the result is zero, cleared otherwise
+               V,C  always cleared
+Addressing modes:
+Destination:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+
+
+
+
+Function: Perform  a bitwise exclusive or from source to  destina-
+          tion.  You  will notice that this instruction  can  only 
+          take a data register as the source,  unlike the AND  and 
+          OR  instructions.  I  think the designers of  the  68000 
+          should have mode addressing modes more orthogonal.
+Examples:
+Instruction              Before         After
+EOR.L d0,d1              d0=ffffffff    d0=ffffffff
+                         d1=f0f0f0f0    d1=0f0f0f0f
+
+
+Instruction:   EORI
+Syntax:        EORI #,<ea>
+Data sizes:    byte, word, long
+Condition codes affected:
+               X    not affected
+               N    set to the most significant bit of the result
+               Z    set if the result is zero, cleared otherwise
+               V,C  always cleared
+
+
+
+Addressing modes:
+Destination:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          CCR, SR
+Function: Perform   a   bitwise  exclusive  or  from   source   to 
+          destination.
+Examples:
+Instruction              Before         After
+EORI.B #$ff,d0           d0=33333330    d0=333333cf
+EORI.W #$00ff,SR         SR=ff32        SR=ffcd
+
+
+
+
+
+Instruction:   NOT
+Syntax:        NOT <ea>
+Data sizes:    byte, word, long
+Condition codes affected:
+               X    not affected
+               N    set to the most significant bit of the result
+               Z    set if the result is zero, cleared otherwise
+               V,C  always cleared
+Addressing modes:
+Destination:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: Perform a bitwise not to the effective address  operand. 
+          Note that NOT.W d0 is the same as EORI.W #$ffff,d0.
+
+
+Examples:
+Instruction              Before         After
+NOT.B #$ff,d0            d0=ffffff78    d0=ffffff87
+
+
+Instruction:   OR
+Syntax:        OR <ea>,Dn
+               OR Dn,<ea>
+Data sizes:    byte, word, long
+Condition codes affected:
+               X    not affected
+               N    set to the most significant bit of the result
+               Z    set if the result is zero, cleared otherwise
+               V,C  always cleared
+
+
+
+
+
+
+
+
+Addressing modes:
+Source: (destination is Dn)
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          w(PC)
+          b(PC,Rn)
+Destination: (source is Dn)
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+Function: Perform a boolean bitwise OR from source to destination.
+
+Examples:
+Instruction              Before         After
+OR.B d0,d1               d0=ffffffff    d0=ffffffff
+                         d1=33333333    d1=333333ff
+OR.W d0,d1               d0=ffffffff    d0=ffffffff
+                         d1=33333333    d1=3333ffff
+OR.L d0,d1               d0=ffffffff    d0=ffffffff
+                         d1=33333333    d1=ffffffff
+
+
+Instruction:   ORI
+Syntax:        ORI #,<ea>
+Data sizes:    byte, word, long
+Condition codes affected:
+               X    not affected
+               N    set to the most significant bit of the result
+               Z    set if the result is zero, cleared otherwise
+               V,C  always cleared
+
+
+
+
+Addressing modes:
+Destination:
+          Dn
+          (An)
+          (An)+
+          -(An)
+          w(An)
+          b(An,Rn)
+          w
+          l
+          CCR, SR
+Function: Perform  a boolean bitwise OR from source  to  destina-
+          tion.
+Examples:
+Instruction              Before         After
+ORI.B #7,d0               d0=33333330    d0=33333333
+ORI.W #$00ff,SR           SR=ff00        SR=ffff
+
+
+Now load parts 6-10.

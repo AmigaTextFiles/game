@@ -1,0 +1,26 @@
+/* console.h */
+
+/* Some console commands */
+#define RESETCON	"\033c"
+#define CURSOFF		"\2330 p"
+#define CURSON		"\233 p"
+#define DELCHAR		"\233P"
+#define DISABLE_SCROLL	"\233>1l"
+#define ENABLE_SCROLL	"\233>1h"
+#define AUTOWRAP_ON	"\233?7h"
+#define AUTOWRAP_OFF	"\233?7l"
+#define COLOR01		"\23331m"
+#define COLOR02		"\23332m"
+#define COLOR03		"\23333m"
+#define COLOR04		"\23334m"
+#define COLOR05		"\23335m"
+#define COLOR06		"\23336m"
+#define COLOR07		"\23337m"
+#define ITALICS		"\2333m"
+#define BOLD		"\2331m"
+#define UNDERLINE	"\2334m"
+#define NORMAL		"\2330m"
+#define EMPTY_LINE "                                     "
+#define ERASE_TO_EOL	"\233K"
+#define ERASE_TO_EOD	"\233J"
+#define CLS ConPutChar('\014');

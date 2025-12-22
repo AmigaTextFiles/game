@@ -1,0 +1,192 @@
+/*
+Copyright (C) 2004 Parallel Realities
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+*/
+
+#include "widgets.h"
+
+void drawOptions(Widget *widget, int maxWidth)
+{
+	int x = widget->x + maxWidth + 55;
+
+	int count = 0;
+
+	char *c = widget->options;
+
+	char token[100];
+	strcpy(token, "");
+	
+	SDL_Surface *text;
+
+	while (*c != '\0')
+	{
+		if (*c == '|')
+		{
+			if (widget->enabled)
+			{
+				graphics.setFontColor(0xff, 0xff, 0xff, 0x00, 0x00, 0x00);
+				if (count == *widget->value)
+					graphics.setFontColor(0x00, 0x00, 0x00, 0x00, 0xbb, 0x00);
+			}
+			else
+			{
+				graphics.setFontColor(0x77, 0x77, 0x77, 0x00, 0x00, 0x00);
+			}
+
+			text = graphics.getString(false, token);
+
+			if ((widget->enabled) && (count == *widget->value))
+				graphics.drawWidgetRect(x, widget->y, text->w, text->h);
+
+			graphics.blit(text, x, widget->y, graphics.screen, false);
+
+			x += 65;
+			count++;
+			strcpy(token, "");
+		}
+		else
+		{
+			sprintf(token, "%s%c", token, *c);
+		}
+
+		*c++;
+	}
+
+	if (widget->enabled)
+	{
+		graphics.setFontColor(0xff, 0xff, 0xff, 0x00, 0x00, 0x00);
+		if (count == *widget->value)
+			graphics.setFontColor(0x00, 0x00, 0x00, 0x00, 0xbb, 0x00);
+	}
+	else
+	{
+		graphics.setFontColor(0x77, 0x77, 0x77, 0x00, 0x00, 0x00);
+	}
+
+	text = graphics.getString(false, token);
+
+	if (count == *widget->value)
+		graphics.drawWidgetRect(x, widget->y, text->w, text->h);
+
+	graphics.blit(text, x, widget->y, graphics.screen, false);
+}
+
+void drawSlider(Widget *widget, int maxWidth)
+{
+	int x = widget->x + maxWidth + 50;
+
+	if (widget->enabled)
+		graphics.drawRect(x, widget->y, (int)SMOOTH_SLIDER_WIDTH, 18, graphics.white, graphics.screen);
+	else
+		graphics.drawRect(x, widget->y, (int)SMOOTH_SLIDER_WIDTH, 18, graphics.grey, graphics.screen);
+
+	graphics.drawRect(x + 1, widget->y + 1, (int)SMOOTH_SLIDER_WIDTH - 2, 16, graphics.black, graphics.screen);
+
+	float width = (SMOOTH_SLIDER_WIDTH - 4) / widget->max;
+
+	width *= *widget->value;
+
+	if (widget->enabled)
+		graphics.drawRect(x + 2, widget->y + 2, (int)width, 14, graphics.green, graphics.screen);
+	else
+		graphics.drawRect(x + 2, widget->y + 2, (int)width, 14, graphics.darkGreen, graphics.screen);
+
+}
+
+void generateWidgetImage(Widget *widget)
+{
+	if (widget == engine.highlightedWidget)
+	{
+		graphics.setFontColor(0x00, 0x00, 0x00, 0x00, 0xbb, 0x00);
+	}
+	else
+	{
+		if (widget->enabled)
+		{
+			graphics.setFontColor(0xff, 0xff, 0xff, 0x00, 0x00, 0x00);
+		}
+		else
+		{
+			graphics.setFontColor(0x77, 0x77, 0x77, 0x00, 0x00, 0x00);
+		}
+	}
+
+	widget->image = graphics.getString(false, widget->label);
+}
+
+void drawWidgets()
+{
+	graphics.setFontSize(1);
+
+	Widget *widget = (Widget*)engine.widgetList.getHead();
+
+	int maxWidth = 0;
+
+	while (widget->next != NULL)
+	{
+		widget = (Widget*)widget->next;
+
+		if (widget->image == NULL)
+			generateWidgetImage(widget);
+			
+		maxWidth = max(maxWidth, widget->image->w);
+	}
+
+	widget = (Widget*)engine.widgetList.getHead();
+
+	while (widget->next != NULL)
+	{
+		widget = (Widget*)widget->next;
+
+		if (!widget->visible)
+			continue;
+
+		if ((!widget->value) && (widget->type != 4))
+		{
+			debug(("WARNING: Widget variable for '%s' not set!\n", widget->name));
+			continue;
+		}
+
+		if (widget->x == -1)
+			widget->x = (SCREENWIDTH - widget->image->w) / 2;
+
+		if (widget == engine.highlightedWidget)
+		{
+			graphics.drawWidgetRect(widget->x, widget->y, widget->image->w, widget->image->h);
+		}
+		else
+		{
+			graphics.drawRect(widget->x - 3, widget->y - 2, widget->image->w + 6, widget->image->h + 4, graphics.black, graphics.screen);
+		}
+
+		graphics.blit(widget->image, widget->x, widget->y, graphics.screen, false);
+
+		switch (widget->type)
+		{
+			case 1:
+				drawOptions(widget, 125);
+				break;
+			case 2:
+			case 3:
+				drawSlider(widget, 125);
+				break;
+		}
+
+		widget->changed = false;
+	}
+}

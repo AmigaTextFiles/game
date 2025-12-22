@@ -1,0 +1,284 @@
+It was relatively easy to fill our big map with lots of randomly
+sized rooms that didn't overlap, and had sufficient space between
+their walls. Well, I *say* easy, but of course it took a night or 2
+of debugging to make it work!! But apart from the oversights I'd
+had, the general idea was hardly taxing.
+
+But then, how do we set out to place the tunnels that join them,
+ensuring that everywhere is actually accessible (without a pickaxe,
+that is!)
+
+For each room, we can have an associated linked list, either containing
+a list of other rooms it's connected to, or a list of tunnels it's connected
+to.
+With that, it should be possible to track whether or not all existing
+rooms are reachable.
+
+Now, setting out those tunnels...
+Some of the rooms will have 3 blocks thick of wall between them:
+1 thick per room as the perimeter (in which the doors would be),
+and then 1 block between. These can either:
+1)have one straight tunnel direct from one room to the other, or
+2)have a long tunnel in that area between, running parallel to the
+ room's perimeter walls. That long tunnel can then turn the corner
+ to shadow another perimeter wall of one (or the other) of the rooms,
+ and can be maybe connected to each room at various points, and can
+ even be connected to further tunnels to other rooms, etc.
+
+They'd look like:
+
+
+ 1):   ######################
+       ###############......#
+       ##..........###......#
+       ##..........+.+......#
+       ##..........###......#
+       ###############......#
+       ######################
+  and
+ 2):   ##################.###
+       #############........#
+       #############.#+####+#
+       #############.#......#
+       ##..........#.#......#
+       ##..........+.#......#
+       ##..........#.#......#
+       #############.#......#
+       #############.########
+
+ Pattern 2 is only really appropriate if there are other rooms sufficiently
+ nearby that such tunnels could connect to. Pattern 1 could be used if
+ there *are* other rooms nearby, or if there aren't. In either case, you
+ would then use further tunnels (prolly of pattern 1) to reach out to
+ other rooms.
+
+
+ It occurs to me that if I don't mind about the details of pattern 2,
+ and having tunnels that are satisfyingly done (eg, with the accessibility
+ being sufficiently mazelike, not having a single chain of rooms and
+ not having each room able to reach every other room directly), then
+ actually setting out tunnels shouldn't be all that difficult.
+
+ Here is the quick-and-dirty method for tunnel building:
+
+ 1)Pick a room R
+ 2)R has associated data describing the earliest-numbered room to which
+   it is connected, and the next-higher-than-R room that it's connected to.
+   Using that data we can figure out whether or not a room is already
+   accessible from R.
+ 3)We find a room T vaguely near to R that is not already accessible from it.
+ 4)If we can't find such a room, then we either go for a few more scans
+   back to 1 first, or we search through all the lists of connected
+   areas to find the shortest list (in some cases, these will be lists
+   1 unit long, ie-rooms with no connections), and from that list, scan
+   through the rooms in it (firstly picking one at random, then
+   systematically if that's fruitless) to try to produce a tunnel that
+   can reach to a room or tunnel that isn't accessible yet.
+   But if we *had* found that room T,
+ 5)We try to follow where we would place a tunnel (which would have 1
+   turn in it at most) from R to T. If we find it possible to place such
+   a tunnel (there are no other rooms or tunnels in the way), then we
+   do so, and then go back to 1.
+ 6)But if there *was* something in the way, then we try to see if that
+   tunnel or room is already accessible from R. If it wasn't, then
+   fair enough, we'll build a tunnel to there instead of T, and go back
+   to 1.
+ 7)But if the obstruction *had* been accessible from R already, then
+   instead, we look at T to see if *it* can reach any part of R's list.
+   If it can, then we build the tunnel that would do that. Otherwise,
+   we do like we did in 4: We search through all lists of connected
+   areas to find the shortest list, and again try to find from there
+   a room where we can produce a tunnel that can reach to a room or
+   tunnel that isn't accessible from it yet.
+
+ In this case, and in case 4, if no room in our list is able to reach
+   to part of some other list without bumping into one of its own
+   tunnels or rooms, then we try that again except this time simply
+   steamrolling through any of our own tunnels that may get in the way
+   (but we wouldn't ignore rooms tho). It *should* be possible in
+   *any* circumstances, to find *a* room in the list that can reach
+   another list using a tunnel with only one corner in it. However,
+   this part could take a long time.
+
+ AHA! AHAAHAHA! It occurred to me that in those situations where from
+ room X we bump into room Y (that is already accessible from X) whilst
+ trying to reach room Z, we then repeat the step but trying from room Y!!!
+ HAHAHAHAHA! So simple.
+
+In the end, we will have *every* room on one list, meaning that
+ everywhere is accessible.
+
+
+Where the doors can go:
+
+     #################
+     ##!**********!###
+     ##*..........*###
+     ##*..........*###
+     ##*..........*###
+     ##!**********!###
+     #################
+
+     As before, # is rock, . is floor of a room (or a tunnel),
+     but now, * is the perimeter walls in which we can place doors,
+     and ! is the corners, which are off-limits for doors and tunnels,
+     otherwise, we could get:
+
+     #################       #################
+     ..+***********###       ...+**********###
+     ##*..........*###       ##*...........*##
+     ##*..........*###   or  ##*...........*##
+     ##*..........*###       ##*...........*##
+     ##************###       ###***********###
+     #################       #################
+
+     ...neither of which would be acceptable at all.
+Basically, any
+ tunnel that hits those areas marked ! would want to try turning
+ earlier, but if it had turned already should it try backtracking
+ to turn somewhere else, or start from elsewhere?
+ Methinks that first we pick random start, turn, and end points,
+ and if they fail we then do a systematic search.
+
+Could it be calculated??
+
+Well, if room A is left of room B, then the door of room A should
+ either be on the right wall, or as far right as possible on
+ either the top or bottom wall, and the door of room B should
+ either be on the left wall, or as far left as possible on either
+ the top or bottom wall.
+Similarily, if room A is above room B, then the door of room A
+ should either be on the bottom wall, or as far down as possible
+ on either the left or right wall, and the door of room B should
+ either be on the top wall, or as far up as possible on either
+ the left or right wall.
+The tunnel is likely to need a corner in it. Now, if so, then
+ should the tunnel from A go down and then right, or right and
+ then down? Is there a universal advantage of one over the other
+ that can be determined based on the coordinates and/or dimensions
+ of the rooms? I have absolutely no idea.
+
+-Aha! Rooms A and B *might* have areas of wall facing each other
+ (on 1 wall each *at most*), in which case they would want to
+ have the tunnel in that area. In which case, they wouldn't
+ have any corner. Oh. Never mind.
+
+Merging lists:
+
+When one list of rooms gets joined to another, we combine their lists.
+ The room with the lowest number becomes the start of the list, and
+ all the rest of the rooms in the new list get a pointer to that first
+ room. However, does it *actually* matter if the rest of the list is
+ in any sort of order? Probably not. So I suppose what we do when
+ we merge lists A and B is:
+ -If head(list a) < head(list b), then the new list is
+  list a::list b.
+ -Else new list is list b::list a.
+ -Whichever list becomes the end, has all its rooms updated to point
+  to the head of the other list.
+
+Tunnel records:
+
+Hmm. Tunnel records should be represented as separate straight line
+ sections, defined with start coords and end coords. Where those
+ tunnel sections meet other sections or walls, the interface of
+ both sections gets included in each. EG:
+
+ #############
+ ##....@......
+ ######.######
+ ######.######
+ Here, our @ is at the interface of 2 sections, at XY coords 7,2.
+ One tunnel section runs from 3,2 to 13,2, and the other runs
+ from 7,2 to 7,4. So that interface point is part of *both* sections.
+
+Now, Each tunnel record should also be part of a list: They should
+ have a pointer to the start of their list, and to the next element
+ of their list, plus a pointer to the first room accessible from that
+ list of tunnels.
+ Hmm, but should lists of tunnel sections describe the set of rooms
+ accessible from that set of tunnels? Not sure if that would help.
+ Also, each room should have a list of the lists of tunnel sections
+ adjoining it.
+
+
+struct roomdata_t {
+   int Xcentre, Ycentre;
+   int Width, Height; /*These treat the peripheral walls as part of the room*/
+   Tunnellist_t Entrances; /*controversial! ;)*/
+   area_t *Area;
+   int Nextroom; /*Because there area a limited number of rooms.*/
+}
+
+struct tunnellist_t{
+   int Xstart, Ystart;
+   int Xend,Yend;
+   should we group tunnel sections into connected areas of tunnel (not
+   divided by rooms), or into accessible areas (already covered in
+   roomdata_t), or just lists of sections emanating from each room?
+   The fact a tunnel can't have more than one corner helps... but
+   what of tunnels that connect to other tunnels at the destination
+   end?
+   Hmm.
+   Perhaps lists should merely be defined in terms of what is accessible.
+   Or...
+   area_t *Area; /*Irrelevant if Entrance, but still correct*/
+   tunnellist_t *Nexttunnel; /*Meaning differs if Entrance.
+      If Entrance, Nexttunnel is pointer to next "tunnellet" of a room,
+      else Nexttunnel is pointer to next section of an area.*/
+   bool Entrance; /*If it's just a "tunnellet" connected to a doorway*/
+   int Roomnumber; /*Room it's associated with if Entrance==1*/
+}
+struct area_t {
+   int Firstroom; /*Because the rooms are still in a list, even if
+     everything else isn't*/
+   tunnellist_t *Firsttunnel;
+}
+
+int findarea(x,y): give it a set of coords, it finds an area that
+ has an element at x,y, and gives the Firstroom value for that area.
+
+probably has helper functions findroom(x,y), that can give the room
+ at x,y (there can only be one), or -1 if none,
+and findtunnel(x,y,ptr) that can give the first tunnel found at x,y,
+ and if ptr is set, search after tunnel ptr. Or something.
+ Argh, this is icky.
+ Maybe distinguishing entrances to rooms was a bad idea, it makes
+ that function quite painful.
+ All tunnels found at x,y must have the same area_t pointer. So
+ why would we want to return more than one of them?
+
+Hmm, better scheme:
+Each room lists all its entrances such:
+struct entrance_t {
+    int Xcoord,Ycoord;
+    direction_t Outfacing; /* the direction you face if you face
+             this door from inside the room (if that makes sense) */
+    entrance_t *Nextentrance;
+}
+so each room structure instead has:
+struct roomdata_t {
+    int Xcentre,Ycentre;
+    int Width, Height;
+    entrance_t *Entrancelist;
+    area_t *Area; /*Again, this stores all the accessible tunnels*/
+    int Nextroom;
+}
+and our tunnels structures become:
+struct tunnellist_t {
+    int Xstart,Ystart;
+    int Xend,Yend;
+    area_t *Area;
+    tunnellist_t *Nexttunnel;
+}
+the area type remains the same. Hey, isn't that a lot neater now?
+NB now, the tunnels that go to entrances will still overlap the doorways,
+but the doorways will tell the what_is_here(x,y) code to look for a
+room there (doorways are considered to be inside rooms), and then it
+can find the exact door and so the doors *facing*.Hmm, but maybe the
+facing is already obvious if you find the door whilst building a tunnel?
+
+AARARGH!  When considering where to build a tunnel, we need to ensure
+that not only do we not have any tunnel or room where we are going to
+place bits of tunnel, we also want no empty space to the sides of it!!!
+NB, It's still OK to have perimeter walls, etc to the sides of the tunnel.

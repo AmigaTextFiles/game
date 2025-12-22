@@ -1,0 +1,183 @@
+Save The Penguins
+(C) 2007 Richard Whitty
+cs6rlw@csc.liv.ac.uk
+
+The objective of the game is to destroy all the spaceships before they kill
+the penguins. You control the sphere you see on the screen using the mouse. Note that this is early in development, so may (will) contain a couple of bugs.
+
+
+All the code is done by me (Richard Whitty). All except the penguins were done by me
+Credit for the Penguin sprites goes to the Pingus project.
+The sounds came from: www.a1freesoundeffects.com which claims to be free. If not
+then mail me and I'll get rid of them.
+
+RUNNING IT
+==========
+
+To start the game, cd to the directory you unpacked it and compile it:
+	$ make
+
+It depends on libSDL, libSDL_Mixer libSDL_Image. You will need the developement packages
+installed. I have not yet figured out how to staticly link non-core ones yet. If
+someone can help, drop me a line (then I could distribute a binary.)
+
+Then run it:
+	$ make run
+	OR
+	$ ./stp-bin
+
+
+It currently has to be run out of the source directory. I'll fix it when I'm a
+bit further in.
+I have been experimenting with the cmake build tool. The CMakeLists.txt file is
+present for the interested, and should build a working makefile on most unix/gcc
+systems. HOWEVER the 'normal' makefile is more likely to work at any given time.
+
+CONTROLS
+========
+
+Right mouse button - fire towards pointer
+Middle mouse button - pause
+Left mouse button - accelerate towards pointer
+
+E 	- Enter/Exit map editor
+Escape 	- Quit game
+P 	- Pause/Unpause. (also the middle mouse button)
+
+
+LEVELS
+======
+
+The play through in sequence. They are pretty much all the same.
+I need to add a bit more to them.
+They are stored in the data/levels/ directory, and the list to play through is
+data/levels.dat. The format is pretty simple. If you look at one of them, it
+has a couple of lines describing the map. Then is the definition. Each array
+value is initialised to 0, then each line in the file goes along the lines.
+x y z
+which means { map[x][y]=z; }
+Maps aren't really portable between tilesets. It is possible to construct a
+second tileset so it is compatible with the first. (it allows you to specify an
+index).
+
+
+POWERUPS
+========
+
+These are defined as GameObj's which only collide with the player. They can do
+things like hurt/heal the player, send them rocketing away.
+They can call something via ol if they want as well. ATM there's the medikit,
+one that hurts you a little, and one that explodes and sends you flying.
+
+MAP EDITOR
+==========
+
+To enter the editing mode, press E. The game will stop. You can change the type
+of a tile by scrolling up and down with the scroll wheel. To leave the editing
+mode and try out the level, press E again.
+if you are happy and want to save the level, press S. The game will quit and
+prompt for a filename.
+
+Inside the map editor (it's pretty basic) you can change a tiles type.
+Use the mouse wheel over any tile to flip through them.
+All the other properties such as number of entities, player start position and
+map size must be set manually in the file.
+To scroll around you must leave editing mode and move the ball so it scrolls the
+level. Then press E to re-enter.
+To save, press S. This will quit the game and ask for a filename.
+
+BUGS:
+====
+
+If you experience any segfaults or whatever, please include a backtrace in the
+bug report. To do this, comment out the first CFLAGS line, and uncomment the
+other in the Makefile. Then rebuild and run with gdb. When it crashes type "bt"
+and include that in the email.
+Even better, try and fix it ;)
+
+Feel free to email any bug reports. I know there's something wrong somewhere in
+the collisions. It comes and goes.
+
+1. The collisions.
+Sometimes corners might not behave how they should. This is because some of the
+definitions in the tileset config probably aren't right. If you want to fix it,
+fine. I'm more into the code.
+
+Also, it is still possible to get stuck inside a wall. Shouldn't happen often,
+but you can esacpe by entering the editor, and removing the offending tile.
+
+
+CONTRIBUTING
+============
+
+The things I need help with (or haven't spent enough time on yet) are:
+-- Levels
+-- Graphics
+-- AI - even some pointers on how I should go about this. I need a decent, clean interface for it. What should be provided?
+
+--Gameplay - I am a programmer, not a gamer. Things like "turn down the gravity"
+or "make it shoot slower" would be useful.
+
+AUTHORS
+=======
+
+All code - Richard Whitty
+Penguin graphics - From the game Pingus (pingus.seul.org)
+Snow+Lava tiles - from SuperTux (super-tux.sf.net)
+Sounds - www.a1freesoundeffects.com
+
+
+DEV NOTES
+=========
+
+I started this project a long time ago, there is an earlier version floating around on the internet. It was mainly intended to teach me C++, as I hadn't used it before.
+However, after a couple of iterations it was clear that it was unmaintainable. This was due to my inexperience at the time.
+At the start of the summer I began re-writing it, with the express goal of it being maintainable and extensible.
+Overall, it has been successful, however there was one major oversight in the planning. The collision detection.
+It was very naive to just check the 4 corners of the object, as you can see the ball gets 'stuck' on spikes etc. I have solved this by checking the 4 quadrants rather than the points at the corners.
+
+I'm working on a new method of collision.
+I am currently writing a new set of surface/animation classes to seperate out the graphics code from the game logic. These should greatly improve code quality and readability.
+The main documentation is maintained as Doxygen (not so much lately).
+Do "make doc" to build it.
+
+There are a lot of configurable options in the defs.h file. Most of these are documented with comments.
+
+
+TILESET CONFIG
+==============
+
+---------
+| 1 | 2 |
+---------
+| 3 | 4 |
+---------
+
+
+There are 7 fields for each tile definition. The last 4 fields denote as above the treatment for each of the 4 tiles. The first three are for the index in the bitmap, the second for animation frames and the third for rate of animation (how many game ticks between frame updates).
+There are 4 fields to denote how to treat the quadrants of the tile. They can be one of the following:
+
+0 - empty
+1 - 45-deg with upper left half passable.
+2 - 45-deg with upper right half passable.
+3 - 45-deg with lower left half passable.
+4 - 45-deg with lower right half passable.
+5 - Solid
+
+Tile 0 is implicit, and is always empty.
+
+For example, a tile at index 3 (the third from the left) in the tileset bitmap, with 4 frames which updates the frame every 6 game ticks and looks like this:
+
+---------
+|       |
+|   -----
+| / * * |
+---------
+
+would be:
+
+3 4 6 -- 0 0 1 5
+
+in a config.
+The ordering in the game goes off the order in the file, so if you add a tile to one, add it at the end if you don't want to have to remake all your levels based on it.
+

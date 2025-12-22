@@ -1,0 +1,48 @@
+EXEOBJS = test1.o test2.o
+DLLOBJS = dll1.o dll2.o server.o
+
+OBJS = $(EXEOBJS) $(DLLOBJS)
+
+EXE = $(EXEOBJS:.o=.exe)
+
+DLL = $(DLLOBJS:.o=.dll)
+
+OTHER = 
+
+CC = ppc-amigaos-gcc -V 2.95.1
+
+CODEGEN = -mcpu=604e -Wall -mmultiple -warpup -I./dll -I/ade/lib/g++-include
+
+OPTIMIZE = -O3
+
+CFLAGS= $(CODEGEN) $(OPTIMIZE)
+
+LIBPATH = dll
+
+LIBS = -ldllppc -lppcamiga -liostream
+
+%.o : %.c
+	$(CC) $(CFLAGS) -S $< -o $*.s
+	$(CC) $(CFLAGS) -c $*.s -o $*.o
+
+%.o : %.cpp
+	$(CC) $(CFLAGS) -S $< -o $*.s
+	$(CC) $(CFLAGS) -c $*.s -o $*.o
+
+ASMS = $(OBJS:.o=.s)
+
+all : $(EXE) $(DLL)
+
+$(EXE) : %.exe : %.o dll/libdllppc.a
+	$(CC) $(CFLAGS) $< -L $(LIBPATH) $(LIBS) -o $@
+	elf2exe2 $@ $@
+
+$(DLL) : %.dll : %.o dll/libdllppc.a
+	$(CC) $(CFLAGS) $< -L $(LIBPATH) $(LIBS) -o $@
+	elf2exe2 $@ $@
+
+depend : 
+	makedepend -f Makefile -i / -i dll $(OBJS)
+
+clean :
+	rm $(EXE) $(DLL) $(OBJS) $(ASMS) $(OTHER)

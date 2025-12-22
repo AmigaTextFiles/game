@@ -1,0 +1,1506 @@
+------- FILE skel-pal.asm LEVEL 1 PASS 2
+     1	2000				PROCESSOR	6502
+------- FILE VCS.H LEVEL 2 PASS 2
+     0	????				INCLUDE	"VCS.H"
+     1	????
+     2	????						;	  globals
+     3	????						; Atari 2600 Equates
+     4	????
+     5	????	00 00	    VSYNC	equ	$00	;   0000 00x0	     Vertical Sync Set-Clear
+     6	????	00 01	    VBLANK	equ	$01	;   xx00 00x0	     Vertical Blank Set-Clear
+     7	????	00 02	    WSYNC	equ	$02	;   ---- ----	     Wait for Horizontal Blank
+     8	????	00 03	    RSYNC	equ	$03	;   ---- ----	     Reset Horizontal Sync Counter
+     9	????	00 04	    NUSIZ0	equ	$04	;   00xx 0xxx	     Number-Size player/missle 0
+    10	????	00 05	    NUSIZ1	equ	$05	;   00xx 0xxx	     Number-Size player/missle 1
+    11	????	00 06	    COLUP0	equ	$06	;   xxxx xxx0	     Color-Luminance Player 0
+    12	????	00 07	    COLUP1	equ	$07	;   xxxx xxx0	     Color-Luminance Player 1
+    13	????	00 08	    COLUPF	equ	$08	;   xxxx xxx0	     Color-Luminance Playfield
+    14	????	00 09	    COLUBK	equ	$09	;   xxxx xxx0	     Color-Luminance Background
+    15	????	00 0a	    CTRLPF	equ	$0A	;   00xx 0xxx	     Control Playfield, Ball, Collisions
+    16	????	00 0b	    REFP0	equ	$0B	;   0000 x000	     Reflection Player 0
+    17	????	00 0c	    REFP1	equ	$0C	;   0000 x000	     Reflection Player 1
+    18	????	00 0d	    PF0 	equ	$0D	;   xxxx 0000	     Playfield Register Byte 0
+    19	????	00 0e	    PF1 	equ	$0E	;   xxxx xxxx	     Playfield Register Byte 1
+    20	????	00 0f	    PF2 	equ	$0F	;   xxxx xxxx	     Playfield Register Byte 2
+    21	????	00 10	    RESP0	equ	$10	;   ---- ----	     Reset Player 0
+    22	????	00 11	    RESP1	equ	$11	;   ---- ----	     Reset Player 1
+    23	????	00 12	    RESM0	equ	$12	;   ---- ----	     Reset Missle 0
+    24	????	00 13	    RESM1	equ	$13	;   ---- ----	     Reset Missle 1
+    25	????	00 14	    RESBL	equ	$14	;   ---- ----	     Reset Ball
+    26	????	00 15	    AUDC0	equ	$15	;   0000 xxxx	     Audio Control 0
+    27	????	00 16	    AUDC1	equ	$16	;   0000 xxxx	     Audio Control 1
+    28	????	00 17	    AUDF0	equ	$17	;   000x xxxx	     Audio Frequency 0
+    29	????	00 18	    AUDF1	equ	$18	;   000x xxxx	     Audio Frequency 1
+    30	????	00 19	    AUDV0	equ	$19	;   0000 xxxx	     Audio Volume 0
+    31	????	00 1a	    AUDV1	equ	$1A	;   0000 xxxx	     Audio Volume 1
+    32	????	00 1b	    GRP0	equ	$1B	;   xxxx xxxx	     Graphics Register Player 0
+    33	????	00 1c	    GRP1	equ	$1C	;   xxxx xxxx	     Graphics Register Player 1
+    34	????	00 1d	    ENAM0	equ	$1D	;   0000 00x0	     Graphics Enable Missle 0
+    35	????	00 1e	    ENAM1	equ	$1E	;   0000 00x0	     Graphics Enable Missle 1
+    36	????	00 1f	    ENABL	equ	$1F	;   0000 00x0	     Graphics Enable Ball
+    37	????	00 20	    HMP0	equ	$20	;   xxxx 0000	     Horizontal Motion Player 0
+    38	????	00 21	    HMP1	equ	$21	;   xxxx 0000	     Horizontal Motion Player 1
+    39	????	00 22	    HMM0	equ	$22	;   xxxx 0000	     Horizontal Motion Missle 0
+    40	????	00 23	    HMM1	equ	$23	;   xxxx 0000	     Horizontal Motion Missle 1
+    41	????	00 24	    HMBL	equ	$24	;   xxxx 0000	     Horizontal Motion Ball
+    42	????	00 25	    VDELP0	equ	$25	;   0000 000x	     Vertical Delay Player 0
+    43	????	00 26	    VDELP1	equ	$26	;   0000 000x	     Vertical Delay Player 1
+    44	????	00 27	    VDELBL	equ	$27	;   0000 000x	     Vertical Delay Ball
+    45	????	00 28	    RESMP0	equ	$28	;   0000 00x0	     Reset Missle 0 to Player 0
+    46	????	00 29	    RESMP1	equ	$29	;   0000 00x0	     Reset Missle 1 to Player 1
+    47	????	00 2a	    HMOVE	equ	$2A	;   ---- ----	     Apply Horizontal Motion
+    48	????	00 2b	    HMCLR	equ	$2B	;   ---- ----	     Clear Horizontal Move Registers
+    49	????	00 2c	    CXCLR	equ	$2C	;   ---- ----	     Clear Collision Latches
+    50	????
+    51	????						; Read Address Registers
+    52	????						;		  bit 7   bit 6
+    53	????	00 00	    CXM0P	equ	$0	;   xx00 0000	     Read Collision  M0-P1   M0-P0
+    54	????	00 01	    CXM1P	equ	$1	;   xx00 0000			     M1-P0   M1-P1
+    55	????	00 02	    CXP0FB	equ	$2	;   xx00 0000			     P0-PF   P0-BL
+    56	????	00 03	    CXP1FB	equ	$3	;   xx00 0000			     P1-PF   P1-BL
+    57	????	00 04	    CXM0FB	equ	$4	;   xx00 0000			     M0-PF   M0-BL
+    58	????	00 05	    CXM1FB	equ	$5	;   xx00 0000			     M1-PF   M1-BL
+    59	????	00 06	    CXBLPF	equ	$6	;   x000 0000			     BL-PF   -----
+    60	????	00 07	    CXPPMM	equ	$7	;   xx00 0000			     P0-P1   M0-M1
+    61	????	00 08	    INPT0	equ	$8	;   x000 0000	     Read Pot Port 0
+    62	????	00 09	    INPT1	equ	$9	;   x000 0000	     Read Pot Port 1
+    63	????	00 0a	    INPT2	equ	$A	;   x000 0000	     Read Pot Port 2
+    64	????	00 0b	    INPT3	equ	$B	;   x000 0000	     Read Pot Port 3
+    65	????	00 0c	    INPT4	equ	$C	;   x000 0000	     Read Input (Trigger) 0
+    66	????	00 0d	    INPT5	equ	$D	;   x000 0000	     Read Input (Trigger) 1
+    67	????
+    68	????						; Atari 2600	   RIOT Memory Map
+    69	????
+    70	????						; RAM equ $80				   ; 80-FF, also shadowed to $180-$1FF
+    71	????
+    72	????	02 80	    SWCHA	equ	$280	;		     Port A data register for joysticks:
+    73	????						;					 Bits 4-7 for player 1.  Bits 0-3 for player 2.
+    74	????	02 81	    SWACNT	equ	$281	;		     Port A data direction register (DDR)
+    75	????	02 82	    SWCHB	equ	$282	;		     Port B data (console switches)
+    76	????	02 83	    SWBCNT	equ	$283	;		     Port B DDR
+    77	????	02 84	    INTIM	equ	$284	;		     Timer output
+    78	????	02 94	    TIM1T	equ	$294	;		     set 1 clock interval
+    79	????	02 95	    TIM8T	equ	$295	;		     set 8 clock interval
+    80	????	02 96	    TIM64T	equ	$296	;		     set 64 clock interval
+    81	????	02 97	    T1024T	equ	$297	;		     set 1024 clock interval
+    82	????
+------- FILE skel-pal.asm
+     3	????
+------- FILE SKELRAM.ASM LEVEL 2 PASS 2
+     0	????				INCLUDE	"SKELRAM.ASM"
+     1 U????				SEG.U	RAM
+     2 U0080				ORG	$80
+     3 U0080	00 00	    MAZE0L	DS	2
+     4 U0082	00 00	    MAZE1L	DS	2
+     5 U0084	00 00	    MAZE2L	DS	2
+     6 U0086	00 00	    MAZE3L	DS	2
+     7 U0088	00 00	    MAZE0R	DS	2
+     8 U008a	00 00	    MAZE1R	DS	2
+     9 U008c	00 00	    MAZE2R	DS	2
+    10 U008e	00 00	    MAZE3R	DS	2
+    11 U0090	00 00	    SKEL0	DS	2
+    12 U0092	00 00	    SKEL1	DS	2
+    13 U0094	00	    SKELTOP	DS	1
+    14 U0095	00	    SKELBOT	DS	1
+    15 U0096	00	    BALLTOP	DS	1
+    16 U0097	00	    BALLBOT	DS	1
+    17 U0098	00	    WALL	DS	1
+    18 U0099	00	    SKELDIS	DS	1
+    19 U009a	00	    RANDOM	DS	1
+    20 U009b	00	    SOUNDEL	DS	1
+    21 U009c	00	    FIREDEL	DS	1
+    22 U009d	00	    THISFIR	DS	1
+    23 U009e	00	    LASTFIR	DS	1
+    24 U009f	00	    THISMOV	DS	1
+    25 U00a0	00	    LASTMOV	DS	1
+    26 U00a1	00	    SKELNXT	DS	1
+    27 U00a2	00	    SKELX	DS	1
+    28 U00a3	00	    SKELY	DS	1
+    29 U00a4	00	    SKELIFE	DS	1
+    30 U00a5	00	    SKELNUM	DS	1
+    31 U00a5	00 a6	    RAMLOAD	EQU	.
+    32 U00a6	00	    SKELDEL	DS	1
+    33 U00a7	00	    SKELPER	DS	1
+    34 U00a8	00	    SKELSEC	DS	1
+    35 U00a9	00	    SKELMIN	DS	1
+    36 U00aa	00	    SKELHRS	DS	1
+    37 U00ab	00	    PLAYPOS	DS	1
+    38 U00ac	00	    PLAYDIR	DS	1
+    39 U00ad	00	    PLAYRIG	DS	1
+    40 U00ae	00	    SKELPOS	DS	1
+    41 U00af	00	    SKELDIR	DS	1
+    42 U00b0	00	    SKELRIG	DS	1
+    43 U00b1	00	    TESTBIT	DS	1
+    44 U00b2	00	    LVLMASK	DS	1
+    45 U00b3	00	    MAZECOL	DS	1
+    46 U00b4
+    47 U00b4	00 a3	    TITLEY	EQU	SKELY
+    48 U00b4	00 a2	    TITLEX	EQU	SKELX
+    49 U00b4	00 99	    TITLEND	EQU	SKELDIS
+    50 U00b4	00 94	    TITLTOP	EQU	SKELTOP
+    51 U00b4	00 95	    TITLBOT	EQU	SKELBOT
+    52 U00b4
+    53 U00fe				ORG	$FE
+    54 U00fe	00 00	    STACK	DS	2
+------- FILE skel-pal.asm
+     5 U0100
+     6	????				SEG	ROM
+     7	1000				ORG	$1000
+     8	1000
+     9	1000	53 6b 65 6c*		DC.B	"Skeleton (c)2002 Eric Ball",0
+    10	101b
+    11	101b	85 02	    KERN0	STA	WSYNC	;56-0
+    12	101d	b1 80			LDA	(MAZE0L),Y	;-5
+    13	101f	85 0d			STA	PF0	;-8
+    14	1021	c4 96			CPY	BALLTOP	;-10
+    15	1023	90 06			BCC	WAIT0	;-12/13
+    16	1025	c4 97			CPY	BALLBOT	;-14
+    17	1027	b0 02			BCS	WAIT0	;-16/17
+    18	1029	a9 02			LDA	#2	;-18
+    19	102b	85 1f	    WAIT0	STA	ENABL	;-21
+    20	102d	86 0e			STX	PF1	;-24
+    21	102f	86 0f			STX	PF2	;-27
+    22	1031	b1 88			LDA	(MAZE0R),Y	;-32
+    23	1033	85 0d			STA	PF0	;-35
+    24	1035	c8			INY		;-37
+    25	1036	a5 98			LDA	WALL	;-40
+    26	1038	c9 01			CMP	#1	;-42
+    27	103a	f0 06			BEQ	WALL15	;-44/45
+    28	103c	c0 18			CPY	#24	;-46
+    29	103e	d0 db			BNE	KERN0	;-48/49
+    30	1040	f0 1f			BEQ	KERN20	;-51
+    31	1042	c0 12	    WALL15	CPY	#18	;-47
+    32	1044	90 d5			BCC	KERN0	;-49/50
+    33	1046	a2 ff			LDX	#$FF	;-51
+    34	1048	c0 18			CPY	#24	;-53
+    35	104a	d0 cf			BNE	KERN0	;-55/56
+    36	104c
+    37	104c	85 02	    WALL20	STA	WSYNC	;44-0
+    38	104e	a9 80			LDA	#$80	;-2
+    39	1050	85 0d			STA	PF0	;-5
+    40	1052	a9 00			LDA	#$00	;-7
+    41	1054	85 0e			STA	PF1	;-10
+    42	1056	85 0f			STA	PF2	;-13
+    43	1058	a2 b4			LDX	#204-24	;-15
+    44	105a	20 ee 15		JSR	XWALL	;-21
+    45	105d	ca			DEX		;36-38
+    46	105e	4c c4 11		JMP	KERN170	;-41
+    47	1061
+    48	1061	85 02	    KERN20	STA	WSYNC	;72-0
+    49	1063	8a			TXA		;-2
+    50	1064	29 0f			AND	#$0F	;-4
+    51	1066	11 82			ORA	(MAZE1L),Y	;-9
+    52	1068	85 0e			STA	PF1	;-12
+    53	106a	86 0f			STX	PF2	;-15
+    54	106c	a2 80			LDX	#$80	;-17
+    55	106e	86 0d			STX	PF0	;-20
+    56	1070	a2 04			LDX	#4	;-22
+    57	1072	ca	    WAIT20	DEX		;+2
+    58	1073	d0 fd			BNE	WAIT20	;+2/3
+    59	1075	29 0f			AND	#$0F	;41-43
+    60	1077	11 8a			ORA	(MAZE1R),Y	;-48
+    61	1079	85 0e			STA	PF1	;-51
+    62	107b	c8			INY		;-53
+    63	107c	a5 98			LDA	WALL	;-56
+    64	107e	c9 02			CMP	#2	;-58
+    65	1080	f0 06			BEQ	WALL35	;-60/61
+    66	1082	c0 30			CPY	#48	;-62
+    67	1084	d0 db			BNE	KERN20	;-64/65
+    68	1086	f0 1c			BEQ	KERN40	;-67
+    69	1088	c0 2a	    WALL35	CPY	#42	;61-63
+    70	108a	90 d5			BCC	KERN20	;-65/66
+    71	108c	ca			DEX		;-67
+    72	108d	c0 30			CPY	#48	;-69
+    73	108f	d0 d0			BNE	KERN20	;-71/72
+    74	1091
+    75	1091	85 02	    WALL40	STA	WSYNC	;41-0
+    76	1093	a9 10			LDA	#$10	;-2
+    77	1095	85 0e			STA	PF1	;-5
+    78	1097	a9 00			LDA	#$00	;-7
+    79	1099	85 0f			STA	PF2	;-10
+    80	109b	a2 84			LDX	#180-48	;-12
+    81	109d	20 ee 15		JSR	XWALL	;-18
+    82	10a0	ca			DEX		;36-38
+    83	10a1	4c 98 11		JMP	KERN150	;-41
+    84	10a4
+    85	10a4	85 02	    KERN40	STA	WSYNC	;72-0
+    86	10a6	b1 84			LDA	(MAZE2L),Y	;-5
+    87	10a8	85 0e			STA	PF1	;-8
+    88	10aa	86 0f			STX	PF2	;-11
+    89	10ac	a2 05			LDX	#5	;-13
+    90	10ae	c4 94			CPY	SKELTOP	;-15
+    91	10b0	90 0a			BCC	WAIT40	;-17/18
+    92	10b2	b1 90			LDA	(SKEL0),Y	;-22
+    93	10b4	85 1b			STA	GRP0	;-24
+    94	10b6	b1 92			LDA	(SKEL1),Y	;-29
+    95	10b8	85 1c			STA	GRP1	;-32
+    96	10ba	a2 02			LDX	#2	;-34
+    97	10bc	ca	    WAIT40	DEX		;+2
+    98	10bd	d0 fd			BNE	WAIT40	;+2/3
+    99	10bf	b1 8c			LDA	(MAZE2R),Y	;42/43-47/48
+   100	10c1	85 0e			STA	PF1	;-50/51
+   101	10c3	c8			INY		;-53
+   102	10c4	a5 98			LDA	WALL	;-56
+   103	10c6	c9 03			CMP	#3	;-58
+   104	10c8	f0 08			BEQ	WALL55	;-60/61
+   105	10ca	c0 48			CPY	#72	;-62
+   106	10cc	d0 d6			BNE	KERN40	;-64/65
+   107	10ce	a9 00			LDA	#$00	;-66
+   108	10d0	f0 35			BEQ	KERN60	;-69
+   109	10d2	c0 42	    WALL55	CPY	#66	;61-63
+   110	10d4	90 ce			BCC	KERN40	;-65/66
+   111	10d6	ca			DEX		;-67
+   112	10d7	c0 48			CPY	#72	;-69
+   113	10d9	d0 c9			BNE	KERN40	;-71/72
+   114	10db
+   115	10db	85 02	    WALL60	STA	WSYNC	;41-0
+   116	10dd	a9 11			LDA	#$11	;-2
+   117	10df	85 0e			STA	PF1	;-5
+   118	10e1	a9 00			LDA	#$00	;-7
+   119	10e3	85 0f			STA	PF2	;-10
+   120	10e5	a2 54			LDX	#156-72	;-12
+   121	10e7	20 ee 15		JSR	XWALL	;-18
+   122	10ea	ca			DEX		;36-38
+   123	10eb	4c 6c 11		JMP	KERN130	;-41
+   124	10ee
+   125	10ee						; 18
+   126	10ee	e8	    PVIEW1	INX		; center view subroutine
+   127	10ef	98			TYA		; move forward one step
+   128	10f0	18			CLC
+   129	10f1	65 ac			ADC	PLAYDIR
+   130	10f3	c5 ae			CMP	SKELPOS	; check skeleton position
+   131	10f5	d0 02			BNE	PVIEW2
+   132	10f7	86 99			STX	SKELDIS	; save if found
+   133	10f9	a8	    PVIEW2	TAY		; check for wall
+   134	10fa	a5 b2			LDA	LVLMASK
+   135	10fc	39 00 19		AND	MAZES,Y	; BNE done after return
+   136	10ff	60			RTS
+   137	1100
+   138	1100	a2 03	    WAIT60	LDX	#3	;20-22
+   139	1102	ca	    WAIT61	DEX		;+2
+   140	1103	d0 fd			BNE	WAIT61	;+2/3
+   141	1105	f0 1a			BEQ	KERN61	;36-39
+   142	1107
+   143	1107	85 02	    KERN60	STA	WSYNC	;70-0
+   144	1109	29 f0			AND	#$F0	;-2
+   145	110b	11 86			ORA	(MAZE3L),Y	;-7
+   146	110d	85 0f			STA	PF2	;-10
+   147	110f	a2 11			LDX	#$11	;-12
+   148	1111	86 0e			STX	PF1	;-15
+   149	1113	c4 94			CPY	SKELTOP	;-17
+   150	1115	90 e9			BCC	WAIT60	;-19/20
+   151	1117	aa			TAX		;-21
+   152	1118	b1 90			LDA	(SKEL0),Y	;-26
+   153	111a	85 1b			STA	GRP0	;-29
+   154	111c	b1 92			LDA	(SKEL1),Y	;-34
+   155	111e	85 1c			STA	GRP1	;-37
+   156	1120	8a			TXA		;-39
+   157	1121	29 f0	    KERN61	AND	#$F0	;39-41
+   158	1123	11 8e			ORA	(MAZE3R),Y	;-46
+   159	1125	85 0f			STA	PF2	;-49
+   160	1127	c8			INY		;-51
+   161	1128	a5 98			LDA	WALL	;-54
+   162	112a	c9 04			CMP	#4	;-56
+   163	112c	f0 06			BEQ	WALL75	;-58/59
+   164	112e	c0 60			CPY	#96	;-60
+   165	1130	d0 d5			BNE	KERN60	;-62/63
+   166	1132	f0 0a			BEQ	KERN80	;-65
+   167	1134	c0 5a	    WALL75	CPY	#90	;59-61
+   168	1136	90 cf			BCC	KERN60	;-63/64
+   169	1138	a9 ff			LDA	#$FF	;-65
+   170	113a	c0 60			CPY	#96	;-67
+   171	113c	d0 c9			BNE	KERN60	;-69/70
+   172	113e
+   173	113e	85 02	    KERN80	STA	WSYNC	;36-0
+   174	1140	a9 08			LDA	#$08	;-2
+   175	1142	85 0f			STA	PF2	;-5
+   176	1144	a2 24			LDX	#132-96	;-7
+   177	1146	20 ee 15		JSR	XWALL	;-13
+   178	1149	ca			DEX		;36-38
+   179	114a
+   180	114a	85 02	    KERN110	STA	WSYNC	;56-0
+   181	114c	b1 86			LDA	(MAZE3L),Y	;-5
+   182	114e	85 0f			STA	PF2	;-8
+   183	1150	a2 04			LDX	#4	;-10
+   184	1152	c4 95			CPY	SKELBOT	;-12
+   185	1154	b0 0a			BCS	WAIT110	;-14/15
+   186	1156	b1 90			LDA	(SKEL0),Y	;-19
+   187	1158	85 1b			STA	GRP0	;-22
+   188	115a	b1 92			LDA	(SKEL1),Y	;-27
+   189	115c	85 1c			STA	GRP1	;-30
+   190	115e	a2 01			LDX	#1	;-32
+   191	1160	ca	    WAIT110	DEX		;+2
+   192	1161	10 fd			BPL	WAIT110	;+2/3
+   193	1163	b1 8e			LDA	(MAZE3R),Y	;39/41-44/46
+   194	1165	85 0f			STA	PF2	;-47/49
+   195	1167	c8			INY		;-51
+   196	1168	c0 9c			CPY	#156	;-53
+   197	116a	d0 de			BNE	KERN110	;-55/56
+   198	116c
+   199	116c	85 02	    KERN130	STA	WSYNC	;64-0
+   200	116e	b1 84			LDA	(MAZE2L),Y	;-5
+   201	1170	85 0e			STA	PF1	;-8
+   202	1172	86 0f			STX	PF2	;-10
+   203	1174	a2 04			LDX	#4	;-12
+   204	1176	c4 95			CPY	SKELBOT	;-14
+   205	1178	b0 0a			BCS	WAIT130	;-16/17
+   206	117a	b1 90			LDA	(SKEL0),Y	;-21
+   207	117c	85 1b			STA	GRP0	;-24
+   208	117e	b1 92			LDA	(SKEL1),Y	;-29
+   209	1180	85 1c			STA	GRP1	;-32
+   210	1182	a2 01			LDX	#1	;-34
+   211	1184	ca	    WAIT130	DEX		;+2
+   212	1185	10 fd			BPL	WAIT130	;+2/3
+   213	1187	b1 8c			LDA	(MAZE2R),Y	;41/43-46/48
+   214	1189	85 0e			STA	PF1	;-49/51
+   215	118b	c8			INY		;-53
+   216	118c	c0 a2			CPY	#162	;-55
+   217	118e	90 dc			BCC	KERN130	;-57/58
+   218	1190	a2 00			LDX	#$00	;-59
+   219	1192	c0 b4			CPY	#180	;-61
+   220	1194	d0 d6			BNE	KERN130	;-63/64
+   221	1196	a2 ff			LDX	#$FF	;-65
+   222	1198
+   223	1198	85 02	    KERN150	STA	WSYNC	;64-0
+   224	119a	b1 82			LDA	(MAZE1L),Y	;-5
+   225	119c	85 0e			STA	PF1	;-8
+   226	119e	86 0f			STX	PF2	;-10
+   227	11a0	a2 04			LDX	#4	;-12
+   228	11a2	c4 95			CPY	SKELBOT	;-14
+   229	11a4	b0 0a			BCS	WAIT150	;-16/17
+   230	11a6	b1 90			LDA	(SKEL0),Y	;-21
+   231	11a8	85 1b			STA	GRP0	;-24
+   232	11aa	b1 92			LDA	(SKEL1),Y	;-29
+   233	11ac	85 1c			STA	GRP1	;-32
+   234	11ae	a2 01			LDX	#1	;-34
+   235	11b0	ca	    WAIT150	DEX		;+2
+   236	11b1	10 fd			BPL	WAIT150	;+2/3
+   237	11b3	b1 8a			LDA	(MAZE1R),Y	;41/43-46/48
+   238	11b5	85 0e			STA	PF1	;-49/51
+   239	11b7	c8			INY		;-53
+   240	11b8	c0 ba			CPY	#186	;-55
+   241	11ba	90 dc			BCC	KERN150	;-57/58
+   242	11bc	a2 00			LDX	#$00	;-59
+   243	11be	c0 cc			CPY	#204	;-61
+   244	11c0	d0 d6			BNE	KERN150	;-63/64
+   245	11c2	a2 ff			LDX	#$FF	;-65
+   246	11c4
+   247	11c4	85 02	    KERN170	STA	WSYNC	;48-0
+   248	11c6	b1 80			LDA	(MAZE0L),Y	;-5
+   249	11c8	85 0d			STA	PF0	;-8
+   250	11ca	c4 96			CPY	BALLTOP	;-10
+   251	11cc	90 06			BCC	WAIT170	;-12/13
+   252	11ce	c4 97			CPY	BALLBOT	;-14
+   253	11d0	b0 02			BCS	WAIT170	;-16/17
+   254	11d2	a9 02			LDA	#2	;-18
+   255	11d4	85 1f	    WAIT170	STA	ENABL	;-21
+   256	11d6	86 0e			STX	PF1	;-24
+   257	11d8	86 0f			STX	PF2	;-27
+   258	11da	b1 88			LDA	(MAZE0R),Y	;-32
+   259	11dc	85 0d			STA	PF0	;-35
+   260	11de	c8			INY		;-37
+   261	11df	c0 d2			CPY	#210	;-39
+   262	11e1	90 e1			BCC	KERN170	;-41/42
+   263	11e3	a2 00			LDX	#$00	;-43
+   264	11e5	c0 e4			CPY	#228	;-45
+   265	11e7	d0 db			BNE	KERN170	;-47/48
+   266	11e9
+   267	11e9	a9 2a	    LAST	LDA	#35*76/64+1
+   268	11eb	85 02			STA	WSYNC	;-0
+   269	11ed	8d 96 02		STA	TIM64T	;-4
+   270	11f0	86 0d			STX	PF0
+   271	11f2
+   272	11f2	a6 9b			LDX	SOUNDEL	; sound countdown
+   273	11f4	f0 07			BEQ	COLUPA	; already zero?
+   274	11f6	ca			DEX
+   275	11f7	d0 04			BNE	COLUPA	; zero?
+   276	11f9	86 19			STX	AUDV0	; turn off sound
+   277	11fb	86 1a			STX	AUDV1
+   278	11fd
+   279	11fd	86 9b	    COLUPA	STX	SOUNDEL
+   280	11ff	a5 a4			LDA	SKELIFE	; skeleton still alive?
+   281	1201	10 09			BPL	COLUPB
+   282	1203	a6 9c			LDX	FIREDEL
+   283	1205	bd 38 1b		LDA	SKELDIE,X
+   284	1208	d0 11			BNE	COLUPC
+   285	120a	f0 0f			BEQ	COLUPC
+   286	120c	a5 9c	    COLUPB	LDA	FIREDEL	; fire flash?
+   287	120e	c9 2d			CMP	#45
+   288	1210	b0 0d			BCS	FIRETST
+   289	1212	a5 b3			LDA	MAZECOL	; set playfield colour
+   290	1214	85 08			STA	COLUPF
+   291	1216	a6 a4			LDX	SKELIFE	; set skeleton color
+   292	1218	bd 00 17		LDA	LIFELUM,X
+   293	121b	85 06	    COLUPC	STA	COLUP0
+   294	121d	85 07			STA	COLUP1
+   295	121f
+   296	121f	a5 0c	    FIRETST	LDA	INPT4	; fire button
+   297	1221	29 80			AND	#$80
+   298	1223	c5 9d			CMP	THISFIR	; debounce
+   299	1225	d0 56			BNE	PLAYMOV	; not the same
+   300	1227	a6 9e			LDX	LASTFIR	; check last button position
+   301	1229	85 9e			STA	LASTFIR	; save current
+   302	122b	10 50			BPL	PLAYMOV	; do nothing if last was down
+   303	122d	0a			ASL		; check current
+   304	122e	b0 4d			BCS	PLAYMOV	; do nothing if up
+   305	1230	a5 9c			LDA	FIREDEL	; check reload delay
+   306	1232	d0 49			BNE	PLAYMOV	; do nothing if reloading
+   307	1234	85 17			STA	AUDF0	; BANG!
+   308	1236	85 18			STA	AUDF1
+   309	1238	a9 08			LDA	#8
+   310	123a	85 15			STA	AUDC0
+   311	123c	85 16			STA	AUDC1
+   312	123e	85 19			STA	AUDV0
+   313	1240	85 1a			STA	AUDV1
+   314	1242	85 9b			STA	SOUNDEL
+   315	1244	a5 99			LDA	SKELDIS	; is skeleton in view?
+   316	1246	29 03			AND	#$03
+   317	1248	f0 27			BEQ	SETDEL	; not in view
+   318	124a	a9 00			LDA	#$00	; make skeleton turn
+   319	124c	38			SEC		; and face plaer
+   320	124d	e5 ac			SBC	PLAYDIR
+   321	124f	85 a1			STA	SKELNXT
+   322	1251	a5 9a			LDA	RANDOM	; generate random damage
+   323	1253	29 0f			AND	#$0F	; 0-15
+   324	1255	85 9c			STA	FIREDEL	; save temp
+   325	1257	a5 a4			LDA	SKELIFE	; reduce skeleton life
+   326	1259	38			SEC
+   327	125a	e5 9c			SBC	FIREDEL
+   328	125c	85 a4			STA	SKELIFE
+   329	125e	a5 9c			LDA	FIREDEL	; set skeleton colour flash
+   330	1260	0a			ASL
+   331	1261	0a			ASL
+   332	1262	0a			ASL
+   333	1263	0a			ASL
+   334	1264	85 9c			STA	FIREDEL	; save msn
+   335	1266	a6 a4			LDX	SKELIFE	; set luminance
+   336	1268	bd 00 17		LDA	LIFELUM,X
+   337	126b	05 9c			ORA	FIREDEL	; combine
+   338	126d	85 06			STA	COLUP0
+   339	126f	85 07			STA	COLUP1
+   340	1271	a5 b3	    SETDEL	LDA	MAZECOL	; set playfield colour
+   341	1273	29 0f			AND	#$0F	; flash maze too
+   342	1275	85 08			STA	COLUPF
+   343	1277	a9 32			LDA	#50	; set reload timer = 1 sec
+   344	1279	85 9c			STA	FIREDEL
+   345	127b	d0 00			BNE	PLAYMOV
+   346	127d
+   347	127d	ad 80 02    PLAYMOV	LDA	SWCHA	; PLAYER MOVE
+   348	1280	09 0f			ORA	#$0F
+   349	1282	c5 9f			CMP	THISMOV	; DEBOUNCE
+   350	1284	d0 4e			BNE	SKELMOV
+   351	1286	a6 a0			LDX	LASTMOV	; moved last frame?
+   352	1288	e0 ff			CPX	#$FF
+   353	128a	d0 1b			BNE	PMOVEA	; no
+   354	128c	c9 ef			CMP	#$EF	; forward?
+   355	128e	f0 2e			BEQ	PMOVEC
+   356	1290	c9 7f			CMP	#$7F	; turn right?
+   357	1292	f0 1b			BEQ	PMOVEB
+   358	1294	c9 bf			CMP	#$BF	; turn left?
+   359	1296	d0 3c			BNE	SKELMOV
+   360	1298	85 a0			STA	LASTMOV
+   361	129a	a6 ac			LDX	PLAYDIR	; turn left
+   362	129c	a9 00			LDA	#$00
+   363	129e	38			SEC
+   364	129f	e5 ad			SBC	PLAYRIG
+   365	12a1	86 ad			STX	PLAYRIG
+   366	12a3	85 ac			STA	PLAYDIR
+   367	12a5	d0 2d			BNE	SKELMOV
+   368	12a7	c9 ff	    PMOVEA	CMP	#$FF	; return to center?
+   369	12a9	d0 29			BNE	SKELMOV
+   370	12ab	85 a0			STA	LASTMOV	; centered
+   371	12ad	f0 25			BEQ	SKELMOV
+   372	12af	85 a0	    PMOVEB	STA	LASTMOV	; right turn
+   373	12b1	a6 ad			LDX	PLAYRIG
+   374	12b3	a9 00			LDA	#$00
+   375	12b5	38			SEC
+   376	12b6	e5 ac			SBC	PLAYDIR
+   377	12b8	86 ac			STX	PLAYDIR
+   378	12ba	85 ad			STA	PLAYRIG
+   379	12bc	d0 16			BNE	SKELMOV
+   380	12be	85 a0	    PMOVEC	STA	LASTMOV	; step forward
+   381	12c0	a5 98			LDA	WALL
+   382	12c2	c9 01			CMP	#1
+   383	12c4	f0 0e			BEQ	SKELMOV
+   384	12c6	a5 ab			LDA	PLAYPOS
+   385	12c8	18			CLC
+   386	12c9	65 ac			ADC	PLAYDIR
+   387	12cb	85 ab			STA	PLAYPOS
+   388	12cd	c5 ae			CMP	SKELPOS
+   389	12cf	d0 03			BNE	SKELMOV
+   390	12d1	4c e4 1c		JMP	GOTYOU
+   391	12d4
+   392	12d4	a5 a4	    SKELMOV	LDA	SKELIFE	; skeleton still alive?
+   393	12d6	30 04			BMI	SKELSTP
+   394	12d8	c6 a6			DEC	SKELDEL	; main skeleton movement delay
+   395	12da	f0 03			BEQ	SKDEL1
+   396	12dc	4c 37 14    SKELSTP	JMP	BOTTOM	; no movement, skip everything
+   397	12df
+   398	12df	a5 a8	    SKDEL1	LDA	SKELSEC	; decrease rate counter
+   399	12e1	38			SEC
+   400	12e2	e5 a7			SBC	SKELPER
+   401	12e4	85 a8			STA	SKELSEC
+   402	12e6	b0 20			BCS	SKDEL2	; no carry = underflow
+   403	12e8	69 32			ADC	#50
+   404	12ea	85 a8			STA	SKELSEC
+   405	12ec	a5 a9			LDA	SKELMIN
+   406	12ee	38			SEC
+   407	12ef	e5 a7			SBC	SKELPER	; decrease square counter
+   408	12f1	85 a9			STA	SKELMIN
+   409	12f3	b0 13			BCS	SKDEL2	; no carry = underflow
+   410	12f5	69 50			ADC	#80
+   411	12f7	85 a9			STA	SKELMIN
+   412	12f9	a5 aa			LDA	SKELHRS
+   413	12fb	38			SEC
+   414	12fc	e5 a7			SBC	SKELPER	; decrease cube counter
+   415	12fe	85 aa			STA	SKELHRS
+   416	1300	b0 06			BCS	SKDEL2	; no carry = underflow
+   417	1302	69 50			ADC	#80
+   418	1304	85 aa			STA	SKELHRS
+   419	1306	c6 a7			DEC	SKELPER	; speed up skeleton!
+   420	1308	a5 a7	    SKDEL2	LDA	SKELPER
+   421	130a	85 a6			STA	SKELDEL
+   422	130c
+   423	130c	a5 a1			LDA	SKELNXT	; forced move?
+   424	130e	f0 2f			BEQ	SMOVEA	; nope, start the decision tree
+   425	1310	a2 00			LDX	#0	; clear forced move flag
+   426	1312	86 a1			STX	SKELNXT
+   427	1314	c5 af			CMP	SKELDIR	; forced=facing?
+   428	1316	d0 03			BNE	SKNXT0
+   429	1318	4c f9 13		JMP	SMOVE1	; step forward
+   430	131b	85 af	    SKNXT0	STA	SKELDIR	; turn and set SKELRIG correctly
+   431	131d	c9 01			CMP	#1
+   432	131f	f0 08			BEQ	SKNXT1
+   433	1321	30 0c			BMI	SKNXT2
+   434	1323	a9 ff			LDA	#-1
+   435	1325	85 b0			STA	SKELRIG
+   436	1327	d0 b3			BNE	SKELSTP
+   437	1329	a9 10	    SKNXT1	LDA	#16
+   438	132b	85 b0			STA	SKELRIG
+   439	132d	d0 ad			BNE	SKELSTP
+   440	132f	c9 ff	    SKNXT2	CMP	#-1
+   441	1331	f0 06			BEQ	SKNXT3
+   442	1333	a9 01			LDA	#1
+   443	1335	85 b0			STA	SKELRIG
+   444	1337	d0 a3			BNE	SKELSTP
+   445	1339	a9 f0	    SKNXT3	LDA	#-16
+   446	133b	85 b0			STA	SKELRIG
+   447	133d	d0 9d			BNE	SKELSTP
+   448	133f	a2 00	    SMOVEA	LDX	#0	; direction flags
+   449	1341	a5 ae			LDA	SKELPOS	; can we go forward?
+   450	1343	18			CLC
+   451	1344	65 af			ADC	SKELDIR
+   452	1346	a8			TAY
+   453	1347	a5 b2			LDA	LVLMASK
+   454	1349	39 00 19		AND	MAZES,Y
+   455	134c	d0 2c			BNE	SMOVED	; can't go forward
+   456	134e	e8			INX		; forward flag
+   457	134f	a9 01			LDA	#$01	; determine facing
+   458	1351	24 af			BIT	SKELDIR	; use bit to test for neg too
+   459	1353	d0 0c			BNE	SMOVEB	; SKELDIR = +1/-1
+   460	1355	a5 ab			LDA	PLAYPOS	; check for player in same column
+   461	1357	38			SEC
+   462	1358	e5 ae			SBC	SKELPOS
+   463	135a	29 0f			AND	#$0F
+   464	135c	d0 1c			BNE	SMOVED
+   465	135e	4c f9 13		JMP	SMOVE1
+   466	1361	30 0c	    SMOVEB	BMI	SMOVEC	; SKELDIR = -1
+   467	1363	a5 ab			LDA	PLAYPOS
+   468	1365	38			SEC
+   469	1366	e5 ae			SBC	SKELPOS
+   470	1368	29 f0			AND	#$F0	; player ahead
+   471	136a	d0 0e			BNE	SMOVED
+   472	136c	4c f9 13		JMP	SMOVE1
+   473	136f	a5 ae	    SMOVEC	LDA	SKELPOS	; player ahead (behind)
+   474	1371	38			SEC
+   475	1372	e5 ab			SBC	PLAYPOS
+   476	1374	29 f0			AND	#$F0	; player ahead
+   477	1376	d0 02			BNE	SMOVED
+   478	1378	f0 7f			BEQ	SMOVE1
+   479	137a	a5 ae	    SMOVED	LDA	SKELPOS	; can we go right?
+   480	137c	18			CLC
+   481	137d	65 b0			ADC	SKELRIG
+   482	137f	a8			TAY
+   483	1380	a5 b2			LDA	LVLMASK
+   484	1382	39 00 19		AND	MAZES,Y
+   485	1385	d0 02			BNE	SMOVEE
+   486	1387	e8			INX
+   487	1388	e8			INX
+   488	1389	a5 ae	    SMOVEE	LDA	SKELPOS	; can we go left?
+   489	138b	38			SEC
+   490	138c	e5 b0			SBC	SKELRIG
+   491	138e	a8			TAY
+   492	138f	a5 b2			LDA	LVLMASK
+   493	1391	39 00 19		AND	MAZES,Y
+   494	1394	d0 04			BNE	SMOVEF
+   495	1396	e8			INX
+   496	1397	e8			INX
+   497	1398	e8			INX
+   498	1399	e8			INX
+   499	139a	e0 00	    SMOVEF	CPX	#0
+   500	139c	f0 18			BEQ	SMOVE0	; no directions, turn around
+   501	139e	ca			DEX
+   502	139f	f0 58			BEQ	SMOVE1	; forward only
+   503	13a1	ca			DEX
+   504	13a2	f0 23			BEQ	SMOVE2	; right only
+   505	13a4	ca			DEX
+   506	13a5	f0 30			BEQ	SMOVE3	; right or forward
+   507	13a7	ca			DEX
+   508	13a8	f0 33			BEQ	SMOVE4	; left only
+   509	13aa	ca			DEX
+   510	13ab	f0 40			BEQ	SMOVE5	; left or forward
+   511	13ad	ca			DEX
+   512	13ae	f0 43			BEQ	SMOVE6	; right or left
+   513	13b0	24 9a			BIT	RANDOM	; all directions
+   514	13b2	10 45			BPL	SMOVE1
+   515	13b4	30 3d			BMI	SMOVE6
+   516	13b6	a9 00	    SMOVE0	LDA	#$00	; turn around
+   517	13b8	38			SEC
+   518	13b9	e5 af			SBC	SKELDIR
+   519	13bb	85 af			STA	SKELDIR
+   520	13bd	a9 00			LDA	#$00
+   521	13bf	38			SEC
+   522	13c0	e5 b0			SBC	SKELRIG
+   523	13c2	85 b0			STA	SKELRIG
+   524	13c4	4c 37 14		JMP	BOTTOM
+   525	13c7	a6 b0	    SMOVE2	LDX	SKELRIG	; turn right
+   526	13c9	a9 00			LDA	#$00
+   527	13cb	38			SEC
+   528	13cc	e5 af			SBC	SKELDIR
+   529	13ce	86 af			STX	SKELDIR
+   530	13d0	85 b0			STA	SKELRIG
+   531	13d2	86 a1			STX	SKELNXT	; force forward
+   532	13d4	4c 37 14		JMP	BOTTOM
+   533	13d7	24 9a	    SMOVE3	BIT	RANDOM
+   534	13d9	10 1e			BPL	SMOVE1
+   535	13db	30 ea			BMI	SMOVE2
+   536	13dd	a6 af	    SMOVE4	LDX	SKELDIR	; turn left
+   537	13df	a9 00			LDA	#$00
+   538	13e1	38			SEC
+   539	13e2	e5 b0			SBC	SKELRIG
+   540	13e4	86 b0			STX	SKELRIG
+   541	13e6	85 af			STA	SKELDIR
+   542	13e8	85 a1			STA	SKELNXT	; force forward
+   543	13ea	4c 37 14		JMP	BOTTOM
+   544	13ed	24 9a	    SMOVE5	BIT	RANDOM
+   545	13ef	10 08			BPL	SMOVE1
+   546	13f1	30 ea			BMI	SMOVE4
+   547	13f3	24 9a	    SMOVE6	BIT	RANDOM
+   548	13f5	50 d0			BVC	SMOVE2
+   549	13f7	70 e4			BVS	SMOVE4
+   550	13f9	a5 ae	    SMOVE1	LDA	SKELPOS	; step forward
+   551	13fb	18			CLC
+   552	13fc	65 af			ADC	SKELDIR
+   553	13fe	85 ae			STA	SKELPOS
+   554	1400	c5 ab			CMP	PLAYPOS
+   555	1402	d0 03			BNE	SMOVE7
+   556	1404	4c e4 1c		JMP	GOTYOU
+   557	1407	a5 9b	    SMOVE7	LDA	SOUNDEL	; check for existing sound
+   558	1409	d0 2c			BNE	BOTTOM
+   559	140b	20 60 1c		JSR	SKPOSXY	; calculate distance for sound
+   560	140e	20 0a 1b		JSR	PDIRXY
+   561	1411	20 e4 1a		JSR	SKSTEP
+   562	1414	a9 01			LDA	#1
+   563	1416	85 15			STA	AUDC0
+   564	1418	85 16			STA	AUDC1
+   565	141a	a5 9a			LDA	RANDOM
+   566	141c	09 1e			ORA	#30
+   567	141e	85 17			STA	AUDF0
+   568	1420	85 18			STA	AUDF1
+   569	1422	e0 f1			CPX	#-15
+   570	1424	10 02			BPL	AUDX
+   571	1426	a2 f1			LDX	#-15
+   572	1428	86 19	    AUDX	STX	AUDV0	; left speaker
+   573	142a	c0 f1			CPY	#-15
+   574	142c	10 02			BPL	AUDY
+   575	142e	a0 f1			LDY	#-15
+   576	1430	84 1a	    AUDY	STY	AUDV1	; right speaker
+   577	1432	a5 a6			LDA	SKELDEL
+   578	1434	4a			LSR
+   579	1435	85 9b			STA	SOUNDEL
+   580	1437
+   581	1437	20 4a 16    BOTTOM	JSR	DOVSYNC
+   582	143a
+   583	143a	a5 a4	    NEWSKEL	LDA	SKELIFE	; skeleton dead?
+   584	143c	10 54			BPL	PVIEW
+   585	143e	a5 9c			LDA	FIREDEL	; done death flash?
+   586	1440	d0 50			BNE	PVIEW
+   587	1442	a6 a5			LDX	SKELNUM	; increment skeleton life
+   588	1444	e8			INX
+   589	1445	86 a5			STX	SKELNUM
+   590	1447	86 a4			STX	SKELIFE
+   591	1449	a6 b3			LDX	MAZECOL	; increment maze luminance
+   592	144b	e8			INX
+   593	144c	8a			TXA
+   594	144d	29 0f			AND	#$0F
+   595	144f	c9 0d			CMP	#13
+   596	1451	f0 28			BEQ	NEXTLVL	; ten down, new level
+   597	1453	86 b3			STX	MAZECOL
+   598	1455	a9 00			LDA	#$00
+   599	1457	85 ae			STA	SKELPOS
+   600	1459	20 60 1c		JSR	SKPOSXY	; figure out restart position
+   601	145c						;	LDA	SKELX
+   602	145c	10 05			BPL	NEWSK1
+   603	145e	49 ff			EOR	#$FF	; NEG
+   604	1460	18			CLC
+   605	1461	69 01			ADC	#$01
+   606	1463	24 a3	    NEWSK1	BIT	SKELY
+   607	1465	10 05			BPL	NEWSK2
+   608	1467	38			SEC
+   609	1468	e5 a3			SBC	SKELY
+   610	146a	10 03			BPL	NEWSK3
+   611	146c	18	    NEWSK2	CLC
+   612	146d	65 a3			ADC	SKELY
+   613	146f	c9 07	    NEWSK3	CMP	#$07
+   614	1471	10 04			BPL	NEWSK4
+   615	1473	a9 78			LDA	#120
+   616	1475	85 ae			STA	SKELPOS
+   617	1477	a2 05	    NEWSK4	LDX	#LOADDEL-LOADRAM	; reset skeleton move timers
+   618	1479	d0 0f			BNE	REINIT
+   619	147b	8a	    NEXTLVL	TXA		; increment maze colour
+   620	147c	18			CLC
+   621	147d	69 16			ADC	#$16
+   622	147f	85 b3			STA	MAZECOL
+   623	1481	a2 0b			LDX	#LOADLVL-LOADRAM
+   624	1483	06 b2			ASL	LVLMASK
+   625	1485	d0 03			BNE	REINIT
+   626	1487	4c ea 1c		JMP	YOUWIN
+   627	148a
+   628	148a	bd 67 1e    REINIT	LDA	LOADRAM-1,X	; refresh initial values
+   629	148d	95 a5			STA	RAMLOAD-1,X
+   630	148f	ca			DEX
+   631	1490	d0 f8			BNE	REINIT
+   632	1492
+   633	1492	a2 00	    PVIEW	LDX	#0	; center view & skeleton distance
+   634	1494	86 99			STX	SKELDIS
+   635	1496	a4 ab			LDY	PLAYPOS
+   636	1498	20 ee 10		JSR	PVIEW1
+   637	149b	d0 10			BNE	PVIEWA
+   638	149d	20 ee 10		JSR	PVIEW1
+   639	14a0	d0 0b			BNE	PVIEWA
+   640	14a2	20 ee 10		JSR	PVIEW1
+   641	14a5	d0 06			BNE	PVIEWA
+   642	14a7	20 ee 10		JSR	PVIEW1
+   643	14aa	d0 01			BNE	PVIEWA
+   644	14ac	e8			INX
+   645	14ad	86 98	    PVIEWA	STX	WALL	; save wall distance
+   646	14af	a5 ab			LDA	PLAYPOS	; right view, step 1
+   647	14b1	18			CLC
+   648	14b2	65 ad			ADC	PLAYRIG
+   649	14b4	a2 8b			LDX	#MAZE1R+1	; save bits here
+   650	14b6	20 76 1e    PVIEWE	JSR	PVIEW3	; test and save bits
+   651	14b9	e0 90			CPX	#MAZE3R+2
+   652	14bb	d0 f9			BNE	PVIEWE
+   653	14bd	a5 ab			LDA	PLAYPOS	; left view, step 1
+   654	14bf	38			SEC		;
+   655	14c0	e5 ad			SBC	PLAYRIG	;
+   656	14c2	a2 83			LDX	#MAZE1L+1	; save bits here
+   657	14c4	20 76 1e    PVIEWF	JSR	PVIEW3	;
+   658	14c7	e0 88			CPX	#MAZE3L+2	;
+   659	14c9	d0 f9			BNE	PVIEWF	;
+   660	14cb	a2 8b			LDX	#MAZE1R+1	; right view, step 2
+   661	14cd	a0 88			LDY	#MAZE0R	;
+   662	14cf	20 50 17    PVIEWG	JSR	PVIEW4	; change bits to pointers
+   663	14d2	c0 90			CPY	#MAZE3R+2	;
+   664	14d4	d0 f9			BNE	PVIEWG	;
+   665	14d6	a2 83			LDX	#MAZE1L+1	; left view, step 2
+   666	14d8	a0 80			LDY	#MAZE0L	;
+   667	14da	20 50 17    PVIEWH	JSR	PVIEW4	; change bits to pointers
+   668	14dd	c0 88			CPY	#MAZE3L+2	;
+   669	14df	d0 f9			BNE	PVIEWH	;
+   670	14e1
+   671	14e1	ad 82 02		LDA	SWCHB	; check difficulty switch
+   672	14e4	29 40			AND	#$40
+   673	14e6	f0 06			BEQ	DOBALL
+   674	14e8	85 96			STA	BALLTOP	; set top & bottom same
+   675	14ea	85 97			STA	BALLBOT	; to prevent ball display
+   676	14ec	d0 09			BNE	NOBALL
+   677	14ee	20 60 1c    DOBALL	JSR	SKPOSXY	; add skeleton direction pointer
+   678	14f1	20 0a 1b		JSR	PDIRXY
+   679	14f4	20 0f 16		JSR	POSBALL
+   680	14f7
+   681	14f7	a5 99	    NOBALL	LDA	SKELDIS	; skeleton view
+   682	14f9	29 03			AND	#$03	; check distance
+   683	14fb	d0 09			BNE	SKPOSA
+   684	14fd	85 95			STA	SKELBOT	; force skeleton off
+   685	14ff	e9 01			SBC	#1	; by reversing top & bottom
+   686	1501	85 94			STA	SKELTOP
+   687	1503	4c 94 15		JMP	SKVIEW0
+   688	1506	38	    SKPOSA	SEC		; decrement for table access
+   689	1507	e9 01			SBC	#1
+   690	1509	0a			ASL		; multiply by 16
+   691	150a	0a			ASL
+   692	150b	0a			ASL
+   693	150c	0a			ASL
+   694	150d	a8			TAY
+   695	150e	b9 b2 15		LDA	SKTABLE,Y	; use table to update RAM
+   696	1511	85 2b			STA	HMCLR
+   697	1513	85 20			STA	HMP0
+   698	1515	b9 b3 15		LDA	SKTABLE+1,Y
+   699	1518	85 94			STA	SKELTOP
+   700	151a	b9 b4 15		LDA	SKTABLE+2,Y
+   701	151d	85 95			STA	SKELBOT
+   702	151f	b9 b5 15		LDA	SKTABLE+3,Y
+   703	1522	85 04			STA	NUSIZ0
+   704	1524	85 05			STA	NUSIZ1
+   705	1526	a5 ac			LDA	PLAYDIR	; figure out facing
+   706	1528	c5 af			CMP	SKELDIR
+   707	152a	f0 21			BEQ	SKPOSB	; same dir = back
+   708	152c	c5 b0			CMP	SKELRIG	; left
+   709	152e	f0 2f			BEQ	SKPOSC
+   710	1530	18			CLC
+   711	1531	65 af			ADC	SKELDIR
+   712	1533	f0 42			BEQ	SKPOSD	; inverse = front
+   713	1535	b9 ba 15		LDA	SKTABLE+8,Y	; must be right
+   714	1538	85 92			STA	SKEL1	; arm on the right
+   715	153a	b9 bb 15		LDA	SKTABLE+9,Y
+   716	153d	85 93			STA	SKEL1+1
+   717	153f	b9 bc 15		LDA	SKTABLE+10,Y	; body on the left
+   718	1542	85 90			STA	SKEL0
+   719	1544	b9 bd 15		LDA	SKTABLE+11,Y
+   720	1547	85 91			STA	SKEL0+1
+   721	1549	a9 18			LDA	#$18	; mirror both
+   722	154b	d0 3a			BNE	SKVIEW
+   723	154d	b9 b8 15    SKPOSB	LDA	SKTABLE+6,Y	; back for both
+   724	1550	85 90			STA	SKEL0
+   725	1552	85 92			STA	SKEL1
+   726	1554	b9 b9 15		LDA	SKTABLE+7,Y
+   727	1557	85 91			STA	SKEL0+1
+   728	1559	85 93			STA	SKEL1+1
+   729	155b	a9 08			LDA	#$08	; left normal, right mirror
+   730	155d	d0 28			BNE	SKVIEW
+   731	155f	b9 ba 15    SKPOSC	LDA	SKTABLE+8,Y	; arm on the left
+   732	1562	85 90			STA	SKEL0
+   733	1564	b9 bb 15		LDA	SKTABLE+9,Y
+   734	1567	85 91			STA	SKEL0+1
+   735	1569	b9 bc 15		LDA	SKTABLE+10,Y	; body on the right
+   736	156c	85 92			STA	SKEL1
+   737	156e	b9 bd 15		LDA	SKTABLE+11,Y
+   738	1571	85 93			STA	SKEL1+1
+   739	1573	a9 00			LDA	#$00	; no mirror
+   740	1575	f0 10			BEQ	SKVIEW
+   741	1577	b9 b6 15    SKPOSD	LDA	SKTABLE+4,Y	; front for both
+   742	157a	85 90			STA	SKEL0
+   743	157c	85 92			STA	SKEL1
+   744	157e	b9 b7 15		LDA	SKTABLE+5,Y
+   745	1581	85 91			STA	SKEL0+1
+   746	1583	85 93			STA	SKEL1+1
+   747	1585	a9 08			LDA	#$08	; left normal, right mirror
+   748	1587	85 02	    SKVIEW	STA	WSYNC	; hmove P0 for size
+   749	1589	85 2a			STA	HMOVE
+   750	158b	85 0c			STA	REFP1	; set reflection registers
+   751	158d	4a			LSR
+   752	158e	85 0b			STA	REFP0
+   753	1590	85 02			STA	WSYNC
+   754	1592	85 2a			STA	HMOVE
+   755	1594
+   756	1594	20 60 1e    SKVIEW0	JSR	WAITIM
+   757	1597
+   758	1597	a5 0c			LDA	INPT4	; save button for debounce
+   759	1599	29 80			AND	#$80
+   760	159b	85 9d			STA	THISFIR
+   761	159d	a6 9c			LDX	FIREDEL	; decrement reload counter
+   762	159f	f0 03			BEQ	RELOAD
+   763	15a1	ca			DEX
+   764	15a2	86 9c			STX	FIREDEL
+   765	15a4
+   766	15a4	ad 80 02    RELOAD	LDA	SWCHA	; save joystick for debounce
+   767	15a7	09 0f			ORA	#$0F
+   768	15a9	85 9f			STA	THISMOV
+   769	15ab
+   770	15ab	a0 00			LDY	#$00
+   771	15ad	a2 00			LDX	#$00
+   772	15af	4c 1b 10		JMP	KERN0
+   773	15b2
+   774	15b2						; 44
+   775	15b2	70 53 c0 07 SKTABLE	DC.B	$70, 83, 192, $07
+   776	15b6	1b 1b 1b 1d		DC.W	SKFRON1-83, SKBACK1-83
+   777	15ba	40 16 13 1f		DC.W	SKARM1-83, SKBODY1-83
+   778	15be	45 72 69 63		DC.B	$45, $72, $69, $63
+   779	15c2	f0 5f a8 05		DC.B	$F0, 95, 168, $05
+   780	15c6	0f 17 58 17		DC.W	SKFRON2-95, SKBACK2-95
+   781	15ca	3d 16 58 18		DC.W	SKARM2-95, SKBODY2-95
+   782	15ce	42 61 6c 6c		DC.B	$42, $61, $6C, $6C
+   783	15d2	b0 6b 90 00		DC.B	$B0, 107, 144, $00
+   784	15d6	70 1b 70 1d		DC.W	SKFRON3-107, SKBACK3-107
+   785	15da	3a 16 68 1f		DC.W	SKARM3-107, SKBODY3-107
+   786	15de
+   787	15de						; 37
+   788	15de	85 02	    XWALL0	STA	WSYNC	;46-0
+   789	15e0	a9 00			LDA	#0	;-2
+   790	15e2	c4 96			CPY	BALLTOP	;-4
+   791	15e4	90 06			BCC	XWALL1	;-6/7
+   792	15e6	c4 97			CPY	BALLBOT	;-8
+   793	15e8	b0 02			BCS	XWALL1	;-10/11
+   794	15ea	a9 02			LDA	#2	;-12
+   795	15ec	85 1f	    XWALL1	STA	ENABL	;-15
+   796	15ee	c4 94	    XWALL	CPY	SKELTOP	;-17
+   797	15f0	90 0c			BCC	XWALL2	;-19/20
+   798	15f2	c4 95			CPY	SKELBOT	;-21
+   799	15f4	b0 08			BCS	XWALL2	;-23/24
+   800	15f6	b1 90			LDA	(SKEL0),Y	;-28
+   801	15f8	85 1b			STA	GRP0	;-31
+   802	15fa	b1 92			LDA	(SKEL1),Y	;-36
+   803	15fc	85 1c			STA	GRP1	;-39
+   804	15fe	c8	    XWALL2	INY		;-41
+   805	15ff	ca			DEX		;-43
+   806	1600	d0 dc			BNE	XWALL0	;-45/46
+   807	1602	60			RTS		;-51
+   808	1603
+   809	1603						; 12
+   810	1603	a5 9a	    RAND	LDA	RANDOM	; simple 8 bit LFSR
+   811	1605	f0 03			BEQ	XSEED	;+5/6
+   812	1607	4a			LSR		;+7
+   813	1608	90 02			BCC	SRAND	;+9/10
+   814	160a	49 a9	    XSEED	EOR	#$A9	;+6/9-8/11
+   815	160c	85 9a	    SRAND	STA	RANDOM	;+8/10/11-11/14
+   816	160e	60			RTS		;+17/20
+   817	160f
+   818	160f						; 59
+   819	160f	8a	    POSBALL	TXA		; SKELX/Y into BALLTOP/BOT & RESBL
+   820	1610	f0 06			BEQ	PBALL1
+   821	1612	30 08			BMI	PBALL2
+   822	1614	a9 03			LDA	#3
+   823	1616	d0 06			BNE	PBALL3
+   824	1618	a9 6c	    PBALL1	LDA	#108
+   825	161a	d0 02			BNE	PBALL3
+   826	161c	a9 d5	    PBALL2	LDA	#213
+   827	161e	85 96	    PBALL3	STA	BALLTOP
+   828	1620	18			CLC
+   829	1621	69 0c			ADC	#12
+   830	1623	85 97			STA	BALLBOT
+   831	1625	98			TYA
+   832	1626	f0 08			BEQ	PBALL4
+   833	1628	10 0c			BPL	PBALL5
+   834	162a	a9 60			LDA	#$60
+   835	162c	a0 03			LDY	#3
+   836	162e	d0 0a			BNE	PBALL6
+   837	1630	a9 40	    PBALL4	LDA	#$40
+   838	1632	a0 06			LDY	#6
+   839	1634	d0 04			BNE	PBALL6
+   840	1636	a9 20	    PBALL5	LDA	#$20
+   841	1638	a0 09			LDY	#9
+   842	163a	84 02	    PBALL6	STY	WSYNC	; -0
+   843	163c	84 14			STY	RESBL	; -3
+   844	163e	88	    PBALL0	DEY		; +2
+   845	163f	84 14			STY	RESBL	; +3
+   846	1641	d0 fb			BNE	PBALL0	; +2/3
+   847	1643	85 02			STA	WSYNC
+   848	1645	85 24			STA	HMBL
+   849	1647	85 2a			STA	HMOVE
+   850	1649	60			RTS
+   851	164a
+   852	164a						; 51
+   853	164a	20 60 1e    DOVSYNC	JSR	WAITIM
+   854	164d	a9 02			LDA	#$02
+   855	164f	85 00			STA	VSYNC
+   856	1651	20 03 16		JSR	RAND	; cycle LFSR
+   857	1654	a9 31			LDA	#$31	; ball width = 8
+   858	1656	85 0a			STA	CTRLPF	; reflect playfield
+   859	1658	85 02			STA	WSYNC	; set initial skeleton position
+   860	165a	a2 08			LDX	#8	;-2
+   861	165c	ca	    SKPOS0	DEX		;+2
+   862	165d	d0 fd			BNE	SKPOS0	;+2/3
+   863	165f	85 10			STA	RESP0	;46-49
+   864	1661	a9 60			LDA	#$60	; shift left half left
+   865	1663	85 11			STA	RESP1
+   866	1665	85 20			STA	HMP0
+   867	1667	a9 40			LDA	#$40	; center right half (final position)
+   868	1669	85 21			STA	HMP1
+   869	166b	85 02			STA	WSYNC
+   870	166d	85 2a			STA	HMOVE
+   871	166f	a9 36			LDA	#45*76/64+1
+   872	1671	85 02			STA	WSYNC
+   873	1673	8d 96 02		STA	TIM64T
+   874	1676	a9 00			LDA	#$00
+   875	1678	85 00			STA	VSYNC
+   876	167a	85 2b			STA	HMCLR
+   877	167c	60			RTS
+   878	167d
+   879	1693				ORG	$1700-109
+   880	1693	00 00 00 00*SKARM1	DS	27
+   881	16ae	3f 3f			HEX	3F 3F
+   882	16b0	00 00 00 00*		DS	80
+   883	16b0	16 9c	    SKARM2	EQU	SKARM1+9
+   884	16b0	16 a5	    SKARM3	EQU	SKARM1+18
+   885	1700
+   886	1700				ORG	$1700
+   887	1700						; 80
+   888	1700	02 02 02 02*LIFELUM	DC.B	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4
+   889	1710	04 04 04 04*		DC.B	4, 4, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 6, 6, 6, 6
+   890	1720	06 06 06 08*		DC.B	6, 6, 6, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 10, 10
+   891	1730	0a 0a 0a 0a*		DC.B	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 12
+   892	1740	0c 0c 0c 0c*		DC.B	12, 12, 12, 12, 12, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14
+   893	1750
+   894	1750						; 30
+   895	1750	b5 00	    PVIEW4	LDA	$00,X	; right/left step 2 subroutine
+   896	1752	f0 04			BEQ	PVIEW5	; open found, check next
+   897	1754	a9 1a			LDA	#>TYPE0	; closed, show wall
+   898	1756	d0 0a			BNE	PVIEW7
+   899	1758	b5 01	    PVIEW5	LDA	$01,X	; is next open too?
+   900	175a	f0 04			BEQ	PVIEW6
+   901	175c	a9 1c			LDA	#>TYPE1	; open, show hole
+   902	175e	d0 02			BNE	PVIEW7
+   903	1760	a9 1e	    PVIEW6	LDA	#>TYPE2	; both open, show Y
+   904	1762	e8	    PVIEW7	INX		; next test position
+   905	1763	99 01 00		STA	$0001,Y	; pointer MSB to RAM
+   906	1766	a9 00			LDA	#$00
+   907	1768	99 00 00		STA	$0000,Y	; LSB = 0
+   908	176b	c8			INY		; next pointer position
+   909	176c	c8			INY
+   910	176d	60			RTS
+   911	176e
+   912	176e				ORG	$1800-146
+   913	176e	03 03 07 07*SKFRON2	HEX	03 03 07 07 05 05 06 06 03 03 02 02 03 03 01 01
+   914	177e	3f 3f 41 41*		HEX	3F 3F 41 41 4F 4F 41 41 4F 4F 41 41 4F 4F 21 21
+   915	178e	2f 2f 21 21*		HEX	2F 2F 21 21 27 27 53 53 51 51 02 02 02 02 02 02
+   916	179e	02 02 02 02*		HEX	02 02 02 02 02 02 02 02 04 04 02 02 02 02 02 02
+   917	17ae	02 02 02 02*		HEX	02 02 02 02 02 02 1E 1E 00
+   918	17b7	03 03 07 07*SKBACK2	HEX	03 03 07 07 07 07 07 07 03 03 03 03 03 03 01 01
+   919	17c7	3f 3f 5f 5f*		HEX	3F 3F 5F 5F 4F 4F 41 41 4F 4F 41 41 4F 4F 21 21
+   920	17d7	2f 2f 21 21*		HEX	2F 2F 21 21 27 27 53 53 51 51 02 02 02 02 02 02
+   921	17e7	02 02 02 02*		HEX	02 02 02 02 02 02 02 02 04 04 02 02 02 02 02 02
+   922	17f7	02 02 02 02*		HEX	02 02 02 02 02 02 1E 1E 00
+   923	1800
+   924	1800				ORG	$1800
+   925	1800						; 170
+   926	1800	ff 4b 0b 7d*TITLEPF	HEX	FF4B0B7D89	; SKELETON
+   927	1805	11 52 08 12*		HEX	115208129A
+   928	180a	f7 63 09 12*		HEX	F7630912AA
+   929	180f	81 52 08 12*		HEX	81520812CA
+   930	1814	ff 4b 7b 11*		HEX	FF4B7B1189
+   931	1819	00 00 00 00*		HEX	0000000000
+   932	181e	01 00 38 80*		HEX	0100388000	; BY
+   933	1823	01 00 48 80*		HEX	0100488000
+   934	1828	0a 00 38 00*		HEX	0A00380000
+   935	182d	04 00 48 00*		HEX	0400480000
+   936	1832	04 00 38 00*		HEX	0400380000
+   937	1837	00 00 00 00*		HEX	0000000000
+   938	183c	fe 73 39 19*		HEX	FE73391910	; ERIC BALL
+   939	1841	12 49 04 a5*		HEX	124904A510
+   940	1846	7e 71 04 3d*		HEX	7E71043D10
+   941	184b	12 49 04 a5*		HEX	124904A510
+   942	1850	fe 4b 39 25*		HEX	FE4B3925F7
+   943	1855
+   944	1855	ff ff f8 ff*GOT 	HEX	FF FF F8 FF F8
+   945	185a	30 00 cc 60*		HEX	30 00 CC 60 CC
+   946	185f	30 3f 78 60*		HEX	30 3F 78 60 78
+   947	1864	30 03 e0 60*		HEX	30 03 E0 60 E0
+   948	1869	f0 ff e0 60*		HEX	F0 FF E0 60 E0
+   949	186e	00 00 00 00*		HEX	00 00 00 00 00
+   950	1873	33 03 fc 03*YOU 	HEX	33 03 FC 03 FC
+   951	1878	33 03 0c 03*		HEX	33 03 0C 03 0C
+   952	187d	f3 ff 0c 03*		HEX	F3 FF 0C 03 0C
+   953	1882	03 60 0c 03*		HEX	03 60 0C 03 0C
+   954	1887	0f 60 fc ff*		HEX	0F 60 FC FF FC
+   955	188c	00 00 00 00*		HEX	00 00 00 00 00
+   956	1891	33 03 fc 07*WIN 	HEX	33 03 FC 07 FC
+   957	1896	33 63 80 1b*		HEX	33 63 80 1B 80
+   958	189b	b3 9b 80 63*		HEX	B3 9B 80 63 80
+   959	18a0	7b 07 80 83*		HEX	7B 07 80 83 80
+   960	18a5	37 03 fc 03*		HEX	37 03 FC 03 FC
+   961	18aa
+   962	18aa						; 13
+   963	18aa	a2 0e	    INIT	LDX	#LOADEND-LOADRAM
+   964	18ac	bd 67 1e    INITL	LDA	LOADRAM-1,X	; copy in initial values
+   965	18af	95 a5			STA	RAMLOAD-1,X
+   966	18b1	ca			DEX
+   967	18b2	d0 f8			BNE	INITL
+   968	18b4	4c e9 11		JMP	LAST
+   969	18b7
+   970	18b7				ORG	$1900-73
+   971	18b7	70 70 f8 f8*SKBODY2	HEX	70 70 F8 F8 B8 B8 78 78 F8 F8 78 78 D0 D0 10 10
+   972	18c7	78 78 f8 f8*		HEX	78 78 F8 F8 F8 F8 08 08 F8 F8 08 08 F8 F8 08 08
+   973	18d7	38 38 08 08*		HEX	38 38 08 08 38 38 38 38 38 38 10 10 10 10 10 10
+   974	18e7	10 10 10 10*		HEX	10 10 10 10 10 10 10 10 20 20 10 10 10 10 10 10
+   975	18f7	10 10 10 10*		HEX	10 10 10 10 10 10 70 70 00
+   976	1900
+   977	1900				ORG	$1900
+   978	1900	00 00 05 61*MAZES	HEX	00 00 05 61 75 0B CA 51 93 01 1E 40 A8 61 C9 BA
+   979	1910	45 fa 1e 82*		HEX	45 FA 1E 82 0D BD 62 24 1D E4 2A D3 9C 33 55 26
+   980	1920	41 c2 03 70*		HEX	41 C2 03 70 42 05 31 8E 5C 77 20 74 50 21 89 81
+   981	1930	39 36 09 95*		HEX	39 36 09 95 3A 8A 40 61 D4 50 88 53 CB 67 72 16
+   982	1940	44 84 6a 04*		HEX	44 84 6A 04 45 E9 16 98 1A 23 05 37 43 58 90 29
+   983	1950	ca 31 d1 92*		HEX	CA 31 D1 92 7C 43 17 64 41 84 5C 92 0B A4 13 C5
+   984	1960	10 3f 7d 11*		HEX	10 3F 7D 11 C0 42 AA 66 BB 02 21 60 76 60 AA 0E
+   985	1970	30 f4 01 87*		HEX	30 F4 01 87 68 55 93 50 00 44 9F 08 C1 A8 35 40
+   986	1980	e9 e2 08 71*		HEX	E9 E2 08 71 E2 43 3D 54 FB 40 76 22 96 06 52 D8
+   987	1990	7f 03 16 d0*		HEX	7F 03 16 D0 5C 81 09 82 45 81 08 83 6C 41 A9 74
+   988	19a0	46 80 68 41*		HEX	46 80 68 41 3B B5 57 B2 2C B6 75 12 20 92 06 8B
+   989	19b0	41 b9 16 c7*		HEX	41 B9 16 C7 07 50 1B 42 21 61 58 D0 4D 31 C8 30
+   990	19c0	14 4b 82 ba*		HEX	14 4B 82 BA 01 F8 B6 4A 97 C9 46 71 C7 46 46 49
+   991	19d0	86 23 57 0c*		HEX	86 23 57 0C 42 55 14 05 21 30 84 49 75 4C F1 30
+   992	19e0	40 38 94 24*		HEX	40 38 94 24 F3 DC 7E D3 09 CE 11 23 83 4A 62 2D
+   993	19f0	c3 7c 97 48*		HEX	C3 7C 97 48 C2 00 35 31 3D 40 E0 6D 33 07 94 10
+   994	1a00
+   995	1a00				ORG	$1A00
+   996	1a00		    TYPE0			; NO OPENING
+   997	1a00	10 10 10 10*		HEX	101010101010	; MAZE0 PF0
+   998	1a06	20 20 20 20*		HEX	202020202020
+   999	1a0c	40 40 40 40*		HEX	404040404040
+  1000	1a12	80 80 80 80*		HEX	808080808080
+  1001	1a18	80 80 80 80*		HEX	808080808080	; MAZE1 PF1
+  1002	1a1e	40 40 40 40*		HEX	404040404040
+  1003	1a24	20 20 20 20*		HEX	202020202020
+  1004	1a2a	10 10 10 10*		HEX	101010101010
+  1005	1a30	18 18 18 18*		HEX	181818181818	; MAZE2 PF1
+  1006	1a36	14 14 14 14*		HEX	141414141414
+  1007	1a3c	12 12 12 12*		HEX	121212121212
+  1008	1a42	11 11 11 11*		HEX	111111111111
+  1009	1a48	01 01 01 01*		HEX	010101010101	; MAZE3 PF2
+  1010	1a4e	02 02 02 02*		HEX	020202020202
+  1011	1a54	04 04 04 04*		HEX	040404040404
+  1012	1a5a	08 08 08 08*		HEX	080808080808
+  1013	1a60
+  1014	1a60						; 36
+  1015	1a60	78	    START	SEI		; enable interupts
+  1016	1a61	d8			CLD		; turn off BCD math
+  1017	1a62	a9 00			LDA	#$00	; clear zero page memory & registers
+  1018	1a64	a2 44			LDX	#$44	; start with the TIA shadow
+  1019	1a66	95 00	    NULL	STA	0,X
+  1020	1a68	e8			INX
+  1021	1a69	d0 fb			BNE	NULL
+  1022	1a6b	86 a2			STX	TITLEX	; <TITLEPF = 0
+  1023	1a6d	ca			DEX		; set stack to bottom of RAM
+  1024	1a6e	9a			TXS
+  1025	1a6f
+  1026	1a6f	86 08			STX	COLUPF	; set up title screen
+  1027	1a71	a9 55			LDA	#<GOT
+  1028	1a73	85 99			STA	TITLEND
+  1029	1a75	a0 0d			LDY	#13
+  1030	1a77	84 a3			STY	TITLEY
+  1031	1a79	a9 2e			LDA	#38*76/64+1
+  1032	1a7b	85 95			STA	TITLBOT
+  1033	1a7d	a9 3b			LDA	#49*76/64+1
+  1034	1a7f	85 94			STA	TITLTOP
+  1035	1a81	4c 00 1d		JMP	TITLE3
+  1036	1a84
+  1037	1a84	f8 f8 f8 f8*		HEX	F8F8F8F8F8F8	; MAZE3 PF2
+  1038	1a8a	04 04 04 04*		HEX	040404040404
+  1039	1a90	02 02 02 02*		HEX	020202020202
+  1040	1a96	01 01 01 01*		HEX	010101010101
+  1041	1a9c	11 11 11 11*		HEX	111111111111	; MAZE2 PF1
+  1042	1aa2	12 12 12 12*		HEX	121212121212
+  1043	1aa8	14 14 14 14*		HEX	141414141414
+  1044	1aae	18 18 18 18*		HEX	181818181818
+  1045	1ab4	1f 1f 1f 1f*		HEX	1F1F1F1F1F1F	; MAZE1 PF1
+  1046	1aba	20 20 20 20*		HEX	202020202020
+  1047	1ac0	40 40 40 40*		HEX	404040404040
+  1048	1ac6	80 80 80 80*		HEX	808080808080
+  1049	1acc	80 80 80 80*		HEX	808080808080	; MAZE0 PF0
+  1050	1ad2	40 40 40 40*		HEX	404040404040
+  1051	1ad8	20 20 20 20*		HEX	202020202020
+  1052	1ade	10 10 10 10*		HEX	101010101010
+  1053	1ae4
+  1054	1ae4						; 38
+  1055	1ae4	84 a3	    SKSTEP	STY	SKELY
+  1056	1ae6	8a			TXA
+  1057	1ae7	30 07			BMI	SKSTEP1	; skeleton behind
+  1058	1ae9	49 ff			EOR	#$FF	; NEG
+  1059	1aeb	18			CLC
+  1060	1aec	69 01			ADC	#$01
+  1061	1aee	30 01			BMI	SKSTEP2
+  1062	1af0	0a	    SKSTEP1	ASL		; multiply by 2
+  1063	1af1	85 a2	    SKSTEP2	STA	SKELX
+  1064	1af3	98			TYA
+  1065	1af4	10 09			BPL	SKSTEP3	; skeleton right
+  1066	1af6	18			CLC
+  1067	1af7	65 a2			ADC	SKELX
+  1068	1af9	aa			TAX		; left = X + Y
+  1069	1afa	18			CLC
+  1070	1afb	65 a3			ADC	SKELY
+  1071	1afd	a8			TAY		; right = X + 2Y
+  1072	1afe	60			RTS
+  1073	1aff	a5 a2	    SKSTEP3	LDA	SKELX
+  1074	1b01	38			SEC
+  1075	1b02	e5 a3			SBC	SKELY
+  1076	1b04	a8			TAY		; right = X - Y
+  1077	1b05	38			SEC
+  1078	1b06	e5 a3			SBC	SKELY
+  1079	1b08	aa			TAX		; left = X - 2Y
+  1080	1b09	60			RTS
+  1081	1b0a
+  1082	1b0a						; 46
+  1083	1b0a	a9 01	    PDIRXY	LDA	#$01	; adjust SKELXY for PDIR
+  1084	1b0c	24 ac			BIT	PLAYDIR
+  1085	1b0e	f0 14			BEQ	PDIRXY2	; PLAYDIR = 16 or -16
+  1086	1b10	30 05			BMI	PDIRXY1	; PLAYDIR = -1
+  1087	1b12	a6 a2			LDX	SKELX	; PLAYDIR = 1
+  1088	1b14	a4 a3			LDY	SKELY
+  1089	1b16	60			RTS
+  1090	1b17	a5 a2	    PDIRXY1	LDA	SKELX	; rotate 180
+  1091	1b19	49 ff			EOR	#$FF	; NEG
+  1092	1b1b	aa			TAX
+  1093	1b1c	e8			INX
+  1094	1b1d	a5 a3			LDA	SKELY
+  1095	1b1f	49 ff			EOR	#$FF	; NEG
+  1096	1b21	a8			TAY
+  1097	1b22	c8			INY
+  1098	1b23	60			RTS
+  1099	1b24	30 09	    PDIRXY2	BMI	PDIRXY3	; PLAYDIR = -16
+  1100	1b26	a6 a3			LDX	SKELY	; PLAYDIR = 16
+  1101	1b28	a5 a2			LDA	SKELX	; rotate 90
+  1102	1b2a	49 ff			EOR	#$FF	; NEG
+  1103	1b2c	a8			TAY
+  1104	1b2d	c8			INY
+  1105	1b2e	60			RTS
+  1106	1b2f	a5 a3	    PDIRXY3	LDA	SKELY	; rotate -90
+  1107	1b31	49 ff			EOR	#$FF	; NEG
+  1108	1b33	aa			TAX
+  1109	1b34	e8			INX
+  1110	1b35	a4 a2			LDY	SKELX
+  1111	1b37	60			RTS
+  1112	1b38
+  1113	1b38						; 51
+  1114	1b38	00 20 40 60*SKELDIE	HEX	00 20 40 60 81 A1 C1 D2 B2 92 73 53 33 24 44 64
+  1115	1b48	85 a5 c5 d6*		HEX	85 A5 C5 D6 B6 96 77 57 37 28 48 68 88 A9 C9 D9
+  1116	1b58	ba 9a 7a 5b*		HEX	BA 9A 7A 5B 3B 2B 4C 6C 8C AD CD DD BE 9E 7E 5F
+  1117	1b68	3f 2f 4f		HEX	3F 2F 4F
+  1118	1b6b
+  1119	1b6e				ORG	$1C00-146
+  1120	1b6e	03 03 03 07*SKFRON1	HEX	03 03 03 07 07 07 05 05 05 06 06 06 03 03 03
+  1121	1b7d	02 02 02 03*		HEX	02 02 02 03 03 03 01 01 01 3F 3F 3F 41 41 41
+  1122	1b8c	4f 4f 4f 41*		HEX	4F 4F 4F 41 41 41 4F 4F 4F 41 41 41 4F 4F 4F
+  1123	1b9b	21 21 21 2f*		HEX	21 21 21 2F 2F 2F 21 21 21 27 27 27 53 53 53
+  1124	1baa	51 51 51 02*		HEX	51 51 51 02 02 02 02 02 02 02 02 02 02 02 02
+  1125	1bb9	02 02 02 02*		HEX	02 02 02 02 02 02 02 02 02 04 04 04 02 02 02
+  1126	1bc8	02 02 02 02*		HEX	02 02 02 02 02 02 02 02 02 02 02 02 02 02 02
+  1127	1bd7	1e 1e 1e 00		HEX	1E 1E 1E 00
+  1128	1bdb	03 07 05 06*SKFRON3	HEX	03 07 05 06 03 02 03 01 3F 41 4F 41 4F 41 4F 21 2F 21 27
+  1129	1bee	53 51 02 02*		HEX	53 51 02 02 02 02 02 02 02 04 02 02 02 02 02 02 1E 00
+  1130	1c00
+  1131	1c00				ORG	$1C00
+  1132	1c00		    TYPE1			; OPENING
+  1133	1c00	00 00 00 00*		HEX	000000000000	; MAZE0 PF0
+  1134	1c06	00 00 00 00*		HEX	000000000000
+  1135	1c0c	00 00 00 00*		HEX	000000000000
+  1136	1c12	f0 f0 f0 f0*		HEX	F0F0F0F0F0F0
+  1137	1c18	00 00 00 00*		HEX	000000000000	; MAZE1 PF1
+  1138	1c1e	00 00 00 00*		HEX	000000000000
+  1139	1c24	00 00 00 00*		HEX	000000000000
+  1140	1c2a	f0 f0 f0 f0*		HEX	F0F0F0F0F0F0
+  1141	1c30	10 10 10 10*		HEX	101010101010	; MAZE2 PF1
+  1142	1c36	10 10 10 10*		HEX	101010101010
+  1143	1c3c	10 10 10 10*		HEX	101010101010
+  1144	1c42	1f 1f 1f 1f*		HEX	1F1F1F1F1F1F
+  1145	1c48	00 00 00 00*		HEX	000000000000	; MAZE3 PF2
+  1146	1c4e	00 00 00 00*		HEX	000000000000
+  1147	1c54	00 00 00 00*		HEX	000000000000
+  1148	1c5a	0f 0f 0f 0f*		HEX	0F0F0F0F0F0F
+  1149	1c60
+  1150	1c60						; 36
+  1151	1c60	a5 ae	    SKPOSXY	LDA	SKELPOS	; change SKPOS-PLAYPOS to SKELX+SKELY
+  1152	1c62	38			SEC
+  1153	1c63	e5 ab			SBC	PLAYPOS
+  1154	1c65	85 a2			STA	SKELX
+  1155	1c67	4a			LSR
+  1156	1c68	4a			LSR
+  1157	1c69	4a			LSR
+  1158	1c6a	4a			LSR
+  1159	1c6b	24 b1			BIT	TESTBIT	; negative?
+  1160	1c6d	f0 02			BEQ	SKXY2
+  1161	1c6f	09 f0			ORA	#$F0
+  1162	1c71	85 a3	    SKXY2	STA	SKELY
+  1163	1c73	a5 a2			LDA	SKELX
+  1164	1c75	24 b1			BIT	TESTBIT	; negative?
+  1165	1c77	f0 06			BEQ	SKXY3
+  1166	1c79	e6 a3			INC	SKELY
+  1167	1c7b	09 f0			ORA	#$F0
+  1168	1c7d	30 02			BMI	SKXY4
+  1169	1c7f	29 0f	    SKXY3	AND	#$0F
+  1170	1c81	85 a2	    SKXY4	STA	SKELX
+  1171	1c83	60			RTS
+  1172	1c84
+  1173	1c84	ff ff ff ff*		HEX	FFFFFFFFFFFF	; MAZE3 PF2
+  1174	1c8a	04 04 04 04*		HEX	040404040404
+  1175	1c90	02 02 02 02*		HEX	020202020202
+  1176	1c96	01 01 01 01*		HEX	010101010101
+  1177	1c9c	1f 1f 1f 1f*		HEX	1F1F1F1F1F1F	; MAZE2 PF1
+  1178	1ca2	12 12 12 12*		HEX	121212121212
+  1179	1ca8	14 14 14 14*		HEX	141414141414
+  1180	1cae	18 18 18 18*		HEX	181818181818
+  1181	1cb4	ff ff ff ff*		HEX	FFFFFFFFFFFF	; MAZE1 PF1
+  1182	1cba	20 20 20 20*		HEX	202020202020
+  1183	1cc0	40 40 40 40*		HEX	404040404040
+  1184	1cc6	80 80 80 80*		HEX	808080808080
+  1185	1ccc	f0 f0 f0 f0*		HEX	F0F0F0F0F0F0	; MAZE0 PF0
+  1186	1cd2	40 40 40 40*		HEX	404040404040
+  1187	1cd8	20 20 20 20*		HEX	202020202020
+  1188	1cde	10 10 10 10*		HEX	101010101010
+  1189	1ce4
+  1190	1ce4						; 28
+  1191	1ce4	a0 8c	    GOTYOU	LDY	#<WIN-5
+  1192	1ce6	a2 55			LDX	#<GOT
+  1193	1ce8	d0 04			BNE	GOTYOU2
+  1194	1cea	a0 d3	    YOUWIN	LDY	#<SKBODY3
+  1195	1cec	a2 73			LDX	#<YOU
+  1196	1cee	84 99	    GOTYOU2	STY	TITLEND
+  1197	1cf0	86 a2			STX	TITLEX
+  1198	1cf2	a0 14			LDY	#20
+  1199	1cf4	84 a3			STY	TITLEY
+  1200	1cf6	a9 2f			LDA	#39*76/64+1
+  1201	1cf8	85 95			STA	TITLBOT
+  1202	1cfa	a9 3b			LDA	#49*76/64+1
+  1203	1cfc	85 94			STA	TITLTOP
+  1204	1cfe	d0 69			BNE	TITLE1
+  1205	1d00
+  1206	1d00						; 110
+  1207	1d00	a9 02	    TITLE3	LDA	#$02
+  1208	1d02	85 00			STA	VSYNC
+  1209	1d04	85 02			STA	WSYNC
+  1210	1d06	20 03 16		JSR	RAND	; cycle LFSR
+  1211	1d09	85 02			STA	WSYNC
+  1212	1d0b	a5 94			LDA	TITLTOP
+  1213	1d0d	85 02			STA	WSYNC
+  1214	1d0f	8d 96 02		STA	TIM64T
+  1215	1d12	a9 00			LDA	#$00
+  1216	1d14	85 00			STA	VSYNC
+  1217	1d16	a6 a2			LDX	TITLEX
+  1218	1d18	20 60 1e    TITLE2	JSR	WAITIM
+  1219	1d1b	85 02	    TITLE	STA	WSYNC
+  1220	1d1d	bd 01 18		LDA	TITLEPF+1,X	;-4
+  1221	1d20	85 0e			STA	PF1	;-7
+  1222	1d22	bd 02 18		LDA	TITLEPF+2,X	;-11
+  1223	1d25	85 0f			STA	PF2	;-14
+  1224	1d27	bd 00 18		LDA	TITLEPF,X	;-18
+  1225	1d2a	85 0d			STA	PF0	;-21
+  1226	1d2c	0a			ASL		;-23
+  1227	1d2d	0a			ASL		;-25
+  1228	1d2e	0a			ASL		;-27
+  1229	1d2f	0a			ASL		;-31
+  1230	1d30	85 0d			STA	PF0	;-34
+  1231	1d32	bd 03 18		LDA	TITLEPF+3,X	;-38
+  1232	1d35	85 0e			STA	PF1	;-41
+  1233	1d37	bd 04 18		LDA	TITLEPF+4,X	;-45
+  1234	1d3a	88			DEY		;-47
+  1235	1d3b	d0 07			BNE	TITLE0	;-49/50
+  1236	1d3d	a4 a3			LDY	TITLEY	;-52
+  1237	1d3f	e8			INX		;-54
+  1238	1d40	e8			INX		;-56
+  1239	1d41	e8			INX		;-58
+  1240	1d42	e8			INX		;-60
+  1241	1d43	e8			INX		;-62
+  1242	1d44	85 0f	    TITLE0	STA	PF2	;50/62-53/65
+  1243	1d46	e4 99			CPX	TITLEND	;-67
+  1244	1d48	d0 d1			BNE	TITLE	;-69/70
+  1245	1d4a	a5 95			LDA	TITLBOT	;-72
+  1246	1d4c	85 02			STA	WSYNC	;-0
+  1247	1d4e	8d 96 02		STA	TIM64T	;-4
+  1248	1d51	a9 00			LDA	#0
+  1249	1d53	85 0d			STA	PF0
+  1250	1d55	85 0e			STA	PF1
+  1251	1d57	85 0f			STA	PF2
+  1252	1d59	85 19			STA	AUDV0
+  1253	1d5b	85 1a			STA	AUDV1
+  1254	1d5d	ad 82 02		LDA	SWCHB	; check reset/select
+  1255	1d60	29 03			AND	#$03
+  1256	1d62	c9 03			CMP	#$03
+  1257	1d64	f0 03			BEQ	TITLE1
+  1258	1d66	4c aa 18		JMP	INIT
+  1259	1d69	20 60 1e    TITLE1	JSR	WAITIM
+  1260	1d6c	f0 92			BEQ	TITLE3
+  1261	1d6e
+  1262	1d6e				ORG	$1E00-146
+  1263	1d6e	03 03 03 07*SKBACK1	HEX	03 03 03 07 07 07 07 07 07 07 07 07 03 03 03
+  1264	1d7d	03 03 03 03*		HEX	03 03 03 03 03 03 01 01 01 3F 3F 3F 5F 5F 5F
+  1265	1d8c	4f 4f 4f 41*		HEX	4F 4F 4F 41 41 41 4F 4F 4F 41 41 41 4F 4F 4F
+  1266	1d9b	21 21 21 2f*		HEX	21 21 21 2F 2F 2F 21 21 21 27 27 27 53 53 53
+  1267	1daa	51 51 51 02*		HEX	51 51 51 02 02 02 02 02 02 02 02 02 02 02 02
+  1268	1db9	02 02 02 02*		HEX	02 02 02 02 02 02 02 02 02 04 04 04 02 02 02
+  1269	1dc8	02 02 02 02*		HEX	02 02 02 02 02 02 02 02 02 02 02 02 02 02 02
+  1270	1dd7	1e 1e 1e 00		HEX	1E 1E 1E 00
+  1271	1ddb	03 07 07 07*SKBACK3	HEX	03 07 07 07 03 03 03 01 3F 5F 4F 41 4F 41 4F 21 2F 21 27
+  1272	1dee	53 51 02 02*		HEX	53 51 02 02 02 02 02 02 02 04 02 02 02 02 02 02 1E 00
+  1273	1e00
+  1274	1e00				ORG	$1E00
+  1275	1e00		    TYPE2			; CORRIDOR
+  1276	1e00	00 00 00 00*		HEX	000000000000	; MAZE0 PF0
+  1277	1e06	00 00 00 00*		HEX	000000000000
+  1278	1e0c	00 00 00 00*		HEX	000000000000
+  1279	1e12	80 80 80 80*		HEX	808080808080
+  1280	1e18	00 00 00 00*		HEX	000000000000	; MAZE1 PF1
+  1281	1e1e	00 00 00 00*		HEX	000000000000
+  1282	1e24	00 00 00 00*		HEX	000000000000
+  1283	1e2a	10 10 10 10*		HEX	101010101010
+  1284	1e30	10 10 10 10*		HEX	101010101010	; MAZE2 PF1
+  1285	1e36	10 10 10 10*		HEX	101010101010
+  1286	1e3c	10 10 10 10*		HEX	101010101010
+  1287	1e42	11 11 11 11*		HEX	111111111111
+  1288	1e48	00 00 00 00*		HEX	000000000000	; MAZE3 PF2
+  1289	1e4e	00 00 00 00*		HEX	000000000000
+  1290	1e54	00 00 00 00*		HEX	000000000000
+  1291	1e5a	08 08 08 08*		HEX	080808080808
+  1292	1e60
+  1293	1e60						; 8
+  1294	1e60	85 02	    WAITIM	STA	WSYNC	;-0
+  1295	1e62	ad 84 02		LDA	INTIM	;-4
+  1296	1e65	d0 f9			BNE	WAITIM	; wait for bottom of frame
+  1297	1e67	60			RTS
+  1298	1e68
+  1299	1e68						; 14
+  1300	1e68	32	    LOADRAM	DC.B	50	; SKELDEL
+  1301	1e69	32			DC.B	50	; SKELPER
+  1302	1e6a	19			DC.B	25	; SKELSEC
+  1303	1e6b	28			DC.B	40	; SKELMIN
+  1304	1e6c	28			DC.B	40	; SKELHRS
+  1305	1e6c	1e 6d	    LOADDEL	EQU	.
+  1306	1e6d	00			DC.B	$00	; PLAYPOS
+  1307	1e6e	01			DC.B	1	; PLAYDIR
+  1308	1e6f	10			DC.B	16	; PLAYRIG
+  1309	1e70	88			DC.B	$88	; SKELPOS
+  1310	1e71	01			DC.B	1	; SKELDIR
+  1311	1e72	10			DC.B	16	; SKELRIG
+  1312	1e72	1e 73	    LOADLVL	EQU	.
+  1313	1e73	08			DC.B	$08	; TESTBIT
+  1314	1e74	01			DC.B	1	; LVLMASK
+  1315	1e75	23			DC.B	$23	; MAZECOL
+  1316	1e75	1e 76	    LOADEND	EQU	.
+  1317	1e76
+  1318	1e76						; 14
+  1319	1e76	a8	    PVIEW3	TAY		; right/left step 1 subroutine
+  1320	1e77	a5 b2			LDA	LVLMASK	; move bits from ROM to RAM
+  1321	1e79	39 00 19		AND	MAZES,Y
+  1322	1e7c	95 00			STA	$00,X
+  1323	1e7e	e8			INX
+  1324	1e7f	98			TYA
+  1325	1e80	18			CLC		; move forward one step
+  1326	1e81	65 ac			ADC	PLAYDIR
+  1327	1e83	60			RTS
+  1328	1e84
+  1329	1e84	ff ff ff ff*		HEX	FFFFFFFFFFFF	; MAZE3 PF2
+  1330	1e8a	04 04 04 04*		HEX	040404040404
+  1331	1e90	02 02 02 02*		HEX	020202020202
+  1332	1e96	01 01 01 01*		HEX	010101010101
+  1333	1e9c	1f 1f 1f 1f*		HEX	1F1F1F1F1F1F	; MAZE2 PF1
+  1334	1ea2	12 12 12 12*		HEX	121212121212
+  1335	1ea8	14 14 14 14*		HEX	141414141414
+  1336	1eae	18 18 18 18*		HEX	181818181818
+  1337	1eb4	ff ff ff ff*		HEX	FFFFFFFFFFFF	; MAZE1 PF1
+  1338	1eba	20 20 20 20*		HEX	202020202020
+  1339	1ec0	40 40 40 40*		HEX	404040404040
+  1340	1ec6	80 80 80 80*		HEX	808080808080
+  1341	1ecc	f0 f0 f0 f0*		HEX	F0F0F0F0F0F0	; MAZE0 PF0
+  1342	1ed2	40 40 40 40*		HEX	404040404040
+  1343	1ed8	20 20 20 20*		HEX	202020202020
+  1344	1ede	10 10 10 10*		HEX	101010101010
+  1345	1ee4
+  1346	1f66				ORG	$1FF8-146
+  1347	1f66	70 70 70 f8*SKBODY1	HEX	70 70 70 F8 F8 F8 B8 B8 B8 78 78 78 F8 F8 F8
+  1348	1f75	78 78 78 d0*		HEX	78 78 78 D0 D0 D0 10 10 10 78 78 78 F8 F8 F8
+  1349	1f84	f8 f8 f8 08*		HEX	F8 F8 F8 08 08 08 F8 F8 F8 08 08 08 F8 F8 F8
+  1350	1f93	08 08 08 38*		HEX	08 08 08 38 38 38 08 08 08 38 38 38 38 38 38
+  1351	1fa2	38 38 38 10*		HEX	38 38 38 10 10 10 10 10 10 10 10 10 10 10 10
+  1352	1fb1	10 10 10 10*		HEX	10 10 10 10 10 10 10 10 10 20 20 20 10 10 10
+  1353	1fc0	10 10 10 10*		HEX	10 10 10 10 10 10 10 10 10 10 10 10 10 10 10
+  1354	1fcf	70 70 70 00		HEX	70 70 70 00
+  1355	1fd3	70 f8 b8 78*SKBODY3	HEX	70 F8 B8 78 F8 78 D0 10 78 F8 F8 08 F8 08 F8 08 38 08 38
+  1356	1fe6	38 38 10 10*		HEX	38 38 10 10 10 10 10 10 10 20 10 10 10 10 10 10 70 00
+  1357	1ff8
+  1358	1ff8				ORG	$1FF8	; Supercharger bankswitch
+  1359	1ff8	31 53 4c 31		DC.B	"1SL1"
+  1360	1ffc
+  1361	1ffc				ORG	$1FFC	; end of 4K cart
+  1362	1ffc	60 1a			DC.W	START	; reset vector
+  1363	1ffe	60 1a			DC.W	START	; IRQ vector
+  1364	2000
+  1365	2000

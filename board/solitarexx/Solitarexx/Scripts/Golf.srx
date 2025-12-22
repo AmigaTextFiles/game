@@ -1,0 +1,88 @@
+/****************************\
+** Golf v1.0 for Solitarexx **
+**   by Michal Szafranski   **
+\****************************/
+OPTIONS RESULTS
+
+tex = '"Golf for Solitarexx"'
+wintex = '"We Have a Winner"'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDSPACE 7 7
+ADDCYCLE 9 18 '"Queen|Queen or Ace|Nothing"' 0 '"Put on king"' 16
+ADDCYCLE 11 12 '"No|Yes"' 1 '"First foundation"' 19
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 tex 6
+SELECTGUI 3
+
+SCREENSIZE 2 4 7 0
+DO i = 0 TO 6
+	NEWSTACK 3 8 0 i 0 0 0 4
+	stack.i = RESULT
+END
+NEWSTACK 1 0 1 0 1 0 4
+deck = RESULT
+NEWSTACK 2 0 1 1 1 0 4
+waste = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SETGADGET 14 STR tex
+	SELECTGUI 4
+	fin = 35
+	GETGADGET 9
+	kingmode = RESULT
+	GETGADGET 11
+	CARDSELECT deck RESULT
+	MOVECARDS deck waste REVERSE
+	DO i=0 TO 6
+		CARDSELECT deck 5
+		MOVECARDS deck stack.i REVERSE
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sid = 1 THEN CALL DODECK
+			WHEN sid = 3 & card>0 THEN CALL DOSTACKS
+			OTHERWISE ERRBEEP
+		END
+		IF act = 3 THEN DO
+			SELECTGUI 3
+			RETURN
+		END
+	END
+RETURN
+DODECK:
+	CARDSELECT deck 1
+	IF RESULT = '' THEN SETGADGET 14 STR '"'||fin 'cards left"'
+	ELSE MOVECARDS deck waste REVERSE
+RETURN
+DOSTACKS:
+	CARDSELECT waste 1
+	PARSE VAR RESULT xx warb xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT xx wara xx
+	SELECT
+		WHEN warb = '' THEN warb = wara +1
+		WHEN kingmode = 1 & warb = 12 & wara = 0 THEN warb = -1
+		WHEN kingmode = 1 & wara = 12 & warb = 0 THEN wara = -1
+		WHEN kingmode = 2 & warb = 12 THEN warb = -2
+		OTHERWISE NOP
+	END
+	IF ABS(warb-wara)=1 THEN DO
+		MOVECARDS stack waste
+		fin = fin - 1
+		IF fin = 0 THEN SETGADGET 14 STR wintex
+	END
+	ELSE ERRBEEP
+RETURN

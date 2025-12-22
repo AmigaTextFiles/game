@@ -1,0 +1,218 @@
+;------------------------------------------------------------
+; Special installscript for Dragon Wars with patcher, by Harry
+;------------------------------------------------------------
+;****************************
+
+(set #readme-file "Readme")		;name of readme file
+(set #cleanup "")			;files to delete after install
+
+;****************************
+
+(if
+  (exists #readme-file)
+  (if 
+    (= 0 (run ("SYS:Utilities/Multiview %s" #readme-file)))
+    ("")
+    (run ("SYS:Utilities/More %s" #readme-file))
+  )
+)
+(set #instmode
+  (askchoice
+    (prompt "Please select installation-mode")
+    (default 0)
+    (choices "Install your original (or backup) on harddisk" "Patch a backup of your original" "Install an already patched backup to harddisk")
+    (help @askchoice-help "\n\n Installing your original on harddisk will copy your disk to hd, then patch it.\nPatching a backup of your original requires a backup (who had ever thought this?).\nWith install an already patched backup to hd you may install a former with that script patched backup to hd.")
+  )
+)
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+(if
+  (= #instmode 1)
+  (
+    (message "Please insert now a BACKUP copy of your original in any drive.")
+    (set @default-dest "Backup-Disk")
+    (run ("patcher -p%s.param" @app-name))
+  )
+)
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+(if
+  (= #instmode 0)
+  (
+    (set @default-dest
+      (askdir
+        (prompt ("Where should \"%s\" installed ?\nA drawer \"%s\" will automatically created." @app-name @app-name))
+        (help @askdir-help)
+        (default @default-dest)
+        (disk)
+      )
+    )
+
+    (set #dest (tackon @default-dest @app-name))
+
+;if anything similar exist delete it
+    (if
+      (exists #dest)
+      (if
+	(= (askbool
+	  (prompt "Destinationdrawer already exists, delete it?")
+	  (help @askbool-help)
+        ) 1)
+        (run ("Delete \"%s\" \"%s.info\" all" #dest #dest))
+      )
+    )
+
+    (makedir #dest
+      (help @makedir-help)
+      (infos)
+    )
+
+;----------------------------
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("dw.inf"))
+      (newname ("dw.info"))
+      (dest #dest)
+    )
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("DragonWars.loesung.lha"))
+      (dest #dest)
+    )
+    (if
+      (exists #readme-file)
+      (
+        (copyfiles
+          (help @copyfiles-help)
+          (source #readme-file)
+          (dest #dest)
+        )
+        (copyfiles
+          (help @copyfiles-help)
+          (source ("%s.info" #readme-file))
+          (dest #dest)
+        )
+      )
+    )
+
+    (working "Please insert now your writeprotected original or backup.")
+
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("dragon.wars.1:"))
+      (dest #dest)
+      (pattern "~(s|add21k|.info|dw.info)")
+    )
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("dragon.wars.2:"))
+      (dest #dest)
+      (pattern "~(.fastdir|disk.info)")
+    )
+
+
+;----------------------------
+
+    (message "Please remove your original disk(s) from the drive.")
+    (if
+      (= (exists "dragon.wars.1:" (noreq)) 2)
+      (abort "Quittet due not removed disk.")
+    )
+    (if
+      (= (exists "dragon.wars.2:" (noreq)) 2)
+      (abort "Quittet due not removed disk.")
+    )
+    (run ("c:assign \"dragon.wars.1:\" \"%s\"" #dest))
+    (run ("c:assign \"dragon.wars.2:\" \"%s\"" #dest))
+
+    (run ("patcher -p%s.param" @app-name))
+
+    (run ("c:assign \"dragon.wars.1:\" remove"))
+    (run ("c:assign \"dragon.wars.2:\" remove"))
+
+    (run ("Delete %s ALL QUIET FORCE" #cleanup))	;delete all temporary files
+
+  )
+)
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+(if
+  (= #instmode 2)
+  (
+    (set @default-dest
+      (askdir
+        (prompt ("Where should \"%s\" installed ?\nA drawer \"%s\" will automatically created." @app-name @app-name))
+        (help @askdir-help)
+        (default @default-dest)
+        (disk)
+      )
+    )
+
+    (set #dest (tackon @default-dest @app-name))
+
+;if anything similar exist delete it
+    (if
+      (exists #dest)
+      (if
+	(= (askbool
+	  (prompt "Destinationdrawer already exists, delete it?")
+	  (help @askbool-help)
+        ) 1)
+        (run ("Delete \"%s\" \"%s.info\" all" #dest #dest))
+      )
+    )
+
+    (makedir #dest
+      (help @makedir-help)
+      (infos)
+    )
+
+;----------------------------
+
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("dw.inf"))
+      (newname ("dw.info"))
+      (dest #dest)
+    )
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("DragonWars.loesung.lha"))
+      (dest #dest)
+    )
+    (if
+      (exists #readme-file)
+      (
+        (copyfiles
+          (help @copyfiles-help)
+          (source #readme-file)
+          (dest #dest)
+        )
+        (copyfiles
+          (help @copyfiles-help)
+          (source ("%s.info" #readme-file))
+          (dest #dest)
+        )
+      )
+    )
+
+    (working "Please insert now your writeprotected original or backup.")
+
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("dragon.wars.1:"))
+      (dest #dest)
+      (pattern "~(s|add21k|.info|dw.info)")
+    )
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("dragon.wars.2:"))
+      (dest #dest)
+      (pattern "~(.fastdir|disk.info)")
+    )
+
+;----------------------------
+
+    (run ("Delete %s ALL QUIET FORCE" #cleanup))	;delete all temporary files
+
+  )
+)
+
+(exit)

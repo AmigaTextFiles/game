@@ -1,0 +1,85 @@
+#!/bin/sh
+
+#used by build to get the sources
+
+if test "$SOURCE" = "CVS" ; then
+    pushd $RPMTOPDIR/SOURCES
+
+    echo -e "\nGetting sources..."
+    if test ! -d armagetron ; then
+	if test "$USER" = "manuel"  && test "$HOST" = "deepthought" ; then
+	    cvs -q -d:ext:z-man@cvs.armagetron.sf.net:/cvsroot/armagetron co $* armagetron
+	else
+	    cvs -q -d:pserver:anonymous@cvs.armagetron.sf.net:/cvsroot/armagetron co $* armagetron
+	fi
+	pushd armagetron
+	autoconf
+	popd
+    else
+	pushd armagetron
+	cvs -q update $*
+#    cp -ax /home/manuel/C++/Armagetron/local_armagetron/* .
+	autoconf
+	popd
+    fi
+else
+    if test "$( pwd )" != "$RPMTOPDIR/SOURCES/armagetron" ; then
+	echo copying...
+
+	#change to main directory
+#	cd ../../
+
+	#rm -rf $RPMTOPDIR/SOURCES/armagetron
+#	mkdir $RPMTOPDIR/SOURCES/armagetron
+#	cp -r * $RPMTOPDIR/SOURCES/armagetron
+
+	pushd $RPMTOPDIR/SOURCES
+    fi
+fi
+
+VERSION=$( cat armagetron/major_version).$( cat armagetron/minor_version )
+DIRECTORY_NAME=$PACKAGENAME-$VERSION
+ARCHIVE_NAME=$PACKAGENAME-$VERSION.tar.bz2
+
+rm -rf $DIRECTORY_NAME
+cp -ax armagetron $DIRECTORY_NAME
+
+#building unix docu
+echo -e "\nBuilding Unix documentation..."
+rm -rf unixdocu_$PACKAGENAME
+mkdir unixdocu_$PACKAGENAME
+cd unixdocu_$PACKAGENAME
+../$PACKAGENAME/configure
+make documentation
+cd ..
+
+mv $DIRECTORY_NAME/doc $DIRECTORY_NAME/doc.full
+cp -ax unixdocu_$PACKAGENAME/doc $DIRECTORY_NAME
+cd $DIRECTORY_NAME/doc.full
+find . -name "*.in" -exec cp \{\} ../doc/\{\} \;
+cd ../../
+rm -rf $DIRECTORY_NAME/doc.full
+
+#remove obsolete stuff
+echo -e "\nCleaning up..."
+find $DIRECTORY_NAME -name CVS -exec rm -rf \{\} \; -depth
+find $DIRECTORY_NAME -name .cvsignore -exec rm -rf \{\} \; -depth
+find $DIRECTORY_NAME -name "*~" -exec rm -rf \{\} \; -depth
+find $DIRECTORY_NAME -name ".m4.dep" -exec rm -rf \{\} \; -depth
+find $DIRECTORY_NAME -name "*.ghost" -exec rm -rf \{\} \; -depth
+find $DIRECTORY_NAME -name ".rel*" -exec rm -rf \{\} \; -depth
+find $DIRECTORY_NAME -name "Makefile" -exec rm -rf \{\} \; -depth
+find $DIRECTORY_NAME -name ".*" -exec echo \{\} \; -depth
+rm -rf $DIRECTORY_NAME/moviepack*
+
+
+#pack
+echo -e "\nPacking $ARCHIVE_NAME..."
+tar -cjf $ARCHIVE_NAME $DIRECTORY_NAME
+
+echo done.
+
+popd
+
+echo $VERSION > version
+

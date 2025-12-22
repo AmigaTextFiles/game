@@ -1,0 +1,54 @@
+
+SS1Error	bsr	PrintText
+		dc.w	$0000,$0002,$0001
+		bsr	WaitMouse
+
+***********************************************
+
+SaveSide1	bsr	PrintText
+		dc.w	$0002,$0000,$0000
+
+***********************************************
+
+		lea	$400.w,A0		;set bootblock datas
+		lea	$73400,A1		;set destination
+
+		move.l	A1,A2			;set base
+		move.l	#"DOS"<<8,D0		;dos string
+		move.l	D0,(A1)+		;write dos string
+		clr.l	(A1)+			;clear bootblock checksum
+		clr.l	(A1)+			;clear rootpointer
+		moveq	#0,D3			;x-flag
+		moveq	#126,D1			;prepare dbf_loop
+		lsl.l	#1,D1			;prepare dbf_loop
+.loop		move.l	(A0)+,D2		;read some bytes
+		addx.l	D2,D0			;calculate checksum
+		move.l	D2,(A1)+		;write some bytes
+		dbra	D1,.loop		;do for 1012 bytes
+		addx.l	D3,D0			;add last extended
+		not.l	D0			;prepare checksum
+		move.l	D0,4(A2)		;write checksum
+
+		moveq	#0,D0			;first track
+		moveq	#1,D1			;count (tracks to write)
+		moveq	#0,D2			;diskside
+		moveq	#0,D3			;drivenumber
+		lea	$73400,A0		;source memory	
+		lea	$73800,A1		;mfm_buffer
+		lea	MakeDTrack(pc),A2	;sub part to do
+		bsr	SaveDatas
+		bne.b	SS1Error
+
+***********************************************
+
+		moveq	#1,D0			;first track
+		moveq	#79,D1			;count (tracks to write)
+		moveq	#0,D2			;diskside
+		moveq	#0,D3			;drivenumber
+		lea	$1C00.w,A0		;source memory	
+		lea	$73800,A1		;mfm_buffer
+		lea	MakeCCTrack(pc),A2	;sub part to do
+		bsr	SaveDatas
+		bne	SS1Error
+
+		rts

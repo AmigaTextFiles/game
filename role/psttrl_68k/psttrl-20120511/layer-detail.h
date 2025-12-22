@@ -1,0 +1,14 @@
+#ifndef __LAYER_DETAIL_H__
+#define __LAYER_DETAIL_H__
+
+#define LAYER_FLOOR 1001
+#define LAYER_WALL 1002
+/* for internal use */
+#define LAYER_CORRIDOR 1003
+#define LAYER_FLOOR_SEEN 1004
+#define LAYER_CORRIDOR_SEEN 1005
+#define LAYER_WALL_SEEN 1006
+#define LAYER_HARD_WALL 1007
+#define LAYER_HARD_WALL_SEEN 1008
+
+#endif /* not __LAYER_DETAIL_H__ */

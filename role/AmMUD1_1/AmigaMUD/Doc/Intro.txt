@@ -1,0 +1,434 @@
+AmigaMUD, Copyright 1997 by Chris Gray
+
+
+		Introduction to the AmigaMUD System
+
+The AmigaMUD system is a software system for the Commodore Amiga line
+of computers which implements a MUD (Multi-User-Dungeon). MUDs have
+existed on various computers for about 20 years, usually run at
+universities on networked computers. In a typical MUD, several people
+connect to the system at the same time and interact by typing in
+messages and commands to the MUD. MUDs are usually set up somewhat
+like text adventures, in that they contain a small world in which the
+players can explore, solve puzzles, etc. MUDs add to the adventure the
+possibility of interaction, within the world, of the various players.
+Players can talk to others in the same location; they can cooperate in
+solving puzzles; they can compete in improving their characters or
+personnas; they can engage in combat, etc.
+
+The world in which the MUD is set is chosen and built by one or more
+people who are the implementors or "wizards" or "gods" of the MUD. MUD
+worlds have been set in various fictional as well as real situations,
+such as Star Trek, Xanth, the Discworld, etc. Other MUDs specialize in
+role playing, where the players pick a persona and do their best to
+stay within it. For example, "furries" on FurryMUD all pick a furred
+animal as their character.
+
+Many MUDs exist on the 'internet', the international network of
+computer systems, mostly supported by various governments. Amiga
+computers are not often on this network, so they will usually get
+their multiple players through serial ports and modems. Amiga-based
+BBS systems often have multiple lines, and these can be used for
+connections to AmigaMUD.
+
+Traditional MUDs are strictly text based. That is, users do all
+operations in the MUD by typing commands, and all output is via text
+messages. In the last few years, colour graphics have become
+standard on home computers and workstations. MUDs are beginning to
+take advantage of that capability by introducing simple graphics
+output. Sound output is also possible.
+
+AmigaMUD provides graphics and sound output as a standard element. It
+also allows the use of the mouse and numeric keypad as input. The
+system still provides the full text input and output interfaces,
+however, and can be used in a text-only mode. The standard
+availability of graphics output and mouse input can change the nature
+of a MUD, and make it available to those who aren't terribly good at
+typing, or who are uncomfortable with computers.
+
+
+Basic Capabilities
+
+The main function of the AmigaMUD system is to allow the playing of a
+MUD, which is a multi-player text adventure game. As such, several
+people can be playing the same game at the same time. There is no
+inherent limit on the number of simultaneous players, but the CPU time
+needed to handle the server and the serial port activity will likely
+limit a top-end Amiga to under 50 active players.
+
+The AmigaMUD system does word wrapping on output. This means that long
+lines are automatically broken up on word boundaries. The designers of
+the scenarios and the builders of new rooms and objects, etc. do not
+have to worry about properly formatting things. The formatting is done
+with respect to the actual output width of the MUD text window, which
+varies depending on the amount of overscan the user has setup.
+
+Default graphics output is to a 320 pixel wide by 100 pixel high by 32
+colour graphics window at the top of the visible display (unless the
+user has chosen to hide it). Other graphics resolutions are available
+to users of AGA Amigas, or Amigas with graphics boards. Primitives
+exist in the system to draw and fill lines, circles, polygons, etc. A
+scenario can also scroll regions of the graphics window, and can dump
+IFF ILBM graphics images (from the machine on which the MUD client
+program is running) to the window.
+
+The scenario can add "mouse buttons" to the graphics window. These are
+small rectangular areas containing text that the user can click on
+with the mouse. Doing so triggers an action in the scenario, such as
+moving in a specific direction. The scenario can also set up regions
+of the display which are sensitive to mouse clicks. Clicking within
+such a region sends to the server a message indicating the position
+within the region which was selected. This capability is used by the
+icon editor in the standard scenario.
+
+The MUD client program can use the Amiga's speech synthesizer software
+(libs:translator.library and devs:narrator.device) to generate speech
+output. This capability requires that libs:translator.library exist on
+the server machine, and that devs:narrator.device exist on the client
+machine. Note that these items are not currently shipped with versions
+3.0 and up of the Amiga OS software package.
+
+Scenarios can request that sound samples (IFF 8SVX files) be played on
+client systems. Since the Amiga has four hardware sound channels, up
+to four samples can be played simultaneously. These samples are loaded
+from the AmigaMUD:Sounds directory on the client Amiga.
+
+The MUD program supports the concept of icons. These are small (up to
+16 x 16 pixels) one-bit-per-pixel images that are overlayed on top of
+the main graphics imagery. They are used to indicate the presence, in
+the same "room" as the player, of other players and NPCs.
+
+The MUD program can "cache" local copies of descriptions of graphics
+imagery, commands to play sounds, icons, etc. This caching can greatly
+reduce the amount of data that must be continually retransmitted over
+the connection, thus speeding up gameplay.
+
+The MUD program includes a builtin full-screen text editor, which can
+be used to edit room descriptions, object descriptions, etc. It can
+also be used, when in wizard mode, to edit AmigaMUD functions, and is
+integrated with the AmigaMUD programming language parser to show the
+location of errors. MUD can also call out to an external editor for
+these purposes.
+
+The text adventure aspect of AmigaMUD includes a set of fairly
+powerful routines to assist in writing code that "understands" pseudo-
+English commands. For example, when the scenario is parsing a user
+input line like:
+
+  Put the apple, the pear and the black sword into the brown paper bag.
+
+the code that understands how to put things into other things will be
+automatically called three times, one for each object to be put into
+the bag. Also provided are routines to aid in identifying the objects
+being referenced.
+
+The AmigaMUD system includes a fairly efficient interpreted
+programming language which is used to build the scenarios or worlds
+that run under the system. Note, however, that with the current
+scenario, building of rooms, objects, etc. can be done entirely
+without using any of this programming language. The language is a
+strongly typed, structured language that should be usable by anyone
+with a bit of programming experience. The entire scenario is built
+using this language - rooms and objects are created dynamically by
+executing code in the language. The standard scenario includes a large
+set of utility routines designed to simplify the building of rooms,
+etc. Here is an example AmigaMUD programming language routine, which
+is a part of the standard scenario. It is used to draw the random
+coloured rectangles which are the graphics imagery for the "SysAdmin's
+Study" room:
+
+    define tp_mall proc drawStudy()void:
+	int i, rows, cols, colours, x1, x2, y1, y2, t;
+
+	rows := GRows(nil);
+	cols := GCols(nil) / 2;
+	colours := GColours(nil);
+	for i from 1 upto Random(20) + 10 do
+	    GSetPen(nil, Random(colours - 1) + 1);
+	    x1 := Random(cols);
+	    y1 := Random(rows);
+	    x2 := Random(cols);
+	    y2 := Random(rows);
+	    if x2 < x1 then
+		t := x1;
+		x1 := x2;
+		x2 := t;
+	    fi;
+	    if y2 < y1 then
+		t := y1;
+		y1 := y2;
+		y2 := t;
+	    fi;
+	    GAMovePixels(nil, x1, y1);
+	    GRectanglePixels(nil, x2 - x1, y2 - y1, true);
+	od;
+	/* force a re-draw on look */
+	Me()@p_MapGroup := UNKNOWN_MAP_GROUP;
+    corp;
+
+The standard scenario provided with AmigaMUD includes "builder
+commands", which allow non-wizards to build new rooms and objects into
+the scenario, while it is running. If the player is using the full MUD
+client program, this building can be done using mouse-buttons and a
+full-screen text editor.
+
+The standard scenario also provides some functions which can draw a
+simple overhead view of a room based on the obvious exits from that
+room. Several styles are available, including pathways, tunnels, and
+interior rooms. These simple graphics can be attached to rooms using
+mouse-buttons. The colours used can be changed for variety.
+
+If the Amiga running the server is also running UUCP software, the
+standard scenario can provide MUD characters with access to usenet
+news and email services. The ability to send news and email must be
+explicitly enabled, however.
+
+For those lucky enough to have an Amiga on the internet, AmigaMUD can
+be used directly over the internet, both in its text-only mode (the
+clients just use a 'telnet' program) and in its full graphics mode
+(the clients use the "MUD" program on an Amiga). The client should run
+with any networking package that provides the "bsdsocket.library"
+interface. The server currently only works with AmiTCP/IP, because it
+requires the 'inetd' startup provided by that package.
+
+A fairly large combat area, similar in many ways to the areas used in
+combat-oriented fantasy role-playing games, is present in the standard
+scenario. This area includes most of the traditional elements in a
+simplified form, and contains three of the six quests. This is the
+largest region of the scenario.
+
+
+The Components of the System
+
+There are several pieces of the AmigaMUD system. Most of the pieces
+are only needed on the central host or server system, however. A
+remote system, if the user is satisfied with a text-only interface,
+needs none of the AmigaMUD components. A terminal program to call up
+the host system is sufficient. To get the full interface, however, the
+following two components are needed:
+
+    MUD - this is the main interface program. It provides the graphics
+	and text output, the sound output, and the mouse and keypad
+	input. It's use is described in detail in the 'MUD.txt'
+	document in the AMClnt archive.
+
+    mud.library - this is an Amiga OS shared library. It provides some
+	of the functionality of the user interface that is also needed
+	by the host/server system. To avoid needless duplication, that
+	portion of the code is placed into the shared library, so that
+	multiple users of it can use the same copy. This file must be
+	copied into the system's 'libs:' directory.
+
+    AmigaMUD: - this assign or volume name should be available when
+	running AmigaMUD. The system looks for image and sound files
+	under this location. If you do not have this name available,
+	you will have to continually dismiss requesters asking for it.
+
+The Amiga that is hosting the AmigaMUD system needs a couple more
+programs, and can also use some minor utilities:
+
+    MUDServ - this is the AmigaMUD server program. This is the main
+	component of the system; it provides the world, or scenario,
+	that the game takes place in, and provides the communication
+	between the separate players. See the file 'MUDServ.txt' in
+	the AMSrv archive more more details.
+
+    MUDAgent - this program is the connection point between the server
+	program and an external user. It communicates with a serial
+	port on one end, and with Amiga OS messages to/from MUDServ on
+	the other. There must be a copy of this program running for
+	each currently active remote player. Local players can use
+	'MUD' to connect directly to MUDServ. This program is
+	documented fully in file 'MUDAgent.txt' in the AMSrv archive.
+
+    AgentKill - this program is used to shut down copies of MUDAgent
+	that were started from the Workbench. If MUDAgents are
+	started from a shell, then use the shell 'status' command to
+	find their CLI numbers, and the shell 'break' command to shut
+	them down.
+
+    MUDText, MUDBinary - these programs are interfaces between MUDServ
+	and external clients coming in over the internet. They are
+	started up by 'inetd' in response to incoming connection
+	requests. See file 'Net.txt' for more details.
+
+    SMUD - this is a simple text-only client program that normally
+	runs on the same system as the server, and can be run only
+	from a shell command line. It is useful for doing quick
+	connections to the server since it uses much less memory than
+	the full MUD client. It can also accept commands from
+	redirected standard input. SMUD is described in file 'SMUD.
+	txt' in the AMSrv archive. SMUD does packet-based DOS I/O, so
+	it can also be used for remote text-only connections when
+	called up by a BBS that is not capable of calling up the full
+	MUDAgent interface.
+
+    MUDCre - this program creates an empty AmigaMUD database in the
+	current directory. Only those wishing to create an entire new
+	scenario from scratch need to be concerned with this program.
+	It is described in file 'MUDCre.txt' in the AMSrv archive.
+
+    MUDFlush - this simple program sends a message to MUDServ asking
+	that it flush out the database. The image of the database
+	produced is complete and consistent, but only as of the
+	instant it is produced. If machines are running, they can
+	start changing the database as soon as the server is finished
+	with the flush. Thus, it is always best to shut down the
+	server before making a backup copy of the data files. MUDFlush
+	can be used from the Workbench or from a shell.
+
+	Note: this program is included only because it was previously
+	included. You should use the scenario's new "backup" facility
+	to do safe backups, or shut down the system before making a
+	backup of the database files.
+
+    MUDShut - this simple program sends a request to MUDServ asking
+	that MUDServ shut down. MUDServ will do so as soon as there
+	are no clients connected. MUDShut can be used from the
+	Workbench or from a shell. When used from the shell, a "-w"
+	flag can be given, in which case MUDShut will not terminate
+	until MUDServ has fully shut down and notified MUDShut. This
+	facility can be used to do automatic, externally driven
+	backups of the database files.
+
+
+How to Get AmigaMUD Up and Running Quickly
+
+If you only want to get the system up and running to play with
+locally, then it is quite easy:
+
+    - copy mud.library to your libs: directory
+
+    - pick a directory with enough space. Copy MUD.data and MUD.index
+	to that directory. (These are the pre-built database files.)
+
+    - start MUDServ in that directory. Use the 'run' command to put
+	it in the background if you are using a shell.
+
+    - start MUD with the -L flag or the LOCAL tooltype
+
+    - login as SysAdmin, with password SysAdminPassword
+
+    - explore away!
+
+
+Some AmigaMUD Concepts
+
+server, client - AmigaMUD uses the client-server mode of operation.
+    MUDServ is a server; it responds to, or serves, requests for
+    action coming from the various clients, which ultimately are the
+    people playing the MUD. For example, when a player enters an input
+    line in the MUD program, that line is packaged up as a message and
+    sent to the server, MUDServ. MUDServ eventually gets around to
+    looking at it (it may be busy doing other things), and will then
+    process it according to the scenario, or world, that is being run.
+    There may be many messages sent back to the client in response to
+    the input line, such as several output lines of text, changes in
+    the graphics display, sound output, etc. The reverse situation
+    never happens - the server never waits for responses from clients,
+    since doing so might get it stuck forever. (Actually, the client
+    does not wait for a response on an input line message, but it does
+    for a variety of other types of messages.)
+
+scenario - the scenario that AmigaMUD is running is governed by the
+    contents of the database files. They contain all of the text
+    strings and AmigaMUD functions that define the world. In the
+    standard scenario, the world contains the minimall area, the
+    streets of the town, the builder's guild, the proving grounds,
+    etc. Other scenarios are possible, which could have completely
+    different layout, different rules, different commands, etc. Other
+    MUD systems use names like 'mudlib' for the scenario.
+
+wizard - when most players connect to AmigaMUD, they will see an
+    'input> ' prompt and will type scenario commands like "north",
+    "take the apple", etc. In this mode of operation, the input
+    commands are being interpreted by the scenario. If a player is
+    designated as a wizard, however (which can only be done by another
+    wizard), then it is possible for the player to go into "wizard
+    mode". In this mode of operation, input lines are interpreted
+    directly by the AmigaMUD programming language. Normally, the
+    prompt changes to '> ' in this mode. For example, a wizard could
+    enter a line reading '2 + 2$', and the system would respond with
+    '==> 4' - it has parsed the input line into a small function,
+    executed the function, and printed the result. Consult the file
+    "Programming.txt" in the AMDoc archive for more information on
+    wizard mode.
+
+apprentice - an apprentice is something like a partial wizard. They
+    can use the programming language like wizards, but must operate
+    under certain restrictions.
+
+builtin - much of the standard scenario is functions written in the
+    AmigaMUD programming language. These functions are interpreted by
+    MUDServ as needed. MUDServ itself provides a number of predefined
+    functions, which are executed directly, rather than being
+    interpreted. These are called 'builtin' functions. An example is
+    the 'Print' builtin, which takes a string expression as its
+    argument and prints that string to the text window of the
+    currently active client. (It is actually quite a bit more
+    complicated than that, but the result is the same.)
+
+bi-directional asynchronous reliable protocol - this mouthfull
+    describes the way in which the MUD remote client program and the
+    MUDAgent host program communicate when using a serial connection.
+    A protocol is just a set of rules which govern communication. The
+    protocol, which runs over a serial (and usually modem) connection,
+    allows messages to go in both directions (client to server and
+    server to client). The protocol is asynchronous in that either end
+    can send a message whenever it wants, without getting agreement
+    from the other end. The protocol is reliable in that each message
+    has a CRC (Cyclic Redundancy Check) which allows a receiver to
+    check that the message hasn't been mangled during transmission. If
+    it has, the receiver tells this to the sender, and the sender will
+    resend the message. This continues until it is received correctly,
+    or until one of the ends gives up entirely, and terminates the
+    connection. When playing over the internet, the TCP/IP protocols
+    are used instead. They have similar properties, in that they are
+    reliable, bi-directional and asynchronous (roughly speaking!).
+
+machine - many modern adventure games have characters other than the
+    player who are wandering around in the world. Often, the player
+    can interact with these characters. In the role-playing world,
+    these other characters are called NPC's (Non-Player Characters).
+    Many MUDs have a similar capability. In AmigaMUD, "machines" are
+    used to implement NPC's. Machines are much like player characters
+    except that they are governed by AmigaMUD programs, instead of by
+    a person. Other MUDs call them robots, or bots, or just NPC's.
+
+quest - usually, adventure games have a definite final goal or
+    solution. Having a single solvable puzzle in a MUD usually doesn't
+    work very well, since the first character to solve the puzzle can
+    render it pointless for the rest of the characters. This is
+    realistic, but can make for a dull game. Instead, many MUDs have
+    quests, which are smaller puzzles which can be solved over and
+    over again, although usually only once per character. A similar
+    situation occurs with special objects, such as powerful weapons.
+    There will usually be a supply of them, although larger scenarios
+    can have a small selection of special objects which are unique.
+
+security - security can mean a variety of things in a MUD. The
+    simplest meaning is that there be no ways, within the game, for
+    cheating on the quests or for gaining power or influence without
+    doing so in the "proper" fashion. Problems of these kinds are
+    normally just bugs or oversights in the scenario. At the other end
+    of the scale are ways by which wizards, remotely connected to the
+    MUD, can access or damage the host computer running the MUD. This
+    kind of problem is much more severe, and usually arises from bugs
+    or oversights in the MUD system itself. In between these two
+    extremes are issues such as wizards using their wizard abilities
+    to mess up quests and areas built by other wizards.
+
+SysAdmin - all AmigaMUD databases contain a SysAdmin character. This
+    character is the "god" of AmigaMUD. It can do anything in the MUD
+    and can see anything. SysAdmin can even look into the private
+    symbol tables of other wizards. Certain of the builtin functions,
+    such as the ones which write to disk, can be executed only by
+    functions owned by SysAdmin. Because of this power, the standard
+    password for SysAdmin should be changed for any MUD which is made
+    available to other players, and the new password should be guarded
+    carefully. As shipped, AmigaMUD will not allow SysAdmin to log in
+    remotely unless special action is taken to enable it. SysAdmin is
+    intended to be used only by the system administrator of the server
+    system. If any routines which use some of the dangerous functions
+    are written or changed, SysAdmin should be very careful that he
+    has not created a way for others to mess up his computer.

@@ -1,0 +1,120 @@
+*
+x macro
+    public \1
+  endm
+* EntryExit
+ x StartUp
+ x exit
+ x getA4
+* ArgumUtils
+
+ x Argum
+ x ArgumFree
+ x CmdLine
+ x InStr
+* Colors
+ x GetPens
+ x try7
+ x FreePens
+ x ColorBox3D
+ x Farben
+* Effects
+ x DoFX
+ x DoRNDFX
+ x FXList
+* GfxUtils
+ x OSzweinullBorder
+ x PunkteMuster
+ x InvertBox
+ x DrawBox3D
+* Image
+ x PutKlotz
+ x PutNXKlotz
+ x DelKlotz
+ x HiLiteLines
+ x GetCoords
+* joyUtilsLL
+ x InitJoy
+ x ExitJoy
+ x TestFire
+ x TestJoy
+* klotz
+ x VersionID
+ x main
+ x ConvHex
+ x ConvNibble
+ x EndKeys
+ x waitloop
+ x waitchain1
+ x waitchain2
+ x DropDown
+ x Bottom3
+ x Bottom2
+ x waitback
+ x waitchain3
+ x DrawStein
+ x DeleteStein
+ x pausedGame
+ x GameOver
+ x DrawSetUp
+ x DoSetUp
+ x Light
+ x cleanup
+ x CleanExit
+ x ProcessIDCMP
+ x WindowOpen
+ x ReDraw
+ x StrLen
+ x WindowClose
+ x CalcScores
+ x KnackPunkte
+ x ScoresOut
+ x PutPunkte
+ x ToAscii
+ x OpenNV
+ x GetHi
+ x SaveHi
+ x FetchPubScreen
+ x FetchLace
+ x LogoImage
+ x WindowTags
+ x DOSName
+* mathutils
+ x LDiv
+ x LMod
+ x LMul
+ x LDivMod
+ x ToFixed
+ x FromFixed
+ x FixedMul
+ x FixedInv
+ x FixedDiv
+* randutils
+ x Randomize
+ x FastRand
+ x Random
+ x RangeRand
+* stein
+ x CheckPosMove
+ x CheckPosDrop
+ x CheckFeld
+ x SetFeld
+ x GetFeld
+ x CheckLines
+ x AufbauFeld
+ x SetStein
+ x ClearStein
+ x SetNXStein
+ x FetchSImage
+ x GetSteinAdr
+ x Steine
+ x Image00
+* timer
+ x InitTimer
+ x ExitTimer
+ x InterruptStruct
+ x StartTimer
+ x StartTimerInterrupt
+ x StopTimer
+ x TimerInterrupt
+

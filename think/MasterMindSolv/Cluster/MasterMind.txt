@@ -1,0 +1,541 @@
+|##########|
+|#MAGIC   #|GHHAEAJN
+|#PROJECT #|"MasterMind"
+|#PATHS   #|"StdProject"
+|#FLAGS   #|xx---x--x-x-xxx-x---------------
+|#USERSW  #|--------------------------------
+|#USERMASK#|--------------------------------
+|#SWITCHES#|xx---xxxxx-xx---
+|##########|
+
+MODULE MasterMind;
+
+FROM System        IMPORT LONGSET, SysStringPtr;
+FROM Resources     IMPORT Allocate, New, MemReqs;
+FROM ExceptionS    IMPORT WriteException;
+FROM Exec          IMPORT CopyMem;
+
+FROM Dos           IMPORT ReadArgs, FreeArgs, RDArgsPtr, IoErrors, AssertDos;
+FROM InOut   AS io IMPORT WriteGrp, ReadGrp;
+FROM Streams       IMPORT CharPtr;
+
+FROM Random        IMPORT RND;
+FROM Lists         IMPORT BiLists;
+
+CONST
+  Template = "COLUMNS/N,ELEMENTS/N,MULTIPLE/S,SORTED/S,CHAR,SELFTEST,QUIET/S";
+  DefaultNumber = ARRAY OF LONGCARD : (5, 26);
+
+TYPE
+  ArgRec   = RECORD
+               columns,  elements : POINTER TO LONGCARD;
+               multiple, sorted   : LONGBOOL;
+               char,     selftest : SysStringPtr;
+               quiet              : LONGBOOL;
+             END;
+
+VAR
+  rd   : RDArgsPtr := NIL;
+  args := ArgRec : (DefaultNumber[0]'PTR, DefaultNumber[1]'PTR, FALSE, FALSE, "A"*);
+
+(*
+  AMIGO, PHASE, AUDIO, VIDEO,
+  MUSIK, PIANO, PAUKE, CONGA, CLAVE, STICK, HARFE, TANGO,
+  PFERD, ZEBRA, TIGER, KATZE, SCHAF, SPITZ, FUCHS, HUNDE, HASEN,
+  MADEN, WANZE, RAUPE, FISCH, STOER,
+  VOGEL, ADLER, FALKE, MILAN, SPATZ, AMSEL, TAUBE, WUSEL,
+  FARBE, GRUEN, RASEN, APFEL, BIRNE, BOHNE,
+  WACHS, BINDE, BANDE, TAFEL, PUTZE, DUSEL, DUFTE, POKER, PAUSE,
+  PISTE, PUSTE, PASTE, KASTE, KISTE, NUDEL, GOUDA, KUGEL, WARZE,
+  HOTEL, MOTEL, LUNCH, BARDE, JODEL, MODEL, OSTEN, HILFE, WULST,
+  WALZE, GRUFT, RISPE, DANKE, ONKEL, KRANZ, KREUZ, NARBE, FAHNE,
+  NICHT, LICHT, WICHT, GICHT, SICHT, DICHT,
+  FRANK, HEINO, ERWIN, ALWIN, TOMAS, FREUD,
+  CASIO, TEXAS, BASEL,
+*)
+
+TYPE
+  FormerSugPtr = POINTER TO FormerSug;
+
+DEFINITION MODULE SuggestionLists = BiLists (FormerSugPtr);
+
+TYPE
+  Valuation  = RECORD cPlaces, cColors : SHORTCARD END;
+  Suggestion = ARRAY OF SHORTINT;
+  FormerSug  = RECORD OF SuggestionLists.BiNode;
+                 val : Valuation;
+                 sug : CLASSPTR TO Suggestion;
+               END;
+
+PROCEDURE WriteSug (REF sug : Suggestion);
+VAR
+  n : SHORTINT;
+BEGIN
+  FOR n:=0 TO sug'MAX DO
+    WriteChar (CHAR(sug[n]+SHORTINT(args.char[0])));
+  END;
+END WriteSug;
+
+PROCEDURE WritePos (set : LONGSET);
+VAR
+  n : SHORTINT;
+BEGIN
+  FOR n:=0 TO 31 DO
+  |FOR n:=0 TO args.columns^-1 DO
+    WriteBool (n IN set, "_", " ");
+  END;
+END WritePos;
+
+PROCEDURE WriteVal (REF val : Valuation);
+FROM Strings IMPORT Dup;
+BEGIN
+  WriteString (Dup ("x", val.cPlaces));
+  WriteString (Dup ("o", val.cColors));
+END WriteVal;
+
+PROCEDURE Evaluate (REF sug : Suggestion; str : SysStringPtr) : Valuation;
+VAR
+  n    : SHORTINT;
+  used0,                  | in sug bereits zugeordnete Elemente
+  used1 := LONGSET : {};  | in str bereits zugeordnete Elemente
+
+BEGIN
+  RESULT.cPlaces := 0;
+  RESULT.cColors := 0;
+
+  FOR n:=0 TO sug'MAX DO
+    IF CHAR(sug[n]+SHORTINT(args.char[0])) = str[n] THEN
+      INC (RESULT.cPlaces);
+      INCL (used0, n);
+      INCL (used1, n);
+    END;
+  END;
+
+  FOR n:=0 TO sug'MAX DO
+    IF n NOT IN used0 THEN
+      $$WithModify := FALSE
+      WITH CharPtr   AS cPtr,
+           CHAR      AS chr,
+           SHORTINT  AS pos DO
+        chr  := CHAR(sug[n]+SHORTINT(args.char[0]));
+        pos  := 0;
+        cPtr := str[0]'PTR;
+        WHILE cPtr^#&0
+          AND_WHILE (cPtr+^#chr) OR (pos IN used1) DO
+            INC (pos);
+          ELSE
+            INC (RESULT.cColors);
+            INCL (used0, n);
+            INCL (used1, pos);
+          END
+        ELSE
+        END
+      END;
+    END;
+  END;
+END Evaluate;
+
+PROCEDURE AskValuation (REF sug : Suggestion) : Valuation;
+VAR
+  n    : SHORTINT;
+  str  : STRING (100);
+BEGIN
+  IF NOT args.quiet THEN
+    FOR n:=0 TO sug'MAX DO
+      WriteChar (CHAR(sug[n]+SHORTINT(args.char[0])));
+    END;
+    WriteChar (" ");
+  END;
+
+  RESULT.cPlaces := 0;
+  RESULT.cColors := 0;
+  IF args.selftest=NIL THEN
+    ReadString (str);
+    FOR n:=0 TO str.len-1 DO
+      IF KEY str.data[n]
+        OF "x", "X" THEN INC (RESULT.cPlaces) END;
+        OF "o", "O" THEN INC (RESULT.cColors) END;
+      END;
+    END;
+
+  ELSE
+    RESULT := Evaluate (sug, args.selftest);
+    IF NOT args.quiet THEN
+      WriteVal (RESULT);
+      WriteLn;
+    END;
+  END;
+END AskValuation;
+
+PROCEDURE Guess (clms, elems : SHORTCARD);
+EXCEPTION
+  NoElem : ""; | no further element available
+  Solved : ""; | task solved
+
+VAR
+  fsList  := SuggestionLists.BiList : ();
+  cfs, fs : FormerSugPtr;
+
+  PROCEDURE AllocElem (VAR alreadyUsed : LONGSET; num : SHORTCARD := 0) : SHORTCARD;
+  VAR elem : SHORTCARD;
+  BEGIN
+    FOR elem:=0 TO elems-1 DO
+      IF elem NOT IN alreadyUsed
+        AND_IF num=0 THEN
+          INCL (alreadyUsed, elem);
+          RETURN elem;
+        ELSE
+          DEC (num);
+        END
+      END;
+    END;
+    RAISE (NoElem);
+  END AllocElem;
+
+  PROCEDURE NewSug (former : FormerSugPtr) : FormerSugPtr;
+  VAR new : FormerSugPtr;
+  BEGIN
+    IF former#NIL THEN
+      New (new);
+      new^ := former^;
+    ELSE
+      New (new, mem:={clear});
+      new.sug'RANGE := clms;
+    END;
+    New (new.sug);
+    |Allocate (new.sug, Suggestion[0]'SIZE * clms);
+    IF former#NIL THEN
+      |new.sug^ := former.sug^;
+      CopyMem (former.sug, new.sug, new.sug^'SIZE);
+      fsList.InsertBottom (former);
+    END;
+    RETURN new;
+  END NewSug;
+
+  PROCEDURE FillUp (used, avoid : LONGSET);
+  VAR
+    n    : SHORTCARD;
+    free : SHORTCARD := 0;
+    elem : SHORTCARD;
+  BEGIN
+    FOR n:=0 TO elems-1 DO
+      IF n NOT IN avoid THEN INC (free) END;
+    END;
+
+    IF args.multiple THEN
+      n:=0;
+      WHILE n < clms
+        AND_WHILE n IN used DO  | ist überhaupt noch eine Spalte zu besetzen?
+          INC (n);
+        ELSE
+          IF args.sorted THEN
+            elem := AllocElem (avoid);
+          ELSE
+            ASSERT (free>0, NoElem);
+            elem := AllocElem (avoid, RND(free));
+          END;
+
+          FOR n:=0 TO clms-1 DO
+            IF n NOT IN used THEN
+              cfs.sug[n] := elem;
+            END;
+          END;
+        END
+      ELSE
+      END;
+
+    ELSE
+      FOR n:=0 TO clms-1 DO
+        IF n NOT IN used
+          AND_IF args.sorted THEN
+            cfs.sug[n] := AllocElem (avoid);
+          ELSE
+            ASSERT (free>0, NoElem);
+            cfs.sug[n] := AllocElem (avoid, RND(free));
+            DEC (free);
+          END
+        END;
+      END;
+    END;
+  END FillUp;
+
+  PROCEDURE Build (fs : FormerSugPtr; used, avoid : LONGSET);
+  (* "avoid" enthält alle Elemente, die nicht mehr benutzt werden dürfen,
+     weil sie in vorhergehenden Stufen ausgeklammert wurden. Wenn z.B.
+     eine Bewertung zwei richtige Elemente ausweist, müssen die anderen
+     Elemente entsprechend falsch sein.
+     Die als richtig angenommenen sind bereits an den Positionen eingetragen,
+     die "used" ausweist. Sie dürfen nicht verwendet werden,
+     wenn doppelte Elemente nicht erlaubt sind.
+     Und die als falsch angenommenen dürfen nicht verwendet werden,
+     eben weil sie als falsch gelten. *)
+
+  VAR
+    usedF := LONGSET : {};
+
+    PROCEDURE AdaptColors (co, n : SHORTCARD);
+    VAR
+      m : SHORTCARD;
+      newAvoid : LONGSET;
+    BEGIN
+      IF co=0 THEN
+        newAvoid := avoid;
+        FOR m:=0 TO clms-1 DO
+          INCL (newAvoid, fs.sug[m]);
+        END;
+        Build (fs.next, used, newAvoid);
+      ELSE
+        WHILE n<clms DO
+          IF n NOT IN used THEN
+            FOR m:=0 TO clms-1 DO
+              IF (m#n) AND (fs.sug[m] NOT IN avoid) THEN
+                INCL (used, n);
+                INCL (avoid, fs.sug[m]);
+                cfs.sug[n] := fs.sug[m];
+                AdaptColors (co-1, n);
+                EXCL (avoid, fs.sug[m]);
+                EXCL (used, n);
+              END;
+            END;
+          END;
+          INC (n);
+        END;
+      END;
+    END AdaptColors;
+
+    PROCEDURE AdaptColorsM (co, n : SHORTCARD);
+    (* usedF - bereits zugeordnete Positionen im früheren Vorschlag
+       used  - bereits zugeordnete Positionen im aktuellen Vorschlag *)
+    VAR
+      m : SHORTCARD;
+      newAvoid : LONGSET;
+    BEGIN
+      IF co=0 THEN
+        newAvoid := avoid;
+        FOR m:=0 TO clms-1 DO
+          INCL (newAvoid, fs.sug[m]);
+        END;
+        Build (fs.next, used, newAvoid);
+      ELSE
+        WHILE n<clms DO
+          IF n NOT IN used THEN
+            FOR m:=0 TO clms-1 DO
+              IF (m#n) AND
+                 (m NOT IN usedF) AND
+                 (fs.sug[n] # fs.sug[m]) AND   | "=" würde zu Bewertung "richtiger Platz" führen
+                 (fs.sug[m] NOT IN avoid) THEN
+                INCL (used,  n);
+                INCL (usedF, m);
+                cfs.sug[n] := fs.sug[m];
+                AdaptColorsM (co-1, n);
+                EXCL (usedF, m);
+                EXCL (used,  n);
+              END;
+            END;
+          END;
+          INC (n);
+        END;
+      END;
+    END AdaptColorsM;
+
+  VAR
+    val : Valuation;
+
+    PROCEDURE AdaptPlaces (pl, n : SHORTCARD);
+    BEGIN
+      IF pl=0 THEN
+        AdaptColors (val.cColors, 0);
+      ELSE
+        WHILE n<clms DO
+          IF (n NOT IN used) AND
+             (fs.sug[n] NOT IN avoid) THEN
+            INCL (used, n);
+            INCL (avoid, fs.sug[n]);
+            cfs.sug[n] := fs.sug[n];
+            AdaptPlaces (pl-1, n);
+            EXCL (avoid, fs.sug[n]);
+            EXCL (used, n);
+          END;
+          INC (n);
+        END;
+      END;
+    END AdaptPlaces;
+
+    PROCEDURE AdaptPlacesM (pl, n : SHORTCARD);
+    BEGIN
+      IF pl=0 THEN
+        AdaptColorsM (val.cColors, 0);
+      ELSE
+        WHILE n<clms DO
+          IF (n NOT IN used) AND
+             (n NOT IN usedF) AND
+             (fs.sug[n] NOT IN avoid) THEN
+            INCL (used, n);
+            INCL (usedF, n);
+            cfs.sug[n] := fs.sug[n];
+            AdaptPlacesM (pl-1, n);
+            EXCL (usedF, n);
+            EXCL (used, n);
+          END;
+          INC (n);
+        END;
+      END;
+    END AdaptPlacesM;
+
+  VAR
+    n, m  : SHORTINT;
+  BEGIN
+    TRY
+      IF fs=NIL THEN
+        FillUp (used, avoid);
+        cfs.val := AskValuation (cfs.sug^);
+        ASSERT (cfs.val.cPlaces<clms, Solved);
+        fs  := cfs;
+        cfs := NewSug(cfs);
+        | neue Bewertung ins Kalkül ziehen
+      END;
+
+      | Test, ob neuer Vorschlag überhaupt bis hierher vertretbar ist
+      val := fs.val;
+      | Test for correctPlace
+      FOR n:=0 TO clms-1 DO
+        IF n IN used THEN
+          IF fs.sug[n] = cfs.sug[n]
+            AND_IF val.cPlaces > 0 THEN
+              DEC (val.cPlaces);
+              INCL (usedF, n);
+            ELSE
+              RETURN;              | Hier stimmen zu viele Plätze überein
+            END
+          END
+        END;
+      END;
+
+      | Test for correctColor
+      FOR n:=0 TO clms-1 DO
+        IF n IN used THEN
+          m := clms-1;
+          WHILE m>=0
+            AND_WHILE (m IN usedF) OR (m=n) OR (fs.sug[m] # cfs.sug[n]) DO
+              DEC (m);
+            ELSE
+              IF val.cColors > 0 THEN
+                DEC (val.cColors);
+                INCL (usedF, m);
+              ELSE
+                RETURN;  | Hier stimmen zu viele Farben überein
+              END
+            END
+          ELSE
+          END;
+        END;
+      END;
+
+      IF args.multiple THEN
+        AdaptPlacesM (val.cPlaces, 0);
+      ELSE
+        AdaptPlaces (val.cPlaces, 0);
+      END;
+
+    EXCEPT
+      OF NoElem THEN END;   | kein Element mehr zum Auffüllen übrig, bedeutet unmöglicher Vorschlag
+    END;
+  END Build;
+
+VAR
+  toBeGuessed : STRING(100);
+  val         : Valuation;
+BEGIN
+  TRACK
+    TRY
+      FORGET RND(10); | anstelle von Randomize, was auch nicht richtig zufällig ist
+
+      cfs := NewSug(NIL);
+      Build (NIL, {}, {});
+
+      WriteString ("I can't solve your code."+&10);
+      IF args.selftest=NIL THEN
+        WriteString ("What code did you want to be guessed? ");
+        ReadString (toBeGuessed);
+        WriteString ("Here you are wrong:"+&10);
+        fs := fsList.first;
+        WHILE fs#NIL DO
+          val := Evaluate (fs.sug^, toBeGuessed.data'PTR);
+          IF (val.cPlaces#fs.val.cPlaces) OR
+             (val.cColors#fs.val.cColors) THEN
+            WriteSug (fs.sug^);
+            WriteChar (" ");
+            WriteVal (fs.val);
+            WriteString (" -> ");
+            WriteVal (val);
+            WriteLn;
+          END;
+          fs  := fs.next;
+        END;
+      END;
+
+    EXCEPT
+      OF Solved THEN
+        IF NOT args.quiet THEN
+          WriteString ("task solved"+&10);
+        END;
+      END;
+    END;
+  END;
+END Guess;
+(*
+PROCEDURE Scan;
+FROM Profiler IMPORT All;
+VAR
+  str : STRING(5);
+  prf : Profile;
+BEGIN
+  prf := CreateProfile("Scan Multiple");
+  PStart (prf);
+  str := "   ";
+  args.char      := "0"*.data'PTR;
+  args.columns^  := 3;
+  args.elements^ := 10;
+  args.selftest  := str.data'PTR;
+  |args.multiple  := FALSE;
+  args.multiple  := TRUE;
+  args.quiet     := TRUE;
+  FOR str.data[0]:="0" TO "9" DO
+    FOR str.data[1]:="0" TO "9" DO
+      |IF str.data[1] # str.data[0] THEN
+        FOR str.data[2]:="0" TO "9" DO
+          |IF str.data[2] NOT OF str.data[0], str.data[1] THEN
+            |FOR str.data[3]:="0" TO "9" DO
+              |IF str.data[3] NOT OF str.data[0], str.data[1], str.data[2] THEN
+                Guess (args.columns^, args.elements^);
+                |WriteFormat ("tested %s"+&10, data := str.data'ADR);
+              |END;
+            |END;
+          |END;
+        END;
+      |END;
+    END;
+  END;
+  PEnd (prf);
+  WriteProfile(prf);
+END Scan;
+*)
+BEGIN
+  rd := ReadArgs (Template, args'PTR, NIL);
+  AssertDos (#);
+  IF args.elements^ < args.columns^ THEN
+    WriteString ("Less elements than columns!"+&10);
+    HALT (0);
+  OR_IF (args.elements^ <= 0) OR (args.columns^ <= 0) THEN
+    WriteString ("Both elements and columns have to be >0!"+&10);
+    HALT (0);
+  OR_IF (args.elements^ > 32) OR (args.columns^ > 32) THEN
+    WriteString ("Both elements and columns have to be <=32!"+&10);
+    HALT (0);
+  END;
+  Guess (args.columns^, args.elements^);
+  |Scan;
+CLOSE
+  IF rd#NIL THEN FreeArgs (rd) END;
+END MasterMind.
+

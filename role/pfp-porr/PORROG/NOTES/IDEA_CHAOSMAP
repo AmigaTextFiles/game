@@ -1,0 +1,87 @@
+Chaotic map representation
+==========================
+
+DISCLAIMER: WHOLLY HYPOTHETICAL!!!
+
+In IDEA, it is pointed out that it would be desirable to be able to
+describe differences between the original contents of a map block
+(especially a structured one) and the way they are left by the
+destructive influence of the player, with "fractal" formulae.
+Well, I wasn't quite thinking of finding julia-set shapes in
+tunnels the player digs, so much as IFS fractals or more likely,
+chaotic attractor type things.
+
+The sort of thing I thought of:
+A set of tables of random numbers, maybe 3 tables, to make up
+some sort of finite-state-machine type thing  (but *not* a normal
+structured one), and then a further set of tables of random numbers
+that map machine-states to X coords and Y coords within a single map
+block.
+In this way, picking a given machine state to start with, and presumably
+2 or 3 extra variables that augment the movement through the state-
+machine, we can get an odd shaped trace across the map space.
+It is supposed, that by picking initial state and variables (and number
+of iterations to make) well, we can produce a trace that approximates
+the original data- approximates by having some (maximal) number of
+matching points, and some (minimal) number of false positives and false
+negatives. Unfortunately, with this scheme, I can only suppose that finding
+those values would require *search* rather than a neat formula. OUCH!
+
+Er... Here  is my current thought on this:
+If a block is, say, 30X10 squares (as a quarter of a screen, which we
+suppose to be 60X20, if we have status info on left of screen like
+Angband), then we have 300 squares to be represented in the states.
+Suppose in the state machine, the states map directly to coords,
+with each square being represented by about 4 different, consecutive
+states. That means 1200 states, or 1200 entries in each table. We want
+a combination of data that is available in the table, initial values,
+and augmentations, to be able to map to near any next state. That
+isn't to say that there must exist some set of data that gives a next
+state X, but it must be plausible states in one area can jump to
+another area in one step.
+I want there to be an element of twisting the meanings of the tables,
+such that table 1 doesn't always mean +10X and table 2 +X. Thus,
+the tables should have equivalent ranges of data.
+The best such mapping I found was:
+
+3 tables, with numbers in range 0-14.
+Tables have names A B C, but our state includes a "torsion" variable,
+with range 0-2, which describes interpretation of tables.
+We have  3 "logical" tables, named M, N, O. Numbers in each of these
+tables have specific meanings to the state machine.
+Torsion of 0 means M=A, N=B, O=C.
+Torsion of 1 means M=B, N=C, O=A.
+Torsion of 2 means M=C, N=A, O=B.
+We could apply that mapping a different way round, but it shouldn't
+matter to the distribution.
+Now, not paying attention to the augmentation variables, we now get:
+Next torsion=M/5 (integer division).
+Next state= (Current state+(225*(M%5))+(15*N)+O)%1200
+
+And we get the X-Y coords from the machine purely from the state number.
+Numbers stored in tables A B and C should be randomly generated, and
+of course need to be saved when the game is saved, if we want the reloaded
+map to make any sense!!
+Now, as it's unlikely that we'll easily find combinations that create
+traces that describe the required patterns to any degree, we should
+be able to apply square masks to the pattern. So, we then say, within
+this mask area, does the trace equal the required pattern? In which case,
+we should be able to find traces much more easily. A block can then be
+described by maybe 2 or 3 different chaotic traces, each with their own
+mask area. This will miss bits out, but hopefully not too badly.
+I propose that mask areas should be maybe 5x5 squares in size. If they're
+too small, then there won't be any saving in storage space over just
+listing the coordinates directly!
+
+Other thoughts
+==============
+
+Other approaches to the problem could include doing just that, having a list
+of coordinates- but to save space, having some random set of those coords
+just thrown away.
+Or, if it is a "player has tunneled out these areas" issue, we can approximate
+cavernous spaces by a set of different sized circular areas at different
+points, that mostly describe the area. This would maybe be easier...
+
+TO BE CONTINUED...
+

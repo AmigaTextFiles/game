@@ -1,0 +1,133 @@
+DEFINITION MODULE QuickIntuition; (* EBM 11-90 v1.0, M2 V4.0 91*)
+
+(*$ DEFINE Test:=FALSE *)
+(*$ LongAlign:=TRUE StackParms:=TRUE CStrings:=TRUE LargeVars:=FALSE *)
+(*$ IF Test *)
+  (*$ Volatile:=FALSE StackChk:=TRUE RangeChk:=TRUE OverflowChk:=TRUE
+  NilChk:=TRUE EntryClear:=TRUE CaseChk:=TRUE ReturnChk:=TRUE *)
+(*$ ELSE *)
+  (*$ Volatile:=TRUE StackChk:=FALSE RangeChk:=FALSE OverflowChk:=FALSE
+  NilChk:=FALSE EntryClear:=FALSE CaseChk:=FALSE ReturnChk:=FALSE *)
+(*$ ENDIF *)
+
+FROM SYSTEM IMPORT
+  ADDRESS;
+FROM IntuitionD IMPORT
+  ActivationFlags, ActivationFlagSet, GadgetPtr, GadgetFlags, GadgetFlagSet,
+  IDCMPFlagSet, WindowFlagSet, PropInfoFlags, PropInfoFlagSet, ImagePtr,
+  ScreenPtr, WindowPtr, ScreenFlagSet;
+FROM GraphicsD IMPORT
+  DrawModeSet, BitMapPtr, FontStyleSet, FontFlagSet, ViewModeSet, TextAttrPtr,
+  RastPortPtr;
+
+TYPE
+  AF   = ActivationFlags;             (* forkortelser for intuition typer *)
+  AFS  = ActivationFlagSet;
+  GF   = GadgetFlags;
+  GFS  = GadgetFlagSet;
+  PIF  = PropInfoFlags;
+  PIFS = PropInfoFlagSet;
+
+
+          (* tilføjer en (boolean) Gadget til en hægtet liste (start gp=NIL) *)
+          (* Intuition indeholder desværre også en AddGadget (dårligt navn!) *)
+
+PROCEDURE AddGadget(VAR gp:GadgetPtr; leftedge,topedge,Width,Height:INTEGER;
+                    gfs:GadgetFlagSet; afs:ActivationFlagSet;
+                    gadgetrender:ADDRESS; selectrender:ADDRESS; 
+                    gadgettext:ADDRESS;
+                    specialinfo:ADDRESS; gadgetid:INTEGER; userdata:ADDRESS);
+
+
+          (* tilføjer en tekst til sidst tilføjede gadget *)
+
+PROCEDURE AddIntuiText(gp:GadgetPtr; frontpen,backpen:SHORTCARD;
+                       drawmode:DrawModeSet;
+                       leftedge,topedge:INTEGER; itext:ADDRESS);
+
+
+          (* tilføjer en border til sidst tilføjede gadget *)
+
+PROCEDURE AddBorder(gd:GadgetPtr; select:BOOLEAN; leftedge,topedge :INTEGER;
+                    frontpen,backpen :SHORTCARD; drawmode:DrawModeSet; Count:SHORTCARD;
+                    Xy:ADDRESS);
+
+          (* Tilføjer et billede til sidst tilføjede gadget. imagedata skal være
+             i chip-memory (brug evt. chippicture). select=TRUE for alternativt
+             billede. Relevante flags sættes automatisk. 
+             Hvis gadgets Width,Height=0 så sættes de til image Width,Height *)
+
+PROCEDURE AddGadgetImage(gp:GadgetPtr; select:BOOLEAN; leftedge,topedge,Width,
+                         Height,Depth:CARDINAL; imagedata:ImagePtr;
+                         planepick,planeonoff:SHORTCARD);
+
+      (* Laver et Image ud fra en PROCEDURE med ASSEMBLE(DC.W grafik og
+         $ EntryExitCode:=FALSE. Imagedata vil blive allokeret i chip-memory. 
+         (Hvis imagedata ER i Chipram så læg 100 til Depth, og allokering spares.
+         Altså : to bitplaner der ER i ChipRam så sæt Depth = 102. F.eks. 
+         et modul med ChipCode:=TRUE og Procedurer med EntryExitCode:=FALSE)
+      *)
+PROCEDURE MakeImage(Width,Height,Depth:CARDINAL; ImageDataAdr:ADDRESS):ImagePtr;
+
+
+          (* laver sidst tilføjede gadget om til en streng gadget *)
+
+PROCEDURE AddStringInfo(gp:GadgetPtr; maxchars:INTEGER; string:ARRAY OF CHAR);
+
+
+          (* laver sidst tilføjede gadget om til en proportional gadget *)
+
+PROCEDURE AddPropInfo(gp:GadgetPtr; Flags:PropInfoFlagSet; horizpot,vertpot,
+                      horizbody,vertbody:CARDINAL);
+
+
+          (* kopierer en procedure til chip-memory *)
+
+PROCEDURE ChipPicture(ProcedureAdr:ADDRESS;Words:CARDINAL):ADDRESS;
+
+          (* returnerer ptr til outline for gadget. Brug med AddBorder() eks:
+             AddBorder( ?,?,-2,-1,?,?,?,5,OutLine(Gptr))             *)
+
+PROCEDURE OutLine(gp:GadgetPtr):ADDRESS;
+
+          (* åbner et vindue. firstgadget er den hægtede liste som er lavet
+             med AddGadget. Hvis Screen er NIL så bruges WorkBench. *)
+
+PROCEDURE AddWindow(VAR wptr:WindowPtr; title:ADDRESS;
+                       leftedge,topedge,Width,Height:INTEGER;
+                       detailpen,blockpen:SHORTINT; idcmpflags:IDCMPFlagSet;
+                       Flags:WindowFlagSet; firstgadget:GadgetPtr;
+                       Screen:ScreenPtr; superbitmap:BitMapPtr;
+                       minwidth,minheight,maxwidth,maxheight:INTEGER);
+
+          (* åbner en screen *)
+
+PROCEDURE AddScreen(VAR sptr:ScreenPtr; leftedge,topedge,
+                    Width,Height, Depth:INTEGER; 
+                    detailpen,blockpen:SHORTINT; viewmodes:ViewModeSet;
+                    Type:ScreenFlagSet; Font:TextAttrPtr;
+                    DefaultTitle:ADDRESS; Gadgets:GadgetPtr;
+                    custombitmap:BitMapPtr);
+
+          (* Sæt gadgets render/select image (f.eks. lavet med MakeImage). *)
+          (* Sætter relevant flag, hvis det ikke var sat. *)
+          (* Sætter gadgets størrelse til Image's hvis de var sat til 0 *)
+
+PROCEDURE SetGadgetImage(gp:GadgetPtr; select:BOOLEAN; imagePtr:ImagePtr);
+
+          (* AddIntuiText bruger attributter sat med denne. Er initieret til :
+             TOPAZ 9 NORMAL ROMFONT *)
+
+PROCEDURE SetTextAttr(Name:ADDRESS; ysize:CARDINAL; Style:FontStyleSet;
+                      Flags:FontFlagSet);
+
+          (* Printer string som intuitext *)
+
+PROCEDURE WriteText(rp:RastPortPtr; StringPtr:ADDRESS; leftoffset,topoffset:INTEGER);
+
+          (* sætter/henter string til/fra string-gadget, max 80 tegn *)
+
+PROCEDURE SetString(gptr:GadgetPtr; st:ARRAY OF CHAR);
+PROCEDURE GetString(gptr:GadgetPtr; VAR st:ARRAY OF CHAR);
+
+END QuickIntuition.

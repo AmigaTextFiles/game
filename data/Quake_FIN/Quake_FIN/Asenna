@@ -1,0 +1,257 @@
+;-----------------------------------------------------------------------------
+; TITLE        : Quake_FIN
+; VERSION      : 1.0
+; DATE         : 24.05.2000
+; DESCRIPTION  : Installer script for Quake_FIN
+; INPUT        : -
+; OUTPUT       : -
+;-----------------------------------------------------------------------------
+; MODIFICATIONS: -
+;-----------------------------------------------------------------------------
+; LIMITATIONS AND BUGS
+;-----------------------------------------------------------------------------
+
+; $VER: Quake_FIN 1.0 (24.05.2000)
+
+;-----------------------------------------------------------------------------
+; VARIABLES VARIABLES VARIABLES VARIABLES VARIABLES VARIABLES VARIABLES VARIA
+;-----------------------------------------------------------------------------
+(set #config_ok 1)                       ; Default: configuration is ok
+(set #cpu "???(20|30|40|60)")            ; Required CPU
+(set #installer_ver 44)                  ; Minimum Installer version
+(set #installer_rev 10)                  ; Minimum Installer revision
+(set #os_ver 40)                         ; Minimum OS version
+(set #os_rev #?)                         ; Minimum OS revision
+(set #appsize 0)                         ; Required diskspace for application
+                                         ; (bytes)
+(set #configcheckmask %000)              ; Configuration check mask:
+                                         ; bit0 = cpu
+                                         ; bit1 = os version
+                                         ; bit2 = disk space
+(set #application "Quake_FIN")           ; Application
+
+; Default language (Finnish)
+(set #string1 ("\nAsennukseen tarvitaan Installer-ohjelman versio %ld.%ld." #installer_ver #installer_rev))
+(set #string2 ("\n%s\n\nCopyright © 2000 Janne Per‰aho.\nKaikki oikeudet pid‰tet‰‰n.\n" #application))
+(set #string3 ("\n%s on asennettu.\n" #application))
+(set #string4 "\nT‰h‰n Amigaan ei voi asentaa Quake_FIN p‰ivityst‰.")
+(set #string5 "Valitse asennettavat osat.")
+(set #string50 "Valitse \"P‰ivitys\" jos haluat asentaa Quake_FIN p‰ivityksen ja \"Ohjeet\" jos haluat asentaa ohjeet.")
+(set #string51 "P‰ivitys ( 29 kB)")
+(set #string52 "Ohjeet   (258 kB)")
+(set #string6 "Valitse hakemisto, joka sis‰lt‰‰ Quake:n suomalaisen lokalisoinnin.")
+(set #string61 "Asennetava tiedosto on \"quake.catalog\", joka sis‰lt‰‰ pelitekstien suomennoksen. Tiedosto tulee kopioida hakemistoon \"LOCALE:Catalogs/suomi/\".")
+(set #string62 "LOCALE:Catalogs/suomi/")
+(set #string7 "Suomennoksen asennus...")
+(set #string71 "Pelin suomennos kopioidaan valittuun hakemistoon.")
+(set #string72 "LOCALE:Catalogs/suomi/quake.catalog")
+(set #string73 "#?")
+(set #string8 "Valitse hakemisto, jonne pelin ohjeet asennetaan.")
+(set #string81 "Asennettavia tiedostoja on kolme:\n\n\"Ohjeet.txt\"  - pelin ohjeet suomeksi\n\"Sanasto.txt\" - pelin englanti-suomi sanasto\n\"qfaq20.txt\"  - Quake FAQ\n\nVoit asentaa ohjeet minne tahansa, mutta suositeltava paikka on pelin kotihakemisto.")
+(set #string82 "Peli:Quake/")
+(set #string9 "\nOhjeiden asennus...")
+(set #string91 "Pelin ohjeet kopioidaan valittuun hakemistoon.")
+(set #string92 "")
+(set #string93 "Dokumenti#?")
+
+;-----------------------------------------------------------------------------
+; SUBROUTINES SUBROUTINES SUBROUTINES SUBROUTINES SUBROUTINES SUBROUTINES SUB
+;-----------------------------------------------------------------------------
+;-----------------------------------------------------------------------------
+; TITLE        : p_DecodeVersion
+; VERSION      : 0.10
+; DATE         : 30.08.1998
+; DESCRIPTION  : Get version and revision from raw version number
+; INPUT        : #version - raw version number
+; OUTPUT       : #ver     - version number
+;                #rev     - revision number
+;-----------------------------------------------------------------------------
+; MODIFICATIONS: -
+;-----------------------------------------------------------------------------
+(procedure p_DecodeVersion #version
+   (set #ver (/ #version 65536))
+   (set #rev (- #version (* #ver 65536)))
+)
+
+;-----------------------------------------------------------------------------
+; TITLE        : p_EncodeVersion
+; VERSION      : 0.10
+; DATE         : 30.08.1998
+; DESCRIPTION  : Create raw version number from version and revision number
+; INPUT        : #ver     - version number
+;                #rev     - revision number
+; OUTPUT       : #version - raw version number
+;-----------------------------------------------------------------------------
+; MODIFICATIONS: -
+;-----------------------------------------------------------------------------
+(procedure p_EncodeVersion #ver #rev
+   (set #version (+ (* #ver 65536) #rev))
+)
+
+;-----------------------------------------------------------------------------
+; TITLE        : p_CheckConfiguration
+; VERSION      : 0.10
+; DATE         : 30.08.1998
+; DESCRIPTION  : Check if requirements match with current configuration
+; INPUT        : -
+; OUTPUT       : #config_ok - 0=not ok, 1=ok
+;-----------------------------------------------------------------------------
+; MODIFICATIONS: -
+;-----------------------------------------------------------------------------
+(procedure p_CheckConfiguration
+
+   ; Variables
+   (set #config_ok 1)
+
+   ; Check CPU
+   (if (in #configcheckmask 0)
+      (
+         (if (not (patmatch #cpu (database "cpu")))
+            (
+               (set #config_ok 0)
+            )
+         ); if
+      )
+   ); if
+
+   ; Check OS version
+   (if (in #configcheckmask 1)
+      (
+         (p_EncodeVersion #os_ver #os_rev)
+         (if (< #version (getversion))
+            (set #config_ok 0)
+         ); if
+      )
+   ); if
+
+   ; Check diskspace
+   (if (in #configcheckmask 2)
+      (
+         (set #availdspace (getdiskspace @default-dest))
+         ; Information not available
+         (if (not (< #availdspace 0))
+            ; Not enough room
+            (if (< #availdspace #appsize)
+               (set #config_ok 0)
+            ); if
+         ); if
+      )
+   ); if
+
+); p_CheckConfiguration
+
+;-----------------------------------------------------------------------------
+; TITLE        : p_GetDestination
+; VERSION      : 0.10
+; DATE         : 30.08.1998
+; DESCRIPTION  : Get destination directory
+; INPUT        : -
+; OUTPUT       : @default-dest
+;-----------------------------------------------------------------------------
+; MODIFICATIONS: -
+;-----------------------------------------------------------------------------
+(procedure p_GetDestination #d1string #d2string #d3string
+
+   (set @default-dest
+      (askdir
+         (prompt #d1string)
+         (help #d2string)
+         (default #d3string)
+         (disk)
+      ); askdir
+   )
+); p_GetDestination
+
+;-----------------------------------------------------------------------------
+; TITLE        : p_CopyFiles
+; VERSION      : 0.10
+; DATE         : 30.08.1998
+; DESCRIPTION  : Copy files
+; INPUT        : -
+; OUTPUT       : -
+;-----------------------------------------------------------------------------
+; MODIFICATIONS: -
+;-----------------------------------------------------------------------------
+(procedure p_CopyFiles #c1string #c2string #c3string #c4string
+
+   (copyfiles
+      (prompt #c1string)
+      (help #c2string)
+      (source #c3string)
+      (dest @default-dest)
+      (pattern #c4string)
+      (optional "force")
+   ); copyfiles
+
+); p_CopyFiles
+
+;-----------------------------------------------------------------------------
+; MAIN MAIN MAIN MAIN MAIN MAIN MAIN MAIN MAIN MAIN MAIN MAIN MAIN MAIN MAIN
+;-----------------------------------------------------------------------------
+; Welcome message
+(welcome #string2)
+
+; Check Installer version
+(p_EncodeVersion #installer_ver #installer_rev)
+(if (< @installer-version #version)
+   (
+      (exit #string1 (quiet))
+   )
+); if
+
+; Open new screen for installer
+(effect "lower_left" "horizontal" $000000 $000000)
+
+; Open background picture
+(showmedia "#coverpic" "Installer/Cover.iff" "center" "none" 0)
+
+; Ask options
+(set #installoptions
+   (askoptions
+      (prompt #string5)
+      (help #string50)
+      (choices #string51 #string52)
+      (default %11)
+   ); askoptions
+)
+
+; Open another picture on top
+(showmedia "#page1pic" "Installer/Page1.iff" "center" "none" 0)
+
+; Translation
+(if (in #installoptions 0)
+   (
+      ; Get destination directory
+      (p_GetDestination #string6 #string61 #string62)
+
+      ; Check configuration
+      (p_CheckConfiguration)
+      (if (< #config_ok 1)
+         (exit #string4 (quiet))
+      ); if
+
+      ; Copy files
+      (p_CopyFiles #string7 #string71 #string72 #string73)
+   )
+); if
+; Documents
+(if (in #installoptions 1)
+   (
+      ; Get destination directory
+      (p_GetDestination #string8 #string81 #string82)
+
+      ; Check configuration
+      (p_CheckConfiguration)
+      (if (< #config_ok 1)
+         (exit #string4 (quiet))
+      ); if
+
+      ; Copy files
+      (p_CopyFiles #string9 #string91 #string92 #string93)
+   )
+); if
+
+; All done
+(closemedia #coverpic)
+(closemedia #page1pic)
+(exit #string3 (quiet))

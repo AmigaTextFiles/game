@@ -1,0 +1,97 @@
+
+Walkthrough for Spellcasting 101 : Sorcerers get all the girls
+
+note: you might want to explore more than is noted here. This is
+the express route through the game, and I *do* mean 'express'.
+
+Chapter One : Escape
+
+N, Open door, get potty, S, empty potty on fire, open desk, get all, climb
+chimney, S, lift flat rock, get key, push miss b'counter, get key, unlock
+shed door with key, open shed door, W, get overalls, wear overalls, E, E.
+
+Chapter Two : Sorcerer University
+
+get in long line, wait, wait, [answer the 3 copy prot questions],
+E, E, sit, GUB tree, ZEM me, S, kill dragon with sword, VAI ivy, climb ivy,
+pull lever, unchain damsel, N, SW, W, wait until 7:30, wait, SW, wait, NE,
+NW, wait, escort gretchen, S, E, put gretchen on bed, search gretchen
+(twice if naughty), sleep (twice if nice), open spell box, get spell book and
+key, W, SW, unlock door with key and open door, IN, open spell box, OUT, E,
+NE, FRIMP trapdoor, lift trapdoor, D, SE, S, E, E, SW, W, S, W, W, D, open
+spell box, U, N, NE, N, N, wait until 11:30, FRIMP trapdoor, lift trapdoor,
+U, U, get popular book, SKONN bust, U, open spell box, D, D, SW, wait until
+6:00, wait until 7:15, U, sit, yes, ask prof about appliance, again, hump
+hillary/clean dishes (naughty/nice), NE, E, wait until 10:00, wait, sleep,
+get all, wait until 1:00, get all, sit, GUB tree, ZEM me, S, kill dragon
+with sword, VAI ivy, climb ivy, pull lever, unchain damsel, OUT, W, SW, U,
+DISPAR board, get board, open box, D, SW, put board in water, get on board,
+turn left dial to 6, turn right dial to tick, press button, wait, wait.
+
+Chapter Three : The Island of Lost Soles
+
+KABBUL Blaise, KABBUL Ashby, KABBUL Charlie, KABBUL Bernie, KABBUL Charlotte,
+NE, KABBUL Dawn, KABBUL Robin, KABBUL Gail, KABBUL Leif, KABBUL Wolfgang,
+KABBUL Ernest, KABBUL Woodrow, S, KABBUL Jack, KABBUL Dolly, KABBUL Carmen,
+KABBUL Peg, KABBUL Jim, KABBUL Belle, KABBUL Matt, KABBUL Mikey, get lock
+opener and open door, IN, open safe, KABBUL Kitty, KABBUL Ty, KABBUL Adlai,
+KABBUL Wilhelm, KABBUL Willie, KABBUL Wilma, KABBUL Wilbur, KABBUL William,
+KABBUL Wilton, KABBUL Will, KABBUL Jules, KABBUL Penny, KABBUL Buck,
+KABBUL Nicholas, KABBUL Pierre, KABBUL Adam, sleep, get all, E,
+KABBUL Stu, KABBUL Patty, KABBUL Frank, KABBUL Waldo, KABBUL Ricky,
+KABBUL Sherry, KABBUL Pat, U, KABBUL Kermit, KABBUL Knute, KABBUL Tom,
+KABBUL Teddy, KABBUL Bunny, KABBUL Bill, KABBUL Bo, D, W, D, KABBUL Goldie,
+KABBUL Lucy, KABBUL Lacey, KABBUL Betty, KABBUL Gabby, KABBUL Daisy,
+KABBUL Connie, KABBUL Archie, KABBUL Hardy, KABBUL Dusty, E, KABBUL Laurie,
+KABBUL Lucille, KABBUL Lulu, KABBUL Gaylord, KABBUL Bobby, KABBUL Billy, SW,
+KABBUL Melody, KABBUL Winnie, KABBUL Cy, KABBUL Humphrey, KABBUL Blair,
+KABBUL Carol, KABBUL Mike, KABBUL Noel, N, U, W, S, KABBUL Brooke,
+KABBUL Bridgitte, KABBUL Sandford, KABBUL Clifford, KABBUL Rod, KABBUL Barb,
+NW, get on board, turn left dial to 4, turn right dial to pig, press button,
+wait, wait, wait
+
+Chapter Four : The Island where Time runs Backwards
+drop waybread, S, SW, jump, wait, wait, get in small mudbath, get in
+medium mudbath, get in large mudbath, U, eat small waybread, eat medium
+waybread, eat large waybread, hump small concubine/play chess with small nun,
+hump medium concubine/play chess with medium nun, hump large concubine/play
+chess with large nun (naughty/nice), IN, open door, read sign, NW,
+examine pedestal, N, give box to director, get off board, open box,
+turn left dial to 8, turn right dial to slug, press button, wait, wait, wait.
+
+Chapter Five : The Island of Horny Women
+[nb. I'm assuming naughty mode from here on. Nice is easy enough to work out,
+  though in some cases (undressing - must be alone) it's not a simple swap.]
+SW, W, hump amazon, FRIMP bed, get bonnet, open chest, get shoes, U,
+open wardrobe, get gown, U, E, S, get all, undress, wear gown and bonnet and
+shoes and lipstick, N, NE, get on board, undress, wear cloak, turn left dial
+to 14, turn right dial to bat, press button, wait, wait, wait, wait, wait.
+
+Chapter Six : The Restaurant at the End of the Ocean
+get box, N, order shark, wait, BUNDEROT shark, open box, S, get on board,
+MAJJELLO right dial, turn left dial to 10, turn right dial to boa,
+press button, wait, wait, wait.
+
+Chapter Seven : The Island of the Gods
+unlock island with big key, N, N, W, wait, hide, wait, wait, wait, step out
+from curtain (or wait a while longer to see Ocarina disrobe), hump Ocarina,
+open box, GWEEK garbage, BUNDEROT garbage, open box, S, S, S, get on board,
+turn left dial to 13, turn right dial to pig, press button, wait, wait, wait,
+GOBERDUNA monster, E.
+
+Chapter Eight : Fort Blackwand
+GUB tree, ZEM me, S, kill dragon with sword, VAI ivy, climb ivy, pull lever,
+unchain Lola, get purse, open trapdoor, D, tell Lola to stand on gold x,
+KABBUL Art, tell Art to stand on silver x, stand on bronze x, open purse, W,
+
+-- stunning climax --
+give popular book to Joey, wait, wait, wait, cast BLUBBA, burn spell book
+with flamethrower, open box.
+
+that's it. 1000 pts out of 1000 pts.
+           				             ...sage
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+ Pete Calvert : Course Adviser, Commerce Dept, Adelaide Uni, South Australia
+                email : pcalvert@economics.adelaide.edu.au
+-=-=-=-=-=-=-=-=-=-=-=-=-=- another page from ...sage -=-=-=-=-=-=-=-=-=-=-=-
+

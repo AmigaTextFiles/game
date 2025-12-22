@@ -1,0 +1,814 @@
+Deck "GamePrefs"
+	Routine "ToggleD"
+		If GP[-P,13]="W"
+			Let CT=24,A="W"
+		ElseIf GP[-P,13]="G"
+			Let CT=23,A="G"
+		Else
+			Let A="R",GP[-P,13]=A,CT=22
+		EndIf
+	EndScript
+	Routine "ToggleT"
+		Let T=Arg1,GP[0,0]=T
+		Loop CT,2,8
+			SetObjectState "B_"||CT,OFF
+			If ObjectState("B_"||CT+8)&CT>T
+				SetObjectState "B_"||CT+8,OFF
+				Local RST=1
+			EndIf
+		EndLoop
+		SetObjectState "B_"||T,ON
+		Loop CT,11,16
+			If ~ObjectState("B_"||CT)&CT>T+8
+				DisableObject "B_"||CT
+			Else
+				EnableObject "B_"||CT,CLEAR 
+			EndIf
+		EndLoop
+		If RST
+			Do "ToggleP",T,Arg2
+		EndIf
+	EndScript
+	Routine "ToggleB"
+		Loop CT,22,24
+			SetObjectState "B_"||CT,OFF
+		EndLoop
+		SetObjectState "B_"||Arg1,ON
+		Let GP[-P,13]=Arg2
+		If ~Arg3
+			Do "ToggleS"
+		EndIf
+	EndScript
+	Routine "ToggleC"
+		Loop CT,8
+			SetPen 0
+			DrawCircle CT*37-7,205,14
+			DrawCircle CT*37-7,205,15
+		EndLoop
+		SetPen Arg1
+		DrawCircle (Arg1-45)*37-7,205,14
+		DrawCircle (Arg1-45)*37-7,205,15
+	EndScript
+	Routine "ToggleP"
+		Let P=Arg1
+		Loop CNT,9,16
+			SetObjectState "B_"||CNT,OFF
+		EndLoop
+		SetObjectState "B_"||P+8,ON
+		If GP[-P,11]
+			SetObjectState "B_20",ON
+			SetObjectState "B_19",OFF
+		Else
+			SetObjectState "B_19",ON
+			SetObjectState "B_20",OFF
+		EndIf
+		Do "ToggleC",GP[-P,7]
+		Do "ToggleD"
+		Do "ToggleB",CT,A,Arg2
+		While GP[-P,6]=""
+			Let NM=Alias("T"||Random(1,18)),OK=1
+			Loop CT,8
+				If GP[-CT,6]=NM&CT#P
+					Let OK=0
+					ExitLoop
+				EndIf
+			EndLoop
+			If OK
+				Let GP[-P,6]=NM
+			EndIf
+		EndLoop
+		SetText "TF_1",GP[-P,6]
+	EndScript
+	Routine "ToggleS"
+		If GP[-P,14]#""&GP[-P,14]#Sg;&MDS>1
+			Let Sg=GP[-P,14]
+			PlaySong Sg
+		EndIf
+	EndScript
+	Routine "GetToolTypes"
+		If Exists(Arg1||".info")
+			MakeDocument "TTypes"
+			LoadIcon Arg1
+			InsertToolTypeList Arg1
+			If SizeOfDocument>2
+				MoveCursorTo STARTOF DOCUMENT 
+				Local LID=LinesInDocument-1,Var,Val
+				;OpenWindow "Informer","Bars","Set",LID,5,"Tool Types"
+				;OpenWindow "Informer","Bars",NrOfSteps,TotalCallsToSet; Set if ~open
+				;SendToSubDeck "Informer","Set",LID,"Tool Types"; If allready open
+				While TheLine#""
+					Let Var=Alias(GetWord(TheLine,1,"=(")),Val=GetWord(TheLine,2,"=(")
+					If Match(UpperCase(Val),"TRUE","ON","YES")
+						Let Var=1
+					ElseIf UpperCase(Val)="FALSE"|UpperCase(Val)="OFF"|UpperCase(Val)="NO"
+						Let Var=0
+					ElseIf Ascii(Val)>47&Ascii(Val)<58
+						Let Var=Integer(Val)
+					Else
+						Let Var=Val
+					EndIf
+					;SendToSubDeck "Informer","Slide",GetWord(TheLine,1,"=")||"..."|||GetWord(TheLine,2,"="),1
+					MoveCursor DOWN ,1
+					Delay 0,0,10; < < < Looks cool
+				EndLoop
+				;SendToSubDeck "Informer","Quit"; If last call
+				;ClosePendingWindow
+			EndIf
+			Flush "TTypes"
+		EndIf
+	EndScript
+	Routine "aaa"
+		SetWindowTitle UpperCase(Dice)
+	EndScript
+	Card "GamePrefs"
+		BeforeAttachment
+			If ~Loaded
+				Let Loaded=1
+				LoadSubDeck "C:Informer","Informer"
+				GetFontInfo SCREEN ,FNT,SZ
+				Do "GetToolTypes","A-Risk"
+				Let T1="Mad Max",T2="McDuck",T3="Marie",T4="Dennis",T5="Vanessa",T6="Rambo",T7="Conan",T8="Pumuckel",T9="Thor",T10="Otto"
+				Let T11="Einstein",T12="Marina",T13="Hans-Franz",T14="Yvonne",T15="Andy",T16="Frederick",T17="Cindy",T18="Ferris"
+				Let GP=Arg1,P=Max(1,Min(T,Arg2)),LP=SZ*15%2,OS=(102+350)%2,OS2=OS-LP
+				If Match(MinPlayers,2,3,4,5,6,7,8)&Match(MaxPlayers,2,3,4,5,6,7,8)
+					Let T=Random(MinPlayers,MaxPlayers)
+				Else
+					Let T=Max(2,Min(8,Arg3))
+				EndIf
+				If UpperCase(Dice)="RED"
+					Let GP[-1,13]="R"
+				ElseIf UpperCase(Dice)="WHITE"
+					Let GP[-1,13]="W"
+				ElseIf UpperCase(Dice)="SEETHRU"
+					Let GP[-1,13]="G"
+				EndIf
+				If UpperCase(Cards)="SMALL"
+					Let GP[-1,11]=1
+				EndIf
+				Loop CT,T
+					If GP[-CT,14]#""
+						Let MDS=MDS+1,PF=GP[-CT,14]
+					EndIf
+				EndLoop
+			EndIf
+		EndScript
+		AfterAttachment
+			ShowBrush "Resources/FldBckGrd.bsh",7,141
+			SetPrintFont FNT,SZ
+			SetPrintStyle EMBOSSED ,2,1
+			SetPen 3,0
+			SetDrawMode JAM2 
+			SetPropPosition "Proportional_1",Scared,Dummy
+			Loop CT,8
+				SetPen CT+45
+				AreaCircle CT*37-7,205,12
+			EndLoop
+			Do "ToggleT",T
+			Do "ToggleP",P
+			If GP[-1,13]="R"
+				Do "ToggleB",22,"R"
+			ElseIf GP[-1,13]="W"
+				Do "ToggleB",23,"W"
+			Else
+				Do "ToggleB",24,"G"
+			EndIf
+			If ~Argcount
+				DisableObject "B_26"
+				If Name01#""
+					Let GP[-P,6]=Name01
+				Else
+					Let NM=Alias("T"||Random(1,18)),GP[-P,6]=NM
+				EndIf
+			EndIf
+			SetText "TF_1",GP[-P,6]
+			If QuickStart&~ArgCount
+				DoObjectScript "B_17",ONCLICK 
+			EndIf
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 160,60
+				WindowObjects DRAGBAR 
+				Size 320,385
+				WindowFlags ACTIVATE TOFRONT 
+				VisualEffects NONE ,NONE 
+			EndScript
+		EndObj
+		AreaButton "B_1"
+			Definition
+				Origin 7,18
+				Image "Resources/BtnBg.bsh"
+			EndScript
+			OnClick
+				Dispose MT
+				Loop CT,8
+					If GP[-CT,6]#"AMIGA"&GP[-CT,6]#""
+						Let MT=MT+1
+					Else
+						Let GP[-CT,6]="AMIGA"
+					EndIf
+				EndLoop
+				ResizeWindow 320,191
+				Loop R,30
+					Do "ToggleT",Random(MT+1,8),1
+					Let NM=Alias("T"||Random(1,14))
+					SetText "TF_1",NM
+				EndLoop
+				Loop CT,8,1
+					If GP[-CT,6]#"AMIGA"&CT>T
+						Loop RA,8
+							If GP[-RA,6]="AMIGA"
+								Let GP[-RA,6]=GP[-CT,6],GP[-RA,7]=GP[-CT,7],GP[-CT,6]="AMIGA"
+								ExitLoop
+							EndIf
+						EndLoop
+					EndIf
+				EndLoop
+				DoObjectScript "B_17",ONCLICK 
+			EndScript
+		EndObj
+		AreaButton "B_2"
+			Definition
+				Origin 15,61
+				Label "2",INSIDE 
+				ButtonFlags BUTTONTOGGLES ON 
+				Image "Resources/Enemies2.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleT",2
+			EndScript
+		EndObj
+		AreaButton "B_3"
+			Definition
+				Origin 43,61
+				Label "3",INSIDE 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Enemies3.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleT",3
+			EndScript
+		EndObj
+		AreaButton "B_4"
+			Definition
+				Origin 76,61
+				Label "4",INSIDE 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Enemies4.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleT",4
+			EndScript
+		EndObj
+		AreaButton "B_5"
+			Definition
+				Origin 114,61
+				Label "5",INSIDE 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Enemies5.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleT",5
+			EndScript
+		EndObj
+		AreaButton "B_6"
+			Definition
+				Origin 157,61
+				Label "6",INSIDE 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Enemies6.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleT",6
+			EndScript
+		EndObj
+		AreaButton "B_7"
+			Definition
+				Origin 205,61
+				Label "7",INSIDE 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Enemies7.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleT",7
+			EndScript
+		EndObj
+		AreaButton "B_8"
+			Definition
+				Origin 258,61
+				Label "8",INSIDE 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Enemies8.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleT",8
+			EndScript
+		EndObj
+		AreaButton "B_9"
+			Definition
+				Origin 17,98
+				Label "1",BELOW 
+				ButtonFlags BUTTONTOGGLES ON 
+				Image "Resources/Sorry.bsh"
+				AltImage "Resources/Smiley.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleP",1
+			EndScript
+		EndObj
+		AreaButton "B_10"
+			Definition
+				Origin 54,98
+				Label "2",BELOW 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Sorry.bsh"
+				AltImage "Resources/Smiley.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleP",2
+			EndScript
+		EndObj
+		AreaButton "B_11"
+			Definition
+				Origin 92,98
+				Label "3",BELOW 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Sorry.bsh"
+				AltImage "Resources/Smiley.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleP",3
+			EndScript
+		EndObj
+		AreaButton "B_12"
+			Definition
+				Origin 129,98
+				Label "4",BELOW 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Sorry.bsh"
+				AltImage "Resources/Smiley.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleP",4
+			EndScript
+		EndObj
+		AreaButton "B_13"
+			Definition
+				Origin 166,98
+				Label "5",BELOW 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Sorry.bsh"
+				AltImage "Resources/Smiley.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleP",5
+			EndScript
+		EndObj
+		AreaButton "B_14"
+			Definition
+				Origin 203,98
+				Label "6",BELOW 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Sorry.bsh"
+				AltImage "Resources/Smiley.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleP",6
+			EndScript
+		EndObj
+		AreaButton "B_15"
+			Definition
+				Origin 240,98
+				Label "7",BELOW 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Sorry.bsh"
+				AltImage "Resources/Smiley.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleP",7
+			EndScript
+		EndObj
+		AreaButton "B_16"
+			Definition
+				Origin 278,98
+				Label "8",BELOW 
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Sorry.bsh"
+				AltImage "Resources/Smiley.bsh"
+			EndScript
+			OnRelease
+				Do "ToggleP",8
+			EndScript
+		EndObj
+		AreaButton "B_17"
+			Definition
+				Origin 137,323
+				Label "OK",INSIDE 
+				Image "Resources/BtnSm.bsh"
+			EndScript
+			OnClick
+				If ~MT
+					Loop CT,8
+						If GP[-CT,6]#"AMIGA"&GP[-CT,6]#""
+							Let MT=MT+1
+						Else
+							Let GP[-CT,6]="AMIGA"
+						EndIf
+					EndLoop
+				EndIf
+				Loop CT,T
+					If GP[-CT,6]=""
+						Loop
+							Let NM=Alias("T"||Random(1,18)),OK=1
+							Loop CNT,8
+								If CT#CNT&NM=GP[-CNT,6]
+									Let OK=0
+									ExitLoop
+								EndIf
+							EndLoop
+							If OK
+								Let GP[-CT,6]=NM
+								ExitLoop
+							EndIf
+						EndLoop
+					EndIf
+				EndLoop
+				Dispose OK
+				SetText "TF_1",GP[-P,6]
+				Loop CT,8
+					If CT<=T
+						If ~OK&GP[-CT,6]#"AMIGA"
+							Local OK=1
+						EndIf
+						If GP[-CT,7]=""
+							Let CLR=46
+							Loop CNT,8
+								If GP[-CNT,7]=CLR
+									Let CLR=CLR+1,CNT=0
+								EndIf
+							EndLoop
+							Let GP[-CT,7]=CLR
+						EndIf
+						If GP[-CT,6]="AMIGA"
+							Let GP[-CT,11]=1
+							If GP[-CT,13]=""
+								Let GP[-CT,13]=IfThen(Random(0,1),"G","R")
+							EndIf
+						ElseIf GP[-CT,13]=""
+							Let GP[-CT,13]="R"
+						EndIf
+					Else
+						Dispose GP[-CT]
+					EndIf
+				EndLoop
+				If OK
+					ResizeWindow 1,1
+					SendToParentDeck "Prefs",GP
+					If Scared
+						SendToParentDeck "GetRisk",Scared
+					EndIf
+					Quit
+				Else
+					OpenRequester "Informer","Reporter","Nicht alle Spieler dürfen ""AMIGA"" sein!"
+					Delay 0,2,0
+					SendToSubDeck "Informer","Quit"
+				EndIf
+			EndScript
+		EndObj
+		AreaButton "B_18"
+			Definition
+				Origin 12,190
+				Highlight NONE 
+				Size 296,30
+			EndScript
+			OnClick
+				Let CLR=ColorOfPixel(MouseX,MouseY)
+				If CLR#0
+					Loop CT,8
+						If CT#P&CT<=T&GP[-CT,7]=CLR
+							OpenRequester "Informer","Reporter","Diese Farbe wird schon vom spieler"|||CT|||"benutzt!"
+							Delay 0,1,0
+							SendToSubDeck "Informer","Quit"
+							ExitScript
+						EndIf
+					EndLoop
+					Let GP[-P,7]=CLR
+					Do "ToggleC",CLR
+				EndIf
+			EndScript
+		EndObj
+		AreaButton "B_19"
+			Definition
+				Origin 23,232
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Row.bsh"
+				Highlight OUTLINE 
+			EndScript
+			OnClick
+				Dispose GP[-P,11]
+				SetObjectState "B_19",ON
+				SetObjectState "B_20",OFF
+			EndScript
+		EndObj
+		AreaButton "B_20"
+			Definition
+				Origin 209,232
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/Column.bsh"
+				Highlight OUTLINE 
+			EndScript
+			OnClick
+				Let GP[-P,11]=1
+				SetObjectState "B_19",OFF
+				SetObjectState "B_20",ON
+			EndScript
+		EndObj
+		AreaButton "B_21"
+			Definition
+				Origin 60,344
+				Highlight NONE 
+				Size 5,5
+			EndScript
+			OnClick
+				If GP[-P,12]
+					Dispose GP[-P,12]
+				Else
+					Let GP[-P,12]=1
+				EndIf
+				PrintText LeftJustify(Logical(GP[-P,12]),25),120,SZ*6+OS2
+			EndScript
+		EndObj
+		AreaButton "B_22"
+			Definition
+				Origin 259,232
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/R6.bsh"
+				Highlight OUTLINE 
+			EndScript
+			OnClick
+				Do "ToggleB",22,"R"
+			EndScript
+		EndObj
+		AreaButton "B_23"
+			Definition
+				Origin 259,275
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/G6.bsh"
+				Highlight OUTLINE 
+			EndScript
+			OnClick
+				Do "ToggleB",23,"G"
+			EndScript
+		EndObj
+		AreaButton "B_24"
+			Definition
+				Origin 259,318
+				ButtonFlags BUTTONTOGGLES 
+				Image "Resources/W6.bsh"
+				Highlight OUTLINE 
+			EndScript
+			OnClick
+				Do "ToggleB",24,"W"
+			EndScript
+		EndObj
+		AreaButton "B_25"
+			Definition
+				Origin 46,345
+				Highlight NONE 
+				Size 6,6
+			EndScript
+			OnClick
+				;Let AF=AskForFileName("Fonts:","Choose a fontsize < 14...")
+				;If Integer(FileOf(AF))>0&Integer(FileOf(AF))<20
+				;	Let GP[0,-1]=GetWord(AF,NumberOfWords(AF,":/")-1,":/"),GP[0,-2]=Integer(FileOf(AF))
+				;Else
+				;	Let GP[0,-1]="topaz",GP[0,-2]=8
+				;EndIf
+				;SetPrintFont GP[0,-1],GP[0,-2]
+				;PrintText GP[0,-1]|||GP[0,-2],130,339
+			EndScript
+		EndObj
+		AreaButton "B_26"
+			Definition
+				Origin 80,323
+				Label "Esc",INSIDE 
+				Image "Resources/BtnSm.bsh"
+			EndScript
+			OnClick
+				Quit
+			EndScript
+		EndObj
+		AreaButton "B_27"
+			Definition
+				Origin 23,323
+				Label "End/e",INSIDE 
+				Image "Resources/BtnSm.bsh"
+			EndScript
+			OnClick
+				SendToParentDeck "Quit"
+			EndScript
+		EndObj
+		AreaButton "B_28"
+			Definition
+				Origin 255,141
+				Image "Resources/Notes.bsh"
+			EndScript
+			OnClick
+				If GP[-P,14]#""
+					;Let RS=1
+					Dispose GP[-P,14],GP[-P,15]
+					PlaySong ""
+					IfError
+					EndIf
+				Else
+					If PF=""
+						Let PF=TheCurrentDirectory
+					EndIf
+					SetFileRequestMode REGULARMODE ,REJECTICONS PATTERNFIELD 
+					SetFileRequestPattern "#?(mod|med)#?"
+					Let GP[-P,14]=AskForFileName(PF,"mod or med only...",WindowX+4,WindowY+WindowBorderTop,312,WindowHeight-2-WindowBorderTop)
+					If FileType(GP[-P,14])="Sound"
+						PlaySound GP[-P,14]
+					ElseIf FileType(GP[-P,14])="Music"
+						Let GP[-P,15]=AskForResponse("Play song continually?","Pick Mod or Med..","No|Yes")-1
+						PlaySong GP[-P,14]
+					EndIf
+				EndIf
+				Dispose MDS
+				Loop CT,T
+					If GP[-CT,14]#""
+						Let MDS=MDS+1
+					EndIf
+				EndLoop
+				If RS
+					Loop CT,20
+						Let RS=Random(1,T)
+						If GP[-RS,14]#""
+							;Let PF=GP[-RS,14],RS=0
+							;PlaySong PF
+							ExitLoop
+						EndIf
+					EndLoop
+				EndIf
+				
+			EndScript
+		EndObj
+		TextField "TF_1"
+			Definition
+				InitialText ""
+				Origin 16,156
+				Size 226,16
+				Border BEVEL ,1,2
+				Justification CENTER 
+				MaxFieldLength 25
+				Font "garnet",16
+			EndScript
+			OnClick
+				Dispose GP[-P,6]
+				SetText "TF_1",""
+			EndScript
+			OnRelease
+				If TextFrom("TF_1")#""
+					Let GP[-P,6]=TextFrom("TF_1")
+				Else
+					Let GP[-P,6]="AMIGA",GP[-P,11]=1,GP[-CT,13]=IfThen(Random(0,1),"G","W")
+					SetText "TF_1","AMIGA"
+				EndIf
+				
+			EndScript
+		EndObj
+		AreaProp "Proportional_1"
+			Definition
+				Origin 23,368
+				Size 277,10
+				MoveType HORIZONTAL 
+				Range 1,30,1,10
+				VisibleRange 1,1
+				InitialPosition 1,1
+			EndScript
+			OnRelease
+				GetPropPosition "Proportional_1",Scared,Dummy
+			EndScript
+		EndObj
+		IntervalTimer "Help"
+			Definition
+				Duration 0,1,0
+			EndScript
+			Occurred
+				Let Y=MouseY,X=MouseX,WT="A-Risk.AGA Wünsche..."
+				If Y>367&Y<379
+					If Lang=0
+						Let Lang=1,WT="Low=aggresiv  High=carefull"
+					Else
+						Let Lang=0,WT="Desto höher desto vorsichtiger"
+					EndIf
+				ElseIf Y>323&Y<358&X>23&X<190
+					If Lang=1
+						Let Lang=0
+						If X<76
+							Let WT="A-Risk.AGA beenden!!!"
+						ElseIf X<133
+							Let WT="Zurück zum Spiel..."
+						Else
+							Let WT="Neues Spiel..."
+						EndIf
+					Else
+						Let Lang=1
+						If X<76
+							Let WT="End A-Risk.AGA!!!"
+						ElseIf X<133
+							Let WT="Back to the game..."
+						Else
+							Let WT="New gane..."
+						EndIf
+					EndIf
+				ElseIf Y>232&Y<313&X<189&X>23
+					If Lang=1
+						Let WT="Grosse Karten über'm Bildschirm...",Lang=0
+					Else
+						Let WT="Big Cards over the screen",Lang=1
+					EndIf
+				ElseIf Y>232&Y<359&X>209&X<236
+					If Lang=1
+						Let WT="Kleine Karten an der Seite...",Lang=0
+					Else
+						Let WT="Small cardse on the side...",Lang=1
+					EndIf
+				ElseIf Y>232&Y<358&X>259&X<299
+					If Lang=1
+						Let WT="Wähle deine Angriffs-Würfel...",Lang=0
+					Else
+						Let WT="Choose your attacking dice",Lang=1
+					EndIf
+				ElseIf Y>192&Y<218&X>17&X<302
+					If Lang=1
+						Let WT="Wähle deine Farbe...",Lang=0
+					Else
+						Let WT="Choose your color",Lang=1
+					EndIf
+				ElseIf Y>141&Y<186
+					If Lang=1
+						If X>7&X<251
+							If TM=0
+								Let WT="Tippe deinen Namen ein. Oder...",TM=1
+							ElseIf TM=1
+								Let WT="Drucke RETURN im leeren Feld...",TM=2
+							Else
+								Let WT="...für einen AMIGA gegner!!!",Lang=0,TM=0
+							EndIf
+						ElseIf X>256&X<311
+							If GP[-P,14]#""
+								Let WT="Beende"|||FileOf(GP[-P,14])
+							Else
+								Let WT="Hör dir ein ""MOD"" an..."
+							EndIf
+							Let Lang=0
+						EndIf
+					Else
+						If X>7&X<251
+							If TM=0
+								Let WT="Type your name or...",TM=1
+							ElseIf TM=1
+								Let WT="press return in empty field...",TM=2
+							Else
+								Let WT="...for Amiga enemy!!!",Lang=1,TM=0
+							EndIf
+						ElseIf X>256&X<311
+							If GP[-P,14]#""
+								Let WT="End"|||FileOf(GP[-P,14])
+							Else
+								Let WT="Listen to a ""MOD"""
+							EndIf
+							Let Lang=1
+						EndIf
+					EndIf
+				ElseIf Y>97&Y<123&X>16&X<303
+					If Lang=1
+						Let WT="Einstellungen gelten dem Lächelnder...",Lang=0
+					Else
+						Let WT="Settings are for smiling smiley",Lang=1
+					EndIf
+				ElseIf Y>60&Y<90&X>15&X<304
+					If Lang=1
+						Let WT="Anzahl Spieler...",Lang=0
+					Else
+						Let WT="Number of players",Lang=1
+					EndIf
+				ElseIf Y>18&Y<53
+					If Lang=1
+						Let WT="Zufallsgenerator...",Lang=0
+					Else
+						Let WT="Random game",Lang=1
+					EndIf
+				EndIf
+				SetWindowTitle " "||WT
+				
+			EndScript
+		EndObj
+		ErrorTrap "UserError_1"
+			Occurred
+				Nop
+			EndScript
+		EndObj
+	EndObj
+EndObj

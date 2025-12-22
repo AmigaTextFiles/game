@@ -1,0 +1,178 @@
+/* save and load room                                                      */
+/*                                                                         */
+/* This room shows how to make your own "save and load" room using the new */
+/* conditions and commands SAVE, LOAD, IFEXISTS, IFNOTSAVEDISK. You should */
+/* also provide a direct save/load verb and disable the normal save/load   */
+/* keyboard keys in the graal.main file - have a look and see how I've     */
+/* done.                                                                   */
+/*                                                                         */
+/* ======================================================================= */
+
+
+UPDATE: 6;1
+
+
+/*
+/* This new form of SECTION: statement prevents the section data from being
+/* messed up when you use a "subroutine" room like this - that is, a room
+/* that can be visited from anywhere within the game.
+/*
+SECTION: SAME
+
+
+BG_IFF: saveex_bg.iff
+
+
+/*
+/* "Dummy" startpos and floor statements - since the main character is not
+/* present, the values are not important as long as they are valid in
+/* GRAAL_2!
+/*
+START_POS: 1;11;0;0;L;1
+FLOOR: 1;500;500;501;501;1-1
+
+
+/* Covering graphics with an invisible exit is a quick way to make a button...
+/*
+/* 1-6 are the save positions... you may have as many or few as you like...
+/*
+EXIT: 1;36;40;57;56;0;0; 
+EXIT: 2;71;110;92;126;0;0; 
+EXIT: 3;146;21;167;37;0;0; 
+EXIT: 4;148;72;169;88;0;0; 
+EXIT: 5;210;21;231;37;0;0; 
+EXIT: 6;213;82;234;98;0;0; 
+/*
+/* Back, Load, and Save "buttons"
+/*
+EXIT: 7;1;147;62;163;0;0; 
+EXIT: 8;115;150;176;166;0;0; 
+EXIT: 9;180;150;241;166;0;0; 
+
+
+CLPART: saveex_clpart.iff
+/*
+/* "Lighted" save/load indicators
+/*
+ROOMBOBS: 6;1;7;5;22;18;21;0
+/*
+/* Flashing arrow indicating selected number
+/*
+ROOMBOBS: 2;7;12;27;15;14;16;0
+/*
+/* Background plate for explanatory text
+/*
+ROOMBOBS: 1;9;15;56;276;66;0;150
+
+
+/*
+/* I want an animated arrow, so I'll make it a room object...
+/*
+ROOMOBJ: 1; ;7;NVIS;50;A 0,(RBOB7,25)(RBOB8,25);0;0;0;0;11; ;NPICK;14;0; ;LOW; ; ; ; 
+/*
+/* You don't need to define objects for the buttons - you can set the
+/* button states and other graphics using PBOB and/or BOBON commands.
+/*
+
+
+/*
+/* Now for some DACT:s...
+/*
+/* First, if the player doesn't provide the save disk, go back from
+/* whence we came and forget about the whole thing!
+/*
+DACT: IFNOTSAVEDISK;RESUME
+/*
+/* We have obviously ensured ourselves of a valid "saved games" disk.
+/*
+/* Hide the command area using a "dummy" cutscene containing nothing.
+/* Just remember to make it visible before leaving again!!!
+/*
+DACT: CUTSCENE BLANK,NF
+/*
+/* Reset the "number clicked" flag.
+/*
+DACT: SETRF 1=0
+/*
+/* Light the buttons for which saved games exist already.
+/*
+DACT: IFEXISTS 1;PBOB 36,40,RBOB1
+DACT: IFEXISTS 2;PBOB 71,110,RBOB2
+DACT: IFEXISTS 3;PBOB 145,21,RBOB3
+DACT: IFEXISTS 4;PBOB 148,72,RBOB4
+DACT: IFEXISTS 5;PBOB 210,21,RBOB5
+DACT: IFEXISTS 6;PBOB 213,82,RBOB6
+/*
+DACT: CHAR OFF;LIGHTS ON
+/*
+/* If first visit, explain. (Room flag 2 is set in graal.main, because the
+/* only way to leave this room is via RESUME or LOAD, which resets
+/* all flags to the MARKed position - thus, it is useless to alter ANY
+/* flags or other values permanently here! Vital to remember that!
+/*
+DACT: IFRF 2=1;CUTSCENE 7,NF
+DACT: EXIT
+
+
+/* ====================================================================== */
+/*                                                                        */
+/* Because we've hidden the command area, and exits are the only things   */
+/* that exist in this scene, we only have to check for ACTION: 0;...      */
+/*                                                                        */
+/* ====================================================================== */
+
+/*
+/* Did player click a saved game slot?
+/*
+/* Set room flag 1 to tell us which number was last clicked...
+/* Place the flashing arrow next to the clicked button.
+/*
+ACTION: 0;IFOBJ 1;SETRF 1=1;SHOW ROBJ1,27,55,DEF;EXIT
+ACTION: 0;IFOBJ 2;SETRF 1=2;SHOW ROBJ1,63,125,DEF;EXIT
+ACTION: 0;IFOBJ 3;SETRF 1=3;SHOW ROBJ1,138,36,DEF;EXIT
+ACTION: 0;IFOBJ 4;SETRF 1=4;SHOW ROBJ1,139,87,DEF;EXIT
+ACTION: 0;IFOBJ 5;SETRF 1=5;SHOW ROBJ1,201,36,DEF;EXIT
+ACTION: 0;IFOBJ 6;SETRF 1=6;SHOW ROBJ1,205,97,DEF;EXIT
+
+/*
+/* "Back" is clicked, return to whence we came...
+/* ...but restore the command area with another "dummy" cutscene command first!
+/*
+ACTION: 0;IFOBJ 7;CUTSCENE BLANK,N;RESUME
+
+/*
+/* "Load" is clicked, better check to see if a valid save file exists
+/* before attempting to load it...
+/*
+ACTION: 0;IFOBJ 8;IFRF 1=1;IFEXISTS 1;CUTSCENE BLANK,N;LOAD 1;EXIT
+ACTION: 0;IFOBJ 8;IFRF 1=2;IFEXISTS 2;CUTSCENE BLANK,N;LOAD 2;EXIT
+ACTION: 0;IFOBJ 8;IFRF 1=3;IFEXISTS 3;CUTSCENE BLANK,N;LOAD 3;EXIT
+ACTION: 0;IFOBJ 8;IFRF 1=4;IFEXISTS 4;CUTSCENE BLANK,N;LOAD 4;EXIT
+ACTION: 0;IFOBJ 8;IFRF 1=5;IFEXISTS 5;CUTSCENE BLANK,N;LOAD 5;EXIT
+ACTION: 0;IFOBJ 8;IFRF 1=6;IFEXISTS 6;CUTSCENE BLANK,N;LOAD 6;EXIT
+/*
+/* A number must be clicked before trying to load.
+/*
+ACTION: 0;IFOBJ 8;IFRF 1=0;TEXT -1,0,1,You must click a number first!;EXIT
+/*
+/* The load/exit above failed, so...
+/*
+ACTION: 0;IFOBJ 8;TEXT -1,0,1,Sorry - no saved game available for the number you clicked! ;EXIT
+
+/*
+/* If "Save" is clicked, save the game... and light the slout number if the
+/* save was successful. (Note: The SAVE command saves the last MARKed
+/* position, and MARK was the last thing we did before jumping to this
+/* room.)
+/*
+ACTION: 0;IFOBJ 9;IFRF 1=1;SAVE 1;IFEXISTS 1;PBOB 36,40,RBOB1;EXIT
+ACTION: 0;IFOBJ 9;IFRF 1=2;SAVE 2;IFEXISTS 2;PBOB 71,110,RBOB2;EXIT
+ACTION: 0;IFOBJ 9;IFRF 1=3;SAVE 3;IFEXISTS 3;PBOB 145,21,RBOB3;EXIT
+ACTION: 0;IFOBJ 9;IFRF 1=4;SAVE 4;IFEXISTS 4;PBOB 148,72,RBOB4;EXIT
+ACTION: 0;IFOBJ 9;IFRF 1=5;SAVE 5;IFEXISTS 5;PBOB 210,21,RBOB5;EXIT
+ACTION: 0;IFOBJ 9;IFRF 1=6;SAVE 6;IFEXISTS 6;PBOB 213,82,RBOB6;EXIT
+ACTION: 0;IFOBJ 9;TEXT -1,0,1,You must click a number first!;EXIT
+
+/*
+/* End of load/save script.
+/*

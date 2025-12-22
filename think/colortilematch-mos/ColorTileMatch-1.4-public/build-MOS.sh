@@ -1,0 +1,1 @@
+gcc `sdl-config --cflags --libs` src/*.c -o bin/ColorTileMatch -lSDL -lpthread

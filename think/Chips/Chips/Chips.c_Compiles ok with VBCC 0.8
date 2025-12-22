@@ -1,0 +1,1093 @@
+/*  Chips © 2002                                                       */
+/*  By Ventzislav  Tzvetkov <drHirudo@Amigascne.org>                   */
+/*  All these sources are free to use.                                 */
+/*  This game is freeware, feel free to modify it!                     */
+/*  Check the other files in this directory for some more sources:     */
+/*  Chips.DAT   -  Original Pravetz-8D Game                            */
+/*  Chips.h     -  Header file containing the graphic data in C        */
+/*  Chips.iff   -  Snapshot of the game from which I took the graphics */
+/*  Player-CIA.asm   - AHX replayer functions modified by me.          */
+/*  AHX-Replayer.bin - AHX replayer binary by Dexter/Abyss             */
+/*  intro.ahx   - Title  AHX song by Flapjack/Madwizards               */
+/*  zajawka.ahx - Ingame AHX song by Flapjack/Madwizards               */
+/*                                                                     */
+/*  Compile with:                                                      */
+/*  vc Chips.c Player-CIA.asm -lauto -o Chips                          */
+
+
+#include <intuition/intuition.h> /* Uses intuition for the display */
+
+#include <stdio.h> /* This needed for some string functions */
+
+#include <libraries/dos.h> /* For saving the HighScores */
+
+#include <hardware/custom.h> /* These twos  are  for  */
+#include <hardware/cia.h>   /*  the Joystick handler */
+
+#include <libraries/asl.h> /* For the ScreenMode Requester */
+
+#include "Chips.h" /* Header file with the image structures */
+
+#define FIRE   1
+#define RIGHT  2
+#define LEFT   4
+#define DOWN   8
+#define UP    16
+
+/* function prototipes */
+void CheckAtTitle();
+void Title();
+void Instructions();
+void CheckMove();
+void ChipCheck();
+void ChipCheck2();
+void Check125();
+void Computer();
+void HighScoreTable();
+void Numtext();
+UBYTE Joystick();
+void game();
+
+/* This will automatically be linked to the Custom structure: */
+extern struct Custom custom;
+
+/* This will automatically be linked to the CIA A (8520) chip: */
+extern struct CIA ciaa;
+
+struct IntuitionBase *IntuitionBase;
+struct GfxBase *GfxBase;
+
+struct Screen *my_screen;
+struct Window *my_window;
+
+struct IntuiMessage *my_message; 
+
+/* Some pointer for easier Image handlings */
+struct Image *chip,*professor;
+
+/* This is the structure for the Hall of Fame  */
+/* It's not really much in need, since the     */
+/* HighScoreTable is loaded from Disk, but for */
+/* The first game(until entry there) we need   */
+/* Them to be predefined cause the file doesn't*/
+/* Exist until then.                           */
+struct HighScores {int Scores; char Name[31]; }; 
+struct HighScores HiNames[] =
+{999,"drHirudo",33,"Computer",33,"Computer",33,"Computer",
+33,"Computer",33,"Computer"};
+
+/* Some Global Variables */
+int HighScore,seed,a,b,x,y,xp,yp,cont,Score;
+
+/*Some Global Switches */
+BOOL close=FALSE,comp=FALSE,Game=FALSE,Inst=FALSE,End=FALSE,brk;
+
+/* These keeps info for the chips, the screen and the direction */
+UBYTE C[6]={0,0,0,0,0,0};
+UBYTE scrn[30][23],direction=0;
+
+/* These gets the time from Amiga's system clock for     */
+/* better timing during the Game. Even if you don't play */
+ULONG Timer=0,Time=0;
+
+/* Font - the old good Topaz 8 */
+struct TextAttr my_font=
+{
+  "topaz.font",                 /* Topaz font. */
+  8,                            /*                 */
+    0,
+ FPF_ROMFONT                   /* Exist in ROM. */
+};
+
+/* Phrases. I put them here for easier change of them (localization). */
+char *Text[]={"Chips","(1) - Play the Game","(2) - Instructions",
+"(3) - Exit to the OS","Welcome to Professor's Laboratory",
+"This is a  Logic  Game.  You are an",
+"Electornics Professor.  You must join",
+"the Chips together.  Eight same chips",
+"will make a board.  All boards joined",
+"will become a computer.",
+"Use Joystick or Arrow buttons.",
+"That's the Aim of the Game.","Good Luck!",
+"Press Fire or (1) to start",":","You gained","Points",
+"CONGRATULATIONS","You succeeded the max, in",
+"this  not very  easy Game","Your wonderful result is",
+"Try Again faster for bigger Score !!!","^ Enter your name ^",
+"HALL of FAME","Initialising Music","$VER: Chips V1.3 (18.07.2002)"
+};
+
+/* FileHandler for the HighScores file */
+struct FileHandle *file_handle;
+long bytes_written; /* write buffer */
+long bytes_read;    /* read buffer  */
+
+struct IntuiText my_body_text2=
+{
+  0,       /* FrontPen, colour 0 (blue). */
+  0,       /* BackPen, not used since JAM1. */
+  JAM1,    /* DrawMode, do not change the background. */
+  15,      /* LeftEdge, 15 pixels out. */
+  15,      /* TopEdge, 5 lines down. */
+  NULL,    /* ITextFont, default font. */
+  "Music by Flapjack/Madwizards", /* IText, the text . */
+  NULL,    /* NextText, no more IntuiText structures link. */
+};
+
+/* Text for the About Menu Item */
+struct IntuiText my_body_text=
+{
+  0,       /* FrontPen, colour 0 (blue). */
+  0,       /* BackPen, not used since JAM1. */
+  JAM1,    /* DrawMode, do not change the background. */
+  15,      /* LeftEdge, 15 pixels out. */
+  5,       /* TopEdge, 5 lines down. */
+  NULL,    /* ITextFont, default font. */
+  "© by V. Tzvetkov and J. Berntsen", /* IText, the text . */
+  &my_body_text2,    /* NextText, no more IntuiText structures link. */
+};
+
+/* The OK text: */
+struct IntuiText my_ok_text=
+{
+  0,       /* FrontPen, colour 0 (blue). */
+  0,       /* BackPen, not used since JAM1. */
+  JAM1,    /* DrawMode, do not change the background. */
+  6,       /* LedtEdge, 6 pixels out. */
+  3,       /* TopEdge, 3 lines down. */
+  NULL,    /* ITextFont, default font. */
+  "OK",    /* IText, the text that will be printed. */
+  NULL,    /* NextText, no more IntuiText structures link. */
+};
+ 
+struct IntuiText my_intui_text=
+{
+  5,         /* FrontPen, colour register 5. */
+  0,         /* BackPen, colour register 0. */
+  JAM2,      /* DrawMode, */
+  0, 0,      /* LeftEdge, TopEdge. */
+  &my_font,  /* ITextFont, use my_font. */
+  NULL,      /* IText, the text that will be printed. */
+             /* (Remember my_text = &my_text[0].) */
+  NULL       /* NextText, no other IntuiText structures are */
+             /* connected. */
+};
+
+struct NewWindow my_new_window=
+{
+  0,   /* LeftEdge    x position of the window. */
+  0,   /* TopEdge     y positio of the window. */
+  320, /* Width       320 pixels wide. */
+  256, /* Height      256 lines high. */
+  0,   /* DetailPen   Text should be drawn with colour reg. 0 */
+  1,   /* BlockPen    Blocks should be drawn with colour reg. 1 */
+  MENUPICK|RAWKEY|INTUITICKS, /* IDCMPFlags. */
+  SMART_REFRESH|BORDERLESS|BACKDROP|ACTIVATE,
+ /* Flags       Intuition should refresh the window. */ 
+
+  NULL,          /* FirstGadget. No gadgets in this game. Sorry. */
+  NULL,          /* CheckMark   Use Intuition's default CheckMark (v). */
+  NULL,          /* Title       Title of the window. None */
+  NULL,          /* Screen      Connected to the Workbench Screen. */
+  NULL,          /* BitMap      No Custom BitMap. */
+  0,0,0,0,
+  CUSTOMSCREEN   /* Type        Connected to custom Screen. */
+};
+
+/* Menu texts */
+struct IntuiText my_third_text=
+{
+  2,          /* FrontPen, black. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0,          /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "Quit",     /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+/* MenuItem data */
+struct MenuItem my_third_item=
+{
+  NULL, /* &my_third_item, */  /* NextItem, linked to the third item. */
+  0,               /* LeftEdge, 0 pixels out. */
+  20,              /* TopEdge, 20 lines down. */
+  120,             /* Width, 120 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude, mutualexclude the first item only. */
+  (APTR) &my_third_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'Q',             /* Command, 'A+Q' command-key sequence. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct IntuiText my_second_text=
+{
+  2,          /* FrontPen, black. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0,          /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "About",    /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+struct MenuItem my_second_item=
+{
+  &my_third_item,  /* NextItem, linked to the third item. */
+  0,               /* LeftEdge, 0 pixels out. */
+  10,              /* TopEdge, 10 lines down. */
+  120,             /* Width, 120 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude, mutualexclude the first item only. */
+  (APTR) &my_second_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'A',               /* Command, 'A+A' command-key sequence. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct IntuiText my_first_text=
+{
+  2,          /* FrontPen. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0, /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "New Game", /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+struct MenuItem my_first_item=
+{
+  &my_second_item, /* NextItem, linked to the second item. */
+  0,               /* LeftEdge, 0 pixels out. */
+  0,               /* TopEdge, 0 lines down. */
+  120,             /* Width, 120 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude, , no mutualexclude. */
+  (APTR) &my_first_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'N',             /* Command, 'A+N' command-key sequence. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct Menu my_menu=
+{
+  NULL,          /* NextMenu, no more menu structures. */
+  0,             /* LeftEdge, left corner. */
+  0,             /* TopEdge, for the moment ignored by Intuition. */
+  42,            /* Width, 42 pixels wide. */
+  0,             /* Height, for the moment ignored by Intuition. */
+  MENUENABLED,   /* Flags, this menu will be enabled. */
+  "Chips",       /* MenuName, the string. */
+  &my_first_item /* FirstItem, pointer to the first item in the list. */
+};
+
+
+main()
+{
+struct ScreenModeRequester *ScreenRequest;
+ULONG ModeID;
+/* Open the HighScore file */
+ file_handle = (struct FileHandle *)
+ Open( "ChipsHighScores.sav", MODE_READWRITE );
+Seek( file_handle, 0, OFFSET_BEGINNING );
+bytes_read = Read( file_handle, HiNames, sizeof( HiNames ) );
+
+/* Get the HighScore */
+ HighScore=HiNames[1].Scores;
+
+/* Open the Intuition library: */
+  IntuitionBase = (struct IntuitionBase *)
+    OpenLibrary( "intuition.library", 0 );
+  if( !IntuitionBase )
+    exit();
+
+/* Open the Graphics library: */
+  GfxBase = (struct GfxBase *)
+    OpenLibrary( "graphics.library", 0 );
+  if( !GfxBase )
+  {
+  CloseLibrary( IntuitionBase );
+  exit();    
+  }
+
+/* We will now try to open the screen: */
+
+    if (ScreenRequest=(struct ScreenModeRequester *)AllocAslRequestTags(
+                                 ASL_ScreenModeRequest,
+                ASLSM_TitleText, (ULONG) "Pick 320x256 Screenmode ",
+                                 ASLSM_PositiveText, (ULONG) "Ok",
+                                 ASLSM_NegativeText, (ULONG) "Cancel",
+                                 /*ASLSM_InitialInfoOpened, TRUE,*/
+                                 ASLSM_MinWidth, 320,
+                                 ASLSM_MinHeight, 256,
+                                 ASLSM_MinDepth, 8,
+                                 ASLSM_MaxDepth, 8,
+                                 TAG_DONE))
+    {
+    if (!AslRequestTags(ScreenRequest,
+               ASLSM_TitleText, (ULONG) "Pick 5Bit 320x256 Screenmode ",
+                                 ASLSM_PositiveText, (ULONG) "Ok",
+                                 ASLSM_NegativeText, (ULONG) "Cancel",
+                                 ASLSM_MinWidth, 320,
+                                 ASLSM_MinHeight, 256,
+                                 ASLSM_MinDepth, 5,
+                                 ASLSM_MaxDepth, 32,
+                                 TAG_DONE))
+        {
+        printf("Error: Invalid ScreenMode\n");
+        exit(-1);
+        } else {
+            ModeID=ScreenRequest->sm_DisplayID;}
+    }
+
+
+ my_screen = (struct Screen *)
+ OpenScreenTags( NULL, SA_DisplayID,ModeID,SA_Width,320,
+ SA_Height, 256, SA_Depth,     5,
+SA_Colors,      ScreenColors, SA_Title,"Chips",TAG_DONE );
+  if( !my_screen )
+  {
+   CloseLibrary( GfxBase );
+   CloseLibrary( IntuitionBase );
+   exit();
+   }
+
+ my_new_window.Screen = my_screen;
+ my_window = (struct Window *) OpenWindow( &my_new_window );
+
+if ( !my_window )
+  {
+    /* Could NOT open the Window! */
+    
+    /* Close the Intuition Library since we have opened it: */
+   CloseScreen( my_screen );
+   CloseLibrary( GfxBase );   
+   CloseLibrary( IntuitionBase );
+   exit();  
+  }
+/* Set the menu */
+my_intui_text.FrontPen=28;
+my_intui_text.IText=Text[24];
+PrintIText( my_window->RPort, &my_intui_text ,96,96);
+
+InitPlayer();
+
+SetMenuStrip( my_window, &my_menu );
+
+/* Draws the board for the first time */
+StartSong1();
+
+/* Stay in the while loop until the end */
+while( close == FALSE )
+  {
+
+/* Shows the title screen */
+Title();
+CheckAtTitle();
+if (close==TRUE) break;
+if (Game==1) game();
+ }
+
+/* Clears the menu */
+ ClearMenuStrip( my_window );
+
+StopSong();
+KillPlayer();
+/* Closes the file  */
+ Close( file_handle );
+
+/* Closes the window */
+ CloseWindow ( my_window ); 
+
+/* We should always close the screens we have opened before we leave: */
+ CloseScreen( my_screen );
+  
+/* Close the Graphics Library since we have opened it: */
+ CloseLibrary( GfxBase );
+
+/* Close the Intuition Library since we have opened it: */
+ CloseLibrary( IntuitionBase );
+
+/* THE END */
+exit();
+}
+
+
+void CheckAtTitle() {
+
+if (Joystick() & FIRE) {Game=TRUE; return;}
+
+  /* As long as we can collect messages successfully we stay in the */
+
+ /* while-loop: */
+
+  while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort))
+   { 
+    if (close)
+       break;
+      /* After we have successfully collected the message we can read */
+      /* it, and save any important values which we maybe want to check */
+      /* later: */
+   if((my_message->Class == MENUPICK && my_message->Code == 63488) ||
+   my_message->Code==1)
+    {Game=TRUE;} /* New Game */
+   if(my_message->Code==2) Inst=TRUE;
+   if(my_message->Class == MENUPICK && my_message->Code == 63520)
+   AutoRequest( my_window, &my_body_text, NULL, &my_ok_text, NULL, NULL,
+   220, 82);  /* About */
+
+   if((my_message->Class == MENUPICK && my_message->Code == 63552) ||
+   my_message->Code==3 || my_message->Code==69)
+   close=TRUE; /* Quit */
+ReplyMsg( my_message );
+  }
+}
+
+/* Title Screen */
+void Title()
+{
+int i,j,N=0;
+int z[5]={0,20,52,200,168};
+seed++;
+SetRast(my_window->RPort,4);
+SetAPen(my_window->RPort,4);
+my_intui_text.IText=Text[1];
+my_intui_text.FrontPen=5;
+my_intui_text.BackPen=4;
+PrintIText( my_window->RPort, &my_intui_text ,72,92);
+my_intui_text.IText=Text[2];
+PrintIText( my_window->RPort, &my_intui_text ,72,108);
+my_intui_text.IText=Text[3];
+PrintIText( my_window->RPort, &my_intui_text ,72,124);
+
+while (N<4) { N++;
+j=282;
+ for (i=6; i<316; i+=24) 
+     {
+      CheckAtTitle();
+      if (close||Game||Inst) break;
+       for (j=300;j>i;j-=6) {
+   RectFill(my_window->RPort,j+10,z[N],j+15,z[N]+15);
+   DrawImage (my_window->RPort, &Chip[6],j,z[N]);
+    seed++;
+    Delay(1);
+    CheckAtTitle();
+    if (close||Game||Inst) break;
+     } 
+    } 
+if (Inst) {Instructions(); return;}
+   }
+if (!(close||Game||Inst)) {HighScoreTable();
+for (i=1; i<150; i++) { CheckAtTitle();
+ if (close||Game||Inst) break;Delay(2);
+ SetRGB4( &my_screen->ViewPort, 9,  6,11,0  );
+ SetRGB4( &my_screen->ViewPort,10,  1,7,0   );
+ SetRGB4( &my_screen->ViewPort,11,  5,11,12 );
+ SetRGB4( &my_screen->ViewPort,12,  3,6,7   );
+ SetRGB4( &my_screen->ViewPort, 8,  0,7,11  );
+
+CheckAtTitle();
+ if (close||Game||Inst) break;Delay(2);
+ SetRGB4( &my_screen->ViewPort,10,  6,11,0  );
+ SetRGB4( &my_screen->ViewPort,11,  1,7,0   );
+ SetRGB4( &my_screen->ViewPort,12,  5,11,12 );
+ SetRGB4( &my_screen->ViewPort, 8,  3,6,7   );
+ SetRGB4( &my_screen->ViewPort, 9,  0,7,11  );
+
+CheckAtTitle();
+ if (close||Game||Inst) break;Delay(2);
+ SetRGB4( &my_screen->ViewPort,11,  6,11,0  );
+ SetRGB4( &my_screen->ViewPort,12,  1,7,0   );
+ SetRGB4( &my_screen->ViewPort, 8,  5,11,12 );
+ SetRGB4( &my_screen->ViewPort, 9,  3,6,7   );
+ SetRGB4( &my_screen->ViewPort,10,  0,7,11  );
+
+CheckAtTitle();
+ if (close||Game||Inst) break;Delay(2);
+ SetRGB4( &my_screen->ViewPort,12,  6,11,0  );
+ SetRGB4( &my_screen->ViewPort, 8,  1,7,0   );
+ SetRGB4( &my_screen->ViewPort, 9,  5,11,12 );
+ SetRGB4( &my_screen->ViewPort,10,  3,6,7   );
+ SetRGB4( &my_screen->ViewPort,11,  0,7,11  );
+
+CheckAtTitle();
+ if (close||Game||Inst) break;Delay(2);
+ SetRGB4( &my_screen->ViewPort, 8,  6,11,0  );
+ SetRGB4( &my_screen->ViewPort, 9,  1,7,0   );
+ SetRGB4( &my_screen->ViewPort,10,  5,11,12 );
+ SetRGB4( &my_screen->ViewPort,11,  3,6,7   );
+ SetRGB4( &my_screen->ViewPort,12,  0,7,11  );
+   }
+ SetRGB4( &my_screen->ViewPort, 8,  6,11,0  );
+ SetRGB4( &my_screen->ViewPort, 9,  1,7,0   );
+ SetRGB4( &my_screen->ViewPort,10,  5,11,12 );
+ SetRGB4( &my_screen->ViewPort,11,  3,6,7   );
+ SetRGB4( &my_screen->ViewPort,12,  0,7,11  );  }
+
+}
+
+/* Instructions screen */
+void Instructions() {
+int x,y,px,py=185,cnt=1,dir=-6;
+Inst=FALSE;
+professor=&ProfessorRight;
+chip=&Chip[(seed%4+1)];
+SetRast(my_window->RPort,4);
+my_intui_text.FrontPen=7;
+my_intui_text.IText=Text[4];
+PrintIText( my_window->RPort, &my_intui_text ,18,16);
+PrintIText( my_window->RPort, &my_intui_text ,18,216);
+my_intui_text.FrontPen=5;
+my_intui_text.IText=Text[5];
+PrintIText( my_window->RPort, &my_intui_text ,24,40);
+my_intui_text.FrontPen=8;
+my_intui_text.IText=Text[6];
+PrintIText( my_window->RPort, &my_intui_text ,8,55);
+my_intui_text.FrontPen=9;
+my_intui_text.IText=Text[7];
+PrintIText( my_window->RPort, &my_intui_text ,8,70);
+my_intui_text.FrontPen=10;
+my_intui_text.IText=Text[8];
+PrintIText( my_window->RPort, &my_intui_text ,8,85);
+my_intui_text.FrontPen=11;
+my_intui_text.IText=Text[9];
+PrintIText( my_window->RPort, &my_intui_text ,8,100);
+my_intui_text.FrontPen=15;
+my_intui_text.IText=Text[10];
+PrintIText( my_window->RPort, &my_intui_text ,8,115);
+my_intui_text.FrontPen=14;
+my_intui_text.IText=Text[11];
+PrintIText( my_window->RPort, &my_intui_text ,40,145);
+my_intui_text.FrontPen=16;
+my_intui_text.IText=Text[12];
+PrintIText( my_window->RPort, &my_intui_text ,112,160);
+seed++;
+for (x=2; x<285; x+=6) {
+RectFill(my_window->RPort,x,185,x+5,200);
+DrawImage (my_window->RPort, professor,x+6,185);
+DrawImage (my_window->RPort, chip,x+17,185);
+CheckAtTitle();
+      if (close==TRUE || Game==TRUE) break;
+Delay(1);
+}
+px=x-2;
+for (x=1; x<696; x++)
+ { CheckAtTitle();
+   if (close==TRUE || Game==TRUE) break;
+   professor=&ProfessorUp;
+   RectFill(my_window->RPort,px,py,px+11,py+15);
+   py+=dir;
+   if (py<128) {dir=0; professor=&ProfessorLeft; px=px-6;}
+   if (px<8) {dir=6; professor=&ProfessorDown;
+   DrawImage (my_window->RPort, chip,px+12,185);}
+   DrawImage (my_window->RPort, professor,px,py);
+   my_intui_text.FrontPen=x/25;
+   my_intui_text.BackPen=x/25+5;
+   my_intui_text.IText=Text[13];
+if (!(x%66)) {for (y=2; y<285; y+=6) {professor=&ProfessorRight;
+RectFill(my_window->RPort,y,185,y+5,200);
+DrawImage (my_window->RPort, professor,y+6,185);
+DrawImage (my_window->RPort, chip,y+17,185);
+seed++;
+CheckAtTitle();
+      if (close==TRUE || Game==TRUE) break;
+Delay(1);
+} cnt++; if (cnt==8) {chip=&Chip[5];
+                      DrawImage (my_window->RPort, chip,y+11,185);}
+if (cnt==11) {chip=&Chip[6];DrawImage (my_window->RPort, chip,y+11,185);
+              RectFill(my_window->RPort,y+21,185,y+23,200);}
+px=y-2;
+dir=-6;
+}
+   PrintIText(my_window->RPort, &my_intui_text ,50,234);
+   Delay(2);
+   RectFill(my_window->RPort,290,182,300,197);
+ }
+
+}
+
+
+void CheckMoves() /* Check moves with position change */ {  
+xp=x+2*(direction==2)-2*(direction==1);
+yp=y+2*(direction==3)-2*(direction==4);
+CheckMove();}
+
+void CheckMove() /* Check moves */
+{
+int l,t;
+l=scrn[xp][yp];
+if (l==0) {direction=0; return;}
+
+for (t=1; t<7;t++)
+ {
+  if (l==t) {chip=&Chip[t];cont=t;ChipCheck();brk=1;break;}
+}
+direction=0;return;
+
+}
+
+void ChipCheck()  /* Checks chip's movement */
+{
+int l,t;
+while (1){if (brk) return;
+if (scrn[xp][yp]==10) {End=1; return;}
+RectFill(my_window->RPort,xp*6+12,yp*8+12,xp*6+23,yp*8+27);
+scrn[xp][yp]=0;
+xp=xp+2*(direction==2)-2*(direction==1);
+yp=yp+2*(direction==3)-2*(direction==4);
+if (direction==1 && xp==3) {xp=29;ChipCheck2();continue;}
+if (direction==2 && xp==31){xp=5; ChipCheck2();continue;}
+if (direction==3 && yp==22){yp=4; ChipCheck2();continue;}
+if (direction==4 && yp==2) {yp=20;ChipCheck2();continue;}
+l=scrn[xp][yp];
+if (l==0) {DrawImage (my_window->RPort, chip, xp*6+12, yp*8+12);
+scrn[xp][yp]=cont;Delay(10);continue;}
+for (t=1; t<7; t++) {
+if (l==t && t!=cont) /* The chip differs */{
+DrawImage(my_window->RPort,chip,(xp-2*(direction==2)+2*(direction==1))*6+12,
+(yp-2*(direction==3)+2*(direction==4))*8+12); Delay(10);
+scrn[(xp-2*(direction==2)+2*(direction==1))]
+[(yp-2*(direction==3)+2*(direction==4))]=cont;
+x=x-2*(-(direction==1))*(-(x>29))+2*(-(direction==2))*(-(x<5));
+y=y-2*(-(direction==4))*(-(y<4))+2*(-(direction==3))*(-(y>20));
+brk=1;
+return;
+    }
+if (l==t && t==cont) /* The chips is the same */
+ {C[t]++;Check125();return;}
+ }
+if (l==10) {End=1; return;}
+ /* Show Chip and repeat */
+DrawImage (my_window->RPort, chip, xp*6+12, yp*8+12);
+scrn[xp][yp]=cont; Delay(10);
+}
+}
+
+void ChipCheck2() { /* Checks the chips position */
+int l,m=0;
+char Numba[2];
+l=scrn[xp][yp]; /* Some more checks */
+if (l==0) { DrawImage (my_window->RPort, chip, xp*6+12, yp*8+12);
+scrn[xp][yp]=cont;Delay(10);return;}
+
+if (l==cont) {C[cont]++; /* Checks for board/computer */
+
+if (C[cont]==7 && cont<5) m=5;
+else if (C[cont]==3 && cont==5) {m=6; comp=1;}
+if (!m) m=cont;
+DrawImage (my_window->RPort, &Chip[m], xp*6+12, yp*8+12); scrn[xp][yp]=m;
+Score=Score+5*(cont==1)+7*(cont==2)+10*(cont==3)+15*(cont==4)+24*
+(cont==5)+100*(comp)+(600-(Timer-Time))*(comp);
+Numtext(Score, 182,16);
+Numba[0]=C[m]+48;
+Numba[1]=0;
+my_intui_text.IText=&Numba[0];
+PrintIText(my_window->RPort, &my_intui_text, 234,cont*26+18);
+brk=TRUE;
+if (comp) Computer(); /* Computer was joined together */
+return;}
+
+if (l==10) {End=1; return;}
+if (direction==1 && xp==29) xp=5;
+if (direction==2 && xp==5) xp=29;
+if (direction==3 && yp==4) yp=20;
+if (direction==4 && yp==20) yp=4;
+brk=1;
+DrawImage (my_window->RPort, chip, xp*6+12, yp*8+12);
+scrn[xp][yp]=cont; Delay(10);
+return; 
+}
+
+void Check125 () {/* Checks for board/computer */
+int m=0;
+char Numba[2];
+if (C[cont]==7 && cont<5) m=5;
+else if (C[cont]==3 && cont==5) {m=6; comp=1;}
+if (!m) m=cont;
+DrawImage (my_window->RPort, &Chip[m], xp*6+12, yp*8+12); scrn[xp][yp]=m;
+Score=Score+5*(cont==1)+7*(cont==2)+10*(cont==3)+15*(cont==4)+24*
+(cont==5)+100*(comp)+(600-(Timer-Time))*(comp);
+Numtext(Score, 182,16);
+Numba[0]=C[m]+48;
+Numba[1]=0;
+my_intui_text.IText=&Numba[0];
+PrintIText(my_window->RPort, &my_intui_text, 234,cont*26+18);
+brk=TRUE;
+if (comp) Computer(); /* Computer was joined together */
+return;
+}
+
+void Computer() /* You did it */ {int compi;
+End=1;
+for (compi=1; compi<15; compi++) { 
+ SetRGB4( &my_screen->ViewPort, 2,0,0,15);
+ SetRGB4( &my_screen->ViewPort, 4,  8,8,8  );
+ Delay (5);
+ SetRGB4( &my_screen->ViewPort, 2,  0,15,0  );
+ SetRGB4( &my_screen->ViewPort, 4,  0,0,15  );
+ Delay(5);
+  }
+ SetAPen(my_window->RPort, 0);
+ RectFill(my_window->RPort,0,0,319,255);
+ my_intui_text.FrontPen=8;
+ my_intui_text.IText=Text[17];
+ PrintIText(my_window->RPort, &my_intui_text ,92,26);
+ my_intui_text.FrontPen=9;
+ my_intui_text.IText=Text[18];
+ PrintIText(my_window->RPort, &my_intui_text ,52,50);
+ my_intui_text.FrontPen=10;
+ my_intui_text.IText=Text[19];
+ PrintIText(my_window->RPort, &my_intui_text ,52,66);
+ my_intui_text.IText=Text[20];
+ my_intui_text.FrontPen=11;
+ PrintIText(my_window->RPort, &my_intui_text ,14,82);
+ my_intui_text.FrontPen=14;
+ Numtext(Score, 212,82);
+ my_intui_text.IText=Text[16];
+ my_intui_text.FrontPen=11;
+ PrintIText(my_window->RPort, &my_intui_text ,242,82);
+ my_intui_text.IText=Text[21];
+ my_intui_text.FrontPen=12;
+ PrintIText(my_window->RPort, &my_intui_text ,4,118);
+ }
+
+void HighScoreTable () { /* Shows the Hall of Fame */
+int cntr,cnto;
+ SetRast(my_window->RPort, 0);
+ my_intui_text.BackPen=0;
+ my_intui_text.IText=Text[23];
+ my_intui_text.FrontPen=17;
+ PrintIText(my_window->RPort, &my_intui_text ,108,24);
+ for (cntr=1; cntr<6; cntr++) {
+ my_intui_text.IText=&HiNames[cntr].Name[0];
+ my_intui_text.FrontPen=cntr+7;
+ PrintIText(my_window->RPort, &my_intui_text ,24,cntr*24+40);
+ for (cnto=1;cnto<(31-strlen(&HiNames[cntr].Name[0]));cnto++){ 
+ my_intui_text.IText=".";
+ PrintIText(my_window->RPort, &my_intui_text ,264-8*cnto,cntr*24+40);
+ }
+Numtext(HiNames[cntr].Scores, 272,cntr*24+40);
+}
+
+
+}
+
+/* Joystick() is a handy, easy and fast but naughty function that hits */
+/* the hardware of the Amiga. It returns a bitfield containing the     */
+/* position of the stick and the present state of the button.          */
+/*                                                                     */
+/* Synopsis: value = Joystick();                                       */
+/*                                                                     */
+/* value:    (UBYTE) If the fire button is pressed, the first bit is   */
+/*           set. If the stick is moved to the right, the second bit   */
+/*           is set, and if the stick is moved to the left, the third  */
+/*           bit is set. The fourth bit is set if the stick is moved   */
+/*           down, and the fifth bit is set if the stick is moved up.  */
+/*           FIRE==1 RIGHT==2 LEFT==4 DOWN==8 UP==16                   */
+
+UBYTE Joystick()
+{
+  UBYTE data = 0;
+  UWORD joy;
+  /* PORT 2 ("JOYSTICK PORT") */
+    joy = custom.joy1dat;
+    data += !( ciaa.ciapra & 0x0080 ) ? FIRE : 0;
+
+  data += joy & 0x0002 ? RIGHT : 0;
+  data += joy & 0x0200 ? LEFT : 0;
+  data += (joy >> 1 ^ joy) & 0x0001 ? DOWN : 0;
+  data += (joy >> 1 ^ joy) & 0x0100 ? UP : 0;
+
+  return( data );
+}
+
+void Numtext(number,sx,sy) {/* Shows number without the use of sprintf */
+char numba[3];
+numba[0]=(number/100)+'0';number%=100;
+numba[1]=(number/10)+'0';number%=10;
+numba[2]=number+'0';numba[3]=0;
+my_intui_text.IText=&numba[0];
+PrintIText(my_window->RPort, &my_intui_text ,sx,sy);
+}
+
+void game() /* Game's main cycle */
+{
+int i,j,c;
+char Numba[31];
+Game=Inst=Score=FALSE;
+StopSong();StartSong2();
+for (i=1;i<30;i++) {for (j=1;j<23;j++) {scrn[i][j]=0;}}
+for (a=1; a<5; a++) C[a]=0;
+SetAPen(my_window->RPort,0);
+RectFill(my_window->RPort,0,0,319,255);
+SetAPen(my_window->RPort,4);
+RectFill(my_window->RPort,42,44,197,187);
+SetAPen(my_window->RPort,1);
+RectFill(my_window->RPort,40,42,197,43);
+RectFill(my_window->RPort,40,44,41,189);
+RectFill(my_window->RPort,42,188,197,189);
+
+my_intui_text.FrontPen=7;
+my_intui_text.BackPen=0;
+DrawImage (my_window->RPort, &Time_image,48,16);
+DrawImage (my_window->RPort, &Score_image,132,16);
+DrawImage (my_window->RPort, &HighScore_image,74,26);
+DrawImage (my_window->RPort, &Tabloid,198,26);
+y=4;c=0;
+Wait( 1 << my_window->UserPort->mp_SigBit );
+while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort)) {
+ReplyMsg( my_message );}
+Wait( 1 << my_window->UserPort->mp_SigBit );
+while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort)) {
+Time=my_message->Seconds;
+ReplyMsg( my_message );}
+srand( seed ); /* Randomize */
+x=(rand() % 2)*2+5; /* Random 5 or 7 */
+for (i=1; i<33; i++) { /* 32 chips placed on the Board */
+ do {b=(rand()%4)+1;} while (C[b]==8);
+DrawImage (my_window->RPort, &Chip[b], x*6+12, y*8+12);
+scrn[x][y]=b;
+C[b]++;
+c++;
+do {
+   a=(rand()%5)*2;
+   if (x==29) break;
+   if ((x+a==17 && y==12) || x+a>29) continue;
+   if (scrn[x+a][y]==0) break;}
+ while (1);
+ if (c==4 || x==29) {c=0; y+=2; x=(rand() % 2)*2+5;}
+x+=a;
+ if (y==22) {y-=2;}
+}
+chip=&Chip[1];
+SetAPen(my_window->RPort,4);
+x=17;
+y=12;
+for (a=1; a<5; a++) C[a]=0;
+a=0;
+xp=x;
+yp=y;
+
+DrawImage (my_window->RPort, &ProfessorRight,x*6+12, y*8+12);
+scrn[x][y]=10;
+Numtext(Score, 182,16);
+Numtext(HighScore, 156,26);
+/* Game at play */
+
+while (1) {
+Wait( 1 << my_window->UserPort->mp_SigBit );
+brk=0;
+while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort)) {
+Timer=my_message->Seconds;
+ if((my_message->Class == MENUPICK && my_message->Code == 63488) ||
+ my_message->Code==1)
+   Game=TRUE; /* New Game */
+if ((Joystick() & LEFT)  || my_message->Code==79) direction=1;
+if ((Joystick() & RIGHT) || my_message->Code==78) direction=2;
+if ((Joystick() & DOWN) || my_message->Code==77) direction=3;
+if ((Joystick() & UP) || my_message->Code==76) direction=4;
+if (my_message->Code==69) End=TRUE;
+if(my_message->Class == MENUPICK && my_message->Code == 63520)
+   AutoRequest( my_window, &my_body_text, NULL, &my_ok_text, NULL, NULL,
+   220, 82); /* About */
+
+if((my_message->Class == MENUPICK && my_message->Code == 63552) ||
+my_message->Code==3) close=TRUE; /* Quit */
+ReplyMsg( my_message );}
+if ((Timer-Time)>599) End=TRUE;
+if (End) {DrawImage (my_window->RPort, chip,x*6+12, y*8+12); Delay(40);break;}
+Numtext(600-(Timer-Time), 92,16);
+if (close || Game) return;
+/* Some heavy code follows. Sorry I lack the time to minimize it. */
+
+if (direction==1 && x>5) {CheckMoves();if (brk) continue;
+RectFill(my_window->RPort,x*6+12,y*8+12,x*6+23,y*8+27);scrn[x][y]=0;
+x-=2; DrawImage (my_window->RPort, &ProfessorLeft,x*6+12, y*8+12);
+scrn[x][y]=10;}
+
+if (direction==1 && x==5) {xp=29; yp=y;CheckMove();if (brk) continue;
+RectFill(my_window->RPort,42,y*8+12,53,y*8+27);scrn[x][y]=0; x=29;
+DrawImage (my_window->RPort, &ProfessorLeft,x*6+12, y*8+12);
+scrn[x][y]=10;}
+
+if (direction==2 && x<29) {CheckMoves();if (brk) continue;
+RectFill(my_window->RPort,x*6+12,y*8+12,x*6+23,y*8+27);scrn[x][y]=0; x+=2;
+DrawImage (my_window->RPort, &ProfessorRight,x*6+12, y*8+12);
+scrn[x][y]=10;}
+
+if (direction==2 && x==29) {xp=5; yp=y;CheckMove();if (brk) continue;
+RectFill(my_window->RPort,186,y*8+12,197,y*8+27);scrn[x][y]=0; x=5;
+DrawImage (my_window->RPort, &ProfessorRight,x*6+12, y*8+12);
+scrn[x][y]=10;}
+
+if (direction==3 && y<20) {CheckMoves();if (brk) continue;
+RectFill(my_window->RPort,x*6+12,y*8+12,x*6+23,y*8+27);scrn[x][y]=0; y+=2;
+DrawImage (my_window->RPort, &ProfessorDown,x*6+12, y*8+12);
+scrn[x][y]=10;}
+
+if (direction==3 && y==20) {yp=4; xp=x; CheckMove();if (brk) continue;
+RectFill(my_window->RPort,x*6+12,172,x*6+23,187);scrn[x][y]=0;y=4;
+DrawImage (my_window->RPort, &ProfessorDown,x*6+12, y*8+12);
+scrn[x][y]=10;}
+
+if (direction==4 && y>4) {CheckMoves();if (brk) continue;
+RectFill(my_window->RPort,x*6+12,y*8+12,x*6+23,y*8+27);scrn[x][y]=0; y-=2;
+DrawImage (my_window->RPort, &ProfessorUp,x*6+12, y*8+12);
+scrn[x][y]=10;}
+
+if (direction==4 && y==4) {yp=20; xp=x; CheckMove(); if (brk) continue;
+RectFill(my_window->RPort,x*6+12,44,x*6+23,59);scrn[x][y]=0; y=20;
+DrawImage (my_window->RPort, &ProfessorUp,x*6+12, y*8+12);
+scrn[x][y]=10;}
+
+}
+End=FALSE;
+if (!comp){/* If there is no computer, show this analytic screen instead */
+ SetAPen(my_window->RPort, 4);
+ RectFill(my_window->RPort,0,0,319,255);
+ my_intui_text.BackPen=4;
+ my_intui_text.IText=Text[15];
+ PrintIText(my_window->RPort, &my_intui_text ,74,26);
+ Numtext(Score, 160,26);
+ my_intui_text.IText=Text[16];
+ PrintIText(my_window->RPort, &my_intui_text ,188,26);
+ for (i=1; i<7; i++) { 
+ DrawImage (my_window->RPort, &Chip[i],124,i*32+12);
+ my_intui_text.IText=Text[14];
+ PrintIText(my_window->RPort, &my_intui_text ,138 ,i*32+16);
+ Numba[0]=C[i]+48;
+ Numba[1]=0;
+ my_intui_text.IText=&Numba[0];
+ PrintIText(my_window->RPort, &my_intui_text, 148,i*32+16);
+      }
+ }
+comp=FALSE;
+i=1;
+do {
+Wait( 1 << my_window->UserPort->mp_SigBit );
+while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort)) {
+ if((my_message->Class == MENUPICK && my_message->Code == 63488) ||
+my_message->Code==1)
+   {Game=TRUE;return;} /* New Game */
+if (Joystick() & FIRE) brk=TRUE;
+
+if (my_message->Code==69 || my_message->Code==64) brk=TRUE;
+
+if(my_message->Class == MENUPICK && my_message->Code == 63520)
+   AutoRequest( my_window, &my_body_text, NULL, &my_ok_text, NULL, NULL,
+   220, 82); /* About */
+
+if((my_message->Class == MENUPICK && my_message->Code == 63552) ||
+my_message->Code==3) {close=TRUE; return;} /* Quit */
+ReplyMsg( my_message );i++;} 
+if (i>200) brk=TRUE;
+} while (!brk);
+
+HighScoreTable();
+if (Score>HiNames[5].Scores) { /* If there is a HighScore entry: */
+ if (Score>HiNames[1].Scores) HighScore=Score;
+ ModifyIDCMP( my_window, MENUPICK|INTUITICKS|VANILLAKEY );
+ my_intui_text.IText=Text[22];
+ PrintIText(my_window->RPort, &my_intui_text ,82 ,32);
+ for (i=0; i<30; i++) { Numba[i]=0;
+ my_intui_text.IText="^";
+ my_intui_text.FrontPen=15;
+ PrintIText(my_window->RPort, &my_intui_text ,24+8*i,24);
+ my_intui_text.IText=".";
+ my_intui_text.FrontPen=16;
+ PrintIText(my_window->RPort, &my_intui_text ,24+8*i,16);}
+ i=0;j=65; c=0; brk=0; Numba[30]=0;
+ do {
+ my_intui_text.IText=&Numba[i];
+ PrintIText(my_window->RPort, &my_intui_text ,24+8*i,16);
+ Wait( 1 << my_window->UserPort->mp_SigBit );
+ while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort))
+ {PrintIText(my_window->RPort, &my_intui_text ,24+8*i,16);
+ if(my_message->Class == MENUPICK && my_message->Code == 63488)
+   {Game=TRUE;ModifyIDCMP( my_window, MENUPICK|RAWKEY|INTUITICKS );
+    return;} /* New Game */
+if ((Joystick() & RIGHT) && i<29) if (Numba[++i]==0) Numba[i]=j;
+if (((Joystick() & FIRE) || my_message->Code==32) && i<30)
+{Numba[i]=32;
+    my_intui_text.IText=&Numba[i];
+    PrintIText(my_window->RPort, &my_intui_text ,24+8*i,16);i+=(i<29);}
+if (((Joystick() & LEFT ) || my_message->Code==8) && i>0) 
+if (Numba[--i]!=0) j=Numba[i];
+if ((Joystick() & UP ) &&  j<122) {j++; Numba[i]=j;}
+if ((Joystick() & DOWN ) && j>65) {j--; Numba[i]=j;}
+if (my_message->Code>64 && my_message->Code<123 &&
+i<30){j=my_message->Code;Numba[i]=my_message->Code;
+      my_intui_text.IText=&Numba[i];
+      PrintIText(my_window->RPort, &my_intui_text ,24+8*i,16);i+=(i<29);}
+if (my_message->Code==27 || my_message->Code==13) brk=TRUE;
+
+if(my_message->Class == MENUPICK && my_message->Code == 63520)
+   AutoRequest( my_window, &my_body_text, NULL, &my_ok_text, NULL, NULL,
+   220, 82); /* About */
+
+if((my_message->Class == MENUPICK && my_message->Code == 63552) ||
+my_message->Code==51) {close=TRUE; return;} /* Quit */
+ReplyMsg( my_message );
+c++;
+}
+if (c>2000) brk=TRUE;
+} while (!brk);
+ModifyIDCMP( my_window, MENUPICK|RAWKEY|INTUITICKS );
+HiNames[5].Scores=Score;
+strcpy(HiNames[5].Name,Numba);
+for (c=4;c>0;c--)
+ {if(Score>HiNames[c].Scores)
+  {HiNames[0].Scores=HiNames[c].Scores;
+   strcpy(HiNames[0].Name,HiNames[c].Name);
+   HiNames[c].Scores=HiNames[c+1].Scores;
+   strcpy(HiNames[c].Name,HiNames[c+1].Name);
+   HiNames[c+1].Scores=HiNames[0].Scores;
+   strcpy(HiNames[c+1].Name,HiNames[0].Name);}
+  }
+ HighScoreTable(); Seek( file_handle, 0,OFFSET_BEGINNING );
+ bytes_written = Write( file_handle, HiNames, sizeof( HiNames ) ); 
+ }
+ brk=0;
+ do {
+ Wait( 1 << my_window->UserPort->mp_SigBit );
+ while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort)) {
+ if((my_message->Class == MENUPICK && my_message->Code == 63488) ||
+my_message->Code==1)
+   {Game=TRUE;return;} /* New Game */
+ if ((Joystick() & FIRE)  || my_message->Code==27) brk=TRUE;
+
+ if (my_message->Code==32 || my_message->Code==64) brk=TRUE;
+
+ if(my_message->Class == MENUPICK && my_message->Code == 63520)
+   AutoRequest( my_window, &my_body_text, NULL, &my_ok_text, NULL, NULL,
+   220, 82); /* About */
+
+if((my_message->Class == MENUPICK && my_message->Code == 63552) ||
+my_message->Code==3) {close=TRUE; return;} /* Quit */
+ReplyMsg( my_message );i++;}
+if (i>250) brk=TRUE;
+} while (!brk);
+StopSong();StartSong1();
+}

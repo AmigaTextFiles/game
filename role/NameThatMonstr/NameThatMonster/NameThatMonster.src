@@ -1,0 +1,283 @@
+PROGRAM NameThatMonster
+?***** A Commodity that translates a midbutton down event to a slash,
+?***** and a midbutton up event to leftbutton down and up events.
+?***** For use with Moria.
+?***** Compile as:  fb NameThatMonster.src opt-i0
+UNOPTIMIZE
+
+INCLUDE finclude/AmigaExecTypes
+INCLUDE finclude/Commodities
+INCLUDE finclude/Intuitypes ;? for Gadget def
+
+TYPE timeval IS RECORD
+   INTEGER tv_secs,tv_micro
+ ENDTYPE
+
+ TYPE InputEvent IS RECORD
+   PTR_TO InputEvent ie_NextEvent
+   BYTE ie_Class
+   BYTE ie_SubClass
+   WORD ie_Code
+   WORD ie_Qualifier
+   BYTE ie_Prev1DownCode
+   BYTE ie_Prev1DownQual
+   BYTE ie_Prev2DownCode
+   BYTE ie_Prev2DownQual
+   timeval ie_TimeStamp
+ ENDTYPE
+ TYPE mInputEvent IS RECORD
+   PTR_TO InputEvent ie_NextEvent
+   BYTE ie_Class
+   BYTE ie_SubClass
+   WORD ie_Code
+   WORD ie_Qualifier
+   WORD ie_x,ie_y         ;? mouse position
+   timeval ie_TimeStamp
+ENDTYPE
+
+TYPE DiskObject IS RECORD
+    WORD    do_Magic
+    WORD    do_Version
+    Gadget  do_Gadget
+    BYTE    do_Type
+    PTR_TO TEXT   do_DefaultTool
+    INTEGER do_ToolTypes
+    INTEGER do_CurrentX
+    INTEGER do_CurrentY
+    INTEGER do_DrawerData
+    INTEGER do_ToolWindow
+    INTEGER do_StackSize
+ENDTYPE
+
+
+CONSTANT IECLASS_RAWMOUSE=2
+CONSTANT IECODE_MBUTTON=6A'16
+CONSTANT IECODE_LBUTTON=68'16
+CONSTANT IECODE_UP_PREFIX=80'16
+CONSTANT IEQUALIFIER_LEFTBUTTON=4000'16
+GLOBAL
+   INTEGER dummy,execbase,dosbase,cxbase,iconbase
+   INTEGER priority
+   TEXT author,version
+LOCAL
+   INTEGER brokererror,msg
+   INTEGER broker,filter1,filter2,translate1,translate2  ;? CxObjs
+   INTEGER portsignal,signal,waitmask,breaksignal
+   INTEGER ansicode
+   NewBroker nb
+   PTR_TO MsgPort brokerport
+   InputEvent slashie
+   mInputEvent lbuttonie,lbuttonupie
+   InputXpression mbuttonix,mbuttonupix
+SUBPROGRAM
+   SUBROUTINE GetPriority,strncopy
+
+DATA (author,"By Douglas Nelson. Freely distributable")
+DATA (version,"$VER: NameThatMonster 1.0 (29.6.92)")
+
+&SYSLIB 1
+
+?***** open libs
+IF 0=OPENLIB("exec.library",37) ! execbase THEN GOTO cleanup
+IF 0=OPENLIB("dos.library",37) ! dosbase THEN GOTO cleanup
+IF 0=OPENLIB("commodities.library",37) ! cxbase THEN GOTO cleanup
+IF 0=OPENLIB("icon.library",37) ! iconbase THEN GOTO cleanup
+
+GetPriority()
+
+?***** create MsgPort for broker
+IF 0=CreateMsgPort(execbase) ! brokerport THEN GOTO cleanup
+
+?***** init our InputEvents
+ansicode = ASCII("/")
+IF FALSE=InvertKeyMap(cxbase,ansicode,@slashie,0) THEN GOTO cleanup
+slashie.ie_NextEvent = 0
+
+lbuttonie.ie_NextEvent = 0
+lbuttonie.ie_Class     = IECLASS_RAWMOUSE
+lbuttonie.ie_SubClass  = 0
+lbuttonie.ie_Code      = IECODE_LBUTTON
+lbuttonie.ie_Qualifier = 0;?IEQUALIFIER_LEFTBUTTON
+lbuttonie.ie_x = 0
+lbuttonie.ie_y = 0
+
+lbuttonupie.ie_NextEvent = @lbuttonie
+?****** ie_NextEvent really points to PREVIOUS event!
+lbuttonupie.ie_Class     = IECLASS_RAWMOUSE
+lbuttonupie.ie_SubClass  = 0
+lbuttonupie.ie_Code      = IECODE_LBUTTON OR IECODE_UP_PREFIX
+lbuttonupie.ie_Qualifier = 0
+lbuttonupie.ie_x = 0
+lbuttonupie.ie_y = 0
+
+?***** init NewBroker
+nb.nb_Version = 5
+nb.nb_Name = @"NameThatMonster"
+nb.nb_Title = @"Name That Monster"
+nb.nb_Descr = @"Midbutton names Moria monster"
+nb.nb_Unique = NBU_UNIQUE OR NBU_NOTIFY
+nb.nb_Flags = 0
+nb.nb_Pri = priority
+nb.nb_Port = brokerport
+nb.nb_ReservedChannel = 0
+
+?***** create broker
+IF 0=CxBroker(cxbase,@nb,@brokererror) ! broker THEN GOTO cleanup
+
+?***** create FILTER CxObj for midbutton down press
+IF 0=CreateCxObj(cxbase,CX_FILTER,0,0) ! filter1 THEN GOTO cleanup
+
+mbuttonix.ix_Version = IX_VERSION
+mbuttonix.ix_Class = IECLASS_RAWMOUSE
+mbuttonix.ix_Code = IECODE_MBUTTON
+mbuttonix.ix_CodeMask = FFFF'16
+mbuttonix.ix_Qualifier = 0
+mbuttonix.ix_QualMask = 0
+mbuttonix.ix_QualSame = 0
+
+IF 0=SetFilterIX(cxbase,filter1,@mbuttonix) THEN GOTO cleanup
+
+?***** create FILTER CxObj for midbutton up press
+IF 0=CreateCxObj(cxbase,CX_FILTER,0,0) ! filter2 THEN GOTO cleanup
+
+mbuttonupix.ix_Version = IX_VERSION
+mbuttonupix.ix_Class = IECLASS_RAWMOUSE
+mbuttonupix.ix_Code = IECODE_MBUTTON OR IECODE_UP_PREFIX
+mbuttonupix.ix_CodeMask = ffff'16
+mbuttonupix.ix_Qualifier = 0
+mbuttonupix.ix_QualMask = 0
+mbuttonupix.ix_QualSame = 0
+
+IF 0=SetFilterIX(cxbase,filter2,@mbuttonupix) THEN GOTO cleanup
+
+?***** create TRANSLATE CxObjs
+IF 0=CreateCxObj(cxbase,CX_TRANSLATE,@slashie,0) ! translate1 THEN GOTO cleanup
+IF 0=CreateCxObj(cxbase,CX_TRANSLATE,@lbuttonupie,0) ! translate2 THEN GOTO cleanup
+? must use lbuttonupie, the LAST event in linked list!
+
+?***** link CxObjs to broker
+AttachCxObj(cxbase,broker,filter1)
+AttachCxObj(cxbase,filter1,translate1)
+AttachCxObj(cxbase,broker,filter2)
+AttachCxObj(cxbase,filter2,translate2)
+
+
+?***** activate
+dummy = ActivateCxObj(cxbase,broker,TRUE)
+
+?***** event loop
+portsignal = brokerport.mp_SigBit
+waitmask = (1 LSL C'16) OR (1 LSL E'16) OR (1 LSL portsignal)
+
+{Waitloop}
+   signal = Wait(execbase,waitmask)
+   breaksignal = signal AND (1 LSL C'16) ;? did we receive CTRL-C?
+   breaksignal = breaksignal OR (signal AND (1 LSL E'16)) ;?  CTRL-E?
+? Commodities are supposed to respond to CTRL-E
+   IF breaksignal THEN
+      GOTO cleanup
+   ELSEIF signal=(1 LSL portsignal) THEN
+      WHILE 0<>GetMsg(execbase,brokerport) ! msg DO
+         IF CxMsgType(cxbase,msg)=(1 LSL 6) THEN  ;? CXM_COMMAND
+            WHEN CxMsgID(cxbase,msg) IS
+               [15] ;? CXCMD_DISABLE
+                  dummy = ActivateCxObj(cxbase,broker,FALSE)
+               [17] ;? CXCMD_ENABLE
+                  dummy = ActivateCxObj(cxbase,broker,TRUE)
+               [23] ;? CXCMD_KILL
+                  ReplyMsg(execbase,msg)
+                  GOTO cleanup
+               [25] ;? CXCMD_UNIQUE
+                  ReplyMsg(execbase,msg)
+                  GOTO cleanup
+            ENDCASES
+         ENDIF
+         ReplyMsg(execbase,msg)
+      ENDWHILE
+   ENDIF
+GOTO Waitloop
+
+{cleanup}
+IF broker THEN DeleteCxObjAll(cxbase,broker)
+IF brokerport THEN
+   WHILE 0<>GetMsg(execbase,brokerport) ! msg
+      ReplyMsg(execbase,msg)
+   ENDWHILE
+   DeleteMsgPort(execbase,brokerport)
+ENDIF
+IF iconbase THEN dummy = CLOSELIB(iconbase)
+IF cxbase THEN dummy = CLOSELIB(cxbase)
+IF dosbase THEN dummy = CLOSELIB(dosbase)
+IF execbase THEN dummy = CLOSELIB(execbase)
+
+
+END
+
+SUBROUTINE GetPriority
+?***** Gets priority from icon or command line
+?***** Requires global INTEGER priority
+UNOPTIMIZE
+
+LOCAL
+   INTEGER array,rdargs,success
+   PTR_TO DiskObject diskobj
+   TEXT progname*64,value*4
+   PTR_TO TEXT valueptr
+
+   dummy = FILLCHAR(progname,CHAR(0))
+   dummy = FILLCHAR(value," ")
+
+   IF WB_SENT THEN
+      progname = WB_ARG(0)
+      GOSUB readtooltypes
+      GRETURN
+   ELSE
+      array = 0; ? clear array for ReadArgs
+      rdargs = ReadArgs(dosbase,@"CX_PRIORITY/K/N",@array,0)
+      IF array=0 THEN   ;? no command line parameter
+         success = GetProgramName(dosbase,@progname,64)
+         IF success=FALSE THEN
+            priority = 0
+         ELSE
+            GOSUB readtooltypes
+         ENDIF
+      ELSE;? got a command line parameter
+         priority = #array   ;? read value that array points to
+      ENDIF
+      FreeArgs(dosbase,rdargs)
+      GRETURN
+   ENDIF
+
+{readtooltypes}
+   progname = "PROGDIR:" & progname
+   IF 0=GetDiskObject(iconbase,@progname) ! diskobj THEN
+      priority = 0
+   ELSE
+      valueptr = FindToolType(iconbase,diskobj.do_ToolTypes,@"CX_PRIORITY")
+      IF valueptr=0 THEN
+         priority = 0
+      ELSE
+         strncopy(valueptr,@value,4)
+         priority = IVAL(value)
+      ENDIF
+      FreeDiskObject(iconbase,diskobj)
+   ENDIF
+   LRETURN
+END
+
+SUBROUTINE strncopy
+?***** copies bytes from one buffer to another
+?***** FROM buffer is null-terminated, TO buffer is F-Basic TEXT
+PARAMETER
+   INTEGER from,to ;? ptrs to buffers, declared as INTEGER to be FAST vars
+   INTEGER length
+
+   FOR i = 1 TO length
+      IF ^from>0 THEN
+         ^to+ = ^from
+         INC(from)
+      ELSE
+         EXIT
+      ENDIF
+   NEXT i
+END

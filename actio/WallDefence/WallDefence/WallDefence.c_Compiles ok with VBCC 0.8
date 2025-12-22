@@ -1,0 +1,483 @@
+/*  Wall Defence © 2002                                                */
+/*  By Ventzislav  Tzvetkov <drHirudo@Amigascne.org>                   */
+/*  And graphics by Joar Berntsen <joar.berntsen@netcom.no>            */
+/*  All these sources are free to use.                                 */
+/*  This game is freeware, feel free to modify it!                     */
+/*  Check the other files in this directory for some more sources.     */
+/*  Compile with:                                                      */
+/*  vc WallDefence.c -lauto -o WallDefence                             */
+
+#define WIDTH  320 /* 320 pixels wide             */
+#define HEIGHT 256 /* 200 lines high  */ 
+#define DEPTH    5 /* 5 BitPlanes should be used, gives 32 colours. */
+#define COLOURS 32 /* 2^5 = 32                                     */
+
+#include <intuition/intuition.h> /* Uses intuition for the display */
+
+#include <stdio.h> /* sprintf(); and HighScoreFile */
+
+#include <hardware/custom.h> /* These twos  are  for  */
+#include <hardware/cia.h>   /*  the Joystick handler */
+
+#include <libraries/asl.h> /* For the ScreenMode Requester */
+
+#include "WallDefence.h" /* Header file with the image structures */
+
+#include "WallDefenceSound.h" /* Header file with the sound structures */
+
+#define FIRE   1
+#define RIGHT  2
+#define LEFT   4
+#define UP     8
+
+UBYTE Joystick();
+int Title();
+void ManMove();
+void InvaderMove();
+void Fall(int C);
+void Level(int LevelNumber);
+void DrawMan(int x);
+
+/* This will automatically be linked to the Custom structure: */
+extern struct Custom custom;
+
+/* This will automatically be linked to the CIA A (8520) chip: */
+extern struct CIA ciaa;
+
+struct IntuitionBase *IntuitionBase;
+struct GfxBase *GfxBase;
+
+struct Screen *my_screen;
+struct Window *my_window;
+
+struct RasInfo my_ras_info;
+struct BitMap my_bit_map;
+struct RastPort my_rast_port;
+
+struct IntuiMessage *my_message; 
+
+/*Some Global Switches */
+BOOL close=FALSE,hold,LevelBOOL;
+
+int X,SX,CO,F,K=100,LevelNumber,Score=0,HighScore=0,Orc=0;
+char B[36],E=0,*Txt[]={"BufferBufferBufferBufferBuffer"};
+UBYTE Throw=0;
+
+/* Phrases. I put them here for easier change of them (localization). */
+char *Text[]={"Wall Defence","by Ventzislav Tzvetkov (C) 2002","Press Fire to Start","Game Over","$VER: Wall Defence V1.2 (28.8.2002)"
+};
+
+main()
+{
+FILE *HighScoreFile;
+struct ScreenModeRequester *ScreenRequest;
+ULONG ModeID;
+int loop;
+/* Open the Intuition library: */
+  IntuitionBase = (struct IntuitionBase *)
+    OpenLibrary( "intuition.library", 0 );
+  if( !IntuitionBase )
+    exit();
+
+/* Open the Graphics library: */
+  GfxBase = (struct GfxBase *)
+    OpenLibrary( "graphics.library", 0 );
+  if( !GfxBase )
+  {
+  CloseLibrary( IntuitionBase );
+  exit();    
+  }
+
+/* Opens the HighScore file: */
+HighScoreFile = fopen("PROGDIR:WallDefence.sav","rb" );
+/* And reads the stored data there: */
+fread( &HighScore, sizeof( HighScore ),1,HighScoreFile );
+/* Close it */
+fclose(HighScoreFile);
+
+/* We will now try to open the screen: */
+
+    if (ScreenRequest=(struct ScreenModeRequester *)AllocAslRequestTags(
+                                 ASL_ScreenModeRequest,
+                ASLSM_TitleText, (ULONG) "Pick 320x256 Screenmode ",
+                                 ASLSM_PositiveText, (ULONG) "Ok",
+                                 ASLSM_NegativeText, (ULONG) "Cancel",
+                                 ASLSM_MinWidth, 320,
+                                 ASLSM_MinHeight, 256,
+                                 ASLSM_MinDepth, 8,
+                                 ASLSM_MaxDepth, 8,
+                                 TAG_DONE))
+    {
+    if (!AslRequestTags(ScreenRequest,
+               ASLSM_TitleText, (ULONG) "Pick 5Bit 320x256 Screenmode ",
+                                 ASLSM_PositiveText, (ULONG) "Ok",
+                                 ASLSM_NegativeText, (ULONG) "Cancel",
+                                 ASLSM_MinWidth, WIDTH,
+                                 ASLSM_MinHeight, HEIGHT,
+                                 ASLSM_MinDepth, DEPTH,
+                                 ASLSM_MaxDepth, 32,
+                                 TAG_DONE))
+        {
+        printf("Error: Invalid ScreenMode\n");
+        exit(-1);
+        } else {
+            ModeID=ScreenRequest->sm_DisplayID;}
+    }
+
+ my_screen = (struct Screen *)
+ OpenScreenTags( NULL, SA_DisplayID,ModeID,SA_Width,WIDTH,
+ SA_Height, HEIGHT, SA_Depth,     DEPTH,
+SA_Colors,      ScreenColors, SA_Title,"Wall Defence",TAG_DONE );
+  if( !my_screen )
+  {
+   CloseLibrary( GfxBase );
+   CloseLibrary( IntuitionBase );
+   exit();
+   }
+ my_new_window.Screen = my_screen;
+ my_window = (struct Window *) OpenWindow( &my_new_window );
+
+if ( !my_window )
+  {
+    /* Could NOT open the Window! */
+    
+    /* Close the Intuition Library since we have opened it: */
+   CloseScreen( my_screen );
+   CloseLibrary( GfxBase );   
+   CloseLibrary( IntuitionBase );
+   exit();  
+  }
+
+  /* 4. Prepare the BitMap: */
+  InitBitMap( &my_bit_map, DEPTH, WIDTH, HEIGHT );
+
+  /* Allocate memory for the Raster: */ 
+  for( loop = 0; loop < DEPTH; loop++ )
+  {
+    my_bit_map.Planes[ loop ] = (PLANEPTR) AllocRaster( WIDTH, HEIGHT );
+    if( my_bit_map.Planes[ loop ] == NULL )
+    close=TRUE;
+    /* Clear the display memory with help of the Blitter: */
+    BltClear( my_bit_map.Planes[ loop ], RASSIZE( WIDTH, HEIGHT ), 0 );
+  }
+
+  
+  /* 5. Prepare the RasInfo structure: */
+  my_ras_info.BitMap = &my_bit_map; /* Pointer to the BitMap structure.  */
+  my_ras_info.RxOffset = 0;         /* The top left corner of the Raster */
+  my_ras_info.RyOffset = 0;         /* should be at the top left corner  */
+                                    /* of the display.                   */
+  my_ras_info.Next = NULL;          /* Single playfield - only one       */
+                                    /* RasInfo structure is necessary.   */
+
+  InitRastPort( &my_rast_port );
+  my_rast_port.BitMap = &my_bit_map;
+
+DrawImage(&my_rast_port,&Images,12,0);
+DrawImage(&my_rast_port,&Grass,46,218);
+DrawImage(&my_rast_port,&TreesLeft,0,211);
+DrawImage(&my_rast_port,&TreesRight,280,211);
+
+/* Here we begin */
+srand(Title());
+
+/* Set the menu */
+SetMenuStrip( my_window, &my_menu );
+Level(LevelNumber=1);
+
+/* Stay in the while loop until the end */
+while( close == FALSE )
+  {
+ManMove();
+InvaderMove();
+Delay(1);
+    /* As long as we can collect messages successfully we stay in the */
+    /* while-loop: */
+  while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort))
+   { 
+    if (close)
+       break;
+
+      /* After we have successfully collected the message we can read */
+      /* it, and save any important values which we maybe want to check */
+      /* later: */
+if (my_message->Class == MENUPICK) {
+if (my_message->Code == 63552) close=TRUE;
+
+if (my_message->Code == 63520)AutoRequest(
+  my_window, &my_body_text, NULL, &my_ok_text, NULL, NULL, 220, 72);
+
+if(my_message->Code == 63488)
+{ if (Score>HighScore)HighScore=Score;K=100;Score=0;Level(LevelNumber=1);/* New */}
+                                   }
+ReplyMsg(my_message);}
+
+ }
+/* Stop any sound playing (Clean exit) */
+StopSound( LEFT0 );StopSound( LEFT1 );
+StopSound( RIGHT0 );StopSound( RIGHT1 );
+
+/* Deallocate the display memory, BitPlane for BitPlane: */
+  for( loop = 0; loop < DEPTH; loop++ )
+  if( my_bit_map.Planes[ loop ] )
+  FreeRaster( my_bit_map.Planes[ loop ], WIDTH, HEIGHT );
+
+/* Clears the menu */
+ ClearMenuStrip( my_window );
+
+/* Closes the window */
+ CloseWindow ( my_window ); 
+
+/* We should always close the screens we have opened before we leave: */
+ CloseScreen( my_screen );
+
+/* Save the HighScore */
+HighScoreFile = fopen("PROGDIR:WallDefence.sav","wb" );
+fwrite( &HighScore, sizeof( HighScore ),1,HighScoreFile );
+fclose( HighScoreFile );
+  
+/* Close the Graphics Library since we have opened it: */
+ CloseLibrary( GfxBase );
+
+/* Close the Intuition Library since we have opened it: */
+ CloseLibrary( IntuitionBase );
+
+/* THE END */
+exit();
+}
+
+UBYTE Joystick()
+{
+  UBYTE data = 0;
+  UWORD joy;
+    joy = custom.joy1dat;
+    data += !( ciaa.ciapra & 0x0080 ) ? FIRE : 0;
+
+  data += joy & 0x0002 ? RIGHT : 0;
+  data += joy & 0x0200 ? LEFT : 0;
+  data += (joy >> 1 ^ joy) & 0x0100 ? UP : 0;
+
+  return( data );
+}
+
+void Level(int LevelNumber){
+int i;
+SetRast(my_window->RPort,0);
+StopSound( LEFT0 );
+StopSound( RIGHT0 );StopSound( RIGHT1 );
+sprintf(Txt[0],"Level %d",LevelNumber);
+my_intui_text.IText=Txt[0];
+my_intui_text.FrontPen=8;
+PrintIText(my_window->RPort, &my_intui_text ,130,100);
+LevelBOOL=LevelNumber%2;
+Delay(120);for(i=1;i<20;i++)
+DrawImage (&my_rast_port, &BrickLevel[LevelBOOL],46,i*8+60);
+for (i=0;i<40;i++)B[i]=0;
+OrcDie.RecordRate=16726;
+DrawImage (&my_rast_port, &UpLeft[LevelBOOL],46,49);
+DrawImage (&my_rast_port, &UpCenter[LevelBOOL],154,50);
+DrawImage (&my_rast_port, &UpRight[LevelBOOL],261,49);
+if (LevelBOOL) DrawImage (&my_rast_port, &Door,151,193);
+CO=37;X=160;F=hold=Throw=0;
+PlaySound(&Birds,MAXVOLUME,LEFT0,SOUND_PRI_EFFECT,NORMALRATE,NONSTOP,0,0,DO_NOT_WAIT);
+PlaySound(&Birds,MAXVOLUME,RIGHT0,SOUND_PRI_EFFECT,NORMALRATE,NONSTOP,0,0,DO_NOT_WAIT);
+ClipBlit( &my_rast_port, 0, 44, my_window->RPort, 0, 44, 320, 216, 0xC0 );
+DrawImage (my_window->RPort, &HighScore_image,176,15);
+sprintf(Txt[0],"%d",HighScore);
+my_intui_text.IText=Txt[0];
+my_intui_text.FrontPen=12;
+PrintIText(my_window->RPort, &my_intui_text ,260,16);
+DrawImage (my_window->RPort, &Score_image,45,15);
+sprintf(Txt[0],"%d",Score);
+my_intui_text.IText=Txt[0];my_intui_text.FrontPen=10;
+PrintIText(my_window->RPort, &my_intui_text ,95,16);
+ }
+
+int Title() {
+int bs=0,Seed;
+SetRast(my_window->RPort,0);
+my_intui_text.FrontPen=7;
+my_intui_text.IText=Text[0];
+PrintIText( my_window->RPort, &my_intui_text ,115,80);
+my_intui_text.FrontPen=6;
+my_intui_text.IText=Text[1];
+PrintIText( my_window->RPort, &my_intui_text ,45,200);
+my_intui_text.FrontPen=4;
+my_intui_text.IText=Text[2];
+PrintIText( my_window->RPort, &my_intui_text ,86,220);
+
+while (bs<5750) {bs++;Delay(1); if (Joystick() & FIRE){SetRGB4( &my_screen->ViewPort, 1,  8,8,8  );return Seed;} Seed++;}
+return Seed;
+}
+
+void DrawMan(int x) {
+SetAPen(my_window->RPort,26);
+if (hold) {
+RectFill(my_window->RPort,x+2,64,x+3,65);
+SetAPen(my_window->RPort,13);
+WritePixel(my_window->RPort,x,61);
+WritePixel(my_window->RPort,x+1,60);
+WritePixel(my_window->RPort,x+4,60);
+SetAPen(my_window->RPort,24);
+RectFill(my_window->RPort,x+2,62,x+3,63);
+SetAPen(my_window->RPort,25);
+WritePixel(my_window->RPort,x,62);
+WritePixel(my_window->RPort,x,63);
+WritePixel(my_window->RPort,x+1,63);
+WritePixel(my_window->RPort,x+5,62);
+WritePixel(my_window->RPort,x+4,63);
+WritePixel(my_window->RPort,x+5,63);
+SetAPen(my_window->RPort,27);
+WritePixel(my_window->RPort,x+3,60);
+WritePixel(my_window->RPort,x+1,64);
+WritePixel(my_window->RPort,x+4,64);
+SetAPen(my_window->RPort,29);
+WritePixel(my_window->RPort,x+2,60);
+WritePixel(my_window->RPort,x+1,61);
+WritePixel(my_window->RPort,x+2,61);
+WritePixel(my_window->RPort,x+3,61);
+WritePixel(my_window->RPort,x+4,61);
+SetAPen(my_window->RPort,17);
+WritePixel(my_window->RPort,x+2,66);
+WritePixel(my_window->RPort,x+3,66);
+SetAPen(my_window->RPort,23);
+WritePixel(my_window->RPort,x,67);
+WritePixel(my_window->RPort,x+1,67);
+WritePixel(my_window->RPort,x+1,66);
+WritePixel(my_window->RPort,x+5,67);
+WritePixel(my_window->RPort,x+4,67);
+WritePixel(my_window->RPort,x+4,66);
+SetAPen(my_window->RPort,30);
+WritePixel(my_window->RPort,x+5,61);
+
+}
+else {
+RectFill(my_window->RPort,x+2,63,x+3,65);
+SetAPen(my_window->RPort,14);WritePixel(my_window->RPort,x+2,61);
+WritePixel(my_window->RPort,x+3,61);
+SetAPen(my_window->RPort,24);WritePixel(my_window->RPort,x+2,62);
+WritePixel(my_window->RPort,x+3,62);
+SetAPen(my_window->RPort,27);WritePixel(my_window->RPort,x+1,63);
+WritePixel(my_window->RPort,x+4,63);
+SetAPen(my_window->RPort,25);WritePixel(my_window->RPort,x,64);
+WritePixel(my_window->RPort,x+5,64);
+SetAPen(my_window->RPort,30);WritePixel(my_window->RPort,x+1,65);
+WritePixel(my_window->RPort,x+4,65);
+SetAPen(my_window->RPort,18);WritePixel(my_window->RPort,x,67);
+WritePixel(my_window->RPort,x+5,67);
+SetAPen(my_window->RPort,17);WritePixel(my_window->RPort,x+1,64);
+WritePixel(my_window->RPort,x+4,64);
+WritePixel(my_window->RPort,x+1,67);
+WritePixel(my_window->RPort,x+4,67);
+RectFill(my_window->RPort,x+1,66,x+4,66);
+}}
+
+void ManMove(){
+UBYTE Joyboy=Joystick();
+if (Throw) {Throw+=8;
+ClipBlit( &my_rast_port, 18, 0, my_window->RPort, SX, Throw, 6,6, 0xC0 );
+ClipBlit( &my_rast_port, SX, Throw-8, my_window->RPort, SX, Throw-8, 6,8, 0xC0 );
+if (Throw==Orc)
+PlaySound(&HitOrc,MAXVOLUME,RIGHT1,SOUND_PRI_EFFECT,
+NORMALRATE,ONCE,0,0,DO_NOT_WAIT);
+if (Throw>212){ClipBlit( &my_rast_port, SX, Throw-8, my_window->RPort, SX, Throw-8, 6,6, 0xC0 );Throw=0;sprintf(Txt[0],"%d",Score);
+my_intui_text.IText=Txt[0];my_intui_text.FrontPen=10;
+PrintIText(my_window->RPort, &my_intui_text ,95,16);
+if (Orc) PlaySound(&OrcDie,MAXVOLUME,LEFT1,SOUND_PRI_EFFECT,
+NORMALRATE,ONCE,0,0,DO_NOT_WAIT);
+Orc=0;
+if (CO==37) {K+=15;Level(++LevelNumber);} }}
+DrawMan(X);
+if (Joyboy & LEFT && X>52) {
+ClipBlit( &my_rast_port, X, 60, my_window->RPort, X, 60, 6,8, 0xC0 );X-=6;
+DrawMan(X);}
+if (Joyboy & RIGHT && X<268) {ClipBlit( &my_rast_port, X, 60, my_window->RPort, X, 60, 6,8, 0xC0 );X+=6;
+DrawMan(X);}
+if (Joyboy == UP && !hold && (X<60 || X>256 || (X>150 && X<168))) {hold=1;PlaySound(&StoneSound,MAXVOLUME,RIGHT1,SOUND_PRI_EFFECT,
+NORMALRATE,ONCE,0,0,DO_NOT_WAIT);}
+if (Joyboy & FIRE && hold && !Throw) {hold=0;
+ClipBlit( &my_rast_port, X, 60, my_window->RPort, X, 60, 6,8, 0xC0 );
+DrawMan(X);Throw=(X-52)/6;
+PlaySound(&Oh,MAXVOLUME,RIGHT1,SOUND_PRI_EFFECT,
+NORMALRATE,ONCE,0,0,DO_NOT_WAIT);
+if (B[Throw]){CO++;Score+=B[Throw]; F+=B[Throw];Orc=236-(B[Throw]*8);
+B[Throw]=0;}
+Throw=68;SX=X;
+ClipBlit( &my_rast_port, 18, 0, my_window->RPort, SX, Throw, 6,6, 0xC0 );return;}
+ }
+
+void InvaderMove() {int C;
+E++; if (E==2) C=rand()%37; else return;
+E=0;
+if (B[C]==0 && F>K) return;
+CO-=(B[C]==0);
+if (B[C]==20) {Fall(C);return;} else B[C]++;
+if (B[C]==1)
+ClipBlit( &my_rast_port, 12, 1, my_window->RPort, C*6+52, 220, 6,7, 0xC0 );
+ else if (B[C]==2)
+ {
+ClipBlit( &my_rast_port, 12, 1, my_window->RPort, C*6+52, 212, 6,7, 0xC0 );
+ClipBlit( &my_rast_port, C*6+52, 220, my_window->RPort, C*6+52, 220, 6,8, 0xC0 );
+ClipBlit( &my_rast_port, 24, 0, my_window->RPort, C*6+53, 220, 4,8, 0xC0 );}
+ else
+{
+ClipBlit( &my_rast_port, 12, 1, my_window->RPort, C*6+52, 228-(B[C]*8), 6,7, 0xC0 );
+ClipBlit( &my_rast_port, C*6+52, 236-(B[C]*8), my_window->RPort, C*6+52, 236-(B[C]*8), 6,8, 0xC0 );
+ ClipBlit( &my_rast_port, 24, 0, my_window->RPort, C*6+53, 236-(B[C]*8), 4,8, 0xC0 ); } 
+if (rand()%200==80)OrcDie.RecordRate+=200;
+if (rand()%200==50)OrcDie.RecordRate+=200;
+if (rand()%200==100)OrcDie.RecordRate-=200;
+if (rand()%200==120)OrcDie.RecordRate-=150;
+}
+
+void Fall(int C){
+int ix;
+C=C*6+52;
+my_intui_text.FrontPen=10;sprintf(Txt[0],"%d",Score);
+my_intui_text.IText=Txt[0];
+PrintIText(my_window->RPort, &my_intui_text ,95,16);
+ClipBlit( &my_rast_port, C, 68, my_window->RPort, C, 68, 6,8, 0xC0 );
+ClipBlit( &my_rast_port, 24, 0, my_window->RPort, C+1, 68, 4,8, 0xC0 );
+if (C<X) for (ix=C;ix<X;ix+=6){
+ClipBlit( &my_rast_port, 12, 1, my_window->RPort, ix, 61, 6,7, 0xC0 );Delay(1); ManMove();ClipBlit( &my_rast_port, ix,61, my_window->RPort, ix, 61, 6,7, 0xC0 );}
+else for (ix=C;ix>X;ix-=6){ClipBlit( &my_rast_port, 12, 1, my_window->RPort, ix, 61, 6,7, 0xC0 );Delay(1);ManMove();ClipBlit( &my_rast_port, ix,61, my_window->RPort, ix, 61, 6,7, 0xC0 );}
+ClipBlit( &my_rast_port, 12, 0, my_window->RPort, X, 60, 6,8, 0xC0 );
+PlaySound(&Kick,MAXVOLUME,LEFT1,SOUND_PRI_EFFECT,
+NORMALRATE,ONCE,0,0,DO_NOT_WAIT);
+PlaySound(&Scream,MAXVOLUME,RIGHT1,SOUND_PRI_EFFECT,
+NORMALRATE,ONCE,0,0,DO_NOT_WAIT);
+for (ix=68;ix<220;ix+=8){
+ClipBlit( &my_rast_port, 28, 1, my_window->RPort, X, ix, 6,7, 0xC0 );
+Delay(2);
+ClipBlit( &my_rast_port, X, ix, my_window->RPort, X, ix, 6,8, 0xC0 );}
+ClipBlit( &my_rast_port, 28, 1, my_window->RPort, X, 220, 6,7, 0xC0 );
+SetAPen(my_window->RPort,0);RectFill(my_window->RPort,105,92,225,115);
+my_intui_text.FrontPen=16;
+my_intui_text.IText=Text[3];
+PrintIText( my_window->RPort, &my_intui_text ,130,100);
+if (Score>HighScore){HighScore=Score;sprintf(Txt[0],"%d",HighScore);
+my_intui_text.IText=Txt[0];my_intui_text.FrontPen=12;
+PrintIText(my_window->RPort, &my_intui_text,260,15);}
+for(ix=4;ix>1;ix--){
+PlaySound(&Bell,MAXVOLUME,LEFT1,SOUND_PRI_EFFECT,
+NORMALRATE,ONCE,0,0,DO_NOT_WAIT);Delay(75);}
+StopSound( LEFT0 );StopSound( LEFT1 );
+StopSound( RIGHT0 );StopSound( RIGHT1 );
+while (ix) {if (Joystick() & FIRE)break;
+Delay(1);
+  while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort))
+   { 
+      /* After we have successfully collected the message we can read */
+      /* it, and save any important values which we maybe want to check */
+      /* later: */
+if (my_message->Class == MENUPICK) {
+if (my_message->Code == 63552) {close=TRUE;return;}
+
+if (my_message->Code == 63520)
+AutoRequest( my_window, &my_body_text, NULL, &my_ok_text, NULL, NULL, 220, 72);
+if(my_message->Code == 63488) ix=0;/*New*/
+}
+ReplyMsg(my_message);}
+}
+Score=0;Level(LevelNumber=1);K=100;
+ }

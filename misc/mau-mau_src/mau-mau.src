@@ -1,0 +1,910 @@
+/* IMPORTANT NOTE
+   --------------
+
+   This C source code is given AS IT IS to the Amiga community, following
+   a suggestion from Hans Guijt. Explicit permission is given to use it for 
+   any non-profit purpose, either in parts or as a whole, without any 
+   further permission from the author. The author himself reserves the right 
+   to use this source code at any time in the future again. For commercial 
+   use of this source code, prior written permission from the auther is 
+   required.
+
+
+   Contact electronic mail addresses:  grimm@particle.phys.ethz.ch
+                                       oliver.grimm@desy.de
+
+   Postal address:     Oliver Grimm
+                       Steinbecker Str. 69
+		       21244 Buchholz
+
+		       Germany
+
+
+		                         (Addresses as of March 1999)
+
+*/
+
+
+/*
+ MAU-MAU V1.5   -   23. Dezember 1998
+
+
+  - Erste Basic-Version (V1.0, August 1989)
+  - C-Version (V1.1, Mai/Juni 1991)
+  - Grafik (V1.2, Mai/Juni 1991)
+  - geringfügige Verbesserungen (V1.3, Mai/Juni 1991)
+  - auf SAS-C umgestellt, dabei schlimmen Fehler gefunden: Farb[]-Array
+    hatte nur 3 statt 4 Elemente; Versions-Information hinzugefügt
+    (V1.4, September 1994)
+  - Markierung fuer neu ausgegebene Karten, Computerspieler sagen
+    'Letzte Karte' an (V1.5, Dezember 1998)
+
+  Die Karten sind von 0 bis 51 durchnummeriert. KartenNr geteilt durch 13
+  ergibt die Farbe, KartenNr modulo 13 ergibt den Wert.
+
+  Größe der Images: 31x19, 38 Worte
+
+*/
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <exec/types.h>
+#include <exec/memory.h>
+#include <intuition/intuition.h>
+#include <graphics/gfxmacros.h>
+#include <proto/graphics.h>
+#include <proto/intuition.h>
+#include <proto/dos.h>
+#include <proto/exec.h>
+
+
+/*   ----  Prototypes  ----    */
+
+BOOL Player0(void);
+BOOL ComPlayer(void);
+BOOL GameOver(int );
+void PrintCards(void);
+void DrawCard(int , int , int, BOOL);
+void DrawFirst(void);
+void DelRect(int , int , int , int );
+void TakeCards(int );
+int Bewerten(int );
+void Terminate(char * , int );
+struct IntuiMessage * WaitforMsg(void);
+void Print(int , int , char * );
+void RulesText(void);
+void InfoText(void);
+void main(void);
+
+
+
+#define FOREVER for(;;)
+
+#define MAXSPIELER 5
+#define ANZKARTEN 52
+
+char *Version="$VER: Mau-Mau 1.5 (23.12.1998)";
+
+
+struct IntuitionBase   *IntuitionBase = NULL;
+struct GfxBase         *GfxBase = NULL;
+struct Screen          *Screen = NULL;
+struct Window          *Window = NULL, *DrawWin = NULL;
+struct RastPort        *RastPort, *BackRast;
+struct MsgPort         *UserPort;
+struct IntuiMessage    *Message;
+struct TextFont        *TextFont = NULL;
+
+BOOL Acht,Bube,Again,Romme = FALSE;
+char *Farbe[]={"Kreuz","Pik","Herz","Karo"};
+char *Wert[]= {"2","3","4","5","6","7","8","9","10","Bube","Dame","König","As"};
+char String[80];
+int Talon[ANZKARTEN],Used[ANZKARTEN],Karten[MAXSPIELER][ANZKARTEN],Anzahl[MAXSPIELER];
+BOOL Neu[ANZKARTEN];
+int Sieben,TalPointer,UsedPointer,SpielNr,playsp,players,First,Wunsch;
+
+/*  --------------  Window definieren  ---------------------- */
+
+struct TextAttr Font = {
+  "topaz.font", 8, 0, 0 };
+
+struct NewScreen ScrDat = {
+  0, 0, 640, 256, 4, 0, 1,
+  HIRES, CUSTOMSCREEN, &Font, NULL, NULL, NULL };
+
+struct NewWindow  WinDat = {
+  0, 0, 640, 256, 0, 1,
+  VANILLAKEY | GADGETUP | GADGETDOWN | MOUSEBUTTONS,
+  SMART_REFRESH | ACTIVATE | RMBTRAP | GIMMEZEROZERO,
+  NULL, NULL, NULL, NULL, NULL,
+  0,0,640,256,CUSTOMSCREEN };
+
+struct NewWindow  BackDat = {
+  0, 0, 100, 100, 0, 1,
+  0, BACKDROP, NULL, NULL, NULL, NULL, NULL,
+  0,0,100,100,CUSTOMSCREEN };
+
+
+/* ---------------  Gadgets definieren  ---------------------*/
+
+SHORT Box[]    = { 0,0, 10,0, 10,10, 0,10, 0,-0 },
+      Up[]     = { 4,8, 6,8, 6,3, 8,5, 5,2, 2,5, 4,3, 4,8 },
+      Down[]   = { 4,2, 6,2, 6,7, 8,5, 5,8, 2,5, 4,7, 4,2 },
+      Strt1[]  = { 0,0, 69,0, 69,13, 0,13, 0,0 },
+      Strt2[]  = { -2,-2, 72,-2, 72,16, -2,16,-2,-2 },
+      Square[] = { -1,-1, 10,-1, 10,6, -1,6, -1,-1 };      
+
+
+
+struct Border PlainBox = {
+  0, 0, 1, 0, JAM1, 5, Square, NULL };
+
+struct Border DoubleBox2 = {
+  0, 0, 1, 0, JAM1, 5, Strt2, NULL };
+struct Border DoubleBox = {
+  0, 0, 1, 0, JAM1, 5, Strt1, (struct Border *) &DoubleBox2 };
+
+struct Border ArrowUp2 = {
+  0, 0, 1, 0, JAM1, 8, Up, NULL };
+struct Border ArrowUp = {
+  0, 0, 1, 0, JAM1, 5, Box, (struct Border *) &ArrowUp2 };
+
+struct Border ArrowDown2 = {
+  0, 0, 1, 0, JAM1, 8, Down, NULL };
+struct Border ArrowDown = {
+  0, 0, 1, 0, JAM1, 5, Box, (struct Border *) &ArrowDown2 };
+
+
+
+
+struct IntuiText PlayText2 = {
+  1, 0, JAM2 , 7, 3, NULL, (UBYTE *) "Beenden", NULL };
+struct Gadget PlayGad2 = {
+  NULL, 540, 220, 70, 14,
+  GADGHCOMP, RELVERIFY, BOOLGADGET, (APTR) &DoubleBox, NULL,
+  &PlayText2, NULL, NULL, 0, NULL };
+
+struct IntuiText PlayText1 = {
+  1, 0, JAM2 , 11, 3, NULL, (UBYTE *) "Zurück", NULL };
+struct Gadget PlayGad1 = {
+  &PlayGad2, 540, 195, 70, 14,
+  GADGHCOMP, RELVERIFY, BOOLGADGET, (APTR) &DoubleBox, NULL,
+  &PlayText1, NULL, NULL, 100, NULL };
+
+
+struct IntuiText QuitText = {
+  1, 0, JAM2 , 7, 3, NULL, (UBYTE *) "Beenden", NULL };
+struct Gadget QuitGad = {
+  NULL, 370, 230, 70, 14,
+  GADGHCOMP, RELVERIFY, BOOLGADGET, (APTR) &DoubleBox, NULL,
+  &QuitText, NULL, NULL, 0, NULL };
+
+struct IntuiText GadText8 = {
+  1, 0, JAM2 , -145, -1, NULL, (UBYTE *) "Romme (52 Karten)", NULL };
+struct Gadget Gad8 = {
+  &QuitGad, 545, 195, 10, 6,
+  GADGHNONE, GADGIMMEDIATE, BOOLGADGET, (APTR) &PlainBox, NULL,
+  &GadText8, NULL, NULL, 201, NULL };
+
+struct IntuiText GadText7a = {
+  1, 0, JAM2 , -230, -7, NULL, (UBYTE *) "Kartentyp:", NULL };
+struct IntuiText GadText7 = {
+  1, 0, JAM2 , -145, -1, NULL, (UBYTE *) "Skat  (32 Karten)", &GadText7a };
+struct Gadget Gad7 = {
+  &Gad8, 545, 205, 10, 6,
+  GADGHNONE, GADGIMMEDIATE, BOOLGADGET, (APTR) &PlainBox, NULL,
+  &GadText7, NULL, NULL, 200, NULL };
+
+
+struct IntuiText GadText6 = {
+  1, 0, JAM2 , 11, 3, NULL, (UBYTE *) " Info", NULL };
+struct Gadget Gad6 = {
+  &Gad7, 100, 230, 70, 14,
+  GADGHCOMP, RELVERIFY, BOOLGADGET, (APTR) &DoubleBox, NULL,
+  &GadText6, NULL, NULL, 100, NULL };
+
+struct IntuiText GadText5 = {
+  1, 0, JAM2 , 15, 3, NULL, (UBYTE *) "Start", NULL };
+struct Gadget Gad5 = {
+  &Gad6, 470, 230, 70, 14,
+  GADGHCOMP, RELVERIFY, BOOLGADGET, (APTR) &DoubleBox, NULL,
+  &GadText5, NULL, NULL, 101, NULL };
+
+struct Gadget Gad4 = {
+  &Gad5, 545, 177, 11, 11,
+  GADGHCOMP, RELVERIFY, BOOLGADGET, (APTR) &ArrowDown, NULL,
+  NULL, NULL, NULL, 10, NULL };
+
+struct IntuiText GadText3 = {
+  1, 0, JAM2 , -276, 8, NULL, (UBYTE *) "Anzahl der Karten pro Spieler:  9", NULL };
+struct Gadget Gad3 = {
+  &Gad4, 545, 165, 11, 11,
+  GADGHCOMP, RELVERIFY, BOOLGADGET, (APTR) &ArrowUp, NULL,
+  &GadText3, NULL, NULL, 12, NULL };
+
+struct Gadget Gad2 = {
+  &Gad3, 215, 177, 11, 11,
+  GADGHCOMP, RELVERIFY, BOOLGADGET, (APTR) &ArrowDown, NULL,
+  NULL, NULL, NULL, 0, NULL };
+
+struct IntuiText GadText1 = {
+  1, 0, JAM2 , -180, 8, NULL, (UBYTE *) "Anzahl der Spieler: 2", NULL };
+struct Gadget Gad1 = {
+  &Gad2, 215, 165, 11, 11,
+  GADGHCOMP, RELVERIFY, BOOLGADGET, (APTR) &ArrowUp, NULL,
+  &GadText1, NULL, NULL, 2, NULL };
+
+
+
+UWORD CMap[] = {
+   0x0877, 0x0eca, 0x0dcc, 0x047d, 0x0f00, 0x0da5, 0x0f00, 0x0f00,
+   0x0000, 0x0a0f, 0x0000, 0x0dbc, 0x0fd3, 0x0000, 0x0888, 0x0444 };
+
+
+__chip UWORD Cards[] = {
+  0x0,    0x0,    0x0,    0x0,    0x3,    0x8000, 0x7,    0xc000, 0xf,
+  0xe000, 0x1f,   0xf000, 0x7f,   0xfc00, 0x1ff,  0xff00, 0x7ff,  0xffc0,
+  0x3fff, 0xfff8, 0x7ff,  0xffc0, 0x1ff,  0xff00, 0x7f,   0xfc00, 0x1f,
+  0xf000, 0xf,    0xe000, 0x7,    0xc000, 0x3,    0x8000, 0x0,    0x0,
+  0x0,   0x0,     /* Karo */
+
+  0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x3f8,  0x1fc0, 0xffe,
+  0x7ff0, 0x1fff, 0xfff8, 0x7fff, 0xfffe, 0x7fff, 0xfffe, 0x7fff, 0xfffe,
+  0x1fff, 0xfff8, 0x7ff,  0xffe0, 0x1ff,  0xff80, 0x7f,   0xfe00, 0x1f,
+  0xf800, 0xf,    0xf000, 0x3,    0xc000, 0x0,    0x0,    0x0,    0x0,
+  0x0,    0x0,    /* Herz */
+
+  0x0,    0x0,    0x0,    0x8000, 0x1,    0xc000, 0x3,    0xe000, 0xf,
+  0xf800, 0x3f,   0xfe00, 0xff,   0xff80, 0x3ff,  0xffe0, 0x7ff,  0xfff0,
+  0x7ff,  0xfff0, 0x1e3,  0xf1c0, 0x3,    0xf000, 0x3,    0xf000, 0x7,
+  0xf800, 0xf,    0xfc00, 0x1e,   0x1e00, 0x30,   0x300,  0x0,    0x0,
+  0x0,   0x0,     /* Pik */
+
+  0x0,    0x0,    0x0,    0x0,    0xf,    0xe000, 0x3f,   0xf800, 0x3f,
+  0xf800, 0x1f,   0xf000, 0xf,    0xe000, 0x3f03, 0x81f0, 0x7fe3, 0x8ffc,
+  0x7fff, 0xfffc, 0x7fe3, 0x8ffc, 0x3f03, 0x81f0, 0x7,    0xc000, 0x7,
+  0xc000, 0xf,    0xe000, 0x1e,   0xf800, 0x0,    0x0,    0x0,    0x0,
+  0x0,    0x0 };  /* Kreuz */
+
+
+ struct  Image KaroImage = {
+ 0, 0, 31, 19, 1,
+ Cards, 4 , 2, NULL };
+
+ struct  Image HerzImage = {
+ 0, 0, 31, 19, 1,
+ Cards+38, 4, 2, NULL };
+
+ struct  Image PikImage = {
+ 0, 0, 31, 19, 1,
+ Cards+76, 8, 2, NULL };
+
+ struct  Image KreuzImage = {
+ 0, 0, 31, 19, 1,
+ Cards+114, 8, 2, NULL };
+
+
+/* Player0() bearbeit die Eingaben des Benutzers
+   Wenn das Spiel wiederholt werden soll, wird TRUE zurückgegeben, sonst
+   FALSE */
+
+BOOL Player0()
+{
+int Spiel,i,x,y;
+
+ SpielNr = 0;
+
+ FOREVER {
+  PrintCards();
+  DelRect(20,215,535,250);
+  Print(20,225,"Sie sind am Zug !");
+  Print(20,235,"Wählen Sie eine Karte !");
+
+Label:
+  do {
+    Message = (struct IntuiMessage *) WaitforMsg();
+    if(Message->Class==GADGETUP && Message->IAddress==(APTR) &PlayGad1)
+      return (TRUE);             /* Zurück */
+  } while(Message->Class != MOUSEBUTTONS || Message->Code != SELECTUP);
+
+  x = Window->GZZMouseX;   y = Window->GZZMouseY;
+
+  /* keine Karte, also aufnehmen */
+
+  if(x>520 && x<570 && y >30 && y<90) {
+    if(!Acht && !Again) TakeCards(Sieben ? 2*Sieben : 1);
+    if(Anzahl[0]>18) {
+      DelRect(0,0,640,256);
+      Print(116,100,"WENN SIE MIR HIER DUMM KOMMEN, DANN HACKTS ABER !!!");
+      Print(84,120,"Mehr als 18 Karten auf der Hand, das gibts doch garnicht ?!");
+      Print(112,130,"Mit solchen Anfängern spiele ich erst gar nicht, Bye.");
+
+      Delay(500);
+      Terminate("", EXIT_SUCCESS);
+    }
+
+    Acht=FALSE;  Again=FALSE;
+    return(FALSE);
+  }
+
+  if(y<30 || y>200 || x<20 || x>430 || !ReadPixel(RastPort,x,y)) goto Label;
+
+  playsp = (x-20)/70 + (y-30)/60 * 6;
+  Spiel=Karten[0][playsp];
+
+  if(Sieben && Spiel%(ANZKARTEN/4)!=5 || Acht && Spiel%(ANZKARTEN/4)!=6 || Bube && Spiel%(ANZKARTEN/4)==9 || Bube && Spiel/(ANZKARTEN/4)!=Wunsch) {
+    DisplayBeep(Screen);
+    goto Label;
+  }
+  if(Spiel/(ANZKARTEN/4)!=First/(ANZKARTEN/4) && Spiel%(ANZKARTEN/4)!=First%(ANZKARTEN/4) && Spiel%(ANZKARTEN/4)!=9 && !Bube) {
+    DisplayBeep(Screen);
+    goto Label;
+  }
+
+  Used[UsedPointer++]=First;
+  First=Spiel;
+
+  if(Anzahl[0]==1) {
+    GameOver(0);
+    return(TRUE);
+  }
+
+  if(Spiel%(ANZKARTEN/4)==9) {
+    Bube=TRUE;
+
+    SetAPen(RastPort, 0);
+    RastPort->Flags |= AREAOUTLINE;
+    RectFill(RastPort, 140, 70, 500, 160);
+    SetAPen(RastPort, 1);
+
+    Print(212,80,"Welche Farbe wünschen Sie ?");
+
+    for(i=0;i<4;i++)
+      DrawCard(-i*(ANZKARTEN/4)-1,185+i*70,100,FALSE);
+
+    do {
+      Message = (struct IntuiMessage *) WaitforMsg();
+      x = Window->GZZMouseX;   y = Window->GZZMouseY;
+    } while(Message->Class != MOUSEBUTTONS || Message->Code != SELECTUP
+         || x<185 || x>455 || y<100 || y>150 || !ReadPixel(RastPort,x,y));
+
+    Wunsch = (x-185)/70;
+    DelRect(140,70,500,160);
+  }
+  else Bube=FALSE;
+
+  Sieben = Spiel%(ANZKARTEN/4)==5 ? Sieben+1 : 0;
+  Acht   = Spiel%(ANZKARTEN/4)==6 ? TRUE : FALSE;
+  Again  = Spiel%(ANZKARTEN/4)==7 ? TRUE : FALSE;
+
+  Karten[0][playsp]=Karten[0][--Anzahl[0]];
+
+  if(!Again) return(FALSE);
+ } /* FOREVER */
+} /* Procedure */
+
+
+/* ComPlayer berechnet die Computerzüge */
+
+BOOL ComPlayer()
+{
+int Farb[4],Value[ANZKARTEN];
+int i,j,h,max;
+
+ for(SpielNr=1;SpielNr<players;SpielNr++) {
+   DrawFirst();
+
+   DelRect(20,210,535,250);
+   sprintf(String,"Spieler Nr. %d",SpielNr);
+   Print(20,225,String);
+
+   for(i=0;i<4;i++) Farb[i]=0;
+
+   for(i=0;i<Anzahl[SpielNr];i++)
+     for(j=0;j<=3;j++) if(Karten[SpielNr][i]/(ANZKARTEN/4)==j) Farb[j]++;
+
+   for(i=0;i<Anzahl[SpielNr];i++)
+     Value[i]=Farb[Karten[SpielNr][i]/(ANZKARTEN/4)]+Bewerten(Karten[SpielNr][i]%(ANZKARTEN/4));
+
+   playsp=-1;  max=0;
+
+   for(i=0;i<Anzahl[SpielNr];i++) {
+     j=Karten[SpielNr][i];
+     if(Bube && j/(ANZKARTEN/4)==Wunsch && j%(ANZKARTEN/4)!=9 && Value[i]>=max) {
+       max=Value[i];
+       playsp=i;
+     }
+     if((Sieben || Acht) && j%(ANZKARTEN/4)==First%(ANZKARTEN/4) && Value[i]>=max) {
+       max=Value[i];
+       playsp=i;
+     }
+     if(!Sieben && !Acht && !Bube && Value[i]>=max && j%(ANZKARTEN/4)!=9 && (j/(ANZKARTEN/4)==First/(ANZKARTEN/4) || j%(ANZKARTEN/4)==First%(ANZKARTEN/4))) {
+       max=Value[i];
+       playsp=i;
+     }
+   }
+
+   if(playsp==-1) {
+     if(!Bube && !Sieben && !Acht) {
+       for(j=0;j<Anzahl[SpielNr];j++) {
+         if(Karten[SpielNr][j]%(ANZKARTEN/4)==4) {
+           for(i=0;i<4;i++) Farb[i]=0;
+           for(i=0;i<Anzahl[SpielNr];i++) {
+             for(h=0;h<=3;h++)
+               if(Karten[SpielNr][i]/(ANZKARTEN/4)==h) Farb[h]=Farb[h]+Bewerten(Karten[SpielNr][i]%(ANZKARTEN/4));
+           }
+           Wunsch=0;
+           for(i=0;i<=3;i++)
+             if(Farb[i]>=Farb[Wunsch]) Wunsch=i;
+           playsp=j;
+           break;
+         } /* if */
+       } /* for */
+       if(playsp==-1) {
+         if(!Again) TakeCards(1);
+         else Print(-1,0," spielt gar nichts.");
+         Again=FALSE;
+         Delay(100);
+         continue;
+       }
+     } /* if */
+     else {
+       if(!Again && !Acht) TakeCards(Sieben ? 2*Sieben : 1);
+       if(Acht) Print(-1,0," setzt aus.");
+       Again=FALSE;  Acht=FALSE;
+       Delay(100);
+       continue;                         /* nächster Spieler */
+     }
+   } /* if */
+
+   Used[UsedPointer++]=First;
+   First=Karten[SpielNr][playsp];
+
+   if(First%(ANZKARTEN/4)!=9) Bube=FALSE;
+   sprintf(String," spielt %s %s",Farbe[First/(ANZKARTEN/4)],Wert[First%(ANZKARTEN/4)]);
+   Print(-1,0,String);
+
+   if(First%(ANZKARTEN/4)==9 && Anzahl[SpielNr]>1) {
+     Bube=TRUE;
+     sprintf(String," und wünscht %s",Farbe[Wunsch]);
+     Print(-1,0,String);
+   }
+
+   if(Anzahl[SpielNr]==1) {
+    Print(-1,0," und hat damit gewonnen.");
+    Delay(100);
+    GameOver(SpielNr);
+    return(TRUE);
+   }
+
+   Sieben = First%(ANZKARTEN/4)==5 ? Sieben+1 : 0;
+   Acht   = First%(ANZKARTEN/4)==6 ? TRUE : FALSE;
+   Again  = First%(ANZKARTEN/4)==7 ? TRUE : FALSE;
+
+   Karten[SpielNr][playsp]=Karten[SpielNr][--Anzahl[SpielNr]];
+
+   if(Again) Print(-1,0," und ist nochmal dran");
+   Print(-1,0,".");
+   if(Anzahl[SpielNr]==1) Print(-1,0," Letze Karte !");
+   if(Again) SpielNr--;
+
+   Delay(100);
+ } /* for */
+ return FALSE;
+} /* Procedure */
+
+
+/* GameOver() gibt die Siegermeldung aus, und kehrt nur dann  zurück, falls
+   nochmal gespielt werden soll.
+   Winner muß die Nummer des Spielers, der gewonnen hat, enthalten. */
+
+BOOL GameOver(int Winner)
+{
+ DelRect(0,0,640,256);
+
+ if(Winner == 0) Print(240,100,"SIE HABEN GEWONNEN !");
+ else {
+   sprintf(String,"Spieler %d hat gewonnen !",Winner);
+   Print(224,100,String);
+ }
+
+ Print(208,120,"Wollen Sie nochmal spielen ?");
+ Print(80,130,"Dann drücken Sie die rechte Maustaste, ansonsten die linke !");
+
+ do {
+   Message = (struct IntuiMessage *) WaitforMsg();
+ } while(Message->Class != MOUSEBUTTONS);
+
+ if(Message->Code == MENUDOWN) return(TRUE);
+ Terminate("", EXIT_SUCCESS);
+}
+
+
+/* PrintCards() druckt die Karten für den Spieler sortiert aus. */
+
+void PrintCards(void)
+{
+int Buffer,i,j,x=20,y=30;
+
+ for(i=0;i<Anzahl[0]-1;i++)
+   for(j=i+1;j<Anzahl[0];j++)
+     if(Karten[0][i]<Karten[0][j]) {
+       Buffer = Karten[0][i];
+       Karten[0][i] = Karten[0][j];
+       Karten[0][j] = Buffer;
+     }
+
+ DrawFirst();
+
+ Print(20,20,"Ihre Karten:");
+ for(i=0;i<Anzahl[0];i++) {
+   DrawCard(Karten[0][i],x,y,Neu[Karten[0][i]]);
+   x+=70;
+   if(x>370) {
+     x = 20;
+     y += 60;
+   }
+ }
+ if(y==30) DelRect(x,30,485,80);
+ if(y==90) DelRect(x,90,485,140);
+ if(y==150) DelRect(x,150,485,200);
+}
+
+
+/*  DrawCard() gibt eine Karte an der Position x,y aus
+    Ist Karte negativ, dann wird lediglich die Farbe ausgegeben.
+    Ist New=TRUE wird eine Markierung ueber der Karte angebracht als
+    Zeichen, dass sie neu ausgegeben wurde. */
+
+void DrawCard(int Karte, int x, int y, BOOL New)
+{
+ BackRast->Flags |= AREAOUTLINE;
+ SetAPen(BackRast, 2);
+ RectFill(BackRast, 0, 0, 60, 50);
+
+ if(Karte>=0) {
+   SetAPen(BackRast, (Karte/(ANZKARTEN/4)<2) ? 13 : 7);
+   SetDrMd(BackRast, JAM1);
+
+   Move(BackRast,5,10);
+   Text(BackRast,Wert[Karte%(ANZKARTEN/4)],(Karte%(ANZKARTEN/4) == 8) ? 2 : 1);
+
+   Move(BackRast,(Karte%(ANZKARTEN/4) == 8) ? 39 : 47, 10);
+   Text(BackRast,Wert[Karte%(ANZKARTEN/4)],(Karte%(ANZKARTEN/4) == 8) ? 2 : 1);
+
+   Move(BackRast,5,46);
+   Text(BackRast,Wert[Karte%(ANZKARTEN/4)],(Karte%(ANZKARTEN/4) == 8) ? 2 : 1);
+
+   Move(BackRast,(Karte%(ANZKARTEN/4) == 8) ? 39 : 47, 46);
+   Text(BackRast,Wert[Karte%(ANZKARTEN/4)],(Karte%(ANZKARTEN/4) == 8) ? 2 : 1);
+
+   SetDrMd(BackRast, JAM2);
+
+   if(New) {
+     SetAPen(BackRast,13);
+     RectFill(BackRast,0,0,60,2);
+   }
+ }
+ Karte = abs(Karte);
+
+ switch(Karte/(ANZKARTEN/4)) {
+   case 0: DrawImage(BackRast,&KreuzImage,15,18);
+           break;
+   case 1: DrawImage(BackRast,&PikImage,15,18);
+           break;
+   case 2: DrawImage(BackRast,&HerzImage,15,18);
+           break;
+   case 3: DrawImage(BackRast,&KaroImage,15,18);
+           break;
+ }
+ ClipBlit(BackRast, 0,0, RastPort, x,y, 61,51, 0xc0);
+}
+
+
+void DrawFirst(void)
+{
+ Print(495,20,"Oberste Karte:");
+ DrawCard(First,520,30,FALSE);
+
+ if(Bube) {
+   Print(490,96,"Gewünschte Farbe:");
+   DrawCard(-Wunsch*(ANZKARTEN/4)-1,520,106,FALSE);
+ }
+ else DelRect(480,86,640,170);
+}
+
+
+void DelRect(int x1, int y1, int x2, int y2)
+{
+ BNDRYOFF(RastPort);
+ SetAPen(RastPort,0);
+ RectFill(RastPort,x1,y1,x2,y2);
+ SetAPen(RastPort,1);
+}
+
+
+/*    TakeCards() gibt dem aktuellen Spieler NUMBER Karten      */
+
+void TakeCards(int Number)
+{
+ int i,x;
+
+ if(TalPointer<Number)          /* wenn zuwenig Karten im Talon, dann    */
+   while(UsedPointer!=0)        /* benutzte Karten einsortieren */
+     Talon[TalPointer++]=Used[--UsedPointer];
+
+ if(TalPointer<Number) {
+   DelRect(0,0,640,256);
+   Print(24,100,"WENN SIE DAS SPIEL BLOCKIEREN WOLLEN, DANN SPIELEN SIE MIT EINEM ANDEREN !");
+
+   Delay(500);
+   Terminate("", EXIT_SUCCESS);
+ }
+
+ if(SpielNr) {
+   if(Number>1) sprintf(String," nimmt %d Karten.",Number);
+   else sprintf(String," nimmt 1 Karte.");
+   Print(-1,0,String);
+ }
+
+ if(!SpielNr) for(i=0;i<ANZKARTEN;i++) Neu[i]=FALSE;
+
+ for(i=1;i<=Number;i++) {
+   x=rand()%TalPointer;
+   Karten[SpielNr][Anzahl[SpielNr]++]=Talon[x];
+   if(!SpielNr) Neu[Talon[x]]=TRUE;
+   Talon[x]=Talon[--TalPointer];
+ }
+ Sieben=0;
+}
+
+
+
+/* Bewerten() gibt eine Bewertung für die übergebene Karte zurück
+   9 hat den höchsten Wert, da dann wiederholt wird  */
+
+int Bewerten(int Wert)
+{
+ int Value=3;
+
+ if(Wert==5) Value=0;   /* Sieben */
+ if(Wert==6) Value=1;   /* Acht */
+ if(Wert==7) Value=4;   /* Neun */
+ if(Wert==9) Value=0;   /* Bube */
+ return(Value);
+}
+
+
+/* Terminate() gibt den Text *ExitMessage ins CLI aus und schließt alle
+   Resources */
+
+void Terminate(char *ExitMessage, int ReturnCode)
+{
+ if(TextFont)      CloseFont(TextFont);
+ if(DrawWin)       CloseWindow(DrawWin);
+ if(Window)        CloseWindow(Window);
+ if(Screen)        CloseScreen(Screen);
+ if(IntuitionBase) CloseLibrary((struct Library *) IntuitionBase);
+ if(GfxBase)       CloseLibrary((struct Library *) GfxBase);
+
+ printf(ExitMessage);
+ exit(ReturnCode);
+}
+
+
+/*  WaitforMsg() löscht alle anliegenden Nachrichten, und wartet auf eine
+    neue Nachricht am UserPort ; bei Empfang von ESC oder Betätigen eines
+    der 'Beenden'-Gadgets --> Programmende  */
+
+
+struct IntuiMessage *WaitforMsg()
+{
+ do {
+   Message = (struct IntuiMessage *) GetMsg(UserPort);
+ } while(Message);
+
+ WaitPort(UserPort);
+ Message = (struct IntuiMessage *) GetMsg(UserPort);
+
+ if((Message->Class == VANILLAKEY && Message->Code == 27) ||
+    (Message->Class == GADGETUP && Message->IAddress == (APTR) &QuitGad) ||
+    (Message->Class == GADGETUP && Message->IAddress == (APTR) &PlayGad2))
+   Terminate("", EXIT_SUCCESS);
+ return (Message);
+}
+
+
+/* Print() gibt an der Position x/y den Text *String aus. Ist x negativ,
+   so wird der Text ab der letzten aktuellen Position ausgegeben */
+
+void Print(int x, int y, char *String)
+{
+ static int LastX,LastY;
+
+ if(x<0) {
+   Move(RastPort,LastX,LastY);
+   Text(RastPort,String,strlen(String));
+   LastX += strlen(String)*8;
+ }
+ else {
+   Move(RastPort,x,y);
+   Text(RastPort,String,strlen(String));
+   LastX = x+strlen(String)*8;    LastY = y;
+ }
+}
+
+
+/* RulesText() und InfoText() geben die entsprechenden Texte aus. */
+
+void RulesText(void)
+{
+ Print(20,60,"Die Regeln:   Sieben -  Zwei Karten aufnehmen");
+ Print(20,68,"-----------   Acht   -  Der nächste Spieler setzt aus");
+ Print(132,76,"Neun   -  Der aktuelle Spieler darf, muß aber nicht nochmal");
+ Print(132,84,"Bube   -  Eine Farbe wünschen");
+ Print(20,100,"Hat der vorherige Spieler eine Sieben gelegt, so muß man dann nicht");
+ Print(20,108,"zwei Karten aufnehmen, wenn man selbst eine Sieben legt. Der nächste");
+ Print(20,116,"Spieler muß dann vier Karten aufnehmen. Legt dieser wiederum eine Sieben,");
+ Print(20,124,"muß der nächste sechs Karten aufnehmen, usw.");
+ Print(20,132,"Das Aussetzen bei einer Acht kann man durch legen einer Acht vermeiden.");
+ Print(20,140,"Auf einen Buben darf kein Bube gelegt werden.");
+ Print(20,148,"Die erste Karte zählt nur nach Farbe und Wert, nicht nach Wirkung.");
+}
+
+void InfoText(void)
+{
+ Print(20,60,"Mau-Mau ist FreeWare. Es kann daher frei verbreitet werden, solange das");
+ Print(20,68,"Programm selbst sowie die dazugehörige Dokumentation nicht verändert,");
+ Print(20,76,"und beide immer zusammen weitergegeben werden.");
+
+ Print(20,90,"Fehlermeldungen, Anregungen, Postkarten, Kekse, GELD, und sonstige");
+ Print(20,98,"Spenden bitte an:");
+ Print(20,110,"Oliver Grimm");
+ Print(20,118,"Steinbecker Str. 69");
+ Print(20,126,"21244 Buchholz                E-Mail: grimm@particle.phys.ethz.ch");
+}
+
+
+/* -------------------- Hauptprogramm ------------------------ */
+
+void main(void)
+{
+int i,j,SoMany, Item;
+BOOL TextFlag;
+
+ if(!(IntuitionBase = (struct IntuitionBase *) OpenLibrary("intuition.library",0L)))
+   Terminate("Kann 'intuition.library' nicht öffnen !\n\n", FALSE);
+
+ if(!(GfxBase = (struct GfxBase *) OpenLibrary("graphics.library",0L)))
+   Terminate("Kann 'graphics.library' nicht öffnen !\n\n", FALSE);
+
+ if(!(Screen = (struct Screen *) OpenScreen(&ScrDat)))
+   Terminate("Kann keinen Screen öffnen !\n\n", FALSE);
+
+ WinDat.Screen = Screen;       BackDat.Screen = Screen;
+
+ if(!(Window = (struct Window *) OpenWindow(&WinDat)))
+   Terminate("Kann kein Fenster öffnen !\n\n", FALSE);
+
+ if(!(DrawWin = (struct Window *) OpenWindow(&BackDat)))
+   Terminate("Kann kein Fenster öffnen !\n\n", FALSE);
+
+ RastPort = Window->RPort;         UserPort = Window->UserPort;
+ BackRast = DrawWin->RPort;
+
+ if(TextFont = OpenFont(&Font)) {
+   SetFont(RastPort, TextFont);
+   SetFont(BackRast, TextFont);
+ }
+
+ LoadRGB4(&(Screen->ViewPort), CMap, 16);
+ SetDrMd(RastPort, JAM2);
+ SetAPen(RastPort, 1);
+ SetOPen(RastPort, 13);
+
+ players = 2;    SoMany = 9;
+
+ FOREVER {
+  Acht=FALSE;   Bube=FALSE;   Again=FALSE;     TextFlag = TRUE;
+  Sieben=0;     TalPointer=0; UsedPointer=0;
+
+  DelRect(0,0,640,256);
+
+  Print(272,14,"Mau-Mau V1.5");
+  Print(272,22,"------------");
+  Print(148,34,"Written and Copyright ©1998 by Oliver Grimm");
+
+  RulesText();
+  GadText6.IText = (UBYTE *) " Info ";
+
+  AddGList(Window, &Gad1, -1, 9, NULL);
+  OnGadget(&Gad1,Window, NULL);
+
+  SetAPen(RastPort, Romme ? 0 : 15);
+  RectFill(RastPort, Gad7.LeftEdge, Gad7.TopEdge, Gad7.LeftEdge+Gad7.Width-1, Gad7.TopEdge+Gad7.Height-1);
+  SetAPen(RastPort, Romme ? 15 : 0);
+  RectFill(RastPort, Gad8.LeftEdge, Gad8.TopEdge, Gad8.LeftEdge+Gad8.Width-1, Gad8.TopEdge+Gad8.Height-1);
+
+  FOREVER {
+    Message = (struct IntuiMessage *) WaitforMsg();
+    if(Message->Class != GADGETUP && Message->Class != GADGETDOWN) continue;
+
+    Item = (int) ((struct Gadget *) Message->IAddress)->GadgetID;
+
+    if(Item == 101) break;            /* Spielbeginn */
+ 
+    if(Item == 200 || Item ==201) {       /* Kartenart wählen; RectFill() */
+      Romme = Item==200 ? FALSE : TRUE;   /* simuliert MutualExclusive-Gads */
+      SetAPen(RastPort,Item==200 ? 15 : 0);
+      RectFill(RastPort, Gad7.LeftEdge, Gad7.TopEdge, Gad7.LeftEdge+Gad7.Width-1, Gad7.TopEdge+Gad7.Height-1);
+      SetAPen(RastPort,Item==200 ? 0 : 15);
+      RectFill(RastPort, Gad8.LeftEdge, Gad8.TopEdge, Gad8.LeftEdge+Gad8.Width-1, Gad8.TopEdge+Gad8.Height-1);
+    }
+
+    if(Item == 100) {                 /* Info/Regeln-Gadget */
+      DelRect(0,50,640,160);
+      if(TextFlag) {
+        InfoText();
+        GadText6.IText = (UBYTE *) "Regeln";
+       }
+      else {
+        RulesText();
+        GadText6.IText = (UBYTE *) " Info ";
+      }
+      TextFlag = TextFlag ? FALSE : TRUE;
+    }
+    if(Item>=0 && Item<=12) 
+     if(Item < 10) {
+       players += Item-1;               /* Anzahl Spieler von 1 bis 5 */
+       if(players<2) players = 2;
+       if(players>5) players = 5;
+       *(GadText1.IText + 20) = players+48;
+     }
+    else SoMany += Item-11;
+
+ /* maximal werden 14 Karten ausgeteilt wegen der grafischen Darstellung */
+ /* mindestens 14 Karten sollen im Talon bleiben */
+
+    if(SoMany < 1) SoMany = 1;
+    if(SoMany > (Romme ? 38 : 18)/players) SoMany = (Romme ? 38 : 18)/players;
+    if(SoMany > 14) SoMany = 14;
+    sprintf((char *) GadText3.IText + 31,"%2d", SoMany);
+  
+    RefreshGList(&Gad1,Window,NULL,6);
+  }; /* FOREVER */
+
+  RemoveGList(Window, &Gad1, 9);
+
+  /* Talon aufbauen   -   Wenn Romme=FALSE, also 32 Skatkarten, dann nur */
+  /* solche Karten einfügen */
+
+  if(Romme) for(i=0;i<ANZKARTEN;i++) Talon[TalPointer++]=i;
+  else for(i=0;i<4;i++)
+         for(j=5;j<13;j++) Talon[TalPointer++]=i*13+j;
+  
+  srand((unsigned int) time(NULL));
+  i=rand()%TalPointer;
+  First=Talon[i];
+  Talon[i]=Talon[--TalPointer];
+
+  /* Karten verteilen. Keine Neu-Markierungen anbringen. */
+
+  for(i=0;i<players;i++) Anzahl[i]=0;
+  for(SpielNr=0;SpielNr<players;SpielNr++) TakeCards(SoMany);
+  for(i=0;i<ANZKARTEN;i++) Neu[i]=FALSE;
+
+  DelRect(0,0,640,256);
+  AddGList(Window, &PlayGad1, -1, 2, NULL);
+  OnGadget(&PlayGad1,Window, NULL);
+
+  FOREVER {
+   if(Player0()) break;
+   PrintCards();
+   if(ComPlayer()) break;
+  }
+  RemoveGList(Window, &PlayGad1, 2);
+ }
+}

@@ -1,0 +1,101 @@
+<HTML>
+<HEAD>
+<TITLE>Gebruik van resload_Protect#?</TITLE>
+<meta name="DC.Language" content="nl">
+<meta http-equiv="content-language" content="nl">
+<meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+<!-- $Id: prot.html 1.4 2009/02/05 20:38:15 wepl Exp wepl $ -->
+</HEAD>
+<BODY>
+<h3>Gebruik van resload_Protect#?</h3>
+<h4>Theorie</h4>
+Er zijn verschillende situaties waarin het handig kan zijn om geïnformeerd te
+worden wanneer een geïnstalleerd programma toegang maakt tot bepaalde specifieke
+geheugen locaties. Met de <a href="../autodoc.html">resload_Protect#?</a> functies
+is het mogelijk om bepaalde geheugen locaties te beschermen tegen het lezen en/of
+schrijven door de processor. Bescherming betekent dat elke toegang aan zo'n beschermd
+gebied, wanneer uitgevoerd, het een Toegangs Fout uitzondering maakt wat een geschikte
+requester geeft door WHDLoad. Als u een geheugen gebied aangeeft als beschermd met de
+<a href="../autodoc.html">resload_Protect#?</a> functie zal WHDLoad 
+de betrokken page descriptors in de MMU vertaal boom aanpassen.
+Nu zal bij elke toegang naar de beschermde page de CPU een Toegangs Fout
+uitzondering maken. De uitzondering handler in WHDLoad zal de reden nakijken
+voor de uitzondering. Als de reden een toegang was naar een beschermde <a href="mmu.html">page</a> 
+maar de toegang niet hetzelfde is zal er een emulatie van de toegang plaatsvinden, en de normale programma
+uitvoer gaat verder door. Anders zal WHDLoad stoppen met een geschikte requester.
+Als de toegang er één was naar de instructie stroom (ofwel de cpu probeert code te laden)
+zal het altijd geëmuleerd worden, of met andere woorden de <a
+href="../autodoc.html">resload_Protect#?</a> functies hebben alleen effect
+op het lezen en schrijven van data. Het feit is dat alle toegangen naar een beschermde
+page (pagegrootte is momenteel $1000) een Toegangs Fout maken, zelfs als het beschermde
+gebied een grootte heeft van 1 byte, met als gevolg een sterke vertraging van de uitvoerbare
+snelheid van een programma. Vooral als delen van de code gelegen zijn op dezelfde page.
+Als het programma afhankelijk is van de uitvoer snelheid, zijn verschillen in uitvoer mogelijk.
+Dus het is mogelijk dat sommige programma's niet werken met de bescherm eigenschap.
+
+<h4>Voorbeeld: checksommen over code</h4>
+Als u een spel installeert met WHDLoad moet u de originele lader routines patchen
+in het spel op een manier zodat WHDLoad de speldata laad.
+Sommige spellen voeren checksommen uit op bepaalde code gebieden om te zoeken of 
+de originele code gewijzigd is. Deze detectie routines kunnen soms moeilijk te vinden zijn.
+Maar met de <a href="../autodoc.html">resload_Protect#?</a> functies in WHDLoad is er niks makkelijker
+dan dit. U hoeft alleen de bytes te beschermen die u heeft veranderd in de spelcode tegen lezen.
+Nu elke routine welke probeert om een checksom te maken en de gepatchte code te lezen zal een Toegangs Fout geven.
+En u zal komen te weten waar de routine zich bevind. 
+<h4>Beperkingen</h4>
+U moet niet de geheugen page beschermen waar de SSP naar toeverwijst. Wanneer
+u dat wel zou doen en een Uitzondering ontstaat, zal het gevolg een Dubbele Bus Fout
+geven omdat de CPU onmogelijk de stackframe uitzondering kan schrijven. Na een Dubbele
+Bus Fout kan alleen met een reset de uitvoer hervatten. WHDLoad controleert op een conflict
+in het beschermde gebied met de SSP en beëindigd zonodig, maar dit helpt niet als de SSP verandert later.
+
+<ul>
+<li>68020 + 68851
+<ul>
+<li>deze hardware word momenteel niet ondersteund
+</ul>
+<li>68030
+<ul>
+<li>3-Byte overdrachten worden niet ondersteund en veroorzaken een reële Toegangs Fout,
+Zulke overdrachten ontstaan wanneer er toegang wordt gezocht naar een lange woord op een oneven adres 
+op een page grens (bijv. "<code>tst.l ($fff)</code>" waar de page op $1000 is beschermd),
+omdat dit ongeldig is op een 68000 zal u dit waarschijnlijk nooit te zien krijgen
+<li>gesloten overdrachten veroorzaakt door <code>tas</code>, <code>cas</code> of <code>cas2</code>
+worden niet ondersteund en veroorzaakt een reële Toegang Fout, dit is geen probleem omdat gesloten
+overdrachten niet ondersteund worden door Amiga's hardware.
+</ul>
+<li>68040
+<ul>
+<li>deze hardware word momenteel niet ondersteund
+</ul>
+<li>68060
+<ul>
+<li>verkeerd gepositioneerde data stroom toegangen worden niet ondersteund en veroorzaken een reële Toegangs Fout.
+Een verkeerd gepositioneerde toegang is een toegang welke 2 page's bevat (en tenminste 1 ervan is beschermd), 
+bijvoorbeeld "<code>tst.l ($ffe)</code>" beinvloed de page $0..$fff en de page $1000..$1fff, deze beperking 
+is een groot probleem en maakt de resload_Protect eigenschap soms bijna onbruikbaar, misschien zorg ik later 
+voor ondersteuning hiervoor maar het is moeilijk
+<li>verkeerd gepositioneerde instructie stroom toegangen worden niet ondersteund en veroorzaakt een reële 
+Toegangs Fout wanneer beide page's beschermd zijn, het beste is om zo'n situatie te vermijden
+<li>gesloten overdrachten veroorzaakt door <code>tas</code> of <code>cas</code> 
+worden niet ondersteund en veroorzaakt een reële Toegangs Fout, dit is geen probleem omdat gesloten
+overdrachten niet ondersteund worden door Amiga's hardware.
+<li>instructies welke liggen op een beschermde page (en daarom geëmuleerd worden)
+en toegang zoeken op de supervisor gedeelte van de status register worden incorrect uitgevoerd,
+deze instructies zullen altijd de trace bit als 1 zien en de interrupt prioriteiten mask als 7,
+een wijziging in de supervisor gedeelte zal geen effect hebben (ofwel de supervisor gedeelte blijft
+onveranderd)
+<li>de<code> movem</code> instructie kan toegang krijgen tot een beschermd gebied zonder een Toegangs
+Fout uitzondering te maken, dit is mogelijk omdat de eerste toegang (woord of lange woord) word
+gecontroleerd of het beschermde gebied overeenstemt
+<li>de<code> move16</code> en dubbele precisie operaties (FPU) worden niet ondersteund
+en veroorzaakt een reële Toegangs Fout
+<li>een "<code>move (mem),(mem)</code>" met overlappende bron en bestemmingsadres welke een 
+Toegangs Fout genereerd omdat verkeerd gepositioneerd, incorrect word uitgevoerd.
+bijvoorbeeld "<code>move.l ($ffc),($ffe)</code>" waar page $1000..$1fff is beschermd en
+geheugen voor het uitvoer bevat ($ffc)=$11112222, ($1000)=$33334444, na uitvoer 
+$1000 bevat $11114444 en niet $22224444
+</ul>
+</ul>
+</BODY>
+</HTML>

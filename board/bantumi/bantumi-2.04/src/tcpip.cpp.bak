@@ -1,0 +1,456 @@
+/*
+    Bantumi
+    Copyright 2005 - 2007 Martin Storsjö
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+    Martin Storsjö
+    martin@martin.st
+*/
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "tcpip.h"
+#include "thread.h"
+
+#ifdef WIN32
+
+static int WSAAPI (*getaddrinfoPtr)(const char* nodename, const char* servname, const struct addrinfo* hints, struct addrinfo** res);
+static void WSAAPI (*freeaddrinfoPtr)(struct addrinfo* ai);
+
+#define getaddrinfo getaddrinfoPtr
+#define freeaddrinfo freeaddrinfoPtr
+
+// Note, this isn't a complete replacement for getaddrinfo. It assumes
+// that servname contains the service name as a port number. It does
+// a simple search using gethostbyname, and returns one IPv4 host
+// if one was found.
+static int WSAAPI getaddrinfoAdapter(const char* nodename, const char* servname, const struct addrinfo* hints, struct addrinfo** res) {
+	struct hostent* h = gethostbyname(nodename);
+	if (!h) {
+		return WSAGetLastError();
+	}
+	struct addrinfo* ai = (struct addrinfo*) malloc(sizeof(struct addrinfo));
+	*res = ai;
+	ai->ai_flags = 0;
+	ai->ai_family = AF_INET;
+	ai->ai_socktype = hints->ai_socktype;
+	switch (hints->ai_socktype) {
+	case SOCK_STREAM:
+		ai->ai_protocol = IPPROTO_TCP;
+		break;
+	case SOCK_DGRAM:
+		ai->ai_protocol = IPPROTO_UDP;
+		break;
+	default:
+		ai->ai_protocol = 0;
+		break;
+	}
+	ai->ai_addrlen = sizeof(struct sockaddr_in);
+	ai->ai_canonname = strdup(h->h_name);
+	struct sockaddr_in* sin = (struct sockaddr_in*) malloc(ai->ai_addrlen);
+	sin->sin_family = AF_INET;
+	sin->sin_port = htons(atoi(servname));
+	memcpy(&sin->sin_addr, h->h_addr, sizeof(sin->sin_addr));
+	memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
+	ai->ai_addr = (struct sockaddr*) sin;
+	ai->ai_next = 0;
+	return 0;
+}
+
+static void WSAAPI freeaddrinfoAdapter(struct addrinfo* ai) {
+	free(ai->ai_canonname);
+	free(ai->ai_addr);
+	free(ai);
+}
+
+const char *getHostError(int err) {
+	return getSockError(err);
+}
+
+#else
+
+#include <netdb.h>
+
+const char *getHostError(int err) {
+	return gai_strerror(err);
+}
+
+#endif
+
+void initTCPIP() {
+#ifdef WIN32
+	HMODULE dll = GetModuleHandle("ws2_32.dll");
+	getaddrinfoPtr = (int WSAAPI (*)(const char*, const char*, const struct addrinfo*, struct addrinfo**)) GetProcAddress(dll, "getaddrinfo");
+	freeaddrinfoPtr = (void WSAAPI (*)(struct addrinfo*)) GetProcAddress(dll, "freeaddrinfo");
+	if (!getaddrinfoPtr || !freeaddrinfoPtr) {
+		getaddrinfoPtr = getaddrinfoAdapter;
+		freeaddrinfoPtr = freeaddrinfoAdapter;
+	}
+#endif
+}
+
+void closeTCPIP() {
+}
+
+TCPConnection::TCPConnection(SOCKTYPE s) : SocketConnection(s) {
+	resolveThread = NULL;
+	hostname = NULL;
+	hosterror = NULL;
+	joinResolver = false;
+	addrlist = NULL;
+}
+
+TCPConnection::~TCPConnection() {
+	if (resolveThread && joinResolver)
+		joinThread(resolveThread);
+	free(hostname);
+	if (resolveThread == NULL && addrlist)
+		freeaddrinfo(addrlist);
+}
+
+void TCPConnection::staticResolve(void* arg) {
+	TCPConnection* conn = (TCPConnection*) arg;
+	conn->resolve();
+}
+
+void TCPConnection::resolve() {
+	struct addrinfo hints;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	char service[50];
+	sprintf(service, "%d", port);
+	int err;
+	if ((err = getaddrinfo(hostname, service, &hints, &addrlist)) != 0) {
+		hosterror = getHostError(err);
+	}
+	nextaddr = addrlist;
+	resolved = true;
+}
+
+TCPConnection *TCPConnection::startConnect(const char *hostName, int port, const char **errString, bool join) {
+	*errString = NULL;
+
+	TCPConnection *conn = new TCPConnection(0);
+	conn->connecting = true;
+	conn->joinResolver = join;
+
+	conn->resolved = false;
+	conn->hostname = strdup(hostName);
+	conn->port = port;
+
+	conn->resolveThread = startThread(staticResolve, conn);
+	conn->connectStarted = false;
+
+	return conn;
+}
+
+bool TCPConnection::doStartAccept(struct sockaddr* sa, int salen, SOCKTYPE sock, const char **errString) {
+	int reuse = 1;
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*) &reuse, sizeof(reuse)) < 0) {
+		*errString = getSockError();
+		CLOSESOCK(sock);
+		return false;
+	}
+
+	if (bind(sock, sa, salen) < 0) {
+		*errString = getSockError();
+		CLOSESOCK(sock);
+		return false;
+	}
+
+	if (listen(sock, 2) < 0) {
+		*errString = getSockError();
+		CLOSESOCK(sock);
+		return false;
+	}
+/*
+	if (SETNONBLOCK(sock, 1) == -1) {
+		*errString = getSockError();
+		CLOSESOCK(sock);
+		return false;
+	}
+*/
+	return true;
+}
+
+class TCPListenWrapper : public TCPConnection, public ReadCallback {
+public:
+	TCPListenWrapper() : TCPConnection(0) {
+		mainConn = NULL;
+		for (int i = 0; i < MAXCONNS; i++)
+			listenConns[i] = NULL;
+	}
+	~TCPListenWrapper() {
+		delete mainConn;
+		for (int i = 0; i < MAXCONNS; i++)
+			delete listenConns[i];
+	}
+
+	bool isClient() {
+		return false;
+	}
+	int ready(const char **errString) {
+		if (mainConn)
+			return mainConn->ready(errString);
+		return pollAccept(50, errString);
+	}
+	bool read(const char **errString) {
+		if (mainConn)
+			return mainConn->read(errString);
+		return true;
+	}
+	bool write(const unsigned char *ptr, int n, const char **errString) {
+		if (mainConn)
+			return mainConn->write(ptr, n, errString);
+		*errString = "Not connected";
+		return false;
+	}
+	void received(const unsigned char *ptr, int n) {
+		cb->received(ptr, n);
+	}
+	int pollAccept(int msec, const char **errString) {
+		if (mainConn)
+			return 1;
+		for (int i = 0; i < numConns; i++) {
+			int retval = listenConns[i]->pollAccept(msec/numConns, errString);
+			if (retval < 0) {
+				delete listenConns[i];
+				for (int j = i; j < numConns - 1; j++)
+					listenConns[j] = listenConns[j+1];
+				listenConns[numConns - 1] = NULL;
+				numConns--;
+
+				if (numConns == 0)
+					return retval;
+				*errString = NULL;
+			}
+			if (retval > 0) {
+				mainConn = listenConns[i];
+				listenConns[i] = NULL;
+				for (int j = 0; j < numConns; j++) {
+					delete listenConns[j];
+					listenConns[j] = NULL;
+				}
+				return 1;
+			}
+		}
+		return 0;
+	}
+	int pollConnect(int msec, const char **errString) {
+		*errString = "Bad connection direction";
+		return -1;
+	}
+	void addConnection(TCPConnection* conn) {
+		if (!conn)
+			return;
+		if (mainConn || numConns >= MAXCONNS)
+			delete conn;
+		listenConns[numConns++] = conn;
+		conn->setCallback(this);
+	}
+
+private:
+	static const int MAXCONNS = 7;
+	TCPConnection* mainConn;
+	TCPConnection* listenConns[MAXCONNS];
+	int numConns;
+};
+
+TCPConnection *TCPConnection::startAccept(int port, const char **errString) {
+#ifdef WIN32
+	TCPListenWrapper* wrapper = new TCPListenWrapper();
+	wrapper->addConnection(startAcceptV6(port, errString));
+	wrapper->addConnection(startAcceptV4(port, errString));
+	return wrapper;
+#else
+	return startAcceptV6(port, errString, false);
+#endif
+}
+
+TCPConnection *TCPConnection::startAcceptV6(int port, const char **errString, bool requireV6) {
+	SOCKTYPE sock;
+
+	if ((sock = socket(AF_INET6, SOCK_STREAM, 0)) == INVALID_SOCKET) {
+		int err = CUR_ERROR();
+		if (err == EAFNOSUPPORT && !requireV6) {
+			return startAcceptV4(port, errString);
+		} else {
+			*errString = getSockError();
+			return NULL;
+		}
+	}
+
+	struct sockaddr_in6 sa;
+	struct in6_addr anyaddr = IN6ADDR_ANY_INIT;
+	memset(&sa, 0, sizeof(sa));
+	sa.sin6_family = AF_INET6;
+	sa.sin6_port = htons(port);
+	sa.sin6_addr = anyaddr;
+
+	if (!doStartAccept((struct sockaddr*) &sa, sizeof(sa), sock, errString)) {
+		return NULL;
+	}
+
+	TCPConnection *conn = new TCPConnection(sock);
+	conn->connecting = false;
+	return conn;
+}
+
+TCPConnection *TCPConnection::startAcceptV4(int port, const char **errString) {
+	SOCKTYPE sock;
+
+	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
+		*errString = getSockError();
+		return NULL;
+	}
+
+	struct sockaddr_in sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sin_family = AF_INET;
+	sa.sin_port = htons(port);
+	sa.sin_addr.s_addr = INADDR_ANY;
+
+	if (!doStartAccept((struct sockaddr*) &sa, sizeof(sa), sock, errString)) {
+		return NULL;
+	}
+
+	TCPConnection *conn = new TCPConnection(sock);
+	conn->connecting = false;
+	return conn;
+}
+
+bool TCPConnection::doStartConnect(const char **errString) {
+	if (!nextaddr)
+		return false;
+	struct addrinfo* info = nextaddr;
+	nextaddr = nextaddr->ai_next;
+
+	if ((sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == INVALID_SOCKET) {
+		*errString = getSockError();
+		return false;
+	}
+
+	if (SETNONBLOCK(sock, 1) == -1) {
+		*errString = getSockError();
+		CLOSESOCK(sock);
+		sock = 0;
+		return false;
+	}
+
+	if (::connect(sock, info->ai_addr, info->ai_addrlen) < 0) {
+		int err = CUR_ERROR();
+		if (err != EINPROGRESS && err != 0) {
+			*errString = getSockError();
+			CLOSESOCK(sock);
+			sock = 0;
+			return -1;
+		}
+	}
+	return true;
+}
+
+int TCPConnection::pollConnect(int msec, const char **errString) {
+	if (!resolved) {
+		threadSleep(msec);
+		return 0;
+	}
+
+	if (resolveThread) {
+		joinThread(resolveThread);
+		resolveThread = NULL;
+	}
+
+	if (!connectStarted) {
+		connectStarted = true;
+
+		if (hosterror) {
+			*errString = hosterror;
+			return -1;
+		}
+
+		while (true) {
+			*errString = NULL;
+			if (!doStartConnect(errString)) {
+				if (!nextaddr)
+					return -1;
+				continue;
+			} else
+				break;
+		}
+
+	}
+
+	int retval = SocketConnection::pollConnect(msec, errString);
+	if (retval >= 0)
+		return retval;
+
+	while (nextaddr) {
+		*errString = NULL;
+		if (!doStartConnect(errString)) {
+			if (!nextaddr)
+				return -1;
+			continue;
+		} else
+			return 0;
+	}
+	return -1;
+}
+
+TCPConnection *TCPConnection::connect(const char *hostName, int port, const char **errString, bool *stop, bool join) {
+	TCPConnection *conn = startConnect(hostName, port, errString, join);
+	if (!conn) return NULL;
+	while (!*stop) {
+		int retval = conn->pollConnect(100, errString);
+		if (retval < 0) {
+			delete conn;
+			return NULL;
+		} else if (retval > 0) {
+			return conn;
+		}
+	}
+
+	if (*stop) {
+		delete conn;
+		return NULL;
+	}
+
+	return conn;
+}
+
+TCPConnection *TCPConnection::accept(int port, const char **errString, bool *stop) {
+	TCPConnection *conn = startAccept(port, errString);
+	if (!conn) return NULL;
+	while (!*stop) {
+		int retval = conn->pollAccept(100, errString);
+		if (retval < 0) {
+			delete conn;
+			return NULL;
+		} else if (retval > 0) {
+			return conn;
+		}
+	}
+
+	if (*stop) {
+		delete conn;
+		return NULL;
+	}
+
+	return conn;
+}
+
+

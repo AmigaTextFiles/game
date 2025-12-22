@@ -1,0 +1,85 @@
+/*
+ * mspread.empfe  simple ARexx macro to spread military. If a sectors has
+ * many military, military will be moved to a nearby sector.
+ *
+ * This file is placed in the Public Domain, do what you want with it
+ * and use it at your own risk!!!
+ * Written by Håkan Thörngren 1989
+ */
+/*
+	Modified by David Wright 7/10/90 to work with the new 2.0 version
+	of EmpFE
+*/
+
+
+me = get_country('my')
+rowmax = max_row()
+colmax = max_column()
+
+n = get_country('sector',me)
+r = 0
+c = 0
+string = out_fix_coordinate(0,0)
+parse var string rowoffset','coloffset
+
+do i=0 to n
+  if btu_left() < 10 then return(0)
+  string = my_next_sector(r,c)
+  parse var string r','c
+  type = get_sector('type',r,c)
+  if type~='u' & type~='-' & type~='f' & type~='^' then
+    if ~get_sector_flag('dirty',r,c) then
+		/* Be wary of changing this number. Increasing it too much
+			can cause you to run out of BTUs due to excessive moves */
+      if get_sector('military',r,c)<64 then do
+		/* We can move at least 32 military to this sector. */
+		string = out_fix_coordinate(r,c)
+		parse var string r2','c2
+		move_in(r2,c2)
+      end
+end
+return 0
+
+
+move_in: procedure    expose me rowmax colmax coloffset rowoffset
+  arg row,col
+  string = out_fix_coordinate(row-1,col-1)
+  parse var string r1','c1
+  string = out_fix_coordinate(row+1,col+1)
+  parse var string r2','c2
+  if ok_sector(r1,c1) then move_mil(r1,c1,"\r",row,col)
+  else if ok_sector(r1,col) then move_mil(r1,col,"d",row,col)
+  else if ok_sector(r1,c2) then move_mil(r1,c2,"/l",row,col)
+  else if ok_sector(row,c1) then move_mil(row,c1,"r",row,col)
+  else if ok_sector(row,c2) then move_mil(row,c2,"l",row,col)
+  else if ok_sector(r2,c1) then move_mil(r2,c1,"/r",row,col)
+  else if ok_sector(r2,col) then move_mil(r2,col,"u",row,col)
+  else if ok_sector(r2,c2) then move_mil(r2,c2,"\l",row,col)
+  return 1
+
+/* ok_sector - return 1 if the given sector can spare the military. */
+ok_sector: procedure  expose me
+  arg row,col
+  type = get_sector('type',row,col)
+  if get_sector('owner',row,col)=me then
+	if get_sector('military',row,col)>64 then
+		if get_sector('mobility',row,col)>50 then
+			if type~='.' & type~='f' & type~='c' & type~='b' then
+				if get_sector_flag('dirty',row,col)=0  then do
+				call put_sector_flag('dirty',row,col,1)
+				return 1
+				end
+ return 0
+
+move_mil: procedure expose coloffset rowoffset rowmax colmax
+  parse arg row_f,col_f,dir,row_t,col_t
+  if btu_left()<10 then say "Too few BTU's left - command not sent!"
+  else do
+    string = 'move m 'row_f','col_f' 32 'dir'e'
+    say 'Queued 'string
+    call do_command(string,-1)
+    call put_sector_flag('dirty',row_f,col_f,1)
+    call put_sector_flag('dirty',row_t,col_t,1)
+  end
+  return 1
+

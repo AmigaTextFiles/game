@@ -1,0 +1,107 @@
+NEWTYPE .faces
+  typ.b:col.b:cor.w[5]
+End NEWTYPE
+NEWTYPE .pol
+  x.w:y.w
+End NEWTYPE
+NEWTYPE.points
+  x.w:y.w:z.w
+  xs.w:ys.w
+End NEWTYPE
+npmax.w=1000:nptot.w=0:pn.w=0   ;maximum,total and actual points
+Dim pnt.points(npmax)           ;and array of points
+Dim List face.faces(npmax)      ;a list of faces
+Dim cs.q(360),sn.q(360)         ;quick cos and sin
+Dim pol.pol(4)                  ;for polyf command
+wid.w=0:hgt.w=0                 ;width and height of images on faces
+xsiz.w=0:ysiz.w=0:zsiz.w=0      ;sizes of faces
+yt1.w=0:xt2.w=0:zt2.w=0:yt3.q=0 ;used in co-ord transform
+xp.w=0:yp.w=0:zp.w              ;co-ords of object
+zy.w=0:zx.w=0:xy.w=0            ;angle of object
+x.w=0:y.w=0:z.w=0               ;general co-ords
+xoff.w=160:yoff.w=128           ;screen centre
+f.w=256                         ;object yp offset
+scn.b=0                         ;screen number
+For xy=0 To 360                 ;quick cos and sin setup
+  cs(xy)=Cos(xy*Pi/180)
+  sn(xy)=Sin(xy*Pi/180)
+Next
+
+Gosub loadpoints    ;the other line
+
+BLITZ
+BitMap 0,320,256,3  ;8 colour low res bitmaps
+BitMap 1,320,256,3
+Slice 0,40,320,256,$fff8,3,8,8,320,320
+Use Palette 0
+BlitzKeys On
+
+Gosub routine2
+
+.routine2
+xp=Rnd(100)-50:yp=Rnd(100)-50+f:zp=Rnd(50)-25:xy=0:zy=0:zx=0
+xmax.w=200:ymax.w=1000+f:ymin.w=-100+f:zmax.w=100
+xd.b=Rnd(2)+1:yd.b=Rnd(4)+1:zd.b=Rnd(2)+1
+Repeat
+  Gosub drawit
+  xp=xp+xd
+  If xp>xmax OR xp<-xmax Then xd=-xd
+  yp=yp+yd
+  If yp>ymax OR yp<ymin Then yd=-yd
+  zp=zp+zd
+  If zp>zmax OR zp<-zmax Then zd=-zd
+  xy=QWrap(xy+1,0,359)
+  zy=QWrap(zy+2,0,358)
+Until Joyb(0)=1
+Return
+
+.drawit
+  scn=1-scn:Use BitMap scn:Cls 0
+  ;loop through all points and covert 3D to screen co-ords
+  For pn=0 To (nptot-1)
+    yt1=pnt(pn)\y*cs(xy)-pnt(pn)\x*sn(xy)
+    xt2=pnt(pn)\x*cs(xy)+pnt(pn)\y*sn(xy)
+    zt2=pnt(pn)\z*cs(zy)+yt1*sn(zy)
+    yt3=(yt1*cs(zy)-pnt(pn)\z*sn(zy)+yp) ASR 9
+    pnt(pn)\xs=xoff+(xt2*cs(zx)-zt2*sn(zx)+xp)/yt3
+    pnt(pn)\ys=yoff+(xt2*sn(zx)+zt2*cs(zx)+zp)/yt3
+  Next
+  ;loop through faces using transformed points to form polygon
+  ResetList face()
+  While NextItem(face())
+    pol(1)\x=pnt(face()\cor[1])\xs:pol(1)\y=pnt(face()\cor[1])\ys
+    pol(2)\x=pnt(face()\cor[2])\xs:pol(2)\y=pnt(face()\cor[2])\ys
+    pol(3)\x=pnt(face()\cor[3])\xs:pol(3)\y=pnt(face()\cor[3])\ys
+    pol(4)\x=pnt(face()\cor[4])\xs:pol(4)\y=pnt(face()\cor[4])\ys
+    Polyf 4,pol(1),-1,face()\col
+  Wend
+  VWait:Show scn
+Return
+
+.loadpoints
+QAMIGA
+If ReadFile(0,ff$+".pnt")
+  FileInput 0
+  temp$=Edit$(80):nptot=Val(temp$)
+  For pn=0 To (nptot-1)
+    temp$=Edit$(80)
+    pnt(pn)\x=Val(Mid$(temp$,1,4))
+    pnt(pn)\y=Val(Mid$(temp$,6,4))
+    pnt(pn)\z=Val(Mid$(temp$,11,4))
+  Next
+  ResetList face()
+  Repeat
+    If AddItem(face())
+      temp$=Edit$(80)
+      face()\typ=Val(Mid$(temp$,1,4))
+      face()\col=Val(Mid$(temp$,6,4))
+      face()\cor[1]=Val(Mid$(temp$,11,4))
+      face()\cor[2]=Val(Mid$(temp$,16,4))
+      face()\cor[3]=Val(Mid$(temp$,21,4))
+      face()\cor[4]=Val(Mid$(temp$,26,4))
+    End If
+  Until Eof(0)
+  CloseFile 0
+End If
+VWait 100
+Return

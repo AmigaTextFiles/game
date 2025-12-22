@@ -1,0 +1,943 @@
+*** binsort.c.orig      Sun Jul 02 03:51:04 1995
+--- binsort.c   Mon Aug 14 01:17:02 1995
+***************
+*** 64,70 ****
+  #define T                     4
+  #define P                     3
+  
+! /*#define FUNCPROTO   1        Good for debugging under ANSI C */
+  /*#define ALIGNMENT  (sizeof(int))*/
+  #define ALIGNMENT  (sizeof(double))
+  
+--- 64,72 ----
+  #define T                     4
+  #define P                     3
+  
+! #ifdef _amigados
+! #define FUNCPROTO   1       /* Good for debugging under ANSI C */
+! #endif
+  /*#define ALIGNMENT  (sizeof(int))*/
+  #define ALIGNMENT  (sizeof(double))
+  
+***************
+*** 82,93 ****
+  #    include <sys/types.h>        /* for statistics & io */
+  #    include <sys/stat.h>         /* for i/o */
+  #    include <errno.h>
+  #    include <sys/param.h>        /* for statistics */
+  #    include <sys/times.h>        /* for statistics */
+  #    include <time.h>
+  #    include <stdlib.h>
+  
+! #    ifndef NOUNISTD          /* ESV, for instance, doesn't have it */
+  #      include <unistd.h>
+  #    endif
+  #    ifndef  SEEK_SET
+--- 84,99 ----
+  #    include <sys/types.h>        /* for statistics & io */
+  #    include <sys/stat.h>         /* for i/o */
+  #    include <errno.h>
++ #    if HAVE_SYS_PARAM_H
+  #    include <sys/param.h>        /* for statistics */
++ #    endif
++ #    if HAVE_SYS_TIMES_H
+  #    include <sys/times.h>        /* for statistics */
++ #    endif
+  #    include <time.h>
+  #    include <stdlib.h>
+  
+! #    if HAVE_UNISTD_H
+  #      include <unistd.h>
+  #    endif
+  #    ifndef  SEEK_SET
+***************
+*** 815,821 ****
+  /*=================================================================*/
+  static int
+  cmproutine(e1, e2)
+! void    *e1, *e2;           /* basics elements - records */
+  {
+    register struct key_dsc      *pkey;
+    register int                  i, j;
+--- 821,827 ----
+  /*=================================================================*/
+  static int
+  cmproutine(e1, e2)
+! const void    *e1, *e2;          /* basics elements - records */
+  {
+    register struct key_dsc      *pkey;
+    register int                  i, j;
+***************
+*** 830,837 ****
+  /*=================================================================*/
+  static int
+  pointer_cmproutine(pe1, pe2)
+! void      *pe1;
+! void      *pe2;
+  {
+    register struct key_dsc      *pkey;
+    register int                  i, j;
+--- 836,843 ----
+  /*=================================================================*/
+  static int
+  pointer_cmproutine(pe1, pe2)
+! const void      *pe1;
+! const void      *pe2;
+  {
+    register struct key_dsc      *pkey;
+    register int                  i, j;
+***************
+*** 1171,1177 ****
+--- 1177,1185 ----
+  prtstatist(realtime)
+  long            realtime;
+  {
++ #if HAVE_TIMES
+    struct tms    spenttime;
++ #endif
+    int           tapenum;
+    unsigned long one, total;
+  
+***************
+*** 1188,1198 ****
+--- 1196,1208 ----
+      }
+    fprintf(stderr,"\t\tTotal  : %10ld\n", total);
+    fprintf(stderr,"\tReal time [s]:\t\t\t%d\n", (int)realtime + 1);
++ #if HAVE_TIMES
+    times(&spenttime);
+    fprintf(stderr,"\tUser time [s]:\t\t\t%.2f\n",
+	  (float)spenttime.tms_utime/(float)CLOCKFREQ);
+    fprintf(stderr,"\tSystem time [s]:\t\t%.2f\n",
+	  (float)spenttime.tms_stime/(float)CLOCKFREQ);
++ #endif
+  }
+  
+  
+***************
+*** 1500,1506 ****
+--- 1510,1524 ----
+    struct stat statstr;
+  
+    ctape = TAPE + num;
++ #if HAVE_GETPID
+    sprintf(scrname, "%s/binsort%07d%d", scrpath, getpid(), num); /* gen name */
++ #else
++ #if HAVE_TMPNAM
++   sprintf(scrname, "%s/binsort%s", scrpath, tmpnam(NULL));
++ #else
++   sprintf(scrname, "%s/binsort", scrpath);
++ #endif
++ #endif
+    if ((fdes = open(scrname, O_RDWR | O_CREAT, S_IREAD|S_IWRITE)) < 0)
+			    /* create scratch file */
+      ioerr();
+*** book.c.orig Sun Jul 02 03:51:04 1995
+--- book.c      Sun Aug 13 20:19:47 1995
+***************
+*** 23,29 ****
+  #include "gnuchess.h"
+  #include "ttable.h"           /* uses hashbd, hashkey */
+  #include "ataks.h"
+! #if !defined(AMIGADOS) && !defined(Think_C) && !defined(WIN32)
+  #include <unistd.h>
+  #endif
+  #ifdef Think_C
+--- 23,29 ----
+  #include "gnuchess.h"
+  #include "ttable.h"             /* uses hashbd, hashkey */
+  #include "ataks.h"
+! #if HAVE_UNISTD_H
+  #include <unistd.h>
+  #endif
+  #ifdef Think_C
+***************
+*** 39,44 ****
+--- 39,45 ----
+  #include <io.h>
+  #endif
+  #if !defined MSDOS && !defined(Think_C)
++ #undef  O_BINARY
+  #define O_BINARY 0
+  #endif
+  #include <fcntl.h>
+***************
+*** 52,57 ****
+--- 53,66 ----
+  
+  #ifdef ECO
+  #include <sys/types.h>
++ #ifdef _amigados
++   /*
++   **  Unfortunately sys/stat.h includes libraries/dos.h, which
++   **  would result in a redefinition of SHORT. We fix this by
++   **  faking, that libraries/dos.h would be already included.
++   */
++ #define LIBRARIES_DOS_H
++ #endif
+  #include <sys/stat.h>
+  #endif
+  
+*** configure.in.orig   Sun Jul 02 03:51:04 1995
+--- configure.in        Sun Aug 13 17:42:11 1995
+***************
+*** 16,22 ****
+  
+  dnl Checks for header files.
+  AC_HEADER_STDC
+! AC_CHECK_HEADERS(fcntl.h time.h sys/file.h sys/ioctl.h sys/time.h unistd.h)
+  
+  dnl Checks for typedefs, structures, and compiler characteristics.
+  AC_C_CONST
+--- 16,23 ----
+  
+  dnl Checks for header files.
+  AC_HEADER_STDC
+! AC_CHECK_HEADERS(fcntl.h time.h sys/file.h sys/ioctl.h sys/time.h unistd.h\
+!                sys/param.h sys/times.h sys/types.h memory.h)
+  
+  dnl Checks for typedefs, structures, and compiler characteristics.
+  AC_C_CONST
+***************
+*** 28,33 ****
+  AC_PROG_GCC_TRADITIONAL
+  dnl AC_FUNC_SETVBUF_REVERSED
+  AC_TYPE_SIGNAL
+! AC_CHECK_FUNCS(gettimeofday strstr strtol strtoul memset)
+  
+  AC_OUTPUT(Makefile)
+--- 29,34 ----
+  AC_PROG_GCC_TRADITIONAL
+  dnl AC_FUNC_SETVBUF_REVERSED
+  AC_TYPE_SIGNAL
+! AC_CHECK_FUNCS(gettimeofday strstr strtol strtoul memset getpid tmpnam)
+  
+  AC_OUTPUT(Makefile)
+*** dspcom.c.orig       Sun Jul 02 03:51:05 1995
+--- dspcom.c    Sun Aug 13 21:54:31 1995
+***************
+*** 29,35 ****
+  #include "gnuchess.h"
+  #include "ataks.h"
+  #include "ttable.h" /* calls ZeroTTable(), probably belongs in main.c*/
+! #ifdef HAVE_GETTIMEOFDAY
+  #include <sys/time.h>
+  #endif
+  CHAR mvstr[5][7];
+--- 29,35 ----
+  #include "gnuchess.h"
+  #include "ataks.h"
+  #include "ttable.h" /* calls ZeroTTable(), probably belongs in main.c*/
+! #if HAVE_SYS_TIME_H
+  #include <sys/time.h>
+  #endif
+  CHAR mvstr[5][7];
+***************
+*** 44,50 ****
+--- 44,52 ----
+  SHORT ecomove;
+  #endif
+  CHAR *InPtr;
++ #if HAVE_UNISTD_H
+  #include <unistd.h>
++ #endif
+  
+  #if defined(sun) && defined(sparc) && defined(svr4)
+  #include <sys/filio.h>
+***************
+*** 59,77 ****
+  #ifdef Think_C
+  #include "doevents.h"
+  #else
+! #ifdef WIN32
+! #include <sys/types.h>
+! #else /* Other */
+  #include <sys/param.h>
+  #include <sys/types.h>
+  #include <sys/file.h>
+- #ifndef AMIGADOS
+- #include <sys/ioctl.h>
+  #endif
+  #endif
+  #endif /* Think_C */
+  #endif /* MSDOS */
+  
+  void
+  algbr (SHORT f, SHORT t, SHORT flag)
+  
+--- 61,89 ----
+  #ifdef Think_C
+  #include "doevents.h"
+  #else
+! #if HAVE_SYS_PARAM_H
+  #include <sys/param.h>
++ #endif
++ #if HAVE_SYS_TYPES_H
+  #include <sys/types.h>
++ #endif
++ #if HAVE_SYS_FILE_H
+  #include <sys/file.h>
+  #endif
++ #if HAVE_SYS_IOCTL_H
++ #include <sys/ioctl.h>
+  #endif
+  #endif /* Think_C */
+  #endif /* MSDOS */
+  
++ #if defined(_amigados)
++ /*
++ **  We cannot use the Amiga headers, because exec/types.h would
++ **  redefine SHORT. Fortunately we do not need very much of them:
++ */
++ #define SIGBREAKF_SET 0xf0000   /* SIGBREAKF_CTRL_(C|D|E|F) */
++ #endif
++ 
+  void
+  algbr (SHORT f, SHORT t, SHORT flag)
+  
+***************
+*** 1176,1182 ****
+	  flag.beep = true;
+	  dither = 0;
+	  flag.easy = true;
+! #endif XBOARD
+	  UpdateDisplay (0, 0, 1, 0);
+	}
+	else if (strcmp (s, CP[171]) == 0)      /*list*/
+--- 1188,1194 ----
+	  flag.beep = true;
+	  dither = 0;
+	  flag.easy = true;
+! #endif /* XBOARD */
+	  UpdateDisplay (0, 0, 1, 0);
+	}
+	else if (strcmp (s, CP[171]) == 0)        /*list*/
+***************
+*** 1438,1444 ****
+  
+  {
+    struct timeval tv;
+! #ifndef MSDOS
+    int nchar;
+    extern int errno;
+    int i;
+--- 1450,1456 ----
+  
+  {
+    struct timeval tv;
+! #if !defined(MSDOS)  &&  !defined(_amigados)
+    int nchar;
+    extern int errno;
+    int i;
+***************
+*** 1459,1466 ****
+	flag.bothsides = false;
+      }
+  #endif /*FIONREAD*/
+! #else /* MSDOS */
+    if (kbhit ())
+      {
+	if (!flag.timeout)
+	flag.back = true;
+--- 1471,1490 ----
+	flag.bothsides = false;
+      }
+  #endif /*FIONREAD*/
+! #else /* MSDOS || _amigados */
+! #if defined(_amigados)  &&  defined(XBOARD)
+!   /*
+!   **  On the Amiga we have two possibilities of interrupting GNU
+!   **  Chess: Breaking with Ctrl-C is less comfortable for the
+!   **  user, but checking for it is faster.
+!   **
+!   **  We choose the comfortable way for curses and the fast way
+!   **  for AmyBoard.
+!   */
+!   if (SetSignal(0, SIGBREAKF_SET) & SIGBREAKF_SET)
+! #else
+    if (kbhit ())
++ #endif
+      {
+	if (!flag.timeout)
+	flag.back = true;
+***************
+*** 1519,1525 ****
+    }
+  #endif /* XBOARD */
+  #else /*!WIN32*/
+! #if !defined(MSDOS)
+    int nchar;
+    extern int errno;
+    int i;
+--- 1543,1549 ----
+    }
+  #endif /* XBOARD */
+  #else /*!WIN32*/
+! #if !defined(MSDOS)  &&  !defined(_amigados)
+    int nchar;
+    extern int errno;
+    int i;
+***************
+*** 1540,1553 ****
+	flag.bothsides = false;
+      }
+  #endif /*FIONREAD*/
+! #else /* MSDOS */
+    if (kbhit ())
+      {
+	if (!flag.timeout)
+	flag.back = true;
+	flag.bothsides = false;
+      }
+! #endif /* MSDOS */
+  #endif /* !WIN32 */
+    et = (time ((time_t *) 0) - time0) * 100;
+    ETnodes = NodeCnt + ZNODES;
+--- 1564,1589 ----
+	flag.bothsides = false;
+      }
+  #endif /*FIONREAD*/
+! #else /* MSDOS || _amigados */
+!   /*
+!   **  On the Amiga we have two possibilities of interrupting GNU Chess:
+!   **  Breaking with Ctrl-C is less comfortable for the user, but
+!   **  checking for it is faster.
+!   **
+!   **  We choose the comfortable way for curses and the fast way for
+!   **   AmyBoard.
+!   */
+! #if defined(_amigados) && defined(XBOARD)
+!   if (SetSignal(0, SIGBREAKF_SET) & SIGBREAKF_SET)
+! #else
+    if (kbhit ())
++ #endif
+      {
+	if (!flag.timeout)
+	flag.back = true;
+	flag.bothsides = false;
+      }
+! #endif /* MSDOS || _amigados */
+  #endif /* !WIN32 */
+    et = (time ((time_t *) 0) - time0) * 100;
+    ETnodes = NodeCnt + ZNODES;
+*** eco.c.orig  Sun Jul 02 03:51:05 1995
+--- eco.c       Sun Aug 13 17:42:20 1995
+***************
+*** 23,29 ****
+  #include "gnuchess.h"
+  #include "ttable.h" /* uses hashbd, hashkey */
+  #include "ataks.h"
+! #if !defined(AMIGADOS) && !defined(Think_C)
+  #include <unistd.h>
+  #endif
+  #ifdef Think_C
+--- 23,29 ----
+  #include "gnuchess.h"
+  #include "ttable.h" /* uses hashbd, hashkey */
+  #include "ataks.h"
+! #if HAVE_UNISTD_H
+  #include <unistd.h>
+  #endif
+  #ifdef Think_C
+*** ecocvt.c.orig       Sun Jul 02 03:51:05 1995
+--- ecocvt.c    Sun Aug 13 17:42:23 1995
+***************
+*** 1,5 ****
+--- 1,13 ----
+  #include <fcntl.h>
+  #include <sys/types.h>
++ #if defined(_amigados)
++   /*
++   **  Unfortunately sys/stat.h includes libraries/dos.h, which
++   **  would result in a redefinition of SHORT. We fix this by
++   **  faking, that libraries/dos.h would be already included.
++   */
++ #define LIBRARIES_DOS_H
++ #endif
+  #include <sys/stat.h>
+  #include "gnuchess.h"
+  struct gdxdata
+*** gnuan.c.orig        Sun Jul 02 03:51:06 1995
+--- gnuan.c     Sun Aug 13 17:42:31 1995
+***************
+*** 74,83 ****
+  #include <string.h>
+  #include <io.h>
+  #else
+  #include <sys/param.h>
+  #include <sys/types.h>
+  #include <sys/file.h>
+! #ifndef AMIGADOS
+  #include <sys/ioctl.h>
+  #endif
+  void TerminateSearch (int), Die (int);
+--- 74,89 ----
+  #include <string.h>
+  #include <io.h>
+  #else
++ #if HAVE_SYS_PARAM_H
+  #include <sys/param.h>
++ #endif
++ #if HAVE_SYS_TYPES_H
+  #include <sys/types.h>
++ #endif
++ #if HAVE_SYS_FILE_H
+  #include <sys/file.h>
+! #endif
+! #if HAVE_SYS_IOCTL_H
+  #include <sys/ioctl.h>
+  #endif
+  void TerminateSearch (int), Die (int);
+***************
+*** 622,628 ****
+  {
+      struct timeval tv;
+  
+! #ifndef MSDOS
+      int nchar;
+      extern int errno;
+      int i;
+--- 628,634 ----
+  {
+      struct timeval tv;
+  
+! #if !defined(MSDOS)  &&  !defined(_amigados)
+      int nchar;
+      extern int errno;
+      int i;
+***************
+*** 643,649 ****
+	  flag.bothsides = false;
+	}
+  #endif /* FIONREAD */
+! #else
+      if (kbhit ())
+	{
+	  if (!flag.timeout)
+--- 649,655 ----
+	  flag.bothsides = false;
+	}
+  #endif /* FIONREAD */
+! #else  /* MSDOS || _amigados */
+      if (kbhit ())
+	{
+	  if (!flag.timeout)
+***************
+*** 650,656 ****
+	      flag.back = true;
+	  flag.bothsides = false;
+	}
+! #endif /* MSDOS */
+      gettimeofday (&tv, NULL);
+      et = (tv.tv_sec * 100 + (tv.tv_usec / 10000)) - time0;
+      ETnodes = NodeCnt + ZNODES;
+--- 656,662 ----
+	      flag.back = true;
+	  flag.bothsides = false;
+	}
+! #endif /* MSDOS || _amigados */
+      gettimeofday (&tv, NULL);
+      et = (tv.tv_sec * 100 + (tv.tv_usec / 10000)) - time0;
+      ETnodes = NodeCnt + ZNODES;
+***************
+*** 679,685 ****
+   */
+  
+  {
+! #ifndef MSDOS
+      int nchar;
+      extern int errno;
+      int i;
+--- 685,691 ----
+   */
+  
+  {
+! #if !defined(MSDOS)
+      int nchar;
+      extern int errno;
+      int i;
+***************
+*** 700,706 ****
+	  flag.bothsides = false;
+	}
+  #endif /* FIONREAD */
+! #else
+      if (kbhit ())
+	{
+	  if (!flag.timeout)
+--- 706,712 ----
+	  flag.bothsides = false;
+	}
+  #endif /* FIONREAD */
+! #else  /* MSDOS || _amigados */
+      if (kbhit ())
+	{
+	  if (!flag.timeout)
+***************
+*** 707,713 ****
+	      flag.back = true;
+	  flag.bothsides = false;
+	}
+! #endif /* MSDOS */
+      et = (time ((long *) 0) - time0) * 100;
+      ETnodes = NodeCnt + ZNODES;
+      if (et < 0)
+--- 713,719 ----
+	      flag.back = true;
+	  flag.bothsides = false;
+	}
+! #endif /* MSDOS || _amigados */
+      et = (time ((long *) 0) - time0) * 100;
+      ETnodes = NodeCnt + ZNODES;
+      if (et < 0)
+*** gnuchess.h.orig     Sun Jul 02 03:51:06 1995
+--- gnuchess.h  Sun Aug 13 21:24:46 1995
+***************
+*** 45,51 ****
+  #define huge
+  #endif
+  #include <stdio.h>
+! #ifdef HAVE_MEMSET
+  #include <memory.h>
+  #endif
+  #ifdef SIGNCHAR
+--- 45,51 ----
+  #define huge
+  #endif
+  #include <stdio.h>
+! #if HAVE_MEMORY_H
+  #include <memory.h>
+  #endif
+  #ifdef SIGNCHAR
+***************
+*** 92,100 ****
+  #define RWA_ACC "r+"
+  #define WA_ACC "w+"
+  #ifndef Think_C
+  #include <sys/param.h>
+  #include <sys/types.h>
+! #ifndef AMIGADOS
+  #include <sys/times.h>
+  #endif
+  #endif /* Think_C */
+--- 92,104 ----
+  #define RWA_ACC "r+"
+  #define WA_ACC "w+"
+  #ifndef Think_C
++ #if HAVE_SYS_PARAM_H
+  #include <sys/param.h>
++ #endif
++ #if HAVE_SYS_TYPES_H
+  #include <sys/types.h>
+! #endif
+! #if HAVE_SYS_TIMES_H
+  #include <sys/times.h>
+  #endif
+  #endif /* Think_C */
+***************
+*** 102,107 ****
+--- 106,125 ----
+  #define printz printf
+  #define scanz scanf
+  #else
++ #ifdef _amigados
++ #define EXEC_TYPES_H            /*  Prevent exec/types.h from being  */
++ typedef unsigned char UBYTE;    /*  included, as this would redefine */
++ typedef short WORD;             /*  SHORT. Some typedef's required   */
++ typedef unsigned short UWORD;   /*  by curses.h, however.            */
++ typedef long LONG;
++ typedef unsigned long ULONG;
++ #ifdef __SASC
++ struct timeval {
++     ULONG tv_sec;
++     ULONG tv_usec;
++ };
++ #endif
++ #endif
+  #include <curses.h>
+  #define scanz fflush(stdout),scanw
+  #define printz printw
+***************
+*** 232,239 ****
+--- 250,261 ----
+  /* about 1/2 second worth of nodes for your machine */
+  #ifdef Think_C
+  #define ZNODES 500              /* check the time every ZNODES positions */
++ #else
++ #ifdef _amigados
++ #define ZNODES 1000             /* check the time every ZNODES positions */
+  #else /* Think_C */
+  #define ZNODES 4000             /* check the time every ZNODES positions */
++ #endif /* _amigados */
+  #endif /* Think_C */
+  #define MAXTCCOUNTX  5          /* max number of time clicks per search to complete ply*/
+  #define MAXTCCOUNTR 6           /* max number of time clicks per search extensions*/
+***************
+*** 422,428 ****
+       extern unsigned int starttime;
+       extern SHORT distdata[64][64], taxidata[64][64];
+       extern CHAR mvstr[5][7];
+! #ifndef AMIGADOS
+       extern union U admin;
+  #endif
+       extern UTSHORT bookmaxply;
+--- 444,450 ----
+       extern unsigned int starttime;
+       extern SHORT distdata[64][64], taxidata[64][64];
+       extern CHAR mvstr[5][7];
+! #ifndef _amigados
+       extern union U admin;
+  #endif
+       extern UTSHORT bookmaxply;
+***************
+*** 546,558 ****
+       extern int pick (SHORT p1, SHORT p2);
+       extern int VerifyMove (CHAR *s, SHORT inp, UTSHORT *mv);
+       extern void VMoveList (SHORT side, register SHORT ply);
+! #if !defined(AMIGADOS)
+       extern struct gdxadmin B;
+  #endif
+  
+- #if defined(AMIGADOS)  &&  !defined(XBOARD)
+- #define exit(retcode) CleanExit(retcode)
+- #endif
+  /* Take care of MEMSET once and for all... */
+  #if (!defined(HAVE_MEMSET) || defined(MSDOS)) && !defined(__GNUC__)
+  #define memset(s,c,l) {\
+--- 568,577 ----
+       extern int pick (SHORT p1, SHORT p2);
+       extern int VerifyMove (CHAR *s, SHORT inp, UTSHORT *mv);
+       extern void VMoveList (SHORT side, register SHORT ply);
+! #if !defined(_amigados)
+       extern struct gdxadmin B;
+  #endif
+  
+  /* Take care of MEMSET once and for all... */
+  #if (!defined(HAVE_MEMSET) || defined(MSDOS)) && !defined(__GNUC__)
+  #define memset(s,c,l) {\
+*** init.c.orig Sun Jul 02 03:51:06 1995
+--- init.c      Sun Aug 13 20:31:58 1995
+***************
+*** 22,28 ****
+   */
+  #include "gnuchess.h"
+  #include "ttable.h"
+! #ifdef HAVE_GETTIMEOFDAY
+  #include <sys/time.h>
+  #endif
+  extern SHORT notime;
+--- 22,28 ----
+   */
+  #include "gnuchess.h"
+  #include "ttable.h"
+! #if HAVE_SYS_TIME_H
+  #include <sys/time.h>
+  #endif
+  extern SHORT notime;
+***************
+*** 400,406 ****
+    CHAR sl[5];
+    int len, entry;
+    CHAR *p, *q;
+!   constfile = fopen (LANGFILE, "r");
+  flag.illegal=flag.mate=flag.post=flag.quit=flag.reverse=flag.bothsides=flag.onemove=flag.force=false;
+  flag.material=flag.coords=flag.hash=flag.easy=flag.beep=flag.rcptr=true;
+  flag.autolist=flag.stars=flag.shade=flag.back=flag.musttimeout=false;
+--- 400,406 ----
+    CHAR sl[5];
+    int len, entry;
+    CHAR *p, *q;
+!   constfile = fopen (lang ? lang : LANGFILE, "r");
+  flag.illegal=flag.mate=flag.post=flag.quit=flag.reverse=flag.bothsides=flag.onemove=flag.force=false;
+  flag.material=flag.coords=flag.hash=flag.easy=flag.beep=flag.rcptr=true;
+  flag.autolist=flag.stars=flag.shade=flag.back=flag.musttimeout=false;
+***************
+*** 417,423 ****
+--- 417,427 ----
+  #endif /* MSDOS && !SEVENBIT */
+    if (!constfile)
+      {
++ #ifndef _amigados
+	constfile = fopen("../misc/gnuchess.lang", "r");
++ #else
++       constfile = fopen("/misc/gnuchess.lang", "r");
++ #endif
+      }
+    if (!constfile)
+      {
+*** nondsp.c.orig       Sun Jul 02 03:51:07 1995
+--- nondsp.c    Sun Aug 13 17:42:37 1995
+***************
+*** 26,34 ****
+  
+  #ifdef MSDOS
+  #include <dos.h>
+! #elif !defined(Think_C) && !defined(WIN32)
+  #include <sys/file.h>
+! #ifndef AMIGADOS
+  #include <sys/ioctl.h>
+  #endif
+  
+--- 26,36 ----
+  
+  #ifdef MSDOS
+  #include <dos.h>
+! #else
+! #if HAVE_SYS_FILE_H
+  #include <sys/file.h>
+! #endif
+! #if HAVE_SYS_IOCTL_H
+  #include <sys/ioctl.h>
+  #endif
+  
+***************
+*** 61,67 ****
+  {
+    mycnt1 = mycnt2 = 0;
+  #if defined CHESSTOOL || defined XBOARD
+! #if defined(SYSV)  ||  defined(AMIGADOS)
+    setvbuf (stdout, NULL, _IOLBF, BUFSIZ);
+  #elif defined(WIN32)
+    setbuf(stdout, NULL);
+--- 63,69 ----
+  {
+    mycnt1 = mycnt2 = 0;
+  #if defined CHESSTOOL || defined XBOARD
+! #if defined(SYSV)  ||  defined(_amigados)
+    setvbuf (stdout, NULL, _IOLBF, BUFSIZ);
+  #elif defined(WIN32)
+    setbuf(stdout, NULL);
+*** nuxdsp.c.orig       Sun Jul 02 03:51:07 1995
+--- nuxdsp.c    Sun Aug 13 17:42:40 1995
+***************
+*** 33,42 ****
+  
+  
+  #else
+  #include <sys/param.h>
+  #include <sys/types.h>
+  #include <sys/file.h>
+! #include <curses.h>
+  
+  #endif /* MSDOS */
+  
+--- 33,49 ----
+  
+  
+  #else
++ #if HAVE_SYS_PARAM_H
+  #include <sys/param.h>
++ #endif
++ #if HAVE_SYS_TYPES_H
+  #include <sys/types.h>
++ #endif
++ #if HAVE_SYS_FILE_H
+  #include <sys/file.h>
+! #endif
+! #ifdef _amigados
+! #endif
+  
+  #endif /* MSDOS */
+  
+***************
+*** 87,92 ****
+--- 94,105 ----
+    signal (SIGINT, Die);
+  #ifndef MSDOS
+    signal (SIGQUIT, Die);
++ #ifdef _amigados
++   if (atexit((void (*)(void)) endwin)) {
++       perror("atexit");
++       exit(10);
++   }
++ #endif /* _amigados */
+    initscr ();
+    crmode ();
+  #else
+*** uxdsp.c.orig        Sun Jul 02 03:51:08 1995
+--- uxdsp.c     Sun Aug 13 17:42:43 1995
+***************
+*** 34,42 ****
+--- 34,48 ----
+  static void param (SHORT n);
+  
+  #else
++ #if HAVE_SYS_PARAM_H
+  #include <sys/param.h>
++ #endif
++ #if HAVE_SYS_TYPES_H
+  #include <sys/types.h>
++ #endif
++ #if HAVE_SYS_FILE_H
+  #include <sys/file.h>
++ #endif
+  #include <curses.h>
+  
+  #endif /* MSDOS */
+***************
+*** 61,66 ****
+--- 67,78 ----
+    signal (SIGINT, Die);
+  #ifndef MSDOS
+    signal (SIGQUIT, Die);
++ #ifdef _amigados
++   if (atexit((void (*)(void)) endwin)) {
++       perror("atexit");
++       exit(10);
++   }
++ #endif
+    initscr ();
+    crmode ();
+  #else
+*** ecosort.c.orig      Sun Jul 02 03:51:08 1995
+--- ecosort.c   Sun Aug 13 17:42:46 1995
+***************
+*** 7,16 ****
+	    utshort cntr;
+	};
+  char strcmd[256];
+! main()
+  {
+! sprintf(strcmd,"./binsort -r %d -k L:a:0:2<step1.eco>step2.eco\n",sizeof(struct gdxecodata));
+! printf("%s",strcmd);
+! system(strcmd);
+! exit(0);
+  }
+--- 7,43 ----
+	    utshort cntr;
+	};
+  char strcmd[256];
+! main(argc, argv)
+!     int argc;
+!     char* argv[];
+  {
+!     char* binsortPath;
+!     char* step1Path;
+!     char* step2Path;
+! 
+!     if (argc > 1) {
+!       binsortPath = argv[1];
+!       if (argc > 2) {
+!           step1Path = argv[2];
+!           if (argc > 3) {
+!               step2Path = argv[3];
+!               if (argc > 4) {
+!                   fprintf(stderr, "Usage: ecosort <binsortpath> <step1path> <step2path>");
+!                   exit(10);
+!               }
+!           } else {
+!               step2Path = "step2.eco";
+!           }
+!       } else {
+!           step1Path = "step1.eco";
+!       }
+!     } else {
+!       binsortPath = "./binsort";
+!     }
+! 
+!     sprintf(strcmd, "%s -r %d -k L:a:0:2 <%s >%s\n",
+!           binsortPath, sizeof(struct gdxecodata), step1Path, step2Path);
+!     printf("%s",strcmd);
+!     system(strcmd);
+!     exit(0);
+  }

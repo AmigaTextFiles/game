@@ -1,0 +1,2432 @@
+AmigaMUD, Copyright 1995 by Chris Gray
+
+
+	Some of the Concepts and Techniques in AmigaMUD
+
+This file will attempt to be a bit more of a tutorial than the
+"Progamming.txt" and "Builtins.txt" files, which are reference
+material. Here, I will cover some of the areas of special interest
+when progamming in AmigaMUD, including:
+
+    utility routines
+    parsing
+    generating good English output
+    how effects work
+    security issues
+    how to code efficiently in AmigaMUD
+    limitations of the system
+
+I will list the names of builtin functions that are relevant to the
+topic. See file "Builtins.txt" for individual descriptions of the
+functions. See file "Scenario.txt" for more details on how the
+standard scenario works, and how to program within its framework.
+
+
+Utility Functions
+
+
+Recall from "Programming.txt" that AmigaMUD includes types "string",
+and "int". Several utility functions are generally useful in dealing
+with those types:
+
+    Capitalize - capitalize the first letter of a string
+    IntToString/StringToInt/StringToPosInt - conversion
+    Index - search for one string in another
+    Length - length of a string
+    StringReplace - replace a substring of a string with another
+    Strip - strip quotation marks from a string
+    SubString - take a substring
+    Trim - trim leading and trailing spaces from a string
+
+A few others are just generally useful:
+
+    Count - return the number of elements in a list
+    Date/DateShort - return the current time and date
+    Execute - execute a string as an AmigaDOS command
+    FileXXX routines - provide access to AmigaDOS files on the host
+    SetSeed/GetSeed/Random - deal with pseudo-random numbers
+    StringToAction - compile a string into a function
+    Time - return the current time as a count of seconds
+
+There are also a number of builtins to query or change the status of
+the server:
+
+    ClientsActive - return 'true' if any player clients are active
+    Log - add a message to the "MUD.log" file
+    NewCreationPassword - allow SysAdmin to change that password
+    RunLimit - set/return the execution time run limit
+    ServerVersion - return the version of the server
+    SetContinue - control definition of erroneous functions
+    SetMachinesActive - control activity of machines
+    SetRemoteSysAdminOK - enable/disable remote SysAdmin logins
+    SetSingleUser - enable/disable single-user (adventure) mode
+    ShowCharacter - show one character's status
+    ShowCharacters - show the status of existing characters
+    ShowClients - show the status of the active clients
+    ShutDown - request shutdown of server
+    Trace - add an entry to the debugging trace buffer
+    Note - a copyright notice
+
+Here is a group of builtins that deal with characters. More are
+described in the sections dealing with player characters, machines and
+agents:
+
+    Editing - tell if the active character is currently editing
+    EditProc - start editing a proc (action)
+    EditString - start editing a string
+    GetString - get a string from the user with a requester
+    It - return a handy global variable
+    Me - return the active agent (machine or player)
+    MeCharacter - return the active character
+    NewCharacterPassword - change the player's password
+    Normal - switch out of wizard mode
+    PrivateTable - return the character's private table
+    Quit - request that the client terminate
+    SetIt - set the handy global variable
+    SetMeString - set the string naming the active client
+    SetPrompt - set the prompt for the active client
+    TrueMe - return the active agent, even if ForceAction is used
+    WizardMode - switch into wizard mode
+
+A further set of functions are classed as utility functions since they
+don't properly fit into any other categories, but they are often
+related to other categories:
+
+    DumpThing - dump a thing in all its gory detail
+    FindKey - trust SysAdmin and show what a code might be
+    PublicTable - return the system-wide public table
+    SetEffectiveTo - change the "effective character"
+    SetEffectiveToNone - remove the "effective character"
+    SetEffectiveToReal - reset the "effective character"
+
+
+Output Functions
+
+
+The following builtins can be considered as utility routines, but are
+classed separately to make them easier to find. They relate to doing
+text output from AmigaMUD. The first set are routines which can be
+used to produce nice looking English language output. These are the
+main ones that would need to be replaced to produce a non-English
+version of AmigaMUD:
+
+    AAn - insert "a" or "an" in front of a word, as appropriate
+    FormatName - convert from "internal form" to English form
+    GetIndent - return the current indentation setting
+    IsAre - insert "is" or "are" into a string, as appropriate
+    Pluralize - simple attempt to pluralize a word
+    PrintAction - pretty-print a function
+    PrintNoAts - control an anti-spoofing feature
+    SetIndent - set indent amount for pretty output
+    SetPrefix - set a prefix for output lines
+    TextHeight - set/query text output height
+    TextWidth - set/query text output width
+
+These routines actually do output in various ways:
+
+    ABPrint - print to "all but" two agents in a given location
+    APrint - print to all active agents
+    IPrint - print an int to the active agent
+    NPrint - an anti-spoofing print to the active agent
+    OPrint - print to others in the same room
+    Print - standard print to the active agent
+    SPrint - print to a specific agent
+
+
+Parsing Functions
+
+
+In AmigaMUD, there is a function associated with each character which
+is passed each line of input typed by the player. This function is
+free to handle the input lines as it sees fit. Thus, it is possible to
+write whatever kind of parser is desired. However, it is a lot easier,
+and usually sufficient, to use the facilities provided in the AmigaMUD
+system to make parsing easier. Note that, unfortunately, these
+facilities are currently keyed to the English language and its style. I
+welcome detailed specifications or example code of how to do similar
+handling in other natural languages.
+
+
+The AmigaMUD server maintains a string variable which is useful during
+parsing. This variable cannot be relied upon outside of the handling
+of a single server event, e.g. the parsing of an input line, an action
+called for a machine, etc. The variable is referred to as the "tail
+buffer", since it contains the tail of the input line after it has
+been handled for a "VerbTail" verb (see later). The following
+functions deal with the tail buffer:
+
+    GetTail - return the current contents of the tail buffer
+    GetWord - strip off and return the next "word" in the tail buffer
+    SetSay - check for a "says" form, putting text into tail buffer
+    SetTail - set the tail buffer to the passed string
+    SetWhisperMe - check for "whispers", and put rest in tail buffer
+    SetWhisperOther - check for "whispers", put rest in tail buffer
+
+
+There are a few concepts that must be understood in order to make good
+use of the AmigaMUD parsing facilities. One of those, which is also
+discussed in the "Building.txt" document, is the internal form used
+for object names. This form is simple, but fairly general. The basic
+idea is to take the English form of a noun-phrase, which is a series
+of adjectives followed by a noun, and store it in a form which does
+not contain any spaces, and in which the noun is first. The simplest
+example is then just a noun all by itself. Adjectives can be added
+after a semicolon, and separated by commas. E.g.
+
+    noun
+    noun;
+    noun;adjective
+    noun;adjective,adjective
+    noun;adjective,adjective,adjective
+
+If there is more than one form for the noun, then the other forms can
+be given after the first, separated by commas. E.g.
+
+    noun1,noun2
+    noun1,noun2,noun3;adjective,adjective
+
+When handling these forms, the AmigaMUD parsing tools are able to
+automatically handle simple plural forms. When the plural forms are
+not simple enough, they can be given explicitly, by including other
+forms of the noun phrase, separated from previous forms by a period.
+E.g.
+
+    noun;adjective.noun;adjective,adjective
+    noun1,noun2;adjective.noun3;adjective,adjective.noun4;adjective
+
+Only the first form ("noun1,noun2;adjective" in the last example) is
+ever printed out, so it is possible to include nonsensical or improper
+forms in other alternatives, in order to make parsing of irregular
+English forms work. The builtin "FormatName" is used to convert from
+one of these internal forms into an English extern form. E.g. if
+passed the last example, "FormatName" would return "adjective noun1".
+
+These internal forms are the forms that are stored in AmigaMUD
+"things" representing objects, as the names of those objects. Then,
+"FormatName" is used to print out the name of the object, "MatchName"
+is used to match a single internal form against an internal form with
+several alternatives, and "FindName" is used to find a "thing" on a
+list of things, which has an internal form name which matches the
+internal form given. This latter use is the key link between the
+parsing of input commands and the AmigaMUD database. There are a few
+builtin functions for dealing with internal name forms:
+
+    HasAdjective - determine if a given adjective is present
+    MatchName - match a simple name form against a complex one
+    SelectName - select one simple name form from a complex one
+    SelectWord - select one word from an internal form
+
+
+Another important concept in AmigaMUD parsing is that of the
+"grammar". A grammar is a lot like a table, in that it is indexed by
+strings and contains a set of values associated with those strings.
+The values in a grammar, however, are not of any of the standard types
+in AmigaMUD. Instead, they are completely internal forms, which are
+known only to the AmigaMUD parsing and grammar handling code. Grammars
+contain verbs and their definitions, as supplied by the scenario. All
+of the main parsing and grammar related functions in AmigaMUD take a
+grammar as their first argument, identifying which set of verbs they
+are to work with. Wizards can create and manipulate new grammars, and
+can thus set up entire schemes for parsing. For example, the standard
+scenario creates and uses grammars for the build commands in general,
+and for "build room" and "build object" commands in particular. There
+are a number of utility builtins for dealing with grammars:
+
+    CreateGrammar - create a new grammar
+    FindAnyWord - find a word in a grammar
+    FindWord - find a non-synonym word in a grammar
+    ShowWord - show the definition of a word in a grammar
+    ShowWords - show all of the words in a grammar
+    Synonym - enter a synonym into a grammar
+    Word - enter a non-verb word into a grammar
+
+
+Another aspect of AmigaMUD parsing that it is important to understand
+is the flow of control that happens during parsing. There can be
+variations on this scheme, but the scheme used in the standard
+scenario is shown here. Note that, under normal circumstances, the
+function t_util/parseInput is set as the input-line handler on all
+active characters, and is thus called by the system whenever an input
+command line arrives for that character.
+
+    - parseInput checks for some special cases, such as aliases setup
+	by the player, commands starting with a quotation mark (") or
+	a colon (:), commands special to the current location, etc.
+
+    - parseInput passes the input line to the builtin function
+	"Parse", passing the main grammar maintained by the scenario
+	as the first parameter to "Parse".
+
+    - Parse handles strings containing multiple input commands,
+	separated by periods or semicolons. It calls a lower level
+	routine for each one. If that lower level routine returns
+	'false', then Parse stops processing the commands. Parse
+	returns the number of commands successfully handled.
+
+    - the internal processing routine strips off the first word of
+	each command. It looks that word up in the grammar. If the
+	word is found, it does any handling required by the type of
+	the verb found (none for a "VerbTail" verb, getting a pair of
+	noun phrases and a separator word for a "Verb2" verb, etc.)
+
+    - if all is well, the internal processing routine calls the
+	(interpreted) scenario routine associated with the matched
+	verb form. It will pass zero, one or two internal name form
+	strings to that routine, which it has parsed from the input
+	command.
+
+    - the scenario verb routine attempts to find the objects in the
+	database that the internal name forms are referring to. This
+	usually involves using "FindName" with those forms on the list
+	of things at the current location, and the list of things that
+	the character is carrying. If appropriate objects are found,
+	the verb routine will do the semantic action associated with
+	the verb, such as picking the object up. The verb routine
+	returns 'true' to signal that all is well, else 'false' if
+	there was some kind of problem. Most verb routines will also
+	look for and call any relevant functions attached to the found
+	objects, the character, or the current room. These routines
+	can perform additional actions, or can prevent the main action
+	from happening.
+
+    - the internal processing routine may call the scenario verb
+	routine multiple times if more than one object noun-phrase is
+	detected in the input command.
+
+Thus, the call sequence can look like this:
+
+    - system automatically calls scenario input handler routine
+    - scenario routine calls server internal Parse builtin
+    - Parse calls scenario verb routine
+    - verb routine calls several server internal builtins
+
+
+There are four forms of verb supported by the AmigaMUD parsing code.
+
+The simplest form to understand is the "VerbTail" form. In this verb
+form, Parse will simply remove the verb itself from the command, and
+will put the rest of the command into the tail buffer, where it can be
+manipulated with "GetTail" and "GetWord". For example, commands like
+"alias" and "say", which do not interpret the entire command, are
+usually done as VerbTail forms. This form can also be used when the
+parsing facilities in AmigaMUD are not adequate to handle the verb
+directly. For example:
+
+    private proc v_tail()bool:
+	Print("The tail of the command is '" + GetTail() + "'.\n");
+	true
+    corp;
+    VerbTail(G, "tail", v_tail).
+    Parse(G, "tail this. tail all the other stuff. tail of dragon").
+
+would produce output:
+
+    The tail of the command is 'this'.
+    The tail of the command is 'all the other stuff'.
+    The tail of the command is 'of dragon'.
+
+As with other verb routines, the routine used for a VerbTail verb
+returns 'true' to indicate that all is well, and 'false' to indicate
+that something is wrong and that parsing of the rest of the commands
+in the input line should be abandoned.
+
+
+The next verb form is the "Verb0" form. This form accepts no (zero)
+noun phrases on the command, but accepts an optional "separator word"
+as part of the command. The optional word is so named because of its
+function in the "Verb2" form (see later). The Verb0 verb must be given
+by itself as a command, perhaps with its separator if one is given.
+The prototype of Verb0:
+
+proc utility Verb0(grammar theGrammar; string theVerb; int separatorCode;
+    action theAction)void
+
+indicates that the separatorCode is an int. This is the code for that
+word in the grammar. Each word in a grammar is assigned a unique code,
+which can be found by looking the word up in the grammar with
+"FindWord" or "FindAnyWord". If the word is used in other
+circumstances as a verb (like "up" in "stand up"), then it will be
+entered into the grammar as a verb. If the word is not so used,
+however, then it can be entered into the grammar using "Word", which
+adds the word to the grammar, but not as a verb. No word in a grammar
+has code 0, so that value is used to indicate that no separator word
+is required or allowed. Examples:
+
+    private proc v_dream()bool:
+	if Me()@p_pAsleep then
+	    Print("You dream pleasant dreams.\n");
+	    true
+	else
+	    Print("You are not asleep.\n");
+	    false
+	fi
+    corp;
+    Verb0(G, "dream", 0).
+
+    private proc v_sitUp()bool:
+	if Me()@p_pLyingDown then
+	    Print("You sit up.\n");
+	    Me() -- p_pLyingDown;
+	    true
+	else
+	    Print("You are not lying down.\n");
+	    false
+	fi
+    corp;
+    Verb0(G, "sit", FindWord(G, "up")).
+
+    private proc v_sitDown()bool:
+	if Me()@p_pLyingDown then
+	    Print("You are already lying down.\n");
+	    false
+	elif Me()@p_pSittingDown then
+	    Print("You are already sitting down.\n");
+	    false
+	else
+	    Print("You sit down.\n");
+	    Me()@p_pSittingDown := true;
+	    true
+	fi
+    corp;
+    Verb0(G, "sit", FindWord(G, "down")).
+
+Here, verb "dream" has no separator word. Verbs "sit up" and "sit
+down" do, and those words are used to decide which form of the verb
+"sit" is being used. If "sit" is used without a separator word, then
+a verb form without a separator word will be used, but if there isn't
+one, then one of "sit up" or "sit down" will be picked, in no defined
+way. The programmer should define a "sit" without a separator word,
+to pick which of the two should be used, or to print an error message.
+
+
+A "Verb1" verb is one which accepts a direct object, to which the verb
+should be applied. E.g. "take the red ball", "launch rocket", etc.
+Such verbs can also have a separator word, and it is accepted either
+before the object or after it. The object is any sequence of words -
+the system does not try to interpret them in any way. An occurrence of
+any of "a", "an" or "the" at the start of the noun phrase is stripped
+off by the parser. The sequence of words for the direct object is
+terminated by the separator word, the end of the command or by a comma
+or the word "and". The sequence of words is taken to be the English
+form of a noun phrase, i.e. a sequence of adjectives followed by a
+noun. It is converted to the internal form, consisting of the noun, a
+semicolon, and the adjectives, separated by commas.
+
+When a Verb1 verb routine is called by the parser, it is passed the
+internal form of the noun phrase as its single string parameter. If
+more than one noun phrase is given, separated by commas or the word
+"and", then the verb routine will be called once for each noun phrase
+in sequence, or until it returns 'false', indicating that the rest of
+the noun phrases in the command, and the rest of the commands in the
+input string, should be abandoned. Note that if a Verb1 verb is
+matched by the parser, but no noun phrase was given in the command,
+then the parser will call the verb routine once with an empty string
+as parameter. The verb routine should check for and handle this case.
+
+It is up to the verb routine to decide if the noun phrase is a valid
+one for the circumstances, and to find an object in the database that
+can be referred to by the noun phrase. Typically, this will be a
+matter of looking for a matching internal form object name in the
+objects in the player's inventory, and in the objects in the room.
+This can be done using 'FindName', and perhaps some of the other
+'Find' builtins. Many verb routines will look for and handle a
+routine attached to the object, the player, or the room, in order to
+allow special-case processing. Here is a fairly complete example:
+
+    private G CreateGrammar().
+    private p_pCarrying CreateThingListProp().
+    private p_oName CreateStringProp().
+    private pEatCheck CreateActionProp().
+    private p_pFoodCount CreateIntProp().
+    private p_oFoodValue CreateIntProp().
+    private p_pStomachAche CreateBoolProp().
+
+    private apple1 CreateThing(nil).
+    apple1@p_oName := "apple;juicy,red".
+    apple1@p_oFoodValue := 5.
+
+    private apple2 CreateThing(nil).
+    apple2@p_oName := "apple;sour,green".
+    apple2@p_oFoodValue := 2.
+    private proc apple2Eat(thing theApple)status:
+	Me()@p_pStomachAche := true;
+	continue
+    corp;
+    apple2@pEatCheck := apple2Eat.
+
+    private apple3 CreateThing(nil).
+    apple3@p_oName := "apple;rosy,red".
+    private TheWickedWitch CreateThing(nil).
+    private proc apple3Eat(thing theApple)status:
+	if Me() = TheWickedWitch then
+	    Print("Stupid - you just wasted a poison apple!\n");
+	else
+	    Print("Ack! The rosy red apple was poison!\n");
+	    Me()@p_pFoodCount := 0;
+	fi;
+	succeed
+    corp;
+    apple3@pEatCheck := apple3Eat.
+
+    private rock1 CreateThing(nil).
+    rock1@p_oName := "rock;small,round".
+
+    Me()@p_pCarrying := CreateThingList().
+    AddTail(Me()@p_pCarrying, apple1).
+    AddTail(Me()@p_pCarrying, apple2).
+    AddTail(Me()@p_pCarrying, apple3).
+    AddTail(Me()@p_pCarrying, rock1).
+
+    private room CreateThing(nil).
+    SetLocation(room).
+
+    private proc v_eat(string what)bool:
+	thing me, theFood;
+	string foodName;
+	status st;
+	action specialAction;
+
+	if what = "" then
+	    Print("You must say what you want to eat.\n");
+	    false
+	else
+	    me := Me();
+	    foodName := FormatName(what);
+	    st := FindName(me@p_pCarrying, p_oName, what);
+	    if st = fail then
+		Print(AAn("You aren't carrying", foodName) + ".\n");
+		false
+	    elif st = continue then
+		Print(Capitalize(foodName) + " is ambiguous.\n");
+		false
+	    else
+		theFood := FindResult();
+		st := continue;
+		specialAction := me@pEatCheck;
+		if specialAction ~= nil then
+		    st := call(specialAction, status)(theFood);
+		fi;
+		if st = continue then
+		    specialAction := Here()@pEatCheck;
+		    if specialAction ~= nil then
+			st := call(specialAction, status)(theFood);
+		    fi;
+		fi;
+		if st = continue then
+		    specialAction := theFood@pEatCheck;
+		    if specialAction ~= nil then
+			st := call(specialAction, status)(theFood);
+		    fi;
+		    if st = continue then
+			if theFood@p_oFoodValue ~= 0 then
+			    Print("You eat the " + foodName + ".\n");
+			    me@p_pFoodCount := me@p_pFoodCount +
+				theFood@p_oFoodValue;
+			    DelElement(me@p_pCarrying, theFood);
+			    true
+			else
+			    Print("You can't eat the " + foodName +
+				".\n");
+			    false
+			fi
+		    else
+			st = succeed
+		    fi
+		else
+		    false
+		fi
+	    fi
+	fi
+    corp;
+    Verb1(G, "eat", 0, v_eat).
+
+    Parse(G, "eat").
+    Parse(G, "eat apple. eat rock").
+    Parse(G, "eat carrot").
+    Parse(G, "eat orange").
+    Parse(G, "eat rock").
+    Parse(G, "Eat the small round rock.").
+    Parse(G, "eat juicy red apple, green apple and rosy red apple").
+
+The (numbered) output from sourcing this example is:
+
+ 1 > source test.m
+ 2 Sourcing file "test.m".
+ 3 You must say what you want to eat.
+ 4 ==> 0
+ 5 Apple is ambiguous.
+ 6 ==> 0
+ 7 You aren't carrying a carrot.
+ 8 ==> 0
+ 9 You aren't carrying an orange.
+10 ==> 0
+11 You can't eat the rock.
+12 ==> 0
+13 You can't eat the small round rock.
+14 ==> 0
+15 You eat the juicy red apple.
+16 You eat the green apple.
+17 Ack! The rosy red apple was poison!
+18 ==> 1
+19 > d Me().
+20 thing, parent <NIL-THING>, owner SysAdmin, useCount 1, propCount 5,
+21     ts_public:
+22   p_pName: "SysAdmin"
+23   p_pIcon: {16380, 1073890242, 1206011394, 600055908, 669258696,
+24 268961808, 69206592, 25165824}
+25   p_pCarrying: {apple3, rock1}
+26   p_pFoodCount: 0
+27   p_pStomachAche: true
+
+This sample is a complete example, which can be run on an empty
+database as created by MUDCre. It starts out by creating a grammar,
+and giving it symbol "G" in the user's (most likely SysAdmin) private
+symbol table. Next, a number of properties are defined. These are
+attributes which can be attached to things. All of the property
+symbols start with the letter "p" as a memory aid. Those which are to
+be attached only to players start with "p_p", and those which are to
+be attached only to objects start with "p_o". Since this is only a
+small sample, and not a complete scenario, the properties are used for
+illustration, and are not fully implemented.
+
+Following the properties, the example code creates four objects, and
+gives them to the active character, by adding them to an inventory
+list (property p_pCarrying) attached to the character. The first item,
+"apple1", is nothing special, and has a food value of 5. The second is
+a sour apple, and has an attached "pEatCheck" action, "apple2Eat".
+This routine will be called dynamically by the "eat" verb. The third
+object, "apple3", has a slightly more drastic "pEatCheck" routine. The
+thing "TheWickedWitch" is an example only - it has no properties and
+exists only to be tested against in "apple3Eat". The fourth and last
+object, "rock1", is again very simple, and it doesn't even have a food
+value, and hence is not considered to be "edible" by this example. The
+five lines starting with "Me()@p_pCarrying := ..." create a new list
+of things, attach it to the active character (the one sourcing the
+file), and append the four newly created objects to that list. The
+final lines before "v_eat" create a dummy location and move the active
+character to that location. This is needed since "v_eat" uses the
+value returned by the "Here" builtin.
+
+"v_eat" is the central portion of this example. It is a fairly
+complete Verb1 routine to handle attempts by the player to eat things.
+It starts out by declaring a bunch of local variables. Local variables
+are used here for two reasons. One is the convenience of typing just a
+variable name instead of a longer expression. The other reason is that
+of efficiency - it is quicker in AmigaMUD to reference a local
+variable than it is to call some function, even a builtin function.
+
+v_eat first tests to see if the string it was passed is the empty
+string. Recall from the previous discussion of Verb1 verbs, that if
+the verb is used without an accompanying noun phrase, the verb handler
+routine (here v_eat) is called with an empty string as argument. v_eat
+simply prints a helpful message, and returns 'false', indicating that
+some kind of error has occurred. Note that it is a good idea to phrase
+such error comments as suggestions, rather than as questions like
+"What do you want to eat?", since then there is no confusion on the
+part of the player over what is acceptable input.
+
+v_eat then gets a pointer to the active player, and saves it in a
+quicker-to-access local variable. It then gets a printable version of
+the object name string that the player entered. Recall that the
+internal form passed to verb handler routines can be turned into a
+normal English form using the "FormatName" builtin.
+
+The next line, containing the call to "FindName" is the crucial link
+between input commands and the database representing the "world". It
+looks for a thing with property "p_oName" whose value matches the
+string it is passed, which here is the internal form name passed to
+this verb handler by the AmigaMUD parsing code. FindName returns a
+value of type status, with values indicating:
+
+    fail - no thing with a matching name was found in the list
+    succeed - one thing with a matching name was found
+    continue - more than one thing with a matching name was found
+
+So, if the result of FindName, stored in local variable "st", is
+'fail', then no matching name was found, i.e. the player is not
+carrying anything that matches the noun-phrase given in the command.
+This example (and the standard scenario) does not attempt to pick an
+alternative in the case of multiple matches, so it prints an error
+message if FindName returned 'continue'. Note the use of "AAn" and
+"Capitalize" in these messages in order to produce neat English
+output. If FindName returned 'succeed', then it saves a pointer to the
+found thing, and that pointer is retrieved by calling "FindResult".
+
+After retrieving the found thing, i.e. identifying the object in the
+world that the command is referring to, all that remains is to perform
+the "eat" operation on that object. Many scenarios will have a number
+of special cases for such an operation. Rather than coding them
+explicitly in v_eat, it is easier, cleaner and less error prone to use
+an "object-oriented" approach and attach those special actions
+directly to the object. Such special actions can also be attached to
+the character, and to rooms. So, the code in v_eat checks for special
+actions first on the character, then in the room the player is in, and
+finally on the object being eaten. These special actions are here
+assumed to return a value of type status, indicating:
+
+    succeed - the object is eaten - no further checks should take
+	place, but the eating action is successful
+    fail - the object cannot be eaten for some reason
+    continue - nothing has happened which affects the later processing
+	of this action - continue on
+
+Note the uses of the "call" construct. This is how to call a function
+obtained dynamically in AmigaMUD. The "call" specifies the function to
+be called and the type it is supposed to return, and is followed by a
+parenthesized list of any parameters to the called function. The
+function's return value and parameter count and types will be checked
+at runtime, and execution will be aborted if any do not match.
+
+If none of the special actions (pEatCheck's) stop the eating
+operation, then v_eat looks for a "p_oFoodValue" property on the
+object. If the object does not have one, it is considered to be not
+eatable and v_eat complains. Otherwise, the food value is added to
+the character's food count, which is the normal action here of eating
+something. After an item has been eaten, it is deleted from the list
+of things being carried by the character.
+
+The odd-looking line reading "st = succeed" is the return value of the
+v_eat function (which returns a bool) if one of the special actions
+does not return 'continue'. The result of the last special action
+executed is stored in local variable "st". If that value is 'fail',
+then the eating failed, else it succeeded, so the expression tests for
+"st = succeed" to generate the appropriate bool value.
+
+Following the definition of v_eat is the following line:
+
+    Verb1(G, "eat", 0, v_eat).
+
+This adds verb "eat" to grammar "G", specifying v_eat as the function
+to be called to execute the verb. The value 0 for the "separator word"
+indicates that no special extra word is needed or allowed with "eat".
+
+The next seven lines pass some test strings to "Parse" to try out the
+"eat" verb. Normally, such input lines come from players, via their
+"input action". The first test checks out our handling of a missing
+noun phrase, and produces output lines 3 and 4 (recall that "Parse"
+returns the number of successfully handled commands, and that the
+AmigaMUD client programs print any result of an interactively entered
+expression.
+
+Next, we try to eat any apple and then the rock. v_eat finds that
+"apple" is ambiguous, says so, and returns 'false'. This tells Parse
+to not execute any more commands in its parameters, thus it does not
+execute the "eat rock" command, and there is no complaint here about
+trying to eat the rock.
+
+Output lines 7 and 8 come from trying to eat a "carrot" - the
+character is not carrying anything with a name which matches that.
+Similarly for "orange". Note that the use of "AAn" in the complaint
+message results in proper use of "a" versus "an". Eating a rock
+doesn't work because it has no p_oFoodValue property. This is an
+example of how attempting to retrieve a non-existant property from a
+thing is not an error, but produces a default value, here 0. Output
+lines 13 and 14 come from the second attempt to eat the rock. Note
+that Parse has automatically handled the capitalized first letter of
+"Eat", the period at the end of the command, and the use of the
+article "the".
+
+Output lines 15 - 18 are the most interesting. Here we are actually
+eating something. Again, Parse automatically handles the list of noun
+phrases, calling v_eat sequentially with each one. Eating the "juicy
+red apple", which matches only "apple1", works without incident and
+adds that object's food value to the character's food count. Eating
+the "green apple" (matches apple2) appears to work just as well, but
+actually will give the character a stomach ache. This is because the
+special action routine "apple2Eat" returns 'continue', indicating
+that processing should continue as normal.
+
+The special action for apple3, matched by "rosy red apple", returns
+'succeed', indicating that the apple has been eaten, and no further
+processing of eating this object should happen. Since all three of the
+calls to v_eat returned 'true', Parse considers the entire command to
+have been executed successfully, and returns a count of 1.
+
+Output lines 20 - 27 show the state of the character after executing
+the various "eat" commands. The character is still carrying the poison
+apple and the rock. The special action "apple3Eat", since it returns
+'succeed', should have deleted that apple from the character's list of
+things being carried. The character has a food count of 0, set that
+way by apple3Eat, and has flag p_pStomachAche, set by apple2Eat.
+
+
+The third kind of verb supported by the AmigaMUD parsing routines is
+the "Verb2" verb. The general form of the input accepted for this verb
+form is:
+
+    verb {noun-phrase}* separator noun-phrase
+
+E.g.
+
+    Put the sword, the brass lamp and the book into the trophy case.
+
+Here, the verb is "put", and the separator word is "into". The direct
+objects are "the sword", "the brass lamp", and "the book", and the
+single indirect object is "the trophy case". A verb action for a
+Verb2 verb has two parameters. The first is the direct object, and the
+second is the indirect object (both in internal form as usual). When
+more than one direct object is given, as in the example shown, the
+verb action is called repeatedly, with the various direct objects, and
+the single fixed indirect object. A Verb2 handler will never be called
+with either parameter being an empty string, since Parse checks for
+that case and handles it directly.
+
+I do not give an example of a Verb2 handler here. Refer to file
+"verbs.m" in the standard scenario sources for examples.
+
+Note that the separator word and the presence of objects can be used
+to decide which form of a verb to use. Thus, a scenario could define
+all of:
+
+    Verb0(G, "stand", FindWord("up"), v_standUp).
+    Verb0(G, "stand", FindWord("down"), v_standDown).
+    Verb1(G, "stand", FindWord("on"), v_standOn1).
+    Verb2(G, "stand", FindWord("on"), v_standOn2).
+
+and thus handle input commands like:
+
+    stand up
+    stand down
+    stand on the bench
+    stand the statue on the pedestal
+
+The builtins useful for setting up verbs and for parsing are:
+
+    FindName - key input/database link - find a named item
+    FindResult - return a found thing
+    GetNounPhrase - get a noun phrase from a string
+    ItName - return the original direct object internal form
+    Parse - parse a string using a grammar
+    Verb - return the original form of the verb used
+    Verb0 - add a Verb0 verb to a grammar
+    Verb1 - add a Verb1 verb to a grammar
+    Verb2 - add a Verb2 verb to a grammar
+    VerbTail - add a tail verb to a grammar
+    WhoName - return the original indirect object internal form
+
+
+Generating Good English Output
+
+
+Many MUD players are quite picky about the text they read. They are
+disdainful of graphics output, and desire all MUDs to read like well-
+written novels. Few, if any, MUDs meet the desires of such players.
+However, it is a good idea to generate good output text from a MUD, so
+that a few vocal players can't make it sound like a terrible MUD. This
+includes such simple things as spelling words correctly, getting the
+grammar correct, proper capitalization, etc. The standard AmigaMUD
+scenario is by no means perfect in this respect, but I have tried to
+handle most cases. There are some builtin functions in AmigaMUD that
+can help:
+
+    Capitalize - capitalize the first letter in a string
+    AAn - insert either "a" or "an", and spaces as appropriate,
+	between two strings, based on whether or not the first letter
+	in the second string is a vowel or a consonant
+    IsAre - this routine takes four string parameters. The second
+	string can be empty, or can be a word like "no". If the second
+	string is empty and the third string ends in "s", then IsAre
+	inserts "are some" between the first and third strings. If the
+	second string is empty and the third string does not end in
+	"s", then IsAre inserts either "is a" or "is an" between the
+	second and third strings, depending on whether the third
+	string begins with a vowel or not. If the second string is not
+	empty, then IsAre inserts either "is" or "are" between the
+	first and second strings. IsAre also inserts all needed
+	spaces between strings.
+    Pluralize - attempts to pluralize the string passed
+
+Even with these functions, it is often not possible to generate proper
+output in all cases. Sometimes the scenario programmer will put up
+with bad output, and sometimes he will re-arrange things so that
+different phrasing, with correct grammar, can be used. The important
+thing is to avoid obvious errors, and to show that some care has been
+taken in producing output.
+
+
+Effects
+
+
+The term "effects" in AmigaMUD refers to a variety of output events
+that occur in the MUD client program, but which are governed by
+scenario code running in the MUDServ server program. Simple text
+output is not considered to be an effect. Effects include graphics
+output, sound output, voice output, music output (not yet supported),
+icon displaying and mouse-button displaying and definition.
+
+These various effects are implemented via a simple interpreter built
+in to the MUD program. The interpreter has an 'if' construct (although
+there is only one thing that can be tested), and can do subroutine
+calls (calls to other effect routines from a main effect routine). The
+effect routines are sent from the server to the client as a stream of
+bytes which are the "machine code" for the effects "machine", and are
+executed entirely in the MUD client, as directed by scenario code
+running in the server.
+
+The client keeps effects routines that it has been sent, unless it
+runs out of memory or the user explicitly flushes something out of the
+"effects cache" maintained by the client. The server keeps track of
+which effects routines are known by which active client program, so
+that they do not have to be transmitted unneccessarily. In addition,
+the client will not discard an effect that is called by another effect
+that it has in its cache - the upper level one must be freed first.
+This is so that once the execution of an effect routine starts in the
+client program, it cannot fail because of a missing effect routine.
+
+If the client program ever does find itself trying to execute an
+effect routine it does not know, it will simply do nothing. This can
+happen because the scenario code must explicitly define the contents
+of an effect, thus sending the definition to the client, when it sees
+that the client does not know the needed effect. In other words, it
+isn't foolproof - a buggy scenario can mess up effects so that they
+don't appear when desired.
+
+The execution of an effect routine in the client is triggered when
+scenario code in the server uses the "CallEffect" builtin when it is
+not in the middle of defining an effect routine. In the latter case,
+the "CallEffect" is an effects subroutine call to the called effect.
+The definition of an effects subroutine is started when the scenario
+code executes the "DefineEffect" builtin, and ends when a matching
+call to "EndEffect" occurs. The DefineEffect call is given an
+identifier by which the effect is known. These identifiers should all
+be unique, else effects will be messed up. The easiest way to do this
+is to use a unique-id generator routine in the scenario. The standard
+scenario has routine "NextEffectId" for this purpose.
+
+As an example, here is the definition of a simple effects routine
+which will clear the graphics screen and draw a blue box on it:
+
+private EXAMPLE_EFFECT_ID 1.
+
+private proc setupExampleEffect()void:
+
+    DefineEffect(nil, EXAMPLE_EFFECT_ID);
+    GClear(nil);
+    GSetAPen(nil, C_BLUE);
+    GAMove(nil, 100, 20);
+    GRectangle(nil, 200, 50, true);
+    EndEffect();
+corp;
+
+We can now trigger the effect using:
+
+CallEffect(nil, EXAMPLE_EFFECT_ID).
+
+The builtin routine "KnowsEffect" returns 'true' if the given active
+client knows the specified effect, thus allowing the scenario code to
+test whether or not it has to define the effect for that client. Thus,
+the sequence for defining and using an effect is usually like:
+
+private EXAMPLE_EFFECT_ID 1.
+
+private proc doExampleEffect()void:
+
+    if not KnowsEffect(nil, EXAMPLE_EFFECT_ID) then
+	DefineEffect(nil, EXAMPLE_EFFECT_ID);
+	GClear(nil);
+	GSetAPen(nil, C_BLUE);
+	GAMove(nil, 100, 20);
+	GRectangle(nil, 200, 50, true);
+	EndEffect();
+    fi;
+    CallEffect(nil, EXAMPLE_EFFECT_ID);
+corp;
+
+This will cause the effect to be executed, with it being defined
+before the execution, if needed.
+
+Note that in these examples, the 'who' parameter has always been
+'nil'. This directs the effects to the active agent, i.e. the player
+on whose behalf the code is being executed. This is the normal
+situation for effects which define scenery, etc. for locations in the
+scenario. It is possible to use the 'thing' value for some other
+active agent, and the effect will be defined and executed for that
+agent instead of for the active one. Do not try to mix agents inside
+an effect definition, however, as this can result in havoc! Also, it
+is a good idea to do all effects for a given client before moving on
+to another client, to minimize the number of separate messages that
+must be sent to the various clients. The server buffers up effects
+requests and sends as much as possible in large batches. These batches
+are flushed to the clients when the client for effects changes, or the
+processing of the original event (input line, mouse click, timer
+driven action, etc.) completes.
+
+Most effects can be considered to have taken place as soon as the
+effects routine is called. Some, however, take time to execute. This
+is the case for voice output, sound output and music output. Thus, for
+these effects, the main builtin which triggers them is given another
+identifying integer for that effect. When the effect is done (e.g. the
+speech completes, or the sound sample ends), the client will send a
+message to the server indicating that, and the server can then call an
+"effect complete" action on the character, thus notifying the scenario
+code of the completion. The scenario code can then start another such
+effect, thus having things going on continuously. Such ongoing effects
+can also be aborted by a call to "AbortEffect" in the server, which
+specifies the identifier of the ongoing affect to abort.
+
+
+The following kinds of effects are possible:
+
+    general graphics:
+	- simple drawing primitives
+	- loading of IFF ILBM backgrounds
+	- insertion of smaller IFF ILBM images
+	- overlaying of IFF ILBM brushes
+
+    sound:
+	- speech using the Amiga's "narrator.device"
+	- playing IFF 8SVX sound samples
+
+    mouse input control:
+	- control of visible "mouse buttons"
+	- control of invisible "mouse regions"
+
+    special purpose graphics:
+	- icon control
+	- cursor control
+	- colour palette control
+	- text in graphics window
+	- control and use of rectangular "tiles"
+
+The user of the MUD client program can control, via menus or function
+keys, whether or not certain types of effects are active. This
+information is available to scenario code in the server, so that
+messages for disabled effects are not sent to the client. Also, the
+scenario code can use alternative methods (such as simple text output)
+to show the user what is happening. To allow scenario code to properly
+customize effects sent to a client, a number of builtin routines are
+available to return information about the effects capabilities of the
+client (note that the standard scenario does not make use of some of
+this information):
+
+    GColours - return the number of colours the client can display
+    GCols - return the horizontal pixel width of the output area
+    GOn - query if the client is currently handling graphics
+    GPalette - query if the client has a changeable colour palette
+    GRows - return the vertical pixel height of the output area
+    GType - return the type of the client (e.g. "Amiga")
+    MOn - query if the client is currently handling music
+    QueryFile - check for a file under AmigaMUD: on the client
+    SOn - query if the client is currently handling sound
+    VOn - query if the client is currently handling voice
+
+The builtin functions for adding primitive graphics operations to an
+effect routine (or doing them right away) are:
+
+    GAMove - move drawing point to a given absolute position
+    GCircle - draw an outline or filled circle
+    GClear - clear the graphics area to pen 0
+    GEllipse - draw an outline or filled ellipse
+    GPixel - set a single pixel
+    GPolygonEnd - end the drawing of a polygon
+    GPolygonStart - start the drawing of a polygon
+    GRDraw - draw a line in a relative direction
+    GRectangle - draw an outline or filled rectangle
+    GRMove - move drawing point in a relative direction
+
+Note that the clipping of circles and ellipses is not very good in the
+MUD client, so make sure all of them are within the graphics window.
+The capabilities of the polygon drawing are limited to those of the
+Amiga's AreaXXX calls. On most display devices used with Amiga's, the
+aspect ratio of the image is not square, so that a circle appears as
+an ellipse.
+
+The following miscellaneous effects routines are often used with
+simple graphics effects, but can be used in other circumstances as
+well:
+
+    GResetColours - reset graphics palette to the default
+    GScrollRectangle - scroll a rectangle of the graphics area
+    GSetColour - define one colour of the graphics palette
+    GSetPen - select the active graphics pen
+
+
+Builtins for dealing with IFF ILBM files (which must exist on the
+client machine, not on the server) are:
+
+    GLoadBackGround - load and display a background image
+    GSetImage - set a default image
+    GShowBrush - overlay a brush onto the current graphics
+    GShowImage - display a rectangular piece of an image
+
+Loading a background replaces the graphics area with the background
+image loaded from a file. The image is clipped to fit within the
+display area, and any display area not covered by the image is left
+unchanged. If the IFF file contains a colour palette, then that
+palette will replace the active pallete used for the graphics screen.
+Note that the this can make the pointer and the mouse buttons look
+awful, so care should be used in choosing palletes for backgrounds.
+The name of a background is just a file name, which will be evaluated
+relative to "AmigaMUD:BackGrounds/" on the client machine.
+
+GSetImage is used to set a default image. If GShowImage is given an
+empty string as the name of the image file to use, then it will use
+the default image instead. This is useful when a single IFF ILBM file
+contains several smaller images which are to be pieced together to
+create an entire picture. Images are clipped against both the display
+area and the image in the file. Any palette stored with an image file
+is ignored. Image names are relative to "AmigaMUD:Images/".
+
+Brushes are clipped against the display area. Any pallete in a brush
+file is ignored. Brushes can have either an explicit stored mask
+plane, or can have a transparent colour indicated. If they have
+neither (i.e. aren't brushes), then they will be blitted rectangularly
+into the window, just like images are. Brush names are relative to
+"AmigaMUD:Brushes/".
+
+The MUD program caches IFF ILBM files in memory, so that they can be
+referenced repeatedly without disk I/O. This caching takes place in
+the Amiga's "chip" memory, so that the images can be accessed quickly.
+The current set of cached files, of various kinds, can be displayed
+with a menu item in the MUD program.
+
+
+Builtins for dealing with sound and voice output are:
+
+    SPlaySound - start playing an IFF 8SVX sound sample
+    SVolume - set the overall volume for sound playback
+    VNarrate - narrate a set of phonemes
+    VParams - set the overall voice output parameters
+    VReset - reset the voice parameters to default values
+    VSpeak - speak some English text
+    VTranslate - translate English text to phonemes (this is not
+	really an effects routine, since it executes entirely in the
+	AmigaMUD server)
+    VVolume - set the overall volume for speech output
+    AbortEffect - cancel an ongoing effect (sound, speech, music)
+
+Sound samples names are relative to "AmigaMUD:Sounds/" on the client
+machine. If SMUS music is supported, it will be relative to
+"AmigaMUD:Music/" with instruments from "AmigaMUD:Instruments/".
+
+
+Builtins for dealing with "mouse buttons" and "mouse regions" are:
+
+    AddButton - add a mouse button to the user's graphics window
+    AddRegion - add a mouse region to the user's client
+    ClearButtons - remove all mouse buttons from the client
+    ClearRegions - remove all mouse regions from the client
+    EraseButton - erase a given button from the client
+    EraseRegion - erase a given region from the client
+    SetButtonPen - set a pen to use when drawing mouse buttons
+
+Note that none of these routines takes an agent as a parameter - they
+all operate only on the active agent. A "mouse button" is a
+rectangular "button" drawn on the graphics screen. It usually contains
+a small amount of text. The user can click on the button with the left
+mouse button, and trigger actions within the MUD. A "mouse region" is
+similar to a button, except that it is an invisible rectangular region
+that the user can click in. The icon editor in the Beauty Shop is a
+mouse region.
+
+Each button or region has an identifier (an integer), that is supplied
+when it is created. When the user clicks on a mouse button, the
+"button handler" routine associated with the character is called, with
+that identifier as a parameter. If there is no button handler attached
+to the character, then the clicks are ignored. The handler can do what
+it wants - in the standard scenario the standard movement buttons echo
+and execute a movement or "look around" command. When the user clicks
+within a mouse region, the character's "mouse down" handler is called,
+with the identifier of the region, and the relative offset of the
+click within the region. If mouse regions overlap, and the mouse is
+clicked in an overlap area, then the region with the lowest identifier
+is selected and reported. The standard scenario uses a mouse region
+with identifier 1000 over the entire left-half of the graphics window.
+This is used to implement movement by clicking relative to the
+character cursor.
+
+
+The following effects functions deal with the character cursor:
+
+    PlaceCursor - display the cursor at the indicated position
+    RemoveCursor - remove the cursor from the display
+    SetCursorPattern - set the pattern for the cursor
+    SetCursorPen - set which pen to draw the cursor with
+
+The "character cursor" is a small one-colour bitmap that the MUD
+client program can display to represent the location of the active
+character within an overhead-view map area. Conceptually, this cursor
+is the top-most of the graphics items, so it will appear "over" the
+background image and any icons. The MUD program keeps track of the
+graphics "behind" the cursor, so that the cursor can be moved (taken
+away and put back elsewhere) without having to redraw the entire
+image. The cursor can be up to 16 pixels hight and 16 pixels wide,
+just like icons. The default cursor in MUD is a large cross. The
+standard scenario has been set up assuming a used cursor size of seven
+pixels by seven pixels. A scenario does not have to use a cursor - it
+is only present when requested by the scenario. It would be possible
+to use brushes as a cursor, but the background behind them is not
+automatically saved, so redrawing would be necessary when moving it.
+
+
+The following builtins deal with icons:
+
+    GDeleteIcon - delete an icon from a MUD client
+    GNewIcon - specify a new icon pattern for a character
+    GRedrawIcons - redraw the current set of icons
+    GRemoveIcon - undraw a single icon
+    GResetIcons - clear the set of icons
+    GSetIconPen - set the colour to draw icons with
+    GShowIcon - add an icon to a client
+    GUndrawIcons - undraw all icons from the client
+
+"Icons" are similar to the cursor in that they are 16 x 16 single-
+colour patterns that are maintained by the MUD program. Conceptually,
+they are behind the cursor, but in front of the main graphics. Like
+the cursor, MUD saves the background imagery behind icons, so they can
+be removed from the display without having to redraw the picture.
+Unlike the cursor, the scenario does not have any control over the
+placement of icons. MUD will place the first one in the top-left
+corner of the graphics screen, the next one to the right of that, etc.
+Since the graphics area is 320 pixels wide and 100 pixels high, there
+is room for 320/16 times 100/16 = 20 times 6 = 120 icons in the
+display. Icons beyond that number are silently ignored. Empty icon
+slots are reused first, so most icons will appear in the top-left
+corner of the display.
+
+The standard scenario uses icons to represent other characters, both
+player characters and non-player characters, in the same room as the
+player. Players can edit their own icon (which does not show up on
+their display) in the Beauty Shop, just as they can edit their cursor.
+When a character moves from one room to another, that character's icon
+should be removed from the displays of all players in the first room
+and added to the displays of all players in the second room. Thus, the
+various icon calls all take a 'who' parameter to make this easier to
+code in the scenario.
+
+When a player moves from one room to another, the set of visible icons
+must be replaced. Thus, GResetIcons is available to reset MUD's idea
+of which icons are visible, without having to actually erase them.
+Sometimes the graphics imagery for the room needs to be changed,
+without the player leaving the room. GRedrawIcons can be used to
+redraw the current set of icons over a new background. GUndrawIcons
+can be used to undraw the full set, thus allowing a small change to be
+made in the background image, then followed by GRedrawIcons.
+
+The pattern for an icon is obtained by MUDServ from the thing for the
+character whose icon is to be displayed. Thus, property "p_pIcon",
+like "p_pName" is predefined in an empty database, and the scenario
+coder should use GNewIcon to change the value of a character's icon,
+rather than assigning directly to that property. Another reason for
+using GNewIcon is that it will immediately send the new definition of
+the icon to any MUDs that have it cached, and those MUDs will
+immediately display the new icon.
+
+
+Text can be displayed in the graphics area using:
+
+    GSetTextColour - set the colour to draw text in
+    GText - draw a text string at the current position
+
+
+"Tile" graphics are supported by the AmigaMUD system, even though the
+first release of the standard scenario does not use them. The
+available calls are:
+
+    GDefineTile - define the appearance and size of a tile
+    GDisplayTile - display the given tile at the current position
+
+Tile graphics is a way to show a more detailed overhead view image
+without having to create and save a huge image of the entire map area.
+The map is divided into many small rectangles, or tiles, which are
+displayed from a fixed set of such tiles. If the tiles are designed
+carefully, the effect is that of a large hand-drawn image. Usually,
+the map area is much larger than can be displayed in the graphics
+view, so when the player nears the edge of the visible portion, the
+display is scrolled, and a new set of tiles is drawn in the exposed
+space. Smooth scrolling does the scrolling one pixel at a time instead
+of one tile at a time. AmigaMUD does not directly support smooth
+scrolling.
+
+Here is a complete source file which shows a small, non-scrolling
+example of displaying tiles:
+
+    private t_tiles CreateTable().
+    use t_tiles
+
+    define t_tiles TILE_WIDTH 32.
+    define t_tiles TILE_HEIGHT 20.
+
+    define t_tiles TILES_WIDTH 5.
+    define t_tiles TILES_HEIGHT 5.
+
+    source st:/tiles/town.tile
+    source st:/tiles/trees.tile
+    source st:/tiles/river.tile
+
+    GDefineTile(nil, 1, TILE_WIDTH, TILE_HEIGHT, makeTownTile()).
+    GDefineTile(nil, 2, TILE_WIDTH, TILE_HEIGHT, makeTreesTile()).
+    GDefineTile(nil, 3, TILE_WIDTH, TILE_HEIGHT, makeRiverTile()).
+
+    define t_tiles proc makeTerrain()list int:
+	list int terrain;
+	int row, col;
+
+	terrain := CreateIntArray(TILES_WIDTH * TILES_HEIGHT);
+	for row from 0 upto TILES_HEIGHT - 1 do
+	    terrain[row * TILES_WIDTH] := 3;
+	    for col from 1 upto TILES_WIDTH - 1 do
+		terrain[row * TILES_WIDTH + col] := 2;
+	    od;
+	od;
+	terrain[2] := 1;
+	terrain
+    corp;
+
+    define t_tiles TileThing CreateThing(nil).
+    define t_tiles TileProp CreateIntListProp().
+    TileThing@TileProp := makeTerrain().
+
+    define t_tiles proc drawTiles()void:
+	list int terrain;
+	int row, col;
+
+	terrain := TileThing@TileProp;
+	GAMove(nil, 0, 0);
+	for row from 0 upto TILES_HEIGHT - 1 do
+	    for col from 0 upto TILES_WIDTH - 1 do
+		GDisplayTile(nil, terrain[row * TILES_WIDTH + col]);
+		GRMove(nil, TILE_WIDTH, 0);
+	    od;
+	    GRMove(nil, - TILE_WIDTH * TILES_WIDTH, TILE_HEIGHT);
+	od;
+    corp;
+
+The '.tile' files simply define a tile as an array of ints:
+
+    define t_tiles proc makeTownTile()list int:
+	list int tile;
+
+	tile := CreateIntArray(160);
+	tile[0] := 0x1d1d1d1d;
+	tile[1] := 0x1d1d1d1d;
+	tile[2] := 0x1d1d1d1d;
+	tile[3] := 0x1d1d0301;
+	tile[4] := 0x0101031d;
+	...
+	tile[155] := 0x1d1d0301;
+	tile[156] := 0x01010303;
+	tile[157] := 0x03030303;
+	tile[158] := 0x03030303;
+	tile[159] := 0x03030303;
+	tile
+    corp;
+
+In this example, the tile definitions are all created on the server
+and sent to the client via calls to GDefineTile. The MUD client
+programs cache tile definitions just like they do icons and the
+cursor. Thus, the scenario need only send the tile definitions to the
+client once per session. Note, however, that there is no way by which
+the scenario can know if the client has seen a tile yet. Thus, the
+scenario has to keep track of that by itself. Re-sending a tile
+definition does not hurt, but is expensive in terms of communication.
+Builtin "GScrollRectangle" can be used to scroll the tile display.
+
+Another way to define tiles is to have a file containing them on the
+remote client machine. Then, calls to GSetImage/GShowImage can be used
+to piece the full view together from a single file containing a
+standard set of tiles. GDefineTile/GDisplayTile can then be used for
+special tiles, that are not part of the standard set. This was the
+original plan for the use of tiles in AmigaMUD.
+
+GDefineTile takes an array of integers as the definition of the tile.
+The array must be of size WIDTH * HEIGHT / 4, where WIDTH and HEIGHT
+are the size of the tile. This gives one byte per pixel in the tile.
+The byte gives the colour of the corresponding pixel of the tile. The
+bytes are supplied by rows, with the colour of the top-left pixel of
+the tile being the high-order byte of the first integer in the array.
+If the tile width is a multiple of 4, then hexadecimal values for the
+integers provide a somewhat readable way of defining the tiles, as in
+the above example.
+
+
+Examples of defining effects were given above. The builtin functions
+involved are:
+
+    CallEffect - call up a previously defined effect
+    DefineEffect - start the definition of an effect
+    EndEffect - end the definition of an effect
+    KnowsEffect - ask if a client knows an effect
+
+CallEffect is used to call up a previously defined effect. If the
+selected client (the MUD program) does not know an effect with the
+indicated effect-id, then it will simply do nothing. CallEffect is
+like a subroutine call of effects. It can be used from the effects
+"top-level" or from inside some other effects routine. KnowsEffect
+tells the scenario whether or not a client knows an effect. If the
+client does not know the effect, that effect should be defined for the
+client before it is called. EndEffect ends the definition of the
+effect currently being defined. It is like the "corp" to end the body
+of an AmigaMUD function.
+
+It is possible to nest the definition of effects. This can actually
+happen quite frequently. For example, the effect which draws the
+normal view of the mini-mall in the standard scenario calls on the
+effects routines for vertical, horizontal and diagonal doors. When a
+player first enters the game in the Arrivals Room, the scenario wants
+to run the effect for the mini-mall view. The client does not know
+that effect, which the scenario learns from KnowsEffect, so the
+scenario uses DefineEffect to define the mini-mall view effect. The
+definition of that effect calls scenario routines for the doors, which
+in turn check to see if the client knows the effects for the doors. A
+new client doesn't know those effects either, so the routines all
+define the effects. This happens in the middle of the definition of
+the mini-mall view. Since this is a common occurrence, and is
+difficult for the scenario to work-around, AmigaMUD was made to
+support it, by allowing nested effects definitions.
+
+
+The AmigaMUD server is single threaded. That means that it is only
+running one thread of code execution at a time. Thus, it should never
+wait for something to happen in a client, since whatever it is waiting
+for could take a long time, especially if it has to wait for the user.
+Hand-drawn graphics are usually nicer than the kind of graphics that
+can be drawn using effects. So, it is desireable that a scenario call
+up that kind of graphics, from files on the client machine, rather
+than use pictures drawn via effects calls. However, if the client
+machine does not have the needed bitmap image, the drawn effect should
+be displayed. This decision can only be made on the client machine. To
+avoid having the AmigaMUD server wait for the answer to that question
+from a client, the result of that question must also be executed on
+the client. This means that the effects interpreting code in the
+clients needs to be able to support conditional execution of effects.
+Currently this conditional execution is very limited. The builtin
+functions involved are:
+
+    Else - flip the conditional execution of effects
+    FailText - display text along with the name of the missing file
+    Fi - end a conditional effects section
+    IfFound - start a conditional effects section
+
+IfFound is the effect that is the condition test. It tests the "found"
+flag, which is set in the client by the GLoadBackGround, GSetImage,
+GShowImage, GShowBrush, SPlaySound, and MPlaySong effects requests.
+These requests all specify the name of a file to be accessed. If the
+file is found on the client, then the "found" flag is set, else that
+flag is cleared. IfFound tells the client to execute the following
+effects requests only if the file was found. The Else effect tells the
+client to reverse the current value of the "found" flag. Thus, if the
+client was currently executing effects, it will stop doing so, and if
+it was not executing effects it will start doing so. The Fi effect
+marks the end of the conditional effect section - effects will always
+be enabled after the Fi effect. Thus, the normal structure of
+conditional effects is like this:
+
+    GSetImage(client, "file-name");
+    IfFound(client);
+	GShowImage(client, "", iX, iY, iW, iH, dX, dY);
+    Else(client)
+	/* effects code to approximate the image */
+    Fi(client);
+
+or
+
+    SPlaySound(client, "file-name", effectId);
+    IfFound(client);
+    Else(client);
+	FailText(client, "text message describing the sound");
+    Fi(client);
+
+Either the image is shown (the empty string says to use the filename
+set (and loaded) with GSetImage), or the failure string is displayed.
+FailText will include the name of the file that was not found in its
+printout, so that the player can tell what file he/she is missing.
+Note that there is no "not" in the effects condition, so in the second
+example there is nothing between the IfFound and Else calls.
+
+
+The Database
+
+
+The database in AmigaMUD, stored in files MUD.data and MUD.index,
+contains everything that is permanent about the MUD scenario: rooms,
+objects, characters, players, machines, code, text, etc. The database
+is maintained on disk, and does not have to be all in memory. Thus,
+you can run a very large database without having to have many
+megabytes of memory. The AmigaMUD server program, MUDServ, maintains a
+cache of the most recently used database items. This cache is a
+"write-back" cache. This means that changes to database items are not
+written to the disk immediately. The changes are entered into the
+database cache, and only get written to disk when the database cache
+is flushed. The database cache is flushed to disk when:
+
+    - the server is shut down
+    - the Flush builtin is called
+    - the MUDFlush program is run
+    - the cache has no room for a needed entry
+
+In the last case, entries written to disk can then be deleted from the
+cache, to make room for new entries.
+
+In actual fact, the implementation of MUDServ is quite a bit more
+complicated. There are more levels of caches that are not visible to
+the user or the scenario programmer. One example is this:
+
+    "things", "properties", etc. have use counts on them, which
+    indicate how many pointers to them exist in the database. This is
+    done so that database entries can be deleted when the last pointer
+    to them is removed. The sequence of actions that happens when a
+    player or machine picks an object up is something like this:
+
+	- append object to character's inventory
+	- delete object from room's contents
+
+    For a short period of time the object is on both lists. That means
+    that it's use count is one higher. Almost immediately the use
+    count goes back to what it was before. So, there really is no need
+    to write the object back to disk. MUDServ has a cache of changed
+    thing use counts, and, when flushing the database, will write to
+    the database cache any thing whose use count is different from the
+    one stored on disk. Similar caches exist for other types of
+    entries.
+
+Something to be very careful of is the fact that a reference to
+something from a local variable or function parameter does not count
+as a reference from the database. Note the order of the operations in
+the "pick up" example just above. The object is added to the inventory
+list before it is removed from the contents list. This is very
+important! If the operations are done in the other order, then if
+there are no other references to the object than the ones involved
+here, it will have no references for a short period of time. This is
+bad, since the system will conclude that the object can be freed, and
+will remove it from the database and reuse the space! If your code
+appears to corrupt the database, check that you have not let go of
+something before you are truly done with it. The reader will certainly
+want to ask why I chose to implement things this way. The answer is
+mostly one of efficiency - changing the use count all the time takes a
+lot of extra instructions in the server. I estimate that typical
+execution would slow down by a factor of two or three, and a lot of
+extra code would have to be added in order to properly make references
+from local variables and parameters count as database references.
+
+Another fairly important cache is the function cache. When functions
+are stored in the database, it is as a sequence of bytes. This is not
+the form that the interpreter understands. So, when a function needs
+to be interpreted, it must be read from the database and converted
+into the interpretable form. The server maintains a cache of functions
+in this interpretable form. When the server runs low on memory, it
+will delete non-active functions from this cache. Similar caches exist
+for tables and grammars.
+
+
+Every entry in the database must be pointed to by some other entry in
+the database, with the sole exceptions being the public table and a
+list of active machines. When a new database is created by the MUDCre
+program, it contains very little. Everything else must be explicitly
+created and pointed to by something in the database. Builtin functions
+exist to create all kinds of database entries:
+
+    CreateActionList - create a list of actions
+    CreateActionListProp - create a property of that type
+    CreateActionProp - create a property that can reference actions
+    CreateBoolProp - create a boolean property
+    CreateGrammarProp - create a property that references grammars
+    CreateIntArray - create and initialize a list of ints
+    CreateIntList - create an empty list of ints
+    CreateIntListProp - create a property of that type
+    CreateIntProp - create an int property
+    CreateStringProp - create a string property
+    CreateTable - create a new table
+    CreateTableProp - create a property that can reference tables
+    CreateThing - create a new thing
+    CreateThingList - create an empty list of things
+    CreateThingListProp - create a property of that type
+    CreateThingProp - create a property that references other things
+
+
+Lists of several types exist in AmigaMUD. In addition to the indexing
+operation that is available in the AmigaMUD programming language,
+several builtin functions deal with lists. They are "generic" in the
+sense that they work with any type of list, and, when appropriate, the
+corresponding type of element:
+
+    AddHead - insert an element onto the head of a list
+    AddTail - append an element onto the tail of a list
+    DelElement - delete an element from a list
+    FindChildOnList - search for a thing's child in a list
+    FindElement - search for an element in a list
+    FindFlagOnList - search for a flagged thing in a list
+    RemHead - remove the first element from a list
+    RemTail - remove the last element from a list
+
+
+There are also a number of builtins that deal with "things" in the
+database:
+
+    ClearThing - remove all properties from a thing
+    DescribeKey - let SysAdmin find out what a key value is
+    GetThingStatus - return the status of a thing
+    GiveThing - change the owner of a thing
+    IsAncestor - check for an ancestor of a thing
+    Mine - check the ownership of a thing
+    Owner - find the owner of a thing
+    Parent - find the parent of a thing
+    SetParent - set a new parent for a thing
+
+
+Dealing With Player Characters
+
+
+Player characters are the entities in AmigaMUD that represent players.
+They are of type 'character', which is one of the basic types in the
+system. Associated with each character are a number of functions,
+which the system will automatically call in appropriate circumstances.
+There are builtin functions to set these function on the active
+character. The builtins all return whatever function was the previous
+value (or 'nil'). Those functions are:
+
+    SetCharacterActiveAction - set the action which is called when the
+	player re-enters the game. The action is not called when the
+	player first enters the game - see SetNewCharacterAction for
+	that situation. Typically, a scenario will use this action to
+	initialize the graphics for a client, and give the client a
+	description of his/here location, who is nearby, who is in the
+	MUD, etc.
+
+    SetCharacterButtonAction - set the action which is called when the
+	player clicks on a mouse-click button. The action is passed
+	the code for the button that was clicked. The action will
+	typically echo and execute a standard command like a movement
+	command. The on-line building code in the standard scenario
+	uses many mouse-click buttons for other purposes.
+
+    SetCharacterEffectDoneAction - set the action which is called when
+	an ongoing effect (sound, voice, music) completes in the
+	client. The action is passed the type and identifier of the
+	effect which has completed.
+
+    SetCharacterIdleAction - set the action which is called when the
+	player leaves the game. This action can do things like
+	removing light from a room if the leaving player has the only
+	source of light. It will usually tell everyone in the room
+	that the player is leaving.
+
+    SetCharacterInputAction - set the action which is called when the
+	player enters an input line. Input lines are usually commands
+	which are sent through builtin "Parse", but some special
+	processing is often done. The standard scenario checks for a
+	leading quote (") or colon (:), and handles command aliases.
+
+    SetCharacterMouseDownAction - set the action which is called when
+	the player clicks within a mouse region. The action is passed
+	the identifier for the region, and the offset of the click
+	within the region. The standard scenario uses this action to
+	handle movement when the player clicks in the left-hand
+	portion of the graphics area. Another such region is used to
+	implement the icon/cursor editor.
+
+    SetCharacterRawKeyAction - set the action which is called when the
+	player presses a numeric keypad key or the HELP key. The
+	action is passed a keycode for the key pressed. Like mouse
+	buttons, these events are usually made to trigger standard
+	movement or other commands.
+
+    SetNewCharacterAction - set the action that is executed whenever a
+	newly created character first enters the game. This action is
+	usually used to initialize the character's handlers and any
+	scenario-specific stuff. Note that when this action is called,
+	the character's "active" action will not also be called, so
+	any of the stuff that it does that is also needed here should
+	be done explicitly (or this action can directly call the
+	normal "active" action).
+
+There are circumstances when "nesting" of some of these handler
+actions is useful. For example, the icon/cursor editor sets up a
+mouse-button handler to handle the three new buttons it displays. It
+is better if it does not assume anything about what the previous
+handler was. So, when it calls SetCharacterButtonAction, it should
+record the returned value, and when it is finished, restore it. Also,
+unless the icon/cursor editor code removes the standard movement
+buttons, the player can still click on them. The code could chose to
+ignore such clicks, but can also simply pass them on to the previous
+routine, which it has saved away. If that previous routine is not the
+standard movement one, it can do the same thing, resulting in a whole
+stack of actions, one of which should understand the mouse click. How
+this sort of thing is handled depends on what the scenario writer
+wants to do.
+
+Another important use of nesting is that of single-occupancy areas.
+If, for example, a player is in Questor's Office when he/she exits the
+game, it is not good to leave the office locked when there really
+isn't anyone inside it. So, the standard scenario moves the player out
+of the office to the street. This is done by having a nested "idle"
+action. It resets Questor (which is also done when the player leaves
+Questor's Office normally), moves the player outside, resets the idle
+action, and calls the newly reset idle action (if any). The nesting of
+the idle action is done when the player enters the office, by having a
+checker action on the room/direction that leads to the office.
+
+Such complexities can happen in other cases as well. For example, if
+the player walks out of the Beauty Shop while in the middle of editing
+his/her cursor, what should happen, and how is it achieved? The
+interested player might want to study that code and to experiment to
+see what it does.
+
+There are a number of other builtin functions that deal with player
+characters:
+
+    BootClient - force the player off, politely
+    CanEdit - can the client do editing?
+    ChangeName - change the player name
+    Character - return the character of the thing
+    CharacterLocation - return the location of the character
+    CharacterTable - return the private table of the character
+    CharacterThing - return the main "thing" of the character
+    ClientVersion - return the version of the client program
+    CreateCharacter - create a new player character
+    DestroyCharacter - destroy a player character
+    IsApprentice - is the player an apprentice?
+    IsNormal - is the player normal (not apprentice or wizard)?
+    IsProgrammer - is the player an apprentice or wizard?
+    IsWizard - is the player a wizard?
+    MakeApprentice - make the player an apprentice
+    MakeNormal - make the player normal
+    MakeWizard - make the player a wizard
+    NukeClient - force the player off, impolitely (and dangerously)
+    SetCharacterLocation - move a character (also SetLocation)
+    ThingCharacter - return the character associated with a thing
+
+
+Dealing With Machines
+
+
+Machines are the method used in AmigaMUD to cause events to happen
+independent of any player character. Machines can have icons and
+appear in rooms just like player characters can. They can speak,
+whisper, hear, move around, pick things up, etc. Together, players and
+machines are referred to as "agents". The builtin functions discussed
+above under "Dealing With Player Characters" do not apply to machines.
+There are specific functions for dealing with machines, and there are
+a set of functions that work with any agent. The latter ability is
+quite important, as it allows a lot of scenario code to not care
+whether it is executing on behalf of a player or a machine.
+
+Machines are created using "CreateMachine". It takes a thing, which
+will become the main thing for the machine just like player characters
+have a main thing which hold their properties. It also takes a second
+thing which is the room to create the machine in, and an action to
+execute on behalf of the new machine to start the machine running.
+Note that CreateMachine creates a new data structure for the machine,
+which is stored in the database and manipulated by the server, but the
+new structure is not visible to scenario programmers other than
+through a few specific builtin functions. Those functions are:
+
+    CreateMachine - create and start a new machine
+
+    DestroyMachine - destroy a machine
+
+    FindMachineIndexed - globally find a machine
+
+    SetMachineActive - set the action which the system will call
+	automatically whenever the server is restarted. This allows
+	the machine to start itself going again.
+
+    SetMachineIdle - set the action which the system will call when
+	the server is shutting down. This allows the machine to
+	properly save its state and prepare for restart.
+
+    SetMachineOther - set the action which the system will call when
+	any message is sent to the room the machine is in using any of
+	'OPrint', 'ABPrint', 'Pose' or 'Say'. The string so sent is
+	passed as an argument to this routine. This facility is fairly
+	powerful, and allows machines to participate in nearly all
+	activities. However, this power is easy to misuse. The
+	activities this routine sets up can be expensive, so try not
+	to use it unless absolutely necessary. For example, the
+	standard scenario has more specific, hence cheaper, ways of
+	watching who enters and leaves a room. Also, beware of setting
+	up an infinite recusive loop using this facility.
+
+    SetMachinePose - set the action which the system will call
+	whenever any agent in the same room as the machine does a pose
+	using the "Pose" builtin. The action is passed the entire pose
+	message, so the machine will usually want to split off the
+	name of the agent doing the pose by using SetTail/GetWord.
+
+    SetMachineSay - set the action which the system will call whenever
+	any agent in the same room as the machine speaks out loud. The
+	action is passed the entire speech message, so it will want to
+	use SetSay to split it up.
+
+    SetMachineWhisperMe - set the action which the system will call
+	whenever any agent in the same room as the machine whispers
+	specifically to the machine. The action is passed the full
+	whisper message, and so will want to use builtin SetWhisperMe
+	to split it up.
+
+    SetMachineWhisperOther - set the action which the system will call
+	if the machine overhears someone in the same room whispering
+	to someone else. The action is passed the full whisper
+	message, and so will want to use builtin SetWhisperOther to
+	split it up.
+
+When machines execute, they have the access rights of the player who
+created them. So, a player can create a machine that can access things
+which other players cannot.
+
+The standard scenario has five special machines: Packrat, Caretaker,
+Postman, Questor and the rock-pile. More generic machines are used for
+monsters in the Proving Grounds. Some of those monsters have special
+capabilities that others do not. The main difference here is that the
+special machines always exist, but the others are created and
+destroyed in response to player (other other machine!) actions. See
+file "Scenario.txt" for more details on how machines are handled
+there. Here is an example of a simple machine that wanders randomly
+and minimally interacts with other agents:
+
+    /* grab some stuff from the scenario: */
+    use t_util
+
+    /* a new table to put new symbols in: */
+    private tp_frog CreateTable().
+    use tp_frog
+
+    /* the routine which Frog executes on each "step": */
+    define tp_frog proc frogStep()void:
+	int direction;
+
+	if not ClientsActive() then
+	    After(60, frogStep);
+	else
+	    direction := Random(12);
+	    if TryToMove(direction) then
+		MachineMove(direction);
+	    fi;
+	    After(10 + Random(10), frogStep);
+	fi;
+    corp;
+
+    /* the routine used to start up Frog */
+    define tp_frog proc frogStart()void:
+
+	After(10, frogStep);
+    corp;
+
+    /* the routine used to restart Frog: */
+    define tp_frog proc frogRestart()void:
+
+	After(10, frogStep);
+    corp;
+
+    /* the routine to handle Frog overhearing normal speech */
+    define tp_frog proc frogHear(string what)void:
+	string speaker, word;
+
+	speaker := SetSay(what);
+	/* Frog croaks if he hears his name */
+	while
+	    word := GetWord();
+	    word ~= ""
+	do
+	    if word == "Frog" then
+		DoSay("Croak!");
+	    fi;
+	od;
+    corp;
+
+    /* the routine to handle someone whispering to Frog: */
+    define tp_frog proc frogWhispered(string what)void:
+	string whisperer, word;
+
+	whisperer := SetWhisperMe(what);
+	/* Frog ribbets if he is whispered his name */
+	while
+	    word := GetWord();
+	    word ~= ""
+	do
+	    if word == "Frog" then
+		DoSay("Ribbet!");
+	    fi;
+	od;
+    corp;
+
+    /* the routine to handle Frog overhearing a whisper: */
+    define tp_frog proc frogOverhear(string what)void:
+	string whisperer, whisperedTo, word;
+
+	whisperer := SetWhisperOther(what);
+	whisperedTo := GetWord();
+	/* Frog simply blabs out loud whatever he overhears. */
+	DoSay(whisperer + " whispered to " + whisperedTo + ": " + GetTail());
+    corp;
+
+    /* the routine to see someone doing a pose: */
+    define tp_frog proc frogSaw(string what)void:
+	string poser, word;
+
+	SetTail(what);
+	poser := GetWord();
+	/* Frog gets excited if you reference him in a pose. */
+	while
+	    word := GetWord();
+	    word ~= ""
+	do
+	    if word == "Frog" then
+		Pose("", "jumps up and down excitedly.");
+	    fi;
+	od;
+    corp;
+
+    /* the function to create the Frog: */
+    define tp_frog proc createFrog(thing where)void:
+	thing frog;
+
+	frog := CreateThing(nil);
+	frog@p_pDesc := "Frog is just a plain old frog.");
+	frog@p_pStandard := true;
+	SetupMachine(frog);
+	CreateMachine("Frog", frog, where, frogStart);
+	ignore SetMachineActive(frog, frogRestart);
+	ignore SetMachineSay(frog, frogHear);
+	ignore SetMachineWhisperMe(frog, frogWhispered);
+	ignore SetMachineWhisperOther(frog, frogOverhear);
+	ignore SetMachinePose(frog, frogSaw);
+    corp;
+
+    /* create Frog and start him up: */
+    createFrog(Here()).
+
+This code calls functions "TryToMove", "MachineMove" and "DoSay" from
+the standard scenario. They are used so that this Frog machine will
+operate correctly within that scenario. In 'createFrog', Frog is given
+a description, and is set to be "standard". This simply means that no
+"the" or "a" will be used in front of his name, since I chose to make
+his name, "Frog" be a proper name. "SetupMachine" sets up his (empty)
+inventory list, etc. The code here does not reference anything else
+from the standard scenario. CreateMachine will have attached "Frog" as
+his p_pName. Because Frog just moves in a random direction, he can
+take a while to get out of rooms that have only one exit.
+
+
+Dealing With Agents in General
+
+
+As mentioned above, an agent is either a player character or a
+machine. All agents have a current location (or 'nil' if they are not
+in any room), and can ask the system to execute actions on their
+behalf at a later time. Some builtins and some scenario code is setup
+so that it assumes it is executing on behalf of the agent that it is
+affecting. Sometimes it becomes necessary to make an agent execute
+such code, even though that agent is not currently active. The
+"ForceAction" builtin is provided for that purpose. It temporarily
+switches identity to that of the agent to be forced, and then executes
+the action passed. After the action is complete, the identity will be
+switched back to that of the agent who ran ForceAction. Note that this
+kind of thing can be nested, so the scenario programmer must be
+careful to not accidentally cause infinite nesting.
+
+There are a number of basic builtins for dealing with agents:
+
+    After - trigger an action to happen in the future
+    AgentLocation - return the location of the specified agent
+    ForceAction - force an agent to execute an action
+    ForEachAgent - execute an action for each agent in a room
+    ForEachClient - execute an action for each active client
+    Here - return the location of the active agent
+    Pose - have the active agent do a pose
+    Say - have the active agent speak out loud
+    SetAgentLocation - move the specified agent to a room
+    SetLocation - move the active agent to a room
+    Whisper - have the active agent whisper to another
+    FindAgent - find an agent by name in the current room
+    FindAgentAt - find an agent by name in some other room
+
+Sometimes a scenario needs to find an agent matching some kind of
+specification. For example, when trying to determine if the current
+room is dark or not, the scenario wants to see if any agent in the
+room is glowing, or is carrying something that is glowing. This kind
+of search can be done using some global variables (properties on some
+fixed thing) and ForEachAgent. Such a search can be expensive,
+however, so AmigaMUD provides a number of builtin functions that can
+perform some searches more efficiently.
+
+    FindAgentAsChild - find an agent with a given parent
+    FindAgentAsDescendant - find an agent with a given ancestor
+    FindAgentWithChildOnList - e.g. find agent carrying something
+    FindAgentWithFlag - find an agent with a flag set
+    FindAgentWithFlagOnList - e.g. find agent carrying glowing object
+    FindAgentWithNameOnList - e.g. find agent carrying an "xxxx"
+
+
+Symbol Functions
+
+
+Tables in AmigaMUD are usually only needed by advanced scenario
+programmers. For example, the standard scenario uses them in the build
+code. The relevant builtin functions are:
+
+    DefineAction - enter an action into a table
+    DefineCounter - enter an int property into a table
+    DefineFlag - enter a bool property into a table
+    DefineString - enter a string property into a table
+    DefineTable - enter a table into a table
+    DefineThing - enter a thing into a table
+    DeleteSymbol - delete a symbol from a table
+    DescribeSymbol - describe a symbol in a table
+    FindActionSymbol - find a symbol for an action
+    FindThingSymbol - find a symbol for a thing
+    IsDefined - test if a symbol is defined in a table
+    LookupAction - look up an action symbol
+    LookupCounter - look up an int property symbol
+    LookupFlag - look up a bool property symbol
+    LookupString - look up a string property symbol
+    LookupTable - look up a table in another table
+    LookupThing - look up a thing in a table
+    MoveSymbol - move a symbol from one table to another
+    RenameSymbol - rename a symbol in a table
+    ScanTable - call a function for each symbol in a table
+    ShowTable - show the symbols in a table
+    UnUseTable - remove a table from the "in use" list
+    UseTable - add a table to the "in use" list
+
+
+Security Issues
+
+
+Security is an odd thing to worry about in a game, but there are some
+aspects of security that arise in a game like AmigaMUD. The first
+aspect is that of the security of the system running the server. The
+builtin function "Execute" allows any arbitrary string to be executed
+as an AmigaDOS command. This can be quite dangerous if not protected
+properly. Second, the system should allow one wizard or apprentice to
+protect his internal structures and properties from tampering by other
+wizards or apprentices. Third, the scenario itself should be
+constructed so as to not allow "cheating". For example, there
+shouldn't be a way for a player to easily get lots of experience in
+the Proving Grounds. This can be considered to be unfair to other
+players who do not try to get around the proper methods.
+
+There is very little that can be said about the third aspect of
+security - if the scenario allows cheating, then it has a bug. The
+reader is warned that there are things in the standard scenario that
+players can take advantage of, some of which might seem quite
+surprising at first. I have fixed all of the methods that I know of
+and want fixed. I have deliberately left some very minor methods of
+cheating alone, and in one case, have carefully constructed things to
+allow something that some might consider cheating.
+
+
+The first aspect of security, that of preventing people from doing
+things like formatting the hard drive of the host system, is the most
+important. The basic protection mechanism here is that of restricting
+such functions to be only executable by the special character
+SysAdmin, or by code owned by SysAdmin. A further restriction is that
+by default the system will not allow SysAdmin to login remotely. In
+any case, the owner of a system running the AmigaMUD server should
+never give out the password to the SysAdmin character. Also, the owner
+should change SysAdmin's password to something other than the standard
+one that the system is shipped with.
+
+The person who runs the host system, and has access to SysAdmin,
+should also be quite careful with scenario code he/she writes. Such
+code, unless setup otherwise, runs with the full privileges of
+SysAdmin. This is required in cases like the usenet access code, since
+Execute is needed to call up the various UUCP commands. Be very
+careful with any code which calls Execute, or which writes to files on
+the server. Do not write and publish (by making it available in a
+table that others can "use") a function which calls Execute with its
+parameter. Do not attach such a function to things as a property whose
+name others can see. Do not add such a function to a list of functions
+that others can get at. Program defensively, and use Execute and
+FileOpenForWrite as little as possible.
+
+Some of the builtin functions in AmigaMUD can only be executed by
+SysAdmin. This is not visible by inspecting the functions, but is
+enforced at runtime by the functions themselves. The restricted
+functions are:
+
+    DescribeKey 		(real and effective)
+    SetNewCharacterAction	(real and effective)
+    SetSingleUser		(real and effective)
+    SetRemoteSysAdminOK 	(real and effective)
+    SetMachinesActive		(real and effective)
+    CreateCharacter		(effective)
+    DestroyCharacter		(effective)
+    NewCreationPassword 	(real and effective)
+    FindKey			(real and effective)
+    DumpThing			(real and effective)
+    SetContinue 		(real and effective)
+    ShutDown			(real and effective)
+    APrint			(effective)
+    FileOpenForRead		(effective)
+    FileOpenForWrite		(effective)
+    FileOpenForUpdate		(effective)
+    FileClose			(effective)
+    FileRead			(effective)
+    FileReadBinary		(effective)
+    FileWrite			(effective)
+    FileWriteBinary		(effective)
+    FileSeek			(effective)
+    Execute			(effective)
+
+The functions marked as "(real and effective)" can only be used if
+both the real and effective user are SysAdmin, i.e. only by SysAdmin
+executing at the command level or executing functions owned by
+SysAdmin. Those marked "(effective)" can be executed by anyone if they
+are in a function owned by SysAdmin which is not marked "utility" (see
+below).
+
+There are two ways in which special privileges can be given to
+characters other than SysAdmin. The most obvious is by making those
+characters wizards or apprentices. The less obvious is a feature of
+the standard scenario, where "builders" can do very limited
+programming. Within the "PlayPen" room, or any room built off of it,
+all players have builder privileges. Code built as a builder is not
+marked "utility", so it runs with only the privileges of the builder.
+Thus, it should be fairly innocuous. Also, characters who have
+temporary builder status because they are in the PlayPen cannot modify
+the global symbol table.
+
+Wizards and apprentices can write code which is marked as "utility".
+If this code is executed on behalf of SysAdmin, then it may run with
+SysAdmin's access rights. This is dangerous! So, if you are SysAdmin
+on a MUD where you have given wizard or apprentice status to players
+controlled by someone other than yourself, you should not use the
+SysAdmin character as an active character in the game. You should
+instead create another character for that purpose.
+
+In general, character SysAdmin should only be used for maintaining an
+active MUD, and not as a participating character. During stand-alone
+development of a scenario, using SysAdmin for testing is often quite
+convenient, but testing should also be done with normal characters, to
+make sure that the code works properly for them.
+
+The way for a wizard or apprentice to protect their code and data
+structures from others is to not make them visible to others. A
+function in your private symbol table, or in a table within your
+private symbol table, is not visible to others unless you do something
+to make it so. The same is true for properties. Note that there are no
+functions in AmigaMUD that allow you to retrieve the property itself
+from a thing. You can only modify or retrieve the value of a property
+from a thing if you have access to the property itself. Thus, if you
+never make the name of a property publically available, no-one other
+than yourself (and SysAdmin) can see or change the values of that
+property on things it gets attached to. They can know that a given
+thing has properties that they cannot see, but that is all. This can
+be seen by logging on as a wizard or apprentice and dumping out your
+character's thing (using the "describe" wizard-mode command), while
+changing the set of tables "in use".
+
+When defining a function, you can specify either or both of "public"
+and "utility" between the "proc" and the name of the function. If you
+make a function "public" in this way, then its definition can be seen
+by others using the "describe" command (or the DescribeSymbol
+builtin function). If you do not make the function "public", then
+others can only see its header.
+
+When a function is called in AmigaMUD, the system will normally change
+the active access rights to those of the owner of the function. This
+allows the function to retrieve and modify properties from things
+owned by the owner of the function. When the function returns, the
+access rights are reset to what they were before the function was
+called. This access rights changing is done in a fully nested way, for
+as many function calls as are needed. If a function is marked as
+"utility", then the access rights are not changed when the function is
+called. This allows programmers to write functions that have no more
+access than the player (or the function calling their functions) would
+normally have. As an example, the input parser in the standard
+scenario is "utility", as are most of the functions that implement the
+build facility. This is done so that when objects and properties are
+created by the build code, they belong to the active player, and not
+to SysAdmin. In some cases (e.g. objects), things are explicitly given
+to SysAdmin (using "GiveThing"), so that they can be accessed properly
+by other players. There isn't much point in going to a lot of work to
+create something if no other player can appreciate it!
+
+The AmigaMUD server maintains two sets of owner and status variables.
+One is the "real" value, and one is the "effective" value. The
+"effective" values are the ones changed when a non-"utility" function
+is executed. The "real" values are unchanged. The differences between
+the two include those mentioned above relating to builtins that can
+only be executed by SysAdmin. The builtin "Me" returns the "real"
+user. Builtin "Mine" tests against the "effective" player. When
+properties and things, etc. are created they are owned by the
+"effective" player. Access checks are done against the "effective"
+player also.
+
+Wizards and apprentices should be careful with the idea of making
+things secure, however. A violation of security will result in the
+abortion of execution. So, a normal player using an object, room, or
+whatever, in the the normal way, should not get any security
+violations. In effect this simply means that you should test all of
+your creations with some other normal character.
+
+
+Each thing in the database has a status, which governs who can
+retrieve and modify the properties on it (assuming they have access to
+some name for the properties themselves). These modes, also discussed
+elsewhere, are:
+
+    ts_public - anyone can retrieve or modify properties. A surprising
+	number of things have to have this full access in AmigaMUD.
+	For example, all objects should be owned by SysAdmin and have
+	status ts_public. All characters have status ts_public. This
+	is needed so that scenario code written by someone other than
+	SysAdmin can have an effect on objects and characters. There
+	would be little point to the game if this were not so!
+
+    ts_private - only the owner of a thing can retrieve or modify
+	properties on the object. This status is only needed if you
+	need to make a thing public, but you don't want others to be
+	able to mess with it. Normally, you would make a thing private
+	by simply not letting anyone else get a pointer to it.
+
+    ts_readonly - only the owner of a thing can change it, but
+	everyone can retrieve properties from it. This is useful when
+	you want to provide a standard object or set of properties to
+	others, but you don't want them able to mess it up. For
+	example, the standard rooms, "r_indoors", "r_outdoors", etc.
+	are set this way in the standard scenario.
+
+    ts_wizard - an object which is ts_wizard can have its properties
+	retrieved by anyone, but only full wizards can change the
+	properties. This provides an intermediate level of safety, by
+	assuming that only experienced AmigaMUD programmers (or the
+	owner of the system!) are full wizards, and are thus less
+	likely to mess things up.
+
+
+There are three classes of character in AmigaMUD: normal, apprentice
+and wizard. Normal characters cannot enter wizard mode, and so cannot
+normally write AmigaMUD programs or define properties, etc. The build
+code in the standard scenario allows anyone to produce simple
+functions, define some properties, etc. in a controlled way. This is
+enabled by setting the "p_pBuilder" flag on the character. However,
+everyone is enabled for building inside the PlayPen room, or in any
+room which is built by someone in a playpen room.
+
+The concept of an apprentice was added at the insistence of a friend
+(who has yet to do anything significant with AmigaMUD!) The intent
+of what I implemented is to provide programming access to more people,
+while providing other players with some protection from the "errors"
+that apprentices might make. A number of builtin functions cannot be
+used in functions written by apprentices. The choice of these has been
+quite arbitrary, and I am open to reasons for changing the set. The
+current set is:
+
+    ChangeName
+    Log
+    NewCharacterPassword
+    SetAgentLocation
+    SetCharacterActiveAction
+    SetCharacterButtonAction
+    SetCharacterEffectDoneAction
+    SetCharacterIdleAction
+    SetCharacterInputAction
+    SetCharacterMouseDownAction
+    SetCharacterRawKeyAction
+    SetIndent
+    SetLocation
+    SetPrompt
+    TextHeight
+    TextWidth
+    Trace
+
+Some of the locations in the more important parts of the standard
+scenario have been set to ts_wizard. This means that full wizards can
+build from them, but apprentices can't.
+
+
+One of the "games" that people play in some MUDs is to create output
+that looks the same as normal output from normal commands, in an
+attempt to fool other players into thinking things are happening that
+in fact are not. In AmigaMUD, I have tried to not let this happen
+unless the victim allows it. Any output line which contains text which
+is produced by a function owned by an apprentice will be prefixed by
+an "@", thus warning the player that something might be suspicious.
+The player can disable these warnings.
+
+
+When players are created, they are normal. Only a wizard or apprentice
+can promote a player, and an apprentice can only promote a player to
+apprentice status. The system remembers who promoted a player, and
+this can be seen when the character is displayed. Similarly, only
+SysAdmin can demote players. Thus, since SysAdmin is initially the
+only non-normal player, SysAdmin has control over who can program in
+the MUD.
+
+
+Efficiency Considerations
+
+
+The AmigaMUD programming language is an interpreter. This means that
+it will not execute as fast as compiled or assembled code. It is
+reasonably efficient, however, so executing a couple hundred lines of
+code in response to an input command is not a problem. There are a few
+things that should be taken into consideration when writing AmigaMUD
+code, so as to keep things as efficient as possible.
+
+The first thing to do is to try to avoid doing things more than once
+when once is enough. This rule will make just about any program more
+efficient, regardless of what language it is written in. In a system
+like AmigaMUD, where some operations are quite a bit more expensive
+than others, the rule is more important if expensive operations are
+being repeated. For example, if you want to get some numbers from
+strings and operate on them, it is much more efficient to use builtin
+functions to get the numbers, and then operate on them as int values,
+than to operate on them using the more expensive string operations.
+
+Two operations in AmigaMUD are expensive. The first is database
+accesses. Even though the database is cached, and subsequent fetches
+of a given property, thing, etc. will "hit" in the cache, there is
+still a lot of server code executed to retrieve something from the
+cache. For example, instead of doing:
+
+    private p_weight CreateIntProp().
+    private p_capacity CreateIntProp().
+    ...
+    private proc tryToCarry(thing person, object)bool:
+
+	if object@p_weight > person@p_capacity then
+	    Print("There is no way you can pick that up!\n");
+	    false
+	elif person@p_weight + object@p_weight > person@p_capacity
+	then
+	    Print("You can't pick that up now.\n");
+	    false
+	else
+	    person@p_weight := person@p_weight + object@p_weight;
+	    true
+	fi
+    corp;
+
+it is more efficient (although perhaps slightly less readable) to do:
+
+    private p_weight CreateIntProp().
+    private p_capacity CreateIntProp().
+    ...
+    private proc tryToCarry(thing person, object)bool:
+	int capacity, current, objWeight;
+
+	capacity := person@p_capacity
+	current := person@p_weight;
+	objWeight := object@p_weight;
+	if objWeight > capacity then
+	    Print("There is no way you can pick that up!\n");
+	    false
+	elif current + objWeight > capacity then
+	    Print("You can't pick that up now.\n");
+	    false
+	else
+	    person@p_weight := current + objWeight;
+	    true
+	fi
+    corp;
+
+Note that the changed value must be stored back to the true property,
+of course! If a property is going to be used only once in a function,
+then it is better to not put it into a temporary variable, but if it
+is going to be used more than once, it is quicker to put it into a
+temporary variable. For a short routine that is only going to use a
+property twice, and that is called infrequently, it likely isn't worth
+the effort of making temporary variables.
+
+The second expensive operation in AmigaMUD is that of calling
+functions, either user functions or builtin functions. User functions
+are more expensive than builtin functions, however, unless the builtin
+function is one that does a lot of work, or results in messages being
+sent to one or more clients. The same technique of keeping copies of
+values in temporary variables can be used to avoid unnecessary calls
+to some builtins. The most commonly "cached" values are Me() and
+Here(), as in:
+
+    private proc doSomethingOrOther()void:
+	thing me, here, it;
+
+	me := Me();
+	here := Here();
+	it := It();
+	...
+	.. several uses of "me", "here" and "it" ..
+
+Note however, that if your function changes the value returned by one
+of these builtins, you should also change your temporary variable:
+
+    private proc blahBlahBlah()void:
+	thing me, here;
+
+	me := Me();
+	here := Here();
+	...
+	SetLocation(someDir(here));	/* changes Here() */
+	here := Here();
+	...
+    corp;
+
+Another aspect of efficiency is that of sending messages to multiple
+remote clients. There is some overhead involved in each message that
+is sent, so it is worthwhile to try to cut down on extra ones. For
+example, if you are doing something that affects the displays of
+everyone in the room, you should try to do all things for a given
+client before going on to the next one. The fact that "ForEachAgent"
+is an expensive builtin adds to the desireabilty of doing this. Keep
+in mind that the active player is a client just like any other.
+
+Some specific things to watch out for:
+
+    - avoid using a 'nil' location on ForEachAgent. Try to keep your
+	actions restricted to the agents in a given room.
+
+
+Limitations of AmigaMUD
+
+
+It would be nice to say that there are no limitations in AmigaMUD, but
+that isn't correct. Where I have had to make a choice between creating
+a limitation and creating considerable inefficiency, I have usually
+chosen to create a minor limitation. Under most circumstances, the
+limitations you will have in running AmigaMUD will be the amount of
+memory and disk space that you have available. There are a few hard,
+fixed limits, however:
+
+    thing: a maximum of 255 properties
+
+    table: a maximum of 65535 entries
+    grammar: same as table
+
+    character: limitations on the attached thing, plus
+	name is limited to 20 characters
+	password is limited to 20 characters
+    machine: same as character
+
+    proc (action): 65535 bytes of locals
+	(about 16,000 local variables and parameters)
+
+    list: a maximum of 65535 elements
+
+    database entry: 65535 bytes
+	(this restricts lists to about 16,000 elements)
+
+    database: 16 million entries
+
+    strings: limited by the code to about 4000 characters
+
+The only serious limit is that on things. The limit on lists is a
+dangerous one, since the system will not be able to handle large lists
+unless a very large cache is given to it. This is since the entire
+list (4 bytes per element) has to be in contiguous space in the cache
+(and in the database). Appending an element to such a list could
+require 2 such regions.
+
+If you have a complex quest and want to keep lots of flags and
+properties, think about this alternative: create a new thing for each
+player who enters your quest. Attach the new thing to the player as a
+single property, and store your many properties on the new thing. That
+way, you can feel free to use the full 255 properties to record the
+player's progress in your quest. Remember that your quest may not be
+the only large one in the MUD - it would be very frustrating for the
+players if entering your quest and playing around a bit made it
+impossible for them to complete other quests (or vice versa).
+
+There is a fairly serious, hidden limit. Because a given entry in the
+database cannot be more than 65535 bytes long, a given table cannot
+need more than that number of bytes in total. This includes the text
+of all entries, and 6 bytes per table entry. This is the easiest limit
+to reach accidentally. Because of this, do not let any of your source
+files get larger than the ones in the standard scenario. This also
+implies that if you add a lot to any of the larger standard scenario
+source files, you should consider splitting that file up so that it
+uses more than one table for its symbols. Putting more symbols into
+private tables is a good way to do this. In many cases, the symbols
+are in public tables simply because there is no other good reason to
+keep them private.

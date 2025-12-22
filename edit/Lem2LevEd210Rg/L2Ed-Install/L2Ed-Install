@@ -1,0 +1,1050 @@
+;--------------------------------------------------------------------------
+; $VER: Lemmings 2 Level Editor Install V1.10 (11-Jul-97).
+;
+; Copyright ©1996 Chris Hodges. All rights reserved.
+;--------------------------------------------------------------------------
+
+(delopts "force" "askuser" "nofail")
+
+;--------------------------------------------------------------------------
+; Flexible installer script! So get our installation environment.
+;--------------------------------------------------------------------------
+
+(set #allowupdate 0)
+(set #kick (/ (getversion) 65536))
+(set #keyfile (exists "L2Ed.key"))
+(set #deinstall (exists "HDLemmings2"))
+(set #lems2hd (or (exists "lems2HD.lzx") (exists "lems2HD.lha")))
+(set #home @execute-dir)
+
+;--------------------------------------------------------------------------
+; English Installer Strings
+;--------------------------------------------------------------------------
+
+(if (= @language "english")
+    (
+        (set #lang 1)
+        (set #suffix "_E")
+        (set #licence "Licence.txt")
+
+        (run ("Version >ENV:Result L2-Editor%s" #suffix) (safe))
+        (set #ed_vers (getenv "Result"))
+        (delete "ENV:Result" (safe))
+
+        (set #ioerror "An error occured during the installation, please report it to me.\n\nThanks.")
+
+        (set #intro
+            (cat
+                "Welcome to the installation program for the\n\nLemmings 2 Level Editor "
+                (if #keyfile "REGISTERED Version!" "SHAREWARE Demo!")
+                "\n\nPlease read the Licence before proceeding.\n"
+                "Continuing on the Installation means you have read and accepted the Licence conditions!\n"
+                "\nThis script supports deinstallation.\n\n"
+                "Note that the Installer which comes with the Kick 3.1 release is buggy and will not "
+                "install this software correctly!\n"
+                "Installer 1.24 is a working release.\n"
+            )
+        )
+
+        (set #beta
+            (cat
+                "This is a beta-release. I've decided to release it now, as I probably won't "
+                "have too much time to finish it. Moreover, only very few users have registered "
+                "yet, so I'm not sure if I ever gonna touch it again.\n\n"
+                "Registered users can use their old keyfiles. The Editor works well, but the new features "
+                "haven't been tested too much. The german manuals are still very incomplete."
+            )
+        )
+
+        (set #installwhere
+            (cat
+                "Please select the Lemmings 2 drawer on your drive. "
+                (if #lems2hd "The game will be installed, if not found!")
+            )
+        )
+
+        (set #installwhere_help
+            (cat
+                "Simply select the directory you have installed "
+                "Lemmings 2 into.\n\n"
+                (if #lems2hd
+                    (
+                        (cat
+                            "This script allows the installation of the original "
+                            "disks to your harddisk, if you create a new empty "
+                            "directory to install it to.\n"
+                        )
+                    ) (
+                        (cat
+                            "If you don't have got Lemmings 2 "
+                            "on your harddisk, abort the installation and "
+                            "do this first.\n\nIf you don't have got the harddisk "
+                            "version of Lemmings, have a look in the docs "
+                            "where it can be acquired.\n"
+                        )
+                    )
+                )
+            )
+        )
+
+        (set #copyeditor
+            (cat "\n"
+                "Copying main Editor file...\n\n"
+                "Version: " #ed_vers
+            )
+        )
+
+        (set #mkdocsdir "\nCreating Docs Drawer...\n")
+        (set #copydocs_v37 "\nCopying manual (V37)...\n")
+        (set #copydocs_v39 "\nCopying manual (V39)...\n")
+
+        (set #copydocs_help
+            (cat "\n"
+                "The Docs Drawer will be used for storing the manual of the Editor. "
+                "However, you may also store the guide at the following locations:\n\n"
+                "PROGDIR:\n"
+                "PROGDIR:Help\n"
+                "PROGDIR:Docs\n"
+                "HELP:\n"
+                "HELP:Guide\n"
+                "HELP:English\n"
+            )
+        )
+
+        (set #copykey "\nCopying keyfile...\n")
+
+        (set #copykey_help
+            (cat "\n"
+                "As this is a registered version of the Editor, a keyfile is supplied "
+                "to enable all features of the Editor. Normally, this keyfile is placed "
+                "in PROGDIR:. Alternative locations are:\n\n"
+                "PROGDIR:\n"
+                "S:\n"
+                "ENVARC:\n"
+                "DEVS:Keyfiles\n"
+            )
+        )
+
+        (set #makebak "\nCreating backup of Lemmings 2...\n")
+        (set #restbak "\nRestoring Lemmings 2 main file...\n")
+        (set #makebak_help
+            (cat "\n"
+                "Creating a backup of the main Lemmings file will allow "
+                "deinstallation of the Editor.\n"
+            )
+        )
+
+        (set #installl2_help
+            (cat "\n"
+                "As the game has not been found in this drawer, the "
+                "installation script will try to install the game from "
+                "the original disks and then decrunch the supplied "
+                "DMA Design HD patch.\n\n"
+                "Note that the Lemmings 2 intro will not be installed.\n\n"
+                "As all three disks have the same disk name, you have "
+                "to be careful to insert the right disk when prompted.\n"
+            )
+        )
+
+        (set #applyhdpatch "\nUnpacking DMA Design HD patch...")
+        (set #applyhdpatch_help
+            (cat "\n"
+                "The next step will unpack a patch which was supplied "
+                "by DMA Design to run Lemmings 2 from harddisk. Lemmings 2 "
+                "won't work from harddisk without this patch.\n"
+            )
+        )
+
+        (set #applypatch
+            (cat "\n"
+                "Applying patch and extracting original Worlds...\n\n"
+                "DO NOT SKIP THIS PART!\n"
+            )
+        )
+
+        (set #applypatch_help
+            (cat "\n"
+                "Installing the patch is an essential part of the installation. "
+                "The following things are done:\n"
+                "1. The Lemmings file is loaded.\n"
+                "2. The Original Worlds are saved ('Original.wld' files).\n"
+                "3. The catalog files are created ('Cat.dat' files).\n"
+                "4. For each Tribe a Levels drawer is created.\n"
+                "5. For each Tribe a Custom drawer is created.\n"
+                "6. The patches are applied to the main file.\n"
+                "7. The Lemmings file is written back.\n"
+            )
+        )
+
+        (set #installdemo "\nDo you want me to install the demo Worlds?\n")
+        (set #installdemo_help
+            (cat "\n"
+                "Installing the demo worlds will give you new levels to play with. "
+                "Each world file consumes about 7 KB.\n\n"
+                "You might need 'Update Catalogs' if you're updating from an old version.\n"
+            )
+        )
+
+        (set #installcustom "\nDo you want me to install the custom example pictures?\n")
+        (set #installcustom_help
+            (cat "\n"
+                "Starting with version 2 of the Editor, levels can be drawn using any paint package. "
+                "As the graphics have to be similar to the tribe's palette, example pictures containing "
+                "the right colours and some important object graphics have been included in this package.\n\n"
+                "Each picture file consumes about 6 KB.\n"
+            )
+        )
+
+        (set #askupdate "\nOld installation found. Update or install from scratch?\n")
+
+        (set #forceupdate
+            (cat "\n"
+                 "Old installation found. However, it will not be possible "
+                 "to update as some files have changed and need to be "
+                 "replaced nevertheless.\n"
+            )
+        )
+
+        (set #updatechoice1 "Install over old version")
+        (set #updatechoice2 "Just update...")
+        (set #update_help
+            (cat "\n"
+                "Well, it doesn't really matter what you do, both works, but "
+                "the complete installation takes a bit longer ;)\n"
+            )
+        )
+
+        (set #askl2disk1 "\nPlease insert Lemmings 2 Disk 1...")
+        (set #askl2disk2 "\nPlease insert Lemmings 2 Disk 2...")
+        (set #askl2disk3 "\nPlease insert Lemmings 2 Disk 3...")
+
+        (set #askremdisk
+            (cat "\n"
+                "Please remove the disk now.\n\n"
+                "Only click on Proceed after you have taken the Disk out!"
+            )
+        )
+
+        (set #askeddisk
+            (cat "\n"
+                "Please insert your L2Ed-Install disk back again.\n\n"
+                "Press Proceed after the drive has stopped.\n"
+            )
+        )
+
+        (set #askdeinstall
+            (cat "\n"
+                "Lemmings 2 Level Editor Installation found.\n\n"
+                "Do you want me remove the Editor again?\n"
+            )
+        )
+
+        (set #askdeinstall_help
+            (cat "\n"
+                "You can now choose to remove the Editor & Patch from you drive. "
+                "Note that the custom world files will not be deleted. "
+                "The unpatched version of Lemmings 2 will be written back.\n\n"
+                "If you don't want to do this, abort now.\n"
+            )
+        )
+
+        (set #patchdelete "\nDeleting patched version of Lemmings2!\n")
+        (set #deinstall_exit "\nDeinstallation finished. The Editor has been removed.")
+
+        (set #err_wrongkick "Sorry, this Software requires at least Kickstart 2.04 (V37) to proceed.")
+        (set #err_wrongkick_help "Cannot help a lame guy like you are! Buy a new kickstart!")
+
+        (set #err_nol2bak "Couldn't find original Lemmings 2 file!")
+        (set #err_wrongdisk "\nWrong disk! Please read more carefully next time!")
+        (set #err_l2notfound "\nSorry, couldn't find Lemmings 2 in that drawer!")
+
+        (set #err_nodiskspace
+            (cat "\n"
+                "This installation requires at least "
+                (if #lems2hd "2.7 MB" "0.5 MB")
+                " free disk space. Please make this space available "
+                "and start again.\n"
+            )
+        )
+
+        (set #err_envbig "Something went wrong. Have a look at ENV:Result please.")
+        (set #err_prepl2 "Error occured during preparing Lemmings 2 Main file:\n\n")
+    )
+)
+
+;--------------------------------------------------------------------------
+; German Installer Strings
+;--------------------------------------------------------------------------
+
+(if (= @language "deutsch")
+    (
+        (set #lang 2)
+        (set #suffix "_D")
+        (set #licence "Lizenz.txt")
+
+        (run ("Version >ENV:Result L2-Editor%s" #suffix) (safe))
+        (set #ed_vers (getenv "Result"))
+        (delete "ENV:Result" (safe))
+
+        (set #ioerror "Es ist ein Fehler während der Installation aufgetreten. Bitte einen Fehlerbericht an mich schicken.\n\nDanke.")
+
+        (set #intro
+            (cat
+                "Willkommen zum Installationsprogramm des\n\nLemmings 2 Level Editor "
+                (if #keyfile "REGISTRIERTE Version!" "SHAREWARE Demo!")
+                "\n\nBitte lesen die Lizenz durch, bevor Sie fortfahren.\n"
+                "Das Fortfahren mit der Installation bedeutet, daß Sie die Lizenzbestimmungen gelesen und akzeptiert haben!\n"
+                "\nDieses Skript erlaubt eine Deinstallation.\n\n"
+                "Beachten Sie, daß der Installer, der mit Kick 3.1 mitgeliefert wird, fehlerhaft ist und diese "
+                "Software nicht richtig installieren wird!\n"
+                "Installer 1.24 ist eine funktionierende Version.\n"
+            )
+        )
+
+        (set #beta
+            (cat
+                "Dies ist eine Beta-Release. Ich habe beschlossen, sie jetzt zu veröffentlichen, "
+                "da ich wahrscheinlich nicht viel Zeit haben werde, sie fertig zu stellen. "
+                "Leider haben sich bisher nur ganz wenige User registriert und ich bin mir nicht "
+                "sicher, ob ich den Editor überhaupt noch weiterentwickeln soll.\n"
+                "Registrierte Benutzer können die alten Keyfiles weiterverwenden - wenn jemand ein "
+                "Keyfile mit deutschen Texten haben will, soll er sich bitte bei mir melden. "
+                "Der Editor funktioniert ganz gut, aber die neuen Funktionen wurden nicht sehr oft "
+                "getestet. Die deutsche Anleitung ist wirklich noch ziemlich unvollständig übersetzt."
+            )
+        )
+
+        (set #installwhere
+            (cat
+                "Bitte wählen Sie die Lemmings 2 Schublade auf Ihrer Festplatte. "
+                (if #lems2hd "Das Spiel wird installiert, falls unauffindbar!")
+            )
+        )
+
+        (set #installwhere_help
+            (cat
+                "Wählen Sie einfach das Verzeichnis, in das Sie Lemmings 2 auf Ihre Festplatte "
+                "installiert haben.\n\n"
+                (if #lems2hd
+                    (
+                        (cat
+                            "Dieses Skript erlaubt es außerdem, die Originaldisketten auf die "
+                            "Harddisk zu kopieren, wenn Sie eine neue, leere Schublade erzeugen "
+                            "und diese für die Installation auswählen.\n"
+                        )
+                    ) (
+                        (cat
+                            "Wenn Sie Lemmings 2 nicht auf Ihrer Festplatte haben, "
+                            "beenden Sie die Installation und installieren Sie das "
+                            "Spiel zuerst.\n\nFalls Sie die Harddisk-Version nicht "
+                            "besitzen, sehen Sie in die Anleitung, wo diese erhältlich ist.\n"
+                        )
+                    )
+                )
+            )
+        )
+
+        (set #copyeditor
+            (cat "\n"
+                "Kopiere Hauptdatei des Editors...\n\n"
+                "Version: " #ed_vers
+            )
+        )
+
+        (set #mkdocsdir "\nErzeuge Schulblade für die Anleitung...\n")
+        (set #copydocs_v37 "\nKopiere Anleitung (V37)...\n")
+        (set #copydocs_v39 "\nKopiere Anleitung (V39)...\n")
+
+        (set #copydocs_help
+            (cat "\n"
+                "Das Docs-Verzeichnis wird verwendet, um dort die Anleitung des Editors abzulegen. "
+                "Natürlich können Sie die Anleitung auch an den folgenden anderen Orten aufbewahren:\n\n"
+                "PROGDIR:\n"
+                "PROGDIR:Help\n"
+                "PROGDIR:Docs\n"
+                "HELP:\n"
+                "HELP:Guide\n"
+                "HELP:Deutsch\n"
+            )
+        )
+
+        (set #copykey "\nKopiere Keyfile...\n")
+
+        (set #copykey_help
+            (cat "\n"
+                "Da es sich hierbei um die registrierte Version des Editors handelt, wird ein Keyfile "
+                "mitgeliefert, das alle Funktionen des Editors einschaltet. Normalerweise befindet sich "
+                "das Keyfile in PROGDIR:. Alternative Verzeichnisse sind:\n\n"
+                "PROGDIR:\n"
+                "S:\n"
+                "ENVARC:\n"
+                "DEVS:Keyfiles\n"
+            )
+        )
+
+        (set #makebak "\nErzeuge Sicherheitskopie der Lemmings 2 Hauptdatei...\n")
+        (set #restbak "\nStelle Lemmings 2 Hauptdatei wieder her...\n")
+        (set #makebak_help
+            (cat "\n"
+                "Das Erstellen einer Sicherheitskopie erlaubt eine Deinstallation "
+                "des Editors.\n"
+            )
+        )
+
+        (set #installl2_help
+            (cat "\n"
+                "Da das Spiel nicht in dieser Schublade gefunden wurde, wird das "
+                "Installationsskript versuchen, das Spiel von den Originaldisketten "
+                "zu installieren und den mitgelieferten DMA Design HD Patch "
+                "zu entpacken.\n\n"
+                "Beachten Sie, daß der Vorspann nicht installiert werden wird.\n\n"
+                "Da alle drei Disketten den selben Namen besitzen, müssen "
+                "Sie darauf achten, daß Sie die richtige Diskette auf Verlangen einlegen.\n"
+            )
+        )
+
+        (set #applyhdpatch "\nEntpacke DMA Design HD Patch...")
+        (set #applyhdpatch_help
+            (cat "\n"
+                "Der nächste Schritt entpackt einen Patch, der von DMA Design "
+                "zu Verfügung gestellt wurde, um Lemmings 2 von der Festplatte spielen zu können. "
+                "Lemmings 2 ist ohne diesen Patch nicht von der Festplatte aus spielbar.\n"
+            )
+        )
+
+        (set #applypatch
+            (cat "\n"
+                "Modifiziere Lemmings 2 und extrahiere Originalwelten...\n\n"
+                "DIESEN TEIL NICHT ÜBERSPRINGEN!\n"
+            )
+        )
+
+        (set #applypatch_help
+            (cat "\n"
+                "Die Modifizierung von Lemmings ist ein essentieller Teil der Installations. "
+                "Dabei wird folgendes getan:\n"
+                "1. Die Hauptdatei von Lemmings wird geladen.\n"
+                "2. Die Originalwelten werden gesichert ('Original.wld'-Dateien). \n"
+                "3. Die Katalogdateien werden erstellt ('Cat.dat'-Dateien).\n"
+                "4. Für jeden Stamm wird ein Level-Verzeichnis angelegt.\n"
+                "5. Für jeden Stamm wird ein Custom-Verzeichnis angelegt.\n"
+                "6. Die Veränderungen an der Hauptdatei werden vorgenommen.\n"
+                "7. Die Lemmings Hauptdatei wird zurückgeschrieben.\n"
+            )
+        )
+
+        (set #installdemo "\nWollen Sie, daß die Demowelten installiert werden?\n")
+        (set #installdemo_help
+            (cat "\n"
+                "Die Installation der Demowelten gibt Ihnen neue Levels, die Sie spielen können. "
+                "Jede Weltdatei benötigt ungefähr 7 KB Platz.\n\n"
+                "Falls Sie von einer älteren Version updaten, müssen Sie vielleicht die 'Update Catalogs' "
+                "Option des Editors verwenden.\n"
+            )
+        )
+
+        (set #installcustom "\nWollen Sie, daß Beispielbilder für die Benutzergrafiken installiert werden?\n")
+        (set #installcustom_help
+            (cat "\n"
+                "Beginnend mit Version 2 des Editors können nun auch Grafiken mit Malprogrammen entworfen werden. "
+                "Damit Sie wissen, wie Sie die Farbpalette belegen müssen, daß die Grafiken im Spiel einigermaßen "
+                "gut aussehen, werden Beispielbilder mitgeliefert, die die Farbpalette des Stammes und ein paar "
+                "wichtige Objektgrafiken enthält.\n\n"
+                "Jede dieser Bilddateien benötigt ungefähr 6 KB Platz.\n"
+            )
+        )
+
+        (set #askupdate "\nAlte Installation gefunden. Updaten oder alles installieren?\n")
+
+        (set #forceupdate
+            (cat "\n"
+                 "Alte Installation gefunden. Jedoch ist es nicht möglich, nur einige "
+                 "Dateien upzudaten, da sich einige Dinge stark geändert haben und "
+                 "daher vollständig ersetzt werden müssen.\n"
+            )
+        )
+
+        (set #updatechoice1 "Über alte Version installieren")
+        (set #updatechoice2 "Nur updaten...")
+        (set #update_help
+            (cat "\n"
+                "Nunja, es macht eigentlich keinen Unterschied, was Sie nun auswählen, "
+                "aber die vollständige Installation dauert ein wenig länger ;)\n"
+            )
+        )
+
+        (set #askl2disk1 "\nBitte legen Sie Lemmings 2 Disk 1 ein...")
+        (set #askl2disk2 "\nBitte legen Sie Lemmings 2 Disk 2 ein...")
+        (set #askl2disk3 "\nBitte legen Sie Lemmings 2 Disk 3 ein...")
+
+        (set #askremdisk
+            (cat "\n"
+                "Bitte entfernen Sie die Diskette wieder.\n\n"
+                "Klicken Sie erst dann auf 'Weiter', wenn Sie die Diskette herausgenommen haben!"
+            )
+        )
+
+        (set #askeddisk
+            (cat "\n"
+                "Bitte legen Sie Ihre Lemmings 2 Installationsdiskette zurück ins Laufwerk.\n\n"
+                "Klicken Sie auf 'Weiter', wenn die Laufwerksled erloschen ist.\n"
+            )
+        )
+
+        (set #askdeinstall
+            (cat "\n"
+                "Lemmings 2 Level Editor Installation gefunden.\n\n"
+                "Wollen Sie, daß der Editor wieder entfernt wird?\n"
+            )
+        )
+
+        (set #askdeinstall_help
+            (cat "\n"
+                "Sie können nun entscheiden, ob Sie den Editor und den Patch von Ihrer Platte entfernen wollen. "
+                "Beachten Sie, daß selbst angefertigte Levels nicht gelöscht werden. "
+                "Die unveränderte Version von Lemmings 2 wird wiederhergestellt.\n\n"
+                "Wenn Sie das nicht wollen, brechen Sie jetzt ab.\n"
+            )
+        )
+
+        (set #patchdelete "\nLösche veränderte Version von Lemmings 2!\n")
+        (set #deinstall_exit "\nDeinstallation beendet. Der Editor wurde entfernt.")
+
+        (set #err_wrongkick "Tut mir leid, diese Software benötigt mindestens Kickstart 2.04 (V37).")
+        (set #err_wrongkick_help "Kann einem solchen Lamer, wie Sie es sind, wirklich nicht helfen! Kaufen Sie sich eine neue Kickstartversion!")
+
+        (set #err_nol2bak "Konnte Originaldatei von Lemmings 2 nicht finden!")
+        (set #err_wrongdisk "\nFalsche Diskette! Bitte das nächste mal besser aufpassen!")
+        (set #err_l2notfound "\nTschuldigung, konnte Lemmings 2 nicht in diesem Verzeichnis finden!")
+
+        (set #err_nodiskspace
+            (cat "\n"
+                "Diese Installation benötigt mindestens "
+                (if #lems2hd "2.7 MB" "0.5 MB")
+                " Platz auf Ihrer Festplatte. Bitte machen Sie diesen Platz verfügbar "
+                "und starten Sie das Skript erneut.\n"
+            )
+        )
+
+        (set #err_envbig "Irgendwas ging schief. Sehen Sie sich bitte ENV:Result an.")
+        (set #err_prepl2 "Ein Fehler trat während der der Vorbereitung der Lemmings 2 Hauptdatei auf:\n\n")
+    )
+)
+
+;--------------------------------------------------------------------------
+; Error cleanup code.
+;--------------------------------------------------------------------------
+
+(onerror
+    (
+        (if (> @ioerr 0)
+            (message (cat #ioerror "\n\n ERROR CODE: " @ioerr))
+        )
+    )
+)
+
+;--------------------------------------------------------------------------
+; Check Kickstart version first. Kick 2.0 or higher is a must!
+;--------------------------------------------------------------------------
+
+(set #kick (/ (getversion) 65536))
+(if (< #kick 37)
+    (
+        (message #err_wrongkick (help #err_wrongkick_help))
+        (exit (quiet))
+    )
+)
+
+;--------------------------------------------------------------------------
+; Check if editor already installed and run deinstaller if true.
+;--------------------------------------------------------------------------
+
+(if #deinstall
+    (
+        (run
+            ""
+            (prompt #askdeinstall)
+            (help #askdeinstall_help)
+            (confirm)
+            (safe)
+        )
+        (if (exists "HDLemmings2.old")
+            (
+                (delete
+                    "HDLemmings2"
+                    (prompt #patchdelete)
+                    (help #askdeinstall_help)
+                    (confirm)
+                )
+                (rename
+                    "HDLemmings2.old"
+                    "HDLemmings2"
+                )
+            ) (
+                (abort #err_nol2bak)
+            )
+        )
+        (delete "L2-Editor")
+        (delete "L2-Editor.info")
+        (delete "Docs/L2Ed.guide")
+        (delete "Docs/L2Ed.guide.info")
+        (delete ("Docs/L2EdRegForm%s.txt" #suffix))
+        (delete ("Docs/L2EdRegForm%s.txt.info" #suffix))
+        (delete "Docs")
+        (delete "Docs.info")
+        (delete ("L2EdRegForm%s.txt" #suffix))
+        (delete ("L2EdRegForm%s.txt.info" #suffix))
+        (delete "L2EdVers")
+        (delete "ENVARC:L2Ed.prefs")
+        (run "delete #?/original.wld #?/cat.dat FORCE")
+        (run "delete #?/Custom/Example.iff")
+        (run "delete #?/Custom")
+        (delete "L2Ed-Deinstall")
+        (delete "L2Ed-Deinstall.info")
+        (exit #deinstall_exit)
+
+    ) (
+
+;--------------------------------------------------------------------------
+; Start of Installing part of script.
+;--------------------------------------------------------------------------
+
+        (run ("Run >NIL: SYS:Utilities/More %s" #licence) (safe))
+        (message #intro)
+        (message #beta)
+
+        (set #path
+            (askdir
+                (default @default-dest)
+                (prompt #installwhere)
+                (help #installwhere_help)
+            )
+        )
+
+;--------------------------------------------------------------------------
+; Check for Lemmings in requested directory. If not installed and hd-patch
+; is available, install Lemmings 2 from scratch, otherwise abort.
+;--------------------------------------------------------------------------
+
+        (if (not (exists (tackon #path "HDLemmings2")))
+            (
+                (if #lems2hd
+                    (
+                        (if (< (getdiskspace #path) 2705408)
+                            (
+                                (abort #err_nodiskspace)
+                            )
+                        )
+                        (askdisk
+                            (dest " ")
+                            (prompt #askl2disk1)
+                            (help #installl2_help)
+                        )
+                        (if (not (exists (" :L2D1")))
+                            (
+                                (abort #err_wrongdisk)
+                            )
+                        )
+                        (copyfiles
+                            (source " :")
+                            (dest #path)
+                            (choices "endseq.dat" "endtune" "L2D1")
+                        )
+                        (message #askremdisk)
+                        (askdisk
+                            (dest " ")
+                            (prompt #askl2disk2)
+                            (help #installl2_help)
+                        )
+                        (if (not (exists (" :L2D2")))
+                            (
+                                (abort #err_wrongdisk)
+                            )
+                        )
+                        (copyfiles
+                            (source " :")
+                            (dest #path)
+                            (choices "soundfx" "alemms.comp" "logo.dat" "Maintune" "L2D2")
+                        )
+                        (message #askremdisk)
+                        (askdisk
+                            (dest " ")
+                            (prompt #askl2disk3)
+                            (help #installl2_help)
+                        )
+                        (if (not (exists (" :L2D3")))
+                            (
+                                (abort #err_wrongdisk)
+                            )
+                        )
+                        (copyfiles
+                            (source " :")
+                            (dest #path)
+                            (all)
+                        )
+                        (message #askeddisk)
+                        (if (exists "lems2HD.lzx")
+                            (
+                                (run
+                                    ("Unlzx x lems2HD.lzx %s/" #path)
+                                    (prompt #applyhdpatch)
+                                    (help #applyhdpatch_help)
+                                    (confirm)
+                                )
+                            ) (
+                                (run
+                                    ("Lha x lems2HD.lha %s/" #path)
+                                    (prompt #applyhdpatch)
+                                    (help #applyhdpatch_help)
+                                    (confirm)
+                                )
+                            )
+                        )
+                    ) (
+                        (abort #err_l2notfound)
+                    )
+                    (if (not (exists (tackon #path "HDLemmings2")))
+                        (
+                            (abort #err_l2notfound)
+                        )
+                    )
+                )
+            )
+        )
+
+;--------------------------------------------------------------------------
+; Check for enough disk space.
+;--------------------------------------------------------------------------
+
+        (if (< (getdiskspace #path) 431616)
+            (if (not (exists (tackon #path ("L2-Editor%s" #suffix)))) (abort #err_nodiskspace))
+        )
+
+;--------------------------------------------------------------------------
+; Check if update possible
+;--------------------------------------------------------------------------
+
+        (if (exists (tackon #path "L2EdVers"))
+            (
+                (copyfiles
+                    (source (tackon #path "L2EdVers"))
+                    (dest "ENV:")
+                    (safe)
+                )
+                (set #oldvers (getenv "L2EdVers"))
+                (set #allowupdate 1)
+                (if (< #oldvers 2000)
+                    (
+                        (set #allowupdate 0)
+                    )
+                )
+                (delete "ENV:L2EdVers")
+            )
+        )
+
+;--------------------------------------------------------------------------
+; Copy main Editor file.
+;--------------------------------------------------------------------------
+
+        (if (exists (tackon #path "L2-Editor"))
+            (
+                (if #allowupdate
+                    (
+                        (set #update
+                            (askchoice
+                                (prompt #askupdate)
+                                (choices #updatechoice1 #updatechoice2)
+                                (help #update_help)
+                                (default 1)
+                            )
+                        )
+                    ) (
+                        (set #update
+                            (askchoice
+                                (prompt #forceupdate)
+                                (choices #updatechoice1)
+                                (help #update_help)
+                                (default 0)
+                            )
+                        )
+                    )
+                )
+            ) (
+                (set #update 0)
+            )
+        )
+
+        (if (exists (tackon #path "L2-Editor.info"))
+            (
+                (copyfiles
+                    (prompt #copyeditor)
+                    (help @copyfiles-help)
+                    (source ("L2-Editor%s" #suffix))
+                    (dest #path)
+                    (newname "L2-Editor")
+                    (confirm)
+                )
+            ) (
+                (copyfiles
+                    (prompt #copyeditor)
+                    (help @copyfiles-help)
+                    (source ("L2-Editor%s" #suffix))
+                    (dest #path)
+                    (newname "L2-Editor")
+                    (infos)
+                    (confirm)
+                )
+            )
+        )
+
+;--------------------------------------------------------------------------
+; Copy manual, either v37 or v39, depending on the kickstartversion.
+;--------------------------------------------------------------------------
+
+        (makedir
+            (tackon #path "Docs")
+            (prompt #mkdocsdir)
+            (help #copydocs_help)
+            (infos)
+            (confirm)
+        )
+        (if (< #kick 39)
+            (
+                (copyfiles
+                    (prompt #copydocs_v37)
+                    (help #copydocs_help)
+                    (source ("L2Ed%s_V37.guide" #suffix))
+                    (dest (tackon #path "Docs"))
+                    (newname "L2Ed.guide")
+                    (infos)
+                    (confirm)
+                )
+            ) (
+                (copyfiles
+                    (prompt #copydocs_v39)
+                    (help #copydocs_help)
+                    (source ("L2Ed%s.guide" #suffix))
+                    (dest (tackon #path "Docs"))
+                    (newname "L2Ed.guide")
+                    (infos)
+                    (confirm)
+                )
+            )
+        )
+
+;--------------------------------------------------------------------------
+; Copy keyfile, if available.
+;--------------------------------------------------------------------------
+
+        (if #keyfile
+            (
+                (copyfiles
+                    (prompt #copykey)
+                    (help #copykey_help)
+                    (source "L2Ed.key")
+                    (dest #path)
+                    (confirm)
+                )
+            ) (
+                (if (exists (tackon #path "Docs"))
+                    (
+                        (copyfiles
+                            (source ("L2EdRegForm%s.txt" #suffix))
+                            (dest (tackon #path "Docs"))
+                            (infos)
+                        )
+                        (copyfiles
+                            (source ("L2EdRegForm%s.txt" #suffix))
+                            (dest #path)
+                            (infos)
+                        )
+                    )
+                )
+            )
+        )
+
+;--------------------------------------------------------------------------
+; Create Lemmings 2 backup.
+;--------------------------------------------------------------------------
+
+        (if (not #update)
+            (
+
+                (if (exists (tackon #path "HDLemmings2.old"))
+                    (
+                        (copyfiles
+                            (prompt #restbak)
+                            (help #makebak_help)
+                            (source (tackon #path "HDLemmings2.old"))
+                            (dest #path)
+                            (newname "HDLemmings2")
+                            (confirm)
+                        )
+                    ) (
+                        (if @pretend
+                            (
+                                (run
+                                    ""
+                                    (prompt #makebak)
+                                    (help #makebak_help)
+                                    (confirm)
+                                    (safe)
+                                )
+                            ) (
+                                (copyfiles
+                                    (prompt #makebak)
+                                    (help #makebak_help)
+                                    (source (tackon #path "HDLemmings2"))
+                                    (dest #path)
+                                    (newname "HDLemmings2.old")
+                                    (confirm)
+                                )
+                            )
+                        )
+                    )
+                )
+
+;--------------------------------------------------------------------------
+; Apply editor patch to Lemmings 2 file.
+;--------------------------------------------------------------------------
+
+                (set @execute-dir #path)
+                (copyfiles
+                    (source "PrepL2")
+                    (dest #path)
+                )
+                (run "delete #?/original.wld FORCE")
+                (run
+                    (tackon #path "PrepL2 >ENV:Result HDLemmings2")
+                    (prompt #applypatch)
+                    (help #applypatch_help)
+                    (confirm)
+                )
+                (set @execute-dir #home)
+                (delete (tackon #path "PrepL2"))
+                (set #reslen (getsize "ENV:Result"))
+                (if (> #reslen 512)
+                    (
+                        (abort #err_envbig)
+                    )
+                )
+                (if (> #reslen 0)
+                    (
+                        (abort (cat #err_prepl2 (getenv "Result")))
+                    )
+                )
+                (delete "ENV:Result")
+
+;--------------------------------------------------------------------------
+; Install demoworlds either from dir or from archive.
+;--------------------------------------------------------------------------
+
+                (if (exists ("Demoworlds.lzx"))
+                    (
+                        (run
+                            "Unlzx x Demoworlds.lzx T:"
+                            (safe)
+                        )
+                        (copyfiles
+                            (prompt #installdemo)
+                            (help #installdemo_help)
+                            (source "T:Demoworlds")
+                            (dest #path)
+                            (all)
+                            (confirm)
+                        )
+                        (run
+                            "Delete T:Demoworlds ALL"
+                            (safe)
+                        )
+                    ) (
+                        (if (exists ("Demoworlds"))
+                            (
+                                (copyfiles
+                                    (prompt #installdemo)
+                                    (help #installdemo_help)
+                                    (source "Demoworlds")
+                                    (dest #path)
+                                    (all)
+                                    (confirm)
+                                )
+                            )
+                        )
+                    )
+                )
+
+;--------------------------------------------------------------------------
+; Install example custom gfx files either from dir or from archive.
+;--------------------------------------------------------------------------
+
+                (if (exists ("CustomExamples.lzx"))
+                    (
+                        (run
+                            "Unlzx x CustomExamples.lzx T:"
+                            (safe)
+                        )
+                        (copyfiles
+                            (prompt #installcustom)
+                            (help #installcustom_help)
+                            (source "T:CustomExamples")
+                            (dest #path)
+                            (all)
+                            (confirm)
+                        )
+                        (run
+                            "Delete T:CustomExamples ALL"
+                            (safe)
+                        )
+                    ) (
+                        (if (exists ("CustomExamples"))
+                            (
+                                (copyfiles
+                                    (prompt #installcustom)
+                                    (help #installcustom_help)
+                                    (source "CustomExamples")
+                                    (dest #path)
+                                    (all)
+                                    (confirm)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+;--------------------------------------------------------------------------
+; Create Deinstallation script
+;--------------------------------------------------------------------------
+
+        (delete (tackon #path "L2Ed-Uninstall"))
+        (delete (tackon #path "L2Ed-Uninstall.info"))
+        (copyfiles
+            (source ("L2Ed-Install%s" #suffix))
+            (dest #path)
+            (newname "L2Ed-Deinstall")
+            (infos)
+        )
+        (tooltype
+            (dest (tackon #path "L2Ed-Deinstall"))
+            (settooltype "SCRIPT" "L2Ed-Deinstall")
+        )
+
+;--------------------------------------------------------------------------
+; Copy version file
+;--------------------------------------------------------------------------
+
+        (copyfiles
+            (source "L2EdVers")
+            (dest #path)
+        )
+
+;--------------------------------------------------------------------------
+; Installation successful!
+;--------------------------------------------------------------------------
+
+        (set @default-dest #path)
+        (exit)
+    )
+)
+

@@ -1,0 +1,920 @@
+#ifndef AFRICA_STRINGS_H
+#define AFRICA_STRINGS_H
+
+
+/****************************************************************************/
+
+
+/* This file was created automatically by CatComp.
+ * Do NOT edit by hand!
+ */
+
+
+#ifndef EXEC_TYPES_H
+#include <exec/types.h>
+#endif
+
+#ifdef CATCOMP_ARRAY
+#undef CATCOMP_NUMBERS
+#undef CATCOMP_STRINGS
+#define CATCOMP_NUMBERS
+#define CATCOMP_STRINGS
+#endif
+
+#ifdef CATCOMP_BLOCK
+#undef CATCOMP_STRINGS
+#define CATCOMP_STRINGS
+#endif
+
+
+/****************************************************************************/
+
+
+#ifdef CATCOMP_NUMBERS
+
+#define MSG_EURO_USA 0
+#define MSG_EURO_USSR 1
+#define MSG_EURO_CHINA 2
+#define MSG_EURO_FRANCE 3
+#define MSG_EURO_UK 4
+#define MSG_S_M_R 5
+#define MSG_APPDESC 6
+#define MSG_SOUTHAFRICA 7
+#define MSG_NAMIBIA 8
+#define MSG_BOTSWANA 9
+#define MSG_RHODESIA 10
+#define MSG_MOZAMBIQUE 11
+#define MSG_ANGOLA 12
+#define MSG_ZAMBIA 13
+#define MSG_MALAWI 14
+#define MSG_GABON 15
+#define MSG_CONGO 16
+#define MSG_ZAIRE 17
+#define MSG_TANZANIA 18
+#define MSG_UGANDA 19
+#define MSG_KENYA 20
+#define MSG_REB_SOUTHAFRICA 21
+#define MSG_REB_NAMIBIA 22
+#define MSG_REB_BOTSWANA 23
+#define MSG_REB_RHODESIA 24
+#define MSG_REB_MOZAMBIQUE 25
+#define MSG_REB_ANGOLA 26
+#define MSG_REB_ZAMBIA 27
+#define MSG_REB_MALAWI 28
+#define MSG_REB_GABON 29
+#define MSG_REB_CONGO 30
+#define MSG_REB_ZAIRE 31
+#define MSG_REB_TANZANIA 32
+#define MSG_REB_UGANDA 33
+#define MSG_REB_KENYA 34
+#define MSG_OLD_SOUTHAFRICA 35
+#define MSG_OLD_NAMIBIA 36
+#define MSG_OLD_BOTSWANA 37
+#define MSG_OLD_RHODESIA 38
+#define MSG_OLD_MOZAMBIQUE 39
+#define MSG_OLD_ANGOLA 40
+#define MSG_OLD_ZAMBIA 41
+#define MSG_OLD_MALAWI 42
+#define MSG_OLD_GABON 43
+#define MSG_OLD_CONGO 44
+#define MSG_OLD_ZAIRE 45
+#define MSG_OLD_TANZANIA 46
+#define MSG_OLD_UGANDA 47
+#define MSG_OLD_KENYA 48
+#define MSG_OLDREB_SOUTHAFRICA 49
+#define MSG_OLDREB_NAMIBIA 50
+#define MSG_OLDREB_BOTSWANA 51
+#define MSG_OLDREB_RHODESIA 52
+#define MSG_OLDREB_MOZAMBIQUE 53
+#define MSG_OLDREB_ANGOLA 54
+#define MSG_OLDREB_ZAMBIA 55
+#define MSG_OLDREB_MALAWI 56
+#define MSG_OLDREB_GABON 57
+#define MSG_OLDREB_CONGO 58
+#define MSG_OLDREB_ZAIRE 59
+#define MSG_OLDREB_TANZANIA 60
+#define MSG_OLDREB_UGANDA 61
+#define MSG_OLDREB_KENYA 62
+#define MSG_IS_NOT_AT_WAR 63
+#define MSG_ARE_NOT_AT_WAR 64
+#define MSG_IS_MOVING 65
+#define MSG_ARE_MOVING 66
+#define MSG_IS_NUPC 67
+#define MSG_ARE_NUPC 68
+#define MSG_IS_NUMC 69
+#define MSG_ARE_NUMC 70
+#define MSG_QUITTITLE 71
+#define MSG_MENU_QUITWB 72
+#define MSG_SHOW_TITLEBAR 73
+#define MSG_W_A_M 74
+#define MSG_DECLARED_WARS 75
+#define MSG_H_S_G 76
+#define MSG_ABOUT 77
+#define MSG_ABOUT2 78
+#define MSG_UNABLEARMY 79
+#define MSG_UNABLEIU 80
+#define MSG_JUSTMOVED 81
+#define MSG_NOTADJACENT 82
+#define MSG_EMPTY 83
+#define MSG_NOTEMPTY 84
+#define MSG_NOTATWAR 85
+#define MSG_ZOC 86
+#define MSG_ADVANCE 87
+#define MSG_MOVEIU 88
+#define MSG_MOVEARMY 89
+#define MSG_ROUTIU1 90
+#define MSG_ROUTIU2 91
+#define MSG_ROUTARMY1 92
+#define MSG_ROUTARMY2 93
+#define MSG_ABORT 94
+#define MSG_ARMY 95
+#define MSG_DONE 96
+#define MSG_HEX 97
+#define MSG_NO 98
+#define MSG_OK 99
+#define MSG_PASS 100
+#define MSG_SURRENDER 101
+#define MSG_STAY 102
+#define MSG_YES 103
+#define MSG_ATTACKS 104
+#define MSG_ATTACK 105
+#define MSG_NOTSTRONG 106
+#define MSG_ATTELI 107
+#define MSG_ATTROU 108
+#define MSG_DEFROU 109
+#define MSG_DEFELI 110
+#define MSG_PLACEARMY 111
+#define MSG_PLACEIU 112
+#define MSG_FOREIGN 113
+#define MSG_PLACELEADER 114
+#define MSG_PLACEJUNTA 115
+#define MSG_MUSTPLACE 116
+#define MSG_MAKESPEACE 117
+#define MSG_APPLIES1PI 118
+#define MSG_APPLIESPI 119
+#define MSG_RAISESIS 120
+#define MSG_LOWERSIS 121
+#define MSG_INSTALLSGOVT 122
+#define MSG_PLACEGOVT 123
+#define MSG_LEADER 124
+#define MSG_LEADER2 125
+#define MSG_JUNTA 126
+#define MSG_JUNTA2 127
+#define MSG_GOVTPREVENTS 128
+#define MSG_CANCELSGOVT 129
+#define MSG_BUILDSIU 130
+#define MSG_CANCELSIU 131
+#define MSG_NOTHOME 132
+#define MSG_ARMYBUILD 133
+#define MSG_IUBUILD 134
+#define MSG_MAINTAINSIU 135
+#define MSG_GIVES 136
+#define MSG_NOTMAINTAINED 137
+#define MSG_ISADJUSTED 138
+#define MSG_PIADJUSTED 139
+#define MSG_IUEXPELLED 140
+#define MSG_ASSASSINATE 141
+#define MSG_HAIL_ASSASSINATE 142
+#define MSG_NOATTEMPT 143
+#define MSG_SUCCESS 144
+#define MSG_FAILURE 145
+#define MSG_PIINCREASED 146
+#define MSG_PIDECREASED 147
+#define MSG_ISINCREASED 148
+#define MSG_ISDECREASED 149
+#define MSG_PAYSDOUBLE 150
+#define MSG_GOVTDIED 151
+#define MSG_MAINTAINARMY 152
+#define MSG_CANTMAINTAINARMY 153
+#define MSG_BUILDARMIES 154
+#define MSG_BUILDSARMY 155
+#define MSG_DECLAREWARS 156
+#define MSG_HAIL_DECLAREWAR 157
+#define MSG_DECLARESWAR 158
+#define MSG_ARMYREBELLED 159
+#define MSG_CITYREBELLED 160
+#define MSG_VIABLE 161
+#define MSG_NOTVIABLE 162
+#define MSG_GRANT 163
+#define MSG_GRANTS 164
+#define MSG_EUROSETUP 165
+#define MSG_AFROSETUP 166
+#define MSG_OVERTHROWN 167
+#define MSG_CONQUERED 168
+#define MSG_FALLEN 169
+#define MSG_TAKESCONTROL 170
+#define MSG_SELECTMOVER 171
+#define MSG_IULIMIT 172
+#define MSG_ARMYLIMIT 173
+#define MSG_IUATTACK 174
+#define MSG_ARMYATTACK 175
+#define MSG_BY 176
+#define MSG_RUNNINGON 177
+#define MSG_PROCESSNUMBER 178
+#define MSG_SAVED 179
+#define MSG_HAIL_DECLAREDWARS 180
+#define MSG_HAIL_INFO 181
+#define MSG_INCOUNTRY 182
+#define MSG_CONTROLLEDBY 183
+#define MSG_CITY 184
+#define MSG_ARMY2 185
+#define MSG_ATTACKSTRENGTH 186
+#define MSG_DEFENDSTRENGTH 187
+#define MSG_GOVERNMENT 188
+#define MSG_WHOSEIU 189
+#define MSG_NONE 190
+#define MSG_VARIOUS 191
+#define MSG_RECOVERABLE 192
+#define MSG_FATAL 193
+#define MSG_HAIL_H_S_G 194
+#define MSG_PLAYERS 195
+#define MSG_DELAY 196
+#define MSG_ROUNDS 197
+#define MSG_ALLOWUK 198
+#define MSG_AUTOMAINTAIN 199
+#define MSG_AUTOSETUP 200
+#define MSG_PLAYALL 201
+#define MSG_COLONIAL 202
+#define MSG_GAD_DONE 203
+#define MSG_GAD_REDO 204
+#define MSG_OPT_APPLYPI 205
+#define MSG_OPT_RAISEIS 206
+#define MSG_OPT_LOWERIS 207
+#define MSG_OPT_INSTALLLEADER 208
+#define MSG_OPT_INSTALLJUNTA 209
+#define MSG_OPT_BUILDIU 210
+#define MSG_OPT_MAINTAINIU 211
+#define MSG_OPT_GIVEMONEY 212
+#define MSG_ORD_APPLYPI 213
+#define MSG_ORD_INSTALLGOVT 214
+#define MSG_ORD_GIVEMONEY 215
+#define MSG_ORD_BUILDIU 216
+#define MSG_ORD_RAISEIS 217
+#define MSG_ORD_LOWERIS 218
+#define MSG_WRITEORDERS 219
+#define MSG_WHICHROUND 220
+#define MSG_AMOUNT 221
+#define MSG_PROMPT_APPLYPI 222
+#define MSG_PROMPT_RAISEIS 223
+#define MSG_PROMPT_LOWERIS 224
+#define MSG_PROMPT_INSTALLGOVT 225
+#define MSG_PROMPT_BUILDIU 226
+#define MSG_PROMPT_GIVEMONEY 227
+#define MSG_HAIL_APPLYPI 228
+#define MSG_HAIL_RAISEIS 229
+#define MSG_HAIL_LOWERIS 230
+#define MSG_HAIL_INSTALLGOVT 231
+#define MSG_HAIL_BUILDIU 232
+#define MSG_HAIL_GIVEMONEY 233
+#define MSG_GAMEOVER 234
+#define MSG_WINS 235
+#define MSG_PLAYER 236
+#define MSG_SCORE 237
+#define MSG_HAIL_LOAD 238
+#define MSG_HAIL_SAVE 239
+#define MSG_TRANSLATOR1 240
+#define MSG_TRANSLATOR2 241
+#define MSG_HUMAN 242
+#define MSG_AMERICAN 243
+#define MSG_SOVIET 244
+#define MSG_CHINESE 245
+#define MSG_FRENCH 246
+#define MSG_BRITISH 247
+#define MSG_IS 248
+#define MSG_PI 249
+#define MSG_PRESSHELP 250
+#define MSG_LMB 251
+#define MSG_RMB 252
+#define MSG_RETURN_START_GAME 253
+#define MSG_COMPILEDFOR 254
+#define MSG_PRIORITY 255
+#define MSG_INFINITE 256
+#define MSG_SECS 257
+#define MSG_WHATSCREEN 258
+#define MSG_CUSTOMWB 259
+#define MSG_CAPETOWN 260
+#define MSG_PUBSCREEN 261
+#define MSG_MOVEIU2 262
+#define MSG_MOVEARMY2 263
+#define MSG_CANTLOCK_NAMED 264
+#define MSG_CANTLOCK_DEFAULT 265
+#define MSG_MENU_PROJECT 266
+#define MSG_MENU_NEW 267
+#define MSG_KEY_NEW 268
+#define MSG_MENU_OPEN 269
+#define MSG_KEY_OPEN 270
+#define MSG_MENU_SAVE1 271
+#define MSG_KEY_SAVE 272
+#define MSG_MENU_SAVEAS 273
+#define MSG_KEY_SAVEAS 274
+#define MSG_KEY_QUIT 275
+#define MSG_MENU_SETTINGS 276
+#define MSG_MENU_HELP 277
+#define MSG_MENU_MANUAL 278
+#define MSG_KEY_MANUAL 279
+#define MSG_KEY_ABOUT 280
+
+#endif /* CATCOMP_NUMBERS */
+
+
+/****************************************************************************/
+
+
+#ifdef CATCOMP_STRINGS
+
+#define MSG_EURO_USA_STR "USA"
+#define MSG_EURO_USSR_STR "USSR"
+#define MSG_EURO_CHINA_STR "China"
+#define MSG_EURO_FRANCE_STR "France"
+#define MSG_EURO_UK_STR "UK"
+#define MSG_S_M_R_STR "Screen Mode Requester"
+#define MSG_APPDESC_STR "Board game"
+#define MSG_SOUTHAFRICA_STR "South Africa"
+#define MSG_NAMIBIA_STR "Namibia"
+#define MSG_BOTSWANA_STR "Botswana"
+#define MSG_RHODESIA_STR "Rhodesia"
+#define MSG_MOZAMBIQUE_STR "Mozambique"
+#define MSG_ANGOLA_STR "Angola"
+#define MSG_ZAMBIA_STR "Zambia"
+#define MSG_MALAWI_STR "Malawi"
+#define MSG_GABON_STR "Gabon"
+#define MSG_CONGO_STR "Congo"
+#define MSG_ZAIRE_STR "Zaire"
+#define MSG_TANZANIA_STR "Tanzania"
+#define MSG_UGANDA_STR "Uganda"
+#define MSG_KENYA_STR "Kenya"
+#define MSG_REB_SOUTHAFRICA_STR "South African rebels"
+#define MSG_REB_NAMIBIA_STR "Namibian rebels"
+#define MSG_REB_BOTSWANA_STR "Botswanan rebels"
+#define MSG_REB_RHODESIA_STR "Rhodesian rebels"
+#define MSG_REB_MOZAMBIQUE_STR "Mozambiquan rebels"
+#define MSG_REB_ANGOLA_STR "Angolan rebels"
+#define MSG_REB_ZAMBIA_STR "Zambian rebels"
+#define MSG_REB_MALAWI_STR "Malawian rebels"
+#define MSG_REB_GABON_STR "Gabonese rebels"
+#define MSG_REB_CONGO_STR "Congolese rebels"
+#define MSG_REB_ZAIRE_STR "Zairean rebels"
+#define MSG_REB_TANZANIA_STR "Tanzanian rebels"
+#define MSG_REB_UGANDA_STR "Ugandan rebels"
+#define MSG_REB_KENYA_STR "Kenyan rebels"
+#define MSG_OLD_SOUTHAFRICA_STR "South Africa"
+#define MSG_OLD_NAMIBIA_STR "German SW Africa"
+#define MSG_OLD_BOTSWANA_STR "Bechuanaland"
+#define MSG_OLD_RHODESIA_STR "S. Rhodesia"
+#define MSG_OLD_MOZAMBIQUE_STR "Portuguese E. Africa"
+#define MSG_OLD_ANGOLA_STR "Portuguese W. Africa"
+#define MSG_OLD_ZAMBIA_STR "N. Rhodesia"
+#define MSG_OLD_MALAWI_STR "Nyasaland"
+#define MSG_OLD_GABON_STR "Gabon"
+#define MSG_OLD_CONGO_STR "French Congo"
+#define MSG_OLD_ZAIRE_STR "Belgian Congo"
+#define MSG_OLD_TANZANIA_STR "German E. Africa"
+#define MSG_OLD_UGANDA_STR "Uganda"
+#define MSG_OLD_KENYA_STR "British E. Africa"
+#define MSG_OLDREB_SOUTHAFRICA_STR "South African rebels"
+#define MSG_OLDREB_NAMIBIA_STR "German SW African rebels"
+#define MSG_OLDREB_BOTSWANA_STR "Bechuanan rebels"
+#define MSG_OLDREB_RHODESIA_STR "S. Rhodesian rebels"
+#define MSG_OLDREB_MOZAMBIQUE_STR "Port. E. African rebels"
+#define MSG_OLDREB_ANGOLA_STR "Port. W. African rebels"
+#define MSG_OLDREB_ZAMBIA_STR "N. Rhodesian rebels"
+#define MSG_OLDREB_MALAWI_STR "Nyasan rebels"
+#define MSG_OLDREB_GABON_STR "Gabonese rebels"
+#define MSG_OLDREB_CONGO_STR "French Congolese rebels"
+#define MSG_OLDREB_ZAIRE_STR "Belgian Congolese rebels"
+#define MSG_OLDREB_TANZANIA_STR "German E. African rebels"
+#define MSG_OLDREB_UGANDA_STR "Ugandan rebels"
+#define MSG_OLDREB_KENYA_STR "British E. African rebels"
+#define MSG_IS_NOT_AT_WAR_STR "%s is not at war with %s!"
+#define MSG_ARE_NOT_AT_WAR_STR "%s are not at war with %s!"
+#define MSG_IS_MOVING_STR "%s is moving..."
+#define MSG_ARE_MOVING_STR "%s are moving..."
+#define MSG_IS_NUPC_STR "%s is not under political control."
+#define MSG_ARE_NUPC_STR "%s are not under political control."
+#define MSG_IS_NUMC_STR "%s is not under military control."
+#define MSG_ARE_NUMC_STR "%s are not under military control."
+#define MSG_QUITTITLE_STR "Quit to title screen"
+#define MSG_MENU_QUITWB_STR "Quit Africa"
+#define MSG_SHOW_TITLEBAR_STR "Show titlebar?"
+#define MSG_W_A_M_STR "Watch Amiga movements?"
+#define MSG_DECLARED_WARS_STR "Declared wars..."
+#define MSG_H_S_G_STR "Historical score graph..."
+#define MSG_ABOUT_STR "About Africa"
+#define MSG_ABOUT2_STR "About Africa..."
+#define MSG_UNABLEARMY_STR "%s's army is unable to escape."
+#define MSG_UNABLEIU_STR "%s's IU is unable to escape."
+#define MSG_JUSTMOVED_STR "Just moved from there."
+#define MSG_NOTADJACENT_STR "Not an adjacent hex."
+#define MSG_EMPTY_STR "Hex is empty!"
+#define MSG_NOTEMPTY_STR "Hex is not empty."
+#define MSG_NOTATWAR_STR "Not at war with or allied to this country."
+#define MSG_ZOC_STR "Hex is in enemy Zone of Control."
+#define MSG_ADVANCE_STR "%s, advance which IU/army into conquered hex (Esc for none)?"
+#define MSG_MOVEIU_STR "%s, move %d of 5 for IU attached to %s (Esc to stay)..."
+#define MSG_MOVEARMY_STR "%s, move %d of 5 for %s's army (Esc to stay)..."
+#define MSG_ROUTIU1_STR "%s, rout 1 of 2 for IU attached to %s (Esc to surrender)..."
+#define MSG_ROUTIU2_STR "%s, rout 2 of 2 for IU attached to %s (Backspace to undo, Esc to stay)..."
+#define MSG_ROUTARMY1_STR "%s, rout 1 of 2 for %s's army (Esc to surrender)..."
+#define MSG_ROUTARMY2_STR "%s, rout 2 of 2 for %s's army (Backspace to undo, Esc to stay)..."
+#define MSG_ABORT_STR "Abort"
+#define MSG_ARMY_STR "Army"
+#define MSG_DONE_STR "Done"
+#define MSG_HEX_STR "Hex"
+#define MSG_NO_STR "No"
+#define MSG_OK_STR "OK"
+#define MSG_PASS_STR "Pass"
+#define MSG_SURRENDER_STR "Surrender"
+#define MSG_STAY_STR "Stay"
+#define MSG_YES_STR "Yes"
+#define MSG_ATTACKS_STR "%s attacks %s..."
+#define MSG_ATTACK_STR "%s attack %s..."
+#define MSG_NOTSTRONG_STR "Not strong enough!"
+#define MSG_ATTELI_STR "Odds are %s. Roll is %d. Result is attackers eliminated."
+#define MSG_ATTROU_STR "Odds are %s. Roll is %d. Result is attackers routed."
+#define MSG_DEFROU_STR "Odds are %s. Roll is %d. Result is defender routed."
+#define MSG_DEFELI_STR "Odds are %s. Roll is %d. Result is defender eliminated."
+#define MSG_PLACEARMY_STR "%s, place army #%d of %d for %s."
+#define MSG_PLACEIU_STR "%s, place your IU in %s (or Esc to abort)."
+#define MSG_FOREIGN_STR "This is a foreign hex."
+#define MSG_PLACELEADER_STR "%s, place leader in %s."
+#define MSG_PLACEJUNTA_STR "%s, place junta in %s."
+#define MSG_MUSTPLACE_STR "Must place government on one of %s's armies."
+#define MSG_MAKESPEACE_STR "%s makes peace with %s."
+#define MSG_APPLIES1PI_STR "%s applies 1 point of Political Influence to %s."
+#define MSG_APPLIESPI_STR "%s applies %d points of Political Influence to %s."
+#define MSG_RAISESIS_STR "%s raises the Internal Stability of %s by %d."
+#define MSG_LOWERSIS_STR "%s lowers the Internal Stability of %s by %d."
+#define MSG_INSTALLSGOVT_STR "%s installs a %s in %s."
+#define MSG_PLACEGOVT_STR "%s, place a %s in %s (or Esc to abort)."
+#define MSG_LEADER_STR "leader"
+#define MSG_LEADER2_STR "Leader"
+#define MSG_JUNTA_STR "junta"
+#define MSG_JUNTA2_STR "Junta"
+#define MSG_GOVTPREVENTS_STR "%s prevents %s from changing the allegiance of %s."
+#define MSG_CANCELSGOVT_STR "%s cancels the %s in %s."
+#define MSG_BUILDSIU_STR "%s builds an Intervention Unit for %s."
+#define MSG_CANCELSIU_STR "%s cancels the Intervention Unit for %s."
+#define MSG_NOTHOME_STR "This is not a home hex."
+#define MSG_ARMYBUILD_STR "Armies must be built in or next to controlled cities."
+#define MSG_IUBUILD_STR "IUs must be built in or next to controlled cities."
+#define MSG_MAINTAINSIU_STR "%s maintains its existing Intervention Unit."
+#define MSG_GIVES_STR "%s gives $%d to %s."
+#define MSG_NOTMAINTAINED_STR "%s has not maintained its Intervention Unit."
+#define MSG_ISADJUSTED_STR "The Internal Stability of %s has been adjusted."
+#define MSG_PIADJUSTED_STR "The Political Influence of %s has been adjusted."
+#define MSG_IUEXPELLED_STR "%s's IU has been expelled from %s."
+#define MSG_ASSASSINATE_STR "%s, assassinate leader or junta in..."
+#define MSG_HAIL_ASSASSINATE_STR "Assassinate..."
+#define MSG_NOATTEMPT_STR "%s does not attempt an assassination this round."
+#define MSG_SUCCESS_STR "%s successfully assassinates %s's %s in %s."
+#define MSG_FAILURE_STR "%s fails to assassinate %s's %s in %s."
+#define MSG_PIINCREASED_STR "%s's political influence over %s has increased to %d."
+#define MSG_PIDECREASED_STR "%s's political influence over %s has decreased to %d."
+#define MSG_ISINCREASED_STR "%s's stability has increased to %d."
+#define MSG_ISDECREASED_STR "%s's stability has decreased to %d."
+#define MSG_PAYSDOUBLE_STR "%s pays double to build/maintain armies and declare war."
+#define MSG_GOVTDIED_STR "%s's %s has died in %s."
+#define MSG_MAINTAINARMY_STR "%s, maintain %s's army in %s for $%d?"
+#define MSG_CANTMAINTAINARMY_STR "%s was unable to maintain army #%d."
+#define MSG_BUILDARMIES_STR "%s, build armies at $%d per army (Esc when done)..."
+#define MSG_BUILDSARMY_STR "%s builds an army."
+#define MSG_DECLAREWARS_STR "%s, declare wars for %s against ($%d per war)..."
+#define MSG_HAIL_DECLAREWAR_STR "Declare war on..."
+#define MSG_DECLARESWAR_STR "%s declares war on %s."
+#define MSG_ARMYREBELLED_STR "This army has rebelled against %s."
+#define MSG_CITYREBELLED_STR "%s has become a rebel city."
+#define MSG_VIABLE_STR "%s are viable."
+#define MSG_NOTVIABLE_STR "%s are not viable."
+#define MSG_GRANT_STR "%s, shall %s grant independence to %s?"
+#define MSG_GRANTS_STR "%s has granted independence to %s."
+#define MSG_EUROSETUP_STR "%s is setting up %s..."
+#define MSG_AFROSETUP_STR "%s is setting up..."
+#define MSG_OVERTHROWN_STR "Loyalists have been overthrown in %s."
+#define MSG_CONQUERED_STR "%s has been conquered by %s."
+#define MSG_FALLEN_STR "%s has fallen!"
+#define MSG_TAKESCONTROL_STR "%s takes control of %s."
+#define MSG_SELECTMOVER_STR "%s, move for %s; select mover (Esc when done)..."
+#define MSG_IULIMIT_STR "Your IU has already moved its limit this round."
+#define MSG_ARMYLIMIT_STR "This army has already moved its limit this round."
+#define MSG_IUATTACK_STR "%s, attack with IU attached to %s (Esc to pass)..."
+#define MSG_ARMYATTACK_STR "%s, attack with %s's army (Esc to pass)..."
+#define MSG_BY_STR "By"
+#define MSG_RUNNINGON_STR "Running on:"
+#define MSG_PROCESSNUMBER_STR "Process number:"
+#define MSG_SAVED_STR "Saved \"%s\"."
+#define MSG_HAIL_DECLAREDWARS_STR "Declared Wars"
+#define MSG_HAIL_INFO_STR "Hex Information"
+#define MSG_INCOUNTRY_STR "In country:"
+#define MSG_CONTROLLEDBY_STR "Controlled by:"
+#define MSG_CITY_STR "City:"
+#define MSG_ARMY2_STR "Army:"
+#define MSG_ATTACKSTRENGTH_STR "Attack strength:"
+#define MSG_DEFENDSTRENGTH_STR "Defend strength:"
+#define MSG_GOVERNMENT_STR "Government:"
+#define MSG_WHOSEIU_STR "%s's IU"
+#define MSG_NONE_STR "None"
+#define MSG_VARIOUS_STR "Various"
+#define MSG_RECOVERABLE_STR "Recoverable Error"
+#define MSG_FATAL_STR "Fatal Error"
+#define MSG_HAIL_H_S_G_STR "Historical Score Graph"
+#define MSG_PLAYERS_STR "Players:"
+#define MSG_DELAY_STR "Message Delay:"
+#define MSG_ROUNDS_STR "Rounds:"
+#define MSG_ALLOWUK_STR "Allow UK IU?"
+#define MSG_AUTOMAINTAIN_STR "Auto-maintain African armies?"
+#define MSG_AUTOSETUP_STR "Auto-setup game?"
+#define MSG_PLAYALL_STR "Play all rounds?"
+#define MSG_COLONIAL_STR "Use colonial names?"
+#define MSG_GAD_DONE_STR "Done"
+#define MSG_GAD_REDO_STR "Redo"
+#define MSG_OPT_APPLYPI_STR "Apply influence"
+#define MSG_OPT_RAISEIS_STR "Raise stability"
+#define MSG_OPT_LOWERIS_STR "Lower stability"
+#define MSG_OPT_INSTALLLEADER_STR "Install leader"
+#define MSG_OPT_INSTALLJUNTA_STR "Install junta"
+#define MSG_OPT_BUILDIU_STR "Build IU"
+#define MSG_OPT_MAINTAINIU_STR "Maintain IU"
+#define MSG_OPT_GIVEMONEY_STR "Give money"
+#define MSG_ORD_APPLYPI_STR "Apply %d influence to %s"
+#define MSG_ORD_INSTALLGOVT_STR "Install %s in %s"
+#define MSG_ORD_GIVEMONEY_STR "Give $%d to %s"
+#define MSG_ORD_BUILDIU_STR "Build IU for %s"
+#define MSG_ORD_RAISEIS_STR "Raise stability of %s by %d"
+#define MSG_ORD_LOWERIS_STR "Lower stability of %s by %d"
+#define MSG_WRITEORDERS_STR "%s, write orders..."
+#define MSG_WHICHROUND_STR "Round %d of %d"
+#define MSG_AMOUNT_STR "Amount:"
+#define MSG_PROMPT_APPLYPI_STR "%s, apply political influence to..."
+#define MSG_PROMPT_RAISEIS_STR "%s, raise internal stability of..."
+#define MSG_PROMPT_LOWERIS_STR "%s, lower internal stability of..."
+#define MSG_PROMPT_INSTALLGOVT_STR "%s, install %s in..."
+#define MSG_PROMPT_BUILDIU_STR "%s, build Intervention Unit for..."
+#define MSG_PROMPT_GIVEMONEY_STR "%s, give to..."
+#define MSG_HAIL_APPLYPI_STR "Apply PI to:"
+#define MSG_HAIL_RAISEIS_STR "Raise IS of:"
+#define MSG_HAIL_LOWERIS_STR "Lower IS of:"
+#define MSG_HAIL_INSTALLGOVT_STR "Install %s in:"
+#define MSG_HAIL_BUILDIU_STR "Build IU for:"
+#define MSG_HAIL_GIVEMONEY_STR "Give to:"
+#define MSG_GAMEOVER_STR "Game over!"
+#define MSG_WINS_STR "wins"
+#define MSG_PLAYER_STR "Player"
+#define MSG_SCORE_STR "Score"
+#define MSG_HAIL_LOAD_STR "Load Game"
+#define MSG_HAIL_SAVE_STR "Save Game"
+#define MSG_TRANSLATOR1_STR "English translation by"
+#define MSG_TRANSLATOR2_STR "James Jacobs"
+#define MSG_HUMAN_STR "Human"
+#define MSG_AMERICAN_STR "American"
+#define MSG_SOVIET_STR "Soviet"
+#define MSG_CHINESE_STR "Chinese"
+#define MSG_FRENCH_STR "French"
+#define MSG_BRITISH_STR "British"
+#define MSG_IS_STR "IS"
+#define MSG_PI_STR "PI"
+#define MSG_PRESSHELP_STR "Press Help for info."
+#define MSG_LMB_STR "LMB="
+#define MSG_RMB_STR "RMB="
+#define MSG_RETURN_START_GAME_STR "Start Game (ENTER/Spacebar)"
+#define MSG_COMPILEDFOR_STR "Compiled for:"
+#define MSG_PRIORITY_STR "Priority:"
+#define MSG_INFINITE_STR "Infinite"
+#define MSG_SECS_STR "%d.%d secs"
+#define MSG_WHATSCREEN_STR "What screen do you want to run the game on?"
+#define MSG_CUSTOMWB_STR "Custom screen|Workbench screen"
+#define MSG_CAPETOWN_STR "Cape Town"
+#define MSG_PUBSCREEN_STR "Public screen name:"
+#define MSG_MOVEIU2_STR "%s, move %d of 5 for IU attached to %s (Backspace to undo, Esc to stay)..."
+#define MSG_MOVEARMY2_STR "%s, move %d of 5 for %s's army (Backspace to undo, Esc to stay)..."
+#define MSG_CANTLOCK_NAMED_STR "Can't lock public screen \"%s\"!"
+#define MSG_CANTLOCK_DEFAULT_STR "Can't lock default public screen!"
+#define MSG_MENU_PROJECT_STR "Project"
+#define MSG_MENU_NEW_STR "New"
+#define MSG_KEY_NEW_STR "N"
+#define MSG_MENU_OPEN_STR "Open..."
+#define MSG_KEY_OPEN_STR "O"
+#define MSG_MENU_SAVE1_STR "Save"
+#define MSG_KEY_SAVE_STR "S"
+#define MSG_MENU_SAVEAS_STR "Save As..."
+#define MSG_KEY_SAVEAS_STR "A"
+#define MSG_KEY_QUIT_STR "Q"
+#define MSG_MENU_SETTINGS_STR "Settings"
+#define MSG_MENU_HELP_STR "Help"
+#define MSG_MENU_MANUAL_STR "Manual..."
+#define MSG_KEY_MANUAL_STR "M"
+#define MSG_KEY_ABOUT_STR "?"
+
+#endif /* CATCOMP_STRINGS */
+
+
+/****************************************************************************/
+
+
+#ifdef CATCOMP_ARRAY
+
+struct CatCompArrayType
+{
+    LONG   cca_ID;
+    STRPTR cca_Str;
+};
+
+static const struct CatCompArrayType CatCompArray[] =
+{
+    {MSG_EURO_USA,(STRPTR)MSG_EURO_USA_STR},
+    {MSG_EURO_USSR,(STRPTR)MSG_EURO_USSR_STR},
+    {MSG_EURO_CHINA,(STRPTR)MSG_EURO_CHINA_STR},
+    {MSG_EURO_FRANCE,(STRPTR)MSG_EURO_FRANCE_STR},
+    {MSG_EURO_UK,(STRPTR)MSG_EURO_UK_STR},
+    {MSG_S_M_R,(STRPTR)MSG_S_M_R_STR},
+    {MSG_APPDESC,(STRPTR)MSG_APPDESC_STR},
+    {MSG_SOUTHAFRICA,(STRPTR)MSG_SOUTHAFRICA_STR},
+    {MSG_NAMIBIA,(STRPTR)MSG_NAMIBIA_STR},
+    {MSG_BOTSWANA,(STRPTR)MSG_BOTSWANA_STR},
+    {MSG_RHODESIA,(STRPTR)MSG_RHODESIA_STR},
+    {MSG_MOZAMBIQUE,(STRPTR)MSG_MOZAMBIQUE_STR},
+    {MSG_ANGOLA,(STRPTR)MSG_ANGOLA_STR},
+    {MSG_ZAMBIA,(STRPTR)MSG_ZAMBIA_STR},
+    {MSG_MALAWI,(STRPTR)MSG_MALAWI_STR},
+    {MSG_GABON,(STRPTR)MSG_GABON_STR},
+    {MSG_CONGO,(STRPTR)MSG_CONGO_STR},
+    {MSG_ZAIRE,(STRPTR)MSG_ZAIRE_STR},
+    {MSG_TANZANIA,(STRPTR)MSG_TANZANIA_STR},
+    {MSG_UGANDA,(STRPTR)MSG_UGANDA_STR},
+    {MSG_KENYA,(STRPTR)MSG_KENYA_STR},
+    {MSG_REB_SOUTHAFRICA,(STRPTR)MSG_REB_SOUTHAFRICA_STR},
+    {MSG_REB_NAMIBIA,(STRPTR)MSG_REB_NAMIBIA_STR},
+    {MSG_REB_BOTSWANA,(STRPTR)MSG_REB_BOTSWANA_STR},
+    {MSG_REB_RHODESIA,(STRPTR)MSG_REB_RHODESIA_STR},
+    {MSG_REB_MOZAMBIQUE,(STRPTR)MSG_REB_MOZAMBIQUE_STR},
+    {MSG_REB_ANGOLA,(STRPTR)MSG_REB_ANGOLA_STR},
+    {MSG_REB_ZAMBIA,(STRPTR)MSG_REB_ZAMBIA_STR},
+    {MSG_REB_MALAWI,(STRPTR)MSG_REB_MALAWI_STR},
+    {MSG_REB_GABON,(STRPTR)MSG_REB_GABON_STR},
+    {MSG_REB_CONGO,(STRPTR)MSG_REB_CONGO_STR},
+    {MSG_REB_ZAIRE,(STRPTR)MSG_REB_ZAIRE_STR},
+    {MSG_REB_TANZANIA,(STRPTR)MSG_REB_TANZANIA_STR},
+    {MSG_REB_UGANDA,(STRPTR)MSG_REB_UGANDA_STR},
+    {MSG_REB_KENYA,(STRPTR)MSG_REB_KENYA_STR},
+    {MSG_OLD_SOUTHAFRICA,(STRPTR)MSG_OLD_SOUTHAFRICA_STR},
+    {MSG_OLD_NAMIBIA,(STRPTR)MSG_OLD_NAMIBIA_STR},
+    {MSG_OLD_BOTSWANA,(STRPTR)MSG_OLD_BOTSWANA_STR},
+    {MSG_OLD_RHODESIA,(STRPTR)MSG_OLD_RHODESIA_STR},
+    {MSG_OLD_MOZAMBIQUE,(STRPTR)MSG_OLD_MOZAMBIQUE_STR},
+    {MSG_OLD_ANGOLA,(STRPTR)MSG_OLD_ANGOLA_STR},
+    {MSG_OLD_ZAMBIA,(STRPTR)MSG_OLD_ZAMBIA_STR},
+    {MSG_OLD_MALAWI,(STRPTR)MSG_OLD_MALAWI_STR},
+    {MSG_OLD_GABON,(STRPTR)MSG_OLD_GABON_STR},
+    {MSG_OLD_CONGO,(STRPTR)MSG_OLD_CONGO_STR},
+    {MSG_OLD_ZAIRE,(STRPTR)MSG_OLD_ZAIRE_STR},
+    {MSG_OLD_TANZANIA,(STRPTR)MSG_OLD_TANZANIA_STR},
+    {MSG_OLD_UGANDA,(STRPTR)MSG_OLD_UGANDA_STR},
+    {MSG_OLD_KENYA,(STRPTR)MSG_OLD_KENYA_STR},
+    {MSG_OLDREB_SOUTHAFRICA,(STRPTR)MSG_OLDREB_SOUTHAFRICA_STR},
+    {MSG_OLDREB_NAMIBIA,(STRPTR)MSG_OLDREB_NAMIBIA_STR},
+    {MSG_OLDREB_BOTSWANA,(STRPTR)MSG_OLDREB_BOTSWANA_STR},
+    {MSG_OLDREB_RHODESIA,(STRPTR)MSG_OLDREB_RHODESIA_STR},
+    {MSG_OLDREB_MOZAMBIQUE,(STRPTR)MSG_OLDREB_MOZAMBIQUE_STR},
+    {MSG_OLDREB_ANGOLA,(STRPTR)MSG_OLDREB_ANGOLA_STR},
+    {MSG_OLDREB_ZAMBIA,(STRPTR)MSG_OLDREB_ZAMBIA_STR},
+    {MSG_OLDREB_MALAWI,(STRPTR)MSG_OLDREB_MALAWI_STR},
+    {MSG_OLDREB_GABON,(STRPTR)MSG_OLDREB_GABON_STR},
+    {MSG_OLDREB_CONGO,(STRPTR)MSG_OLDREB_CONGO_STR},
+    {MSG_OLDREB_ZAIRE,(STRPTR)MSG_OLDREB_ZAIRE_STR},
+    {MSG_OLDREB_TANZANIA,(STRPTR)MSG_OLDREB_TANZANIA_STR},
+    {MSG_OLDREB_UGANDA,(STRPTR)MSG_OLDREB_UGANDA_STR},
+    {MSG_OLDREB_KENYA,(STRPTR)MSG_OLDREB_KENYA_STR},
+    {MSG_IS_NOT_AT_WAR,(STRPTR)MSG_IS_NOT_AT_WAR_STR},
+    {MSG_ARE_NOT_AT_WAR,(STRPTR)MSG_ARE_NOT_AT_WAR_STR},
+    {MSG_IS_MOVING,(STRPTR)MSG_IS_MOVING_STR},
+    {MSG_ARE_MOVING,(STRPTR)MSG_ARE_MOVING_STR},
+    {MSG_IS_NUPC,(STRPTR)MSG_IS_NUPC_STR},
+    {MSG_ARE_NUPC,(STRPTR)MSG_ARE_NUPC_STR},
+    {MSG_IS_NUMC,(STRPTR)MSG_IS_NUMC_STR},
+    {MSG_ARE_NUMC,(STRPTR)MSG_ARE_NUMC_STR},
+    {MSG_QUITTITLE,(STRPTR)MSG_QUITTITLE_STR},
+    {MSG_MENU_QUITWB,(STRPTR)MSG_MENU_QUITWB_STR},
+    {MSG_SHOW_TITLEBAR,(STRPTR)MSG_SHOW_TITLEBAR_STR},
+    {MSG_W_A_M,(STRPTR)MSG_W_A_M_STR},
+    {MSG_DECLARED_WARS,(STRPTR)MSG_DECLARED_WARS_STR},
+    {MSG_H_S_G,(STRPTR)MSG_H_S_G_STR},
+    {MSG_ABOUT,(STRPTR)MSG_ABOUT_STR},
+    {MSG_ABOUT2,(STRPTR)MSG_ABOUT2_STR},
+    {MSG_UNABLEARMY,(STRPTR)MSG_UNABLEARMY_STR},
+    {MSG_UNABLEIU,(STRPTR)MSG_UNABLEIU_STR},
+    {MSG_JUSTMOVED,(STRPTR)MSG_JUSTMOVED_STR},
+    {MSG_NOTADJACENT,(STRPTR)MSG_NOTADJACENT_STR},
+    {MSG_EMPTY,(STRPTR)MSG_EMPTY_STR},
+    {MSG_NOTEMPTY,(STRPTR)MSG_NOTEMPTY_STR},
+    {MSG_NOTATWAR,(STRPTR)MSG_NOTATWAR_STR},
+    {MSG_ZOC,(STRPTR)MSG_ZOC_STR},
+    {MSG_ADVANCE,(STRPTR)MSG_ADVANCE_STR},
+    {MSG_MOVEIU,(STRPTR)MSG_MOVEIU_STR},
+    {MSG_MOVEARMY,(STRPTR)MSG_MOVEARMY_STR},
+    {MSG_ROUTIU1,(STRPTR)MSG_ROUTIU1_STR},
+    {MSG_ROUTIU2,(STRPTR)MSG_ROUTIU2_STR},
+    {MSG_ROUTARMY1,(STRPTR)MSG_ROUTARMY1_STR},
+    {MSG_ROUTARMY2,(STRPTR)MSG_ROUTARMY2_STR},
+    {MSG_ABORT,(STRPTR)MSG_ABORT_STR},
+    {MSG_ARMY,(STRPTR)MSG_ARMY_STR},
+    {MSG_DONE,(STRPTR)MSG_DONE_STR},
+    {MSG_HEX,(STRPTR)MSG_HEX_STR},
+    {MSG_NO,(STRPTR)MSG_NO_STR},
+    {MSG_OK,(STRPTR)MSG_OK_STR},
+    {MSG_PASS,(STRPTR)MSG_PASS_STR},
+    {MSG_SURRENDER,(STRPTR)MSG_SURRENDER_STR},
+    {MSG_STAY,(STRPTR)MSG_STAY_STR},
+    {MSG_YES,(STRPTR)MSG_YES_STR},
+    {MSG_ATTACKS,(STRPTR)MSG_ATTACKS_STR},
+    {MSG_ATTACK,(STRPTR)MSG_ATTACK_STR},
+    {MSG_NOTSTRONG,(STRPTR)MSG_NOTSTRONG_STR},
+    {MSG_ATTELI,(STRPTR)MSG_ATTELI_STR},
+    {MSG_ATTROU,(STRPTR)MSG_ATTROU_STR},
+    {MSG_DEFROU,(STRPTR)MSG_DEFROU_STR},
+    {MSG_DEFELI,(STRPTR)MSG_DEFELI_STR},
+    {MSG_PLACEARMY,(STRPTR)MSG_PLACEARMY_STR},
+    {MSG_PLACEIU,(STRPTR)MSG_PLACEIU_STR},
+    {MSG_FOREIGN,(STRPTR)MSG_FOREIGN_STR},
+    {MSG_PLACELEADER,(STRPTR)MSG_PLACELEADER_STR},
+    {MSG_PLACEJUNTA,(STRPTR)MSG_PLACEJUNTA_STR},
+    {MSG_MUSTPLACE,(STRPTR)MSG_MUSTPLACE_STR},
+    {MSG_MAKESPEACE,(STRPTR)MSG_MAKESPEACE_STR},
+    {MSG_APPLIES1PI,(STRPTR)MSG_APPLIES1PI_STR},
+    {MSG_APPLIESPI,(STRPTR)MSG_APPLIESPI_STR},
+    {MSG_RAISESIS,(STRPTR)MSG_RAISESIS_STR},
+    {MSG_LOWERSIS,(STRPTR)MSG_LOWERSIS_STR},
+    {MSG_INSTALLSGOVT,(STRPTR)MSG_INSTALLSGOVT_STR},
+    {MSG_PLACEGOVT,(STRPTR)MSG_PLACEGOVT_STR},
+    {MSG_LEADER,(STRPTR)MSG_LEADER_STR},
+    {MSG_LEADER2,(STRPTR)MSG_LEADER2_STR},
+    {MSG_JUNTA,(STRPTR)MSG_JUNTA_STR},
+    {MSG_JUNTA2,(STRPTR)MSG_JUNTA2_STR},
+    {MSG_GOVTPREVENTS,(STRPTR)MSG_GOVTPREVENTS_STR},
+    {MSG_CANCELSGOVT,(STRPTR)MSG_CANCELSGOVT_STR},
+    {MSG_BUILDSIU,(STRPTR)MSG_BUILDSIU_STR},
+    {MSG_CANCELSIU,(STRPTR)MSG_CANCELSIU_STR},
+    {MSG_NOTHOME,(STRPTR)MSG_NOTHOME_STR},
+    {MSG_ARMYBUILD,(STRPTR)MSG_ARMYBUILD_STR},
+    {MSG_IUBUILD,(STRPTR)MSG_IUBUILD_STR},
+    {MSG_MAINTAINSIU,(STRPTR)MSG_MAINTAINSIU_STR},
+    {MSG_GIVES,(STRPTR)MSG_GIVES_STR},
+    {MSG_NOTMAINTAINED,(STRPTR)MSG_NOTMAINTAINED_STR},
+    {MSG_ISADJUSTED,(STRPTR)MSG_ISADJUSTED_STR},
+    {MSG_PIADJUSTED,(STRPTR)MSG_PIADJUSTED_STR},
+    {MSG_IUEXPELLED,(STRPTR)MSG_IUEXPELLED_STR},
+    {MSG_ASSASSINATE,(STRPTR)MSG_ASSASSINATE_STR},
+    {MSG_HAIL_ASSASSINATE,(STRPTR)MSG_HAIL_ASSASSINATE_STR},
+    {MSG_NOATTEMPT,(STRPTR)MSG_NOATTEMPT_STR},
+    {MSG_SUCCESS,(STRPTR)MSG_SUCCESS_STR},
+    {MSG_FAILURE,(STRPTR)MSG_FAILURE_STR},
+    {MSG_PIINCREASED,(STRPTR)MSG_PIINCREASED_STR},
+    {MSG_PIDECREASED,(STRPTR)MSG_PIDECREASED_STR},
+    {MSG_ISINCREASED,(STRPTR)MSG_ISINCREASED_STR},
+    {MSG_ISDECREASED,(STRPTR)MSG_ISDECREASED_STR},
+    {MSG_PAYSDOUBLE,(STRPTR)MSG_PAYSDOUBLE_STR},
+    {MSG_GOVTDIED,(STRPTR)MSG_GOVTDIED_STR},
+    {MSG_MAINTAINARMY,(STRPTR)MSG_MAINTAINARMY_STR},
+    {MSG_CANTMAINTAINARMY,(STRPTR)MSG_CANTMAINTAINARMY_STR},
+    {MSG_BUILDARMIES,(STRPTR)MSG_BUILDARMIES_STR},
+    {MSG_BUILDSARMY,(STRPTR)MSG_BUILDSARMY_STR},
+    {MSG_DECLAREWARS,(STRPTR)MSG_DECLAREWARS_STR},
+    {MSG_HAIL_DECLAREWAR,(STRPTR)MSG_HAIL_DECLAREWAR_STR},
+    {MSG_DECLARESWAR,(STRPTR)MSG_DECLARESWAR_STR},
+    {MSG_ARMYREBELLED,(STRPTR)MSG_ARMYREBELLED_STR},
+    {MSG_CITYREBELLED,(STRPTR)MSG_CITYREBELLED_STR},
+    {MSG_VIABLE,(STRPTR)MSG_VIABLE_STR},
+    {MSG_NOTVIABLE,(STRPTR)MSG_NOTVIABLE_STR},
+    {MSG_GRANT,(STRPTR)MSG_GRANT_STR},
+    {MSG_GRANTS,(STRPTR)MSG_GRANTS_STR},
+    {MSG_EUROSETUP,(STRPTR)MSG_EUROSETUP_STR},
+    {MSG_AFROSETUP,(STRPTR)MSG_AFROSETUP_STR},
+    {MSG_OVERTHROWN,(STRPTR)MSG_OVERTHROWN_STR},
+    {MSG_CONQUERED,(STRPTR)MSG_CONQUERED_STR},
+    {MSG_FALLEN,(STRPTR)MSG_FALLEN_STR},
+    {MSG_TAKESCONTROL,(STRPTR)MSG_TAKESCONTROL_STR},
+    {MSG_SELECTMOVER,(STRPTR)MSG_SELECTMOVER_STR},
+    {MSG_IULIMIT,(STRPTR)MSG_IULIMIT_STR},
+    {MSG_ARMYLIMIT,(STRPTR)MSG_ARMYLIMIT_STR},
+    {MSG_IUATTACK,(STRPTR)MSG_IUATTACK_STR},
+    {MSG_ARMYATTACK,(STRPTR)MSG_ARMYATTACK_STR},
+    {MSG_BY,(STRPTR)MSG_BY_STR},
+    {MSG_RUNNINGON,(STRPTR)MSG_RUNNINGON_STR},
+    {MSG_PROCESSNUMBER,(STRPTR)MSG_PROCESSNUMBER_STR},
+    {MSG_SAVED,(STRPTR)MSG_SAVED_STR},
+    {MSG_HAIL_DECLAREDWARS,(STRPTR)MSG_HAIL_DECLAREDWARS_STR},
+    {MSG_HAIL_INFO,(STRPTR)MSG_HAIL_INFO_STR},
+    {MSG_INCOUNTRY,(STRPTR)MSG_INCOUNTRY_STR},
+    {MSG_CONTROLLEDBY,(STRPTR)MSG_CONTROLLEDBY_STR},
+    {MSG_CITY,(STRPTR)MSG_CITY_STR},
+    {MSG_ARMY2,(STRPTR)MSG_ARMY2_STR},
+    {MSG_ATTACKSTRENGTH,(STRPTR)MSG_ATTACKSTRENGTH_STR},
+    {MSG_DEFENDSTRENGTH,(STRPTR)MSG_DEFENDSTRENGTH_STR},
+    {MSG_GOVERNMENT,(STRPTR)MSG_GOVERNMENT_STR},
+    {MSG_WHOSEIU,(STRPTR)MSG_WHOSEIU_STR},
+    {MSG_NONE,(STRPTR)MSG_NONE_STR},
+    {MSG_VARIOUS,(STRPTR)MSG_VARIOUS_STR},
+    {MSG_RECOVERABLE,(STRPTR)MSG_RECOVERABLE_STR},
+    {MSG_FATAL,(STRPTR)MSG_FATAL_STR},
+    {MSG_HAIL_H_S_G,(STRPTR)MSG_HAIL_H_S_G_STR},
+    {MSG_PLAYERS,(STRPTR)MSG_PLAYERS_STR},
+    {MSG_DELAY,(STRPTR)MSG_DELAY_STR},
+    {MSG_ROUNDS,(STRPTR)MSG_ROUNDS_STR},
+    {MSG_ALLOWUK,(STRPTR)MSG_ALLOWUK_STR},
+    {MSG_AUTOMAINTAIN,(STRPTR)MSG_AUTOMAINTAIN_STR},
+    {MSG_AUTOSETUP,(STRPTR)MSG_AUTOSETUP_STR},
+    {MSG_PLAYALL,(STRPTR)MSG_PLAYALL_STR},
+    {MSG_COLONIAL,(STRPTR)MSG_COLONIAL_STR},
+    {MSG_GAD_DONE,(STRPTR)MSG_GAD_DONE_STR},
+    {MSG_GAD_REDO,(STRPTR)MSG_GAD_REDO_STR},
+    {MSG_OPT_APPLYPI,(STRPTR)MSG_OPT_APPLYPI_STR},
+    {MSG_OPT_RAISEIS,(STRPTR)MSG_OPT_RAISEIS_STR},
+    {MSG_OPT_LOWERIS,(STRPTR)MSG_OPT_LOWERIS_STR},
+    {MSG_OPT_INSTALLLEADER,(STRPTR)MSG_OPT_INSTALLLEADER_STR},
+    {MSG_OPT_INSTALLJUNTA,(STRPTR)MSG_OPT_INSTALLJUNTA_STR},
+    {MSG_OPT_BUILDIU,(STRPTR)MSG_OPT_BUILDIU_STR},
+    {MSG_OPT_MAINTAINIU,(STRPTR)MSG_OPT_MAINTAINIU_STR},
+    {MSG_OPT_GIVEMONEY,(STRPTR)MSG_OPT_GIVEMONEY_STR},
+    {MSG_ORD_APPLYPI,(STRPTR)MSG_ORD_APPLYPI_STR},
+    {MSG_ORD_INSTALLGOVT,(STRPTR)MSG_ORD_INSTALLGOVT_STR},
+    {MSG_ORD_GIVEMONEY,(STRPTR)MSG_ORD_GIVEMONEY_STR},
+    {MSG_ORD_BUILDIU,(STRPTR)MSG_ORD_BUILDIU_STR},
+    {MSG_ORD_RAISEIS,(STRPTR)MSG_ORD_RAISEIS_STR},
+    {MSG_ORD_LOWERIS,(STRPTR)MSG_ORD_LOWERIS_STR},
+    {MSG_WRITEORDERS,(STRPTR)MSG_WRITEORDERS_STR},
+    {MSG_WHICHROUND,(STRPTR)MSG_WHICHROUND_STR},
+    {MSG_AMOUNT,(STRPTR)MSG_AMOUNT_STR},
+    {MSG_PROMPT_APPLYPI,(STRPTR)MSG_PROMPT_APPLYPI_STR},
+    {MSG_PROMPT_RAISEIS,(STRPTR)MSG_PROMPT_RAISEIS_STR},
+    {MSG_PROMPT_LOWERIS,(STRPTR)MSG_PROMPT_LOWERIS_STR},
+    {MSG_PROMPT_INSTALLGOVT,(STRPTR)MSG_PROMPT_INSTALLGOVT_STR},
+    {MSG_PROMPT_BUILDIU,(STRPTR)MSG_PROMPT_BUILDIU_STR},
+    {MSG_PROMPT_GIVEMONEY,(STRPTR)MSG_PROMPT_GIVEMONEY_STR},
+    {MSG_HAIL_APPLYPI,(STRPTR)MSG_HAIL_APPLYPI_STR},
+    {MSG_HAIL_RAISEIS,(STRPTR)MSG_HAIL_RAISEIS_STR},
+    {MSG_HAIL_LOWERIS,(STRPTR)MSG_HAIL_LOWERIS_STR},
+    {MSG_HAIL_INSTALLGOVT,(STRPTR)MSG_HAIL_INSTALLGOVT_STR},
+    {MSG_HAIL_BUILDIU,(STRPTR)MSG_HAIL_BUILDIU_STR},
+    {MSG_HAIL_GIVEMONEY,(STRPTR)MSG_HAIL_GIVEMONEY_STR},
+    {MSG_GAMEOVER,(STRPTR)MSG_GAMEOVER_STR},
+    {MSG_WINS,(STRPTR)MSG_WINS_STR},
+    {MSG_PLAYER,(STRPTR)MSG_PLAYER_STR},
+    {MSG_SCORE,(STRPTR)MSG_SCORE_STR},
+    {MSG_HAIL_LOAD,(STRPTR)MSG_HAIL_LOAD_STR},
+    {MSG_HAIL_SAVE,(STRPTR)MSG_HAIL_SAVE_STR},
+    {MSG_TRANSLATOR1,(STRPTR)MSG_TRANSLATOR1_STR},
+    {MSG_TRANSLATOR2,(STRPTR)MSG_TRANSLATOR2_STR},
+    {MSG_HUMAN,(STRPTR)MSG_HUMAN_STR},
+    {MSG_AMERICAN,(STRPTR)MSG_AMERICAN_STR},
+    {MSG_SOVIET,(STRPTR)MSG_SOVIET_STR},
+    {MSG_CHINESE,(STRPTR)MSG_CHINESE_STR},
+    {MSG_FRENCH,(STRPTR)MSG_FRENCH_STR},
+    {MSG_BRITISH,(STRPTR)MSG_BRITISH_STR},
+    {MSG_IS,(STRPTR)MSG_IS_STR},
+    {MSG_PI,(STRPTR)MSG_PI_STR},
+    {MSG_PRESSHELP,(STRPTR)MSG_PRESSHELP_STR},
+    {MSG_LMB,(STRPTR)MSG_LMB_STR},
+    {MSG_RMB,(STRPTR)MSG_RMB_STR},
+    {MSG_RETURN_START_GAME,(STRPTR)MSG_RETURN_START_GAME_STR},
+    {MSG_COMPILEDFOR,(STRPTR)MSG_COMPILEDFOR_STR},
+    {MSG_PRIORITY,(STRPTR)MSG_PRIORITY_STR},
+    {MSG_INFINITE,(STRPTR)MSG_INFINITE_STR},
+    {MSG_SECS,(STRPTR)MSG_SECS_STR},
+    {MSG_WHATSCREEN,(STRPTR)MSG_WHATSCREEN_STR},
+    {MSG_CUSTOMWB,(STRPTR)MSG_CUSTOMWB_STR},
+    {MSG_CAPETOWN,(STRPTR)MSG_CAPETOWN_STR},
+    {MSG_PUBSCREEN,(STRPTR)MSG_PUBSCREEN_STR},
+    {MSG_MOVEIU2,(STRPTR)MSG_MOVEIU2_STR},
+    {MSG_MOVEARMY2,(STRPTR)MSG_MOVEARMY2_STR},
+    {MSG_CANTLOCK_NAMED,(STRPTR)MSG_CANTLOCK_NAMED_STR},
+    {MSG_CANTLOCK_DEFAULT,(STRPTR)MSG_CANTLOCK_DEFAULT_STR},
+    {MSG_MENU_PROJECT,(STRPTR)MSG_MENU_PROJECT_STR},
+    {MSG_MENU_NEW,(STRPTR)MSG_MENU_NEW_STR},
+    {MSG_KEY_NEW,(STRPTR)MSG_KEY_NEW_STR},
+    {MSG_MENU_OPEN,(STRPTR)MSG_MENU_OPEN_STR},
+    {MSG_KEY_OPEN,(STRPTR)MSG_KEY_OPEN_STR},
+    {MSG_MENU_SAVE1,(STRPTR)MSG_MENU_SAVE1_STR},
+    {MSG_KEY_SAVE,(STRPTR)MSG_KEY_SAVE_STR},
+    {MSG_MENU_SAVEAS,(STRPTR)MSG_MENU_SAVEAS_STR},
+    {MSG_KEY_SAVEAS,(STRPTR)MSG_KEY_SAVEAS_STR},
+    {MSG_KEY_QUIT,(STRPTR)MSG_KEY_QUIT_STR},
+    {MSG_MENU_SETTINGS,(STRPTR)MSG_MENU_SETTINGS_STR},
+    {MSG_MENU_HELP,(STRPTR)MSG_MENU_HELP_STR},
+    {MSG_MENU_MANUAL,(STRPTR)MSG_MENU_MANUAL_STR},
+    {MSG_KEY_MANUAL,(STRPTR)MSG_KEY_MANUAL_STR},
+    {MSG_KEY_ABOUT,(STRPTR)MSG_KEY_ABOUT_STR},
+};
+
+#endif /* CATCOMP_ARRAY */
+
+
+/****************************************************************************/
+
+
+struct LocaleInfo
+{
+    APTR li_LocaleBase;
+    APTR li_Catalog;
+};
+
+
+
+#endif /* AFRICA_STRINGS_H */

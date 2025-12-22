@@ -1,0 +1,558 @@
+*****************************************************************************
+*									    *
+* LOAD/SAVEDATAS.S THE MOST IMPORTANT PARTS OF THE CARRIER COMMAND PROJECT  *
+*									    *
+*****************************************************************************
+*									    *
+*   PROGRAMPART: SaveDatas.s						    *
+*	VERSION: 1.4							    *
+*   SOURCE CODE: 16 (25.10.2010)					    *
+*	   DATE: 15.01.2001 - 9.2.2001					    *
+*      LANGUAGE: Assembler (DevPac V3.14)				    *
+*	 SYSTEM: A1200	KS 40.68 WB 40.42 2MB chip 64MB fast 68030/50mhz    *
+*									    *
+*	 AUTHOR: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+* ------------------------------------------------------------------------- *
+*									    *
+* 13.10.2010: i don't know why, but these days the diskcreator returns	    *
+* always an error, while the read/write-head is prepositioned over track 0  *
+* and the user inputs a disk when prompting. THE DISK_CHANGE BIT IS CLEAR!  *
+* this breaks the program with a save error before writing any track.	    *
+* i'm sure, i have tested all possible situations as i developed the	    *
+* sourcecode in 2001. maybe my drive goes old. for this source, the drive   *
+* will be forced to step one track forward/backward in this situation.	    *
+* 									    *
+* 25.10.2010: to speed up the game loading i have added a small wait_loop.  *
+* read the source below and look out for the comments i have written.	    *
+*									    *
+*****************************************************************************
+;
+; some information about the amiga timer!
+;
+; The base Amiga crystal frequencies are:
+;           NTSC    28.63636 MHz
+;           PAL     28.37516 MHz
+;
+; The two 16 bit timers on the 8520 chips each
+; count down at 1/10 the CPU clock, or 0.715909 MHz.
+; That works out to 1.3968255 microseconds per count for NTSC.
+;
+; Under PAL the countdown is slightly slower, 0.709379 MHz.
+; That works out to 1.4096835 microseconds per count for PAL.
+;
+; To wait 1/100 second would require waiting 10000 microseconds.
+; Using NTSC, the timer register would be set to (10000/1.3968255 = 7159).
+; Using PAL,  the timer register would be set to (10000/1.4096835 = 7094).
+;
+; To wait 3 milliseconds would require waiting 3000 microsecsonds.
+; Using NTSC, the register would be set to (3000/1.3968255 = 2148).
+; Using PAL,  the register would be set to (3000/1.4096835 = 2128).
+;
+; PAL	1ms ~= 709
+; NTSC	1ms ~= 716
+
+WaitDisk	set	1
+
+* Time1 =   3ms head step
+* Time2 =  18ms settle time direction change
+* Time3 = 172ms is calculated for a mc68030/50mhz
+* Time3 = 166ms is calculated for a mc68000/7mhz
+
+*****************************************************************************
+
+SaveDatas	lea	$DFF000,A6		;set custom_base
+
+		lea	DataBase(pc),A5		;set data_base
+
+		move.b	D0,FirstTrack(A5)	;first track
+		move.b	D1,TrackCount(A5)	;tracks to write
+		move.b	D2,DiskSide(A5)		;set diskside
+		move.b	D3,DriveNum(A5)		;set drive select
+		addq.b	#3,DriveNum(a5)		;generate drive bit
+		move.l	A0,Source(A5)		;memory location
+		move.l	A1,MFMBuffer(A5)	;DMA buffer
+		move.l	A2,SubPart(A5)		;subroutine DOS/CC
+
+		st	TrackError(A5)		;preset write error
+
+		move.l	#$55555555,D5		;mfm encoding bits
+
+* preset count for timer_b **************************************************
+
+		lea	$BFD000,A4		;set ciab_base
+
+		move.b	$F00(A4),ciaCTRLB(A5)	;save ciab_control
+		
+		bset	#3,$F00(A4)		;timer b one-shot mode
+		move.b	#(Time1&$FF),$600(A4)	;preset timer b low
+		move.b	#(Time1>>08),$700(A4)	;preset timer b hi, wait 3ms
+
+* set drive and motor on ****************************************************
+
+		or.b	#$78,$100(A4)		;deselect all drives
+		bclr	#7,$100(A4)		;set motor on
+		move.b	DriveNum(A5),D0		;get drive number
+		bclr	D0,$100(A4)		;select drive
+
+		moveq	#0,D0			;reset counter
+.wait1		addq.l	#1,D0			;add one
+		btst	#Bit,D0			;check for break?
+		bne	SaveError		;branch if so
+
+		btst	#5,$1001(A4)		;disk ready?
+		bne.b	.wait1			;branch if not
+
+*****************************************************************************
+
+		btst	#3,$1001(A4)		;write protected?
+		beq	SaveError		;branch if so
+
+* move head back to track 00 ************************************************
+
+		tst.b	Zero(A5)		;position(A5) known?
+		bne.b	.quit			;yes, skip
+
+		btst	#4,$1001(A4)		;head at track 00?
+		bne.b	.MoveBack		;branch if not
+
+*;^ 13.10.2010 **************************************************************
+
+		bclr	#1,$100(A4)		;set head direction forward
+
+		bclr	#0,$100(A4)		;move head one
+		bset	#0,$100(A4)		;track forward
+
+		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait2		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait2			;waits ($850 = 3ms)
+
+*****************************************************************************
+
+.MoveBack	bset	#1,$100(A4)		;head direction backward.
+
+.MBLoop		bclr	#0,$100(A4)		;move head.
+		bset	#0,$100(A4)		;prepare to move head.
+
+		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait3		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait3			;waits ($850 = 3ms)
+
+		btst	#4,$1001(A4)		;head at track 00?
+		bne.b	.MBLoop			;branch if not
+
+.ready		clr.b	Position(A5)		;position(A5) = 00
+		st	Zero(A5)		;set flag (position known)
+
+.quit
+
+* move head to firsttrack(a5) ***********************************************
+
+* an important part, the waitloop below!
+
+* as i started to program this part, i forgot about the so important settle
+* time which is absolute required when any head direction change is made.
+* for that reason, the part below wasn't integrated first und the loader
+* was sometimes a bit unstable. this funny bug wasn't easy to find because 
+* i didn't notice any problem when this code was started from a shell/cli.
+* but, when running from the game-disk i got often some curious failures.
+
+		move.b	#(Time2&$FF),$600(A4)	;set timer b low
+		move.b	#(Time2>>08),$700(A4)	;set timer b hi, wait 18ms
+.wait4		btst	#1,$D00(A4)		;settle time 18ms=$31DA
+		beq.b	.wait4			;waits ($31DA = 18ms)
+
+*****************************************************************************
+
+		move.b	#(Time1&$FF),$600(A4)	;preset timer b low
+		move.b	#(Time1>>08),$700(A4)	;preset timer b hi, wait 3ms
+
+		bset	#1,$100(A4)		;head direction backward.
+
+		move.b	Position(A5),D0		;calculate step_count
+		sub.b	FirstTrack(A5),D0
+		bpl.b	.Move			;move backward
+
+		not.b	D0			;move forward
+
+		bclr	#1,$100(A4)		;head direction forward.
+
+.MoveHead	bclr	#0,$100(A4)		;move head.
+		bset	#0,$100(A4)		;prepare to move head.
+
+		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait5		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait5			;waits ($850 = 3ms)
+
+.Move		subq.b	#1,D0			;decrement step_count
+		bpl.b	.MoveHead		;do for all steps!
+
+		bclr	#1,$100(A4)		;head direction forward.
+
+		move.b	FirstTrack(A5),Position(A5) ;save current position
+
+* set requested diskside  ***************************************************
+
+		bset	#2,$100(A4)		;set lower side
+
+		tst.b	DiskSide(A5)		;lower side?
+		beq.b	.wait6			;branch if so
+
+		bclr	#2,$100(A4)		;set upper side.
+
+.wait6		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait7		btst	#1,$D00(A4)		;flip_side requires 100us=$47
+		beq.b	.wait7			;waits ($850 = 3ms)
+
+		bra.b	WriteTrack		;write track(s)
+
+* move head one cylinder forward ********************************************
+
+WriteNextTrack	moveq	#1,D0			;get count
+		add.b	D0,Position(A5)		;increment position
+
+		bclr	#0,$100(A4)		;move head.
+		bset	#0,$100(A4)		;prepare to move head.
+
+		move.b	#(Time1&$FF),$600(A4)	;set timer b low
+		move.b	#(Time1>>08),$700(A4)	;set timer b hi, wait 3ms
+
+.wait		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait			;waits ($850 = 3ms)
+		
+* encode mfm_buffer / write track to disk ***********************************
+
+WriteTrack	btst	#2,$1001(A4)		;disk removed?
+		beq.b	SaveError		;branch if so
+
+		movea.l	SubPart(A5),A2		;encode track datas
+		jsr	(A2)			;either dos or cc
+
+		move.w	#$4000,dsklen(A6)
+		move.w	#$0002,intreq(A6)
+		move.l	MFMBuffer(A5),dskpt(A6)
+		move.w	#$6E00,adkcon(A6)
+		move.w	#$9100,adkcon(A6)
+		move.w	#$D9A0,dsklen(A6)
+		move.w	#$D9A0,dsklen(A6)	;$19A0 words
+
+		moveq	#0,D0
+
+.wait		addq.l	#1,D0
+		btst	#Bit,D0
+		bne	SaveError
+
+		btst	#1,$1f(A6)
+		beq.b	.wait
+
+*;^ 25.10.2010 **************************************************************
+
+* another important part!
+
+* to be a little bit in synchronization with the disk-spin, we waiting
+* here for some milliseconds before writing the next track. a good value
+* to wait for is about 172ms. this will help LoadDatas.s to read the 
+* tracks very fast. about 4 1/2 tracks per second. tac,tac,tac... the 
+* quiet amusing sound you hear while loading the game. without this 
+* waitloop, reading the disk will be slower about more than 5s, approx. 41s.
+* having a waitloop with a value between 150-170ms, will bring an unstable
+* version and leads in read errors under different conditions. systems
+* are not exactly the same. i have tested some variations and 172ms is 
+* the best value for both of my systems, the A1200 030/882/50mhz and the 
+* A2000 68000/8mhz, as long as i only want to play the game there. to get
+* the same load speed when running the CCBackupper or the CCDiskcreator
+* on the A2000, the value should reduced to 166ms, cause the mc68000 is 
+* slightly slower! :)
+
+	ifd	WaitDisk
+
+		moveq	#1,d0
+		list
+.loop		move.b	#(Time3&$FF),$600(A4)	;set timer b low
+		move.b	#(Time3>>08),$700(A4)	;set timer b hi
+		nolist
+.waitdisk	btst	#1,$D00(A4)		;wait
+		beq.b	.waitdisk		;wait
+		dbra	d0,.loop
+
+	endc
+	
+*****************************************************************************
+
+		subq.b	#1,TrackCount(A5)
+		bne	WriteNextTrack
+
+		clr.b	TrackError(A5)
+
+*****************************************************************************
+
+SaveError	move.w	#$4000,$24(A6)		;beware accidental writes
+
+* stop drive ****************************************************************
+
+		or.b	#$F8,$100(A4)		;deselect all/motor off
+		move.b	DriveNum(A5),D0
+		bclr	D0,$100(A4)		;select drive
+
+		move.b	ciaCTRLB(A5),$F00(A4)	;reset ciacontrol_b
+
+		tst.b	TrackError(A5)		;warn user?
+		beq.b	.quit			;no, skip
+
+		bchg	#1,$1001(A4)		;warn user
+
+.quit		tst.b	TrackError(A5)		;set condition return
+		rts
+
+* encode cc track ***********************************************************
+
+		cnop	0,4
+
+MakeCCTrack	movea.l	MFMBuffer(A5),A2	;mfm_buffer
+
+		move.w	#$3400/4-1,D0		;mfm_size $3400 bytes
+		move.l	#$AAAAAAAA,D1
+.ClearMem	move.l	D1,(A2)+		;clear mfm_buffer
+		dbra	D0,.ClearMem
+
+		movea.l	MFMBuffer(A5),A2	;get mfm_buffer
+		lea	$474(A2),A2		;skip gap
+
+		move.l	#$44894489,4(A2)	;set syncword
+
+		moveq	#-1,D0
+		move.b	Position(A5),D0		;get cylinder
+		add.b	D0,D0			;calculate real track
+		add.b	DiskSide(A5),D0		;calculate real track
+		lea	8(A2),A0
+		bsr	EncodeBits		;set tracknumber (mfm)
+
+		move.w	#$1400,D0		;blocksize
+		movea.l	Source(A5),A0		;get source
+		lea	$18(A2),A1		;get dest.
+		bsr	Blitter			;encode block datas
+
+		lea	$18(A2),A0		;reset boundary bits
+		bsr	SetMSB			;header/block
+
+		lea	$1418(A2),A0		;reset boundary bits
+		bsr	SetMSB			;oddbits/evenbits
+
+		lea	$2818(A2),A0		;reset boundary bits
+		bsr	SetMSB			;evenbits/gap
+
+		lea	$18(A2),A0
+		move.w	#$2800,D1		:blocksize (mfm)
+		bsr	GetChkSum		;calc checksum
+
+		lea	$10(A2),A0
+		bsr	EncodeBits		;set checksum (mfm)
+		add.l	#$1400,Source(A5)	;get next block (track)
+		rts
+
+* encode dos track **********************************************************
+
+		cnop	0,4
+
+MakeDTrack	movea.l	MFMBuffer(A5),A2	;mfm buffer
+
+		move.w	#$3400/4-1,D0		;size 
+		move.l	#$AAAAAAAA,D1		;clear buffer
+.ClearMem	move.l	D1,(A2)+
+		dbra	D0,.ClearMem
+
+		movea.l	MFMBuffer(A5),A2
+		lea	$474(A2),A2		;skip gap
+
+		moveq	#0,D7			;block count
+
+.CreateBlock	moveq	#-1,D0
+		move.b	Position(A5),D0		;get cylinder
+		add.b	D0,D0			;calculate real track
+		add.b	DiskSide(A5),D0		;calculate real track
+
+		swap	D0
+		move.w	D7,D0
+		lsl.w	#8,D0
+		move.b	#11,D0
+		sub.b	D7,D0			;set blocknumber
+
+		bsr.b	EncodeDOS		;make mfm_datas (dos track)
+
+		lea	$440(A2),A2
+		add.l	#$200,Source(A5)
+
+* do a bit TML! promotion *********************
+
+		cmp.b	#1,D7
+		blt.b	.skip
+
+		sub.l	#$200,Source(A5)
+		movea.l	Source(A5),A0
+		cmp.l	#"TML!",(A0)
+		beq.b	.skip
+
+		moveq	#63,D0
+.promotion	move.l	D0,D1
+		lsl.l	#3,D1
+		move.l	#"TML!",0(A0,D1.w)
+		move.l	#"2010",4(A0,D1.w)
+		dbra	D0,.promotion
+.skip
+
+***********************************************
+
+		addq.b	#1,D7
+		cmp.b	#11,D7			;max. 11 blocks
+		blt.b	.CreateBlock
+		rts
+
+*****************************************************************************
+
+EncodeDOS	move.l	D0,D4
+		move.l	A2,A0
+		moveq	#0,D0
+		bsr	EncodeBits
+
+		move.l	#$44894489,4(A2)	;set syncword
+
+		lea	8(A2),A0
+		move.l	D4,D0
+		bsr	EncodeBits		;insert track/block number
+
+		moveq	#3,D4
+.loop		moveq	#0,D0
+		bsr	EncodeBits		;label area (block header)
+		dbra	D4,.loop
+
+		lea	8(A2),A0
+		moveq	#$28,D1
+		bsr.b	GetChkSum		;calc header checksum
+
+		lea	$30(A2),A0
+		bsr.b	EncodeBits		;set header checksum
+
+		move.w	#$200,D0
+		movea.l	Source(A5),A0
+		lea	$40(A2),A1
+		bsr	Blitter			;encode datablock
+
+		lea	$40(A2),A0		;reset boundary bits
+		bsr.b	SetMSB			;header/block
+
+		lea	$240(A2),A0		;reset boundary bits
+		bsr.b	SetMSB			;oddbits/evenbits
+
+		lea	$440(A2),A0		;reset boundary bits
+		bsr.b	SetMSB			;evenbits/header next block
+
+		lea	$40(A2),A0
+		move.w	#$400,D1
+		bsr.b	GetChkSum		;calc checksum
+
+		lea	$38(A2),A0
+		bsr.b	EncodeBits		;set datablock checksum
+
+		rts
+
+*****************************************************************************
+
+GetChkSum	lsr.w	#2,D1
+		move.l	(A0)+,D0
+		subq.w	#2,D1
+.loop		move.l	(A0)+,D2
+		eor.l	D2,D0
+		dbra	D1,.loop
+		and.l	D5,D0
+		rts
+
+*****************************************************************************
+
+EncodeBits	move.l	D0,D3
+		lsr.l	#1,D0
+		bsr.b	Encode			;encode odd bits
+		move.l	D3,D0	
+		bsr.b	Encode			;encode even bits
+
+SetMSB		move.b	(A0),D0			;prepare most significant bit
+		bclr	#7,D0
+		btst	#6,D0
+		bne.b	.quit
+		btst	#0,-1(A0)
+		bne.b	.quit
+		bset	#7,D0
+.quit		move.b	D0,(A0)
+		rts
+
+Encode		and.l	D5,D0
+		move.l	D0,D2
+		eor.l	D5,D2
+		move.l	D2,D1
+		add.l	D2,D2
+		lsr.l	#1,D1
+		bset	#31,D1
+		and.l	D2,D1
+		or.l	D1,D0
+		btst	#0,-1(A0)
+		beq.b	.quit
+		bclr	#31,D0
+.quit		move.l	D0,(A0)+
+		rts
+
+*****************************************************************************
+
+Blitter		movea.l	A1,A3
+		moveq	#-1,D1
+
+		btst	#$6,2(A6)
+.wait1		btst	#$6,2(A6)
+		bne.b	.wait1
+
+		move.l	D1,bltafwm(A6)
+		moveq	#0,D1
+		move.l	D1,bltbmod(A6)
+		move.w	D1,bltdmod(A6)
+		move.w	D5,bltcdat(A6)
+		move.l	A0,bltbpt(A6)
+		move.l	A0,bltapt(A6)
+		move.l	A3,bltdpt(A6)
+		move.w	#$1DE4,bltcon0(A6)
+		move.w	D1,bltcon1(A6)
+		move.w	D0,D2			;blocksize
+		add.w	D2,D2
+		add.w	#16,D2
+		move.w	D2,bltsize(A6)
+
+		lea	-2(A0,D0.W),A0
+		add.w	D0,D0
+		lea	-2(A3,D0.W),A1
+
+		btst	#$6,2(A6)
+.wait2		btst	#$6,2(A6)
+		bne.b	.wait2
+	
+		move.l	A0,bltbpt(A6)
+		move.l	A0,bltapt(A6)
+		move.l	A1,bltdpt(A6)
+		move.w	#$0DE4,bltcon0(A6)
+		move.w	#$1002,bltcon1(A6)
+		move.w	D2,bltsize(A6)
+
+		btst	#$6,2(A6)
+.wait3		btst	#$6,2(A6)
+		bne.b	.wait3
+	
+		move.l	A3,bltbpt(A6)
+		move.l	A3,bltapt(A6)
+		move.l	A3,bltdpt(A6)
+		move.w	#$1D89,bltcon0(A6)
+		move.w	D1,bltcon1(A6)
+		add.w	#16,D2
+		move.w	D2,bltsize(A6)
+
+		btst	#$6,2(A6)
+.wait4		btst	#$6,2(A6)
+		bne.b	.wait4
+
+		rts
+

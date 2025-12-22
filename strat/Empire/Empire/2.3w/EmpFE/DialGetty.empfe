@@ -1,0 +1,106 @@
+/* DialGetty.empfe
+
+   This will dial a site running Empire off of a Getty.  It will wait
+   for ogin: and sword: prompts and send the correct responses before
+   trying to login() to Empire, itself.
+
+   For this to work, you will need to have the "Login" variable = 0
+   (the default, in EmpFe2 at least).  You will also have to make
+   sure that your ARexxLogin macro is __NOT__ called Login.empfe or
+   this script will fail.  EmpFe 2.1.0 has the default changed to
+   LoginCmds.empfe.  Pre EmpFe 2.1.0 has Login.empfe as the default
+   however, and therefore you'll need to add a "set ARexxLogin
+   <something of your choice>" to your Empfe.init file and rename
+   Login.empfe accordingly.
+
+   This program is needed because EmpFe2's login() procedure does not
+   know about Gettys and the fact that they will ask for a login:
+   before presenting the country login prompt (which EmpFe is looking
+   for).
+
+   You should modify the FailColour, HighColour, LoginString, and
+   PasswdString variables below to suit your needs.
+
+   If one has other scripts that dial up and connect to a site without
+   user intervention then they should be able to call this script to
+   do the dialing for them (rather than duping the code).  0 is
+   returned if it connected and 10 is returned if there is a failure.
+
+   This file is placed in the Public Domain, do what you want with it
+   and use it at your own risk!!!
+
+   Written by Christopher A. Wichura (caw@miroc.chi.il.us) 12/31/90
+   Many thanks to Loren Rittle (lrg7030@uxa.cso.uiuc.edu) for his
+   help in debugging this.
+
+   Updated 1/30/91 by CAW:  Fixed a few timing problems with Getty
+       1.08D.  Delay() command used for waits, so this script is now
+       dependant on ARexx 1.10 rexxsupport.library.  If you don't
+       have that then you'll have to change all occurances of
+       delay() to "address command 'wait'"s.
+*/
+
+/* trace r */
+
+FailColour = 2	/* colour for failure messages */
+HighColour = 3	/* colour for highlights in failure messages */
+
+LoginString = 'empire'		/* our answer to the login: prompt */
+PasswdString = ''		/* our answer to the password: prompt */
+				/* '' means no password is needed */
+
+TicksPerSecond = 50
+
+/* make sure we have rexxsupport around */
+if ~show('l','rexxsupport.library') then
+	addlib('rexxsupport.library',0,-30,0)
+
+send '0d'x   /* Pick up any connected line before trying.. */
+             /* from Update.empfe -- is it really needed ? */
+
+delay(3 * TicksPerSecond)  /* Wait a short while. */
+
+if dial() then do
+  delay(1 * TicksPerSecond) /* wait one second to insure connected()
+                               returns the proper state */
+  if connected() then do forever
+    match = get_match(60,'ogin:','sword:','NO CARRIER')
+    select
+      when match = 0 then do
+        write_empfe_screen('Didn''t get ', FailColour)
+        write_empfe_screen('login:', HighColour)
+        write_empfe_screen(' or ', FailColour)
+        write_empfe_screen('password:', HighColour)
+        write_empfe_screen(' prompt in time.' || '0A'x, FailColour)
+        leave
+        end
+      when match = 1 then do
+        delay(2 * TicksPerSecond)    /* wait before sending response */
+        send LoginString || '0A'x
+        if PasswdString = '' then leave
+        end
+      when match = 2 then do
+        send PasswdString || '0A'x
+        leave
+        end
+      when match = 3 then do
+        write_empfe_screen('Lost carrier waiting for ', FailColour)
+        write_empfe_screen('login:', HighColour)
+        write_empfe_screen(' or ', FailColour)
+        write_empfe_screen('password:', HighColour)
+        write_empfe_screen(' prompt.' || '0A'x, FailColour)
+        leave
+        end
+      end
+    end
+  end
+
+if connected() & login() & connected() then do
+  write_empfe_screen('DialGetty login successful.' || '0A'x)
+  exit(0)
+  end
+else do
+  write_empfe_screen('DialGetty login failed.' || '0A'x, FailColour)
+  exit(10)
+end
+

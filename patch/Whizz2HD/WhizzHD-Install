@@ -1,0 +1,182 @@
+;$VER: Whizz Install 1.1 (27.1.96)
+;
+;Install-Script & HD-Loader ©1996 Thomas Kessler (kessler@fim.uni-erlangen.de)
+;All rights reserved.
+;Feel free to contact me via email if you have any questions.
+;
+;Whizz ©1995/96 Flair Software(tm) & Amiga Technologies(tm) GmbH
+;All rights reserved.
+
+(set #install-version "1.1")
+(set old-level @user-level)
+(set #na "\n Sorry, no help available (yet).")
+
+(complete 0)
+
+(user 2)
+(message	"\n\nWhizz HD-Install "#install-version"\n\n"
+	"For use with the Whizz AGA disk-version\n"
+	"provided free with every Amiga(tm)\n"
+	"from Amiga Technologies(tm) GmbH\n\n"
+	"Script & HD-Loader ©1996 Thomas Kessler\nAll rights reserved.")
+(user old-level)
+(complete 1)
+
+(if (NOT (exists "Data/TrackReader")) (abort "Can't find required file:\n 'Data/TrackReader'"))
+(complete 5)
+
+(user 2)
+(set #whizzdir
+	(askdir
+		(prompt "Choose a destination-directory on your harddisk.\nA new drawer for Whizz will be created there.")
+		(help #na)
+		(default "Work:")
+	)
+)
+(user old-level)
+
+(set @default-dest (tackon #whizzdir "WhizzHD"))
+(complete 7)
+
+(if (<> (getdevice #whizzdir) "RAM")
+	(if (< (getdiskspace #whizzdir) 18100000)
+		(abort
+			(cat "\nApproximately 1810K (1.8M) of disk space is needed on your "
+			(getdevice #whizzdir) ": volume."
+			"\n\nYou only have " (/ (getdiskspace #whizzdir) 1024)
+			"K free.\n\n"
+			"Delete or transfer some files from the "(getdevice #whizzdir)": volume and try again.")
+		)
+	)
+)
+
+(makedir (tackon #whizzdir "WhizzHD")
+	(prompt "Creating directory")
+	(help #na)
+	(infos)
+	(safe)
+)
+(complete 10)
+
+(set #result 5)
+(user 2)
+(while (<> #result 0)
+	(
+		(set #diskdrive
+			(askchoice
+				(prompt "\nPlease select a disk-drive and\ninsert the disk labeled \"Whizz 1\"\n")
+				(help #na)
+				(choices "DF0:" "DF1:" "DF2:" "DF3:")
+				(default 0)
+			)
+		)
+		(complete 12)
+
+		(set #result2 5)
+		(while (<> #result2 0)
+			(
+				(set #result2
+					(run
+						(prompt "Checking")
+						(help #na)
+						(cat "Data/TrackReader UNIT=" #diskdrive " CHKSUM=0x82afebeb QUIET")
+					)
+				)
+				(if (<> #result2 0)
+					(message "\nPlease insert the disk labeled 'Whizz 1'\nin your drive DF"#diskdrive":")
+				)
+			)
+		)
+		(complete 15)
+
+		(working "Reading disk-image 'whizz1.img' from DF"#diskdrive":")
+		(set #result
+			(run
+				(prompt "Reading")
+				(help #na)
+				(cat "Data/TrackReader " (tackon #whizzdir "WhizzHD/") "whizz1.img UNIT=" #diskdrive)
+			)
+		)
+		(if (<> #result 0) (message "\nCan't create disk-image 'whizz1.img'.\nCheck everything and try again."))
+	)
+)
+(user old-level)
+(complete 50)
+
+(set #result 5)
+(user 2)
+(while (<> #result 0)
+	(
+		(set #diskdrive
+			(askchoice
+				(prompt "\nPlease select a disk-drive and\ninsert the disk labeled \"Whizz 2\"\n")
+				(help #na)
+				(choices "DF0:" "DF1:" "DF2:" "DF3:")
+				(default 0)
+			)
+		)
+		(complete 52)
+
+		(set #result2 5)
+		(while (<> #result2 0)
+			(
+				(set #result2
+					(run
+						(prompt "Checking")
+						(help #na)
+						(cat "Data/TrackReader UNIT=" #diskdrive " CHKSUM=0x00000000 QUIET")
+					)
+				)
+				(if (<> #result2 0)
+					(message "\nPlease insert the disk labeled 'Whizz 2'\nin your drive DF"#diskdrive":")
+				)
+			)
+		)
+		(complete 55)
+
+		(working "Reading disk-image 'whizz2.img' from DF"#diskdrive":")
+		(set #result
+			(run
+				(prompt "Reading")
+				(help #na)
+				(cat "Data/TrackReader " (tackon #whizzdir "WhizzHD/") "whizz2.img UNIT=" #diskdrive)
+			)
+		)
+		(if (<> #result 0) (message "\nCan't create disk-image 'whizz2.img'.\nCheck everything and try again."))
+	)
+)
+(user old-level)
+(complete 90)
+
+(copyfiles
+	(prompt "Copy files")
+	(help #na)
+	(source "Data/WhizzHD")
+	(dest (tackon #whizzdir "WhizzHD"))
+	(infos)
+	(optional force)
+	(safe)
+)
+(complete 95)
+
+(copyfiles
+	(prompt "Copy files")
+	(help #na)
+	(source "Data/WhizzHD_drawer.info")
+	(dest #whizzdir)
+	(newname "WhizzHD.info")
+	(optional force)
+	(safe)
+)
+(complete 100)
+
+(exit
+	(cat "Note: WhizzHD needs about 1.8M continous Fast-RAM\n"
+	"and does not return to Workbench.\n\n"
+	"It seems that Whizz was designed for a 'normal' A1200\n"
+	"but it should also work on an A4000/030 or better.\n"
+	"(make sure that '68040.library' or similar is not installed "
+	"or start WhizzHD right after a reset)."
+	)
+)
+(welcome "")

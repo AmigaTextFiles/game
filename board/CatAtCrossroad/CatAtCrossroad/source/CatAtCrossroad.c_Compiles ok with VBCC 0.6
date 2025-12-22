@@ -1,0 +1,773 @@
+/*  Cat at crossroad / Kote na krystopyt                               */
+/*  Original Oric BASIC Game by Antoan Hlebarov in 1987                */
+/*  Amiga  C port by Ventzislav  Tzvetkov <drHirudo@Amigascne.org>     */
+/*  Original Amiga Graphics by Joar Berntsen <joar.berntsen@netcom.no> */
+/*  All these sources are free to use.                                 */
+/*  This game is freeware, feel free to modify it!                     */
+
+
+
+#include <intuition/intuition.h>
+
+#include "CatAtCrossroad.h" /* Header file with the image structures */
+
+int vi=0,co=0,d=0,dd=0,x=0,y=0,v=0,vv=0,xs=0,ys=0,wi=0,v1,v2,v3,v4;
+UBYTE DO[5][5]={0,1,1,2,4,0,3,3,2,4,5,5,6,9,9,7,7,6,11,11,13,13,15,15,20},
+TB[6][6]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},P[6][6]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+struct IntuitionBase *IntuitionBase;
+struct GfxBase *GfxBase;
+
+struct Screen *my_screen;
+struct Window *my_window;
+
+struct IntuiMessage *my_message;
+
+/* Font - the old good Topaz 8 */
+struct TextAttr my_font=
+{
+  "topaz.font",                 /* Topaz font. */
+  8,                            /*                 */
+    NULL,
+ FPF_ROMFONT                   /* Exist in ROM. */
+};
+
+/* Phrases */
+static char *Text[]={"Cat at Crossroad","                                        ","                                        ","  This game is played on board divided  "," by 5 rows and 5 columns. Each player   ", " puts one of the three possible plates  "," and the lines on them make road. The   ", " goal is to reach the kitten, through   ", " making a way to it, or by forcing the  ", " opponent to touch the board limits.    ", "                                        ", "                                        ", "G o o d    L u c k !","0","1", "2", "3", "4", "5","6","7","8","9","10","You","Amiga", "You are first and according to the", "rules, begin with plate 1 at 1 , 1.", "I play with figure 2 at ", " , "," . "," ","Your move?                              ","Figure ","at","I play with figure ","End of this serie of games !","Result:","Victories","You lose !!","You lose !","You win !","and you win !","$VER: CatAtCrossroad V1.3 (26.01.2002)"
+};
+
+/* Gadgets */
+struct Gadget my_first_gadget=
+{
+  NULL,          /* NextGadget, no more gadgets in the list. */
+  180,           /* LeftEdge, 180 pixels out. */
+  64,            /* TopEdge, 64 lines down. */
+  12,            /* Width, 12 pixels wide. */
+  16,            /* Height, 16 pixels lines heigh. */
+  GADGHNONE,     /* Flags, no highlighting. */
+  GADGIMMEDIATE, /* When the user selects the gadget*/
+                 /* has released it. */ 
+  BOOLGADGET,    /* GadgetType, a Boolean gadget. */
+  NULL,
+  NULL,          /* SelectRender */
+  NULL,          /* GadgetText, a pointer to our IntuiText structure. */
+  NULL,          /* MutualExclude, no mutual exclude. */
+  NULL,          /* SpecialInfo, NULL since this is a Boolean gadget. */
+                 /* (It is not a Proportional/String or Integer gdget) */
+  0,             /* GadgetID, no id. */
+  NULL           /* UserData, no user data connected to the gadget. */
+};
+
+struct Gadget my_second_gadget=
+{
+  &my_first_gadget, /* NextGadget, after this comes my_first_gadget. */
+  180,           /* LeftEdge, 180 pixels out. */
+  96,            /* TopEdge, 96 lines down. */
+  12,            /* Width, 12 pixels wide. */
+  16,            /* Height, 16 pixels lines heigh. */
+  GADGHNONE,     /* Flags, no highlighting. */
+  GADGIMMEDIATE, /* When the user selects the gadget*/
+                 /* has released it. */ 
+  BOOLGADGET,    /* GadgetType, a Boolean gadget. */
+  NULL,
+  NULL,          /* SelectRender */
+  NULL,          /* GadgetText, a pointer to our IntuiText structure. */
+  NULL,          /* MutualExclude, no mutual exclude. */
+  NULL,          /* SpecialInfo, NULL since this is a Boolean gadget. */
+                 /* (It is not a Proportional/String or Integer gdget) */
+  0,             /* GadgetID, no id. */
+  NULL           /* UserData, no user data connected to the gadget. */
+};
+
+struct Gadget my_third_gadget=
+{
+  &my_second_gadget,/* NextGadget, after this comes my_first_gadget. */
+  180,           /* LeftEdge, 180 pixels out. */
+  128,           /* TopEdge, 128 lines down. */
+  12,            /* Width, 12 pixels wide. */
+  16,            /* Height, 16 pixels lines heigh. */
+  GADGHNONE,     /* Flags, no highlighting. */
+  GADGIMMEDIATE, /* When the user selects the gadget*/
+                 /* has released it. */ 
+  BOOLGADGET,    /* GadgetType, a Boolean gadget. */
+  NULL,
+  NULL,          /* SelectRender */
+  NULL,          /* GadgetText, a pointer to our IntuiText structure. */
+  NULL,          /* MutualExclude, no mutual exclude. */
+  NULL,          /* SpecialInfo, NULL since this is a Boolean gadget. */
+                 /* (It is not a Proportional/String or Integer gdget) */
+  0,             /* GadgetID, no id. */
+  NULL           /* UserData, no user data connected to the gadget. */
+};
+
+/* Text for the About Menu Item */
+struct IntuiText my_body_text=
+{
+  0,       /* FrontPen, colour 0 (blue). */
+  0,       /* BackPen, not used since JAM1. */
+  JAM1,    /* DrawMode, do not change the background. */
+  15,      /* LedtEdge, 15 pixels out. */
+  5,       /* TopEdge, 5 lines down. */
+  NULL,    /* ITextFont, default font. */
+  "© by V. Tzvetkov and J. Berntsen", /* IText, the text . */
+  NULL,    /* NextText, no more IntuiText structures link. */
+};
+
+/* The OK text: */
+struct IntuiText my_ok_text=
+{
+  0,       /* FrontPen, colour 0 (blue). */
+  0,       /* BackPen, not used since JAM1. */
+  JAM1,    /* DrawMode, do not change the background. */
+  6,       /* LedtEdge, 6 pixels out. */
+  3,       /* TopEdge, 3 lines down. */
+  NULL,    /* ITextFont, default font. */
+  "OK",    /* IText, the text that will be printed. */
+  NULL,    /* NextText, no more IntuiText structures link. */
+};
+ 
+struct IntuiText my_intui_text=
+{
+  5,         /* FrontPen, colour register 5. */
+  0,         /* BackPen, colour register 0. */
+  JAM2,      /* DrawMode, */
+  0, 0,      /* LeftEdge, TopEdge. */
+  &my_font,  /* ITextFont, use my_font. */
+  NULL,      /* IText, the text that will be printed. */
+             /* (Remember my_text = &my_text[0].) */
+  NULL       /* NextText, no other IntuiText structures are */
+             /* connected. */
+};
+
+/* Game's Screen */
+struct NewScreen my_new_screen=
+{
+  0,            /* LeftEdge  Should always be 0. */
+  0,            /* TopEdge   Top of the display.*/
+  320,          /* Width     We are using a low-resolution screen. */
+  256,          /* Height    Non-Interlaced PAL (European) display. */
+  5,            /* Depth     32 colours. */
+  0,            /* DetailPen Text should be drawn with colour reg. 0 */
+  1,            /* BlockPen  Blocks should be drawn with colour reg. 1 */
+  NULL,         /* ViewModes No special modes. (Low-res, Non-Interlaced) */
+  CUSTOMSCREEN, /* Type      Your own customized screen. */
+  NULL,         /* Font      Default font. */
+  "           ",/* Title     The screen' title. None because it's used as background */
+  NULL,         /* Gadget    Must for the moment be NULL. */
+  NULL          /* BitMap    No special CustomBitMap. */
+};
+
+struct NewWindow my_new_window=
+{
+  0,            /* LeftEdge    x position of the window. */
+  0,            /* TopEdge     y positio of the window. */
+  320,           /* Width       320 pixels wide. */
+  256,           /* Height      256 lines high. */
+  0,             /* DetailPen   Text should be drawn with colour reg. 0 */
+  1,             /* BlockPen    Blocks should be drawn with colour reg. 1 */
+  GADGETDOWN|MENUPICK|MOUSEBUTTONS, /* IDCMPFlags. */
+  SMART_REFRESH|BORDERLESS|BACKDROP|ACTIVATE|INTUITICKS, /* Flags       Intuition should refresh the window. */ 
+  &my_third_gadget,/* FirstGadget. */
+  NULL,          /* CheckMark   Use Intuition's default CheckMark (v). */
+  NULL,          /* Title       Title of the window. */
+  NULL,          /* Screen      Connected to the Workbench Screen. */
+  NULL,          /* BitMap      No Custom BitMap. */
+  0,0,0,0,
+  CUSTOMSCREEN   /* Type        Connected to custom Screen. */
+};
+
+struct IntuiText my_third_text=
+{
+  2,          /* FrontPen, black. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0,          /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "Quit",     /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+struct MenuItem my_third_item=
+{
+  NULL, /* &my_third_item, */  /* NextItem, linked to the third item. */
+  0,               /* LeftEdge, 0 pixels out. */
+  20,              /* TopEdge, 20 lines down. */
+  150,             /* Width, 150 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude, mutualexclude the first item only. */
+  (APTR) &my_third_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'Q',               /* Command, no command-key sequence. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct IntuiText my_second_text=
+{
+  2,          /* FrontPen, black. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0,          /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "About",    /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+struct MenuItem my_second_item=
+{
+  &my_third_item,  /* NextItem, linked to the third item. */
+  0,               /* LeftEdge, 0 pixels out. */
+  10,              /* TopEdge, 10 lines down. */
+  150,             /* Width, 150 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude, mutualexclude the first item only. */
+  (APTR) &my_second_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'A',               /* Command, no command-key sequence. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct IntuiText my_first_text=
+{
+  2,          /* FrontPen. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0, /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "New Game", /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+struct MenuItem my_first_item=
+{
+  &my_second_item, /* NextItem, linked to the second item. */
+  0,               /* LeftEdge, 0 pixels out. */
+  0,               /* TopEdge, 0 lines down. */
+  150,             /* Width, 150 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude, , no mutualexclude. */
+  (APTR) &my_first_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'N',             /* Command, no command-key sequence. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct Menu my_menu=
+{
+  NULL,          /* NextMenu, no more menu structures. */
+  0,             /* LeftEdge, left corner. */
+  0,             /* TopEdge, for the moment ignored by Intuition. */
+  130,           /* Width, 130 pixels wide. */
+  0,             /* Height, for the moment ignored by Intuition. */
+  MENUENABLED,   /* Flags, this menu will be enabled. */
+  "Cat at crossroad",/* MenuName, the string. */
+  &my_first_item /* FirstItem, pointer to the first item in the list. */
+};
+
+
+main()
+{
+ int i;
+ BOOL close=0;
+
+/* Open the Intuition library: */
+  IntuitionBase = (struct IntuitionBase *)
+    OpenLibrary( "intuition.library", 0 );
+  if( !IntuitionBase )
+    exit();
+
+/* Open the Graphics library: */
+  GfxBase = (struct GfxBase *)
+    OpenLibrary( "graphics.library", 0 );
+  if( !GfxBase )
+  {
+  CloseLibrary( IntuitionBase );
+  exit();    
+  }
+
+/* We will now try to open the screen: */
+ my_screen = (struct Screen *) OpenScreen( &my_new_screen );
+  if( !my_screen )
+  {
+   CloseLibrary( GfxBase );
+   CloseLibrary( IntuitionBase );
+   exit();
+   }
+
+/* Sets the ColorPallete - 32 colors: */
+ SetRGB4( &my_screen->ViewPort, 0,  0,0,0   );
+ SetRGB4( &my_screen->ViewPort, 1,  15,15,15);
+ SetRGB4( &my_screen->ViewPort, 2,  0,15,0  );
+ SetRGB4( &my_screen->ViewPort, 3,  15,15,0 );
+ SetRGB4( &my_screen->ViewPort, 4,  0,0,15  );
+ SetRGB4( &my_screen->ViewPort, 5,  15,0,15 );
+ SetRGB4( &my_screen->ViewPort, 6,  0,15,15 );
+ SetRGB4( &my_screen->ViewPort, 7,  15,15,15);
+ SetRGB4( &my_screen->ViewPort, 8,  6,11,0  );
+ SetRGB4( &my_screen->ViewPort, 9,  1,7,0   );
+ SetRGB4( &my_screen->ViewPort,10,  5,11,12 );
+ SetRGB4( &my_screen->ViewPort,11,  3,6,7   );
+ SetRGB4( &my_screen->ViewPort,12,  0,7,11  );
+ SetRGB4( &my_screen->ViewPort,13,  0,4,8   );
+ SetRGB4( &my_screen->ViewPort,14,  14,8,8  );
+ SetRGB4( &my_screen->ViewPort,15,  11,5,5  );
+ SetRGB4( &my_screen->ViewPort,16,  14,7,2  );
+ SetRGB4( &my_screen->ViewPort,17,  12,6,4  );
+ SetRGB4( &my_screen->ViewPort,18,  8,2,0   );
+ SetRGB4( &my_screen->ViewPort,19,  15,11,7 );
+ SetRGB4( &my_screen->ViewPort,20,  9,0,15  );
+ SetRGB4( &my_screen->ViewPort,21,  6,0,12  );
+ SetRGB4( &my_screen->ViewPort,22,  11,7,0  );
+ SetRGB4( &my_screen->ViewPort,23,  9,5,0   );
+ SetRGB4( &my_screen->ViewPort,24,  15,10,5 );
+ SetRGB4( &my_screen->ViewPort,25,  13,8,4  );
+ SetRGB4( &my_screen->ViewPort,26,  9,11,9  );
+ SetRGB4( &my_screen->ViewPort,27,  6,8,6   );
+ SetRGB4( &my_screen->ViewPort,28,  4,10,7  );
+ SetRGB4( &my_screen->ViewPort,29,  1,7,5   );
+ SetRGB4( &my_screen->ViewPort,30,  3,3,3   );
+ SetRGB4( &my_screen->ViewPort,31,  15,0,0  );
+
+ my_new_window.Screen = my_screen;
+ my_window = (struct Window *) OpenWindow( &my_new_window );
+
+if ( !my_window )
+  {
+    /* Could NOT open the Window! */
+    
+    /* Close the Intuition Library since we have opened it: */
+   CloseScreen( my_screen );
+   CloseLibrary( GfxBase );   
+   CloseLibrary( IntuitionBase );
+   exit();  
+  }
+/* Shows the title screen */
+Title();
+SetRGB4( &my_screen->ViewPort, 1,  6,8,6   );
+/* Set the menu */
+SetMenuStrip( my_window, &my_menu );
+
+/* Draws the board for the first time */
+Board();
+
+  /* Stay in the while loop until the end */
+while( close == FALSE )
+  {
+  my_intui_text.IText=Text[32];
+  PrintIText( my_window->RPort, &my_intui_text ,18,184);
+  DrawImage( my_window->RPort, &Cat_image,54+x*12,48+y*16);
+  /* Wait until we have recieved a message: */
+  Wait( 1 << my_window->UserPort->mp_SigBit );
+
+  /* As long as we can collect messages successfully we stay in the */
+  /* while-loop: */
+  while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort))
+   { 
+    if (close)
+       break;
+
+      /* After we have successfully collected the message we can read */
+      /* it, and save any important values which we maybe want to check */
+      /* later: */
+
+   if(my_message->Class == MENUPICK && my_message->Code == 63488)
+    {co=vi=0; Board();} /* New Game */
+
+   if(my_message->Class == MENUPICK && my_message->Code == 63520)
+   AutoRequest( my_window, &my_body_text, NULL, &my_ok_text, NULL, NULL, 220, 72);  /* About */
+
+   if(my_message->Class == MENUPICK && my_message->Code == 63552)
+   {close=TRUE; /* Quit */break;}
+
+   /* Choosen Plate */
+   if (my_message->Class == GADGETDOWN)
+   { if (my_message->IAddress==(APTR) &my_first_gadget)
+   v=1;
+
+   if (my_message->IAddress==(APTR) &my_second_gadget)
+   v=2;
+
+   if (my_message->IAddress==(APTR) &my_third_gadget)
+   v=3;
+
+   SetAPen(my_window->RPort,0);
+   RectFill(my_window->RPort,54+x*12,48+y*16,65+x*12,63+y*16);
+   my_intui_text.IText=Text[33];
+   PrintIText( my_window->RPort, &my_intui_text ,120,184);
+
+   /* Draws the choosen Plate. */
+   Plate(v,54+x*12,48+y*16);
+
+   my_intui_text.IText=Text[13+v];
+   PrintIText( my_window->RPort, &my_intui_text ,176,184);
+   my_intui_text.IText=Text[34];
+   PrintIText( my_window->RPort, &my_intui_text ,192,184);
+   my_intui_text.IText=Text[13+y];
+   PrintIText( my_window->RPort, &my_intui_text ,216,184);
+   my_intui_text.IText=Text[29];
+   PrintIText( my_window->RPort, &my_intui_text ,224,184);
+   my_intui_text.IText=Text[13+x];
+   PrintIText( my_window->RPort, &my_intui_text ,248,184);
+   my_intui_text.IText=Text[30];
+   PrintIText( my_window->RPort, &my_intui_text ,256,184);
+   vv=v;
+   xs=x;
+   ys=y;
+   Continue();
+   Check(); 
+   if (wi==1) { my_intui_text.IText=Text[41]; vi++; Win(); Board(); break;}
+   v=vv;
+   Plate(vv,54+x*12,48+y*16);
+   TB[x][y]=v;
+   y=ys;
+   x=xs;
+   P[xs][ys]=1;
+   if (wi==-1) {
+   my_intui_text.IText=Text[40];
+   co++;
+   Win();
+   Board();
+   break;}
+   Complay();  /*Computer's turn */ } 
+
+  }
+ }
+
+/* Clears the menu */
+ ClearMenuStrip( my_window );
+
+/* Closes the window */
+ CloseWindow ( my_window ); 
+
+/* We should always close the screens we have opened before we leave: */
+ CloseScreen( my_screen );
+  
+/* Close the Graphics Library since we have opened it: */
+  CloseLibrary( GfxBase );
+
+  /* Close the Intuition Library since we have opened it: */
+  CloseLibrary( IntuitionBase );
+
+  /* THE END */
+exit();
+}
+
+void Title() /* Shows the title screen */
+{
+ int i;
+ SetAPen(my_window->RPort,7);
+ RectFill(my_window->RPort,0,0,319,69);
+ my_intui_text.IText=Text[0];
+ my_intui_text.FrontPen=4;
+ my_intui_text.BackPen=7;
+ PrintIText( my_window->RPort, &my_intui_text ,94,24);
+ my_intui_text.FrontPen=0;
+ my_intui_text.BackPen=2;
+ for (i=1; i<12; i++)
+ {my_intui_text.IText=Text[i];
+ PrintIText( my_window->RPort, &my_intui_text ,0,i*8+62);}
+ SetAPen(my_window->RPort,31);
+ RectFill(my_window->RPort,0,158,319,255);
+ my_intui_text.IText=Text[12];
+ my_intui_text.FrontPen=7;
+ my_intui_text.BackPen=31;
+ PrintIText( my_window->RPort, &my_intui_text ,80,200);
+ while(my_message->Class != MOUSEBUTTONS)
+ my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort);
+ ReplyMsg(my_message);
+ SetAPen(my_window->RPort,27);
+ RectFill(my_window->RPort,0,0,319,255);
+}
+
+void Board () /* Draws the playing board */
+{
+ int i,a,b;
+ if (vi==10 || co==10) Newserie();
+ SetAPen(my_window->RPort,26);
+ RectFill(my_window->RPort,60,56,131,151);
+ SetAPen(my_window->RPort,0);
+ RectFill(my_window->RPort,66,64,125,143);
+ my_intui_text.FrontPen=4;
+ my_intui_text.BackPen=27;
+ for (i=1; i<6; i++) {
+  my_intui_text.IText=Text[13+i];
+  PrintIText( my_window->RPort, &my_intui_text ,48,i*16+56);
+  PrintIText( my_window->RPort, &my_intui_text ,56+i*12,160);
+ }
+ SetAPen(my_window->RPort,4);
+ RectFill(my_window->RPort,0,16,319,31);
+ RectFill(my_window->RPort,0,176,319,208);
+ SetAPen(my_window->RPort,31);
+ RectFill(my_window->RPort,0,32,319,47);
+ SetAPen(my_window->RPort,7);
+ DrawImage( my_window->RPort, &Mouse_image,204,26);
+ my_intui_text.FrontPen=7;
+ my_intui_text.BackPen=31;
+ my_intui_text.IText=Text[25];
+ PrintIText( my_window->RPort, &my_intui_text ,12,40);
+ my_intui_text.IText=Text[13+co];
+ PrintIText( my_window->RPort, &my_intui_text ,222,40);
+ my_intui_text.BackPen=4;
+ my_intui_text.IText=Text[13+vi];
+ PrintIText( my_window->RPort, &my_intui_text ,222,24);
+ my_intui_text.IText=Text[24];
+ PrintIText( my_window->RPort, &my_intui_text ,12,24);
+ DrawImage( my_window->RPort, &CatVi_image,vi*12+78,16);
+ DrawImage( my_window->RPort, &CatCo_image,co*12+78,32);
+ DrawImage( my_window->RPort, &Table_image, 162,56 );
+ DrawImage( my_window->RPort, &Kitten_image, 114,132 );
+ my_intui_text.IText=Text[26];
+ PrintIText( my_window->RPort, &my_intui_text ,18,184);
+ my_intui_text.IText=Text[27];
+ PrintIText( my_window->RPort, &my_intui_text ,18,192);
+ DrawImage( my_window->RPort, &Plate1_image,66,64);
+ TB[1][1]=1; /* First turns */
+ Delay(50*2);
+ a=1+((my_message->Micros/100000)+5)/10; /* Random number 1 || 2 */
+ b=1+(a==1);
+ my_intui_text.IText=Text[28];
+ PrintIText( my_window->RPort, &my_intui_text ,18,184);
+ my_intui_text.IText=Text[13+b];
+ PrintIText( my_window->RPort, &my_intui_text ,212,184);
+ my_intui_text.IText=Text[29];
+ PrintIText( my_window->RPort, &my_intui_text ,220,184);
+ my_intui_text.IText=Text[13+a];
+ PrintIText( my_window->RPort, &my_intui_text ,242,184);
+ my_intui_text.IText=Text[30];
+ PrintIText( my_window->RPort, &my_intui_text ,250,184);
+ my_intui_text.IText=Text[31];
+ PrintIText( my_window->RPort, &my_intui_text ,274,184);
+ PrintIText( my_window->RPort, &my_intui_text ,282,184);
+ my_intui_text.IText=Text[1];
+ PrintIText( my_window->RPort, &my_intui_text ,0,192);
+ for (i=1; i<6; i++)
+ {SetAPen(my_window->RPort,0);
+  RectFill(my_window->RPort,54+a*12,48+b*16,65+a*12,63+b*16);
+  Delay(12);
+  DrawImage( my_window->RPort, &Plate2_image,54+a*12,48+b*16);
+  Delay(12);
+ }
+ TB[a][b]=2;
+ P[1][1]=1;
+ if (a==1) d=4; else d=1; /* Directions */
+ x=y=xs=ys=2;
+}
+
+void Continue()  /* Tells: "Where to road heads to?" */
+{ int ddd;
+do 
+ {if (d==1)
+  {if (v==1) {ddd=1; ys++;}
+   if (v==2) {ddd=4; xs++;}
+   if (v==3) {ddd=2; xs--;}
+  }
+ if (d==2)
+  {if (v==1) {ddd=2; xs--;}
+   if (v==2) {ddd=3; ys--;}
+   if (v==3) {ddd=1; ys++;}
+  }
+ if (d==3)
+  {if (v==1) {ddd=3; ys--;}
+   if (v==2) {ddd=2; xs--;}
+   if (v==3) {ddd=4; xs++;}
+  }
+ if (d==4)
+  {if (v==1) {ddd=4; xs++;}
+   if (v==2) {ddd=1; ys++;}
+   if (v==3) {ddd=3; ys--;}
+  }
+ d=ddd;
+ if (TB[xs][ys] != 0) {v=TB[xs][ys]; ddd=0;}
+ }
+while ( !ddd );
+
+}
+
+void Check() /* Checks if someone wins */
+{
+ wi=0;
+ if (xs==5 && ys==5) wi=1;
+ if (xs==0 || xs==6 || ys==0 || ys==6) wi=-1;
+}
+
+void Complay() /* Computer's decision */
+{
+ int i,pl=0;
+ dd=d;
+ vv=0;
+ do {
+  vv++;
+  v=vv;
+  d=dd;
+  xs=x;
+  ys=y;
+  Continue();
+  Check();
+  if (wi==1) {v=vv;vv=5;}
+  vv=vv+(vv==3);}
+ while (vv<4);
+ if (vv==5) pl=1;
+ /* dobyr hod */
+ if (!pl) {vv=0;
+ do {
+  vv++;
+  v=vv;
+  d=dd;
+  xs=x;
+  ys=y;
+  Continue();
+  Check();
+  if (wi==-1 || xs+ys==9) {vv=vv+(vv==3);break;}
+  if (DO[y][x]==DO[ys][xs]) {v=vv;vv=5;}
+  vv=vv+(vv==3); }
+ while (vv<4);
+   }
+ if (vv==5) pl=1;
+
+ if (!pl) {  /* Possible turn (Random) */
+ if ( ((my_message->Micros/100000)+5)/10==0 ) {v1=3; v2=1; v3=-1;} else {v1=1;v2=3;v3=1;}
+ v4=0;
+ vv=v1;
+ do {v4++;
+     v=vv;
+     d=dd;
+     xs=x;
+     ys=y;
+     Continue();
+     Check();
+     if (wi>-1 && xs+ys<9) 
+    {v=vv; 
+    vv=v2+v3;
+    v4=4;}
+   vv=vv+v3;
+  v4=v4+(v4==3);
+  } while ( v4<4); }
+
+ my_intui_text.IText=Text[35];
+ PrintIText( my_window->RPort, &my_intui_text ,18,184);
+ my_intui_text.IText=Text[13+v];
+ PrintIText( my_window->RPort, &my_intui_text ,176,184);
+ my_intui_text.IText=Text[34];
+ PrintIText( my_window->RPort, &my_intui_text ,192,184);
+ my_intui_text.IText=Text[13+y];
+ PrintIText( my_window->RPort, &my_intui_text ,216,184);
+ my_intui_text.IText=Text[29];
+ PrintIText( my_window->RPort, &my_intui_text ,224,184);
+ my_intui_text.IText=Text[13+x];
+ PrintIText( my_window->RPort, &my_intui_text ,248,184);
+ my_intui_text.IText=Text[30];
+ PrintIText( my_window->RPort, &my_intui_text ,256,184);
+ Check();
+ P[xs][ys]=1;
+ for (i=1; i<6; i++)
+ {SetAPen(my_window->RPort,0);
+ RectFill(my_window->RPort,54+x*12,48+y*16,65+x*12,63+y*16);
+ Delay(12);
+ Plate(v,54+x*12,48+y*16);
+ Delay(12);
+ }
+ TB[x][y]=v;
+ if (wi==1) {my_intui_text.IText=Text[39];co++;
+ Win();
+ Board();}
+ 
+ if (wi==-1) {my_intui_text.IText=Text[42]; vi++; Win();Board();}
+ x=xs;
+ y=ys;
+}
+
+void Win() /* Shows who is the winner */ {
+ int k,l;
+ SetAPen(my_window->RPort,4);
+ RectFill(my_window->RPort,0,176,319,208);
+ PrintIText( my_window->RPort, &my_intui_text ,18,184);
+ Delay(50);
+ SetAPen(my_window->RPort,6);
+ for (k=0; k<7; k++) for (l=0; l<7; l++) {P[l][k]=TB[l][k]=0;}
+ wi=0;
+ Delay (50);
+}
+
+void Newserie() /* End of serie. New serie. */
+{
+ int i;
+ for (i=1; i<6; i++) 
+  {
+  SetRGB4( &my_screen->ViewPort, 1,  15,15,0 );
+  SetAPen(my_window->RPort,3);
+  RectFill(my_window->RPort,0,0,319,255);
+  my_intui_text.FrontPen=4;
+  my_intui_text.BackPen=3;
+  my_intui_text.IText=Text[36];
+  PrintIText( my_window->RPort, &my_intui_text ,18,24);
+  my_intui_text.IText=Text[37];
+  PrintIText( my_window->RPort, &my_intui_text ,54,56);
+  my_intui_text.IText=Text[24];
+  PrintIText( my_window->RPort, &my_intui_text ,42,88);
+  my_intui_text.IText=Text[25];
+  PrintIText( my_window->RPort, &my_intui_text ,42,104);
+  my_intui_text.IText=Text[13+vi];
+  PrintIText( my_window->RPort, &my_intui_text ,90,88);
+  my_intui_text.IText=Text[13+co];
+  PrintIText( my_window->RPort, &my_intui_text ,90,104);
+
+  my_intui_text.IText=Text[38];
+  PrintIText( my_window->RPort, &my_intui_text ,114,88);
+  PrintIText( my_window->RPort, &my_intui_text ,114,104);
+
+  Delay(50);
+  SetRGB4( &my_screen->ViewPort, 1,  0,15,15 );
+  SetAPen(my_window->RPort,6);
+  my_intui_text.BackPen=6;
+  RectFill(my_window->RPort,0,0,319,255);
+  my_intui_text.IText=Text[36];
+  PrintIText( my_window->RPort, &my_intui_text ,18,24);
+  my_intui_text.IText=Text[37];
+  PrintIText( my_window->RPort, &my_intui_text ,54,56);
+  my_intui_text.IText=Text[24];
+  PrintIText( my_window->RPort, &my_intui_text ,42,88);
+  my_intui_text.IText=Text[25];
+  PrintIText( my_window->RPort, &my_intui_text ,42,104);
+
+  my_intui_text.IText=Text[13+vi];
+  PrintIText( my_window->RPort, &my_intui_text ,90,88);
+  my_intui_text.IText=Text[13+co];
+  PrintIText( my_window->RPort, &my_intui_text ,90,104);
+
+  my_intui_text.IText=Text[38];
+  PrintIText( my_window->RPort, &my_intui_text ,114,88);
+  PrintIText( my_window->RPort, &my_intui_text ,114,104);
+  Delay(50);
+  }
+  SetAPen(my_window->RPort,27);
+  RectFill(my_window->RPort,0,0,319,255);
+  vi=co=0;
+  SetRGB4( &my_screen->ViewPort, 1,  6,8,6   );
+}
+
+void Plate(a,b,c) /* Draws plate with number a at position b , c */
+{
+   if (a==1) DrawImage( my_window->RPort, &Plate1_image,b,c);
+   if (a==2) DrawImage( my_window->RPort, &Plate2_image,b,c);
+   if (a==3) DrawImage( my_window->RPort, &Plate3_image,b,c);
+}

@@ -1,0 +1,108 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.51
+     from ahidev.texinfo on 31 October 1997 -->
+
+<TITLE>Ahi Developers's Guide - Opening And Closing ahi.device For High-level Access</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="ahidev_1.html">first</A>, <A HREF="ahidev_11.html">previous</A>, <A HREF="ahidev_13.html">next</A>, <A HREF="ahidev_21.html">last</A> section, <A HREF="ahidev_toc.html">table of contents</A>.
+<P><HR><P>
+
+
+<H2><A NAME="SEC24" HREF="ahidev_toc.html#TOC24">Opening And Closing <CODE>ahi.device</CODE> For High-level Access</A></H2>
+
+<P>
+ Four primary steps are required to open ahi.device:
+
+</P>
+
+<UL>
+
+<LI>
+
+Create a message port using <CODE>CreateMsgPort()</CODE>.  Reply messages from
+the device must be directed to a message port.
+
+<A NAME="IDX91"></A>
+
+<LI>
+
+Create an extended I/O request structure of type <CODE>AHIRequest</CODE> using
+<CODE>CreateIORequest()</CODE>.  <CODE>CreateIORequest()</CODE> will initialize the I/O
+request to point to your reply port.
+
+<LI>
+
+Specify which version of the device you need.  The lowest supported version
+is 4.  Version 1 and 3 are obsolete, and version 2 only has the low-level
+API.
+
+<A NAME="IDX92"></A>
+
+<LI>
+
+Open <CODE>ahi.device</CODE> unit <CODE>AHI_DEFAULT_UNIT</CODE> or any other unit the
+user has specified with, for example, a <VAR>UNIT</VAR> tooltype.  Call
+<CODE>OpenDevice()</CODE>, passing the I/O request.
+
+</UL>
+
+<P>
+ Each <CODE>OpenDevice()</CODE> must eventually be matched by a call to
+<CODE>CloseDevice()</CODE>.  When the last close is performed, the device will
+deallocate all resources.
+
+</P>
+<P>
+ All I/O requests must be completed before <CODE>CloseDevice()</CODE>.  Abort any
+pending requests with <CODE>AbortIO()</CODE>.
+
+</P>
+<P>
+ Example:
+
+</P>
+
+<PRE>
+struct MsgPort    *AHImp      = NULL;
+struct AHIRequest *AHIio      = NULL;
+BYTE               AHIDevice  = -1;
+UBYTE              unit       = AHI_DEFAULT_UNIT;
+
+/* Check if user wants another unit here... */
+
+if(AHImp = CreateMsgPort())
+{
+  if(AHIio = (struct AHIRequest *)
+      CreateIORequest(AHImp, sizeof(struct AHIRequest)))
+  {
+    AHIio-&#62;ahir_Version = 4;
+    if(!(AHIDevice = OpenDevice(AHINAME, unit, 
+        (struct IORequest *) AHIio, NULL)))
+    {
+
+      /* Send commands to the device here... */
+
+      if(! CheckIO((struct IORequest *) AHIio))
+      {
+        AbortIO((struct IORequest *) AHIio);
+      }
+
+      WaitIO((struct IORequest *) AHIio);
+
+      CloseDevice((struct IORequest *) AHIio);
+      AHIDevice = -1;
+    }
+    DeleteIORequest((struct IORequest *) AHIio);
+    AHIio = NULL;
+  }
+  DeleteMsgPort(AHImp);
+  AHImp = NULL;
+}
+</PRE>
+
+<P><HR><P>
+Go to the <A HREF="ahidev_1.html">first</A>, <A HREF="ahidev_11.html">previous</A>, <A HREF="ahidev_13.html">next</A>, <A HREF="ahidev_21.html">last</A> section, <A HREF="ahidev_toc.html">table of contents</A>.
+</BODY>
+</HTML>

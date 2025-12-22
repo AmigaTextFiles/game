@@ -1,0 +1,112 @@
+/*********************************\
+** Free Cell v1.0 for Solitarexx **
+**     by Michal Szafranski      **
+\*********************************/
+OPTIONS RESULTS
+
+tex = '"Free Cell"'
+wintex = '"We Have a Winner"'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 tex 6
+SELECTGUI 1
+
+SCREENSIZE 2 15 8 0
+DO i = 0 TO 7
+	NEWSTACK 3 8 0 i 1 0 0 15
+	stack.i = RESULT
+END
+DO i = 0 TO 3
+	NEWSTACK 2 8 i+2 i 0 0 0
+	base.i = RESULT
+END
+DO i = 0 TO 3
+	NEWSTACK 1 8 (i=0) i+4 0 0 0
+	help.i = RESULT
+END
+deck = help.0
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SETGADGET 14 STR tex
+	SELECTGUI 4
+	sel = 0
+	fin = 0
+	DO i=0 TO 7
+		CARDSELECT deck 7-(i>3)
+		MOVECARDS deck stack.i REVERSE
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		SELECT
+		WHEN act = 1 THEN EXIT
+		WHEN act = 2 & sel = 0 & card>0 THEN sel = stack
+		WHEN act = 2 & sel > 0 THEN DO
+			SELECT
+				WHEN sid = 2 | sel = stack THEN CALL DOBASE
+				WHEN sid = 1 THEN CALL DOHELP
+				WHEN sid = 3 THEN CALL DOSTACKS
+				OTHERWISE ERRBEEP
+			END
+			sel = 0
+		END
+		WHEN act = 3 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+		OTHERWISE ERRBEEP
+		END
+	END
+RETURN
+DOHELP:
+	CARDSELECT stack 1
+	IF RESULT = '' THEN MOVECARDS sel stack
+	ELSE ERRBEEP
+RETURN
+DOSTACKS:
+	CARDSELECT sel 0 RELATIVE
+	PARSE VAR RESULT kolors wars xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT kolor war xx
+	IF kolor = '' THEN DO
+		war = wars+1
+		kolor = kolors + 1
+	END
+	IF war = wars+1 & ((kolor+kolors) // 2) THEN MOVECARDS sel stack ATONCE
+	ELSE ERRBEEP
+RETURN
+DOBASE:
+	IF sel~=stack THEN CALL CHBASE
+	ELSE DO i= 0 TO 3 UNTIL ok=0
+		stack = base.i
+		CALL CHBASE
+	END
+	IF ok=0 THEN DO
+		fin = fin +1
+		MOVECARDS sel stack
+		IF fin = 52 THEN SETGADGET 14 STR wintex
+	END
+	ELSE ERRBEEP
+RETURN
+CHBASE:
+	CARDSELECT sel 1
+	PARSE VAR RESULT kolors wars xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT kolor war xx
+	IF kolor = '' THEN DO
+		kolor = kolors
+		war = -1
+	END
+	IF kolor = kolors & (wars - war) = 1 THEN ok = 0
+	ELSE ok = 1
+RETURN

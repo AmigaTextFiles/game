@@ -1,0 +1,284 @@
+
+(* to import siteconfig, set include dir with -I to aaph *)
+import "siteconfig.aah"
+import "std.aah"
+import "combinators.aah"
+import "cgi.aah"
+import "escape.db"
+import "sort.aah"
+import "string.aah"
+
+signature Escape =
+
+  type level
+  type solution
+
+  val fromfile : string -> level
+  val gettitle : level -> string
+  val getauthor : level -> string
+
+  val sfromfile : string -> solution
+  val stobase64 : solution -> string
+  val verify : (level * solution) -> bool
+  val slength : solution -> int
+
+end
+
+val ADMINPASS = ESCAPE-ADMINPASS
+val ROOT = "/Y/escape/"
+val MD5ROOT = ROOT ^ "md5/"
+val SOLROOT = "/Y/escape-sols/"
+val PNGROOT = ROOT ^ "png/"
+val PNGWEB = "/png/"
+
+val SCREENSHOT-EXE = [/usr/src/escapex/screenshot.exe]
+
+val LASTMCOOKIE = [esc.lastm]
+val LASTDCOOKIE = [esc.lastd]
+val COOKIEHOST = [.spacebar.org]
+val HOST = [escape.spacebar.org]
+
+val MAXNAME = 12
+(* in moves *)
+val MAXSOLUTION = 19999
+val MAXALTSOLUTION = 4999
+
+val TRIAGE-COLLECTION = 1
+
+val DEFAULT-MINV = 200404240
+
+exception Fail of string
+
+fun failm s = raise (Fail s)
+fun fail () = raise (Fail "unknown")
+
+(* invoke f, but print out a failure message
+   if an exception is raised (including old exceptions) *)
+fun protect msg f =
+    ((f ()) handle Fail s => print ("fail " ^ msg ^ ": " ^ s))
+	handle1 print ("fail (bug) " ^ msg)
+
+(* from 30218947510... to 30/218947510... *)
+fun splitmd md =
+    [[substr(md, 0, 2)]/[substr(md, 2, size md - 2)]]
+
+fun credentials () =
+    let
+	val id = cgigetnum("id", fn _ => failm "no id?")
+	val seql = cgigetnum("seql", fn _ => failm "no seql?")
+	val seqh = cgigetnum("seqh", fn _ => failm "no seqh?")
+	val (rsl, rsh) = get escape : user ( id ) : (seql, seqh)
+    in
+	(rsl = seql andalso rsh = seqh)
+	otherwise failm "wrong credentials";
+	id
+    end
+
+fun mkcomment s = replace ("\n", "<br>", s)
+
+fun make-screenshot md =
+    let
+	val f = PNGROOT ^ md ^ ".png"
+    in
+	fexists f
+	otherwise
+	let 
+	    val cmd = [[SCREENSHOT-EXE] [MD5ROOT ^ splitmd md] [f]]
+	in
+	    (* print [<p><b>[cmd]</b></p>]; *)
+	    system cmd
+	end
+    end
+
+(* return a list of subdirs (of the collection c) as
+   (id, full/path/to/subdir, index name) *)
+fun get-subdirs c =
+    let
+	(* get all subdirectories and build alist. *)
+	val rawdirs = select (id, fname, longidx, parent)
+	              from escape : subdir
+		      where colof = {c}
+
+	fun findd nil _ = die "bad directory structure internally"
+	  | findd ((res as (i, _, _, _)) :: t) x =
+	    if i = x
+	    then res
+	    else findd t x
+
+	(* build cooked dirs by expanding paths to full strings *)
+	fun dodirs nil = nil
+	  | dodirs ((i, f, x, p) :: t) =
+	    let
+		fun expand 0 s = s
+		  | expand n s =
+		    let val (_, fp, _, r) = findd rawdirs n 
+		    in
+			expand r (fp ^ "/" ^ s)
+		    end
+	    in
+		(i, expand p f, x) :: dodirs t
+	    end
+
+	val cdirs = dodirs rawdirs
+    in
+	(* they must be sorted as in protocol.txt.
+	   one easy way to ensure this is string length. *)
+
+	sort (fn ((_, a, _), (_, b, _)) =>
+	      int-compare (size a, size b)) cdirs
+    end
+
+(* display a string in html.
+   since escape uses ^< to close color tags,
+   this interferes with html's tag mechanism *)
+val disp = tohtml
+
+(* given a dir list from get-subdirs, and a directory index d,
+   return the string correspondnig to that subdir. The string
+   will be appropriate for prepending to a filename. (so it
+   ends with / unless it is the root) *)
+fun lookup-dir cdirs 0 = ""
+  | lookup-dir nil _ = die "database corrupt: dir not found"
+  | lookup-dir ((i, name, _)::rest) d =
+    if i = d 
+    then name ^ "/"
+    else lookup-dir rest d
+
+
+fun update-collection c =
+    let
+
+	val (name, minv, fname) =
+	    get escape : collection(c) : (name, minv, fname)
+	val f = fopen (ROOT ^ fname ^ ".txt")
+	val levs = select (lev, subdir) from escape : levelrel
+	           where col = {c}
+
+	val cdirs = get-subdirs c
+
+	fun printl s = fprint(f, [[s]\n])
+
+	fun printdir (id, dir, idx) = fprint(f, [[dir] [idx]\n])
+
+
+	fun printlev (lev, dir) =
+	    let 
+		open escape : level(lev) : (nvotes, difficulty, style, 
+					    rigidity, cooked, solved, md)
+	    in
+		fprint(f, 
+		       [[lookup-dir cdirs dir]lev[itos lev].esx [get escape : level(lev) : md
+		        ] [itos nvotes] [itos difficulty] [itos style] [itos rigidity
+                        ] [itos cooked] [itos solved]\n])
+	    end
+
+    in
+	printl name;
+	printl (itos minv);
+	printl (itos (length cdirs));
+	printl (itos (length levs));
+        printl [XXX arbitrary version string - aaph];
+	app (cdirs, printdir);
+	app (levs, printlev);
+	fclose f
+    end
+
+
+fun htmlhead s =
+    let in
+	print 
+	[<html><head><title>[s]</title>
+	 <STYLE TYPE="text/css">
+	 
+	 H1 { font: bold 16pt Verdana,Arial,Helvetica }
+	 P  { font: 12px Verdana,Arial,Helvetica }
+	 
+	 TH { font: bold 12px Verdana,Arial,Helvetica ; 
+	      text-align: center}
+	 
+	 TD { font: 12px Verdana,Arial,Helvetica }
+
+	 .small { font : 10px Verdana,Arial,Helvetica }
+	       
+	 A:link { color: #4444DD; font : bold 12px Verdana,Arial,Helvetica }
+	 A:visited { color: #9999FF; font : bold 12px Verdana,Arial,Helvetica }
+	 A:active { color: #DDDD44; font : bold 12px Verdana,Arial,Helvetica }
+	 
+	 .blackline { border: 2pt;
+		      border-style: solid;
+		      border-color: black; }
+	 </STYLE>
+	 </head><body bgcolor="#FFFFFF">
+	 <font face="Verdana,Arial,Helvetica" size=-1>]
+    end
+
+val HEADCOLOR = [#4422BB]
+(* only call once the password is checked! *)
+fun adminheader s =
+    let in
+	htmlhead s;
+	print [<table width="100%" border=0 cellpadding=2 cellspacing=0>
+	       <tr><td colspan=2 height=4 bgcolor="[HEADCOLOR]"></td></tr>
+	       <tr><td>(<a href="[FCGI]/escape/admin?pass=[ADMINPASS]">admin</a>)</td>
+	       <td width="100%"><center>[s]</center></td></tr>
+	       <tr><td colspan=2 height=4 bgcolor="[HEADCOLOR]"></td></tr>
+	       </table>]
+    end
+
+(* safely turn escape colors into html colors *)
+fun colorize s =
+    let 
+	val l = explode s
+	fun c nil 0 = nil
+	    (* unmatched -- close all remaining tags *)
+	  | c nil n = "</font>" :: c nil (n - 1)
+	  | c (?^ :: code :: rest) n =
+	    (if code ceq ?<
+	     then (if n > 0
+	 	  then "</font>" :: c rest (n - 1)
+		  else (* unmatched tags *) c rest n)
+	     else
+		(case (ord code - ord ?0) mod 7 of
+		     (* actually, white in game *)
+		     0 => [<font color="#000000">]
+		   | 1 => [<font color="#a1a2c8">]
+		   | 2 => [<font color="#FF756A">]
+		   | 3 => [<font color="#FFfa6a">]
+		   | 4 => [<font color="#777777">]
+		   | 5 => [<font color="#6aef5a">]
+			 (* pics or blank *)
+		   | _ => [<font color="#000000">]) ::
+		     c rest (n + 1))
+	  | c (char :: rest) n = implode (char :: nil) :: c rest n
+    in
+	string-concat (c l 0)
+    end
+
+(* should also strip html code, etc *)
+fun nocolor s =
+    let
+	val l = explode s
+	fun c nil = nil
+	  | c (?^ :: _ :: rest) = c rest
+	  | c (ch :: rest) = ch :: c rest
+    in
+	implode (c l)
+    end
+
+fun hascolorcodes s =
+    let
+	fun c (?^ :: _) = true
+	  | c (_ :: rest) = c rest
+	  | c nil = false
+    in
+	c (explode s)
+    end
+
+(* get the length of the best solution for a level *)
+fun getrecord levid =
+    (case (select len from escape : solution
+	   where of = {levid}
+	   order by len, date
+	   limit {1}) of
+	 nil => 999999
+       | (h :: _) => h)

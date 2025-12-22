@@ -1,0 +1,2669 @@
+; Crazy 8's
+; Ver 2.92
+; by Curt Esser
+; 113 Pauline Ave
+; Crystal Lake
+; Il. 60014
+; camge@ix.netcom.com
+; last modified  May 15, 99
+
+WBStartup       ;run from WorkBench!
+NoCli
+c8$=Chr$(128)+Chr$(129)+Chr$(130)+Chr$(131)+Chr$(132)
+v$="$VER: Crazy8 v2.92 (15.05.99) by Curt Esser"
+about$=c8$+"|"
+about$+ "2.92|"
+about$+ "May 15, 1999|"
+about$+ Chr$(135)+" 1996 - 1999|"
+about$+"by Curt Esser|"
+
+ScreenPens 1,4,0,3,7,3,7
+
+If NTSC=True
+  vrate=60      ;adjust for NTSC or PAL Vblank rate
+Else
+  vrate=50
+EndIf
+
+;---------------------------------------------------------------
+
+ourpath$=ProgDir$  ;get our program's directory
+
+If NumPars         ;if we were called by a prefs file!
+  pref$=Par$(1)
+Else
+  pref$=ourpath$+"/default.8's"
+EndIf
+
+ex$="Assign Crazy: "+Chr$(34)+Chr$(34)  ;so we can load the
+Execute_ ex$,0,0                        ;game font direct from
+                                        ;our fonts/ drawer
+ex$="Assign FONTS: Crazy:fonts/ ADD"    ;instead of putting it
+Execute_ ex$,0,0                        ;into SYS:Fonts/
+
+font$="C8.font"
+Gosub newfont
+
+.procedures
+
+;---------------------------------------------------------------
+
+;Kick 2.xx compatible GTGetString command
+
+Function.s GTGetStr{lst.w, gdt.w}
+  *gad.Gadget = GTGadPtr(lst, gdt)
+  *si.StringInfo = *gad\SpecialInfo
+  a$= Peek$(*si\_Buffer)
+  Function Return a$
+End Function
+
+;---------------------------------------------------------------
+
+Function SetMouse { x.w,y.w,button.w}
+  AbsMouse x,y
+  If button
+    ClickButton 0
+  EndIf
+Function Return -1
+
+End Function
+
+;----------------------------------------------------------------
+
+; fixes the GetAShape bug on 030 + processors
+; the problem: the "cookie" mask gets thrashed sometimes
+; this will fix it - use in place of GetAShape
+
+Statement GetShape{shapenumber.w,x.w,y.w,width.w,height.w}
+  AutoCookie Off
+  Free Shape shapenumber
+  GetaShape shapenumber,x,y,width,height
+  AutoCookie On
+  CacheClearU_
+  MakeCookie shapenumber
+End Statement
+
+;----------------------------------------------------------------
+
+Function$ Language {}         ;get name of preferred language
+                              ;by James Boyd
+  l$="locale.library"
+  *loclib=OpenLibrary_ (&l$,0)
+  If *loclib
+    *locale.Locale=OpenLocale_(0)
+    If *locale
+      country$=Peek$(*locale\loc_LanguageName)
+      CloseLocale_ *locale
+    EndIf
+  CloseLibrary_ *loclib
+  EndIf
+  If country$
+    country$=Left$(country$,Len(country$)-9)
+  Else
+    country$="English"
+  EndIf
+  Function Return country$
+End Function
+
+;---------------------------------------------------------------
+
+Function$ ReadLoc {}  ;reads a string from our locale text files
+                      ;ignores any lines that don't start with
+  ok.b=0              ;">" or "#" and looks for one that does
+  Repeat
+    temp$=Edit$(255)
+    If Left$(temp$,1)=">"OR Left$(temp$,1)="#"
+      ret$=UnRight$(temp$,1)
+      ok=1
+    EndIf
+  Until ok OR Eof(0)
+  If ok
+    Function Return ret$
+  Else
+    Function Return "-1"
+  EndIf
+End Function
+
+;---------------------------------------------------------------
+
+;prints text to a bitmap using a standard intuifont
+;with a dropshadow, centered horizontally on cntrx
+
+;modified from a code by David McMinn
+
+Statement BPrint{a$,xcntr.w,dummy.w,y.w}
+
+  DEFTYPE.RastPort rp
+
+  InitRastPort_ &rp                        ;create a rastport
+                                           ;for our bitmap
+  rp\_BitMap = Addr BitMap(1)
+
+  SetFont_ &rp,Peek.l(Addr IntuiFont(0)+8) ;tell it which font
+  SetDrMd_ &rp,0                           ;set jam mode 0
+  pixels=TextLength_(&rp,&a$,Len(a$))      ;find the pixel length
+  x.w=xcntr-pixels/2                       ;for centering the text
+  If x<10 Then x=10
+  Move_ &rp,x+1,y+1                        ;locate the cursor
+  SetAPen_ &rp,1                           ;set colour to black
+  Text_ &rp,&a$,Len(a$)                    ;print the text
+  Move_ &rp,x,y                            ;relocate the cursor
+  SetAPen_ &rp,7                           ;set to colour 7
+  Text_ &rp,&a$,Len(a$)                    ;draw foreground text
+
+End Statement
+
+;----------------------------------------------------------------
+; use reqtools requesters
+; using the same strings as Request...
+; just because I don't like sticking in all those
+; CHR$(10) 's   ;)
+
+Function.b RTreq{title$,body$,gadget$}
+  rq$=Replace$(body$,"|",Chr$(10))
+  answer.b=RTEZRequest(title$,rq$,gadget$,2,0,4)
+  Function Return answer
+End Function
+
+;---------------------------------------------------------
+
+; fade the current screen to a new palette
+Statement fadeto{palobj,speed}     ;speed must be >0  !!!!
+  PaletteInfo palobj
+  For i = 0 To 15                  ;number of available colour steps
+   For j=0 To 7                    ;number of currently used colours
+    rd = Red(j)
+    If rd < PalRed(j)  Then rd+1   ;check each for the difference
+    If rd > PalRed(j) Then rd-1    ;between current colour and
+    bl = Blue(j)                   ;the target colour
+    If bl < PalBlue(j)  Then bl+1  ;and reset as needed
+    If bl > PalBlue(j) Then bl-1
+    gr = Green(j)
+    If gr < PalGreen(j) Then gr+1
+    If gr > PalGreen(j) Then gr-1
+    RGB j,rd,gr,bl                 ;send the palette to the screen
+   Next j
+   VWait speed                     ;take this out if too slow or
+  Next i                           ;increase if too fast
+End Statement
+;----------------------------------------------------------------
+Statement setPointer{style.b,active.b}  ;pointer,calling window
+  For i = 0 To Maximum Window -1
+    If Peek.l(Addr Window(i))      ;sets the window's pointer to the
+      Use Window i                 ;requested shape:
+      WPointer style
+    EndIf
+  Next                             ;normal      - finger points
+  Use Window active                ;buttondown  - finger pushing
+End Statement                      ;waitpointer - finger curled
+;----------------------------------------------------------------
+
+ntsSys=NTSC                        ;True if a NTSC system
+Forced.b=0                         ;if display was forced
+WbToScreen 1
+*SCR.Screen=Peek.l(Addr Screen(1)) ;find the WB screen structure
+wb.l=*SCR\Width                    ;how wide is user's screen?
+Free Screen 1                      ;that's all we need to know
+If wb>720 Then wb=720              ;check for oversized bench
+If wb<640 Then wb=640              ;or undersized...
+
+wb=Int(wb/2)                       ;divide for our lo-res screen
+ofst.l=Int((wb - 320)/2)           ;and get horizontal to center it
+
+.Loadup
+MaxLen newmod$=255                 ;for selecting new module
+MaxLen fi$    =255                 ;filename $
+MaxLen pa$    =255                 ;mod path $
+MaxLen snd$   =255                 ;sounds path $
+MaxLen newsnd$=255
+MaxLen cardfi$=255                 ;card file
+MaxLen cardpa$=255                 ;card path
+MaxLen locpa$ =255                 ;locale path
+MaxLen locfi$ =255                 ;locale file
+locpa$=ourpath$+"/Locale"          ;path to our locale files
+cardpa$="cards"                    ;path to our card pics
+temp$="Crazy8's"
+Dim txt$(90)                       ;for text from the locale files
+txt$(87)="Locale"                  ;default
+locale$=Language{}                 ;read the system locale setting
+
+BitMap 0,320,200,3                 ;lo-res 8 colors
+BitMap 1,320,200,3                 ;double buffered drawing page
+InitPalette 0,8                    ;set a palette to all black
+Screen 0,ofst,0,320,200,3,0,temp$,0,0,0  ;open the screen
+Use Palette 0                      ;black screen to start
+Window 0,0,0,320,200,$1900," ",0,0 ;open our window
+MenusOff
+ShowBitMap 1                       ;show blank page
+CatchDosErrs                       ;show system requestors on our screen
+LoadBitMap 0,"data/C8.Title",0     ;load the title screen pic
+SetCycle 0,0,2,5,.25               ;set up for color cycling
+ShowBitMap 0                       ;get title screen ready
+Cycle 0                            ;make letters on title "squirm"
+fadeto{0,2}                        ;and fade in the title screen
+Gosub loadpref                     ;load the prefs file
+Gosub GetLocale                    ;now load the locale file
+Gosub grabcards                    ;and the card shapes
+hold.w=0                           ;used for message delay
+Use BitMap 0
+LoadBitMap 1,"data/C8.playscreen",1 ;load game screen & palette
+LoadPalette 2,"data/pal.pref"       ;load the palettes
+LoadPalette 3,"data/pal.x"
+LoadPalette 4,"data/pal.green"
+LoadPalette 5,"data/pal.grey"
+LoadPalette 6,"data/pal.tan"
+LoadPalette 7,"data/pal.maroon"
+LoadPalette 8,"data/pal.purp"
+LoadPalette 9,"data/pal.purp2"
+LoadPalette 10,"data/pal.yelo"
+LoadPalette pl.b,"data/pal.pointer",16 ;colors for the pointers
+
+Dim sd$(33)                         ;for the 34 sounds
+Dim Timeout.w(33)                   ;and their mask time
+For i=0 To 33                       ;read sound names from data $
+  Read sd$(i)
+Next
+
+;Names for the sounds:
+Data$ "Laugh","aarrgghh!","awwww","NotCompute","clap"
+Data$ "drum","GameOver","scream","Shuffle","snare"
+Data$ "tankoo","uh-oh","spoit","tick","bell"
+Data$ "Cuckoo","Hey1","boom","Whoosh","BowArrow"
+Data$ "Cut.it.out","Girl.sigh","Glepuughn","Oooh","DaMeaning"
+Data$ "Spit","Yeah","Drip1","WhatDo","Carumba"
+Data$ "doh01","doh30","doh31","excellent"
+
+Gosub LoadSounds
+
+If Peek.l(Addr Sound(0))            ;make sure it's there!
+  Sound 0,1                         ;play the crazy laugh
+  VWait 12                          ;and echo it in
+  Sound 0,2                         ;the other speaker
+EndIf
+
+SetErr
+ ShowBitMap 0                       ;make sure we're on the right bitmap
+ Use BitMap 0                       ;and put up a requestor
+ a=RTreq{txt$(60),txt$(62),txt$(61)}
+ StopMed
+ Quiet 15
+ End                                ;and end program
+End SetErr                          ;that wasn't so hard!
+
+LoadShapes 54,59,"data/flip.shps"   ;54-57 cardflips
+                                    ;58 suit select/59 8 <-
+                                    ;60-63 s/h/c/d
+LoadShapes 65,"data/pointer.shps"   ;65-67, normal,btn dwn,wait pointers
+normal.b=65
+buttondown.b=66
+waitpointer.b=67
+LoadShapes 69,"data/gad.shapes"     ;- Menu buttons: 38x36 pixels
+                                    ;24 shapes (up + down)
+Use BitMap 1                        ;use the unseen page
+Boxf 16,110,40,142,6                ;draw a "blank" shape
+GetShape {68,16,110,24,32}          ;pick it up for erasing
+MidHandle 68                        ;and set its handle to center
+Boxf 16,110,40,142,0
+Use BitMap 0                        ;now use the title page
+If ModOn.b=1                        ;Load music mod if wanted
+  ld$=pa$+"/"+fi$                   ;make loading $
+  LoadMedModule 0,ld$               ;load the music
+  music=1                           ;set the music on flag
+Else                                ;if no module is to be loaded
+  music=0                           ;make sure the flag is off!
+EndIf
+VWait 120                           ;wait for the laugh to end
+Gosub MusicOn                       ;start music & set filter
+
+DEFTYPE.RastPort rp                 ;for the bitmap printing routine
+InitRastPort_ &rp
+rp\_BitMap = Addr BitMap(1)
+SetFont_ &rp,Peek.l(Addr IntuiFont(0)+8)
+
+;======================================================================
+
+SetInt 5                            ;countdown the timer
+If hold.w                           ;and play the music
+  hold-1
+EndIf
+If music=1                          ;only if the music is on
+ If hold=1 Then SetMedMask 15       ;if the sound is done, use all 4
+ PlayMed                            ;channels for the music
+End If
+End SetInt
+
+;======================================================================
+
+.Initialize
+Dim Deck.b(52)    ;Deck of Cards
+Dim Pile.b(52)    ;Discard Pile
+Dim Phand.b(52)   ;Player's Hand  ( Card# )
+Dim Ppos.w(52,1)  ;Player Card Positions (x,y)
+Dim Chand.b(52,3) ;Computer's Hand (Card,playability,suit,rank)
+Dim scorename$(30)
+Dim gamesplayed(30)
+Dim gameswon(30)
+Dim winpct.w(30)
+
+NEWTYPE.scores    ;for the listviews
+  pad.w
+  string.s
+End NEWTYPE
+
+Dim List sndDrawers.scores(50)
+
+complain.b=1        ;computer's complaints
+DEFTYPE.b Split     ;end game flag
+DEFTYPE.w Pscore    ;Player's Score
+DEFTYPE.w Cscore    ;Computer Score
+DEFTYPE.b Pcards    ;Cards in Player's Hand
+DEFTYPE.b Ccards    ;Cards in Computer Hand
+DEFTYPE.b Cspades   ;number of cards in each suit in
+DEFTYPE.b Chearts   ;  computer's hand
+DEFTYPE.b Cclubs
+DEFTYPE.b Cdiamonds
+DEFTYPE.b Cmost     ;suit computer has most of
+DEFTYPE.b Compeight ;how many 8's computer has
+DEFTYPE.b mxx       ;maximum cards of any suit
+DEFTYPE.b PlayCard  ;Card selected for play
+DEFTYPE.b Inhand    ;Position in player's hand
+DEFTYPE.b Suit      ;Suit of selected card
+DEFTYPE.b Rank      ;Rank of card selected (A - K)
+DEFTYPE.b CSuit     ;Current suit (s/h/c/d)
+DEFTYPE.b CRank     ;Current rank of card (A - K)
+Dcards.b=52         ;Cards left in the deck
+DEFTYPE.b Dpile     ;Cards in discard pile
+DEFTYPE.b card      ;Current Card
+DEFTYPE.w sx        ;shape drawing x
+DEFTYPE.w sy        ;shape drawing y
+cx.w=16             ;comp. card x
+cy.w=40             ;comp. card y
+DEFTYPE.w dx        ;destination x
+DEFTYPE.w dy        ;destination y
+DEFTYPE.b sortflag  ;is player's hand sorted?
+DEFTYPE.w rd        ;colors for fading
+DEFTYPE.w bl
+DEFTYPE.w gr
+DEFTYPE.b flip      ;for turning cards over
+DEFTYPE.b flipfrom
+DEFTYPE.b flipto
+up.b=1
+down.b=-1
+DEFTYPE.b comppull  ;number of cards computer picked up
+DEFTYPE.b compflag  ;is it computer's turn?
+DEFTYPE.b playerflag;is it player's turn?
+DEFTYPE.b pickup    ;number of cards player picked up
+DEFTYPE.b see       ;bitmap being viewed
+DEFTYPE.b draw      ;bitmap being drawn on
+DEFTYPE.b temp      ;temporary storage
+DEFTYPE.b temp2
+DEFTYPE.b temp3
+DEFTYPE.w paltemp
+DEFTYPE.b ok        ;is this card ok to play?
+DEFTYPE.b shp       ;shape # to be drawn
+DEFTYPE.b btn       ;1=left  2=right mouse button clicked
+DEFTYPE.w mx        ;mouse x position
+DEFTYPE.w my        ;mouse y position
+DEFTYPE.w chx       ;check x
+DEFTYPE.w chy       ;check y
+DEFTYPE.b hit       ;item that was clicked on
+DEFTYPE.b check     ;item being checked
+Row.b=1             ;Row selected card is in
+Rowflag.b=1         ;Number of rows in players hand
+DEFTYPE.b setup     ;1 if game was already played
+DEFTYPE.b replay
+DEFTYPE.b sleep     ;program is sleeping but start music if = 1 on return
+defpa$="data/mods"      ;default path for music module
+deffi$="med.moonshine"  ;default mod name
+zap$=Chr$(133)+" "+Chr$(134)
+
+Buffer 0,8192     ;set up the drawing buffers
+Buffer 1,8192     ;for each drawing page
+For i = 1 To 52   ;set up the "deck" of cards
+  Deck(i)=i
+Next
+  px.w=15         ;preset the positions for
+  py.w=128        ;all 50 cards to go
+For i = 1 To 50   ;in the player's hand
+  If i=26         ;in two horizontal
+    px=15         ;rows
+    py=162
+  EndIf
+  Ppos(i,0)=px    ;and store them in
+  Ppos(i,1)=py    ;an array
+  px+12
+Next
+
+.MakeMenu         ;gadgetlist for the Menu Button Window
+
+For i = 69 To 92
+  Handle i,0,0
+Next
+
+ShapeGadget 0,  0, 0,0,1,69,70    ;Play
+ShapeGadget 0, 38, 0,0,2,71,72    ;Score
+ShapeGadget 0, 76, 0,0,3,73,74    ;Palette
+ShapeGadget 0,114, 0,0,4,75,76    ;Sounds
+ShapeGadget 0,152, 0,0,5,77,78    ;Music
+ShapeGadget 0,190, 0,0,6,79,80    ;Exit
+
+ShapeGadget 0,  0,35,0,7,81,82    ;Save Prefs
+ShapeGadget 0, 38,35,0,8,83,84    ;Locale
+ShapeGadget 0, 76,35,0,9,85,86    ;Game Setup
+ShapeGadget 0,114,35,0,10,87,88   ;Cards
+ShapeGadget 0,152,35,0,11,89,90   ;Screen
+ShapeGadget 0,190,35,0,12,91,92   ;Load Prefs
+
+draw=1                       ;draw on page one
+StopCycle                    ;stop the title from flashing
+Use Palette pl.b             ;and reset the palette
+For i = 0 To 7               ;set palette 0 to all black again
+  PalRGB 0,i,0,0,0           ;for the fade-outs
+Next
+fadeto{0,1}
+ShowBitMap 1
+CopyBitMap 1,0
+
+fadeto{pl,1}
+setPointer{normal,0}         ;show the normal game pointer
+
+.StartScreen
+gamedone.b=0
+prefok.b=1
+Gosub MenU                   ;see what they want to do
+prefok=0
+
+.Playgame                    ;finally, we can play the game!
+setPointer{waitpointer,0}  ;show wait pointer
+replay=0
+Format "###"
+a$=txt$(4)+" "+Str$(maxpoints.w)
+
+Use BitMap 1                 ;make sure we are using the unseen page
+
+Boxf 108,62,210,72,3         ;Erase any old text first
+Boxf 108,73,176,99,3         ;and any old names
+
+BPrint{a$,160,0,69}          ;Playing To xxx
+BPrint{compname$,140,0,83}   ;Computer name
+BPrint{playername$,140,0,94} ;Player name
+Blit 0,232,82                ;the deck
+Gosub Newpage                ;switch pages
+CopyBitMap see,draw          ;and make both pages look the same
+fadeto{pl,1}                 ;and fade in the screen
+If setup=0                   ;this is the very first game
+  noise=12:Gosub makenoise   ;so make a noise!
+  VWait 30
+EndIf
+FlushEvents
+
+.Newhand                     ;set up for a new hand
+Gosub showscore              ;update the score
+Gosub showCcards
+If setup=1                   ;if it's not the first game
+  Message$=txt$(5)
+  showtrans.b=0
+Else
+  If trans1$<>"Curt Esser"   ;my name is already shown
+    If trans2$<>"..."        ;anyway - no need to show
+      showtrans.b=2          ;it twice
+    Else
+      showtrans=1
+    EndIf
+  EndIf
+EndIf
+
+Dcards=52:Pcards=0:Ccards=0:Dpile=0:compflag=0:playerflag=0
+
+For i=1 To 52                ;set up a new deck of cards
+ Deck(i)=i                   ;in order to start with
+Next
+
+Gosub Shuffle                ;and shuffle them
+If showtrans                 ;on the first hand, we show
+  Message$=transby$          ;the translator's name(s)
+  Gosub PrintMessage
+EndIf
+
+For d=1 To 5                 ;deal 5 cards to each player
+  Gosub Compget              ;one to each
+  Gosub showCcards
+  Gosub Playerget            ;in order
+  If d=1 AND showtrans
+    Message$=trans1$         ;and put up the first translator
+    Gosub PrintMessage
+  EndIf                      ;then the 2nd, if there is one
+  If d=3 AND showtrans=2
+    Message$=locand$+" "+trans2$
+    Gosub PrintMessage
+  EndIf
+Next
+setup=1
+
+Upcard                       ;turn next card up to start game
+Gosub Grabcard               ;get the card
+Repeat
+   sx-4                      ;and slide it over
+   Gosub Draw
+Until sx=88                  ;into position
+flip=up
+Gosub Flipit                 ;now flip it over
+Dpile+1                      ;and keep track of what's
+Pile(Dpile)=card             ;in the pile
+Gosub WhatCard               ;now convert it from a number
+CSuit=Suit                   ;to the Current Suit
+CRank=Rank                   ;and Current Rank
+Gosub Sorthand               ;sort the player's hand
+If music=1
+  Gosub MusicOn              ;and start the music if it's on
+EndIf
+VWait
+noise=27                     ;let user know
+Gosub makenoise              ;we're ready to play
+
+;-------------------------------------------------------------------
+;                         MAIN GAME LOOP
+;-------------------------------------------------------------------
+
+.GameLoop
+pickup=0            ;nothing has been picked up yet!
+Message$=txt$(6)+pgreet$
+If Ccards=1 Then Message$=txt$(7)
+Gosub PrintMessage
+
+.PlayerTurn
+playerflag=1        ;human's turn
+ok=0
+Gosub getmouse      ;wait for input
+CopyBitMap see,draw ;make sure both pages are the same
+ShowBitMap 0
+Use BitMap 1
+see=0
+draw=1
+
+If hit=0
+  Gosub HitWhat     ;OK, what happened?
+EndIf
+
+Select hit          ;now deal with the selection
+  Case 1            ;clicked deck
+    Gosub Playerget ;pick up a card from the deck
+    pickup+1        ;count how many cards are picked up this turn
+  Case 2            ;player clicked MENU
+    Gosub MenU      ;so deal with it
+  Case 3            ;player clicked a card
+    card=PlayCard   ;ok we'll try to play it
+    Gosub WhatCard  ;check if it's a legal play
+      If ok=1       ;it is so let user play it
+
+        If card=Phand(Pcards)  ;this card was just picked up
+          pickup-1             ;so take it off the count
+        EndIf                  ;and maybe we won't need to sort hand
+        noise=5:Gosub makenoise
+        Gosub Pullcard                    ;pull it out
+        Gosub Playcard                    ;and play it
+        noise=13:Gosub makenoise
+        If Row<>Rowflag
+          Gosub MoveUp         ;if two rows move one card up
+        EndIf
+        For i=Inhand To Pcards ;this stuff moves the cards
+          Phand(i)=Phand(i+1)  ;over to correct the array
+          Next                 ;for the card we took out
+        Pcards-1:playerflag=0  ;and correct the count
+        If CRank=8
+          Gosub SetSuit        ;choose suit if an 8 played
+        EndIf
+      Else                     ;go here if the card
+        noise=3                ;is not a legal play
+        Gosub makenoise        ;let the user know about it
+      EndIf                    ;and do nothing else
+  Case 4                       ;clicked SORT
+    If Pcards=1 OR Sortflag=1  ;no need to sort
+      noise=16                 ;so we'll make
+      Gosub makenoise          ;a sound instead
+      VWait 10                 ;in fact, let's make
+      Gosub makenoise          ;it echo too!
+    Else
+      Gosub Sorthand           ;ok, we'll sort the hand
+    EndIf
+  Case 5                       ;player clicked hide
+    sleep=2                    ;so set the sleep flag
+    Message$=c8$
+    Gosub PrintMessage
+    If music=1
+      sleep=1                  ;make it 1 to restart music later
+      music=0                  ;but turn it off now
+      playing.b=0
+      StopMed
+    End If
+    VWait 2
+    Gosub Drawdone
+    If Forced>0
+      Gosub FixMode
+    EndIf
+    WBenchToFront_             ;and bring up WorkBench
+    dummy=SetMouse{wb*2,80,1}
+    dummy=SetMouse{wb,80,0}    ;and activate it by clicking
+  Default                      ;player has clicked something else
+    noise=3                    ;but there IS nothing else!
+    Gosub makenoise            ;let 'em know they made a mistake
+End Select
+hit=0
+If sleep>0
+  FlushEvents
+  Goto PlayerTurn              ;wait for 'em to come back
+EndIf
+VWait
+If Split=1 Then Goto split     ;user wants to quit so do it
+If Pcards=0                    ;player has won hand!
+   playerflag=1                ;so set the flag
+   Goto Handover               ;and end this hand
+EndIf
+If Dcards=0
+  Gosub Reshuffle              ;no cards left - use discards
+EndIf
+If playerflag=1
+  Goto PlayerTurn              ;it's still the player's turn
+EndIf
+If Sortflag=0 AND pickup>0
+  Gosub Sorthand               ;sort the cards if necessary
+EndIf
+
+holdit.b=2                     ;computer's turn now
+Message$=txt$(8)               ;so greet the player
+setPointer{waitpointer,0}      ;and put up wait pointer
+comppull=0                     ;and reset pickup count
+If Pcards=2 AND Ccards>2       ;player only has 2 cards
+  Gosub CompNoise              ;and we have more so we complain
+  Message$=txt$(complain+8)    ;set a new complaint
+  Gosub CompComplain
+EndIf
+
+If Pcards=1                    ;now the player only has one card
+  Gosub CompNoise
+  Select complain              ;so REALLY whine about it
+    Case 1
+      Message$=txt$(18)
+      noise=20
+    Case 8
+      Message$=txt$(25)
+      noise=22
+    Default
+      Message$=txt$(complain+17)
+  End Select
+  Gosub CompComplain
+EndIf
+WildHair.b=0
+If CRank=8 AND Pcards=1 AND Rnd(10)>4
+  WildHair=1
+  pullet.b=Rnd(8)+6
+EndIf
+.Computerturn
+   ; Chand.b(52,3) ;Computer's Hand (Card,playability,suit,rank)
+
+Gosub PrintMessage     ;let 'em know it's our turn now
+Gosub FinishSound
+ok=0:cplay.b=0:compflag=1:Cspades=0:Chearts=0:Cclubs=0
+Cdiamonds=0            ;reset everything for this turn
+For i=1 To Ccards
+  card=Chand(i,0)                         ;this part checks
+  Gosub WhatCard                          ;the computer's hand
+  If Suit=0 AND Rank<>8 Then Cspades+1    ;for the number of
+  If Suit=1 AND Rank<>8 Then Chearts+1    ;cards of each suit
+  If Suit=2 AND Rank<>8 Then Cclubs+1     ;so we know what suit to
+  If Suit=3 AND Rank<>8 Then Cdiamonds+1  ;pick if we play an 8
+
+  mxx=Cspades:Cmost=0             ;this stuff
+  If Ccards=1                     ;finds out which suit we have
+    mxx=1                         ;the most of so we can pick it
+    If Chearts=1 Then Cmost=1     ;if we played an 8
+    If Cclubs=1 Then Cmost=2      ;if 2 or more are equal, we'll
+    If Cdiamonds=1 Then Cmost=3   ;randomly pick one of them
+  Else
+    If Chearts>mxx OR (Chearts=mxx AND Rnd(2)>1)
+      Cmost=1
+      mxx=Chearts
+    EndIf
+    If Cclubs>mxx OR (Cclubs=mxx AND Rnd(2)>1)
+      Cmost=2
+      mxx=Cclubs
+    EndIf
+    If Cdiamonds>mxx OR (Cdiamonds=mxx AND Rnd(2)>1)
+      Cmost=3
+    EndIf
+  EndIf
+
+  Chand(i,1)=0                   ;not playable
+  Chand(i,2)=Suit
+  Chand(i,3)=Rank
+  If ok=1
+    If Rank<>8                   ;if the card is a legal play
+      Chand(i,1)=1
+    Else
+      Chand(i,1)=-1              ;8 flag
+    EndIf
+  EndIf
+ ;If ok=1 AND (Pcards>1 OR Ccards=1 OR Rank=CRank) Then Chand(i,1)=1 ;card is a legal play
+Next
+For i = 1 To Ccards              ;OK, now score play desirability
+  If Chand(i,1)>0                ;only on playable cards, of course!
+    If Chand(i,2)=Cmost
+      Chand(i,1)+1               ;have most of this suit!
+    EndIf
+    For j = 1 To Ccards
+      If j<>i AND Chand(j,1)<>-1
+        If Chand(i,3)=Chand(j,3) ;same Rank as another card in our hand!
+          Chand(i,1)+1
+        EndIf
+      EndIf
+    Next
+  EndIf
+Next
+Compeight=0
+Best.b=1                         ;pick the best card to play
+For i=1 To Ccards
+  If Chand(i,1)=>Best
+    Best=Chand(i,1)
+    cplay=i                      ;ok, we will play this one
+  EndIf
+  If Chand(i,1)=-1
+    Compeight+1
+  EndIf
+Next
+If WildHair AND comppull<pullet
+  cplay=0                          ;try for an 8 to block a win
+EndIf
+If (cplay=0 AND (Ccards<Compeight*2+1 OR Pcards<=Compeight OR Pcards=1)) OR Dcards<2 OR Ccards=Compeight ;OR Pcards<(Ccards/2
+  For i=1 To Ccards                ;no non-8's to play
+    If Chand(i,1)=-1 Then cplay=i  ;so play an 8 if we have one
+  Next                             ;unless we're way ahead
+EndIf                              ;we'll save the 8 and draw
+If Pcards>4 AND Ccards>2 AND cplay
+  If Rnd(30) > 28 Then cplay=0     ;just a bit of randomness to throw 'em off
+EndIf
+If cplay>0                         ;we're going to play a card
+  If comppull=0 AND Ccards=1       ;if it's our last card
+    noise=10:Gosub makenoise       ;let 'em know
+    Gosub FinishSound
+  EndIf
+  Gosub CompPlay                   ;play it!
+
+  Gosub Playcard                   ;alright, play it already!
+  If Rank=8
+    Gosub SetSuit                  ;ok an 8! Set our suit!
+  EndIf
+  If Ccards=1                      ;we only have one card
+    noise=11                       ;left so warn the player
+    Gosub makenoise
+  End If
+EndIf
+
+If cplay=0                         ;we're picking up too
+  If comppull>1                    ;many un-playable cards
+    Gosub CompNoise
+    Message$=txt$(complain+26)     ;so moan about it!
+    Gosub CompComplain
+    Gosub PrintMessage
+  EndIf
+  VWait hold+15
+  Gosub Compget                    ;go get another card
+  comppull+1
+EndIf
+If Dcards=0                        ;and re-shuffle the discards
+ Gosub Reshuffle                   ;if the deck is all used up
+ VWait 30
+EndIf
+Gosub showCcards
+If cplay=0 AND Dcards>0
+  Goto Computerturn                ;it's still the Amiga's turn
+EndIf
+If Ccards=0
+  Goto Handover                    ;Hey! we won this hand
+EndIf
+compflag=0                         ;we didn't win
+Goto GameLoop                      ;so back to the player
+
+.Handover                          ;ok, we managed to finish a hand
+setPointer{waitpointer,0}          ;put up the busy pointer
+Gosub fademusic                    ;and can the music
+If playerflag=0                    ;the computer won
+  noise=2                          ;so make an appropriate noise
+  Gosub makenoise
+  Message$=txt$(36)                ;and print a message
+  Gosub PrintMessage
+  Gosub FinishSound
+
+  Repeat
+    Inhand=Pcards
+    card=Phand(Inhand)             ;now get the player's cards
+    Gosub Pullcard                 ;one at a time
+    Gosub Playcard                 ;& put 'em on discard pile
+    Gosub Score                    ;and score them
+    Pcards-1
+  Until Pcards=0                   ;till we got 'em all
+Else                               ;player won
+  Message$=txt$(37)                ;say it in print
+  noise=0                          ;and make a noise
+  Gosub makenoise                  ;now print the message
+  Gosub PrintMessage               ;pause for a bit
+  Gosub FinishSound
+  Repeat                           ;now throw computer's cards
+    cplay=Ccards                   ;on the discard pile
+    Gosub CompPlay                 ;one at a time
+    Gosub Playcard
+    Gosub showCcards
+    Gosub Score                    ;and score each one
+  Until Ccards=0                   ;till they're all gone
+EndIf
+VWait 50
+flip=down
+Gosub Flipit            ;turn the deck face down
+VWait 20
+For i=1 To 2            ;now erase the deck
+  Use BitMap draw       ;off both screens
+  BlitMode EraseMode
+  Blit 68,sx,sy         ;by drawing a blank card
+  BlitMode CookieMode
+  shp=0                 ;but buffer-blit
+  Gosub Draw            ;the card-back pic on both pages
+Next                    ;so we can move it
+noise=18
+Gosub makenoise
+Repeat                  ;now slide the discard pile back onto
+  sx+4                  ;the main deck 4 pixels at a time
+  Gosub Draw
+Until sx=232
+Gosub Drawdone          ;reset everything for the next time
+
+If Cscore=>maxpoints OR Pscore=>maxpoints  ;The game is over!
+  gamedone.b=True
+  noise=6
+  Gosub makenoise
+  If (Cscore=>maxpoints AND scoreon.b =0) OR (scoreon=1 AND Pscore =>maxpoints)
+
+    Message$=txt$(38)   ;player won the game message
+    pwon.b=True
+    cwon.b=False
+  Else
+    Message$=txt$(39)   ;computer won so print this one
+    pwon=False
+    cwon=True
+  EndIf
+  Gosub PrintMessage
+  Cscore=0              ;reset scores
+  Pscore=0
+  Gosub FinishSound
+  see=0
+  draw=1
+  ShowBitMap 0
+  Use BitMap 0
+  Gosub ScoreTable
+  replay=1              ;set the replay flag
+  Goto StartScreen      ;and go back to the beginning
+EndIf
+Goto Newhand            ;game's not over, play another hand
+
+
+.MenU                   ; the button menu
+  Gosub Drawdone        ;make sure we're showing the Screen's bitmap
+  CacheClearU_
+  Gosub openMenu
+  selection.b=0
+  tpl=pl
+  Repeat
+    ev.l=WaitEvent
+    If ev=$8
+      Select MButtons
+        Case 1
+          setPointer{buttondown,1}
+        Case 2
+          setPointer{buttondown,1}
+          ClickButton 0
+        Case 5
+          setPointer{normal,1}
+        Case 6
+          setPointer{normal,1}
+      End Select
+    EndIf
+
+    If EventWindow=1
+      If ev = $20
+         setPointer{buttondown,1}
+         FlushEvents $8
+         noise=13
+         Gosub makenoise
+      ;Else
+      ;   WPointer normal
+      EndIf
+      If ev=$40
+        setPointer{normal,1}
+        FlushEvents $8
+        Select GadgetHit
+          Case 1               ;Play
+            selection=1
+            noise = 33
+            Gosub makenoise
+            Gosub FinishSound
+
+          Case 2               ;Show Score Table
+            noise=30
+            Gosub makenoise
+            Gosub ScoreTable
+
+          Case 3               ;Change Palette
+            noise=13
+            Gosub makenoise
+            pl+1
+            If pl=2 OR pl=3 Then pl=4
+            If pl>10 Then pl=1
+            fadeto{pl,2}
+          Case 4               ;Sounds
+            noise=24
+            Gosub makenoise
+            Gosub getSoundPath
+            If newsnd$<>snd$ AND newsnd$<>""
+              snd$=newsnd$
+              showerr.b=True
+              Message$=txt$(75)+" "+txt$(76)
+              Gosub PrintMessage
+              setPointer{waitpointer,1}
+              Gosub LoadSounds
+              Message$=txt$(1)
+              Gosub PrintMessage
+              setPointer{normal,1}
+            EndIf
+
+          Case 5               ;Music
+            noise=29
+            Gosub makenoise
+            Gosub LoadMed
+
+          Case 6               ;quit
+            setPointer{waitpointer,1}
+            Gosub split
+
+          Case 7               ;about
+            Message$=txt$(0)
+            Gosub PrintMessage
+            rq$=about$+"|"+locby$
+            dummy = RTreq{c8$,rq$,yes$}
+            Message$=txt$(1)
+            Gosub PrintMessage
+
+          Case 8               ;load settings
+            Gosub getPref
+            If pref$<>""
+              prefload.b=1
+              newloc.b=0
+              setPointer{waitpointer,1}
+              Message$=zap$
+              Gosub PrintMessage
+              Gosub loadpref
+              fadeto{pl,2}
+              If LCase$(newloc$)<>LCase$(locale$)
+                locale$=newloc$
+                newloc=1
+                Gosub GetLocale
+              EndIf
+              If newloc
+                Message$=transby$
+              Else
+                Message$=txt$(75)+" "+pref$
+              EndIf
+              Gosub PrintMessage
+              If ModOn.b=1     ;load the module
+                newmod$=mmd$
+                Gosub CheckMed
+              Else
+                If newloc Then VWait 280
+              EndIf
+              If newloc
+                Message$=trans1$
+                Gosub PrintMessage
+              EndIf
+              If Exists (snd$)
+                showerr.b=True
+                Gosub LoadSounds
+              EndIf
+              ResetTimer
+              If newloc AND trans2$<>"..."
+                ResetTimer
+                Repeat
+                Until Ticks>280
+                Message$=locand$+" "+trans2$
+                Gosub PrintMessage
+              EndIf
+              Gosub grabcards
+              If newloc
+                Repeat
+                Until Ticks>480
+              EndIf
+              CopyBitMap 0,1
+              setPointer{normal,1}
+              prefload=0
+              Gosub openMenu
+            EndIf
+
+          Case 9
+            Free Window 1
+            Gosub Prefs        ;game setup
+            Gosub openMenu
+
+          Case 10              ;select cards
+            Free Window 1
+            Gosub newcards
+            ;Use Window 3
+
+          Case 11              ;screen
+            If Forced
+              If Forced=1
+                ForcePAL
+                Forced=2
+              Else
+                ForceNTSC
+                Forced=1
+              EndIf
+            Else
+              If ntsSys
+                ForcePAL
+                Forced=2
+              Else
+                ForceNTSC
+                Forced=1
+              EndIf
+            EndIf
+          Case 12              ;save prefs
+            FlushEvents
+            setPointer{waitpointer,1}
+            Gosub savepref
+            VWait 150
+            Message$=txt$(1)
+            Gosub PrintMessage
+            setPointer{normal,1}
+
+        End Select
+      EndIf
+    EndIf
+  Until selection
+  FlushEvents
+  Use Window 0
+  Free Window 1
+  setPointer{normal,0}
+  FlushEvents
+  Use BitMap draw            ;go back to unseen page to draw
+  If setup=1
+    If gamedone=True
+      Message$=zap$
+    Else
+      Message$=txt$(2)
+    EndIf
+  Else
+    Message$=Chr$(133)+" "+txt$(78)+" Curt Esser "+Chr$(134)
+  EndIf
+  Gosub PrintMessage
+Return
+
+.openMenu
+  noise=28
+  Gosub makenoise
+  Message$=txt$(1)
+  Gosub PrintMessage
+  Window 1,46,110,228,72,$1000|$800,"",1,0,0
+  Menus Off
+  setPointer{normal,1}
+
+  If prefok                    ;game scoring options can
+    Enable 0,8                 ;only be changed
+    Enable 0,9                 ;or loaded between games!
+  Else
+    Disable 0,8
+    Disable 0,9
+  EndIf
+  Redraw 1,8
+  Redraw 1,9
+
+Return
+
+.split                       ;EXIT GAME
+  Message$=txt$(3)
+  If setup=1 Then Gosub PrintMessage
+  noise=6:Gosub makenoise
+  Gosub FinishSound
+  Gosub fademusic            ;turn music off
+  Free MedModule 0           ;and release the mod's memory
+
+split2
+
+  noise=19:Gosub makenoise
+  fadeto{0,3}                ;fade to black
+
+  noise=17:Gosub makenoise   ;a last audio "shot"
+  If Forced >0               ;fix screenmode if it was forced
+    Gosub FixMode
+  EndIf
+  ex$="Assign Fonts: Crazy:fonts/ REMOVE"
+  Execute_ ex$,0,0
+  ex$="Assign Crazy: REMOVE"
+  Execute_ ex$,0,0
+  Gosub FinishSound
+  Quiet 15                   ;can the sound channels
+  End                        ;We're history
+Return
+
+.Draw                   ;DOUBLE BUFFERED DRAWING ROUTINE
+  ShowBitMap see        ;show the already-drawn page
+  VWait                 ;wait for the Vblank
+  Use BitMap draw       ;now draw on the unseen page
+  UnBuffer draw         ;erase the stuff we drew last time
+  BBlit draw,shp,sx,sy  ;buffer-blit specified shape
+  Exchange see,draw     ;make this the new viewing page
+Return
+
+Drawdone                ;this part simply
+  ShowBitMap see        ;resets both drawing pages
+  VWait                 ;so they are the same
+  CopyBitMap see,draw   ;and clears out both buffers
+  FlushBuffer 0         ;so we are ready for the next
+  FlushBuffer 1         ;animation
+  ShowBitMap 0
+  see=0
+  draw=1
+  Use BitMap draw
+Return
+
+Newpage                 ;this routine switches the
+  Exchange see,draw     ;drawing (unseen) and
+  ShowBitMap see        ;the veiwing (seen) pages
+  VWait                 ;so we don't have to do it
+  Use BitMap draw       ;by hand all the time
+Return
+
+.Flipit                 ;ANIMATION OF CARD TURNING OVER
+  flipfrom=54
+  flipto=57             ;flip shapes from face down to face up
+  If flip=down
+    Exchange flipfrom,flipto  ;do in reverse if needed
+  EndIf
+  For i=flipfrom To flipto Step flip  ;draw the shapes one
+    shp=i                             ;per frame till they
+    Gosub Draw                        ;are all done
+    VWait
+  Next
+  shp=card                            ;then draw actual card
+  If flip=down Then shp=0             ;or card back
+  Gosub Draw
+  noise=13
+  Gosub makenoise
+  Gosub Drawdone
+Return
+
+.Reshuffle                 ; RESHUFFLE THE DISCARD PILE
+  If Dpile=1 Then Return   ; there's only one card - forget it!
+  For i=1 To Dpile-1       ; leave the top card out
+    Deck(i)=Pile(i)        ; and set up our new deck using
+  Next                     ; the rest of the discards
+  sx=88:sy=82              ; now we slide the top card over
+  If CRank=8
+    shp=60+CSuit
+  Else
+    shp=Pile(Dpile)
+  EndIf
+  Use BitMap draw
+  For i=1 To 2
+    Blit Pile(Dpile-1),sx,sy  ;first we have to draw
+    BBlit draw,shp,sx,sy      ;the next card down in the pile
+    Gosub Newpage             ;on both pages under the top card
+  Next                        ;because it will be seen soon
+  For i=1 To 12               ;now we slide the top card
+    sx-2                      ;over to the left
+    Gosub Draw
+  Next
+  Gosub Drawdone
+  sx=88:sy=82:flip=down:
+  Gosub Flipit                ;now flip the "deck" over
+  For i=1 To 2                ;now we need to erase
+    BlitMode EraseMode
+    Blit 68,sx,sy             ;both pages under the
+    BlitMode CookieMode
+    BBlit draw,shp,sx,sy      ;"deck" pic
+    Gosub Newpage             ;actually just 1 card back pic
+  Next
+  Repeat                      ;now we slide this over to the right
+    sx+6
+    Gosub Draw
+  Until sx=232                ;until it gets to the deck position
+  Gosub Drawdone
+  sx=64
+  If CRank=8
+    shp=60+CSuit
+  Else
+    shp=Pile(Dpile)
+  EndIf
+                              ;now slide the top card back
+  BlitMode EraseMode
+  Blit 68,sx,sy               ;where it was
+  BlitMode CookieMode
+  For i=1 To 2
+    BlitMode EraseMode
+    Blit 68,sx,sy
+    BlitMode CookieMode
+    BBlit draw,shp,sx,sy
+    Gosub Newpage
+  Next
+  For i=1 To 12
+    sx+2
+    Gosub Draw
+  Next
+  Gosub Drawdone
+
+  Dcards=Dpile-1              ;now reset
+  Pile(1)=Pile(Dpile)         ;the discard pile
+  Dpile=1
+
+.Shuffle                      ;shuffle the deck
+  If Dcards=1 Then Return     ;only one card - forget it!
+  temp$=Message$
+  If setup Then Message$=zap$
+  Gosub PrintMessage
+  setPointer {waitpointer,0}  ;busy pointer
+  Blit 0,230,82               ;draw two card backs
+  Blit 0,234,82               ;offset from normal position
+                              ;but only on one page for animation
+  For j=1 To 6                ;shuffle them 6 times
+    For i=1 To Dcards                       ;re-arrainge deck
+      Exchange Deck(i),Deck(Rnd(Dcards)+1)  ;at random by exchanging
+    Next                                    ;card numbers
+    noise=8               ;now make shuffling
+    Gosub makenoise       ;sound and
+    For i=1 To 20         ;animate by fliping the pages
+      ShowBitMap draw     ;back and forth enough times
+      VWait               ;to cover the length of the sound
+      ShowBitMap see
+      VWait               ;the actual shuffling takes no time at all
+    Next                  ;this is all for show!
+  Next
+  Gosub Drawdone
+  If setup
+    Message$=temp$
+    Gosub PrintMessage
+  EndIf
+Return
+
+Grabcard                 ;pick up the top card on the deck
+  If Dcards<1            ;wait a minute! There's no more cards!
+    card=-1              ;so set the flag
+    Return               ;and leave
+  EndIf
+  card=Deck(Dcards)      ;always take the top card
+  Dcards-1               ;and subtract one from the deck count
+  sx=232                 ;set the starting position
+  sy=82                  ;for the animation
+  shp=0                  ;and set to card-back shape
+  If Dcards=0            ;and if this is the last card
+    Use BitMap draw      ;erase the deck pic
+    For i=1 To 2         ;on both screens
+      BlitMode EraseMode
+      Blit 68,sx,sy
+      BlitMode CookieMode
+      BBlit draw,0,sx,sy ;but buffer-blit the one card back
+      Gosub Newpage
+    Next
+  EndIf
+  noise=18               ;ok, make a sound
+  Gosub makenoise
+Return
+
+.Compget                 ;pick up a card
+  Gosub Grabcard         ;and send it to the computer's hand
+  Repeat
+    If sx>cx+4 Then sx-4 ;this stuff moves the
+    If sx>cx Then sx-1   ;card toward the next spot in
+    If sx<cx Then sx+2   ;the computer's hand and slows
+    If sy>cy Then sy-1   ;down when it gets close so we
+    shp=0                ;can hit the exact spot
+    Gosub Draw
+  Until sx=cx AND sy=cy
+  noise=13
+  Gosub makenoise        ;make a sound when it gets there
+  Ccards+1               ;update the amount of cards
+  Chand(Ccards,0)=card   ;and the computer array
+  cx+6                   ;reset position for next card
+  Gosub Drawdone
+Return
+
+.Playerget                 ;player picks up a card
+  Gosub Grabcard           ;get next card from deck
+  If card=-1 Then Return   ;wait a minute-all cards GONE!
+  Pcards+1                 ;add one to our count
+  Sortflag=0               ;and re-set the sort flag
+  Repeat
+    If sx>Ppos(Pcards,0)+4 Then sx-4    ;this slides the card
+    If sx>Ppos(Pcards,0) Then sx-1      ;into the player's hand
+    If sx<Ppos(Pcards,0)-4 Then sx+4    ;just like computer above
+    If sx<Ppos(Pcards,0) Then sx+1
+    If sy<Ppos(Pcards,1) Then sy+2
+    Gosub Draw
+  Until sx=Ppos(Pcards,0) AND sy=Ppos(Pcards,1)
+  Phand (Pcards)=card      ;and update player's array
+  flip=up                  ;but we have to flip the player's
+  Gosub Flipit             ;cards face up so we can see it
+Return
+
+.PrintMessage                 ;this prints message in the message box
+  Use BitMap draw             ;on the draw page
+  Boxf 4,185,314,196,3        ;and copies it to the other page
+  BPrint{Message$,160,0,192}
+  Use BitMap see
+  Scroll 0,185,320,11,0,185,draw
+  Use BitMap draw
+Return
+
+.getmouse       ;wait for a mouseclick or keypress
+  setPointer {normal,0}    ;regular pointer
+  FlushEvents $8 ;clear any prior mouse events (for the trigger-happy user)
+  ev.l=WaitEvent         ;multi-task until response detected
+  If EventWindow=0
+    If sleep >0          ;program was sleeping (screen hidden)
+      If sleep = 1       ;turn music on
+        CacheClearU_
+        VWait 10
+        If Forced=2      ;force screenmode if it was done before
+          ForcePAL
+        EndIf
+        If Forced=1
+           ForceNTSC
+        EndIf
+        music=1          ;fix the music flag
+        Gosub MusicOn    ;and re-start it
+        Message$=txt$(2)
+        Gosub PrintMessage
+        sleep=0
+        Gosub Drawdone
+        Gosub buttonUp
+        Goto getmouse
+      EndIf
+    EndIf
+    If ev=$400           ;key was pressed
+      t$=Inkey$
+      If t$=Chr$(27)     ;ESC key
+        hit=2
+        Return
+      EndIf
+
+      If t$="p"
+        noise =4
+        Gosub makenoise
+        VWait
+        ForcePAL
+        Forced=2
+      EndIf
+      If t$="n"
+        noise=4
+        Gosub makenoise
+        VWait
+        ForceNTSC
+        Forced=1
+      EndIf
+      If t$="m" OR t$="M"      ;user wants to toggle music off/on
+        If ModOn=1             ;we have loaded a mod
+          If music=1           ;so do it
+            Gosub fademusic    ;but if off, do it gracefully
+            music=0
+          Else
+            music=1            ;was off, turn it on
+            Gosub MusicOn      ;put a coin in the jukebox
+          End If
+        Else                   ;NO MOD IN MEMORY!!!
+          ShowBitMap 0
+          dummy=RTreq {txt$(60),txt$(63),txt$(64)}
+          ShowBitMap see
+        EndIf
+      End If
+      Goto getmouse            ;go back & wait for mousebutton
+    End If
+
+    btn=1                      ;left button down
+    If Joyb(0)=2 Then btn=2    ;right button
+    setPointer{buttondown,0}   ;show button down pointer
+    Gosub buttonUp             ;wait till mousebutton is released
+    mx=EMouseX                 ;and get the
+    my=EMouseY                 ;pointer's position
+    FlushEvents                ;again, save the trigger-happy
+  Return                      ;and continue the program
+EndIf
+Goto getmouse
+
+.buttonUp
+ Repeat                     ;now wait
+   ev.l=WaitEvent           ;for mousebutton
+ Until ev=$8 AND Joyb(0)=0  ;till it is released
+ setPointer{normal,0}       ;use regular pointer
+Return
+
+HitWhat             ;this determines what was clicked
+  hit=0             ;first we reset the flags
+  PlayCard=0
+  If RectsHit (mx,my,1,1,221,67,22,30) Then hit=1 ; draw a card
+  If RectsHit (mx,my,1,1,257,9,27,9) Then hit=2 ; menu button
+  If RectsHit (mx,my,1,1,225,9,27,9) Then hit=4 ; sort button
+  If RectsHit (mx,my,1,1,290,9,27,9)   Then hit=5 ; hide bitton
+  If hit>0 Then Return  ;Got it! we don't need to check for cards
+  check=1
+  If Pcards=1 Then Goto fullcheck ;only one card left!
+  checkcards   ;checks all the visible card positions from left
+  If RectsHit (mx,my,1,1,Ppos(check,0)-11,Ppos(check,1)-15,11,30)
+    hit=3
+    PlayCard=Phand(check)
+    Inhand=check
+  EndIf
+  check+1
+  If PlayCard=0 AND check <Pcards Then Goto checkcards ;nope, try next
+
+  fullcheck ;the last card on right is bigger so we check full area
+  If RectsHit (mx,my,1,1,Ppos(check,0)-11,Ppos(check,1)-15,22,30)
+    hit=3
+    PlayCard=Phand(check)
+    Inhand=check
+  EndIf
+Return
+
+.WhatCard      ;determine the suit & rank of a card from its number
+  Suit=0       ;set to first suit
+  Rank=card    ;this is the card's number
+
+checksuit
+  If Rank>13        ;only 13 cards per suit
+    Suit+1          ;so go to next suit
+    Rank-13         ;and subtract 13
+    Goto checksuit  ;and try again
+  EndIf
+  ok=0                                              ;now reset flag
+  If Suit=CSuit OR Rank=CRank OR Rank=8 Then ok=1   ;and check for
+Return                                              ;playability
+
+.Pullcard           ;pull a card out of the player's hand
+  sx=Ppos(Inhand,0)            ;get the drawing positions from
+  sy=Ppos(Inhand,1)            ;the player position array
+  shp=card                     ;and set the drawing shape
+  Row=1:Rowflag=1:temp2=Pcards ;reset the flags to 1 row of cards
+  If Inhand>25 Then Row=2      ;card selected from second row
+  If Pcards>25 Then Rowflag=2  ;player has TWO rows of cards
+  If Row=1 AND Rowflag=2 Then temp2=25  ;but he selected from top row
+  For q=1 To 2                 ;set up both pages
+    BlitMode EraseMode
+    Blit 68,sx,sy              ;draw blank shape to erase
+    BlitMode CookieMode
+    If Inhand>1 AND Inhand<>26 Then Blit Phand(Inhand-1),Ppos(Inhand-1,0),Ppos(Inhand-1,1)
+    BBlit draw,shp,sx,sy       ;and buffer blit the card
+     If Inhand<>Pcards AND Inhand <>25   ;if not last card in row
+      For j= Inhand+1 To temp2           ;re draw other cards to
+        Blit Phand(j),Ppos(j,0),Ppos(j,1);the right of selected one
+      Next
+     EndIf
+   Gosub Newpage              ;and switch pages
+  Next q                      ;do the other page
+   If Inhand=Pcards OR Inhand=25 Then Goto ready ;if last card
+   For i=0 To 12 Step 2       ;otherwise, move cards to right
+     sy-5                     ;over to fill the space
+     Gosub MoveEm
+   Next i
+   i=12
+   Gosub MoveEm
+
+ready                  ;ok all done
+  ShowBitMap see
+  VWait
+  Use BitMap draw
+  Return
+
+MoveEm
+  UnBuffer draw
+  BBlit draw,shp,sx,sy
+  BlitMode EraseMode
+  Blit 68,Ppos(temp2,0),Ppos(temp2,1)
+  BlitMode CookieMode
+  For j= Inhand+1 To temp2
+    Blit Phand(j),Ppos(j,0)-i,Ppos(j,1)
+  Next j
+  Gosub Newpage
+Return
+
+MoveUp
+ temp3=Inhand
+ Inhand=26
+ card=Phand(26)
+ Gosub Pullcard
+ Repeat
+  If sx<Ppos(25,0) Then sx+2
+  If sx<Ppos(25,0)-6 Then sx+4
+  If sx>200 AND  sy<128 Then sy+1
+  If sy>128 Then sy-1
+  Gosub Draw
+ Until sy=128 AND sx=Ppos(25,0)
+ Gosub Drawdone
+ Inhand=temp3
+Return
+
+
+
+.CompPlay
+ cx-6:sx=cx:sy=cy:card=Chand(cplay,0)
+ For i=1 To 2
+   BlitMode EraseMode
+   Blit 68,sx,sy
+   BlitMode CookieMode
+   If Ccards>1 Then Blit 0,sx-6,sy
+   BBlit draw,0,sx,sy
+   Gosub Newpage
+ Next
+ flip=up
+ Gosub Flipit
+ For i=cplay To Ccards
+   Chand(i,0)=Chand(i+1,0)
+ Next
+ For i=1 To 2
+   BlitMode EraseMode
+   Blit 68,sx,sy
+   BlitMode CookieMode
+   If Ccards>1 Then Blit 0,sx-6,sy
+   BBlit draw,card,sx,sy
+   Gosub Newpage
+ Next
+ Ccards-1
+Return
+
+.SetSuit
+  If Pcards=0 OR Ccards=0 Then Return
+  If compflag=0 AND Sortflag=0 AND pickup>0 Then Gosub Sorthand
+  Message$=txt$(40)  ;"O.K.  Choose Your Suit"
+  If compflag=1
+    If WildHair
+      Message$="WildHair!"
+    Else
+      Message$=txt$(41)  ;"Hmmmmm.  Let's see!"
+    EndIf
+  EndIf
+  Gosub PrintMessage
+  noise=23:Gosub makenoise
+  ShowBitMap draw
+  VWait
+  Use BitMap draw
+  Blit 59,88,82
+  Blit 58,40,82
+  If compflag=1
+    If WildHair AND Cmost=CSuit
+      Cmost+1
+      If Cmost=4 Then Cmost=0
+    EndIf
+    Suit=Cmost
+    Message$=txt$(41)
+    VWait 150
+    Goto useit
+  EndIf
+
+playerpick
+  Gosub getmouse
+  Suit=5
+  temp=8
+  For i=0 To 3
+    If RectsHit(mx,my,1,1,temp,71,14,15) Then Suit=i
+    temp+15
+  Next
+  If Suit=5          ;bad selection!
+    noise=3
+    Gosub makenoise
+    Goto playerpick
+  EndIf
+  Message$=txt$(43)
+
+useit
+
+  Use BitMap see
+  Blit 60+Suit,88,82
+  CSuit=Suit
+  Gosub Drawdone
+  noise=5
+  Gosub makenoise
+  Gosub PrintMessage
+  If compflag=1
+    noise=21
+  Else
+    noise=26
+    If Pcards<3 Then noise=33
+  EndIf
+  Gosub makenoise
+  VWait 100
+Return
+
+.Sorthand
+ Rowflag=1
+ If Pcards>25 Then Rowflag=2
+ card=Phand(Pcards)
+ sx=Ppos(Pcards,0)
+ sy=Ppos(Pcards,1)
+ dx=Ppos(1,0)
+ Gosub Slideleft
+ If Rowflag=2
+   sx=Ppos(25,0)
+   sy=Ppos(25,1)
+   card=Phand(25)
+   Gosub Slideleft
+ EndIf
+ For i= Pcards+1 To 52
+   Phand(i)=60
+ Next
+ Sort Phand()
+ card=Phand(Pcards)
+ sx=Ppos(1,0)
+ sy=Ppos(Pcards,1)
+ temp=1
+ temp2=Pcards
+ If Rowflag=2 Then temp=26
+ Gosub Slideright
+ If Rowflag=2
+   Rowflag=1
+   sx=Ppos(1,0)
+   sy=Ppos(1,1)
+   card=Phand(25)
+   temp=1
+   temp2=25
+   Gosub Slideright
+ EndIf
+ Sortflag=1
+Return
+
+Slideright
+  flip=up
+  Gosub Flipit
+  noise=18:Gosub makenoise
+  dx=Ppos(temp2,0)
+  If sx<>dx
+    Repeat
+      sx+4
+      For i=temp To temp2
+        If sx>Ppos(i,0) AND sx<Ppos(i,0)+20
+          Blit Phand(i),Ppos(i,0),Ppos(i,1)
+        EndIf
+      Next
+      Blit card,sx,sy
+      Gosub Newpage
+    Until sx=dx
+  EndIf
+  Gosub Drawdone
+Return
+
+Slideleft
+  noise=18:Gosub makenoise
+  If sx<>dx
+    Repeat
+      BlitMode EraseMode
+      Blit 68,sx+3,sy
+      BlitMode CookieMode
+      sx-3
+      Blit card,sx,sy
+      Gosub Newpage
+    Until sx=dx
+  EndIf
+  Gosub Drawdone
+  flip=down
+  Gosub Flipit
+Return
+
+.Score
+ VWait 15
+ card=shp
+ Gosub WhatCard
+ If Rank>10 Then Rank=10
+ If Rank=1
+   Rank=20
+   noise=1+15*playerflag
+   Gosub makenoise
+ EndIf
+ If Rank=8
+   Rank=50
+   noise=7+3*playerflag
+   Gosub makenoise
+ EndIf
+ noise=14+playerflag
+ Gosub makenoise
+ If (playerflag=0 AND scoreon=0) OR (playerflag=1 AND scoreon=1)
+   Pscore=Pscore+Rank
+ Else
+   Cscore=Cscore+Rank
+ EndIf
+
+showscore            ;update the score box
+ Format "000"        ;with three number format
+ BitMapOutput see    ;just use the seen page
+ Colour 7,1          ;gold on black
+ Locate 23,9.9
+ Print Str$(Cscore)  ;Computer's score
+ Locate 23,11
+ Print Str$(Pscore)  ;Player's score
+ Gosub Drawdone
+ VWait 35
+Return
+
+.showCcards           ;show computer cards in hand
+  Format "00"         ;use two number format
+  BitMapOutput see    ;use the seen page
+  Colour 7,1          ;gold on black
+  Locate 2,.8
+  Print Str$(Ccards)  ;how many cards we're holding
+  BitMapOutput draw   ;use the unseen page
+  Locate 2,.8
+  Print Str$(Ccards)  ;how many cards we're holding
+  VWait hold+1           ;and make sure it's seen
+Return
+
+
+.Playcard
+ Repeat
+   If sx<84 Then sx+4
+   If sx<88 Then sx+1
+   If sx>92 Then sx-4
+   If sx>88 Then sx-1
+   If sy>85 Then sy-3
+   If sy>82 Then sy-1
+   If sy<80 Then sy+2
+   If sy<82 Then sy+1
+   Gosub Draw
+ Until sx=88 AND sy=82
+ Gosub Drawdone
+ Dpile+1
+ Pile(Dpile)=card
+ Gosub WhatCard
+ CSuit=Suit
+ CRank=Rank
+Return
+
+.Prefs              ;Options window w/GT gadgets
+  #LocString   = 51
+  #BtnSave     = 52
+  #LocReq      = 54
+  #Music       = 55
+  #SndFilter   = 56
+  #LoseWinMX   = 58
+  #ScoreMX     = 59
+  #BtnUse      = 60
+  #Pname       = 61
+  #Cname       = 62
+
+  Gosub makePlist     ;create the GTlist
+
+  *gtscr.Screen = Peek.l (Addr Screen(0))
+  offy.b = *gtscr\WBorTop + *gtscr\_RastPort\TxHeight +1
+  fadeto{0,1}
+  Window 1,0,0,320,200,$1000," "+c8$+" Prefs",1,2
+  MenusOff
+  offx.b = WLeftOff
+  setPointer{normal,1}
+  noise=14:Gosub makenoise
+  Gosub drawWin
+  fadeto{pl,1}
+  split=0
+
+.prefloop
+
+  Repeat
+    ev.l = WaitEvent
+    If ev=$8
+      Select MButtons
+        Case 1
+          setPointer{buttondown,1}
+        Case 2
+          setPointer{waitpointer,1}
+        Case 5
+          setPointer{normal,1}
+        Case 6
+          setPointer{normal,1}
+      End Select
+    EndIf
+
+    If ev = #IDCMP_GADGETUP OR ev= #IDCMP_GADGETDOWN
+      noise=13:Gosub makenoise
+      If ev=$20
+        setPointer{buttondown,1}
+        Select GadgetHit
+          Case #ScoreMX
+            scbtn.b=EventCode
+            Select scbtn
+              Case 0
+                maxpoints=50
+              Case 1
+                maxpoints=100
+              Case 2
+                maxpoints=150
+              Case 3
+                maxpoints=200
+              Case 4
+                maxpoints=300
+            End Select
+
+          Case #LoseWinMX
+            scoreon=EventCode
+        End Select
+      Else
+        setPointer{normal,1}
+        Select GadgetHit
+          Case #SndFilter
+            If Fltr.b=True
+               Fltr=False
+            Else
+               Fltr=True
+            EndIf
+            Gosub setflt
+          Case #BtnSave
+            compname$=GTGetStr{0,62}
+            playername$=GTGetStr{0,61}
+            Gosub savepref
+            VWait 60
+            split=1
+          Case #LocReq
+            titl$=" "+c8$+" "+txt$(87)+":"
+            newloc$= ASLFileRequest$ (titl$,locpa$,locfi$,0,12,320,188)
+            If newloc$<>"" AND locfi$<>locale$
+              locale$=locfi$
+              Gosub GetLocale
+              DetachGTList 0
+              Free GTList 0
+              fadeto{0,1}
+              Gosub makePlist
+              Gosub drawWin
+              fadeto{pl,1}
+            EndIf
+          Case #Music
+            If ModOn=1
+               ModOn=0
+               StopMed
+               music=0
+               Free MedModule 0
+            Else
+               ModOn=1
+               ld$=pa$+"/"+fi$
+               LoadMedModule 0,ld$
+               music=1
+               Gosub MusicOn
+            EndIf
+
+          Case #BtnUse
+            split=1
+            compname$=GTGetStr{0,62}
+            playername$=GTGetStr{0,61}
+        End Select
+      EndIf
+    EndIf
+    FlushEvents
+  Until split
+  If playername$<>txt$(57)
+    pgreet$=", "+playername$
+  Else
+    pgreet$=""
+  EndIf
+  split=0
+  VWait
+  Use Window 0
+  fadeto{0,1}
+  DetachGTList 0
+  Free Window 1
+  CopyBitMap 1,0
+  Free GTList 0
+  fadeto{pl,1}
+Return
+
+.makePlist
+  t$=txt$(48)+"|"+txt$(49)
+  GTText      0,#LocString,90,46,180,16,txt$(87),#PLACETEXT_LEFT,locale$
+  GTButton    0,#LocReq,270,46,19,16,"?",#PLACETEXT_IN|$80
+  GTCheckBox  0,#Music,26,77,26,11,txt$(46),#PLACETEXT_RIGHT|$80
+  GTCheckBox  0,#SndFilter,202,77,26,11,txt$(47),#PLACETEXT_RIGHT|$80
+  GTMX        0,#LoseWinMX,46,116,17,9,"",#PLACETEXT_RIGHT,t$,scoreon.b
+  GTMX        0,#ScoreMX,208,113,17,9,"",#PLACETEXT_RIGHT," 50|100|150|200|300",scbtn.b
+  GTButton    0,#BtnSave,8,167,80,16,txt$(45),#PLACETEXT_IN|$80
+  GTButton    0,#BtnUse,228,167,80,16,txt$(50),#PLACETEXT_IN|$80
+  GTString    0,#Pname,64,16,85,16,txt$(51),#PLACETEXT_LEFT|$80,8,playername$
+  GTString    0,#Cname,214,16,85,16,"Amiga",#PLACETEXT_LEFT|$80,8,compname$
+Return
+
+drawWin
+  InnerCls 3
+  WJam 1
+  If ModOn.b=1 Then GTSetAttrs  0,#Music, #GTCB_Checked, True
+  If Fltr.b=True Then GTSetAttrs  0,#SndFilter, #GTCB_Checked, True
+  WJam 0
+  AttachGTList 0,1
+  GTBevelBox 0,7+offx,1+offy,302,35,1
+  GTBevelBox 0,7+offx,39+offy,302,28,1
+  GTBevelBox 0,7+offx,70+offy,302,25,1
+  GTBevelBox 0,7+offx,98+offy,302,68,1
+  WColour 1,0
+  WLocate 28,104 : Print txt$(52)
+  WLocate 198,102 : Print txt$(53)
+  WColour 4,0
+  WLocate 115,5 : Print txt$(55)
+Return
+
+.LoadMed
+ld$=defmed$
+newmod$=ASLFileRequest$(txt$(56),pa$,fi$,0,0,320,200)
+Gosub FixBar
+.CheckMed
+If newmod$<>""
+  If prefload.b=0
+    Message$=Chr$(133)+" "+fi$+" "+Chr$(134)
+    Gosub PrintMessage
+  EndIf
+  If ReadFile(0,newmod$)
+    FileInput 0
+    A$ = Edit$(12)    ; Read 12 bytes or upto a chr$(10)
+    CloseFile 0
+    Use Window 0
+    If Left$(A$,3)= "MMD" AND Right$(A$,1) = "4"  ; OK, 4 channel MED
+      size.l=Exists(newmod$)                    ;check mod length
+      If music=1 Then Gosub fademusic
+      Free MedModule 0                          ;can old mod
+      VWait 10
+      chips.l=ChipFree                          ;check chip mem
+      If chips>size+5000                        ;ok to load new mod
+        ld$=newmod$                             ;so change name
+        defpa$=pa$
+        deffi$=fi$
+      Else                                      ;short on chip mem!
+        A$=txt$(68)+" = "+Str$(chips)
+        B$=txt$(69)+" "+Str$(size+5000)+"|"+txt$(70)
+        dummy=RTreq{A$,B$,txt$(61)}
+        pa$=defpa$
+        fi$=deffi$
+      EndIf
+    ld$=pa$+"/"+fi$
+    VWait 10
+    LoadMedModule 0,ld$
+    music=1
+    Gosub MusicOn
+    Else    ; not a 4 channel med!
+      dummy=RTreq{txt$(65),txt$(67),txt$(61)}
+    EndIf
+  Else      ; can't even find it!
+    dummy=RTreq{txt$(65),txt$(66),txt$(64)}
+  EndIf
+EndIf
+If prefload=0
+  Message$=txt$(1)
+  Gosub PrintMessage
+EndIf
+Return
+
+.LoadSounds
+snderr.b=0
+
+For i=0 To 33
+  Timeout(i)=0
+  Free Sound i
+  lsd$=snd$+sd$(i)               ;now load the sounds
+  lnth.l=Exists(lsd$)
+  If lnth>0 AND ChipFree > lnth
+    If ReadFile(0,lsd$)
+      FileInput 0
+      temp$=Inkey$(12)
+      CloseFile 0
+      Use Window 0
+      ;If Right$(temp$,4)="8SVX"
+      If Instr(temp$,"8SVX")
+        LoadSound i,lsd$
+        CacheClearU_
+        soundnumber.w=i
+        Gosub SoundDelay
+        Timeout(i)=delay.w
+      Else
+        snderr+1
+      EndIf
+    Else
+      snderr+1
+    EndIf
+  EndIf
+Next
+If snderr>0 AND showerr=True
+  Format ""
+  dummy=RTreq{txt$(60),txt$(66)+"|"+Str$(snderr)+" "+txt$(76),txt$(64)}
+EndIf
+
+Return
+
+.FinishSound    ;wait until the sound is done
+If hold>0
+  Repeat
+    VWait
+  Until hold=0
+EndIf
+Return
+;determine the playing time of the samples
+
+.SoundDelay
+
+period.q=Peek.w(Addr Sound (soundnumber)+4)     ;get the period from sound object
+lngth.l=(Peek.w(Addr Sound (soundnumber)+6) AND $FFFF)*2  ;get the length from sound object
+frequency.f = 3579440/period                    ;convert to true frequency
+delay.w=lngth/(frequency/vrate)                 ;convert to playing time in VBlanks
+delay+5                                         ;add a bit of padding for short samples
+Return
+
+.makenoise
+If Timeout(noise)>0
+  SetMedMask 3
+  hold=Timeout(noise)
+  Sound noise,12
+EndIf
+Return
+
+.fademusic
+If ModOn
+  For i=64 To 0 Step -1
+    SetMedVolume i
+    VWait 2
+  Next
+  StopMed
+  SetMedVolume 64
+  playing.b=0
+EndIf
+Return
+
+.MusicOn
+  If ModOn=1 AND playing.b=0
+    StartMedModule 0
+    playing=1
+  EndIf
+
+setflt
+  If Fltr=False
+    Filter On
+  Else
+    Filter Off
+  EndIf
+Return
+
+.CompComplain           ;complain in print and sound
+  complain=complain + 1         ;and set a new complaint so we
+  If complain>9 Then complain=1 ;don't say the same thing all the time
+  Gosub makenoise
+Return
+
+.CompNoise
+  Select complain               ;select a noise
+       Case 1
+        noise=25
+       Case 2
+        noise=30
+       Case 3
+        noise=24
+       Case 4
+        noise=29
+       Case 5
+        noise=16
+       Case 6
+        noise=31
+       Case 7
+        noise=1
+       Case 8
+        noise=7
+       Case 9
+        noise=32
+    End Select
+Return
+
+.savepref
+  temp$=playername$
+  If temp$=txt$(57) Then temp$="Default"
+  rq$=txt$(84)+Chr$(10)+txt$(85)
+  titl$=txt$(82)+" "+txt$(77)
+  save$=RTEZGetString(titl$,rq$,30,temp$)
+  If save$<>""
+    temp$=save$+".8's"
+    prefname$=ourpath$+"/"+temp$
+    If WriteFile (0,prefname$)             ;open pref file
+      ;ResetTimer
+      ;Gosub PrintMessage
+      FileOutput 0
+      NPrint compname$                     ;computer's name
+      NPrint playername$                   ;player's name
+      NPrint Fltr                          ;audio filter on or off
+      NPrint pa$                           ;default path
+      NPrint fi$                           ;mod name
+      NPrint scbtn                         ;mx scorebutton selected
+      NPrint maxpoints.w                   ;default top score
+      NPrint scoreon                       ;add points to looser if 0
+      NPrint pl                            ;save the palette
+      NPrint ModOn                         ;use music if 1
+      NPrint snd$                          ;current sample set
+      NPrint cardpic$                      ;current card pic
+      NPrint locale$                       ;current locale
+      CloseFile 0
+      WindowOutput 1
+      If LCase$ (save$)<>"default.8's"
+        temp$=ourpath$+"/Icons/.8's.info"
+        temp2$=prefname$+".info"
+        If Exists(temps$) AND (Exists(temp2$) = 0)
+          dummy=CopyFile(temp$,temp2$)
+        EndIf
+      EndIf
+      Message$=save$+" "+txt$(74)+" "+txt$(79)
+      Gosub PrintMessage
+    Else
+      dummy=RTreq{txt$(60),txt$(71),txt$(64)}
+    EndIf
+  EndIf
+Return
+
+.loadpref
+  If ReadFile (0,pref$)                  ;open selected pref file
+    FileInput 0
+    compname$=Edit$(15)                  ;computer's name
+    playername$=Edit$(15)                ;player's name
+    Fltr.b=Edit(6)                       ;audio filter on or off
+    pa$=Edit$(200)                       ;default path
+    fi$=Edit$(200)
+    scbtn.b=Edit(6)                      ;mx scorebutton selected
+    maxpoints.w=Edit(6)                  ;default top score
+    scoreon.b=Edit(6)                    ;add points to looser if 0
+    pl.b=Edit(6)                         ;get the palette
+    ModOn.b=Edit(6)                      ;use music if 1
+    snd$=Edit$(256)                      ;sample path
+    cardpic$=Edit$(256)                  ;card picture
+    If NOT Eof(0)
+      newloc$=Edit$(256)                 ;selected locale
+    EndIf
+    CloseFile 0
+    WindowInput 0
+
+  Else                                   ;Use Defaults
+    compname$="Amiga"                    ;computer's name
+    playername$=txt$(57)                 ;player's name
+    Fltr.b=False                         ;audio filter on or off
+    pa$="data/Mods"                      ;default path
+    fi$="Med.Moonshine"                  ;default module name
+    scbtn.b=3                            ;mx scorebutton selected
+    maxpoints.w=200                      ;default top score
+    scoreon.b=0                          ;add points to looser if 0
+    ModOn.b=1
+    pl.b=1
+    snd$="sounds/original/"
+    cardpic$="cards/3d.Deck"
+  EndIf
+  defpa$=pa$
+  deffi$=fi$
+  mmd$=pa$
+  If Right$(pa$,1)<>":" AND Right$(pa$,1)<>"/"
+    mmd$+"/"
+  EndIf
+  mmd$+fi$
+  If newloc$="" Then newloc$=locale$
+
+Return
+
+.getSoundPath    ;select the Samples directory with a listview
+
+dirs.w=0                         ;number of entries found
+showme.w=0                       ;the current selection
+drnow$=UnLeft$(Mid$(snd$,8),1)
+drawer$=ourpath$+"/sounds/"
+ChDir drawer$                    ; CD to the sounds/ directory
+ResetList sndDrawers()
+While MoreEntries                ; check if there's any more entries
+  File_Name$=EntryName$          ; get its name
+  If EntryDIR                    ; check if its a directory
+    If File_Name$=drnow$
+      showme=dirs
+    EndIf
+    dirs+1                       ;yes, so increase the directory count
+    If AddItem(sndDrawers())
+      sndDrawers()\string=" "+File_Name$
+    EndIf
+  EndIf
+Wend
+GTTags #GTLV_ShowSelected,0,#GTLV_MakeVisible,showme
+GTListView 2,51,0,0,290,160,"",0,sndDrawers(),showme,0
+AddIDCMP #INTUITICKS
+AddIDCMP #MOUSEMOVE
+VWait
+CacheClearU_
+titl$=" "+c8$+" "+txt$(76)+":"
+Window 2,10,20,300,173,$1000,titl$,1,2
+SubIDCMP #INTUITICKS|#MOUSEMOVE
+MenusOff
+AttachGTList 2,2
+Repeat
+  ev.l=WaitEvent
+  If ev=$40
+    showme=EventCode
+  EndIf
+Until ev=$40 AND EventWindow=2
+ResetList sndDrawers()
+For i = 0 To showme
+  dummy=NextItem(sndDrawers())
+Next
+nsnd$=Mid$(sndDrawers()\string,2)
+newsnd$="sounds/"+nsnd$+"/"
+DetachGTList 2
+Free GTList 2
+Free Window 2
+Use Window 0
+ClearList sndDrawers()
+ChDir ourpath$
+Return
+
+.getPref    ;select the Prefs with a listview
+
+pfiles.w=0                         ; number of entries found
+picked.w=0                         ; the current selection
+ChDir ourpath$                     ; CD to the C8/ directory
+ResetList sndDrawers()
+While MoreEntries                  ; check if there's any more entries
+  File_Name$=EntryName$            ; get its name
+  If EntryDIR=0                    ; check if its a directory
+    If Right$(File_Name$,4)=".8's" AND File_Name$<>"Crazy.8's"
+      If AddItem(sndDrawers())
+        If File_Name$=pref$ Then picked=pfiles
+        sndDrawers()\string=" "+File_Name$
+        pfiles+1
+      EndIf
+    EndIf
+  EndIf
+Wend
+If pfiles
+  CloseWindow 1
+  GTTags #GTLV_ShowSelected,0,#GTLV_MakeVisible,picked
+  GTListView 2,51,0,0,290,160,"",0,sndDrawers(),picked,0
+  AddIDCMP #INTUITICKS
+  AddIDCMP #MOUSEMOVE
+  VWait
+  CacheClearU_
+  titl$=" "+c8$+" "+txt$(74)+":"
+  Window 2,10,20,300,173,$1000,titl$,1,2
+  SubIDCMP #INTUITICKS|#MOUSEMOVE
+  MenusOff
+  AttachGTList 2,2
+  Repeat
+    ev.l=WaitEvent
+    If ev=$40
+      picked=EventCode
+    EndIf
+  Until ev=$40 AND EventWindow=2
+  ResetList sndDrawers()
+  For i = 0 To picked
+    dummy=NextItem(sndDrawers())
+  Next
+  pref$=Mid$(sndDrawers()\string,2)
+  DetachGTList 2
+  Free GTList 2
+  Free Window 2
+  Use Window 0
+  ClearList sndDrawers()
+Else
+  pref$=""
+EndIf
+Return
+
+.GetLocale
+  If Exists("locale/"+locale$)=0
+    temp$=Language{}
+    If Exists("locale/"+temp$)
+      locale$=temp$
+    Else
+      titl$=" "+c8$+" "+txt$(87)+":"
+      locpa$="locale/"
+      locale$= ASLFileRequest$ (titl$,locpa$,locfi$,0,12,320,188)
+    EndIf
+  EndIf
+  If ReadFile (0,"locale/"+locale$)
+    FileInput 0
+    t$=Edit$(180)
+    If Left$(t$,2)<>"C8"
+      CloseFile 0
+      WindowInput 0
+      Goto badlocale
+    EndIf
+    If Mid$(t$,3,1)=" "
+      font$="C8"
+    Else
+      font$=Left$(t$,3)
+    EndIf
+    font$+".font"
+    Gosub newfont
+    If playername$=txt$(57) Then playername$=""
+    locld$=ReadLoc{}
+    locby$=ReadLoc{}
+    If Mid$(t$,4,3)="2.9" ;good, a newer one!
+      transby$=locby$
+      trans1$=ReadLoc{}
+      locby$+"|"+trans1$    ;the string for "About" bit
+      locand$=ReadLoc{}     ;and
+      trans2$=ReadLoc{}     ;second translator or ...
+      If trans2$<>"..."
+        locby$+"|"+locand$+"|"+trans2$
+      EndIf
+      t$=ReadLoc{}
+      If t$<>"..."
+        locby$+"|"+"("+t$+")"
+      EndIf
+    Else
+      If Len(locby$)>32
+        locby$=Right$(locby$,32)
+      EndIf
+      For i = 1 To 4
+        t$=ReadLoc{}
+      Next
+    EndIf
+    yes$=ReadLoc{}
+    done.b=0
+    i=0
+    Repeat                  ;now read in all the strings
+      If Eof(0)=-1 OR i>87
+        done=1
+      Else
+        temp$=ReadLoc{}
+        If temp$="-1"
+          done=1
+          i-1
+        Else
+          txt$(i)=temp$
+          i+1
+        EndIf
+      EndIf
+    Until done
+    CloseFile 0
+    WindowInput 0
+    If i<86
+      dummy=RTreq{"Locale Error","Missing some text|Please read the Docs!","OK"}
+    EndIf
+    If i=86 Then txt$(87)="Locale"
+    If playername$="" Then playername$=txt$(57)
+    If playername$<>txt$(57)
+      pgreet$=", "+playername$
+    Else
+      pgreet$=""
+    EndIf
+    temp$=Replace$ (txt$(0),"^",Chr$(133))
+    txt$(0)=Replace$ (temp$,"_",Chr$(134))
+  Else
+  badlocale
+    dummy=RTreq{"Locale Error","Can't load Locale file|Please read the docs","Darn!"}
+    If setup=0 Then End
+  EndIf
+ Return
+.ScoreTable
+
+If Exists("c8.scores")         ;read in the saved scores, if any
+  If ReadFile(0,"c8.scores")
+    FileInput 0
+    entries.w=Edit(8)
+    i=1
+    While NOT Eof(0)
+      scorename$(i)=Edit$(30)
+      gamesplayed(i)=Edit(6)
+      gameswon(i)=Edit(6)
+      i+1
+    Wend
+    CloseFile 0
+    WindowInput 0
+    Use Window 0
+  EndIf
+Else
+  entries=2
+  scorename$(1)=playername$
+  scorename$(2)=compname$
+EndIf
+
+;fix list to add current names
+temp$=playername$
+exc.b=1
+Gosub addname
+temp$= compname$
+exc=2
+Gosub addname
+
+;fix scores
+If gamedone=True
+  For i=1 To entries
+    If scorename$(i)=compname$
+      gamesplayed(i)+1
+      If cwon=True
+        gameswon(i)+1
+      EndIf
+    EndIf
+    If scorename$(i)=playername$
+      gamesplayed(i)+1
+      If pwon=True
+        gameswon(i)+1
+      EndIf
+    EndIf
+  Next
+EndIf
+;figure % and sort arrays here ----
+For i = 1 To entries
+  If gamesplayed(i)
+    won1.q=(gameswon(i)/gamesplayed(i))*100
+    winpct(i)=Int(won1)
+  Else
+    winpct(i)=0
+  EndIf
+Next
+
+Repeat             ;sort by number of games played first
+  dummy=0
+  For i = 1 To entries-1
+    If gamesplayed(i)<gamesplayed(i+1)
+      Gosub switchem
+    EndIf
+  Next
+Until dummy=0
+
+
+Repeat             ;now sort by winning %
+  dummy=0
+  For i = 1 To entries-1
+    If winpct(i)<winpct(i+1) AND gamesplayed(i)=gamesplayed(i+1)
+      Gosub switchem
+    EndIf
+  Next
+Until dummy=0
+
+
+If gamedone=True                   ;save scores to disk
+  If WriteFile (0,"c8.scores")
+    FileOutput 0
+    If entries>30 Then entries=30
+    NPrint entries
+    For i = 1 To entries
+      NPrint scorename$(i)
+      NPrint gamesplayed(i)
+      NPrint gameswon(i)
+    Next
+    CloseFile 0
+    WindowOutput 0
+  Else
+    dummy=RTreq{"Disk Error",txt$(83),"OK"}
+  EndIf
+EndIf
+
+;now we'll make a listview to show the scores
+Dim List MyList.scores(entries + 1)
+For i = 1 To entries
+  If AddItem(MyList())
+    Format "000"
+    temp$=scorename$(i)
+    gp$=Str$(gamesplayed(i))
+    gw$=Str$(gameswon(i))
+    Format "###"
+    wp$=Str$(winpct(i))
+    Repeat
+      temp$+Chr$(160)
+      tl.w=TextLength_ (&rp,&temp$,Len(temp$))
+    Until tl.w>96
+    Repeat
+      gp$+Chr$(160)
+      tl=TextLength_ (&rp,&gp$,Len(gp$))
+    Until tl>48
+    Repeat
+      gw$+Chr$(160)
+      tl=TextLength_ (&rp,&gw$,Len(gw$))
+    Until tl>52
+    lis$=" "+temp$+gp$+gw$+wp$+"%"
+    MyList()\string = lis$
+  EndIf
+Next
+GTListView 2,51,0,0,290,160,"",0,MyList(),0,0
+AddIDCMP #INTUITICKS
+AddIDCMP #MOUSEMOVE
+VWait
+CacheClearU_
+sctbl$=" "+txt$(86)
+Window 2,10,20,300,173,$1000|$8,sctbl$,1,2
+SubIDCMP #INTUITICKS|#MOUSEMOVE
+MenusOff
+AttachGTList 2,2
+FlushEvents
+Repeat
+  ev.l=WaitEvent
+Until ev=$200 OR ev=$40
+DetachGTList 2
+Free GTList 2
+Free Window 2
+Use Window 0
+FlushEvents
+Return
+
+switchem
+Exchange scorename$(i),scorename$(i+1)
+Exchange gamesplayed(i),gamesplayed(i+1)
+Exchange gameswon(i),gameswon(i+1)
+Exchange winpct(i),winpct(i+1)
+dummy=1
+Return
+
+.addname
+gotim.b=False
+For i = 1 To entries
+  If temp$=scorename$(i)
+    i=entries
+    gotim=True
+  EndIf
+Next
+If gotim=False
+  entries+1
+  scorename$(entries)=temp$
+  Exchange scorename$(entries),scorename$(exc)
+  Exchange gamesplayed(entries),gamesplayed(exc)
+  Exchange gameswon(entries),gameswon(exc)
+  ;If gamedone=0
+  ;  gamesplayed(entries)=0
+  ;  gameswon(entries)=0
+  ;EndIf
+EndIf
+
+Return
+
+FixBar           ;fix the damaged title bar
+
+Use BitMap 0
+Scroll 0,0,320,20,0,0,1
+CacheClearU_
+Use BitMap draw
+Return
+
+FixMode
+  If ntsSys=True  ;original screen mode
+    ForceNTSC
+  Else
+    ForcePAL
+  EndIf
+Return
+
+;card set selector
+
+.newcards
+
+carderr.b=0
+titl$=" "+c8$+" "+txt$(80)
+temp$=cardpic$
+cardfi$=Peek.s(FilePart_(&cardpic$))
+cardpic$= ASLFileRequest$ (titl$,cardpa$,cardfi$,0,12,320,188)
+Gosub FixBar
+If Exists (cardpic$) AND cardpic$<>""
+  ILBMInfo cardpic$                       ;check the picture
+  If ILBMWidth<>320 OR ILBMHeight<>200 OR ILBMDepth<>3       ;not even the right size!
+    carderr=1
+  EndIf
+Else
+  carderr=1
+EndIf
+
+If carderr=0
+
+  Use Window 0
+  setPointer {waitpointer,0}
+  Message$=txt$(75)+" "+txt$(80)
+  Gosub PrintMessage
+  VWait 10
+
+  Gosub grabcards
+  CacheClearU_
+  VWait
+  CopyBitMap 0,1
+
+  If setup=1 AND gamedone=False           ;fix the discard card
+    Gosub Sorthand
+    If CRank=8
+      shp=60+CSuit
+    Else
+      shp=Pile(Dpile)
+    EndIf
+    Use BitMap see
+    Blit shp,88,82
+    Use BitMap draw
+    Blit shp,88,82
+  EndIf
+
+Else                                      ;couldn't load the pic!
+  noise=3
+  Gosub makenoise
+  If cardpic$<>""
+    dummy=RTreq{txt$(60),txt$(81)+":|"+cardpic$,"OK"}
+  EndIf
+EndIf
+If cardpic$="" Then cardpic$=temp$
+Gosub openMenu
+Return
+
+.grabcards
+
+If Exists (cardpic$)
+  LoadBitMap 1,cardpic$                  ;load the pic
+  column.w=0
+  row.w=0
+  Use BitMap 1
+  CacheClearU_
+  For shp=0 To 63                        ;OK, grab the shapes
+    If shp<53 OR shp>58
+      GetShape {shp,column,row,24,32}
+      MidHandle shp
+      column+25
+      If column>250
+        column=0
+        row+33
+      EndIf
+    EndIf
+  Next shp
+Else
+  rq$=txt$(81)+":"+Chr$(10)+cardpic$
+  rq$+Chr$(10)+"Can't continue!"+Chr$(10)
+  rq$+"Program ending..."
+  dummy=RTEZRequest("ERROR!",rq$,"OK")
+  End
+EndIf
+
+Return
+
+.newfont
+
+Free IntuiFont 0
+LoadFont 0,font$,9
+Return

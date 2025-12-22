@@ -1,0 +1,433 @@
+
+                         Coding Tutorial Part Two
+          Written And Documented By Digit Of Allstarz In May 1995
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+             «« Another Great Release For Cement City BBS!! »»
+
+  Introduction
+ ~~~~~~~~~~~~~~
+ Welcome to the second edition of my coding tutorial. After many requests
+and praises from various people I have decided to get something into gear
+(that being me) and write the second part of this tutorial. I myself will
+not be writing to much stuff for the Amiga for a while because as some of
+you may know I have come across a few problems which I shall not mention
+here at the moment, maybe later on?
+ I will continue where we last left off and that was to open and close
+libraries incorperating a mouse wait between each of the two routines used,
+after we opened the library and before we closed it. If you have never
+managed to get hold of a copy of the last tutorial that I did then have a
+look around on some of the top boards or try to get hold of it on Cement
+City or from someone that has access to it. As usual this tutorial and any
+future releases will be on Cement City before any other board so if you
+want these quick style then keep your eyes peeled there.
+
+ I was informed of a mistake that was made during the last tutorial about
+the Z flag in the mouse wait routine. I said that it was always kept at
+zero and that changes are only reported when that value changes from zero
+to one. Unfortunatly I was wrong (thanks to Mars Bar for reporting it to
+me!) because the Z flag is always at one but changes are only notified
+when the value turns to zero. It may not sound much but in fact it can be
+quite a big mistake to learn and can become quite important to know about
+it properly before you really scramble your head trying to locate a bug or
+fault of some sort.
+ Just a word of warning before we begin and that is I have a splitting
+head-ache and feel completly knackered because I got terribly pissed last
+night due to free drinks being dished out all night. So in the off chance
+that something in this tutorial is wrong please let me know as soon as
+possible, I will try to find and destroy any mistakes that might be here
+before release.
+
+  Opening A Window
+ ~~~~~~~~~~~~~~~~~~
+ In the last tutorial we did a little coding but nothing really happened
+visually so in this tutorial we will break that barrier and make things a
+little more interesting for us all. After we have gone through it and you
+know what is going on you should have a little play about with a few of the
+commands, these will be stated latter on for you so don`t worry too much.
+
+ Before we begin there are various ways on opening a window but because we
+are going to learn system code then we really only have three basic types
+to deal with, these are Inuition (two types) and Dos (one type). In the
+last tutorial we opened an intuition library but in this tutorial we will
+be opening a dos window because it is the easiest of the three to
+begin with so for this we need to open the dos library.  One of the
+reasons why it is one of the easiest to open and to use is because most of
+the window handling is controlled through the Amiga`s operating system.
+Most of the routines are in the Amiga`s built in libraries which are
+located in the ROM, these will do most of the work for you so it is only
+the most important parts that you have control over, ie. what size the
+window should be and where you would like it, etc. This means that you,
+"The Programmer", can now concentrate on the most vital parts in your
+program and this is why the Amiga is the most friendliest machine to work
+with when writting GUI programs.
+ Okay so for opening a dos window we need to open the "dos library"
+because we will be calling offsets from it and these cannot be gained
+from any other library (unless a library is specifically written like
+that of the dos library). So if you followed the last issue then see if
+you can open the dos library yourself before you continue any further.
+
+ Lets have a talk through opening a window using the dos library before we
+have a look at the code so that you can firmiliarize yourself with it`s
+characteristics.
+
+ So what is a dos window? Well any window is usually called a console and a
+console window can only be opened when a channel has been linked to it. A
+channel is where input and output data is sent through, to and from a
+source such as window, keyboard, etc. We have to firstly open a channel
+before we can use our console (window) to input or output data to.
+ A dos window and an intuition window are similar but they work in very
+different ways to each other and so different routines have to be written
+to do roughly the same thing. Because of this you "The Programmer" will
+have to decide what you are going to be coding and what you want your
+program to do and contain, hopefully this should have been sorted during
+planning out your program. A dos window is very simple and very easy to
+open and apply input and output routines to, but unfortunalty it does not
+allow for many (if at all) gadgets without a great deal of hassle while
+intuition windows allow for such things. The only gadgets that a dos
+window will be able to use is the left corner of the window (the close
+gadget) and the size symbol which is located in the lower right corner, so
+as you can see a dos window would not do the job for gadget based programs.
+The two gadgets on a dos window can be controlled by the programmer to do
+specific things if you wish, making use of these will be told later in the
+tutorial`s series.
+ There are two similar types of dos window and they are "CON:" and "RAW:",
+there are a few more types that can be put into place but at the moment we
+have no need for them. If you change the windows parameters in the code
+listed in this tutorial then you will not see any change to the screen. The
+differences between the two will be told later on as we talk through each
+line of code. The two differences though are quite surprisingly large and
+care should be taken when deciding to use a "RAW:" window instead of a
+normal "CON:" based window.
+ When a window has been opened then it is possible to do lots of different
+things with it. We can input and output data to and from it through the use
+of our channel and because the dos library is very versatile we can cut
+down the work load on the programmer.
+
+ Okay as usual lets have a look at the commands and instructions that we
+will be using to open this window of ours and then lets talk through them.
+
+****************************************************************************
+; === Setup assembler (Devpac)
+
+    section     Window,code_c       ;Stick in chipmem, obvious!
+    opt         o+,ow-              ;Optimize Devpack code, Lame eh?
+
+; === Save registers
+
+    movem.l     a0-a6/d0-d7,-(a7)   ;Save registers	
+    move.l      SP,StackPointer     ;Save saved register
+
+; === Open dos library
+
+    move.l      _ExecBase,a6        ;Get execbase address
+    lea         DosName(pc),a1      ;Get library name
+    moveq       #0,d0               ;Any old version
+    jsr         _OpenLib(a6)        ;Open 'dos.library' - eeek!
+    move.l      d0,DosBase          ;Store base address for later!
+
+; === Open a window onto the Workbench screen
+
+    move.l      DosBase,a6          ;Get base address of library
+    move.l      #ConsoleName,d1     ;Window pointers etc.
+    move.l      #Mode_Old,d2        ;Load old file
+    jsr         _Open(a6)           ;Open window to screen
+    move.l      d0,ConHandle        ;Save window base address
+    beq.w       Exit                ;Quit if window never opened
+	
+; === Test for left mouse button press
+
+Mice:
+    btst        #6,$bfe001          ;Is it the one on the left?
+    beq.s       Exit                ;Exit program
+    bra         Mice                ;Lets check again shall we?
+
+; === If the mouse has been pressed then close our window!
+
+Exit:
+    move.l      ConHandle,d1        ;Get window base
+    move.l      DosBase,a6          ;Get base address of library
+    jsr         _Close(a6)          ;Close window down
+
+; === Close dos library
+
+    move.l      DosBase,a1          ;Get base address again
+    move.l      _ExecBase,a6        ;Get exec base address
+    jsr         _CloseLib(a6)       ;Close the doslibrary
+
+; === Return saved pointers!
+
+    move.l      StackPointer,SP     ;Restore stack pointer
+    movem.l     (a7)+,a0-a6/d0-d7   ;Return saved registers
+    rts                             ;Exit from the program
+
+*************************************************************************
+* WINDOW NAME POINTER, ATTRIBUTES, ETC                                  *
+*************************************************************************
+DosName:        dc.b    'dos.library',0
+                EVEN
+
+ConsoleName:    dc.b    'CON:100/80/430/70/Our Window!',0
+                EVEN
+
+ConHandle:      dc.l    0
+DosBase:        dc.l    0
+StackPointer:   dc.l    0
+
+*************************************************************************
+* THE OFFSETS FOR THE LIBRARY(S) WE ARE GOING TO USE                    *
+*************************************************************************
+; === Exec offsets
+
+_ExecBase:  =   4
+_CloseLib:  =   -414
+_OpenLib:   =   -552
+
+; === Dos offsets
+
+_Open:      =   -30
+_Close:     =   -36
+Mode_Old:   =   1005
+
+END
+
+****************************************************************************
+
+ Okay that is all we need to open a window onto the Workbench screen using
+the dos library. There are a lot more new commands and instructions that we
+are going to have to talk through before you should start to play around,
+like the saving of registers and the assembler setup instructions, etc.
+
+  Assembler Setup Instructions
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ These instructions are not so important to most people and you are not
+forced to use them but I prefer to use them because I can make sure that
+the instructions after the command are going to the right parts in memory.
+All that the first line is doing is labelling this section of code as 
+"Window" while the command after the commor is telling the computer to put
+all of the instructions after it into chip memory.
+
+    section     Window,code_c       ;Stick in chipmem, obvious!
+    opt         o+,ow-              ;Optimize Devpack code, Lame eh?
+
+ The next line should be avoided for lots of people because it really is
+only aimed at Devpac users and is an internal assembler function in Devapc
+which other assemblers like AsmOne, etc. will not understand and so report
+as an unknown command/instruction. All that it is doing is telling Devpac
+to optimize the code. Note that with the new versions of Devpac you can set
+the settings so that it will always optimize your code along with various
+other things.
+
+  Saving The Registers
+ ~~~~~~~~~~~~~~~~~~~~~~
+ Again these can be used by choice but it is strongly advised to use them
+in all of your programs however little or big they are. All these two lines
+do is to move the contents of various registers to a storage area while the
+program is using and abusing them and so when you exit the program they can
+be recalled to stop your machine from having to meditate!
+
+    movem.l     a0-a6/d0-d7,-(a7)   ;Save registers	
+    move.l      SP,StackPointer     ;Save saved register
+
+ The first line is just moving all of the contents in the address registers
+and the data registers to register a7. A7 is sometimes referred to as the
+stackpointer and this is referred to as SP in most assemblers. Note the
+computer is told to save the registers by making a7 negative. After that
+the next line will move the stackpointer (SP) contents to your temporary
+storage area, in this case I have used a label called "StackPointer". This
+label can be found further down towards the end of the source which just
+says, "dc.l	0", this is a clear line for saving your data to.
+
+  Opening The Dos Library
+ ~~~~~~~~~~~~~~~~~~~~~~~~~
+ If you have been following the tutorial you will know what this does
+already and how it goes about the job so I will not say anything more about
+it. If for no apparent reason you never recieved a copy of the last
+tutorial that I did then you have missed out because it explained all of
+the commands and ways to open a library. For those guys that did read it
+then you will have to make sure that you are opening the dos library and
+not the intuition like before because the offsets that we will be calling
+have no use and so your machine will probably end up meditating.
+
+  Opening A Dos Window
+ ~~~~~~~~~~~~~~~~~~~~~~
+ This is one of the new routines that you will not have come across if you
+have been following my tutorial so far. As stated in the last issue the
+first command here should be straight forward, all it is doing is telling
+the computer that we are going to be calling our offsets from the dos
+library.
+
+    move.l      DosBase,a6          ;Get base address of library
+
+ The next line (see below) move`s the window information into data register
+one so that when the "Open" offset in the dos library is called the computer
+will know where and what to open. All the information about the window size
+etc. is located in the "ConsoleName", the next paragraph goes into deeper
+detail about the consolename.
+
+    move.l      #ConsoleName,d1     ;Window pointers etc.
+
+ The line below is what the computer will get, it is our pointer which we
+have labelled as "ConsoleName". If you look closely you may figure out what
+is going on already but all it contains is the windows parameters and the
+title for the window. Lets have a look more closely shall we?
+
+ConsoleName:    dc.b    'CON:100/80/430/70/Our Window!',0
+
+ "CON:" = This is short for Console and is similar to that of a drive like
+          "DF0:" or similar but not surprisingly it works in a different
+          way, so care should be taken. All this is saying is that we are
+          going to supply a screen with channels for input and output. Note
+          that when using the "CON:" you have control over line editing and
+          standard ASCII codes. "RAW:" will just echo the input and output
+          commands so this type of window is very limited and can only be
+          used in particular ways.
+
+ "100/80/430/70/" = This is the X,Y,W,H coordinates for the window. Now
+          depending on what screen size is being used you can have the
+          window as big as you like but be careful. Usually if the window
+          is bigger than the actual screen you may find that the computer
+          will crash. In this line you can also specify the top left and
+          the bottom right corners so that you can position the window any
+          where that you wish.
+
+ "Our Window!" = This is just the title of the window which will be located
+          in the top bar. 
+
+    move.l      #Mode_Old,d2        ;Load old file
+
+ For this next line we are telling the computer that we are going to use
+this opened channel for reading. To do this we have to send a message to the
+computer to tell it so, in this case this message is found at "Mode_Old"
+which is "1005" and the pointer is put into register "D2". There are two
+other pointers that can be used and these are:
+
+    "Mode_New"      = Used for writing only, and
+		
+    "Mode_ReadWrite"= Used for both reading and writing to a channel.
+
+ Again if you were paying attention to the last tutorial you should under-
+stand what this next line is doing. For those that have not then all it is
+doing is calling the "Open" offset in the dos library which we have set at
+"-552". Note that if the offset is wrong then it is highly likely that the
+computer will crash and meditate.
+
+    jsr         _Open(a6)           ;Open window to screen
+
+ This is a simple one this and hopefully even the beginners will know what
+it does? Oh and why not? Okay, well all it does is save the address of the
+window that we have opened so that if we want to write any text out to it we
+can just locate the destination in the buffer "ConHandle". If the computer
+does not have this then it will not know where it is supposed to be writing
+the text to and so it will crash and meditate. Another factor is that it is
+an easy way of finding the destination address.
+
+    move.l      d0,ConHandle        ;Save window base address
+
+ Just asks the computer to check to see if the window has indeed opened. If
+it has not then the computer will send a NULL byte to "D0" so that the user
+can check and decide what to do next. In our case we have decided to exit
+the program to stop any faffing about but if you wish you could ask it to go
+and do other things, like display your own message - who knows?
+
+    beq.w       Exit                ;Quit if window never opened
+
+  Testing For The Left Mouse Button
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ The same as it was in the last tutorial, I will not go into any detail but
+all it does is to check for the left mouse button press. Once that has been
+found by pressing it the computer will then jump to it`s next routine that
+you want. In our case it will then close the window and the libraries used.
+
+  Closing Our Window
+ ~~~~~~~~~~~~~~~~~~~~
+    move.l      ConHandle,d1        ;Get window base
+
+ All this simply does is to get the address of the window that we have just
+opened. As we saved the address information before into our buffer then we
+do not have to go about it the long way. As you may already have guessed
+the data was stored in the "ConHandle" and is being requested to go to data
+register "D1".
+
+    move.l      DosBase,a6          ;Get base address of library
+
+ Just lets the computer know that we are still dealing with the dos library
+before we call any more offsets. Not really necessary in this small program
+because we are only using the one library. If there was more than one 
+library being used then we may have to let the computer know which to call
+and we do this by sending the library address into register "A6" before we
+call the offset. When we call an offset the computer will check the "A6"
+register to find out which library to look at.
+
+    jsr         _Close(a6)          ;Close window down
+
+ The above line will tell the computer to call the "Close" offset in the
+dos library. When that is called then the window will shut down and continue
+with the next instructions listed in the program. The Close offset will look
+for the address of the file to close in register "D1".
+
+  Closing The Dos Library
+ ~~~~~~~~~~~~~~~~~~~~~~~~~
+ Exactly the same as in the last tutorial, all this routine does is to close
+the dos library down before we finally exit from the program. If you read
+the last tutorial then please make sure that it is the dos library you are
+going to close and not intuition!
+
+  Return All Of The Saved Pointers
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ When we first started the program the first real things we did was to save
+the registers and the stackpointer. All we are going to do now is to return
+them and believe it or not all we have to basically do is swap a few of the
+label`s around.
+
+    move.l      StackPointer,SP     ;Restore stack pointer
+
+ This is one of them, all we do is tell the computer to spill the contents
+of the buffer called "StackPointer" into SP (register a7).
+
+    movem.l     (a7)+,a0-a6/d0-d7   ;Return saved registers
+
+ Once we haved emptied our buffer out we can now return the values of the
+registers by making a7 positive which will let the computer know we want to
+return our original values when they were saved.
+
+    rts                             ;Exit from the program
+
+ Exits the program!!
+
+  Okay How Was It For You?
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+ Okay an hour has just passed and I am feeling slightly better but not well.
+Everthing seems to be okay and sorry for the lack of indepth information but
+as I keep stating if you read the last tutorial you will know most of the
+minor nitty gritty because I can now concentrate more on the general
+instructions rather than keep describing each little bit. Of course when we
+move further on to more complicated instructions and routines I will be
+going in depth but for now we will deal in general and try to get you
+familarized with most of the basic instructions and how to apply them best
+in your own programs. Hopefully you should know what most of the
+instructions do and what each little ".l", ".w", ".s" do after the "move"
+and others. You should now know how to check to see if a requested task has
+been done, how to open libraries, dos window, how to check for a mouse press
+and save the registers properly.
+
+ For those that want to know what the future is going to hold for us then I
+will be going through all the minor routines like opening windows using the
+two commonly used libraries (dos, intuition) and then we will advance by
+writing our own buttons and making our own screens etc. I am thinking of
+planning on heading for a calculator type program which will have buttons
+etc. which can also have input from the keyboard and allow print out`s on
+results. I think if we head for something like that then we will be covering
+a lot of the more newly common system code and offsets so then you (the
+readers) will hopefully then be able to write their own code easily.
+
+ Well thanks to all the guys asking where the second tutorial was coming as
+it`s nice to know that there are still people around who are willing to put
+praise into my work. I would have thought a few of my so called friends
+could have asked sometime or other, just how many where bothered to read it?
+Anyway thanks to Shy, Measle, Heath, Quackers, Phantom and some other guys
+who have either pestered me or praised me and go shag your teddies to the
+guys who never!!
+
+     HOPE YOU ENJOYED THIS AND WATCH OUT FOR THE NEXT TUTORIAL - DIGIT!!
+
+

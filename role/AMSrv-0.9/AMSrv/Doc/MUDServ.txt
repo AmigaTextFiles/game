@@ -1,0 +1,617 @@
+AmigaMUD, Copyright 1995 by Chris Gray
+
+
+		    The 'MUDServ' Program
+
+MUDServ is the AmigaMUD server program. It is the largest and most
+complex part of the system, but it is quite easy to use. MUDServ runs
+all of the AmigaMUD scenario code, maintains the database files,
+responds to client requests, provides all of the builtin functions
+that can be used, provides for interaction between clients, runs the
+"machines", etc. A system is hosting an AmigaMUD if and only if it is
+running MUDServ. A system will normally only run one copy of AmigaMUD
+at a time, but it is possible to run more for testing purposes. This
+can be handy for having a production MUD as well as a development one.
+
+MUDServ expects the MUD database files to be present in the directory
+which it is run from, or in a directory specified in a tooltype or
+command line parameter. These are:
+
+    MUD.data - the raw data of the scenario. This includes the data
+	for characters, rooms, objects, monsters, etc. as well as the
+	AmigaMUD code that governs them. The system should be able to
+	support an arbitrary sized file, but so far, the standard
+	scenario (30,000 lines of source yielding hundreds of
+	locations, dozens of commands and objects, etc.) has not grown
+	much over 500K bytes.
+
+    MUD.index - this is an index into MUD.data which allows mapping
+	from a unique constant identifier for something onto a
+	perhaps changing position in the MUD.data file.
+
+MUDServ will also create and write a 'MUD.log' file. This file can be
+deleted at will, but most people running servers will want to scan
+through it before deleting it. It often contains some interesting
+information. Also, there are commands in the standard scenario, such
+as 'bug', 'gripe' and 'typo' which let players put short complaints
+about things into the MUD.log file.
+
+Valid database files are either copied from another source or are
+produced by the 'MUDCre' program and expanded via MUDServ. The files
+are in a binary format, and are not intended to be read by humans.
+Mess around editing them at your own risk. MUDServ assumes they are
+valid - it may crash your system if they are not, just like an invalid
+program might.
+
+MUDServ requires a stack size of 25000 bytes in order to run. It will
+exit right away if the stack is not at least that large. If running
+from a shell, you can use the 'Stack' command (perhaps from a shell-
+startup file) to set it. If running from the Workbench, you can use
+the "Icons"/"Information" menu item to set it.
+
+
+Warning
+
+MUDServ maintains an in-memory cache of the most recently used
+database items. When items are changed, as a result of player actions,
+machine actions or timed events, the changes are NOT immediately
+written out to the on-disk copy of the database. This behavior is
+required in order to get reasonable performance from the system
+without having continual disk I/O even on a fast hard drive. Without
+this, the system would be completely unusable on a floppy-based
+system. Because of this behavior, you must not simply shut off or
+reboot the host machine when you are through playing. You must
+properly flush the database and shut the server down. This can be done
+using the MUDShut program or a BREAK to the MUDServ process, as
+described later. If you wish to automate backups of the AmigaMUD
+database, the '-w' CLI option to MUDShut is useful. With this flag
+set, MUDShut will send a different type of request to MUDServ, and
+MUDServ will not reply until it has fully shut down. Thus, the MUDShut
+command will not return until the database has been fully written out
+and the files closed.
+
+
+Workbench Tool Types
+
+When MUDServ is started from the Workbench, it accepts several tool-
+types in its icon. Some of these are boolean (true/false) values. For
+these, any of YES/yes/TRUE/true/Y/y/T/t or an empty value, are
+accepted as true, and any other value is accepted as false. Note that
+on early versions of the AmigaOS, empty values are not valid. The
+following Workbench tooltypes are accepted by MUDServ when it is
+started from the Workbench:
+
+    PATH=<path> - specify a path to the directory in which the
+	AmigaMUD database files exist. The default is the directory
+	from which MUDServ is run.
+
+    PORTNAME=<name> - specify the name of the Amiga OS Exec port name
+	that MUDServ is to create and export. This is the port by
+	which all clients connect to the server. The default name is
+	"MUD port".
+
+    TEST - useful for running a test AmigaMUD while a production one
+	is running. Sets the port name to "MUD test port".
+
+    WIZARD - any connections by "SysAdmin" (the AmigaMUD system
+	administrator character) will be forced into "wizard" mode.
+	This is useful if SysAdmin messes up and gets into a state
+	where he can't otherwise get into wizard mode. This can happen
+	if an invalid input handler is installed.
+
+    NORETRY - in some situations, such as not being able to allocate
+	memory, the server cannot proceed normally. It will then put
+	up a requester indicating the problem, and asking the user if
+	it should try again. If the user can do something that can
+	possibly fix the problem (such as shutting down other programs
+	to free up memory), then they should do so, and answer in the
+	affirmative. The server will then try again. If the user
+	answers in the negative, then MUDServ will abort. Setting the
+	NORETRY tooltype tells the server to abort immediately,
+	without looking for help from the user.
+
+    CACHE=<n> - specifies the size of the in-memory database cache.
+	This cache holds the most recently accessed or written parts
+	of the database in memory, so that they can be accessed more
+	quickly. Larger cache sizes reduce the amount of disk I/O
+	needed during operation. The minimum cache size is 32768
+	bytes. The default cache size is 50000 bytes. I find a cache
+	size of 500000 bytes to be quite adequate. Note that the cache
+	must be available as a single contiguous region. The largest
+	region a system has available is indicated by the 'Avail'
+	shell command. Other needs may prevent the use of a cache that
+	large, however. One disadvantage of a large cache is that it
+	takes a while to flush it to disk, so players would notice a
+	few seconds of non-responsiveness whenever it had to be
+	flushed out.
+
+    MEMORY=<n> - specifies the amount of memory that the server should
+	try to limit itself to. This does not include the cache, cache
+	index data structures, the in-memory copy of the MUD.index
+	file, or messages allocated to send to clients. It does
+	include memory for AmigaMUD functions, in-memory copies of
+	symbol tables and grammars, client structures, machine
+	structures, a write-back use-count cache, etc. The value given
+	is not a hard limit - the server will try to keep under it,
+	but will often exceed it. Providing a small memory limit will
+	require more database accesses, putting more stress on the
+	database cache, and requiring more disk I/O operations. The
+	default limit is 1000000000 bytes, which is effectively no
+	limit.
+
+    REQUEST=<n> - specifies a limit on the number of requests
+	(messages) that the server should observe. Requests are
+	AmigaMUD messages between the server and the clients. When it
+	needs to send a message, the server will try to get one from
+	its pool of free ones. If the pool is empty, then it will
+	allocate one from the system. When it receives a message that
+	does not need a reply, the server adds the message to its pool
+	of free messages. If that pool contains more than the given
+	number of messages, it will free the new one back to the
+	system. The expense of having a small limit is one of CPU time
+	and not disk I/O. The default limit is 100.
+
+
+Command Line Flags
+
+When MUDServ is started from a shell, the following flags can be
+given (see the above section for more detailed descriptions):
+
+    -T - use "MUD test port" as the Amiga OS message port name
+
+    -W - force SysAdmin to enter in wizard mode
+
+    -N - do not retry on abort situations
+
+    -P<name> - use <name> as the Amiga OS message port name
+
+    -c<n> - use <n> as the database cache size
+
+    -m<n> - use <n> as the maximum memory usage target
+
+    -r<n> - use <n> as the free request limit
+
+If a parameter without a leading '-' is given, then it is taken as a
+path to where the database files can be found.
+
+
+Shutting MUDServ Down
+
+MUDServ uses write-back caching for the database. This means that
+changes made to the database are not immediately written to disk.
+Instead, the changes are kept in the in-memory cache, and only written
+to disk when that cache is "flushed". This flushing is done on
+shutdown, in response to running the 'MUDFlush' program, in response
+to calling the 'Flush' builtin, or whenever the database code cannot
+find a large enough slot for a new value. Because of this, the on-disk
+copy of the database is not accurate and consistent except immediately
+after a flush of the in-memory cache. This means that you cannot
+safely shut down MUDServ by simply rebooting or turning off your
+Amiga. Doing so will leave you with a scrambled database.
+
+Using write-through caching, where all changes are written to disk
+immediately, would be hopelessly slow - almost everything done in
+AmigaMUD changes the database, often in several ways. For example, a
+character walking from one room to another changes the record of which
+room the character is in. This is also true for 'machines', such as
+the randomly generated monsters in the standard scenario.
+
+There are three safe ways to shut down MUDServ. In all of these ways,
+it will not actually shut down until all clients have disconnected. It
+will, however, remember that it is supposed to shut down and do so as
+soon as it can. The program 'MUDShut' sends a special message to
+MUDServ, requesting that it shutdown. Running MUDShut multiple times
+will not speed the process up. When the special privileged character
+SysAdmin is connected and in "wizard" mode (working directly with the
+AmigaMUD programming language, rather than playing the scenario), he
+can enter a line reading "ShutDown(true).". This line is a call to the
+'ShutDown' builtin function, and tells the server that it should shut
+down as soon as possible. Of course, it cannot do so until SysAdmin
+logs out. A line reading "ShutDown(false)." will cancel all previous
+requests to shut down. If MUDServ is started from a shell, it will
+have a CLI Process number. Sending a standard BREAK signal (using the
+'Break' command) to that process will tell MUDServ to shut down. If
+the MUDShut program is run from a shell, it can be given the '-w'
+flag, which will cause it to use a special request to MUDServ, such
+that MUDShut will not exit until the server has written out and closed
+all of the database files. This can be used to allow automatic
+backups.
+
+It is possible for MUDServ to get into an inconsistent state where it
+cannot respond to a normal shutdown request. This could be, for
+example, when stuck in an infinite loop in AmigaMUD code, when
+SysAdmin has put in an extremely large execution time limit. In this
+situation, sending a 'BREAK F' signal to the MUDServ process will
+cause it to stop its current AmigaMUD code execution and return to its
+top level activity loop. Two such signals will cause it to abort
+immediately. Do not do this unless you really need to. If you do so,
+you will have to restore your database from a backup copy, and you may
+want to reboot your Amiga to recover memory that MUDServ was not able
+to free when it aborted.
+
+
+Remote Connections
+
+Also part of hosting AmigaMUD are possible copies of the MUDAgent
+program running on the host machine. These copies will run without the
+server being active if they are waiting for incoming calls, so they
+don't normally have to be shut down. If they are started from a shell,
+they can be shut down by doing a 'BREAK' on their process number. If
+they are started from the Workbench, they can be shut down by running
+the 'AgentKill' program, which will find their tasks and set the BREAK
+signal on them.
+
+Often, the MUDAgent copies are started on demand by some other
+program, such as a BBS or 'Getty'. In that situation, they exist only
+for the duration of one session, so there is nothing to shut down.
+
+
+A Few Basic Wizarding Procedures
+
+SysAdmin, or any other wizard, can enter wizard mode from the standard
+scenario by typing the "wizard" command. In wizard mode, user input is
+not handled by the scenario, but is either one of a very few wizard-
+mode commands, or is a statement in the AmigaMUD programming language.
+For reference, the way for a wizard to get back into playing mode from
+wizard mode is to type the following:
+
+    Normal().
+
+on an input line by itself, when the prompt is "> ". Note that this
+input line, as well as all of the following ones, ends in a period.
+This period is required, to indicate the end of the statement. If you
+forget it, the prompt will switch to ": ", and nothing will happen.
+You must then type the period to execute the statement. Note also that
+the capitalization of these input statements must be as shown.
+
+The standard scenario sets the "creation password" to an empty string.
+This means that no special password or permission is needed to create
+a new character. A creation password can be installed by using the
+following line while in wizard mode (only SysAdmin can do this):
+
+    NewCreationPassword().
+
+The system will prompt for the new password. If the password begins
+with an asterisk ('*'), then automatic player creation is not allowed
+at all. In that case, SysAdmin will have to manually create all new
+characters. This is done in wizard mode as follows:
+
+    CreateCharacter("characterName", "characterPassword").
+
+The character will be created with the given name and password. As
+usual, it is best not to include spaces or punctuation in the name. A
+character can be removed from the system using:
+
+    DestroyCharacter("characterName").
+
+Note that the above can leave unreachable junk in the database, if the
+character is carrying complicated objects such as containers. A
+character can be booted off of the system with:
+
+    use Characters
+    BootClient(characterName).
+
+If something prevents that from working, and it is truly necessary to
+get rid of the player right away, the following can be used:
+
+    use Characters
+    NukeClient(characterName).
+
+This is a rather drastic method, however, so avoid it whenever
+possible. When the character reconnects, he/she will likely have to
+move around a bit and do some "looks" to get the graphics to come back
+properly. This is because "NukeClient" is so abrupt that it does not
+allow the client to execute the scenario shutdown code.
+
+If SysAdmin wishes to make a character into a wizard or apprentice,
+this can be done in wizard mode as follows:
+
+    use Characters
+
+    MakeApprentice(CharacterName, false).
+or
+    MakeWizard(CharacterName, false).
+
+The "use Characters" needs to be done only once per connection. Note
+that here the character name is not quoted - it is known directly
+because the "Characters" table is in-use. Note also that this method
+will not work if the character name has spaces or punctuation marks in
+it. The "false" in the above tells the system to not immediately
+change the mode of the player. If the player is currently connected
+and "true" is used instead, then the player will be immediately placed
+into wizard mode. A wizard or apprentice can be demoted back to a
+normal character using:
+
+    MakeNormal(CharacterName).
+
+MUDServ places an execution time limit on the AmigaMUD code run in
+response to any input line or mouse-click. The execution is aborted if
+this limit is exceeded. The standard scenario sets this limit to 10
+seconds. Other limits can be set as follows:
+
+    RunLimit(new-limit).
+
+where 'new-limit' is the new execution time limit in seconds. The old
+limit will be printed out. Do not make the limit too large, as this
+can cause MUDServ to hang if erroneous wizard code is encountered.
+
+There is no command in the standard scenario to allow sending a
+message to all connected players. This can be done as follows:
+
+    APrint("This is the message.").
+
+This can be used to announce system shutdowns, special events, etc.
+The standard scenario uses it to announce when a character completes a
+Quest.
+
+
+Messages in MUD.log
+
+Many different messages can appear in the MUD.log file. Some are just
+informational, but others can indicate problems, either with the
+system as a whole or with the scenario. I will attempt to explain some
+of them here, but there are many that are not explained, either
+because they are (hopefully) obvious, or because they are coming
+through some obscure path that I miss. Most lines in the log file will
+be prefixed by the date and time they are produced.
+
+_start = 0x07ccb890 lib = 0x07cbf554
+
+    This line is produced when the server starts up. The exact numbers
+    will differ, often from run to run. They are useful only to the
+    author of the system. If the system gets an "Enforcer" hit or
+    other system problem in which the CPU program counter is
+    available, these numbers are helpful in pinning down the location
+    in the code of the problem.
+
+Player SysAdmin enters the game
+Player SysAdmin leaves the game
+
+    Messages of this type are produced whenever a player enters or
+    leaves the game. External programs can then be run to keep track
+    of who is using the game and when, and perhaps to add up the
+    amount of time various players are spending in the game.
+
+Setting WIZARD mode
+Clearing WIZARD mode
+
+    These messages occur whenever a wizard or apprentice goes in or
+    out of wizard (programming) mode. They can be useful in tracking
+    down the causes of problems created in the scenario.
+
+expandIndexTable
+
+    This message indicates than it was necessary for the database code
+    to increase the size of its index array. A number of these will
+    occur when compiling the standard scenario, and occasional ones
+    can occur when running. They are indications of increasing memory
+    usage.
+
+Server shutdown request via message - currently 0 clients
+Shutting down, 1 client serviced
+Machines: 8 created, 0 deleted
+Things: 668 created, 0 destroyed
+Messages: 24332 processed, 1895 sent
+Allocator used 1679360 bytes. Given limit 1000000000
+cre 5082 del 5 rd 24638 rep 2028 shr 2 exp 7065 dir 6159
+frd 392 fwt 1469 fsk 1681
+
+    These messages are typical of shutting down the server. This
+    particular set came after compiling the complete standard
+    scenario. Normally, the memory usage figure will be much smaller.
+    The server will not shut down when there are active clients, so
+    the shutdown request (which can come via a message sent by the
+    MUDShut program, a shell 'break' signal to the server process, or
+    by SysAdmin calling the 'ShutDown(true)' builtin) can be quite a
+    ways before the actual shutdown.
+
+    Machines are the 'robots' or NPC's (Non-Player-Characters) in the
+    AmigaMUD system. During active playing in the standard scenario's
+    combat area, the number created and destroyed can be much higher,
+    perhaps in the tens or hundreds of thousands.
+
+    Things are the basic entities in the AmigaMUD system. They
+    represent players, machines, rooms, objects, etc.
+
+    Messages are the means by which player input is sent to the server
+    and player output is sent from the server. Again, the numbers
+    would normally be quite a bit higher with active players.
+
+    The memory used by the allocator does not include the database
+    cache and an in-memory copy of the MUD.index file. It also does
+    not include the various messages that the server may have had to
+    allocate.
+
+    The next line gives some statistics on the database activities:
+
+	cre: database entries (things, players, strings, tables,
+	    machines, procedures, property structures, etc.) that were
+	    created in this run
+	del: database entries deleted
+	rd: database entries read (on long, intensive runs, I've seen
+	    this number over 20,000,000)
+	rep: database entries replaced
+	shr: database entries shrunk (e.g. when properties are removed
+	    from a thing, or elements are deleted from a list)
+	exp: database entries expanded
+	dir: database entries dirtied (a change made which doesn't
+	    involve changing the size of the entry)
+
+    The next line indicates the number of actual disk I/O operations
+    that the database code had to make. The ratio between the above
+    numbers and these numbers is an indication of how effective the
+    database cache has been:
+
+	frd: number of actual file reads
+	fwt: number of actual file writes
+	fsk: number of file seeks
+
+DataSize 605678=>605678 IndexCurrent 7027=>7021
+
+    On occasions, the database code will scan through the highest
+    indexed database entries, attempting to merge and free them. This
+    line indicates the success of doing so. 'DataSize' indicates the
+    total used size of the MUD.data file. 'IndexCurrent' indicates the
+    total used size of the MUD.index file.
+
+Server flush request via message
+
+    This message indicates that a request to flush the database to
+    disk was received. This is generated by running the 'MUDFlush'
+    program.
+
+BootClient for player SysAdmin
+
+    This indicates that a request was generated to shut down the
+    indicated client. The client will exit as soon as its current
+    activity in the server is done. In this case, it was generated by
+    the scenario calling the 'Quit' builtin as a result of the player
+    entering the 'bye' command.
+
+Agent shutdown for player SysAdmin
+
+    The MUDAgent program has shut down a connection for some reason.
+    This could be loss of carrier, activity timeout, failure to
+    communiate, etc.
+
+NukeClient for player SysAdmin
+
+    This is a record of a more severe method of shutting down a given
+    client. In this case, the system tries to shut the client down
+    right away, and does not wait for anything. This is done by
+    SysAdmin via the 'NukeClient' builtin.
+
+SysAdmin has set the shutdown flag.
+SysAdmin has cleared the shutdown flag.
+
+    These appear in response to SysAdmin using the ShutDown builtin.
+
+Name1 changed name to Name2
+
+    A system administrator will sometimes want to keep track of which
+    characters are played by which real people. This message helps by
+    logging when a character changes name. It comes from the
+    'ChangeName' builtin.
+
+New player when no entry action!
+
+    This message indicates that a person has tried to connect and
+    create a new character when there is not yet an 'entry-action'
+    routine in the scenario. This is the routine, set by the
+    'SetNewCharacterAction' builtin, which is called to setup a new
+    character.
+
+no memory for server request
+
+    This will be immediately followed by an abort. The server could
+    not allocate memory for a message, and so cannot proceed.
+
+serverMessage: got unexpected type NN from server
+MUDState NNNN > 1000
+Can't find local offset XXXXXXXX in 'readExec'
+can't find ref key in 'readExec'
+invalid request type
+client not found
+client already editing
+can't find name for builtin in subPublicProc
+can't find Characters in public symbol table
+can't find Builtin in public symbol table
+
+    These should not happen, and will cause an abort. If they happen,
+    something serious is wrong with your AmigaMUD system. This could
+    be an invalid program, a damaged database, failing hardware, etc.
+    You should not continue to run such a system, since it is possible
+    that important data on your hard disk could be damaged.
+
+can't create MUD port
+can't allocate interrupt
+can't open timer device
+can't allocate timer request
+can't create timer port
+
+    These messages indicate that MUDServ could not start up because it
+    could not do all of its initialization. They usually indicate that
+    they system does not have enough free memory.
+
+MUD port already exits
+
+    This can happen if you try to start two servers using the same
+    port name. If you get this message when you are sure that there is
+    no other copy of MUDServ running, then you will have to reboot
+    your system to clear the condition.
+
+Fail to seek to end to expand
+
+    The database code needed to expand MUD.data, but could not seek to
+    the current end of the file in order to write more to it. This
+    should not happen.
+
+Fail to write NN bytes to expand
+Fail to write block to expand
+Fail to write NNN bytes to flush buffer
+can't write index to index file
+
+    This can happen if your disk is full. In this case you will have
+    to go back to a backup of your database files, since the current
+    ones are no longer internally consistent. This kind of symptom can
+    also happen if the disk or partition in use becomes write
+    protected.
+
+Fail to seek to NNNNNN to flush buffer
+Fail to seek to write direct
+Fail to write NNN bytes direct
+
+    This is a similar seek failure. It should not happen. If it does,
+    there is something wrong with your system.
+
+Fail to seek to NNNNNN to read direct
+Fail to read NNN bytes direct
+Fail to seek to NNNNNN to fill buffer
+Fail to read enough into buffer
+
+    This can indicate a filesystem failure or a corrupt database. In
+    either case, you will need to restore from a backup.
+
+can't write XXXXX to index file
+can't open/create new index file
+
+    The MUD.index file has several special values at its beginning.
+    One of them couldn't be written when flushing the database. This
+    will yield a corrupt set of database files. It is also possible
+    that this kind of symptom could occur if the disk that AmigaMUD
+    is running on becomes write protected.
+
+offset > SORT_BUCKETS XXXXXXXX
+CacheLRUHead ~= next in ioFlush
+Too few cache entries to make one for len NNN
+No cache slot len NNN for item
+Cannot create cache slot len NNN for item
+invalid type to ioCreate
+key XXXXXXXX not in cache for ioDirty
+key XXXXXXXX not in cache for ioExpand
+new len < oldlen on ioExpand of XXXXXXXX
+assumption failed in ioExpand!
+ioShrink, newLen 0
+Key XXXXXXXX not in cache for 'ioShrink'
+new len > old len on ioShrink of XXXXXXXX
+ioReplace, newLen = 0
+ioDelete(XXXXXXXX) - already deleted!
+
+    I've got a bug. Let me know.
+
+database overflow - too many entries!!!
+
+    The system thinks you have more than 2 ** 24 entries (over 16
+    million). I can't believe that!
+
+expansion failed
+
+    An attempt was made to expand the in-memory copy of MUD.index. A
+    region of memory big enough could not be allocated. You will have
+    to restore from backup files, and attempt to make more free memory
+    available for running.
+
+AmigaMUD code running in the scenario can also add lines to the log
+file. The content of those lines is entirely up to the scenario. In
+the standard scenario, they are user-generated comments about bugs or
+typos, or just plain complaints.

@@ -1,0 +1,652 @@
+Deck "Informer"
+	Routine "Attributes"
+		Let Fnt1=IfThen(Arg1#"",Arg1,"topaz"),Sz1=IfThen(Arg2#"",Arg2,8),Fnt2=IfThen(Arg3#"",Arg3,"garnet"),Sz2=IfThen(Arg4#"",Arg4,16)
+        Let DcLns=IfThen(Arg6#"",Arg6,4),Pn1=IfThen(Arg7#"",Arg7,1),Pn2=IfThen(Arg8#"",Arg8,2),Pn3=IfThen(Arg9#"",Arg9,3)
+		SetPen Pn1,0
+		If Arg5="Plain"
+			SetPrintStyle PLAIN ,Pn2
+		ElseIf Arg5="Embossed"
+			SetPrintStyle EMBOSSED ,Pn2,Pn3
+		ElseIf Arg5="Outline"
+			SetPrintStyle OUTLINE ,Pn2
+		ElseIf Arg5="Ghosted"
+			SetPrintStyle GHOSTED ,Pn2
+		Else
+			SetPrintStyle SHADOW ,Pn2
+		EndIf
+		SetPrintFont Fnt1,Sz1
+		SetDrawMode JAM2 
+	EndScript
+	Routine "CanIHear"
+		If CurrentListenTo=""
+			Do "ListenTo","Informer"
+		EndIf
+	EndScript
+	Routine "Enter"
+		Let Doc="Text"
+		MakeDocument Doc
+		Type Arg1
+	EndScript
+	Routine "Jump"
+		Let Crd=Arg1
+		AttachObject "Jumper"
+	EndScript
+	Routine "ListenTo"
+		Let MyPort=Arg1
+		ListenTo MyPort
+	EndScript
+	Routine "Load"
+		Let Doc=Arg1
+		LoadDocument Doc
+	EndScript
+	Routine "Quit"
+	    If RetMess#""
+	        Dispose RetMess
+	        SendToParentDeck "RetMess"
+	    Else
+		    Quit
+		EndIf
+	EndScript
+	Routine "Return"
+	    Let RetMess=Arg1
+	EndScript
+	Routine "TalkTo"
+		Let Partner=Arg1
+		SpeakTo Partner
+	EndScript
+	Routine "Window"
+		Let WW=Arg1,WH=Arg2
+		MoveWindow -WindowX+(ScreenWidth-WW)%2,-WindowY+(ScreenHeight-WH)%3
+		Loop
+		Until WindowX=(ScreenWidth-WW)%2&WindowY=(ScreenHeight-WH)%3
+		ResizeWindow WW,WH
+		Loop
+		Until WindowWidth=WW&WindowHeight=WH
+	EndScript
+	Card "About"
+		Routine "WordWrap"
+			MoveCursorTo ENDOF LINE 
+			Local Cut=0
+			Loop
+				Loop
+					MoveCursor LEFT 
+					Let Cut=Cut+1
+				Until TheCharacter=" "
+				GetTextDimensions GetChars(Arg1,1,NumberOfChars(Arg1)-Cut),TxtW,TxtH
+			Until TxtW<Arg2
+			Type Char(10)
+			Delete CHARACTER 
+		EndScript
+		Routine "AsciiFrame"
+			;X,Y,W,H,Ascii,XStep,YStep
+			GetTextDimensions Arg5,CharW,CharH
+			Let AscFrmW=Arg3;%(CharW*2)*CharW*2+CharW
+			Let AscFrmH=Arg4;%(CharH*2)*CharH*2+CharH
+			CreateBrush "ASCFrmBrH",AscFrmW+30,CharH,2
+			CreateBrush "ASCFrmBrV",CharW,AscFrmH+20,2
+			RenderTo BUFFER ,"ASCFrmBrH"
+			Loop X,0,AscFrmW,Arg6
+				PrintText Arg5,X,0
+			EndLoop
+			RenderTo BUFFER ,"ASCFrmBrV"
+			Loop Y,0,ASCFrmH,Arg7
+				PrintText Arg5,0,Y
+			EndLoop
+			RenderTo WINDOW 
+			Transparent OFF
+		EndScript
+		Routine "CutPalette"
+			Local Cut=Arg1
+			Loop
+				Let Depth=Depth+1,Cut=Cut/2
+			Until Cut<=1
+		EndScript
+		Routine "Prep"
+			Dispose Bg,BrW,VisTxt
+			MoveCursorTo STARTOF DOCUMENT 
+			Loop Ct,LinesInDocument
+				If GetWord(TheLine,1,">")="Big"
+					SetPrintFont Fnt2,Sz2
+					GetTextDimensions GetWord(TheLine,2,"<>"),CharW,CharH
+					SetPrintFont Fnt1,Sz1
+					GetTextDimensions GetWord(TheLine,3,"<>"),TxtW,TxtH
+					Let Bg=Bg+1
+					If CharW+TxtW>ScreenWidth-100
+						Do "WordWrap",GetWord(TheLine,3"<>"),ScreenWidth-100
+					Else
+						MoveCursor DOWN 
+					EndIf
+					If BrW<CharW+TxtW
+						Let BrW=CharW+TxtW
+					EndIf
+				Else
+					GetTextDimensions TheLine,TxtW,TxtH
+					If TxtW>ScreenWidth-100
+						Do "WordWrap",TheLine,ScreenWidth-100
+					Else
+						MoveCursor DOWN 
+					EndIf
+					If BrW<TxtW
+						Let BrW=TxtW
+					EndIf
+				EndIf
+			EndLoop
+			Loop Ct,DcLns
+				If GetWord(TheLine,1,"<>")="Big"
+					Let VisTxt=VisTxt+CharH
+				Else
+					Let VisTxt=VisTxt+TxtH
+				EndIf
+				If TheLineNumber=1
+					ExitLoop
+				EndIf
+				MoveCursor UP 
+			EndLoop
+			Let BrH=LinesInDocument*TxtH+((CharH-TxtH)*Bg)+VisTxt
+			Do "CutPalette",Max(Pn1,Pn2,Pn3)
+			CreateBrush "TxtBr",BrW,BrH,Depth
+			RenderTo BUFFER ,"TxtBr"
+			SetPen Pn1
+			MoveCursorTo STARTOF DOCUMENT 
+			Let Y=VisTxt
+			Loop Ct,LinesInDocument
+				If GetWord(TheLine,1,">")="Big"
+					SetPrintFont Fnt2,Sz2
+					GetTextDimensions GetWord(TheLine,2,"<>"),CharW,CharH,CharB
+					Let X=0
+					PrintText GetWord(TheLine,2,"<>"),X,Y
+					Let X=CharW
+					SetPrintFont Fnt1,Sz1
+					GetTextDimensions GetWord(TheLine,3,"<>"),TxtW,TxtH,TxtB
+					Let Y=Y+CharB-TxtB
+					PrintText GetWord(TheLine,3,"<>"),X,Y
+					Let Y=Y+TxtB-CharB+CharH
+				Else
+					GetTextDimensions TheLine,TxtW,TxtH
+					Let X=0
+					PrintText TheLine,X,Y
+					Let Y=Y+TxtH
+				EndIf
+				MoveCursor DOWN 
+			EndLoop
+			Flush Doc
+			Let HzSkp=3,VtSkp=2
+			SetPrintFont "topaz",8
+			SetPrintStyle EMBOSSED ,2,1
+			SetPen 3
+			SetDrawMode JAM2 
+			Let WW=26
+			Loop
+				Let WW=WW+30
+			Until WW>BrW+49
+			Let WH=15
+			Loop
+				Let WH=WH+20
+			Until WH>VisTxt+29
+			If ObjectAttached("Scroller")
+				DetachObject "Scroller"
+			EndIf
+			Do "AsciiFrame",8,3,WW-16,WH-5,"*",HzSkp*10,VtSkp*10
+			Let X=(WW-BrW)%2,Y=(WH-VisTxt)%2,FX=0,FY=0
+			If Arg1="Show"
+				Do "Show",Arg2
+			EndIf
+		EndScript
+		Routine "ScrollFrame"
+			If FX=30
+				Let FX=0
+			EndIf
+			If FY>20
+				Let FY=0
+			EndIf
+			If FX<15
+				ShowBrushEfx "ASCFrmBrH",18,3,"Show",0,ASCFrmW-10,10,FX+10,0,ASCFrmW-10,10
+				ShowBrushEfx "ASCFrmBrH",8,WH-12,"Show",0,ASCFrmW-10,10,30-FX,0,ASCFrmW-10,10
+				ShowBrushEfx "ASCFrmBrV",8,3,"Show",0,10,ASCFrmH-9,0,20-FY,10,ASCFrmH-9
+				ShowBrushEfx "ASCFrmBrV",WW-18,11,"Show",0,10,ASCFrmH-8,0,FY+8,10,ASCFrmH-8
+			Else
+				ShowBrushEfx "ASCFrmBrH",8,3,"Show",0,ASCFrmW-10,10,FX,0,ASCFrmW-10,10
+				ShowBrushEfx "ASCFrmBrH",18,WH-12,"Show",0,ASCFrmW-10,10,40-FX,0,ASCFrmW-10,10
+				ShowBrushEfx "ASCFrmBrV",8,13,"Show",0,10,ASCFrmH-10,0,30-FY,10,ASCFrmH-10
+				ShowBrushEfx "ASCFrmBrV",WW-18,3,"Show",0,10,ASCFrmH-10,0,FY,10,ASCFrmH-10
+			EndIf
+			Let FX=FX+2,FY=FY+1.334
+		EndScript
+		Routine "Show"
+			Do "Window",WW,WH
+			DrawBorder 22,13,WW-44,WH-26,BEVEL ,1,2
+			Do "ScrollFrame"
+			Loop TxtY,0,BrH-VisTxt
+				ShowBrushEfx "TxtBr",X,Y,"Show",0,BrW,VisTxt,0,TxtY,BrW,VisTxt
+				If AvailableFastMemory&~Arg1
+				    Do "ScrollFrame"
+				EndIf
+			EndLoop
+			Flush "TxtBr"
+			If AvailableFastMemory&~Arg1
+			    AttachObject "Scroller"
+			EndIf
+		EndScript
+		AfterAttachment
+			;$VER: Informer 1.02 (06Jun96) © Donald Varnes 1995/96
+			Do "CanIHear"
+			Do "Attributes"
+			If ArgCount>0
+				If Exists(Arg1)
+					Do "Load",Arg1
+				Else
+					Do "Enter",Arg1
+				EndIf
+				Do "Prep",Arg2
+			Else
+				MakeDocument "Tmp"
+				InsertStartingMessage
+				MoveCursorTo STARTOF DOCUMENT 
+				If TheLine#""
+					Loop Ct,NumberOfWords(TheLine)
+						If GetChars(GetWord(TheLine,Ct),1,2)="-t"
+							Do "TalkTo",GetChars(GetWord(TheLine,Ct),3,NumberOfChars(GetWord(TheLine,Ct))-2)
+						ElseIf GetChars(GetWord(TheLine,Ct),1,2)="-l"
+							Do "ListenTo",GetChars(GetWord(TheLine,Ct),3,NumberOfChars(GetWord(TheLine,Ct))-2)
+						ElseIf Exists(GetWord(TheLine,Ct))
+							Let Doc=GetWord(TheLine,Ct),Ld=YES
+						ElseIf GetWord(TheLine,Ct)="Show"
+							Let Shw="Show"
+						EndIf
+					EndLoop
+					If Ld
+						LoadDocument Doc
+						Do "Prep",Shw
+					EndIf
+				ElseIf Exists("T:Informer.Txt")
+					Do "Load","T:Informer.Txt"
+					Do "Prep","Show"
+				ElseIf Exists("T:Informer.Msg")
+					Do "Jump","Reporter"
+				ElseIf Exists("T:Informer.Sts")
+					Do "Jump","Status"
+				EndIf
+			EndIf
+		EndScript
+		MessageFromParentDeck
+			Do Arg1,Arg2,Arg3,Arg4,Arg5,Arg6,Arg7,Arg8,Arg9,Arg10
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 0,0
+				Size 1,1
+				WindowFlags ACTIVATE TOFRONT 
+				VisualEffects NONE ,NONE 
+			EndScript
+			OnClick
+				Do "Quit"
+			EndScript
+		EndObj
+		IntervalTimer "Scroller"
+			NoAttach
+			Definition
+				Duration 0,0,0
+			EndScript
+			Occurred
+				Do "ScrollFrame"
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_1"
+			Definition
+				Message "Enter"
+			EndScript
+			Occurred
+				Do "Enter",TheMessage
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_2"
+			Definition
+				Message ""
+			EndScript
+			Occurred
+				Do GetWord(TheMessage,1),GetWord(TheMessage,2),GetWord(TheMessage,3),GetWord(TheMessage,4),GetWord(TheMessage,5),GetWord(TheMessage,6),GetWord(TheMessage,7),GetWord(TheMessage,8),GetWord(TheMessage,9),GetWord(TheMessage,10)
+			EndScript
+		EndObj
+		IntervalTimer "Jumper"
+			NoAttach
+			Definition
+				Duration 0,0,1
+			EndScript
+			Occurred
+				If CardName#Crd
+					GotoCard Crd
+				Else
+					DetachObject "Jumper"
+				EndIf
+			EndScript
+		EndObj
+	EndObj
+	Card "Reporter"
+		NoAttach
+		Routine "File"
+			OpenFile Arg1,"Tmp",READONLY ,OLDFILE 
+			Dos "Run >Nil: <Nil: Delete"|||Arg1
+			FileReadLine "Tmp",T1
+			Close "Tmp"
+		EndScript
+		Routine "Left"
+			PrintText LeftJustify(Arg1,52),14,SY+8
+		EndScript
+		Routine "Print"
+			PrintText CenterString(Arg1,52),14,SY+8
+		EndScript
+		AfterAttachment
+			GetFontInfo SCREEN ,Fnt,SY
+			SetDrawMode JAM2 
+			SetPen 1,0
+			Do "CanIHear"
+			Do "Window",446,23+SY
+			DrawBorder 8,SY+5,430,14,BEVEL ,1,2
+			If Exists("T:Informer.Msg")
+				AttachObject "FileReader"
+			Else
+				Do "Print",Arg1
+			EndIf
+		EndScript
+		MessageFromParentDeck
+			Do Arg1,Arg2
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 0,0
+				Title " Reporter V1.2"
+				WindowObjects DRAGBAR 
+				Size 1,1
+				WindowFlags ACTIVATE TOFRONT 
+				VisualEffects NONE ,WAIT 
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_1"
+			Definition
+				Message "Print"
+			EndScript
+			Occurred
+				Do "Print",TheMessage
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_2"
+			Definition
+				Message "Left"
+			EndScript
+			Occurred
+				Do "Left",TheMessage
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_3"
+			Definition
+				Message ""
+			EndScript
+			Occurred
+				Do GetWord(TheMessage,1),GetWord(TheMessage,2)
+			EndScript
+		EndObj
+		IntervalTimer "Jumper"
+			NoAttach
+			Definition
+				Duration 0,0,1
+			EndScript
+			Occurred
+				If CardName#Crd
+					GotoCard Crd
+				Else
+					DetachObject "Jumper"
+				EndIf
+			EndScript
+		EndObj
+		IntervalTimer "FileReader"
+			NoAttach
+			Definition
+				Duration 0,0,1
+			EndScript
+			Occurred
+				If Exists("T:Informer.Msg")
+					Do "File","T:Informer.Msg"
+					Do "Print",T1
+					Delay 0,2,0
+				ElseIf Exists("T:Informer.Txt")
+					Do "Jump","About"
+				EndIf
+			EndScript
+		EndObj
+	EndObj
+	Card "Bars"
+		NoAttach
+		Routine "Set"
+			Let Y1=SY+15,Y2=SY+38
+			SetPen 0
+			AreaRectangle 10,Y1,280,10
+			DrawBorder 8,SY+14,284,12,BEVEL ,1,2
+			DrawBorder 8,SY+37,284,12,BEVEL ,1,2
+			Let Fls=280/Arg1
+			Let Stp=Fls,W=0
+			If Ascii(Arg2)>48&Ascii(Arg2)<58
+				Let Drs=Integer(Arg2),Lap=0
+				AreaRectangle 10,Y2,280,10
+				SetPen 1
+				PrintText LeftJustify(Arg3,30),10,SY+28
+			ElseIf Ascii(Arg2)>64
+				SetPen 1
+				PrintText LeftJustify(Arg2,30),10,SY+28
+			EndIf
+			Let Lap=Lap+1
+			SetPen 1
+			PrintText RightJustify(100*Lap%Drs||"%",4),258,SY+28
+			SetPen 3
+			AreaRectangle 10,Y2,280/Drs*Lap,10
+		EndScript
+		Routine "Slide"
+			If Ascii(Arg2)>64
+				SetPen 1
+				PrintText LeftJustify(Arg2,30),10,SY+5
+			EndIf
+			While W<Fls&Fls<281
+				Let W=Min(Max(W+1,W+Arg1),280)
+				SetPen 3
+				AreaRectangle 10,Y1,W,10
+				SetPen 1
+				PrintText RightJustify(100*W%280||"%",4),258,SY+5
+			EndLoop
+			Let Fls=Fls+Stp
+		EndScript
+		Routine "Step"
+			SetPen 3
+			AreaRectangle 10,Y1,Fls,10
+			SetPen 1
+			If Ascii(Arg1)>64
+				PrintText LeftJustify(Arg1,30),10,SY+5
+			EndIf
+			PrintText RightJustify(100*Fls%280||"%",4),258,SY+5
+			If Fls<280
+				Let Fls=Fls+Stp
+			EndIf
+		EndScript
+		Routine "Skip"
+			If Arg1#""
+				SetPen 1
+				PrintText LeftJustify(Arg1,30),10,SY+5
+				Delay 0,0,20
+			EndIf
+		EndScript
+		AfterAttachment
+			GetFontInfo SCREEN ,Fnt,SY
+			Let Drs=1
+			SetDrawMode JAM2 
+			Do "CanIHear"
+			Do "Window",300,53+SY
+			If ArgCount>0
+				Do Arg1,Arg2,Arg3,Arg4
+			EndIf
+		EndScript
+		MessageFromParentDeck
+			Do Arg1,Arg2,Arg3,Arg4
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 0,0
+				Title " Bars V1.0"
+				WindowObjects DRAGBAR 
+				Size 1,1
+				WindowFlags ACTIVATE TOFRONT 
+				VisualEffects NONE ,WAIT 
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_1"
+			Definition
+				Message "Set"
+			EndScript
+			Occurred
+				If Ascii(GetWord(TheMessage,2))>48&Ascii(GetWord(TheMessage,2))<58
+					Let A2=GetWord(TheMessage,2)
+					Loop Ct,3,NumberOfWords(TheMessage)
+						Let A3=A3||GetWord(TheMessage,Ct)||" "
+					EndLoop
+				ElseIf Ascii(GetWord(TheMessage,2))>64
+					Loop Ct,2,NumberOfWords(TheMessage)
+						Let A2=A2||GetWord(TheMessage,Ct)||" "
+					EndLoop
+				EndIf
+				Do "Set",GetWord(TheMessage,1),A2,A3
+				Dispose A2,A3
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_2"
+			Definition
+				Message "Skip"
+			EndScript
+			Occurred
+				Do "Skip",TheMessage
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_3"
+			Definition
+				Message ""
+			EndScript
+			Occurred
+				Do GetWord(TheMessage,1),GetWord(TheMessage,2)
+			EndScript
+		EndObj
+	EndObj
+	Card "Status"
+		NoAttach
+		Routine "Attr1"
+			SetPrintFont "times",11
+			SetPrintStyle SHADOW ,2
+			SetPen 1
+			Let Y=13
+		EndScript
+		Routine "Attr2"
+			SetPrintFont "times",15
+			SetPrintStyle EMBOSSED ,2,1
+			SetPen 3
+			Let Y=7
+		EndScript
+		Routine "Schrink"
+			Let WH=WindowHeight
+			Loop
+				Let WH=WindowHeight-14
+				ResizeWindow WindowWidth,WH
+				Loop
+				Until WindowHeight=WH
+			Until WindowHeight<30
+		EndScript
+		Routine "List"
+			MoveCursorTo STARTOF DOCUMENT 
+			If GetChars(TheLine,1,2)="XX"
+				Do "Window",196,26
+				DrawBorder 8,4,180,20,BEVEL ,2,1
+				Loop
+					If TheWord="XX"
+						Do "Attr1"
+					ElseIf TheWord="XXX"
+						Do "Attr2"
+					Else
+						Do "Attr1"
+						Let Y=27
+						ExitLoop
+					EndIf
+					Let T1=GetWord(TheLine,2,"<>"),X=Integer(GetWord(Theline,3,"<>"))
+					If Y=7
+						GetTextDimensions T1,TxtW,TxtH,TxtB
+						DrawBorder X-7,6,TxtW+14,TxtB+6,BEVEL ,1,2
+					EndIf
+					PrintText T1,X,Y
+					MoveCursor DOWN 
+				EndLoop
+			EndIf
+			While TheLine#""
+				Let T1=GetWord(TheLine,2,">")
+				GetTextDimensions T1,TxtW,TxtH
+				Let X=180-TxtW
+				Do "Window",196,Y+15
+				DrawBorder 8,Y-1,180,12,BEVEL ,2,1
+				PrintText GetWord(TheLine,1,">"),15,Y
+				PrintText "::",98,Y-1
+				PrintText T1,X,Y
+				Let Y=Y+14
+				MoveCursor DOWN 
+			EndLoop
+		EndScript
+		AfterAttachment
+			Do "CanIHear"
+			Do "Attr1"
+			Let Y=5
+			SetDrawMode JAM1 
+			If Exists("T:Informer.Sts")
+				Do "Load","T:Informer.Sts"
+				Do "List"
+			ElseIf Arg1#""
+				Do "Enter",Arg1
+				Do "List"
+			EndIf
+		EndScript
+		MessageFromParentDeck
+			Do Arg1,Arg2
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 0,0
+				Size 1,1
+				WindowFlags ACTIVATE TOFRONT 
+				VisualEffects NONE ,WAIT 
+			EndScript
+			OnClick
+				Do "Schrink"
+				Do "Quit"
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_1"
+			Definition
+				Message "List"
+			EndScript
+			Occurred
+				Let Doc="Text",TM=TheMessage,Wrd=1
+				MakeDocument Doc
+				If GetWord(TM,1)="ALL"
+					Type "ALL",NEWLINE 
+					Let Wrd=2
+				EndIf
+				While GetChars(GetWord(TM,Wrd),1,2)="XX"
+					Type GetWord(TM,Wrd)||">"||GetWord(TM,Wrd+1)||"<"||GetWord(TM,Wrd+2),NEWLINE 
+					Let Wrd=Wrd+3
+				EndLoop
+				Loop Ct,Wrd,NumberOfWords(TM),2
+					Type GetWord(TM,Ct)||">"||GetWord(TM,Ct+1),NEWLINE 
+				EndLoop
+				Do "List"
+			EndScript
+		EndObj
+		ARexxMessage "ARexx_2"
+			Definition
+				Message ""
+			EndScript
+			Occurred
+				Do GetWord(TheMessage,1),GetWord(TheMessage,2)
+			EndScript
+		EndObj
+	EndObj
+EndObj

@@ -1,0 +1,440 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(src/tron/gArmagetron.cpp)
+
+dnl LibTool configuration
+dnl AC_LIBTOOL_DLOPEN
+dnl AM_PROG_LIBTOOL
+
+dnl Header file
+AC_CONFIG_HEADER(config.h)
+
+
+dnl Checks for programs.
+
+dnl C Compiler:
+AC_PROG_CC
+AC_PROG_CPP
+
+dnl C++ Compiler:
+AC_PROG_CXX
+AC_PROG_CXXCPP
+dnl AC_OBJEXT
+
+dnl Make:
+AC_PROG_MAKE_SET
+
+dnl system type
+AC_CANONICAL_BUILD
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+
+dnl default flags
+test "$CXXFLAGS" = "" && CXXFLAGS="-O3"
+
+dnl determine the program name and title
+if test x$progtitle = x ; then
+  progtitle=Armagetron
+fi
+
+if test x$progname = x ; then
+  progname=armagetron
+fi
+
+prognamebase=$progname
+AC_SUBST(progtitle)
+AC_SUBST(progname)
+AC_SUBST(prognamebase)
+
+# tells the makefile if the data files need to be installed
+needdata=yes
+AC_SUBST(needdata)
+
+dnl Checks for libraries.
+
+AC_ARG_ENABLE(glout,
+[  --enable-glout            enable graphical output; otherwise, compile
+                             a dedicated server (default=enabled)],,
+enable_glout=yes)
+
+AC_ARG_ENABLE(memmanager,
+[  --enable-memmanager       enable custom memory manager on systems that
+allow it (default=disabled)],,
+enable_memmanager=no)
+
+AC_ARG_ENABLE(music,
+[  --enable-music            compile in support for background music
+                             (default=disabled)],,
+enable_music=no)
+
+AC_ARG_ENABLE(krawall,
+[  --enable-krawall          enable special code for the krawall gaming
+                             network (user authentification...) (default=disabled)],,
+enable_krawall=no)
+
+AC_ARG_ENABLE(krawallserver,
+[  --enable-krawallserver    enable special code for the krawall gaming
+                             network SERVER (user database query...).
+	                     dont't touch this! (default=disabled)],,
+enable_krawallserver=no)
+
+AC_ARG_ENABLE(dirty,
+[  --enable-dirty            allow dirty GL initialisation (like used with
+                             SDL 1.0) even if you have SDL 1.1 or up (default=disabled)],,
+enable_dirty=no)
+
+AC_ARG_ENABLE(etc,
+[  --enable-etc              will store configuration files in /etc/armagetron 
+			     instead of /usr/local/games/armagetron/config (default=enabled)],,
+enable_etc=yes)
+
+if test x$enable_krawall = xyes; then
+  AC_DEFINE(KRAWALL)
+fi
+
+if test x$enable_krawallserver = xyes; then
+  AC_DEFINE(KRAWALL_SERVER)
+fi
+
+dnl determine memmanager state
+if test x$enable_memmanager != xyes ; then
+  AC_DEFINE(DONTUSEMEMMANAGER)
+fi
+
+test x$enable_etc = xyes && configdir="--configdir /etc/$prognamebase"
+
+AC_SUBST(enable_etc)
+AC_SUBST(configdir)
+
+
+#get rpm root
+if test "$RPM_BUILD_ROOT" = ""; then
+   rpmroot=""
+else
+   rpmroot=$RPM_BUILD_ROOT
+fi
+
+AC_SUBST(rpmroot)
+
+test "$docstyle" = "" && docstyle=unix
+
+dnl *************************************************
+dnl GL AND  MATHLIB SELECTION ( SYSTEM DEPENDANT)
+dnl *************************************************
+case "$target" in
+    *-*-cygwin* | *-*-mingw32*)
+	AC_DEFINE(WIN32)
+        MATHLIB=""
+        SYS_GL_LIB="opengl32"
+	SYS_GLU_LIB="glu32"
+        ;;
+    *-*-beos*)
+	AC_DEFINE(BEOS)
+        MATHLIB=""
+        SYS_GL_LIB="GL"
+	SYS_GLU_LIB="GLU"
+        ;;
+    *-*-darwin*)
+	AC_DEFINE(MACOSX)
+        MATHLIB=""
+        SYS_GL_LIB=""
+        SYS_GLU_LIB=""
+	LIBS = "$LIBS -framework GLU -framework Quicktime -lsmpeg"
+        ;;
+    *-*-aix*)
+	AC_DEFINE(AIX)
+        MATHLIB=""
+        if test x$ac_cv_prog_gcc = xyes; then
+            CXXFLAGS="$CXXFLAGS -mthreads"
+	fi
+        SYS_GL_LIB=""
+        SYS_GLU_LIB=""
+        ;;
+    *-*-solaris*)
+	AC_DEFINE(SOLARIS)
+	AC_DEFINE(CAUTION_WALL)
+        MATHLIB="m"
+	LIBS="$LIBS -lnsl -lsocket"
+        AC_PATH_X
+        AC_PATH_XTRA
+        if test x$have_x = xyes; then
+            CFLAGS="$CFLAGS $X_CFLAGS"
+	    LIBS="$X_LIBS $LIBS"
+            SYS_GL_LIB="GL"
+            SYS_GLU_LIB="GLU"
+        else
+            SYS_GL_LIB="GL"
+            SYS_GLU_LIB="GLU"
+        fi
+        ;;
+    *-*-linux* )
+	AC_DEFINE(LINUX)
+        MATHLIB="m"
+        AC_PATH_X
+        AC_PATH_XTRA
+        if test x$have_x = xyes; then
+            CFLAGS="$CFLAGS $X_CFLAGS"
+	    LIBS="$X_LIBS $LIBS"
+            SYS_GL_LIB="GL"
+            SYS_GLU_LIB="GLU"
+        else
+            SYS_GL_LIB="GL"
+            SYS_GLU_LIB="GLU"
+        fi
+		;;
+    *)
+        MATHLIB="m"
+	AC_DEFINE(DONTUSEMEMMANAGER)
+        AC_PATH_X
+        AC_PATH_XTRA
+        if test x$have_x = xyes; then
+            CFLAGS="$CFLAGS $X_CFLAGS"
+	    LIBS="$X_LIBS $LIBS"
+            SYS_GL_LIB="GL"
+            SYS_GLU_LIB="GLU"
+        else
+            SYS_GL_LIB="GL"
+            SYS_GLU_LIB="GLU"
+        fi
+        ;;
+esac
+
+AC_SUBST(docstyle)
+
+#processor specific setup
+case "$target" in
+    i*86-*-*)
+        ;;
+    sparc-*-*)
+        ;;
+    *)
+		#disable memory manager; it may depend on 32 bit.
+		AC_DEFINE(DONTUSEMEMMANAGER)
+        ;;
+esac
+
+if test x$enable_glout = xno; then
+ AC_MSG_RESULT([
+ 
+ Configuring dedicated server, skipping libraries...
+ ])
+ AC_DEFINE(DEDICATED)
+
+ progname=${prognamebase}-dedicated
+ AC_SUBST(progname)
+ 
+ needdata=no
+ AC_SUBST(needdata)
+
+else
+
+
+if test x$enable_dirty = xyes; then
+  AC_DEFINE(DIRTY)
+fi
+
+
+
+dnl *************************************************
+dnl         math
+dnl *************************************************
+
+if test $MATHLIB ; then
+AC_CHECK_LIB($MATHLIB, exp,,
+	AC_MSG_WARN([
+	You do not have the standard math library libm. Check
+	config.log for error messages and fix that.]
+	)
+)
+fi
+
+dnl *************************************************
+dnl         SDL
+dnl *************************************************
+
+
+AC_CHECK_LIB(SDL,SDL_Init,
+CXXFLAGS="$CXXFLAGS `sdl-config --cflags`"
+CPPFLAGS="$CPPFLAGS `sdl-config --cflags`"
+export CPPFLAGS
+export CXXFLAGS
+LIBS="`sdl-config --libs` $LIBS"
+AC_DEFINE(HAVE_LIBSDL),
+AC_MSG_ERROR([You need the library SDL to compile Armagetron. Read the file LIBS.])
+,`sdl-config --libs`)
+
+dnl *************************************************
+dnl         SDL_Mixer
+dnl *************************************************
+
+if test x$enable_music = xyes; then
+ AC_CHECK_LIB(SDL_mixer,Mix_OpenAudio,
+ AC_DEFINE(HAVE_LIBSDL_MIXER)
+ LIBS="-lSDL_mixer $LIBS",
+ AC_MSG_WARN([
+ SDL_mixer library not found. You will not hear music.])
+ enable_music=no
+ ,)
+fi
+
+dnl *************************************************
+dnl  Winsock on windows cross-compile
+dnl *************************************************
+
+if test "`sdl-config --libs | grep windows`" ; then
+	AC_CHECK_LIB(wsock32, main)
+fi
+
+dnl *************************************************
+dnl         GL
+dnl *************************************************
+
+if test $SYS_GL_LIB && echo $LIBS | grep -v "\-lGL" ; then
+
+dnl AC_CHECK_LIB($SYS_GL_LIB, glEnd,,
+
+AC_CHECK_LIB($SYS_GL_LIB, glVertex3f,,
+ AC_MSG_RESULT([OpenGL not found. Maybe it needs X11 to compile? Checking that...])
+ AC_CHECK_LIB(X11,main,
+  LIBS="-lX11 -L/usr/X11R6/lib $LIBS"
+  export LIBS
+  AC_DEFINE(HAVE_LIBX11)
+  ,
+  AC_MSG_WARN([
+  Standard X11 library needed by OpenGL not found.
+  ]),-L/usr/X11R6/lib)
+ AC_CHECK_LIB(Xext,main,-L/usr/X11R6/lib)
+ AC_CHECK_LIB(Xt,main,-L/usr/X11R6/lib)
+ AC_CHECK_LIB(Xi,main,-L/usr/X11R6/lib)
+ AC_CHECK_LIB(Xmu,main,-L/usr/X11R6/lib)
+AC_CHECK_LIB($SYS_GL_LIB, glBegin,,AC_MSG_ERROR([
+  You need Mesa or an OpenGL-System to compile Armagetron.
+  Maybe your libGL needs the X libraries and your system does not
+  find them? Read the file LIBS.]),-L/usr/X11R6/lib)
+)
+
+dnl check for 3DFX-MESA
+dnl AC_CHECK_LIB(GL,XMesaSetFXmode,AC_DEFINE(HAVE_FXMESA),,)
+
+fi
+
+dnl *************************************************
+dnl         GLU
+dnl *************************************************
+
+
+if test $SYS_GLU_LIB && echo $LIBS | grep -v "\-lGLU"; then
+
+dnl AC_CHECK_LIB($SYS_GLU_LIB, gluBuild2DMipmaps,,
+AC_CHECK_LIB($SYS_GLU_LIB, gluBuild3DMipmaps,,
+AC_MSG_ERROR([
+You need GLU to compile Armagetron; it SHOULD have come with OpenGL.
+Read the file LIBS.]))
+
+fi
+
+dnl *************************************************
+dnl         Other Stuff
+dnl *************************************************
+
+AC_CHECK_LIB(g++, main,,
+AC_MSG_WARN([C++ standard library not found. You can ignore this warning on non-GNU-systems.]))
+
+AC_CHECK_LIB(z, main,,
+AC_MSG_ERROR([You need libz to compile Armagetron.]))
+
+AC_CHECK_LIB(png, main,,
+AC_MSG_ERROR([You need libpng to compile Armagetron.]))
+
+AC_CHECK_LIB(jpeg, main,,
+	AC_MSG_WARN([
+	libjpeg not found. Expect small graphical errors ( missing moviepack title screen ).]
+	)
+)
+
+AC_CHECK_LIB(SDL_image, IMG_Load,,
+dnl AC_CHECK_LIB(IMG, main,,
+AC_MSG_ERROR([You need libIMG/SDL_image to compile Armagetron.]
+dnl )
+))
+
+dnl look for the right header for SDL_image
+AC_CHECK_HEADERS(SDL_image.h,,
+[
+AC_MSG_WARN([SDL_image header not found where it should be ( the SDL include directory ).
+Trying fallback.])
+AC_CHECK_HEADERS(SDL/SDL_image.h,,
+[AC_MSG_WARN([
+SDL_image header not found. The library is there, so something must be unusual
+in your setup: SDL_image.h does not reside in the same folder as the rest of the SDL
+inlcudes and not in any SDL subdirectory in the inclue path. If you know the
+correct path to it, edit src/render/rTexture.cpp and enter it there.])]
+)
+]
+)
+
+ifelse(,,,
+[
+dnl look for the right way to include the opengl headers
+AC_CHECK_HEADERS( SDL_opengl.h,,
+AC_CHECK_HEADERS( SDL/SDL_opengl.h,,
+AC_CHECK_HEADERS( GL/gl.h,,
+AC_CHECK_HEADERS( OpenGL/gl.h,,
+AC_MSG_ERROR([OpenGL header not found.])
+)
+)
+)
+)
+])
+
+fi dnl (dedicated server)
+
+if test "`$CXX -v 2>&1 | grep -v executing | grep pgcc`"  ; then
+AC_MSG_WARN(
+[
+
+
+You are using PGCC to compile Armagetron. Due to a bug in PGCC,
+exception handling needs to be disabled. This makes the server
+mode vulnerable to an attack that causes the server to block or
+crash. (The attack is still detected, but nothing can be done 
+about it. You will get the message \"I told you not to use PGCC!\")
+
+
+])
+CXXFLAGS="$CXXFLAGS -fno-exceptions -DNOEXCEPT"
+export CXXFLAGS
+fi
+
+
+dnl Replace `main' with a function in -lpthread:
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(unistd.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+
+dnl Checks for library functions.
+AC_CHECK_FUNCS(select)
+
+dnl add current directories to include search path
+CXXFLAGS="-I. -I.. -I../.. $CXXFLAGS"
+export CXXFLAGS
+
+echo timestamp > config.h.stamp
+
+AC_OUTPUT(src/Makefile src/engine/Makefile 
+src/tools/Makefile src/render/Makefile
+src/ui/Makefile src/network/Makefile  
+src/tron/Makefile
+Makefile Makefile.global
+batch/install batch/uninstall batch/starter
+batch/serverstarter batch/masterstarter
+batch/rcd_server batch/rcd_master
+batch/pushscores batch/stat html.m4
+language/languages.txt
+config/aiplayers.cfg
+doc/Makefile doc/net/Makefile
+)
+

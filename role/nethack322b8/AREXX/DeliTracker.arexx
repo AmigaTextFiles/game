@@ -1,0 +1,78 @@
+/* This script uses DeliTracker to play nethack background tunes */
+/* © 1997 Christian Stieber */
+
+/* use something like 'run rx DeliTracker.arexx %m' for your STARTUP option */
+
+Nodules.=''
+
+/* Set the tunes for the dungeons. These are required for the script to work */
+CALL InitModule 'The Dungeons of Doom','','Misc:Modules/ProTracker/mod.Helmet_Shake'
+CALL InitModule 'The Gnomish Mines','','Misc:Modules/ProTracker/mod.Dong Fang Zi Zhu'
+CALL InitModule 'Fort Ludios','','Misc:Modules/NoiseTracker2/mod.western1'
+CALL InitModule 'Gehennom','','Misc:Modules/ProTracker/mod.shamotronic'
+CALL InitModule 'Vlad''s Tower','','Misc:Modules/ProTracker/mod.Ice Matrix'
+CALL InitModule 'The Quest','','Misc:Modules/ProTracker/mod.trancefinite'
+CALL InitModule 'The Elemental Planes','','Misc:Modules/ProTracker/mod.cyberdawn'
+CALL InitModule 'Game Over','','Work:Modules/ScreamTracker/s3m.dark times'
+
+/* Some special tunes for special levels */
+CALL InitModule 'The Dungeons of Doom','medusa','Misc:Modules/mod.das_boot'
+
+ADDLIB('rexxsupport.library',0,-30,0)
+IF SHOW('L','rexxsupport.library') THEN DO
+  PARSE ARG PortName
+  IF OPENPORT(PortName) THEN DO
+    IF ~SHOW('P','DELITRACKER') THEN DO
+      ADDRESS 'COMMAND'
+      OldDir=PRAGMA('D','Fun:Musik/DeliTracker_II')
+      'run >NIL: DeliTracker2'
+      PRAGMA('D',OldDir)
+      DROP OldDir
+      'WaitForPort DELITRACKER'
+    END
+    IF SHOW('P','DELITRACKER') THEN DO
+      ADDRESS 'DELITRACKER'
+      'HIDEGUI'
+      'CLEARLIST'
+      'SONGEND NO'
+      Dungeon=''
+      Module=''
+      Done=0
+      DO UNTIL Done
+	CALL WAITPKT(PortName)
+	Packet=GETPKT(PortName)
+	IF C2D(Packet)~=0 THEN DO
+	  RC=0
+	  Command=GETARG(Packet,0)
+	  SELECT
+	    WHEN Command='DUNGEON' THEN DO
+              Dungeon=GETARG(Packet,1)
+            END
+	    WHEN Command='SPLEVEL' THEN DO
+	      SPLevel=GETARG(Packet,1)
+	      IF Modules.Dungeon.SPLevel='' THEN SPLevel=''
+	      NewModule=Modules.Dungeon.SPLevel
+              IF NewModule~=Module THEN DO
+                Module=NewModule
+                IF Module=''
+                  THEN 'EJECT'
+	          ELSE 'PLAYMOD' Module
+	      END
+              DROP NewModule
+            END
+	    WHEN Command='CLASS' THEN NOP
+	    WHEN Command='SHUTDOWN' THEN Done=1
+	    OTHERWISE RC=10
+	  END
+	  CALL REPLY Packet,RC
+	END
+      END
+      'QUIT'
+    END
+  END
+END
+EXIT 0
+
+InitModule: PROCEDURE EXPOSE Modules.
+  PARSE ARG Dungeon,SPLevel,Module
+  Modules.Dungeon.SPLevel=Module

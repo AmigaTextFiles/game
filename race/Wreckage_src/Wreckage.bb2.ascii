@@ -1,0 +1,5177 @@
+;wreckage Revision XV45
+;Copyright(C) 1997,1998,1999 Christos Dimitrakakis
+
+version$="XV45"
+copyright$=Chr$(169)+"1998,"
+
+#SUSP_HEIGHT=12
+
+.funcs
+
+
+;   CONTROLLER
+;=================
+
+NEWTYPE .ctrl
+
+  dx.f
+  dx1
+  d2x
+  d2x1
+  d2x2
+  d3x
+  nd3x
+  force
+  force1
+  a
+End NEWTYPE
+
+DEFTYPE .ctrl ctrl
+
+
+
+;   RIGID OBJECT
+;=================
+
+NEWTYPE .robj
+  m.f         ;mass
+  x:y:z       ;position
+  ux:uy:uz    ;velocity
+  Ix:Iy:Iz    ;angular moments
+  ax:ay:az    ;angle
+  wx:wy:wz    ;angular velocity
+End NEWTYPE
+
+
+
+;  SURFACE SPRING
+;==================
+
+NEWTYPE .ispring
+  *obj.robj   ;which object it is attached to
+  x1.f:y1:z1  ;attachment point
+  x2:y2:z2    ;normal length (!)
+  k           ;rigidity
+  d           ;damping factor
+End NEWTYPE
+
+
+;  CONNECTING SPRING
+;=====================
+
+NEWTYPE .spring
+;  *obj1.robj  ;object attached to
+;  *obj2.robj  ;other object
+;  x1.f:y1:z1  ;attachment point 1
+;  x2:y2:z2    ;attachment point 2
+  x0.f
+  k           ;rigidity
+  d           ;damping factor
+End NEWTYPE
+
+
+dt.f=1/25
+
+Dim susplist.spring(10)
+
+DEFTYPE .robj player
+DEFTYPE .ispring flsusp,frsusp,rlsusp,rrsusp
+
+USEPATH player
+\m=1000
+\Ix=500
+\Iy=500
+\Iz=500
+\ux=0
+\uy=0
+\uz=0
+\ax=0
+\ay=0
+\az=0
+\wx=0
+\wy=0
+\wz=0
+USEPATH flsusp
+*obj=player
+\x1=-5
+
+
+
+
+Function.f land1{vx,vy}
+  SHARED f1.f,f2.f,f3.f,f4.f,f5.f,f6.f,f7.f,f8.f,f9.f,f10.f,tr_vx,tr_vy
+  SHARED map_slip,flat_road
+  SHARED mountycnt1.f,mountxcnt1.f
+  SHARED mountycnt2.f,mountxcnt2.f
+  SHARED mountycnt3.f,mountxcnt3.f
+  SHARED fmountcnt.f
+
+
+  vx/100
+  vy/100
+  vy+160
+  vx+60
+
+
+  mfx.f=(vx) MOD 80
+  mfx+Frac(vx)
+  If mfx>40
+    mfx = 80-mfx
+  EndIf
+  mfx=20*(1+Sin((Pi*HTan(mfx/50)-.5*Pi)))
+     ;20*(1+Sin((Pi*HTan(mfx/50)-.5*Pi)))
+  vx=vx+mfx
+
+
+  mfy.f=(vy) MOD 80
+  mfy+Frac(vy)
+  If mfy>40
+    mfy = 80-mfy
+  EndIf
+  mfy=20*(1+Sin((Pi*HTan(mfy/50)-.5*Pi)))
+  vy=vy+mfy
+
+  vtotal.f=vx+vy
+
+;  If Abs(vx)<20
+;    vx=0
+;  Else
+;    vx=vx-20*Sgn(vx)
+;  EndIf
+;
+;  If Abs(vy)<20
+;    vy=-100
+;  Else
+;    vy=vy-20*Sgn(vy)-100
+;  EndIf
+
+  vy1.f=vy*f1
+  vx2.f=vx*f2
+
+
+;  vy3.f=.1*(vy-mountycnt1)
+;  vx4.f=.1*(vx-mountxcnt1)
+;  vv1.f=vy3^2+vx4^2
+;  rtf.f=10-10*(Exp(-fmountcnt*(vv1)))
+
+;  vy3.f=.1*(vy-mountycnt2)
+;  vx4.f=.1*(vx-mountxcnt2)
+;  vv1.f=vy3^2+vx4^2
+;  rtf.f-200*(Exp(-.2*(vv1)))
+;
+;  vy3.f=.1*(vy-mountycnt3)
+;  vx4.f=.1*(vx-mountxcnt3)
+;  vv1.f=vy3^2+vx4^2
+;  rtf.f+100*(Exp(-.1*(vv1)))
+
+
+  CNIF1=1
+
+  ;ret.f=(vx^2+vy^2)*.05
+  rt.f=Cos(f9*vx);-Cos(f6*vx)
+  rt+Cos(f10*vy);-Cos(f8*vy)
+  ret.f=0
+  If map_slip=-1
+    ret.f+(.5*Cos(vy1)+Cos(vy1*f3)+Cos(vy1*f5)+Cos(vy1*f7))
+    ret.f+(.5*Cos(vx2)+Cos(vx2*f4)+Cos(vx2*f6)+Cos(vx2*f8))
+  Else
+    If flat_road=True
+      ret.f+.25*Cos(vy1*.5)+.5*Cos(vy1*.25)+Cos(vy1*.125)+2*Cos(vy1*.0625)
+      ret.f+.25*Cos(vx2*.5)+.5*Cos(vx2*.25)+Cos(vx2*.125)+2*Cos(vx2*.0625)
+        ret.f+2
+;        ret.f+.15*(.5*Cos(vy1)+Cos(vy1*f3)+Cos(vy1*f5)+Cos(vy1*f7))
+;        ret.f+.15*(.5*Cos(vx2)+Cos(vx2*f4)+Cos(vx2*f6)+Cos(vx2*f8))
+    Else
+        ret.f+(.5*Cos(vy1)+Cos(vy1*f3)+Cos(vy1*f5)+Cos(vy1*f7))
+        ret.f+(.5*Cos(vx2)+Cos(vx2*f4)+Cos(vx2*f6)+Cos(vx2*f8))
+;      ret.f+(.5*Cos(vy1)+Cos(vy1*.5)+2*Cos(vy1*.25)+4*Cos(vy1*.125))
+;      ret.f+(.5*Cos(vx2)+Cos(vx2*.5)+2*Cos(vx2*.25)+4*Cos(vx2*.125))
+    EndIf
+  EndIf
+
+;  ret.f=QLimit(ret,-4,4)
+  ret.f=QLimit(80*(rt*ret),-4000,4000)
+  CEND
+
+  ;ret.f=10000*rtf
+  Function Return ret;10*vtotal
+End Function
+
+
+Function.f land2{vx,vy}
+  SHARED f1.f,f2.f,f3.f,f4.f,f5.f,f6.f,f7.f,f8.f
+  vx/100
+  vy/100
+  ret.f=4*(f1*vx)^3+3*(f2*vx)^2+2*f3*vx+f4
+;  ret+4*(f5*vy)^3+3*(f6*vy)^2+2*f7*vy+f8
+  ret-20*Sin(vy*.1)
+  ret.f=QLimit(ret,-4000,4000)
+  Function Return ret
+End Function
+
+
+Function.f land2x{vx}
+  SHARED f1.f,f2.f,f3.f,f4.f,f5.f,f6.f,f7.f,f8.f
+  vx/100
+  vy/100
+  ret.f=4*(f1*vx)^3+3*(f2*vx)^2+2*f3*vx+f4
+  ret.f=QLimit(ret,-4000,4000)
+  Function Return ret
+End Function
+
+Function.f land2y{vy}
+  SHARED f1.f,f2.f,f3.f,f4.f,f5.f,f6.f,f7.f,f8.f
+  vx/100
+  vy/100
+;  ret.f=4*(f5*vy)^3+3*(f6*vy)^2+2*f7*vy+f8
+  ret.f=-20*Sin(vy*.1)
+  ret.f=QLimit(ret,-4000,4000)
+  Function Return ret
+End Function
+
+;BANKS
+;-----
+
+
+
+#SOUNDCACHE=0
+#TURBOCACHE=1
+
+;INI
+;---
+
+file_missing.b=False
+Statement safe_loadsound{x,x$}
+  SHARED file_missing
+
+  If Exists(x$)
+    If OpenFile(0,x$)
+      If AvailMem_(#MEMF_LARGEST|#MEMF_CHIP)>Lof(0)
+        LoadSound x,x$
+      Else
+        file_missing=True
+        tempb.b=RTEZRequest("Memory low","Can't load "+x$,"OK")
+      EndIf
+      CloseFile 0
+    Else
+      tempb.b=RTEZRequest("File Error","Can't open "+x$,"OK")
+      file_missing=True
+    EndIf
+  Else
+    file_missing=True
+    tempb.b=RTEZRequest("File Error","Can't find "+x$,"OK")
+  EndIf
+
+End Statement
+
+
+Statement safe_loadshape{x,x$}
+  SHARED file_missing
+  If Exists(x$)
+    LoadShape x,x$
+  Else
+    file_missing=True
+    tempb.b=RTEZRequest("File Error","Can't find "+x$,"OK")
+  EndIf
+End Statement
+
+
+;FLAGS
+;=====
+
+#SYSTEM_FRIENDLY=0
+#DBUG=0
+
+
+NoCli
+WBStartup
+
+points.l=0
+points1.l=0
+points2.l=0
+points3.l=0
+
+p2=2*Pi
+
+
+
+
+
+NEWTYPE .MyScreenMode
+  DisplayID.l
+  DisplayWidth.w
+  DisplayHeight.w
+  DisplayDepth.w
+  OverscanType.w
+  Autoscroll.l
+End NEWTYPE
+
+CNIF #SYSTEM_FRIENDLY=1
+  *newscr.MyScreenMode=RTEZScreenModeRequest("Select Mode")
+  If *newscr>0
+    scrx=*newscr\DisplayWidth
+    scry=*newscr\DisplayHeight
+    scrt=*newscr\DisplayDepth
+    scrid.l=*newscr\DisplayID
+    If ScreenTags(1,"Wreckage Exp."+version$,#SA_Width,scrx,#SA_Height,scry,#SA_DisplayID,scrid,#SA_Depth,scrt)
+      Delay_(200)
+    Else
+      Goto finish
+    EndIf
+  EndIf
+CEND
+
+
+
+
+
+;enginefile$="SAMPLES:SFX/ORIGINAL_ENGINE.raw"
+;enginefile$="SAMPLES:SFX/SW_RenaultV10'94.raw"
+;enginefile$="SFX/engine4t"
+;enginefile$="engine"
+enginefile$="SFX/engine2"
+
+
+safe_loadshape {0,"GFX/RevMeter4c.iff"}
+safe_loadshape {1,"GFX/Hood4c.iff"}
+safe_loadshape {2,"GFX/Hood32c.iff"}
+
+safe_loadsound {0,"SFX/tyres"}
+safe_loadsound {1,enginefile$}
+safe_loadsound {2,"SFX/out_of_road"}
+safe_loadsound {3,"SFX/skidmetal"}
+safe_loadsound {4,enginefile$}
+safe_loadsound {5,"SFX/boom"}
+safe_loadsound {6,"SFX/crash1"}
+safe_loadsound {7,"SFX/engine2t"}
+safe_loadsound {8,"SFX/tyres_short"}
+safe_loadsound {9,"SFX/out_of_road3"}
+
+If file_missing=True Then Goto finish3
+
+
+
+
+DEFTYPE .sound *mysound
+
+*mysound=Addr Sound(7)
+InitBank #TURBOCACHE,*mysound\_length*2,65536
+
+*mysound=Addr Sound(4)
+
+InitBank #SOUNDCACHE,*mysound\_length*2,65536
+
+
+;LoadSound 1,"SAMPLES:SFX/ORIGINAL_ENGINE.raw"
+;LoadSound 1, "SAMPLES:SFX/SW_RenaultV10'94.raw"
+;LoadSound 1,"SAMPLES:SFX/CM_ENGINE.raw"
+
+Select_CTRL:
+x$=Centre$("Wreckage",40)+Chr$(10)
+x$+Centre$("Experimental Version "+version$,40)+Chr$(10)
+x$+Centre$("Copyright "+copyright$+" Christos Dimitrakakis",40)
+
+dummy=RTEZRequest("Wreckage "+version$+"(FreeWare)",x$,"OK")
+nofframes.l=0
+nofcounts.l=0
+prefs_error=True
+;If control_method=1
+  If Exists("ENV:AnalogJoy.prefs")
+    If ReadFile(0,"ENV:AnalogJoy.prefs")
+      FileInput 0
+      x$=Edit$(30)
+      If x$="ANALOGJOYPREFS"
+        prevsversion=Edit(5)
+        x$=Edit$(30)
+        If x$="TYPE"
+          x$=Edit$(30)
+          If x$="STANDARD_PORT1"
+            ajoy_rd=0
+            x$=Edit$(30)
+            If x$="CX"Then cx=Edit(30):ajoy_rd+1
+            x$=Edit$(30)
+            If x$="CY"Then cy=Edit(30):ajoy_rd+1
+            x$=Edit$(30)
+            If x$="MX"Then mx=Edit(30):ajoy_rd+1
+            x$=Edit$(30)
+            If x$="MY"Then my=Edit(30):ajoy_rd+1
+            x$=Edit$(30)
+            If x$="NX"Then nx=Edit(30):ajoy_rd+1
+            x$=Edit$(30)
+            If x$="NY"Then ny=Edit(30):ajoy_rd+1
+            If ajoy_rd=6 Then prefs_error=False
+          EndIf
+        EndIf
+      EndIf
+      CloseFile 0
+    EndIf
+  EndIf
+;Else
+;  prefs_error=False
+;EndIf
+
+If prefs_error=True
+  If prevsversion=0
+    x$="Analogue Joystick Prefs File Not Found."
+    x$+Chr$(10)+"You will not  be able to use one"
+  Else
+    x$="Analogue Joystick Prefs Version is "
+    x$+Str$(prevsversion)+".(Version 1 expected)"
+  EndIf
+  dummy=RTEZRequest("Analogue Joystick Info",x$,"OK|INFO")
+  If dummy=0
+    dummy2=RTEZRequest("What You should do:","Download and run AnJoyPrefs.lha from Aminet","OK")
+  EndIf
+EndIf
+oxx.w=0
+oyy.w=0
+;mx.w=623
+;my.w=490
+;nx.w=682
+;ny.w=524
+sx.w=0
+sy.w=0
+cx=cx/2
+cy=cy/2
+
+
+;control_method=1
+Dim hood.w(10)
+Dim polybuff.w(32)
+Dim wpbuff.l(10)
+;35,150,250,285,
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(1024*1024)
+  Dim slippery.b(1024,1024)
+Else
+  Goto _nofast
+EndIf
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(256*512)
+  Dim heightmap.w(256,256)
+Else
+  Goto _nofast
+EndIf
+
+hood(0)=70
+hood(1)=150
+hood(2)=250
+hood(3)=150
+hood(4)=320
+hood(5)=160
+hood(6)=0
+hood(7)=160
+
+hoodp.l=&hood(0)
+NEWTYPE .pnt
+  sx.w
+  sy.w
+  app.w
+End NEWTYPE
+
+NEWTYPE .qpnt
+  sx.q
+  sy.q
+  app.w
+End NEWTYPE
+
+DEFTYPE .pnt botleftpnt
+DEFTYPE .pnt botrightpnt
+
+botleftpnt\sx=0
+botleftpnt\sy=200
+botleftpnt\app=1
+botrightpnt\sx=320
+botrightpnt\sy=200
+botrightpnt\app=1
+
+NEWTYPE .ln
+  *l1.pnt
+  *l2.pnt
+  col.w
+End NEWTYPE
+
+NEWTYPE .plg
+
+  *p1.pnt
+  *p2.pnt
+  *p3.pnt
+  *p4.pnt
+  col.w
+End NEWTYPE
+NEWTYPE .ipol
+  p1.w
+  p2
+  p3
+  p4
+End NEWTYPE
+
+NEWTYPE .wheel
+  w.q
+  u.q
+  nt.q
+  a
+End NEWTYPE
+
+DEFTYPE.wheel wheel
+
+
+NEWTYPE .rep
+  x.q:y:z
+  ax:ay:az
+  e_freq
+  e_vol
+  t_freq
+  t_vol
+  t_snd.b
+  xtra.b
+End NEWTYPE
+
+Dim sincache.w(16)
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384*4*4)
+  Dim px(16384),py(16384),pz(16384),point_value(16384)
+Else
+  Goto _nofast
+EndIf
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384*4*3)
+  Dim ox.q(16384),oy.q(16384),oz.q(16384)
+Else
+  Goto _nofast
+EndIf
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384*(SizeOf.pnt))
+  Dim pnt.pnt(16384)
+Else
+  Goto _nofast
+EndIf
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384*(SizeOf.qpnt))
+  Dim qpnt.qpnt(16384)
+Else
+  Goto _nofast
+EndIf
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384)
+  Dim oapp.b(16384)
+Else
+  Goto _nofast
+EndIf
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384*(SizeOf.ln))
+  Dim lin.ln(16384)
+Else
+  Goto _nofast
+EndIf
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384*(SizeOf.plg))
+  Dim pol.plg(16384)
+Else
+  Goto _nofast
+EndIf
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384*(SizeOf.ipol))
+  Dim ipol.ipol(16384)
+Else
+  Goto _nofast
+EndIf
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384*2*(SizeOf.rep))
+  Dim replay.rep(1000)
+  Dim cpurep.rep(1000)
+Else
+  Goto _nofast
+EndIf
+
+
+rep_point.l=0
+
+NEWTYPE .vobj
+  x.q:y:z
+  ax:ay:az
+  obj_start.w
+  obj_end.w
+
+End NEWTYPE
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)>(16384)
+
+  Dim vec_obj.vobj(10)
+
+  Dim obx(200),oby(200),obz(200)
+  Dim robx(200),roby(200),robz(200)
+  Dim obln(200,2)
+  Dim obpol(200,4),obpolcol(200),obpolnorm(200)
+  Dim col_list.w(32,32)
+Else
+  Goto _nofast
+EndIf
+
+
+Restore obj_data
+For n=1 To 23
+  Read xq.q,yq.q,zq.q
+  obx(n)=xq;*4
+  oby(n)=yq;*4
+  obz(n)=zq;*4
+Next n
+
+Restore line_data
+For n=1 To 20
+  Read obln(n,1),obln(n,2)
+Next n
+
+#CAR_POLYS=19
+Restore poly_data
+For n=1 To #CAR_POLYS
+
+  For m=1 To 4
+    Read obpol(n,m)
+  Next m
+  Read obpolcol(n),obpolnorm(n)
+Next n
+
+;Restore wheel_obj_data
+;For n=15 To 22
+;  Read xq.q,yq.q,zq.q
+;  obx(n)=xq
+;  oby(n)=yq
+;  obz(n)=zq
+;Next n
+;Restore wheel_poly_data
+;For n=12 To 17
+;  For m=1 To 4
+;    Read obpol(n,m)
+;  Next m
+;  Read obpolcol(n)
+;Next n
+;
+;
+;Restore wheel_obj_data
+;For n=23 To 30
+;  Read xq.q,yq.q,zq.q
+;  obx(n)=xq
+;  oby(n)=yq
+;  obz(n)=zq
+;Next n
+;Restore wheel_poly_data
+;For n=18 To 23
+;  For m=1 To 4
+;    Read obpol(n,m)
+;  Next m
+;  Read obpolcol(n)
+;Next n
+;
+;
+;Restore wheel_obj_data
+;For n=24 To 29
+;  Read xq.q,yq.q,zq.q
+;  obx(n)=xq
+;  oby(n)=yq
+;  obz(n)=zq
+;Next n
+;Restore wheel_poly_data
+;For n=12 To 17
+;  For m=1 To 4
+;    Read obpol(n,m)
+;  Next m
+;  Read obpolcol(n)
+;Next n
+;
+;
+;Restore wheel_obj_data
+;For n=39 To 46
+;  Read xq.q,yq.q,zq.q
+;  obx(n)=xq
+;  oby(n)=yq
+;  obz(n)=zq
+;Next n
+;Restore wheel_poly_data
+;For n=30 To 35
+;  For m=1 To 4
+;    Read obpol(n,m)
+;  Next m
+;  Read obpolcol(n)
+;Next n
+;
+
+
+vec_obj(0)\x=100
+vec_obj(0)\y=-10000
+vec_obj(0)\z=-10
+vec_obj(0)\ax=0
+vec_obj(0)\ay=0
+vec_obj(0)\az=0
+vec_obj(0)\obj_start=1
+vec_obj(0)\obj_end=23
+
+For n=1 To 4
+vec_obj(n)\x=vec_obj(0)\x
+vec_obj(n)\y=vec_obj(0)\y
+vec_obj(n)\z=vec_obj(0)\z
+vec_obj(n)\ax=vec_obj(0)\ax
+vec_obj(n)\ay=vec_obj(0)\ay
+vec_obj(n)\az=vec_obj(0)\az
+
+Next n
+
+vec_obj(n)\obj_start=15
+vec_obj(n)\obj_end=22
+
+vec_obj(n)\obj_start=23
+vec_obj(n)\obj_end=30
+
+vec_obj(n)\obj_start=31
+vec_obj(n)\obj_end=38
+
+vec_obj(n)\obj_start=39
+vec_obj(n)\obj_end=46
+
+
+.obj_data
+;front
+Data -15,30,10
+Data 15,30,10
+Data 18,25,7
+Data -18,25,7
+;windshield
+Data -17,5,3
+Data 17,5,3
+Data 15,-5,-6
+Data -15,-5,-6
+;back
+Data 15,-20,-8
+Data -15,-20,-8
+Data -17,-30,4
+Data 17,-30,4
+Data 17,-30,10
+Data -17,-30,10
+;xtra_front
+Data 18,12,3
+Data -18,12,3
+Data -18,14,3
+Data 18,14,3
+Data -1,25,4
+Data 1,25,4
+Data 1,5,2
+Data -1,5,2
+Data 0,13,3
+
+wheel_obj_data:
+
+;wheel
+Data -4,  6, 6
+Data  4,  6, 6
+Data  4, -6, 6
+Data -4, -6, 6
+Data -4,  6, 12
+Data  4,  6, 12
+Data  4, -6, 12
+Data -4, -6, 12
+
+.line_data
+;front
+Data 1,2,2,3,3,4,4,1
+;sides
+Data 1,11
+Data 2,12
+Data 4,11
+Data 3,12
+;front top
+Data 3,6
+Data 4,5
+Data 5,8
+Data 6,7
+;back
+Data 7,9
+Data 8,10
+Data 10,11
+Data 9,12
+Data 9,10
+Data 11,12
+Data 5,6
+Data 7,8
+
+.poly_data
+
+
+
+Data 1,2,3,4,     1,0
+;Data 4,3,6,5,2
+Data 4,3,19,20,   1,0
+Data 4,19,23,16,  2,0
+Data 20,3,15,23,  2,0
+Data 23,18,6,21,  2,0
+Data 17,23,22,5,  2,0
+
+Data 16,15,18,17, 1,0
+Data 19,20,21,22, 1,0
+
+
+Data 1,4,10,14,   2,1
+Data 13,9,3,2,    2,1
+
+;Data 5,6,7,8,    3,0
+Data 5,22,7,8,    3,0
+Data 21,6,7,8,    3,0
+Data 22,21,7,8,   3,0
+Data 5,8,10,11,   3,0;4
+Data 12,9,7,6,    3,0;4
+
+Data 8,7,9,10,    2,0
+Data 12,11,10,9,  1,0
+Data 11,12,13,14, 1,0
+Data 14,13,2,1,   1,0
+
+
+
+
+wheel_poly_data:
+;Data 2,3,4,5,1
+;Data 9,8,7,6,1
+;Data 5,4,8,9,1
+;Data 7,6,3,2,1
+;Data 2,5,9,6,2
+;Data 7,8,4,3,2
+
+Data 15,16,17,18,1
+Data 22,21,20,19,1
+Data 18,17,21,22,1
+Data 20,19,16,15,1
+Data 15,18,22,19,2
+Data 20,21,17,16,2
+
+
+points=0
+
+vx=0:vy=-10000:vz=-10
+vux=0:vuy=0:vuz=0
+vax=0:vaz=.5:vay=0
+max_value=3
+p2.q=2*Pi
+p1.q=Pi
+ph.q=Pi/2
+
+
+.SETUP
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_FAST)<65536
+  Goto _nofast
+EndIf
+
+camera_type=0
+mountain=1
+autochangegear.w=0
+turbosound.w=64
+Dim turbosounddata.w(255)
+Dim startsounddata.w(255)
+
+For tempw.w=0 To 255
+  turbosounddata(tempw)=Sin(tempw/8)*32+Sin(tempw/4)*16+Sin(tempw/2)*8
+
+  startsounddata(tempw)=Sin(tempw/64)/(tempw+1)
+  turbosound=-turbosound
+Next tempw
+
+Dim oengfreqa(51)
+Dim oengvola(51)
+echoa.w=0
+echola.w=1
+;Misc Constants
+;~~~~~~~~~~~~~~
+#WINWIDTH=640
+#WINHEIGHT=320
+#MOUSECTRL=0
+#ANJOYCTRL=1
+#KEYSCTRL=2
+#DIJOYCTRL=3
+#CPUCTRL1=4
+
+generate_new_track=True
+
+
+;gadget tags
+;===========
+
+#tag=$80080000
+#GTCY_Active=#tag+15
+#GTSL_Level=#tag+40
+
+
+;gadget text constants
+
+#TXT_LEFT=$1
+#TXT_RIGHT=$2
+#TXT_ABOVE=$4
+#TXT_BELOW=$8
+#TXT_IN=$10
+
+
+;gadget id constants
+
+#CAR_G=11
+#SENSE_G=1
+#RIDE_G=2
+#ZOOM_G=10
+
+
+#TRACK_G=3
+#TURNS_G=4
+#OVAL_G=5
+#BUMP_G=6
+
+#OK_G=7
+#QUIT_G=8
+#NEWTRACK_G=9
+
+#ENGDSP_G=12
+#HCOLOR_G=13
+#THRHELP_G=14
+#MOUSESENSE_G=15
+#DISTANCE_G=16
+#CONTROL_G=17
+#GAMETYPE_G=18
+#TLENGTH_G=19
+#HILLS_G=20
+#LANDSCAPE_G=21
+#TURN_LAND_G=22
+#GRAVITY_G=23
+#MOUSE_RET_G=24
+#MANUAL_G=25
+#EASYDRIVE_G=26
+#VIEWCAR_G=27
+#FLATROAD_G=28
+#NTSCPAL_G=29
+#FRAME_RATE_COR_G=30
+#WING_STRENGTH_G=31
+#F_MULTI_G=32
+#ANJ_INV_G=33
+
+WbToScreen 0
+ShowScreen 0
+
+If ScreenWidth<#WINWIDTH OR ScreenHeight<#WINHEIGHT
+  Free Screen 0
+  Screen 0,0,0,#WINWIDTH,#WINHEIGHT,2,$8000,"Wreckage "+version$+", "+copyright$+" Christos Dimitrakakis",2,1
+  ShowScreen 0
+EndIf
+
+
+GTSlider 0,#MOUSE_RET_G,20,120,140,12,"Steering Return",#TXT_ABOVE,0,100,50
+
+GTCycle 0,#NTSCPAL_G,0,156,200,12,"Refresh Rate",#TXT_ABOVE,"50Hz (PAL)|60Hz (NTSC)"
+
+GTCycle 0,#CONTROL_G,0,188,200,12,"Control Method",#TXT_ABOVE,"Mouse|Analogue Joystick|Keyboard|Digital Joystick"
+
+GTSlider 0,#TLENGTH_G,480,80,140,12,"Track Length",#TXT_ABOVE,100,300,150
+GTSlider 0,#HILLS_G,480,116,140,12,"Hill Steepness",#TXT_ABOVE,0,100,50
+
+GTCycle 0,#CAR_G,480,30,140,12,"Car",#TXT_ABOVE,"Audi|BMW|Lancia|Toyota|Ferrari|Porsche|McF1|F1|Jeep"
+GTButton 0,#VIEWCAR_G,480,48,140,12,"View Car",#TXT_IN
+
+GTSlider 0,#SENSE_G,20,90,200,10,"Speed Sensitive Steering %",#TXT_ABOVE,0,100,50
+GTSlider 0,#MOUSESENSE_G,20,60,200,10,"Mouse Sensitivity %",#TXT_ABOVE,0,10,5
+GTSlider 0,#RIDE_G,120,30,100,10,"Ride Height",#TXT_ABOVE,0,10,5
+GTSlider 0,#ZOOM_G,0,30,100,10,"Zoom",#TXT_ABOVE,7,13,8
+
+
+GTSlider 0,#TRACK_G,240,30,100,10,"Track Grip",#TXT_ABOVE,0,100,50
+GTSlider 0,#TURNS_G,360,30,100,10,"Curve Steepness",#TXT_ABOVE,0,100,50
+GTSlider 0,#OVAL_G,240,60,100,10,"Circle %",#TXT_ABOVE,0,100,50
+GTSlider 0,#BUMP_G,360,60,100,10,"Bump height",#TXT_ABOVE,0,5,1
+GTSlider 0,#GRAVITY_G,240,92,200,12,"Gravity",#TXT_ABOVE,10,150,100
+
+GTButton 0,#OK_G,60,232,40,20,"PLAY",#TXT_IN
+
+GTButton 0,#QUIT_G,160,232,40,20,"QUIT",#TXT_IN
+
+GTButton 0,#NEWTRACK_G,240,116,200,20,"GENERATE NEW TRACK",#TXT_IN
+
+GTCheckBox 0,#ENGDSP_G,240,136,100,10,"Engine DSP",#TXT_RIGHT
+GTCheckBox 0,#HCOLOR_G,240,152,100,10,"More Colours",#TXT_RIGHT
+GTCheckBox 0,#THRHELP_G,240,168,100,10,"Throttle Help",#TXT_RIGHT
+GTCheckBox 0,#LANDSCAPE_G,240,184,100,10,"Landscape on",#TXT_RIGHT
+GTCheckBox 0,#MANUAL_G,240,200,100,10,"Manual Gears",#TXT_RIGHT
+GTCheckBox 0,#EASYDRIVE_G,240,216,100,10,"Easy Driving",#TXT_RIGHT
+GTCheckBox 0,#FLATROAD_G,240,232,100,10,"Flat Around Track",#TXT_RIGHT
+GTCheckBox 0,#FRAME_RATE_COR_G,240,248,100,10,"Frame rate correction",#TXT_RIGHT
+GTCheckBox 0,#ANJ_INV_G,240,264,100,10,"Invert Analog Joystick",#TXT_RIGHT
+GTSlider 0,#DISTANCE_G,480,152,140,12,"Distancing",#TXT_ABOVE,25,200,100
+GTSlider 0,#TURN_LAND_G,480,188,140,12,"Inclined Turns",#TXT_ABOVE,0,100,25
+GTSlider 0,#WING_STRENGTH_G,480,224,140,12,"Wing Strength",#TXT_ABOVE,100,400,100
+GTSlider 0,#F_MULTI_G,480,264,140,12,"Force Multiplier",#TXT_ABOVE,100,400,100
+
+Window 0,0,0,#WINWIDTH,#WINHEIGHT,2|4,"Wreckage Experimental Rev."+version$+", Christos Dimitrakakis 1998",2,1
+AttachGTList 0,0
+;GTDisable 0,#NEWTRACK_G
+Use Window 0
+Activate 0
+;tempw.w=RTEZRequest ("Copyright (C) 1997 Christos Dimitrakakis","This Game is FreeWare","OK")
+;NPrint "This game is Freeware"
+;NPrint ""
+;NPrint "ENTER FRAME SPEED"
+frame_speed=.5;Edit(1,2)/2
+
+rw_drive=False
+fw_drive=False
+FR_drive=False
+
+Dim gear_ratio1(10)
+
+
+select_cars:
+
+no_choice_made=False
+;car_choice=Edit(2,2)
+
+easy_drive=False
+auto_gears=True
+track_grip=.5
+max_turns=.125
+oval_track=.5
+bumps=True
+bump_height=.5
+S_STEERING=True
+ss_sensitivity=.25
+driver_height=2
+zoom_factor.b=8
+car_choice=1
+engine_dsp=False
+nofbitplanes=2
+throttle_help=False
+mouse_sensitivity=2.5
+max_distancing=5000
+point_distancing=50
+total_track_length=150
+hill_height=0.25
+landscape_on=False
+inclined_turns=.5
+mouse_return_rate=.5
+gravity=1
+ntsc_mode=True
+frame_rate_correction=False
+old_vux=0
+old_vuy=0
+old_vuz=0
+wing_strength_adj=1
+f_multiplier=1
+anj_inverse=False
+;Gosub road
+
+;Gosub horizon
+generate_new_track=True
+
+
+.myGUI
+  FlushEvents
+    engfreq=200
+    gear=0
+    map_slip=0
+    vx=0:vy=-10000:vz=mountain*land1{vx,vy}-11
+    vux=0:vuy=1:vuz=0
+    vax=0:vaz=.5:vay=0
+    ovux=0:ovuy=0:ovuz=0
+    rux=0:orux=0
+    ruy=0:oruy=0
+    cvaz=Cos(vaz)
+    svaz=Sin(vaz)
+    cvay=Cos(vay)
+    svay=Sin(vay)
+    cvax=Cos(vax)
+    svax=Sin(vax)
+    susp1=0:susp2=0:susp3=0:susp4=0
+    osusp1=0:osusp2=0:osusp3=0:osusp4=0
+    wz=0
+    vwz=0
+    forceonx2=0:downforce=0
+    Force_on_X=0
+    Force_on_Z=0
+
+    upside_down=False
+    vec_obj(0)\x=100
+    vec_obj(0)\y=-10000
+    vec_obj(0)\z=0
+    vec_obj(0)\ax=0
+    vec_obj(0)\ay=0
+    vec_obj(0)\az=0
+    racing=True
+    LoopSound 4,8,0
+    point_start=0:point_end=points1-1
+    point_min=1
+    point_max=points1
+    start_point=1
+    end_point=points1
+    closest_point=1
+  rep_point=0
+
+
+
+
+Use Window 0
+WindowOutput 0
+;WLocate 1,1
+;NPrint "FPS%:",100*nofcounts/nofframes,"   "
+exit_gui.b=False
+quit_game.b=False
+;Filter Off
+Repeat
+  ev.l=WaitEvent
+
+  Select ev
+    Case $40
+      Select EventWindow
+        Case 0
+          Select GadgetHit
+            Case #CAR_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "car: ",tempw,"  "
+              car_choice=tempw+1
+
+            Case #VIEWCAR_G
+              Gosub view_car
+
+
+            Case #SENSE_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "SSS: ",tempw,"  "
+              ss_sensitivity=tempw/200
+
+            Case #MOUSESENSE_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "SENS: ",tempw," "
+              mouse_sensitivity=tempw/2
+
+            Case #RIDE_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "Ride: ",tempw,"  "
+              driver_height=tempw
+
+            Case #ZOOM_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "Zoom: ",tempw,"  "
+              zoom_factor.b=tempw
+
+            Case #TRACK_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "Grip: ",tempw,"  "
+              track_grip=tempw/100
+
+            Case #TURNS_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "Turns: ",tempw,"  "
+              max_turns=tempw/400
+
+            Case #TURN_LAND_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "Inclined: ",tempw,"  "
+              inclined_turns=tempw/100
+
+            Case #BUMP_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "Bumps: ",tempw,"  "
+              bump_height=tempw/2
+
+            Case #OVAL_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "Oval: ",tempw,"  "
+              oval_track=tempw/100
+
+            Case #OK_G
+              exit_gui=True
+
+            Case #QUIT_G
+              exit_gui=True
+              quit_game=True
+
+            Case #FLATROAD_G
+              tempw.w=EventCode
+              generate_new_track=True
+              If tempw=1
+                flat_road=True
+              Else
+                flat_road=False
+              EndIf
+
+            Case #NEWTRACK_G
+              generate_new_track=True
+
+            Case #ENGDSP_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "DSP: ",tempw," "
+              If tempw=1
+                engine_dsp=True
+              Else
+                engine_dsp=False
+              EndIf
+
+            Case #HCOLOR_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "HCOL: ",tempw,"  "
+              If tempw=1
+                generate_new_track=True
+                nofbitplanes=5
+              Else
+                generate_new_track=True
+                nofbitplanes=2
+              EndIf
+
+            Case #THRHELP_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "THLP: ",tempw,"   "
+              If tempw=1
+                throttle_help=True
+              Else
+                throttle_help=False
+              EndIf
+
+            Case #LANDSCAPE_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "LAND: ",tempw,"   "
+              If tempw=1
+                landscape_on=True
+              Else
+                landscape_on=False
+              EndIf
+
+            Case #MANUAL_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "MANU: ",tempw,"   "
+              If tempw=1
+                auto_gears=False
+              Else
+                auto_gears=True
+              EndIf
+
+            Case #EASYDRIVE_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "EASY: ",tempw,"    "
+              If tempw=1
+                easy_drive=True
+              Else
+                easy_drive=False
+              EndIf
+
+            Case #DISTANCE_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "DIST: ",tempw,"  "
+              max_distancing=50*tempw
+              point_distancing=tempw/2
+
+            Case #CONTROL_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "DIST: ",tempw,"  "
+
+              If tempw=#ANJOYCTRL AND prefs_error=True
+                If prevsversion=0
+                  x$="Analogue Joystick Prefs File Not Found."
+                  x$+Chr$(10)+"You will not  be able to use one"
+                Else
+                  x$="Analogue Joystick Prefs Version is "
+                  x$+Str$(prevsversion)+".(Version 1 expected)"
+                EndIf
+                dummy=RTEZRequest("Analogue Joystick Info",x$,"OK|INFO")
+                If dummy=0
+                  dummy2=RTEZRequest("What You should do:","Download and run AnJoyPrefs.lha from Aminet","OK")
+                EndIf
+                tempw=control_method
+                GTSetAttrs 0,#CONTROL_G,#GTCY_Active,tempw
+              EndIf
+
+              control_method=tempw
+
+            Case #TLENGTH_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "TLEN: ",tempw,"  "
+              total_track_length=tempw
+
+            Case #HILLS_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "HILL: ",tempw,"  "
+              hill_height=tempw/200
+              f1.f=((Rnd)+.2)*hill_height*4
+              f2.f=((Rnd)+.2)*hill_height*3
+;              dummy=RTEZRequest("hill "+Str$(hill_height),Str$(f1)+","+Str$(f2),"OK")
+
+            Case #GRAVITY_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "GRAV: ",tempw,"  "
+              gravity=tempw/100
+
+            Case #MOUSE_RET_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "MRET: ",tempw,"  "
+              mouse_return_rate=tempw/100
+
+            Case #NTSCPAL_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "NTSC: ",tempw,"  "
+              ntsc_mode=tempw.w
+            Case #FRAME_RATE_COR_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "FRCR: ",tempw,"  "
+              If tempw=1
+                frame_rate_correction=True
+              Else
+                frame_rate_correction=False
+              EndIf
+
+            Case #WING_STRENGTH_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "WING: ",tempw,"  "
+              wing_strength_adj=tempw/100
+
+            Case #F_MULTI_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "FMUL: ",tempw,"  "
+              f_multiplier=tempw/100
+
+            Case #ANJ_INV_G
+              tempw.w=EventCode
+              WLocate 1,1:NPrint "INV: ",tempw,"  "
+              If tempw=1
+                anj_inverse=True
+              Else
+                anj_inverse=False
+              EndIf
+
+
+          End Select
+      End Select
+  End Select
+
+
+Until exit_gui=True
+
+If quit_game=True Then Goto finish2
+
+;Filter On
+
+Gosub select_car
+
+If easy_drive=True
+;  HPower*1.5
+  wing_strength*2
+  drag_factor*.5
+EndIf
+upside_down=False
+rep_point=0
+.Main_Code
+
+If file_missing=True
+  dummy=RTEZRequest("OK?","Not realy","OK")
+EndIf
+
+Free Sound 1
+Free Sound 4
+Free Sound 7
+
+safe_loadsound {1,"SFX/"+engined$}
+safe_loadsound {4,"SFX/"+engined$}
+safe_loadsound {7,"SFX/"+turbod$}
+
+Gosub reset_car
+
+;dummy=RTEZRequest("OK","OK","OK")
+If file_missing=True Then Goto finish3
+;dummy=RTEZRequest("OK","OK","OK")
+DEFTYPE .sound *mysound
+
+If Bank(#TURBOCACHE)
+  FreeBank #TURBOCACHE
+EndIf
+
+If Bank(#SOUNDCACHE)
+  FreeBank #SOUNDCACHE
+EndIf
+
+*mysound=Addr Sound(7)
+
+InitBank #TURBOCACHE,*mysound\_length*2,65536
+
+If BankSize(#TURBOCACHE)<*mysound\_length*2
+  dummy=RTEZRequest("#TURBOCACHE","Bank too small","OK")
+  Goto finish3
+EndIf
+
+
+
+
+*mysound=Addr Sound(4)
+
+InitBank #SOUNDCACHE,*mysound\_length*2,65536
+
+If BankSize(#SOUNDCACHE)<*mysound\_length*2
+  dummy=RTEZRequest("#SOUNDCACHE","Bank too small","OK")
+  Goto finish3
+EndIf
+
+DEFTYPE .sound *othersound
+*othersound=Addr Sound (1)
+If *othersound\_length<*mysound\_length
+  dummy=RTEZRequest("sound 1","Sound 1 too smalL!","OK")
+EndIf
+
+
+
+;addrl.l=Bank(#SOUNDCACHE)
+;
+;For long.l=0 To *mysound\_length*2-2
+;  SoundData 1,long,PeekSound(4,long)
+;  Poke.b addrl+long,PeekSound(4,long)
+;Next long
+;
+;addrl.l=Bank(#TURBOCACHE)
+;For long.l=0 To *mysound\_length*2-2
+;  Poke.b addrl+long,PeekSound(7,long)
+;Next long
+
+
+
+
+Kdoppler=1
+nofcounts=0
+nofframes=0
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_CHIP)>320*160
+  BitMap 0,320,160,nofbitplanes
+
+Else
+  Goto _nochip
+EndIf
+
+If AvailMem_(#MEMF_LARGEST|#MEMF_CHIP)>320*160
+  BitMap 1,320,160,nofbitplanes
+Else
+  Goto _nochip
+EndIf
+
+
+CNIF #SYSTEM_FRIENDLY=0
+
+nofcolours=2^nofbitplanes
+nofframes=0
+onof_frames=0
+frame_speed=.5
+old_vux=0
+old_vuy=0
+old_vuz=0
+
+BLITZ
+;Runerrsoff
+Slice 0,44,320,160,$fff8,nofbitplanes,8,nofcolours,320,320
+
+;Peek.b 0,32
+
+
+;Screen 1,0,0,640,320,2,$8004,"w",2,1,0
+;RGB 0,10,10,10
+;RGB 1,0,0,0
+;RGB 2,15,0,0
+;RGB 3,4,5,6
+;Screen 2,0,0,640,320,2,$8004,"z",2,1,1
+
+BitMapOutput 0
+Use BitMap 0
+Cls
+Show 0
+
+If ntsc_mode=1
+  ForceNTSC
+Else
+  ForcePAL
+EndIf
+
+Locate 10,10
+NPrint "Please wait"
+Show 0
+RGB 0,10,10,10
+RGB 1,0,0,0
+RGB 2,15,0,0
+RGB 3,4,5,6
+If nofcolours>4
+  RGB 0,10,11,12
+  RGB 4,15,15,15
+  RGB 5,12,0,0
+  RGB 6,9,0,0
+  RGB 7,6,0,0
+;  RGB 7,15,15,15
+  For i=0 To 7
+    RGB i+8,1,i+1,1
+  Next i
+  For i=0 To 15
+    RGB i+16,i*.5,i*.6,i*.7
+  Next i
+  hi_line_col=4
+
+  col_list(0,31)=4
+  col_list(0,30)=4
+  col_list(0,29)=2
+  col_list(0,28)=5
+  col_list(0,27)=6
+  col_list(0,26)=7
+  col_list(0,25)=7
+  col_list(0,24)=24
+  col_list(0,23)=24
+  col_list(0,22)=24
+  col_list(0,21)=23
+  col_list(0,20)=23
+  col_list(0,19)=23
+  col_list(0,18)=22
+  col_list(0,17)=22
+  col_list(0,16)=22
+  col_list(0,15)=22
+  col_list(0,14)=22
+  col_list(0,13)=21
+  col_list(0,12)=21
+  col_list(0,11)=20
+  col_list(0,10)=20
+  col_list(0,9)=19
+  col_list(0,8)=19
+  col_list(0,7)=18
+  col_list(0,6)=18
+  col_list(0,5)=17
+  col_list(0,4)=17
+  col_list(0,3)=16
+  col_list(0,2)=16
+  col_list(0,1)=1
+  col_list(0,0)=1
+
+
+Else
+  hi_line_col=2
+EndIf
+
+;ForceNTSC
+  offsetscx.w=160
+  offsetscy.w=80
+
+CELSE
+  ShowScreen 1
+  Use Screen 1
+  Window 1,0,0,scrx-32,scry-32,$100,"Wreckage",2,1
+  myrastport.l=RastPort(1)
+  offsetscx=scrx/2
+  offsetscy=scry/2
+
+CEND
+
+
+
+filterfrequency.q=0
+
+;RGB 4,5,6,7
+;RGB 5,6,6,6
+;RGB 6,5,5,5
+;RGB 7,12,12,12
+
+If generate_new_track=True
+  For m=0 To 1024
+      GetReg a0,&slippery(0,m)
+      MOVE.w #1023,d0
+  _asm_slippery:
+      MOVE.b #-1,(a0)+
+      SUBQ.w #1,d0
+      BGE _asm_slippery
+  Next m
+  Gosub clear_landscape
+  Gosub road
+  Gosub horizon
+  generate_new_track=False
+  map_slip=0
+  vx=0:vy=-10000:vz=mountain*land1{vx,vy}-11
+Else
+  polygons=opolygons
+  lines=olines
+EndIf
+
+
+*mysound = Addr Sound(4)
+
+addrl.l=Bank(#SOUNDCACHE)
+
+For long.l=0 To *mysound\_length*2-2
+  SoundData 1,long,PeekSound(4,long)
+  Poke.b addrl+long,PeekSound(4,long)
+Next long
+
+*mysound = Addr Sound(7)
+
+addrl.l=Bank(#TURBOCACHE)
+For long.l=0 To *mysound\_length*2-2
+  Poke.b addrl+long,PeekSound(7,long)
+Next long
+
+
+CNIF #SYSTEM_FRIENDLY=0
+
+Mouse On
+BlitzKeys On
+db=0
+Use BitMap db
+BitMapOutput db
+CEND
+
+LoopSound 0,1,0
+LoopSound 1,2,0
+;Gosub sqthing
+
+olines=lines
+opolygons=polygons
+Dim xqueue(8)
+Dim yqueue(8)
+apoint=8
+
+
+point_min=1
+point_max=points1
+start_point=1
+end_point=points1
+
+CNIF #SYSTEM_FRIENDLY=0
+  SetInt 5
+    nofframes+1
+  End SetInt
+CEND
+
+engine_pointer.l=0
+
+power_ratio2=power_ratio
+xx.w=0:yy.w=0
+Repeat
+  x.w=0
+  y.w=0
+
+
+;************************************
+;*                                  *
+;*    ANALOGUE JOYSTICK CONTROL     *
+;*                                  *
+;************************************
+
+  If control_method=#ANJOYCTRL
+    VWait                   ;this code should ALWAYS run on type 5 interrupt
+    CNIF #SYSTEM_FRIENDLY=0
+
+    Show db
+    CEND
+
+                            ;unless 100% positive that game loop runs
+
+                            ;in time < 1 frame
+    MOVE.w $dff014,d0       ;get Port1 POT
+    MOVE.b d0,d1            ;move lower byte (X) to d1
+    LSR.w #8,d0             ;shift 8 - now Y is in lower byte
+
+                            ;(perhaps the MOVE/LSR combo could
+                            ;be replaced with a bitfield instruction?)
+
+    MOVE.b #1,$dff034       ;dump the capacitors!
+                            ;almost immediately after the VBLANK
+                            ;must read POTX/POTY first, though
+
+    PutReg d0,y.w           ;put the stuff into place
+    PutReg d1,x.w
+    avx+x-xqueue(apoint)                    ;add them
+    avy+y-yqueue(apoint)
+    xqueue(apoint)=x
+    yqueue(apoint)=y
+    apoint+1
+    If apoint>8 Then apoint=1
+
+    rx.w=avx-cx
+    ry.w=avy-cy
+
+    If rx>0 Then Cfx=mx Else Cfx=nx
+    If ry>0 Then Cfy=my Else Cfy=ny
+    If QAbs(rx)<1
+      rx=0
+    Else
+      rx=rx-1*Sgn(rx)
+    EndIf
+
+    rx_2=rx/Cfx
+    ry_2=ry/Cfy
+
+    If JAnAanj_inverse=True
+      CalX=16*rx_2
+      CalY=20*ry_2
+    Else
+      CalX=16*rx_2
+      CalY=20*ry_2
+    EndIf
+    If Abs(CalX)<.1 Then CalX=0
+    turn=CalX
+  Else
+
+;************************************
+;*                                  *
+;*      OTHER CONTROL METHODS       *
+;*                                  *
+;************************************
+
+    Select control_method
+
+
+;MOUSE
+;=====
+
+      Case #MOUSECTRL
+
+        CNIF #SYSTEM_FRIENDLY=0
+        ;turn=(MouseX-160)/10
+        mxspeed=MouseXSpeed
+        ;smsxo=smsx
+        ;smsx=SMouseX
+        mouseturn+mxspeed*mouse_sensitivity/20
+        mouseturn/(1+0.04*mouse_return_rate)
+        turn=mouseturn
+        CELSE
+        turn=(WMouseX-160)/10
+        CEND
+
+        If ((Joyb(0) AND 2)=2)
+          If throttle_help=False
+            CalY=QLimit(CalY-1,-10,0)
+          Else
+            CalY=(CalY-10)/2
+          EndIf
+        Else
+          CalY=0
+        EndIf
+
+        If ((Joyb(0)AND 1)=1)
+          CalY=CalY+10
+        EndIf
+
+;        If (Joyb(0)=3)
+;          handbrake=True
+;        Else
+;          handbrake=False
+;        EndIf
+
+
+;DIGITAL JOYSTICK
+;================
+
+      Case #DIJOYCTRL
+        digturn=Joyx(1)
+        digaccel=-Joyy(1)
+        If Joyb(1) Then handbrake=True Else handbrake=False
+
+;KEYBOARD
+;========
+
+      Case #KEYSCTRL
+        digaccel=0:digturn=0
+        If RawStatus($38) Then digturn-1
+        If RawStatus($39) Then digturn+1
+        If RawStatus($63) Then digaccel+1
+        If RawStatus($64) Then digaccel-1
+        If RawStatus($66) Then handbrake=True Else handbrake=False
+
+      Case #CPUCTRL1
+        turn=cpu_turn
+        CalY=QLimit(-cpu_accel,-10,10)
+
+    End Select
+    CNIF #SYSTEM_FRIENDLY=0
+    VWait
+    ;ShowScreen db+1
+    Show db
+    CEND
+  EndIf
+
+;  VWait
+  db=1-db
+
+  nofcounts+1
+  donof_frames=nofframes-onof_frames
+  onof_frames=nofframes
+
+  If frame_rate_correction=False
+    frame_speed=.5
+  Else
+    frame_speed = .2*donof_frames;*nofframes/nofcounts
+    If ntsc_mode=1
+      frame_speed=frame_speed*5/6
+    EndIf
+  EndIf
+
+  CNIF #SYSTEM_FRIENDLY=0
+  Use BitMap db
+  Cls
+  BitMapOutput db
+
+  CELSE
+  VWait
+  WCls
+  CEND
+
+;  Locate 1,1
+;  NPrint CalX," ",CalY
+  Gosub filter_input
+  thrust=QLimit(-2*CalY,0,10)
+  Gosub simple_model
+  cached_for_view_vx=vx
+  cached_for_view_vy=vy
+  cached_for_view_vz=vz
+
+  vz-driver_height-drivfor*Sin(vax);Abs(slopex)
+
+  vx+drivfor*Sin(vaz)
+  vy+drivfor*Cos(vaz)
+  Gosub move_view
+  Gosub move_objects
+  Gosub move_points
+  Gosub rotate_points
+;  Gosub calc3d
+  Gosub point_display
+  Gosub line_display
+
+
+  If RawStatus($14)
+    drivfor+1
+  EndIf
+  If RawStatus($15)
+    drivfor-1
+  EndIf
+  drivfor=QLimit(drivfor,-50,50)
+
+  If RawStatus($22)
+    extra_display_info=NOT extra_display_info
+  EndIf
+  vx=cached_for_view_vx
+  vy=cached_for_view_vy
+  vz=cached_for_view_vz
+
+  If RawStatus($10)
+    rep_point=999:crep_point=0
+    nofframes=0
+    onof_frames=0
+    frame_speed=.5
+    old_vux=0
+    old_vuy=0
+    old_vuz=0
+  EndIf
+
+  If RawStatus($11)
+    rep_point=999:crep_poin=0:control_method=#CPUCTRL1
+    nofframes=0
+    onof_frames=0
+    frame_speed=.5
+    old_vux=0
+    old_vuy=0
+    old_vuz=0
+  EndIf
+
+  If RawStatus($13)
+    Gosub replay
+    nofframes=0
+    onof_frames=0
+    frame_speed=.5
+    old_vux=0
+    old_vuy=0
+    old_vuz=0
+  EndIf
+
+  man_gear=0
+  If RawStatus($4c) Then man_gear=1
+  If RawStatus($4d) Then man_gear=-1
+  If RawStatus($40) Then handbrake=True Else handbrake=False
+  If RawStatus($42) Then skid_it=True Else skid_it=False
+  If RawStatus($60) Then clutch_on=True Else clutch_on=False
+  If rep_point=999 Then Gosub race_phantom
+Until RawStatus($45)
+Goto back_to_gui
+
+Goto finish
+
+
+
+
+
+
+;    ASR.l #8,d4
+.mod_engine
+
+  *mysound = Addr Sound(1)
+
+  engine_point_count.l=QWrap(engine_point_count+1,1,32)
+
+  dasoundlength.l=*mysound\_length*2-65
+  aversample.b=0
+  prevsample.b=0
+  nextsample.b=0
+  currsample.b=0
+  tempwdata.w=0
+  tempbdata.b=0
+  dengvol=QLimit(engvol-oengvol,-64,64)*8
+  oengvol=engvol
+
+  filterfrequency=QLimit(800/(QLimit(QAbs(engfreq-40),1,10000)),0,8)
+  filterfrequency=(QLimit((filterfrequency/4)^3,0,8))/4
+
+
+  turbosound=engine_point_count AND 255
+;  If has_turbo=True
+  turbovol=QLimit(128-(QAbs(engfreq-turbo_dsp)),0,128)
+;  If turbovol>0 Then turbovol=1
+;  Else
+;  turbovol=0
+  filterfrequency=2*filterfrequency
+  frequencyw.w=(engfreq-300)/30
+;  EndIf
+  addrl.l=Bank(#SOUNDCACHE)
+  addrl2.l=Bank(#TURBOCACHE)
+  eng_pnt4.l=0
+  word.w=0
+
+  ffreql.l=filterfrequency*16384;*131071;*32767
+  word.w=turbosound
+  volword.w=turbovol
+  *mysound=Addr Sound(1)
+
+
+  GetReg d4,*mysound\_data
+  GetReg d7,engine_point_count
+  GetReg d6,dasoundlength
+  GetReg d5,addrl
+  GetReg d3,&frequencyw
+  GetReg d2,&volword
+  GetReg d1,addrl2;&turbosounddata(0)
+  GetReg d0,sword
+  MOVE.l d1,a3
+  MOVE.l d3,a0
+  MOVE.w (a0),d3
+  ;ASR.l #8,d3
+  ADD.l d7,d5
+  ADD.l d7,d4
+  ADD.l d7,d1
+  MOVE.l d5,a0      ;need a0
+  MOVE.l d4,a1      ;need a1
+  MOVE.l d1,a3      ;need a3
+
+  MOVE.l d2,a2
+  MOVE.w (a2),d5    ;need d5
+  MOVE.w #128,d2
+  SUB.w d5,d2       ;need d2(=128-d5)
+                    ;need d6
+;  ASR.l #8,d5
+;  MOVE.l d0,d7
+modengine_loop:
+;    MOVE.b -1(a0),d0  ;prev
+    MOVE.b (a0),d1    ;curr
+;    MOVE.b 0(a0,d3),d2
+;    MOVE.b 1(a0),d2   ;next
+;    EXT.w d0
+;    EXT.w d2
+;    EXT.w d1
+;    ADD.w d0,d2     ;d2=aversample
+;    ASR.w #1,d2
+;    SUB.w d2,d1     ;curr-aver
+;    EXT.l d2
+;    MULS.w d3,d1    ;4*(curr-aver)*filt
+;    ASR.l #8,d1     ;(curr-aver)*filt
+;    ADD.l d2,d1     ;aver+(curr-aver)*filt
+    EXT.w d1
+;    EXT.w d2
+    EXT.l d1
+;    EXT.l d2
+;    ASR.l #1,d2
+;    ADD.l d2,d1
+;    MOVE.l d2,d1
+;turbo sound
+    MOVE.b (a3),d4
+
+    EXT.w d4
+    MULS.w d5,d4
+
+;    ASL.l #7,d1
+    MULS.w d2,d1
+
+    ADD.l d4,d1
+    ASR.l #7,d1
+
+;    MOVE.b d4,d1
+;    EXT.w d1
+;    EXT.l d1
+
+    CMP.l #-128,d1        ;clipping
+    BGT modengine_loop1
+    MOVE.b #-128,d1
+    BRA modengine_loop1
+    CMP.l #127,d1
+    BLT modengine_loop1
+    MOVE.b #127,d1
+
+modengine_loop1:
+;    MOVE.b (a3),d1
+    MOVE.b d1,(a1)
+    ADD.l #32,a0
+    ADD.l #32,a1
+    ADD.l #32,a3
+;    ADDI.l #32,d7
+;    ANDI.l #16383,d7
+    SUBI.l #32,d6
+
+    BGT modengine_loop
+
+    turbosound=(turbosound+32) AND 255
+
+
+  Return
+
+
+.diff_model
+
+replay=False
+tr_vx=QLimit(vx/32+640,0,1023)
+tr_vy=QLimit(vy/32+640,0,1023)
+map_slip=slippery(tr_vx,tr_vy)
+dt.f=1/25
+
+Gosub suspension
+ovx.f=vx/10
+ovy.f=vy/10
+ovz.f=vz/10
+ovax.f=vax
+ovay.f=vay
+ovaz.f=vaz
+
+ovx+ovux*dt
+ovy+ovuy*dt
+ovz+ovuz*dt
+
+ovuz+10*dt
+
+dovz=land1{ovx*10,ovy*10}-ovz*10
+
+If dovz<0
+  ovuz+dovz
+EndIf
+
+vx=ovx*10
+vy=ovy*10
+vz=ovz*10
+vax=ovax
+vay=ovay
+vaz=ovaz
+
+Gosub store_replay
+
+
+Return
+
+.suspension
+
+Return
+
+
+.simple_model
+  d_from_land=land1{vx,vy}*mountain-vz
+  CNIF 1=1
+  replay=False
+
+  tr_vx=QLimit(vx/32+640,0,1023)
+  tr_vy=QLimit(vy/32+640,0,1023)
+  map_slip=slippery(tr_vx,tr_vy)
+  If gear<>ogear
+    gear_change=1
+  EndIf
+    gear_change=QLimit(gear_change-1,0,6)
+  ogear=gear
+
+  ruy=vux*svaz+vuy*cvaz+ruz*svax
+  ruyfw=vux*Sin(vaz+turn/64)+vuy*Cos(vaz+turn/64)
+  ruxfw=vux*Cos(vaz+turn/64)-vuy*Sin(vaz+turn/64)
+  rux=(vux*cvaz-vuy*svaz)*cvay+ruz*svay*cvax
+
+  vay=QWrap(vay,0,p2)
+  vaz=QWrap(vaz,0,p2)
+  vax=QWrap(vax,0,p2)
+  If vay>p2 Then vay-p2
+  If vay<0 Then vay+p2
+
+
+  cvaz=Cos(vaz)
+  svaz=Sin(vaz)
+  cvay=Cos(vay)
+  svay=Sin(vay)
+  cvax=Cos(vax)
+  svax=Sin(vax)
+  turn_raw=turn
+  turn=turn*QLimit(ruy/10,-1,1)
+
+If cvax<>0
+  lands=30*cvax
+  landh=land1{vx-lands*svaz,vy-lands*cvaz}*mountain
+  lpitch=((landh-land1{vx+lands*svaz,vy+lands*cvaz})*mountain)/(2*lands)
+EndIf
+  ;land2x=land2x{vx}*mountain
+  ;land2y=land2y{vy}*mountain
+
+If cvay<>0
+  lands=10*cvay
+
+  landh=land1{vx-lands*Sin(vaz+Pi/2),vy-lands*Cos(vaz+Pi/2)}*mountain
+  lyaw=(landh-land1{vx+lands*Sin(vaz+Pi/2),vy+lands*Cos(vaz+Pi/2)}*mountain)/(2*lands)
+EndIf
+
+
+  landh=land1{vx+10*svaz,vy+10*cvaz}*mountain
+  slopex=-ATan(lpitch)
+;  vax+slopex
+ ; cvax=Cos(vax)
+ ; svax=Sin(vax)
+
+;  lpitch=-land2x*svaz+land2y*cvaz
+  ;lyaw=land2x*cvaz+land2y*svaz
+
+  If vuy<>0 Then ovux=vux
+  If vuy<>0 Then ovuy=vuy
+
+;----------------------------
+;  Tyre and Engine Sound Fx
+;----------------------------
+  tyrfreq=120-QAbs(ruy)
+  mod_tyr_freq=Sin(tim_tyr_freq)*200+600
+  tim_tyr_freq=QWrap(tim_tyr_freq+.01,0,p2)
+  tyrfreq=QLimit((((Abs(rux+orux))*100+300)+Rnd(10)+tyrfreq*7)/8,QLimit(200/(10+(ruy/2)),200,300),mod_tyr_freq)
+;  tyrfreq=120+((QAbs(rux+orux)*10+2000/(10+QAbs(ruy)/2))/2+tyrfreq*15)/16
+;  tyrfreq=220+QAbs(rux+orux)*10-thrust_skid-QAbs(ruy)
+
+  tyrvol=QLimit((volorux+(thrust_skid/8)^2+15*(tyrvol))/16,0,64)
+  tyrvol=QLimit((volorux+(ruy-wheel_speed)^2+15*(tyrvol))/16,0,64)
+  If out_of_road=True
+    tyrvol+QAbs(ruy)
+    tyrfreq-QAbs(ruy)*10-thrust_skid*4+200
+  EndIf
+  Freq 1,tyrfreq
+  t_vol=QLimit( (((tyrvol)/25)^4)*QAbs(susp5),0,64)
+  Volume 1,t_vol
+
+  engvol=(engvol*7+QLimit(QLimit(-CalY2,1,5)*13,16,64))/8
+  Volume 2,QLimit(engvol,1,64)
+  fake_gear_ratio=(fake_gear_ratio+gear_ratio)/2
+
+  engfreq2=QLimit(20000/(QLimit(2*unreal_speed*fake_gear_ratio,0,200)+1),120,1400)
+
+  If clutch_on=True
+    engfreq2=1400/(QLimit(-CalY,2,10))
+    clutch_count=32
+  Else
+    clutch_count=QLimit(clutch_count-1,3,32)
+  EndIf
+  If clutch_on=True
+    engfreq=(engfreq*3+engfreq2)/(4)
+    internal_speed=(20000/engfreq-1)/(2*fake_gear_ratio+.01)
+  Else
+    internal_speed=(20000/engfreq-1)/(2*fake_gear_ratio+.01)
+    If clutch_count>10
+      diff_wi_speed=wheel_speed-internal_speed
+      wheel_speed-diff_wi_speed*.5;(32-clutch_count)/32
+      ;internal_speed-diff_wi_speed*.1;(32-clutch_count)/32
+    EndIf
+
+    engfreq=(engfreq*clutch_count+engfreq2)/(clutch_count+1)
+  EndIf
+
+
+  If CalY<0
+    mom_thrust2+CalY*4
+  EndIf
+  mom_thrust2=QLimit(mom_thrust2+2,140,1000)
+
+  If susp5<>0 Then mom_thrust=engfreq
+  mom_thrust=(mom_thrust2-engfreq)*(1-QLimit(QAbs(susp5),0,1))
+  engfreq3=engfreq+mom_thrust
+  engfreq=(7*engfreq+engfreq3)/8
+  If engine_dsp=True Then Gosub mod_engine
+  Freq 2,engfreq
+
+  fturbo_boost=1120/turbo_boost
+  fengfreq=1120/engfreq
+  ;If fengfreq>fturbo_boost Then turbo_min=1 Else turbo_min=.5
+
+  If engfreq<141
+    turbo_max-((141-engfreq)ASR1)
+    turbo_min=.25
+
+  Else
+    turbo_max=1
+  EndIf
+
+  xtra_boost=QLimit(turbo_max-QAbs((fturbo_boost-fengfreq)*troll_off),turbo_min,1)
+
+;  If has_turbo=True
+;    If engfreq<170
+;      xtra_boost=(xtra_boost+2)/2
+;    Else
+;      xtra_boost=(xtra_boost+.75)/2
+;    EndIf
+;  EndIf
+
+;------------------------------
+; Y A W   S U S P E N S I O N
+;------------------------------
+
+susp5l2=QLimit(Abs(susp5),0,2)
+susp5l1=QLimit(susp5l2,0,1)
+tmply=-ATan(lyaw)
+  If vz>landh-20
+    forceonx2=(forceonx2+Force_on_X)/2
+
+
+
+    susp3=(susp3-forceonx2/8)/2
+;    susp3=(susp3+(-10*forceonx2)/128)/2
+    susp3-susp5l2*Cos(vay)*Sin(vay+tmply)*.1*(downforce)*susp_strength
+  EndIf
+  susp4=(susp4+susp3);-ATan(lyaw/100)/8
+  vay=QWrap(susp4,0,p2);-ATan(lyaw/100)
+  svay2=Sin(-tmply)
+  cvay2=Cos(-tmply)
+
+
+;---------------------------
+; SPEED SENSITIVE STEERING
+;---------------------------
+
+  If S_STEERING=True
+    speed_steering=QLimit(1-ruy*ss_sensitivity/80,.5,1)
+  Else
+    speed_steering=1
+  EndIf
+
+
+;---------------------------------
+; P I T C H   S U S P E N S I O N
+;---------------------------------
+
+;  slopex=(slopex*15+dlandh*Sgn(ruy)*8)/16
+;  slopex=(slopex*7+susp5*Sgn(ruy))/8
+  Force_on_Z2l=QLimit(Force_on_Z,-1,1)
+  slopex=ATan(lpitch);QLimit(lpitch,-1,1)
+  susp1=susp5l1*(susp1*7+(ruy-oruy)/128)/8
+
+  susp2-susp5l1*Cos(-vax)*Sin(vax-slopex)*.1*(1-Force_on_Z2l)*susp_strength
+  susp2=susp2+susp1
+  vax=susp2*4;+slopex
+;  svax=Sin(vax)
+;  cvax=Cos(vax)
+
+  svax2=Sin(slopex)
+  cvax2=Cos(slopex)
+  wheel_load=QLimit(QLimit(susp1+.0125,0,.025)/.025,.01,.99)
+
+
+;-----------
+; G E A R S
+;-----------
+
+  ruyg=ruy*ruyscale
+  If auto_gears=True
+    If susp5<>0
+      If engfreq*rev_limiter<=142
+        If gear<6 Then autochangegear+1
+      Else
+        If engfreq*rev_limiter>200
+          If gear>1 Then autochangegear-1
+        Else
+          autochangegear=0
+        EndIf
+      EndIf
+    EndIf
+    If autochangegear>3 Then gear+1:autochangegear=-6
+    If autochangegear<-6 Then gear-1:autochangegear=0
+  Else
+    If autochangegear>=0
+      autochangegear-1
+    EndIf
+    If man_gear<>0 AND autochangegear<0
+      gear+man_gear
+      autochangegear=5
+    EndIf
+  EndIf
+
+  gear=QLimit(gear,1,6)
+
+;  If ruyg<6 Then gear=1
+;  If ruyg>12 AND ruyg<13 Then gear=2
+;  If ruyg>22 AND ruyg <23 Then gear=3
+;  If ruyg>32 AND ruyg<33 Then gear=4
+;  If ruyg>41 AND ruyg<42 Then gear=5
+;  If ruyg>45 Then gear=6
+
+
+
+  gear_ratio=gear_ratio1(gear)
+
+
+
+;---------------------
+;WHEEL LOADS AND SPINS
+;----------------------
+
+;  If CalY2<0 AND CalY2>-1 AND ruy<2 Then CalY2=-1
+  If 1=1;vz>=landh-20 AND upside_down=False
+    If fw_drive=True Then thrust_grip=1-wheel_load
+    If rw_drive=True Then thrust_grip=wheel_load
+    If FR_drive=True Then thrust_grip=(1-wheel_load)*power_ratio+wheel_load*(1-power_ratio)
+
+    skid_on_thrust=(100/(100+.1*(ruy-wheel_speed)^2))
+    skid_on_thrust=QLimit(skid_on_thrust,QAbs(ruy-wheel_speed)*.02,1)
+
+    If easy_drive=False
+      thrust_grip*skid_on_thrust
+    Else
+      thrust_grip=1
+    EndIf
+
+;    avail_HP=xtra_boost*(HPower/6)*QLimit(QAbs((10+unreal_speed)*gear_ratio)/8,.1,100)/(4+QAbs(ruy)/32)
+    avail_HP=xtra_boost*(HPower/4)*gear_ratio
+    If clutch_on=True Then avail_HP=0
+
+    If gear=0 Then avail_HP=0
+    raw_thrust=QLimit((1-Force_on_Z),0,1)*QLimit(-CalY2,0,10)*avail_HP/16
+    blood_thrust=QLimit(-CalY2,0,10);*avail_HP/16
+
+    If engfreq*rev_limiter<131
+      raw_thrust=QLimit((engfreq*rev_limiter-130)*.1,-1,1)
+    EndIf
+
+    If handbrake=True
+      raw_thrust=QLimit(-wheel_speed/4,-1,1)
+    EndIf
+
+;THROTTLE HELP
+;=============
+
+    If throttle_help=True
+      If thrust_extra>0
+        CalY=CalY/(1+thrust_extra)
+      EndIf
+      If wheel_speed-ruy>1
+        CalY=CalY/(wheel_speed-ruy)
+      EndIf
+    EndIf
+
+
+;WHEEL SPEED
+;===========
+
+
+    raw_thrust/(1+gear_change)
+    thrust=raw_thrust*thrust_grip
+    real_thrust=raw_thrust-Sgn(ruy)*(ruy/10)^2*wing_strength*drag_factor/20
+    thrust_extra=8*(real_thrust-thrust)
+    thrust_skid=QLimit(16*thrust_extra,0,64)
+;    wheel_speed=QLimit(wheel_speed+thrust_extra*gear_ratio/8,0,100/gear_ratio)
+
+    anti_spin=1-1/(1+QAbs(susp5l1*road_friction))
+    anti_spin=QLimit(thrust_grip*road_friction*QAbs(susp5l1),0,1)
+;    tempq.q=(1-QLimit(QAbs(susp5),0,1))*(blood_thrust-1)
+    thrust=(wheel_speed-ruy)*thrust_grip
+    thrustf=(wheel_speed-ruyfw);*thrust_grip
+    thrustfs=(wheel_speed*Sin(turn/64)-rux)*thrust_grip
+
+
+
+    raw_thrust_effect=(raw_thrust-gear_ratio*wheel_speed/200)
+    wheel_speed+(raw_thrust_effect*(1-anti_spin)+(ruy-wheel_speed)*anti_spin)
+    unreal_speed=wheel_speed
+
+
+  EndIf
+
+
+
+;BRAKES
+;======
+
+  If CalY2>0 Then stopfactor=CalY Else stopfactor=0
+  brake_temperature+wheel_speed*.01*stopfactor
+  brake_temperature+.1*(32-brake_temperature)*(QAbs(ruy)/1024)
+  brake_effectiveness=10/(10+.0001*(brake_temperature-40)^2)
+  If stopfactor>0 Then fluid_temperature+.002*(brake_temperature-fluid_temperature)
+  fluid_temperature+.001*(32-fluid_temperature)*(1+QAbs(ruy)/1024)
+  fluid_effectiveness=10/(10+.001*(fluid_temperature-50)^2)
+  stopfactor*brake_effectiveness*fluid_effectiveness
+
+  If stopfactor<>0 AND boomcount<=0
+    If out_of_road=True
+      Sound 9,4,QLimit(QAbs(rux)*4,0,64)
+    Else
+      Sound 8,4,QLimit(QAbs(rux)*4,0,64)
+    EndIf
+    Freq 4,120+Rnd(200)
+    boomcount=5+Int(Rnd(5))
+  EndIf
+
+  wheel_speed=Sgn(wheel_speed)*QLimit(QAbs(wheel_speed)-stopfactor*.5,0,QAbs(wheel_speed))
+
+  If stopfactor>0
+    power_ratio=0
+    thrustf=0
+  Else
+    power_ratio=power_ratio2
+  EndIf
+
+
+;GRIP AND TURNING CALCULATIONS
+;==============================
+
+
+  If vz>=landh-20 AND upside_down=False
+    rear_grip=1:front_grip=1
+    If FR_drive=True
+      rear_grip=1-QLimit((1-power_ratio)*(real_thrust-thrust)/turn_factor,0,1)
+      front_grip=1-QLimit((power_ratio)*(real_thrust-thrust)/turn_factor,0,1)
+      rear_grip*skid_on_thrust
+      front_grip*skid_on_thrust
+    Else
+      If rw_drive=True
+        rear_grip=1-QLimit((real_thrust-thrust)/turn_factor,0,1)
+        rear_grip*skid_on_thrust
+      Else
+        If fw_drive=True
+          front_grip=1-QLimit((real_thrust-thrust)/turn_factor,0,1)
+          front_grip*skid_on_thrust
+        EndIf
+      EndIf
+    EndIf
+    rear_grip*(wheel_load)*weight_rear*(1+rear_wing)
+    If handbrake=True Then rear_grip*.5
+    front_grip*(1-wheel_load)*weight_front*(1+front_wing)
+    fwdriveturnthing=100*power_ratio*thrustf
+    showthis1=rux
+    showthis2=10*power_ratio*thrustf
+    showthis3=showthis1+showthis2
+;    compensate=(Sin(turn/64)*(rux+10*power_ratio*thrustf))*.02
+    compensate=Sin(turn/64)*(rux+power_ratio*wheel_speed)*.02
+;    compensate+
+    ;vwz+power_ratio*thrust*Sin(turn/64)
+    turn_factor*car_turn_factor
+    compensate+front_grip*Sin(turn/64)
+    vwz+(speed_steering*turn_factor)*(compensate-vwz*(rear_grip+front_grip)/2)/(2+QAbs(rux))
+  EndIf
+  vaz+vwz
+
+
+
+  cvaz=Cos(vaz)
+  svaz=Sin(vaz)
+  cvay=Cos(vay)
+  svay=Sin(vay)
+  cvax=Cos(vax)
+  svax=Sin(vax)
+
+
+  ruy=vux*svaz+vuy*cvaz+vuz*svax
+  rux=(vux*cvaz-vuy*svaz)*cvay+vuz*svay*cvax
+
+  oruy=ruy
+
+;--------------------------
+;       DOWNFORCE
+;--------------------------
+
+  ;gravity=1.5
+  downforce=gravity+Sgn(ruy)*(ruy/10)^2*wing_strength/10
+
+
+
+  dorux=rux-orux
+  orux=rux
+  ;orux=QLimit(rux,-3,3)
+  volorux=8*QAbs(rux)
+
+snd_xtra=-1
+vay=QWrap(vay,0,p2)
+
+
+  pd1=QLimit(cd_closest_point-12,1,points1)
+  pd2=QLimit(cd_closest_point+12,1,points1)
+  pdxmin=ox(pd1)
+  pdymin=oy(pd1)
+  pdxmax=ox(pd1)
+  pdymax=oy(pd2)
+  For i=pd1 To pd2
+    pdxmin=Min(pdxmin,ox(i))
+    pdymin=Min(pdymin,oy(i))
+    pdxmax=Max(pdxmax,ox(i))
+    pdymax=Max(pdymax,oy(i))
+  Next i
+
+   If pdxmin>0 OR pdymin>0 OR pdxmax<0 OR pdymax<0
+     slip_factor=1
+   Else
+     slip_factor=0
+   EndIf
+  skid_factor=(skid_factor+slip_factor)/2
+If vz>landh-20
+    If QAbs(vay-Pi)>Pi/2 AND (vax<Pi/2 OR vax>3*Pi/2)
+        If skid_factor>.5
+            If out_of_road=False
+              LoopSound 2,1,tyrvol:Freq 1,tyrfreq
+              t_snd=2
+            EndIf
+            out_of_road=True
+        Else
+            If out_of_road=True
+              LoopSound 0,1,tyrvol:Freq 1,tyrfreq
+              t_snd=0
+            EndIf
+            out_of_road=False
+        EndIf
+        If upside_down=True
+          LoopSound 0,1,tyrvol
+        EndIf
+        upside_down=False
+    Else
+        If upside_down=False
+          LoopSound 3,1,64:Freq 1,tyrfreq
+          t_snd=3:t_vol=64
+          Sound 6,4,64:boomcount=11
+          snd_xtra=6
+        EndIf
+        upside_down=True
+    EndIf
+Else
+  Volume 1,0
+EndIf
+
+
+  pressure=tyre_pressure/3
+  If skid_factor>.5
+    road_friction=field_advantage*track_grip/(1+skid_factor*2)
+  Else
+    road_friction=track_grip
+  EndIf
+
+  Force_on_Z=0
+
+  hitbump=0
+  mud_dig2=(mud_dig2*15+mud_dig)/16
+  mud_dig=1
+  If bumps=True AND vz>landh-17 AND skid_factor>.5
+    If Rnd<.1 Then hitside=(susp_strength*skid_factor*rux*(Rnd-.5))/4 Else hitside=0
+    hitside=1+hitside/field_advantage
+    mud_dig=(1-downforce*0.05/(field_advantage^2))
+    downforce=downforce*hitside
+    vux*mud_dig2:vuy*mud_dig2
+
+
+    M_on_Z=0
+    If Rnd<.1
+      hitside2=(susp_strength*skid_factor*ruy*(Rnd-.5))/10
+      Force_on_Z=QLimit(-5*QAbs(hitside2),-10,0)/field_advantage
+      downforce=0
+      M_on_Z=(Rnd-.5)*.1*QAbs(ruy)
+      vuz-susp_strength*Rnd*Abs(ruy)/24
+      susp1+hitside2/10000
+      hitside+ruy*(Rnd-.5)
+      If boomcount=0 Then Sound 5,4,QAbs(ruy)
+
+      vux*.99:vuy*.99
+
+   EndIf
+  Else
+    hitside=1
+  EndIf
+
+
+;---------------------
+;     ADD THRUST
+;---------------------
+
+;RW Thrust always in direction of vehicle
+;========================================
+  add_vux=(1-power_ratio)*thrust*svaz*cvax
+  add_vuy=(1-power_ratio)*thrust*cvaz*cvax
+
+;Use Vehicle+Wheel Angle for FW Thrust
+;=====================================
+
+  add_vux+power_ratio*thrustf*Sin(vaz+turn/64)*cvax
+  add_vuy+power_ratio*thrustf*Cos(vaz+turn/64)*cvax
+
+  Force_on_Z=QLimit(Force_on_Z,-20,10)
+
+
+  Force_on_X=(hitside-1)*bump_height/field_advantage+QLimit(dorux,-pressure*downforce,pressure*downforce)/4
+  If vz<landh-17 Then Force_on_Z=0
+
+
+
+  ;=========================
+  ;      VZ SUSPENSION
+  ;=========================
+
+;
+  If vz>landh+10
+    ;dvlandz=10*(10+QAbs(landh+10-vz))
+    ;vux*dvlandz
+    ;vuy*dvlandz
+    ;vuz*dvlandz
+    ;vuz+(landh+10-vz)/2
+    ;vz=landh+10
+
+    land_p1x=vx+10*cvaz
+    land_p1y=vy+10*cvaz
+
+    land_p2x=land_p1x-2*vux*frame_speed
+    land_p2y=land_p1y-2*vuy*frame_speed
+
+    land_len=Sqr((land_p2x-land_p1x)^2+(land_p2y-land_p1y)^2)
+
+    landh_p=land1{land_p2x,land_p2y}*mountain
+
+;    dvlandz=QLimit(landh+10-vz,-10,10)
+;    vz+1;dvlandz
+    vuz=0
+
+;    land_vz=vz-landh_p
+    landh_p1=landh-landh_p
+
+    If landh_p1<>0
+      part_len=(vz-landh_p)*land_len/landh_p1
+    Else
+      part_len=0
+    EndIf
+
+    If land_len<>0
+      vx_col=land_p2x;-(land_p1x-land_p2x)*part_len/land_len
+      vy_col=land_p2y;-(land_p1y-land_p2y)*part_len/land_len
+      vux=0;-(vx-vx_col)*.5
+      vuy=0;-(vy-vy_col)*.5
+      vx=vx_col
+      vy=vy_col
+      landh=land1{vx+10*cvaz,vy+10*cvaz}*mountain
+    EndIf
+  Else
+    susp5=0
+
+  EndIf
+  ;If QAbs(vuz)<=.1 Then vuz=0
+  osusp5=susp5
+  dxsusp5=(dxsusp-odxsusp)*4*susp_strength
+  odxsusp=dxsusp
+  dxsusp=((vz+#SUSP_HEIGHT)-landh)
+
+  If dxsusp>=0
+    susp5=-dxsusp
+  Else
+    susp5=0
+  EndIf
+  testsusp5=susp5
+
+  If dxsusp5>0 AND vz>=landh-#SUSP_HEIGHT Then susp5-dxsusp5
+  ;If vz>=landh-16 Then susp5+(susp5-osusp5)
+  boomcount=QLimit(boomcount-1,0,10)
+  If boomcount=0 AND susp5<=-8
+    If susp5<=-12
+      Sound 6,4,64:boomcount=5+Rnd(5)
+    Else
+      Sound 3,4,64:boomcount=Rnd(5)
+    EndIf
+  EndIf
+  If (Rnd*8+4)<-susp5
+    tempw=Rnd(64)
+    Sound 5,4,tempw
+  EndIf
+
+  susp5=susp5/(2*frame_speed)
+  If susp5<-12 Then vuz=-QAbs(vuz)*12/susp5
+;  susp5=QLimit(susp5,-4,0)
+;  If vz>=landh-8 AND vz<=landh
+;    susp5+(landh-8-vz)
+;  EndIf
+
+  If vz>=landh-#SUSP_HEIGHT Then Force_on_Z+(susp5);*(1+cvax)
+
+
+
+  downforce2=QLimit(-Force_on_Z,-20,20);+downforce
+  Force_on_Z_2=testsusp5
+  Force_on_Z+downforce
+  downforce=QLimit(-testsusp5,-4,4)
+  Force_on_Z_v=Force_on_Z
+  If  QAbs(vay-Pi)>Pi/2 AND vz>=landh-20
+
+    lyaw2=Sqr(QAbs(1-lyaw^2))
+    Force_on_Z_v=Force_on_Z*lyaw2
+    Force_on_Z_h=Force_on_Z_2*lyaw
+
+    max_force=pressure*downforce
+
+    add_vux-QLimit(rux*cvaz,-max_force,max_force)
+    add_vuy+QLimit(rux*svaz,-max_force,max_force)
+    add_vux-QLimit(QLimit(Sgn(vux)*QLimit(stopfactor,0,QAbs(vux)),-max_force,max_force),-pressure/2,pressure/2)
+    add_vuy-QLimit(QLimit(Sgn(vuy)*QLimit(stopfactor,0,QAbs(vuy)),-max_force,max_force),-pressure/2,pressure/2)
+
+    add_v=Sqr(add_vux^2+add_vuy^2)
+    skid_loss=1/skidding
+
+    turn_factor=road_friction*downforce;*QAbs(susp5)
+    If turn_factor<=0 Then turn_factor=.01
+    If add_v<>0
+      add_sin=add_vux/add_v
+      add_cos=add_vuy/add_v
+      abssusp5=QAbs(susp5)
+      dsusp5=abssusp5*road_friction*downforce
+      ssusp5=svax*abssusp5
+      abs_sin=QAbs(add_sin)*dsusp5*skidloss
+      abs_cos=QAbs(add_cos)*dsusp5*skidloss
+      If add_v>dsusp5
+        addskid=.05*(add_v/dsusp5-1)
+        skidding=QLimit(skidding+addskid,1,10)
+      Else
+        skidding=QLimit(skidding-.5,1,10)
+      EndIf
+      If skidding<1.5
+        skidloss=1/skidding
+      Else
+        skidloss=.1*(skidding-1.5)+1/1.5
+      EndIf
+      skidloss=(1+skidloss)/2
+      If easy_drive=True Then skidloss=1
+
+      If skid_it=False
+      vux+(QLimit(add_vux,-abs_sin,abs_sin)-svaz*ssusp5);*.75
+      vuy+(QLimit(add_vuy,-abs_cos,abs_cos)-cvaz*ssusp5);*.75
+
+      add_vuz1=QLimit(add_vux,-abs_sin,abs_sin)
+      add_vuz2=QLimit(add_vuy,-abs_cos,abs_cos)
+
+      add_vuzx=-add_vuz2*Sin(vaz)+add_vuz1*Cos(vaz)
+      add_vuzy=add_vuz2*Cos(vaz)+add_vuz1*Sin(vaz)
+
+
+      add_vuz1=(add_vuzx*svay2)
+      add_vuz2=(add_vuzy*svax2)
+      add_vuz=add_vuz1+add_vuz2
+      vuz-add_vuz
+
+      EndIf
+;      vux+(tmply*Sin(vaz+Pi/2)*abssusp5)*.75
+;      vuy+(tmply*Cos(vaz+Pi/2)*abssusp5)*.75
+
+      landxsin=(land1{vx+10,vy}-land1{vx-10,vy})/20
+      landysin=(land1{vx,vy+10}-land1{vx,vy-10})/20
+      vux-landxsin*Force_on_Z_2;/4
+      vuy-landysin*Force_on_Z_2;/4
+
+    EndIf
+  EndIf
+
+  total_drag=wing_strength*drag_factor/20
+  vux=vux-(Sgn(vux)*(vux/10)^2*total_drag)*.75
+  vuy=vuy-(Sgn(vuy)*(vuy/10)^2*total_drag)*.75
+
+   vuz+QLimit(Force_on_Z_v,-20,10)/4
+
+
+
+
+;  dold_vax=vax-old_vax
+;  dold_vay=vay-old_vay
+;  dold_vaz=vaz-old_vuz
+
+;  dold_vaz=vaz-old_vuz
+;  dold_va
+
+  If frame_rate_correction=True
+    dold_vux=vux-old_vux
+    dold_vuy=vuy-old_vuy
+    dold_vuz=vuz-old_vuz
+
+    vux1=old_vux+dold_vux*frame_speed
+    vuy1=old_vuy+dold_vuy*frame_speed
+    vuz1=old_vuz+dold_vuz*frame_speed
+
+    old_vux=vux
+    old_vuy=vuy
+    old_vuz=vuz
+    vux=vux1
+    vuy=vuy1
+    vuz=vuz1
+  EndIf
+
+
+
+  vz+vuz*frame_speed
+  vx+vux*frame_speed
+  vy+vuy*frame_speed
+
+  If QAbs(vx)>20001 OR tr_vx=0 OR tr_vx=1023 Then vx-frame_speed*vux:vux=-.5*vux
+  If QAbs(vy)>20001 OR tr_vy=0 OR tr_vy=1023 Then vy-frame_speed*vuy:vuy=-.5*vuy
+  vx=QLimit(vx,-20000,20000)
+  vy=QLimit(vy,-20000,20000)
+
+  Gosub store_replay
+
+CEND
+Return
+
+
+
+
+.store_replay
+  replay(rep_point)\x=vx
+  replay(rep_point)\y=vy
+  replay(rep_point)\z=vz
+  replay(rep_point)\ax=vax
+  replay(rep_point)\ay=vay
+  replay(rep_point)\az=vaz
+  replay(rep_point)\e_freq=engfreq
+  replay(rep_point)\e_vol=engvol
+  replay(rep_point)\t_freq=tyrfreq
+  replay(rep_point)\t_vol=t_vol
+  replay(rep_point)\t_snd=t_snd
+
+  If control_method<>#CPUCTRL1
+    cpurep(rep_point)\x=vx
+    cpurep(rep_point)\y=vy
+    cpurep(rep_point)\z=vz
+    cpurep(rep_point)\ax=vax
+    cpurep(rep_point)\ay=vay
+    cpurep(rep_point)\az=vaz
+    cpurep(rep_point)\e_freq=engfreq
+  EndIf
+
+
+  rep_point=QWrap(rep_point+1,0,1000)
+  If racing=True
+    vec_obj(0)\x=replay(rep_point)\x
+    vec_obj(0)\y=replay(rep_point)\y
+    vec_obj(0)\z=replay(rep_point)\z
+    vec_obj(0)\ax=replay(rep_point)\ax
+    vec_obj(0)\ay=replay(rep_point)\ay
+    vec_obj(0)\az=replay(rep_point)\az
+
+    old_rel_d=rel_d
+    rel_x=(replay(rep_point)\x-vx)
+    rel_y=(replay(rep_point)\y-vy)
+    rel_z=(replay(rep_point)\z-vz)
+    rel_d=Sqr(rel_x^2+rel_y^2+rel_z^2)
+    rel_u=(rel_d-old_rel_d)*Kdoppler
+
+  If control_method=#CPUCTRL1
+    crep_point=QLimit(crep_point+1,0,1000)
+crep:
+    cold_rel_d=crel_d
+    cpu_lahead=Abs(ruy)/10
+    crep_low=QLimit(crep_point-10-cpu_lahead,0,999)
+    crep_hi=QLimit(crep_point+10+cpu_lahead,0,999)
+    crep_min=-1
+    For crepsort.w=crep_low To crep_hi
+      crel_x=(cpurep(crepsort)\x-vx)
+      crel_y=(cpurep(crepsort)\y-vy)
+      crel_z=(cpurep(crepsort)\z-vz)
+      crel_d=Sqr(crel_x^2+crel_y^2+crel_z^2)
+      If crep_min=-1
+        crep_min=crel_d
+        crep_point=crepsort
+      Else
+        If crel_d<crep_min
+          crep_point=crepsort
+          cold_rel_d=crel_d
+          crep_min=crel_d
+        EndIf
+      EndIf
+    Next crepsort
+
+
+    crep_point+4+cpu_lahead
+      crel_x=(cpurep(crep_point)\x-vx)
+      crel_y=(cpurep(crep_point)\y-vy)
+      crel_z=(cpurep(crep_point)\z-vz)
+      crel_d=Sqr(crel_x^2+crel_y^2+crel_z^2)
+      crel_vaz=QWrap((cpurep(crep_point)\az-vaz),-Pi,Pi)
+
+    crel_dx=(crel_x+vx-cpurep(crep_point-1)\x)
+    crel_dy=(crel_y+vy-cpurep(crep_point-1)\y)
+    crel_dz=(crel_z+vz-cpurep(crep_point-1)\z)
+    crel_uy=Sqr(crel_dx^2+crel_dy^2+crel_dz^2)
+    tmpcrel=1+ruy/4
+    If tmpcrel<>0
+      crel_u=(crel_d-cold_rel_d)/tmpcrel
+    EndIf
+
+    orel_angle=rel_angle
+    rel_angle=QWrap(p2*QAngle(0,0,crel_y,crel_x)-vaz,-Pi,Pi)
+
+    ctrl\dx1=ctrl\dx
+    ctrl\dx=rel_angle
+    Gosub controller
+
+    ctrl_force=ctrl\force
+;    If ctrl\force<-10 Then ctrl_force=-10
+;    If ctrl\force>10 Then ctrl_force=10
+  vaz_cpu=QWrap(vaz+cpu_turn/64,0,p2)
+
+  rux_cpu=vux*Cos(vaz_cpu)-vuy*Sin(vaz_cpu)
+  dif_rux=Abs(rux_cpu)-Abs(1.1*rux)
+  If dif_rux>0
+    ctrl_force-dif_rux*.5*Sgn(cpu_turn)*Abs(ctrl_force)
+  EndIf
+    cpu_turn*.5
+
+    cpu_turn+ctrl_force
+    vaz_cpu=vaz+cpu_turn
+
+
+    ;cpu_accel=(cpu_accel+4*crel_uy-ruy)
+    cpu_accel=(3*cpu_accel+crel_u+2*(2*crel_uy-ruy))/4
+
+    ;If Abs(cpu_turn)>5 OR crel_d<60 Then crep_point+1
+    ;If crel_d>100 Then crep_point-1
+    ;If crel_d>200 AND Abs(cpu_turn)<5 Then crep_point-1
+    ;If Abs(cpu_turn<5) Then crep_point-1
+
+    EndIf
+
+
+    eng_freq=replay(rep_point)\e_freq
+    eng_freq=QLimit(eng_freq+rel_u,120,8000)
+    eng_vol=QLimit((replay(rep_point)\e_vol)*128/(2+(rel_d)),0,64)
+
+    Volume 8,eng_vol
+    Freq 8,eng_freq
+  EndIf
+
+
+  prevx=bvx
+  prevy=bvy
+  prevz=bvz
+
+  bvx=vx
+  bvy=vy
+  bvz=vz
+  bvax=vax
+  bvaz=vaz
+  bvay=vay
+
+
+
+
+.filter_input
+
+  If ((control_method=#DIJOYCTRL) OR (control_method=#KEYSCTRL))
+    digturn3=QLimit(digturn3+digturn/(2+QAbs(ruy/40)),-10,10)*QAbs(Sgn(digturn))
+
+
+    digturn2+digturn3
+    digturn2*.99;*(.1+QAbs(Sgn(digturn)))
+    turn=digturn2
+
+    If digaccel>0
+      If throttle_help=False
+        CalY=QLimit(CalY-.25,-10,0)
+      Else
+        CalY=(CalY-10)/2
+      EndIf
+    Else
+      If digaccel<0
+        CalY=CalY+10
+      Else
+        CalY=0
+      EndIf
+    EndIf
+
+
+  EndIf
+
+
+  turn2=(turn2*3+turn)/4
+  If QAbs(turn)<2
+    turn=Sgn(turn)*(turn^2)/2
+  EndIf
+  turn=QLimit(turn,-20,20)
+  turn2=QLimit(turn2,-10,10)
+
+    CalY2=CalY;(CalY2*3+CalY)/4
+
+  If QAbs(CalY)<4
+    CalY2=CalY2*Sqr(QAbs(CalY))/2
+  EndIf
+  CalY=QLimit(CalY,-100,100)
+  CalY2=QLimit(CalY2,-10,10)
+
+Return
+
+.controller
+
+  USEPATH ctrl
+
+
+  \d2x1=\d2x
+  \d2x=\dx-\dx1      ;d2x == speed
+
+  \d3x=\d2x-\d2x1    ;d3x == acceleration
+
+  \force1=\force
+
+  If \d3x=0
+    \a=.01
+  Else
+    \a=(\force1)/(\d3x)  ;accel==force/mass
+  EndIf
+
+  \d2x2=-\dx
+
+  \nd3x=\d2x-\d2x2
+  If \a=0
+    \force=\dx
+  Else
+    \force=\nd3x*Abs(\a)
+ EndIf
+
+  absdx.f=5*Abs(\dx)
+  If \force>absdx Then \force=absdx
+  If \force<-absdx Then \force=-absdx
+
+Return
+
+.replay
+  otr_vx=tr_vx
+  otr_vy=tr_vy
+
+
+
+  replay=True
+  closest_point=1
+  cachex=vx
+  cachey=vy
+  cachez=vz
+  cacheax=vax
+  cacheay=vay
+  cacheaz=vaz
+
+  rep_timer=0
+  rep_point=0
+  rep_n=0
+  LoopSound 4,1
+  LoopSound 4,4
+  LoopSound 4,8
+  t_snd=-1
+  Repeat
+    rep_pnt=QWrap(rep_point+rep_n,0,1000)
+    vec_obj(0)\x=replay(rep_pnt)\x
+    vec_obj(0)\y=replay(rep_pnt)\y
+    vec_obj(0)\z=replay(rep_pnt)\z
+    vec_obj(0)\ax=replay(rep_pnt)\ax
+    vec_obj(0)\ay=replay(rep_pnt)\ay
+    vec_obj(0)\az=replay(rep_pnt)\az
+
+    t_freq=replay(rep_pnt)\t_freq
+    t_vol=replay(rep_pnt)\t_vol
+    ot_snd=t_snd
+    t_snd=replay(rep_pnt)\t_snd
+
+    If t_snd<>ot_snd
+      LoopSound t_snd,8
+    EndIf
+
+    switch_camera=RectsHit(vx-1000,vy-1000,2000,2000,replay(rep_pnt)\x,replay(rep_pnt)\y,10,10)
+    switch_camera=(NOT switch_camera) AND (moving_camera<>0)
+    switch_camera=(switch_camera) OR (rep_timer<=0)
+    If camera_type>0
+      switch_camera=False
+    Else
+      If moving_camera=0 AND rotating_camera2<.01
+        If left_camera>=5
+          switch_camera=True
+          left_camera=0
+        EndIf
+      EndIf
+    EndIf
+
+
+    rotating_camera=(rotating_camera*7+rotating_camera2)/8
+    If (switch_camera)
+      rotating_camera=1
+      rotating_camera2=QLimit(Rnd*2-.5,0,1)
+      cmrdist=(dop_vux/2)^2+(dop_vuy/2)^2
+      vx=replay(rep_pnt)\x+(cmrdist+Rnd(500))*Sin(replay(rep_pnt)\az+(Rnd-.5))
+      vy=replay(rep_pnt)\y+(cmrdist+Rnd(500))*Cos(replay(rep_pnt)\az+(Rnd-.5))
+
+      rep_timer=200
+      If Rnd>.66
+        moving_camera=Rnd:replay_zoom=1
+        vz=-Rnd*18*Sqr(cmrdist)-5+vec_obj(0)\z
+        rotating_camera2+.1
+      Else
+        moving_camera=0:replay_zoom=0
+        rep_timer=25+Int(Rnd*75)
+        rep_pnt2=QWrap(rep_pnt+rep_timer/2,0,1000)
+        vx=replay(rep_pnt2)\x+Rnd(200)-100
+        vy=replay(rep_pnt2)\y+Rnd(200)-100
+        vz=replay(rep_pnt2)\z+Rnd(100)-50
+        vz=QLimit(vz,-10000,land1{vx,vy}*mountain-8)
+;        vz=-Rnd*6*Sqr(cmrdist)+50+vec_obj(0)\z
+
+
+      EndIf
+      rep_vux=0
+      rep_vuy=0
+      Volume 1|2|4|8,0,0,0,0
+    EndIf
+
+    dop_vux=(replay(rep_pnt)\x-ovx)
+    dop_vuy=(replay(rep_pnt)\y-ovy)
+    rel_vux=dop_vux*moving_camera
+    rel_vuy=dop_vuy*moving_camera
+    ovx=replay(rep_pnt)\x
+    ovy=replay(rep_pnt)\y
+    rep_vux=QLimit((rep_vux*7+rel_vux)/8,-20,20)
+    rep_vuy=QLimit((rep_vuy*7+rel_vuy)/8,-20,20)
+    vx+rep_vux
+    vy+rep_vuy
+ ;   top_h=Min(replay(rep_pnt)\12,land1{vx,vy}*mountain-16)
+      top_h=land1{vx,vy}*mountain-16
+
+    If moving_camera>0
+      vz=QLimit(vz+(rel_z-60)/128,-5000,top_h)
+    EndIf
+    old_rel_d=rel_d
+    rel_x=(replay(rep_pnt)\x-vx)
+    rel_y=(replay(rep_pnt)\y-vy)
+    rel_z=(replay(rep_pnt)\z-vz)
+    rel_d=Sqr(rel_x^2+rel_y^2+rel_z^2)
+
+    If rel_d>500 AND rel_u>0
+      switch_camera+1
+      If switch_camera>=10
+        rep_timer=1
+        switch_camera=0
+      EndIf
+    EndIf
+    rel_u=(rel_d-old_rel_d)*Kdoppler
+    eng_freq=replay(rep_pnt)\e_freq
+    eng_freq=QLimit(eng_freq+rel_u,120,8000)
+    eng_vol=QLimit((replay(rep_pnt)\e_vol*64)/(1+(rel_d)),0,64)
+    eng_vol2=eng_vol*.75;(QLimit(128/(1+(rel_d/10)),0,64))
+    t_vol=QLimit(t_vol*64/(1+(rel_d)),0,64)
+    If t_vol<t_vol2
+      t_vol2=(t_vol+t_vol2)/2
+    Else
+      t_vol2=t_vol
+    EndIf
+    t_freq=QLimit(t_freq+rel_u,120,8000)
+    Freq 2,eng_freq
+    Volume 2,eng_vol
+
+    echoa=QLimit((echoa+1) MOD 50,0,50)
+    oengfreqa(echoa)=eng_freq
+    oengvola(echoa)=eng_vol
+    echola2=(rel_d ASR 7)
+
+    dechola2=QLimit((echola2 MOD 50),0,50)
+    dechola2=QLimit((echoa-dechola2)MOD 50,0,50)
+
+    Freq 1,oengfreqa(QLimit(dechola2 MOD 50,0,50))
+    Volume 1,oengvola(QLimit(dechola2 MOD 50,0,50))*.9
+
+    Freq 4,oengfreqa(QLimit((dechola2-echola)MOD 50,0,50))
+    Volume 4,oengvola(QLimit((dechola2-echola)MOD 50,0,50))*.75
+
+    ;Freq 8,oengfreqa(QWrap(echoa-2*echola-echola2,0,50))
+    ;Volume 8,oengvola(QWrap(echoa-2*echola-echola2,0,50))*.5
+    Freq 8,t_freq
+    Volume 8,t_vol2
+
+
+     oeng_freq=eng_freq
+    oeng_vol=eng_vol2;QLimit((oeng_vol+eng_vol2)/2,0,64)
+
+    rep_timer-1
+    vaz_c=Pi/2-Pi*2*QAngle(vx,vy,replay(rep_pnt)\x,replay(rep_pnt)\y)
+    targety=Sqr((replay(rep_pnt)\x-vx)^2+(replay(rep_pnt)\y-vy)^2)
+    vax_c=(-Pi*2*QAngle(0,vz,targety,replay(rep_pnt)\z))
+;    If rotating_camera2>0
+;      rotating_camera=1
+;    Else
+;      rotating_camera=0
+;    EndIf
+
+    If QAbs(vaz_c-vaz)>Pi/2
+      left_camera+1
+    Else
+      left_camera=0
+    EndIf
+
+    vaz+QWrap(vaz_c-vaz,-Pi,Pi)*rotating_camera
+
+    vax=vax_c;+QWrap(vax_c-vax,-Pi,Pi)*rotating_camera
+    vay=0
+    Select camera_type
+      Case 1
+        vax=replay(rep_pnt)\ax
+        vay=replay(rep_pnt)\ay
+        vaz=replay(rep_pnt)\az
+        ovx_f=vx_f
+        ovy_f=vy_f
+        ovz_f=vz_f
+        vx_f=replay(rep_pnt)\x+drivfor*Sin(vaz)
+        vy_f=replay(rep_pnt)\y+drivfor*Cos(vaz)
+        vz_f=replay(rep_pnt)\z-driver_height*Cos(vay)-Abs(slopex)
+        odvx_f=dvx_f
+        odvy_f=dvy_f
+        odvz_f=dvz_f
+        dvx_f=vx_f-ovx_f
+        dvy_f=vy_f-ovy_f
+        dvz_f=vz_f-ovz_f
+        d2vx_f=dvx_f-odvx_f
+        d2vy_f=dvy_f-odvy_f
+        d2vz_f=dvz_f-odvz_f
+        vx_u-d2vx_f
+        vy_u-d2vy_f
+        vz_u-d2vz_f
+        vx=vx_f+vx_u
+        vy=vy_f+vy_u
+        vz=vz_f+vz_u
+
+        vx_u*.75
+        vy_u*.75
+        vz_u*.75
+        If RawStatus($14)
+          drivfor+1
+        EndIf
+        If RawStatus($15)
+          drivfor-1
+        EndIf
+        drivfor=QLimit(drivfor,-50,50)
+      Case 2
+
+;        uvaz_m*.9
+        vaz_m=QWrap(vaz_m+uvaz_m*.0125,0,Pi*2)
+        uvaz_m+(MouseXSpeed)*.125
+        uvaz_m*.75
+
+        vz_m+uvz_m
+        uvz_m+(MouseYSpeed)*.125
+        uvz_m*.75
+
+;        vax=0;replay(rep_pnt)\ax
+        vay=0;replay(rep_pnt)\ay
+        vaz2=replay(rep_pnt)\az
+        vx_c=replay(rep_pnt)\x-replview*Sin(vaz2+vaz_m)
+        vy_c=replay(rep_pnt)\y-replview*Cos(vaz2+vaz_m)
+        vz_c=replay(rep_pnt)\z-vz_m
+        vx+(vx_c-vx)*.25
+        vy+(vy_c-vy)*.25
+        vz+(vz_c-vz)*.25
+        If RawStatus($14)
+          replview+1
+        EndIf
+        If RawStatus($15)
+          replview-1
+        EndIf
+        replview=QLimit(replview,50,200)
+        vaz_c=Pi/2-Pi*2*QAngle(vx,vy,replay(rep_pnt)\x,replay(rep_pnt)\y)
+
+        targety=Sqr((replay(rep_pnt)\x-vx)^2+(replay(rep_pnt)\y-vy)^2)
+        vax_c=(-Pi*2*QAngle(0,vz,targety,replay(rep_pnt)\z))
+        vaz+QWrap(vaz_c-vaz,-Pi,Pi)*.1
+        vax=vax_c;QWrap(vax_c-vax,-Pi,Pi)*.1
+    End Select
+  tr_vx=QLimit(vx/32+640,0,1023)
+  tr_vy=QLimit(vy/32+640,0,1023)
+  map_slip=slippery(tr_vx,tr_vy)
+    Gosub move_view
+    Gosub move_objects
+    Gosub move_points
+    Gosub rotate_points
+;    Gosub calc3d
+    Gosub point_display
+    Gosub line_display
+    If RawStatus($33)
+      camera_type=QWrap(camera_type+1,0,3)
+    EndIf
+    CNIF #SYSTEM_FRIENDLY=0
+    VWait
+    ;ShowScreen db+1
+    Show db
+    db=1-db
+
+    nofcounts+1
+    Use BitMap db
+    Cls
+    BitMapOutput db
+    CELSE
+    VWait
+    WCls
+    CEND
+
+    rep_n+1
+  Until rep_n>1000 OR Joyb(0)<>0
+  tr_vy=otr_vy
+  tr_vx=otr_vx
+  vx=cachex
+  vy=cachey
+  vz=cachez
+  vax=cacheax
+  vay=cacheay
+  vaz=cacheaz
+  replay=False
+  LoopSound 0,1
+  Volume 1|2|4|8,0,0,0,0
+  Return
+.move_view
+
+  vay=QWrap(vay,0,p2)
+  vaz=QWrap(vaz,0,p2)
+  vax=QWrap(vax,0,p2)
+
+  cvaz=Cos(vaz)
+  svaz=Sin(vaz)
+  cvay=Cos(vay)
+  svay=Sin(vay)
+  cvax=Cos(vax)
+  svax=Sin(vax)
+
+Return
+
+
+.move_objects
+
+
+;NEWTYPE .vobj
+;  x.q:y:z
+;  ax:ay:az
+;  obj_start.w
+;  obj_end.w
+;End NEWTYPE
+
+;   vx=replay(rep_pnt)\x+drivfor*Sin(vaz)
+;        vy=replay(rep_pnt)\y+drivfor*Cos(vaz)
+    soax=Sin(vec_obj(0)\ax)
+    coax=Cos(vec_obj(0)\ax)
+    soay=Sin(vec_obj(0)\ay)
+    coay=Cos(vec_obj(0)\ay)
+    soaz=Sin(vec_obj(0)\az)
+    coaz=Cos(vec_obj(0)\az)
+;
+;vec_obj(1)\x=vec_obj(0)\x+30*soaz-16*coaz
+;vec_obj(1)\y=vec_obj(0)\y+30*coaz+16*soaz
+;vec_obj(1)\z=vec_obj(0)\z
+;vec_obj(1)\ax=vec_obj(0)\ax
+;vec_obj(1)\ay=vec_obj(0)\ay
+;vec_obj(1)\az=vec_obj(0)\az
+;
+;vec_obj(2)\x=vec_obj(0)\x+30*soaz+16*coaz
+;vec_obj(2)\y=vec_obj(0)\y+30*coaz-16*soaz
+;vec_obj(2)\z=vec_obj(0)\z
+;vec_obj(2)\ax=vec_obj(0)\ax
+;vec_obj(2)\ay=vec_obj(0)\ay
+;vec_obj(2)\az=vec_obj(0)\az
+;
+;vec_obj(3)\x=vec_obj(0)\x-30*soaz-16*coaz
+;vec_obj(3)\y=vec_obj(0)\y-30*coaz+16*soaz
+;vec_obj(3)\z=vec_obj(0)\z
+;vec_obj(3)\ax=vec_obj(0)\ax
+;vec_obj(3)\ay=vec_obj(0)\ay
+;vec_obj(3)\az=vec_obj(0)\az
+;
+;vec_obj(4)\x=vec_obj(0)\x-30*soaz+16*coaz
+;vec_obj(4)\y=vec_obj(0)\y-30*coaz-16*soaz
+;vec_obj(4)\z=vec_obj(0)\z
+;vec_obj(4)\ax=vec_obj(0)\ax
+;vec_obj(4)\ay=vec_obj(0)\ay
+;vec_obj(4)\az=vec_obj(0)\az
+
+  points3=points
+  points3a=points3
+  lines=olines:polygons=opolygons
+  For m=0 To 0
+    soax=Sin(-vec_obj(m)\ax)
+    coax=Cos(-vec_obj(m)\ax)
+    soay=Sin(-vec_obj(m)\ay)
+    coay=Cos(-vec_obj(m)\ay)
+    soaz=Sin(-vec_obj(m)\az)
+    coaz=Cos(-vec_obj(m)\az)
+
+
+    For n=vec_obj(m)\obj_start To vec_obj(m)\obj_end
+
+      xx=obx(n)ASL 8
+      yy=oby(n)ASL 8
+      zz=obz(n)ASL 8
+
+      xx1=xx*coay-zz*soay
+      zz1=zz*coay+xx*soay
+      yy1=yy*coax-zz*soax
+      robz(n)=zz1*coax+yy*soax
+      robx(n)=xx1*coaz-yy1*soaz
+      roby(n)=yy1*coaz+xx1*soaz
+    Next n
+
+    For n=vec_obj(m)\obj_start To vec_obj(m)\obj_end
+      points3+1
+      px(points3)=(robx(n)ASR8)+vec_obj(m)\x
+      py(points3)=(roby(n)ASR8)+vec_obj(m)\y
+      pz(points3)=(robz(n)ASR8)+vec_obj(m)\z
+    Next n
+
+    If object_appears=0 AND racing=True
+;      lines=olines
+      For n=1 To 10
+        lines+1
+        lin(lines)\l1=pnt(points3a+obln(n,1))
+        lin(lines)\l2=pnt(points3a+obln(n,2))
+        lin(lines)\col=2
+      Next n
+    Else
+;      polygons=opolygons
+      objnorm=Abs(soax*soay)
+      For n=1 To #CAR_POLYS
+        polygons+1
+        pol(polygons)\p1=pnt(points3a+obpol(n,1))
+        pol(polygons)\p2=pnt(points3a+obpol(n,2))
+        pol(polygons)\p3=pnt(points3a+obpol(n,3))
+        pol(polygons)\p4=pnt(points3a+obpol(n,4))
+        tcol=obpolcol(n)
+        If tcol=2
+          If nofcolours>4
+            tnorm=1-(objnorm);-obpolnorm(n))
+            tdnorm=256*tnorm-226
+            tcol=col_list(0,QLimit(tdnorm,0,31))
+;            If tcol<=4 Then tcol=2
+          EndIf
+        EndIf
+        pol(polygons)\col=tcol
+
+      Next n
+    EndIf
+    points3a=points3
+  Next m
+
+
+
+; Dynamic Landscape Point Generation
+; ==================================
+
+  points4=points3
+If landscape_on=True
+
+  rc_vx=1280+(Int((tr_vx-720)/4)) ASL 7
+  For m=Int(tr_vx)-40 To Int(tr_vx)+36 Step 4
+    rc_vy=1280+(Int((tr_vy-720)/4)) ASL 7
+    For n=Int(tr_vy)-40 To Int(tr_vy)+36 Step 4
+
+      hmx.w=m ASR 2
+      hmy.w=n ASR 2
+
+      If RectsHit(hmx,hmy,1,1,0,0,255,255)
+        If heightmap(hmx,hmy)=0
+          map_slip=slippery(m,n)
+          heightmap(hmx,hmy)=land1{rc_vx,rc_vy}
+        EndIf
+        points4+1
+        px(points4)=rc_vx
+        py(points4)=rc_vy
+        pz(points4)=heightmap(hmx,hmy)
+      Else
+        points4+1
+        px(points4)=rc_vx
+        py(points4)=rc_vy
+        pz(points4)=4000;heightmap(hmx,hmy)
+      EndIf
+      rc_vy+128
+
+    Next n
+    rc_vx+128
+  Next m
+
+
+
+
+  max_dblcol=0
+  min_dblcol=0
+  lpolygons=polygons
+  db_lpol=(hmx+hmy) MOD 2
+  For m=points3+1 To points4-10 Step 20
+    For n=m To m+18 Step 1
+        lpolygons+1
+        pol(lpolygons)\p1=pnt(n)
+        pol(lpolygons)\p2=pnt(n+1)
+        pol(lpolygons)\p3=pnt(n+21)
+        pol(lpolygons)\p4=pnt(n+20)
+        db_lcol=QAbs(pz(n)-pz(n+1))
+        db_lcol+QAbs(pz(n+20)-pz(n+21))
+        db_lcol+QAbs(pz(n)-pz(n+20))
+        db_lcol+QAbs(pz(n+1)-pz(n+21))
+        db_lcol ASR 5
+
+;        max_dblcol=Max(max_dblcol,db_lcol)
+;        min_dblcol=Min(min_dblcol,db_lcol)
+        If nofcolours>4
+          pol(lpolygons)\col=QLimit(15-db_lcol,5,15)
+        Else
+          pol(lpolygons)\col=db_lpol
+        EndIf
+        If db_lpol=1 Then db_lpol=3 Else db_lpol=1
+    If lconnect=10 Then lconnect=0
+    Next n
+  Next m
+
+EndIf
+
+
+
+
+Return
+
+.move_points
+
+  CNIF #DBUG=1
+    Runerrsoff
+  CEND
+  vxmin1=QLimit(vx-300,-32000,32000)
+  vymin1=QLimit(vy-300,-32000,32000)
+
+
+  vxmin2=QLimit(vx-max_distancing/4,-32000,32000)
+  vymin2=QLimit(vy-max_distancing/4,-32000,32000)
+  vxmax2=max_distancing/2
+
+  vxmin3=QLimit(vx-max_distancing,-32000,32000)
+  vymin3=QLimit(vy-max_distancing,-32000,32000)
+  vxmax3=2*max_distancing
+
+  vxmin4=QLimit(vx-max_distancing/16,-32000,32000)
+  vymin4=QLimit(vy-max_distancing/16,-32000,32000)
+  vxmax4=max_distancing/8
+
+  back_points=QLimit(point_distancing/2,40,120)
+
+  oclose_point_ratio=close_point_ratio
+  close_point_ratio=(close_point_ratio*7+closest_point-oclosest_point)/8
+;  close_point_ratio=closest_point-oclosest_point
+  If close_point_ratio>1+oclose_point_ratio
+    closest_point=oclosest_point+oclose_point_ratio
+  EndIf
+
+  oclosest_point=closest_point
+
+  start_point=QLimit(closest_point-back_points,1,point_start)
+
+  end_point=QLimit(closest_point+point_distancing*2,point_end,points1-1)
+  point_start=points1-1
+  point_end=1
+  found_points=False
+;  For n=1 To start_point
+;    oapp(n)=0
+;  Next n
+  templ.l=start_point-1
+
+
+  GetReg a0,&oapp(1)
+  GetReg d0,templ
+
+_asm_move_loop1:
+  MOVE.b #0,(a0)+
+  SUBQ.l #1,d0
+  BGE _asm_move_loop1
+
+
+CNIF1=1
+
+  n=start_point
+  tempw.w=end_point-start_point
+  GetReg d2,&px(n)
+  GetReg d1,&ox(n)
+  GetReg d0,tempw
+  GetReg d3,&vx
+  MOVE.l d3,a3
+  MOVE.l (a3),d3
+  MOVE.l d1,a0
+  MOVE.l d2,a1
+_move_pnt1:
+  MOVE.l (a1)+,d4
+  SUB.l d3,d4
+  ASL.l #3,d4
+  MOVE.l d4,(a0)+
+  DBRA d0,_move_pnt1
+
+  GetReg d2,&py(n)
+  GetReg d1,&oy(n)
+  GetReg d0,tempw
+  GetReg d3,&vy
+  MOVE.l d3,a3
+  MOVE.l (a3),d3
+  MOVE.l d1,a0
+  MOVE.l d2,a1
+_move_pnt2:
+  MOVE.l (a1)+,d4
+  SUB.l d3,d4
+  ASL.l #3,d4
+  MOVE.l d4,(a0)+
+  DBRA d0,_move_pnt2
+
+  GetReg d2,&pz(n)
+  GetReg d1,&oz(n)
+  GetReg d0,tempw
+  GetReg d3,&vz
+  MOVE.l d3,a3
+  MOVE.l (a3),d3
+  MOVE.l d1,a0
+  MOVE.l d2,a1
+_move_pnt3:
+  MOVE.l (a1)+,d4
+  SUB.l d3,d4
+  ASL.l #3,d4
+  MOVE.l d4,(a0)+
+  DBRA d0,_move_pnt3
+
+  GetReg d4,&found_points
+  GetReg d3,&oapp(n)
+  GetReg d2,&oy(n)
+  GetReg d1,&ox(n)
+  GetReg d0,tempw
+  MOVE.l d1,a1
+  MOVE.l d2,a2
+  MOVE.l d3,a0
+  MOVE.l d4,a3
+;_move_pnt4:
+;  MOVE.l (a1)+,d1
+;  MOVE.l (a2)+,d2
+;  SWAP d1
+;  SWAP d2
+;  CMP.w #4096,d1
+;  SLT d4
+;  CMP.w #-4096,d1
+;  SLT d5
+;  AND.b d4,d5
+;  CMP.w #4096,d2
+;  SLT d4
+;  CMP.w #-4096,d2
+;  SLT d6
+;  AND.b d4,d6
+;  AND.b d5,d6
+;  MOVE.b d6,(a3)+
+;
+;  DBRA d0,_move_pnt4
+
+CEND
+
+
+  n=start_point
+  close_point=0
+  close_point_dist=200
+  Repeat
+    Select point_value(n)
+      Case 1
+        If RectsHit(vxmin2,vymin2,vxmax2,vxmax2,px(n),py(n),1,1)
+;          ox(n)=(px(n)-vx)
+;          oy(n)=(py(n)-vy)
+;          oz(n)=(pz(n)-vz)
+          oapp(n)=1
+          close_point_dist1=QAbs((px(n)ASR7)-(vx ASR7))+QAbs((py(n)ASR7)-(vy ASR7))
+          If close_point_dist1>0
+          If close_point_dist1<close_point_dist
+            close_point_dist=close_point_dist1
+            closest_point=n
+            cd_closest_point=n
+            If close_point=0 Then close_point=n
+            found_points=True
+          EndIf
+          EndIf
+        EndIf
+
+      Case 2
+        If RectsHit(vxmin3,vymin3,vxmax3,vxmax3,px(n),py(n),1,1)
+;          ox(n)=(px(n)-vx)
+;          oy(n)=(py(n)-vy)
+;          oz(n)=(pz(n)-vz)
+          oapp(n)=1
+          ;found_points=True
+        EndIf
+
+      Case 3
+        If RectsHit(vxmin4,vymin4,vxmax4,vxmax4,px(n),py(n),1,1)
+;          ox(n)=(px(n)-vx)
+;          oy(n)=(py(n)-vy)
+;          oz(n)=(pz(n)-vz)
+          oapp(n)=1
+        EndIf
+
+
+
+      Case 0
+        If RectsHit(vxmin1,vymin1,600,600,px(n),py(n),1,1)
+;          ox(n)=(px(n)-vx)
+;          oy(n)=(py(n)-vy)
+;          oz(n)=(pz(n)-vz)
+          oapp(n)=1
+;          closest_point=n
+;        Else
+;          oapp(n)=0
+        EndIf
+
+;      Default
+;        ox(n)=(px(n)-vx)
+;        oy(n)=(py(n)-vy)
+;        oz(n)=(pz(n)-vz)
+;        oapp(n)=0
+
+    End Select
+
+
+    n+1
+  Until n>end_point
+
+  For n=end_point To points1-1
+    oapp(n)=0
+  Next n
+
+  If found_points=False Then point_start=0:point_end=points1-1
+
+
+
+  objn=0
+
+
+
+
+
+
+
+
+
+  obj_dx=vec_obj(0)\x-vx
+  obj_dy=vec_obj(0)\y-vy
+  If (QAbs(obj_dx)+QAbs(obj_dy))<80 AND replay=False
+    object_appears=0
+  Else
+    object_appears=1
+    If QAbs(obj_dx)+QAbs(obj_dy)<4000
+      aslam=4
+    Else
+      aslam=0
+    EndIf
+  EndIf
+  For n=points+1 To points3
+    objn+1
+    ox(n)=(px(n)-vx)ASL aslam
+    oy(n)=(py(n)-vy)ASL aslam
+    oz(n)=(pz(n)-vz)ASL aslam
+    oapp(n)=1;object_appears
+  Next n
+
+
+;   Dynamic Landscape Points
+;   ========================
+
+  For n=points3+1 To points4
+    ox(n)=px(n)-vx
+    oy(n)=py(n)-vy
+    oz(n)=pz(n)-vz
+    oapp(n)=1
+  Next n
+
+; Far-Away Mountain Points
+; ========================
+
+
+  tmpx=vx/4  ;trick to make them
+  tmpy=vy/4  ;look as if they really
+  tmpz=vz/4  ;are far away
+
+  For n=points1 To points
+    ox(n)=px(n)-tmpx
+    oy(n)=py(n)-tmpy
+    oz(n)=pz(n)-tmpz
+    oapp(n)=1
+  Next n
+  CNIF #DBUG=1
+    Runerrson
+  CEND
+Return
+
+
+
+
+.rotate_points
+
+
+
+  tempword.w=points4
+  chckpnts1.l=tempword
+  chckpnts2.l=0
+  #ROTSCALE=32767
+  sincache(0)=cvaz*#ROTSCALE
+  sincache(1)=svaz*#ROTSCALE
+  sincache(2)=cvax*#ROTSCALE;Cos(vax*2)*#ROTSCALE
+  sincache(3)=svax*#ROTSCALE;Sin(vax*2)*#ROTSCALE
+  sincache(4)=cvay*#ROTSCALE
+  sincache(5)=svay*#ROTSCALE
+  sincache(6)=18-zoom_factor
+  sincache(7)=160
+  sincache(8)=80
+
+
+  CNIF #DBUG=1
+    Runerrsoff
+  CEND
+                                                                                                                              
+  GetReg a0,&ox(1)
+  GetReg a1,&oy(1)
+  GetReg a2,&oz(1)
+  GetReg a3,&oapp(1)
+  GetReg d2,&sincache(0)
+  GetReg d1,&pnt(1)
+  GetReg a4,&tempword
+  INCDIR "WRECKAGE:SOURCE/ASSEMBLY/"
+  IncBin "asm_3d_s2c"
+  PutReg d0,chckpnts2
+  CNIF #DBUG=1
+    Runerrson
+  CEND
+
+end_assembly:
+
+
+Return
+
+
+
+  ;Runerrson
+
+
+
+.calc3d
+  If replay=False Then replay_zoom=0
+  zoom_factory.b=zoom_factor+replay_zoom-6
+  zoom_factorx.b=zoom_factor+replay_zoom-6
+  zoom_magy=2^zoom_factor
+  zoom_magx=zoom_magy
+
+  offsetscx3=3*offsetscx
+  offsetscy3=3*offsetscy
+  doffsetscx=6*offsetscx
+  doffsetscy=6*offsetscy
+  For n=1 To points3
+    If pnt(n)\app<>0
+      pnt(n)\sx=offsetscx+QLimit(((pnt(n)\sx)ASR zoom_factorx),-offsetscx3,offsetscx3)
+      pnt(n)\sy=offsetscy+QLimit(((pnt(n)\sy)ASR zoom_factory),-offsetscy3,offsetscy3)
+    EndIf
+
+  Next n
+
+
+Return
+
+.point_display
+
+CNIF1=0
+  lconnect=0
+  For n=points3+1 To points4-1
+    lconnect+1
+    If pnt(n)\app=1
+
+      If pnt(n+10)\app=1
+        Line pnt(n)\sx,pnt(n)\sy,pnt(n+10)\sx,pnt(n+10)\sy,3
+      EndIf
+
+      If lconnect<10
+        If pnt(n+1)\app=1
+          Line pnt(n)\sx,pnt(n)\sy,pnt(n+1)\sx,pnt(n+1)\sy,3
+        EndIf
+      EndIf
+
+    EndIf
+    If lconnect=10 Then lconnect=0
+  Next n
+CEND
+;  pd1=QLimit(cd_closest_point-12,1,points1)
+;  pd2=QLimit(cd_closest_point+12,1,points1)
+;  For n=pd1 To pd2
+;    Circlef pnt(n)\sx,pnt(n)\sy,2,1
+;  Next n
+  Return
+
+.line_display
+CNIF #DBUG=1
+  Runerrsoff
+CEND
+CNIF #SYSTEM_FRIENDLY=0
+
+If replay=False
+  Locate 10,1
+  NPrint Int(ruy*4)
+  Locate 20,1
+  NPrint gear
+;  NPrint turbovol
+;  NPrint showthis1
+;  NPrint showthis2
+;  NPrint showthis3
+;  NPrint raw_thrust_effect
+;  NPrint raw_thrust
+;  NPrint wheel_speed
+
+  ;raw_thrust_effect=(raw_thrust-wheel_speed/20000)*gear_ratio
+
+;  NPrint svax,", ",svay
+;  NPrint svax2,", ",svay2
+;  NPrint drivfor
+;  NPrint drvax
+;  NPrint frame_speed
+  ;NPrint objnorm,":",coax,"*",coay
+;  NPrint volword
+;  NPrint vuz, ",", vz
+;  NPrint add_vuz
+;  NPrint "X:",svax,",Y:",svay
+;  NPrint "X:",add_vuzx,"Y:",add_vuzy
+
+;  NPrint polygons
+;  NPrint points4
+;;  NPrint mod_tyr_freq
+;  NPrint tyrfreq
+
+;  NPrint ctrl\dx
+;  NPrint ctrl\d2x
+;  NPrint ctrl\d3x
+;  NPrint ctrl\force
+;  NPrint ctrl\a
+
+;  NPrint max_dblcol
+;  NPrint min_dblcol
+
+
+
+
+  If extra_display_info
+  NPrint fmountcnt
+  NPrint vy/100-mountycnt1
+  NPrint vx/100-mountxcnt1
+  NPrint vz
+    NPrint "F   ",QLimit(QAbs(unreal_speed*gear_ratio)/8,.1,100)
+    NPrint "Bef ",brake_effectiveness
+    NPrint "PoC ",brake_temperature
+    NPrint "Fef ",fluid_effectiveness
+    NPrint "FoC ",fluid_temperature
+    NPrint "Kgm ",xtra_boost
+  EndIf
+  If engfreq<>0 Then  engang=140/engfreq
+  engang=-6*engang
+  ;Circle 300,16,16,1
+  Blit 0,284,0
+  Line 300,16,300+16*Sin(engang),16+16*Cos(engang),2
+
+;Else
+;  Locate 1,1
+;  NPrint camera_type
+;  NPrint objnorm,":",coax,"*",coay
+;  NPrint tnorm,"->",tdnorm
+;  NPrint vaz_m
+;;  NPrint vax_c
+
+EndIf
+CEND
+
+  USEPATH pol(n)
+  dis_polys=0
+  polydb=0
+
+USEPATH lin(n)
+CNIF1=1
+  For n=1 To hor_lin_end
+    If \l1\app=1 AND \l2\app=1
+        CNIF #SYSTEM_FRIENDLY=0
+        Line \l1\sx,\l1\sy,\l2\sx,\l2\sy,\col
+        CELSE
+        Wline \l1\sx,\l1\sy,\l2\sx,\l2\sy,\col
+        CEND
+    EndIf
+  Next n
+;
+CELSE
+  tempw.w=hor_lin_end-1
+  GetReg d7,tempw
+  GetReg d0,&lin(1)
+  MOVE.l d0,a0
+  SUBQ #1,d7
+  JSR _draw_line1
+
+CEND
+
+  Gosub draw_landscape
+  Gosub draw_road
+
+
+  USEPATH lin(n)
+CNIF1=1
+  For n=hor_lin_end To lines
+    If \l1\app=1 AND \l2\app=1
+        CNIF #SYSTEM_FRIENDLY=0
+        Line \l1\sx,\l1\sy,\l2\sx,\l2\sy,\col
+        CELSE
+        Wline \l1\sx,\l1\sy,\l2\sx,\l2\sy,\col
+        CEND
+    EndIf
+  Next n
+;
+CELSE
+
+  tempw.w=lines-hor_lin_end-1
+  GetReg d7,tempw
+  GetReg d0,&lin(hor_lin_end+1)
+  MOVE.l d0,a0
+  SUBQ #1,d7
+  JSR _draw_line1
+
+
+CEND
+
+CNIF1=1
+  USEPATH pol(n)
+  For n=opolygons+1 To polygons
+    If \p1\app=1 AND \p2\app=1 AND \p3\app=1 AND \p4\app=1
+      dis_polys+1
+      polybuff(0)=\p1\sx
+      polybuff(1)=\p1\sy
+      polybuff(2)=\p2\sx
+      polybuff(3)=\p2\sy
+      polybuff(4)=\p3\sx
+      polybuff(5)=\p3\sy
+      polybuff(6)=\p4\sx
+      polybuff(7)=\p4\sy
+      polybuff(8)=polybuff(0)
+      polybuff(9)=polybuff(1)
+      Gosub clip2
+      CNIF #SYSTEM_FRIENDLY=0
+      Polyf 3,&polybuff(0),\col,-1
+      Polyf 3,&polybuff(4),\col,-1
+      CELSE
+      crapthing.l=PolyDraw_(myrastport,4,&polybuff(0))
+      CEND
+    EndIf
+  Next n
+CELSE
+
+  tempw.w=polygons-opolygons
+  GetReg d7,tempw
+  GetReg d6,&pol(opolygons+1)
+  GetReg d5,&polybuff(0)
+  MOVE.l d6,a0
+  MOVE.l d5,a1
+  SUBQ.w #1,d7
+
+  JSR draw_polys
+
+CEND
+
+
+  CNIF #SYSTEM_FRIENDLY=0
+
+  If replay=False
+;      Polyf 4,&hood(0),2
+    If nofcolours>4
+      Blit 2,0,160-ShapeHeight(2)
+    Else
+      Blit 1,0,160-ShapeHeight(1)
+    EndIf
+    Box 157,152,163,159,3
+    Boxf 158+turn_raw*4,153,162+turn_raw*4,158,1
+    Box 158+turn_raw*4,153,162+turn_raw*4,158,2
+
+  EndIf
+  CEND
+  CNIF #DBUG=1
+    Runerrson
+  CEND
+Return
+
+.draw_road
+  USEPATH pol(n)
+  dis_polys=0
+  polydb=0
+
+CNIF1=0
+  For n=opolygons To 1 Step -1
+    If \p1\app=1 AND \p3\app=1
+        If \p2\app=1 AND \p2\app=1
+          GetReg d7,&pol(n)
+          GetReg d1,&polybuff(0)
+          MOVE.l d7,a0
+          MOVE.l d1,a1
+          MOVE.l (a0)+,a2
+          MOVE.l (a0)+,a3
+          MOVE.l (a2),(a1)+
+          MOVE.l (a3),(a1)+
+          MOVE.l (a0)+,a2
+          MOVE.l (a0)+,a3
+          MOVE.l (a2),(a1)+
+          MOVE.l (a3),(a1)+
+          MOVE.w (a0)+,d2
+          MOVE.l #4,d0
+          MOVE.l #-1,d3
+          TokeJsr Polyf,2
+        EndIf
+    EndIf
+  Next n
+
+CELSE
+  tempw.w=opolygons
+  GetReg d7,tempw
+  GetReg d6,&pol(1)
+  GetReg d5,&polybuff(0)
+  MOVE.l d6,a0
+  MOVE.l d5,a1
+  SUBQ.w #1,d7
+
+  JSR draw_polys
+
+CEND
+  Return
+
+
+
+
+.draw_the_lines
+
+
+
+_draw_line1:
+  MOVE.l (a0)+,a1
+  MOVE.l (a0)+,a2
+  MOVE.w (a0)+,d4
+  MOVE.l (a1)+,d0
+  MOVE.l (a2)+,d2
+  MOVE.w (a1),d6
+  AND.w (a2),d6
+  BEQ _draw_line1a
+  MOVE.w d0,d1
+  MOVE.w d2,d3
+  EXT.l d1
+  EXT.l d3
+  CLR.w d0
+  CLR.w d2
+  SWAP d0
+  SWAP d2
+  EXT.l d0
+  EXT.l d2
+  MOVEM.l a0/d7,-(a7)
+  TokeJsr Line
+  MOVEM.l (a7)+,a0/d7
+_draw_line1a:
+  DBRA d7,_draw_line1
+
+  RTS
+
+
+.draw_landscape
+If landscape_on=True
+CNIF1=0
+  For n=lpolygons To opolygons Step -1
+    polydb=QWrap(polydb+1,0,9)
+    If \p1\app=1 AND \p3\app=1
+      If \p2\app=1
+        dis_polys+1
+        polybuff(0)=\p1\sx
+        polybuff(1)=\p1\sy
+        polybuff(2)=\p2\sx
+        polybuff(3)=\p2\sy
+        polybuff(4)=\p3\sx
+        polybuff(5)=\p3\sy
+        Gosub clip
+        CNIF #SYSTEM_FRIENDLY=0
+          Polyf 3,&polybuff(0),\col,-1
+        CELSE
+          crapthing.l=PolyDraw_(myrastport,4,&polybuff(0))
+        CEND
+      EndIf
+    EndIf
+  Next n
+CELSE
+  tempw.w=lpolygons-opolygons-1
+  GetReg d7,tempw
+  GetReg d6,&pol(opolygons)
+  GetReg d5,&polybuff(0)
+  MOVE.l d6,a0
+  MOVE.l d5,a1
+  SUBQ.w #1,d7
+  JSR draw_polys
+
+
+CEND
+EndIf
+Return
+
+
+.draw_polys
+
+_draw_polys1:
+  MOVE.l (a0)+,a2
+  MOVE.l (a0)+,a3
+  MOVE.l (a2)+,(a1)
+  MOVE.w (a2),d4
+  MOVE.l (a3)+,4(a1)
+  AND.w (a3),d4
+
+
+  MOVE.l (a0)+,a2
+  MOVE.l (a0)+,a3
+  MOVE.l (a2)+,8(a1)
+  AND.w (a2),d4
+  MOVE.l (a3)+,12(a1)
+  AND.w (a3),d4
+
+  MOVE.w (a0)+,d2
+  TST.w d4
+  BEQ _draw_polys2
+  MOVE.l #4,d0
+  MOVE.l a1,d1
+  MOVE.l #-1,d3
+  MOVEM.l a0-a1/d7,-(a7)
+  TokeJsr Polyf,1
+  MOVEM.l (a7)+,a0-a1/d7
+_draw_polys2:
+  DBRA d7,_draw_polys1
+  RTS
+
+
+
+.clip
+  For n0.w=0 To 5
+    polybuff(n0)=QLimit(polybuff(n0),-160,480)
+  Next n0
+  Return
+
+.clip2
+  For n0.w=0 To 7
+    polybuff(n0)=QLimit(polybuff(n0),-160,480)
+  Next n0
+  Return
+
+
+
+
+
+.horizon
+
+  points1=points+1
+
+  tmpz=-2000
+  For n=0 To p2 Step .25
+      points+1
+      px(points)=20000*Sin(n)
+      py(points)=20000*Cos(n)
+      pz(points)=tmpz
+      tmpz=QLimit(tmpz+Rnd(2000)-1000,-2000,0)
+
+  Next n
+
+  For n=points1 To points-1
+      lines+1
+      lin(lines)\l1=pnt(n)
+      lin(lines)\l2=pnt(n+1)
+      lin(lines)\col=3
+  Next n
+
+  points2=points+1
+  For n=0 To p2 Step .25
+    points+1
+    tmpdepth=Rnd(5000)+5000
+    px(points)=tmpdepth*Sin(n)+Rnd(1500)
+    py(points)=tmpdepth*Cos(n)+Rnd(1500)
+    pz(points)=200
+  Next n
+
+  tmpdiff=points2-points1
+  hor_lin_start=lines+1
+  For n=points2 To points-1
+      lines+1
+      lin(lines)\l1=pnt(n)
+      lin(lines)\l2=pnt(n+1)
+      lin(lines)\col=3
+
+      lines+1
+      lin(lines)\l1=pnt(n)
+      lin(lines)\l2=pnt(n-tmpdiff)
+      lin(lines)\col=3
+
+  Next n
+  hor_lin_end=lines
+
+
+
+Return
+
+
+.sqthing
+  For n=1 To 12 Step 1
+    For m=0 To 11 Step 1
+      points+1
+      px(points)=m*2024+Rnd(500)
+      py(points)=n*2024+Rnd(500)
+      pz(points)=Rnd(400)
+    Next m
+  Next n
+
+  tempw.w=0
+  lines=0
+  For n=1 To 11
+    For m=0 To 11
+      lines+1
+      lin(lines)\l1=pnt(tempw)
+      lin(lines)\l2=pnt(tempw+1)
+
+      lines+1
+      lin(lines)\l1=pnt(tempw)
+      lin(lines)\l2=pnt(tempw+13)
+
+      tempw+1
+    Next m
+    tempw+1
+  Next n
+
+  Return
+
+.road
+  Locate 10,2
+  NPrint "Creating Track"
+
+  map_slip=0
+
+
+  f1.f=((Rnd)+.2)*hill_height*4
+  f2.f=((Rnd)+.2)*hill_height*3
+;  dummy=RTEZRequest("hill "+Str$(hill_height),Str$(f1)+","+Str$(f2),"OK")
+  f3.f=(Rnd-.5)*.5
+  f4.f=(Rnd-.5)*.5
+  f5.f=(Rnd-.5)*.21
+  f6.f=(Rnd-.5)*.25
+  f7.f=(Rnd-.5)*.125
+  f8.f=(Rnd-.5)*.125
+  f9.f=(Rnd-.5)*.0125
+  f10.f=(Rnd-.5)*.0125
+  fmountcnt.f=Rnd*.1+.05
+  mountxcnt1.f=Rnd(100)-50
+  mountycnt1.f=(Rnd(100)-50)
+  mountxcnt2.f=Rnd(100)-50
+  mountycnt2.f=(Rnd(100)-100)
+  mountxcnt3.f=Rnd(100)-50
+  mountycnt3.f=(Rnd(100)-100)
+  points=0
+  tmpwd=200
+  tmpwdd=0
+  tmpwddd=0
+  tmpaz0=.5
+  tmpazz=0
+  tmpazzz=0
+  tmpzz=0
+  tmpz=0
+  lines=0
+  polygons=0
+  tmpx=-100
+  tmpy=-10100
+  db_pvd=1
+  db_pol=1
+  db_lin=1
+  db_col=2
+  perc_interval=100/total_track_length
+  perc_count=0
+  perc_displ=1
+  For n=1 To total_track_length
+    perc_count+perc_interval
+    If perc_count>=1
+      Locate 10,3
+      perc_displ+1
+      perc_count-1
+      NPrint perc_displ,"% Complete"
+    EndIf
+    CNIF 1=0
+      If db_lin=1
+        lines+1
+        lin(lines)\l1=pnt(points+1)
+        lin(lines)\l2=pnt(tmpprev)
+        lin(lines)\col=db_col
+        If db_col=2 Then db_col=hi_line_col Else db_col=2
+      Else
+        lines+1
+        lin(lines)\l1=pnt(points+2)
+        lin(lines)\l2=pnt(tmpprev+1)
+        lin(lines)\col=db_col
+      EndIf
+      db_lin=1-db_lin
+    CELSE
+    If tmpprev>1
+      If db_lin=1
+        polygons+1
+
+        ipol(polygons)\p1=(points+2)
+        ipol(polygons)\p2=(points+3)
+        ipol(polygons)\p3=(tmpprev)
+        ipol(polygons)\p4=(tmpprev-1)
+
+        pol(polygons)\p1=pnt(points+2);+2)
+        pol(polygons)\p2=pnt(points+3);+3)
+        pol(polygons)\p3=pnt(tmpprev)
+        pol(polygons)\p4=pnt(tmpprev-1)
+        pol(polygons)\col=db_col
+        If db_col=2 Then db_col=hi_line_col Else db_col=2
+      Else
+        polygons+1
+
+        ipol(polygons)\p1=(points+6)
+        ipol(polygons)\p2=(points+1)
+        ipol(polygons)\p3=(tmpprev-2)
+        ipol(polygons)\p4=(tmpprev+3)
+
+        pol(polygons)\p1=pnt(points+6);+4)
+        pol(polygons)\p2=pnt(points+1);+1)
+        pol(polygons)\p3=pnt(tmpprev-2)
+        pol(polygons)\p4=pnt(tmpprev+3);+2)
+        pol(polygons)\col=db_col
+      EndIf
+      db_lin=1-db_lin
+    EndIf
+    CEND
+    If nofcolours>4
+      db_pol+1
+      If db_pol<5 OR db_pol>7 Then db_pol=5
+    Else
+      If db_pol=3 Then db_pol=1 Else db_pol=3
+    EndIf
+
+
+    CNIF 1=1
+    polygons+1
+
+    ipol(polygons)\p1=(points+3)
+    ipol(polygons)\p2=(points+4)
+    ipol(polygons)\p3=(tmpprev+1)
+    ipol(polygons)\p4=(tmpprev)
+
+    pol(polygons)\p1=pnt(points+3);+3)
+    pol(polygons)\p2=pnt(points+4);+4)
+    pol(polygons)\p3=pnt(tmpprev+1)
+    pol(polygons)\p4=pnt(tmpprev)
+
+    polygons+1
+
+    ipol(polygons)\p1=(points+4)
+    ipol(polygons)\p2=(points+5)
+    ipol(polygons)\p3=(tmpprev+2)
+    ipol(polygons)\p4=(tmpprev+1)
+
+    pol(polygons)\p1=pnt(points+4);+3)
+    pol(polygons)\p2=pnt(points+5);+4)
+    pol(polygons)\p3=pnt(tmpprev+2);+1)
+    pol(polygons)\p4=pnt(tmpprev+1);)
+
+    polygons+1
+
+    ipol(polygons)\p1=(points+5)
+    ipol(polygons)\p2=(points+6)
+    ipol(polygons)\p3=(tmpprev+3)
+    ipol(polygons)\p4=(tmpprev+2)
+
+    pol(polygons)\p1=pnt(points+5);+3)
+    pol(polygons)\p2=pnt(points+6);+4)
+    pol(polygons)\p3=pnt(tmpprev+3);+1)
+    pol(polygons)\p4=pnt(tmpprev+2);)
+
+    If nofcolours>4
+
+      db_lpol=QAbs(land1{tmpx-20,tmpy}-land1{tmpx+20,tmpy})
+      db_lpol+QAbs(land1{tmpx,tmpy-20}-land1{tmpx,tmpy+20})
+
+      tmpx2=tmpx+tmpwd*Cos(tmpaz)/3
+      tmpy2=tmpy-tmpwd*Sin(tmpaz)/3
+      db_lpol2=QAbs(land1{tmpx2,tmpy2}-land1{tmpx2+20,tmpy2})
+      db_lpol2+QAbs(land1{tmpx2,tmpy2-20}-land1{tmpx2,tmpy2+20})
+
+      tmpx2=tmpx+tmpwd*Cos(tmpaz)*2/3
+      tmpy2=tmpy-tmpwd*Sin(tmpaz)*2/3
+      db_lpol3=QAbs(land1{tmpx2,tmpy2}-land1{tmpx2+20,tmpy2})
+      db_lpol3+QAbs(land1{tmpx2,tmpy2-20}-land1{tmpx2,tmpy2+20})
+
+      max_dblpol=Max(db_lpol,max_dblpol)
+      EndIf
+
+    If nofcolours>4
+      db_lpol_c2=2-db_lpol_c2
+      pol(polygons-2)\col=QLimit(Rnd(3)+32-db_lpol,16,32)
+      pol(polygons-1)\col=QLimit(Rnd(3)+32-db_lpol2,16,32)
+;QLimit(31+db_lpol_c2-db_lpol,16,32)
+      pol(polygons)\col=QLimit(Rnd(3)+32-db_lpol3,16,32)
+    Else
+      pol(polygons-1)\col=db_pol
+      If db_pol=3 Then db_pol_c2=1 Else db_pol_c2=3
+      pol(polygons)\col=db_pol_c2
+      pol(polygons-2)\col=db_pol_c2
+    EndIf
+
+    CEND
+
+    tmpaz=tmpaz0+oval_track*n*2*Pi/150
+    points+1
+
+
+; Check Wether Road is Out of Map Bounds
+;=======================================
+
+road_out_of_bounds:
+    tmpprev=points+2
+
+    If RectsHit(tmpx/10+40*Sin(tmpaz),tmpy/10+40*Cos(tmpaz),1,1,-2000,-2000,4000,4000)
+      tmpz=land1{tmpx,tmpy}
+      tmpzd=(tmpz-land1{tmpx+100,tmpy+100})/100
+      tmpzd=1+QAbs(tmpzd)
+      tmpx+64*Sin(tmpaz)/tmpzd
+      tmpy+64*Cos(tmpaz)/tmpzd
+    Else
+      tmpaz=QWrap(tmpaz+Pi/8,0,p2)
+    EndIf
+
+    db_pv+1:If db_pv>3 Then db_pv=1
+
+
+CNIF 1=0
+    If db_pv=3
+
+      last_polygon_p=this_polygon_p
+      this_polygon_p=points
+
+      polygons+1
+
+      ipol(polygons)\p1=(this_polygon_p)
+      ipol(polygons)\p2=(this_polygon_p+5)
+      ipol(polygons)\p3=(last_polygon_p+5)
+      ipol(polygons)\p4=(last_polygon_p)
+
+      pol(polygons)\p1=(this_polygon_p+2)
+      pol(polygons)\p2=(this_polygon_p+5)
+      pol(polygons)\p3=(last_polygon_p+5)
+      pol(polygons)\p4=(last_polygon_p+2)
+      pol(polygons)\col=2
+
+    EndIf
+CEND
+
+
+;   ###################
+;   #                 #
+;   # Add Road Points #
+;   #                 #
+;   ###################
+
+
+; The Intermediate Points
+; =======================
+
+CNIF 1=1
+
+    px(points)=tmpx+(tmpwd+6)*Cos(tmpaz)
+    py(points)=tmpy-(tmpwd+6)*Sin(tmpaz)
+    tmpz=land1{px(points),py(points)}
+    pz(points)=tmpz*mountain
+    point_value(points)=0
+
+    points+1
+    px(points)=tmpx-6*Cos(tmpaz)
+    py(points)=tmpy+6*Sin(tmpaz)
+    tmpz=land1{px(points),py(points)}
+    pz(points)=tmpz*mountain
+    point_value(points)=0
+CEND
+
+; The Points on the left
+; ======================
+
+    points+1
+    px(points)=tmpx
+    py(points)=tmpy
+    tmpz=land1{px(points),py(points)}
+    tmpleft=tmpz
+    pz(points)=tmpz*mountain
+    point_value(points)=2;db_pv
+
+
+; The Points on the middle
+;========================
+    points+1
+    px(points)=tmpx+tmpwd*Cos(tmpaz)/3
+    py(points)=tmpy-tmpwd*Sin(tmpaz)/3
+    tmpz=land1{px(points),py(points)}
+    pz(points)=tmpz*mountain
+   point_value(points)=db_pv
+
+    points+1
+    px(points)=tmpx+tmpwd*Cos(tmpaz)*2/3
+    py(points)=tmpy-tmpwd*Sin(tmpaz)*2/3
+    tmpz=land1{px(points),py(points)}
+    pz(points)=tmpz*mountain
+   point_value(points)=db_pv
+
+; The Points on the right
+;========================
+    points+1
+    px(points)=tmpx+tmpwd*Cos(tmpaz)
+    py(points)=tmpy-tmpwd*Sin(tmpaz)
+    tmpz=land1{px(points),py(points)}
+    tmpright=tmpz
+    pz(points)=tmpz*mountain
+   point_value(points)=2;db_pv
+
+
+
+; Set Up Slippery Places In Map
+; =============================
+
+    r_xstart=Min(tmpx/32+640,px(points)/32+640)
+    r_ystart=Min(tmpy/32+640,py(points)/32+640)
+    r_xend=Max(tmpx/32+640,px(points)/32+640)
+    r_yend=Max(tmpy/32+640,py(points)/32+640)
+    For r_x=QLimit(r_xstart-8,0,1024) To QLimit(r_xend+5,0,1024)
+      For r_y=QLimit(r_ystart-8,0,1024) To QLimit(r_yend+5,0,1024)
+        slippery(r_x,r_y)=0;QLimit(-tmpz,0,127)
+      Next r_y
+    Next r_x
+
+
+
+
+    mtmpline=6
+    max_value=3
+
+
+; Create turns and stuff
+; ======================
+
+    tmpwd=QLimit(tmpwd+tmpwdd,150,300)
+    tmpwdd=QLimit(tmpwdd+tmpwddd,-20,20)
+    tmpwddd=QLimit(tmpwddd+Rnd-.5,-5,5)
+;    tmpazz+(tmpleft-tmpright)/100
+;    If tmpleft<tmpright Then tmpazz+.1 Else tmpazz-.1
+
+    tmpinc1=QLimit(tmpinc1+tmpinc2,.5,1.5)
+    tmpinc2=QLimit(tmpinc2+.01*(Rnd-.5),-.125,.125)
+    tmpz=(tmpleft+tmpright)*.5
+    dtmpz=tmpz-otmpz
+    otmpz=tmpz
+    tmpinc3=5/(5+QLimit(dtmpz,-4,20))
+
+    tmpazz=tmpinc3*tmpinc1*inclined_turns*(tmpright-tmpleft)/128
+;    tmpazz=(1+QAbs(tmpazz2))*inclined_turns*(tmpright-tmpleft)/128
+    tmpazd0=tmpaz0+tmpazz+tmpazz2
+
+    If tmpazd0<-4
+      tmpazz2+Rnd
+      tmpazzz+Rnd
+      tmpazd1+.01
+    Else
+      If tmpazd0>4
+;        tmpazd0+Rnd
+        tmpazz2-Rnd
+        tmpazzz-Rnd
+        tmpazd1-.01
+      Else
+        tmpazd1=tmpazd1*.9
+      EndIf
+    EndIf
+
+    tmpaz0=QLimit(tmpazd0+tmpazd1,-4,4)
+;    tmpaz0=QLimit(tmpaz0+tmpazz,-4,4)
+
+
+    tmpazz2=QLimit(tmpazz2+.01*tmpazzz,-max_turns,max_turns)
+    tmpcount-1
+    If tmpcount<0
+      If tmpazz2>0
+        tmpazzd=1
+
+      Else
+        tmpazzd=-1
+      EndIf
+      If Rnd<.1
+        tmpazz3=tmpazzd*Rnd*4
+      Else
+        tmpazz3=-tmpazzd*Rnd*4
+      EndIf
+      tmpcount=Rnd(10)+2
+    EndIf
+    tmpazzz=tmpazz3;(tmpazzz*7+tmpazz3)/8
+    ;tmpazzz=QWrap(tmpazzz+Rnd/4-.125,-1,1)
+
+    tmpzzz=QWrap(tmpzzz+(Rnd-.5),-1,1)
+    tmpzz=QLimit(tmpzz+tmpzzz,-10,10)
+    tmpz2=QLimit(tmpz2+tmpzz,-128,127)
+    tmpline+1
+
+
+  Next n
+
+
+;.landscape
+;  For m=0 To 1023
+;    For n=0 To 1023
+;      heightmap(m,n)=-32767
+;    Next n
+;  Next m
+
+
+  Return
+
+
+.reset_car
+    map_slip=0
+    vx=0:vy=-10000:vz=land1{vx,vy}*mountain-11
+    gear=0
+    vux=0:vuy=0:vuz=0
+    vax=0:vaz=.5:vay=0
+    ovux=0:ovuy=0:ovuz=0
+    rux=0:orux=0
+    ruy=0:oruy=0
+    cvaz=Cos(vaz)
+    svaz=Sin(vaz)
+    cvay=Cos(vay)
+    svay=Sin(vay)
+    cvax=Cos(vax)
+    svax=Sin(vax)
+    susp1=0:susp2=0:susp3=0:susp4=0
+    osusp1=0:osusp2=0:osusp3=0:osusp4=0
+    osusp5=0
+    dxsusp5=0
+    odxsusp=0
+    dxsusp=0
+    susp5=0
+
+    wz=0
+    vwz=0
+    forceonx2=0:downforce=0
+    Force_on_X=0
+    Force_on_Z=0
+    upside_down=False
+    vec_obj(0)\x=100
+    vec_obj(0)\y=-10000
+    vec_obj(0)\z=0
+    vec_obj(0)\ax=0
+    vec_obj(0)\ay=0
+    vec_obj(0)\az=0
+    LoopSound 4,8
+
+    point_start=0:point_end=points1-1
+    point_min=1
+    point_max=points1
+    start_point=1
+    end_point=points1
+    closest_point=1
+    rep_point=0
+
+  Return
+
+.race_phantom
+
+
+    Gosub reset_car
+    racing=True
+
+    CNIF #SYSTEM_FRIENDLY=0
+    Use BitMap 0
+    Cls
+    Show 0
+    BitMapOutput 0
+    Locate 10,10
+    NPrint "Get Ready"
+
+    VWait 50
+    CEND
+
+
+
+  Return
+
+.back_to_gui
+CNIF #SYSTEM_FRIENDLY=0
+  Mouse Off
+  ClrInt 5
+  Free BitMap 0
+  Free BitMap 1
+  FreeSlices
+;  Free Screen 1
+  AMIGA
+CEND
+ShowScreen 0
+Use Window 0
+Activate 0
+WLocate 1,1
+Print "FPS%:"
+NPrint 100*nofcounts/nofframes,"  "
+Volume 1|2|4|8,0,0,0,0
+Goto myGUI
+
+.finish
+
+CNIF #SYSTEM_FRIENDLY=0
+  ClrInt 5
+  Free BitMap 0
+  Free BitMap 1
+  FreeSlices
+  AMIGA
+
+  Free Screen 1
+CEND
+
+Use Window 0
+Print "FPS:"
+NPrint 50*nofcounts/nofframes
+VWait 50
+finish2:
+CloseWindow 0
+finish3:
+End
+
+_nofast:
+tempb.b=RTEZRequest("Memory Alert","Not enough Fast RAM!","OK")
+Goto finish3
+
+_nochip:
+tempb.b=RTEZRequest("Memory Alert","Not enough Chip RAM","OK")
+Goto finish3
+
+.view_car
+  Gosub select_car
+  Window 1,0,0,320,100,2|4|8,"Car Stats",2,1
+  WLocate 1,1
+  NPrint "HP:",HPower*100
+  Print "Drive:"
+  If rw_drive=True Then NPrint "Rear"
+  If fw_drive=True Then NPrint "Front"
+  If FR_drive=True
+    NPrint "4x4:",power_ratio*100,"%"
+  EndIf
+  NPrint "Drag:",wing_strength*drag_factor
+  NPrint "Wing Effectiveness:",wing_strength
+  NPrint "Wing Ratio - F:",front_wing*100,"% R:",rear_wing*100,"%"
+  NPrint "Weight Ratio:",motor_position*50,"%"
+  NPrint "Tyre type:",tyre_pressure
+  NPrint "Suspension Strength:",susp_strength
+
+  Repeat
+    ev.l=WaitEvent
+
+  Until ev=$200
+  Free Window 1
+  Use Window 0
+  Return
+
+.select_car
+rw_drive=False
+fw_drive=False
+FR_drive=False
+
+engined$="engine2"
+has_turbo=False
+rev_limit=1;.99
+susp_strength=1
+rev_limiter=1
+field_advantage=1
+rear_wing=.5
+front_wing=.5
+turbo_max=1.25
+turbo_boost=200
+turbo_dsp=130
+troll_off=1/16
+Select car_choice
+  Case 0
+    WLocate 1,1
+    NPrint "BLEURGH_ERROR!"
+  Case 1
+    troll_off=1/64
+    rev_max=6000
+    turbo_boost=500
+    tyre_pressure=1
+    wing_strength=.06
+    drag_factor=1.5
+    HPower=1.8
+    fw_drive=True
+    power_ratio=1
+    motor_position=1
+    gear_ratio1(1)=64/10
+    gear_ratio1(2)=64/18
+    gear_ratio1(3)=64/26
+    gear_ratio1(4)=64/34
+    gear_ratio1(5)=64/42
+    gear_ratio1(6)=64/50
+    has_turbo=True
+    ruyscale=1
+    car_turn_factor=.45
+    susp_strength=.6
+    rear_wing=.6
+    front_wing=.4
+    field_advantage=2
+    engined$="engine3b"
+    turbod$="engine3"
+
+  Case 2
+    troll_off=1/64
+    rev_max=6000
+    turbo_boost=450
+    tyre_pressure=1.5
+    wing_strength=.07
+    drag_factor=1.5
+    HPower=1.9
+    rw_drive=True
+    power_ratio=0
+    motor_position=1
+    gear_ratio1(1)=64/10
+    gear_ratio1(2)=64/20
+    gear_ratio1(3)=64/30
+    gear_ratio1(4)=64/40
+    gear_ratio1(5)=64/50
+    gear_ratio1(6)=64/60
+    has_turbo=True
+    ruyscale=1.1
+    car_turn_factor=.5
+    susp_strength=.6
+    rear_wing=.7
+    front_wing=.3
+    field_advantage=2
+    engined$="engine2a"
+    turbod$="engine2"
+
+
+  Case 3
+    troll_off=1/48
+    rev_max=6500
+    turbo_max=1.5
+    turbo_boost=400
+    tyre_pressure=2.5
+    wing_strength=.09
+    drag_factor=1.3
+    HPower=2.1
+    FR_drive=True
+    power_ratio=.4
+    motor_position=1
+    gear_ratio1(1)=64/20
+    gear_ratio1(2)=64/27
+    gear_ratio1(3)=64/34
+    gear_ratio1(4)=64/41
+    gear_ratio1(5)=64/45
+    gear_ratio1(6)=64/48
+    has_turbo=True
+    ruyscale=.8
+    car_turn_factor=.65
+    susp_strength=.7
+    rear_wing=.7
+    front_wing=.3
+    field_advantage=3
+    engined$="engine5t"
+    turbod$="engine5t2"
+
+
+
+  Case 4
+    troll_off=1/32
+    rev_max=7000
+    turbo_boost=160
+    tyre_pressure=2
+    wing_strength=.08
+    drag_factor=1.3
+    HPower=2.3
+    FR_drive=True
+    power_ratio=.2
+    motor_position=1
+    gear_ratio1(1)=64/20
+    gear_ratio1(2)=64/28
+    gear_ratio1(3)=64/36
+    gear_ratio1(4)=64/44
+    gear_ratio1(5)=64/58
+    gear_ratio1(6)=64/52
+    has_turbo=True
+    ruyscale=.78
+    car_turn_factor=.6
+    susp_strength=.7
+    rear_wing=.2
+    front_wing=.8
+    field_advantage=3
+    engined$="engine1b"
+    turbod$="engine1"
+
+
+  Case 5
+    troll_off=1/32
+    rev_max=8000
+    turbo_max=1.5
+    turbo_boost=300
+    tyre_pressure=3
+    wing_strength=.11
+    drag_factor=.92
+    HPower=4
+    rw_drive=True
+    power_ratio=0
+    motor_position=2
+    gear_ratio1(1)=64/32
+    gear_ratio1(2)=64/42
+    gear_ratio1(3)=64/52
+    gear_ratio1(4)=64/62
+    gear_ratio1(5)=64/72
+    gear_ratio1(6)=64/80
+    has_turbo=True
+    ruyscale=.7
+    car_turn_factor=.675
+    susp_strength=.8
+    rear_wing=.9
+    front_wing=.1
+    field_advantage=1.5
+    engined$="engine3"
+    turbod$="engine3t"
+
+
+  Case 6
+    troll_off=1/32
+    rev_max=7500
+    turbo_boost=250
+    drag_factor=.95
+    tyre_pressure=4
+    wing_strength=.12
+    HPower=3.5
+    FR_drive=True
+    power_ratio=.25
+    motor_position=3
+    gear_ratio1(1)=64/28
+    gear_ratio1(2)=64/38
+    gear_ratio1(3)=64/48
+    gear_ratio1(4)=64/58
+    gear_ratio1(5)=64/68
+    gear_ratio1(6)=64/78
+    has_turbo=True
+    ruyscale=.7
+    car_turn_factor=.7
+    susp_strength=.8
+    rear_wing=.6
+    front_wing=.4
+    field_advantage=1.6
+    engined$="engine2"
+    turbod$="engine2t"
+
+
+
+
+  Case 7
+    troll_off=1/16
+    rev_max=9000
+    turbo_boost=200
+    tyre_pressure=4
+    wing_strength=.11
+    drag_factor=.9
+    HPower=6
+    rw_drive=True
+    power_ratio=0
+    motor_position=2
+    gear_ratio1(1)=64/32
+    gear_ratio1(2)=64/44
+    gear_ratio1(3)=64/56
+    gear_ratio1(4)=64/68
+    gear_ratio1(5)=64/80
+    gear_ratio1(6)=64/88
+    has_turbo=True
+    ruyscale=.65
+    car_turn_factor=.8
+    rear_wing=.6:front_wing=.4
+    field_advantage=1.2
+    engined$="engine6a"
+    turbod$="engine6b"
+
+  Case 8
+    troll_off=1/8
+    rev_max=12000
+    turbo_max=1.1
+    turbo_boost=170
+    tyre_pressure=4
+    wing_strength=.18
+    drag_factor=1.1
+    HPower=8
+    rw_drive=True
+    power_ratio=0
+    motor_position=2
+    gear_ratio1(1)=64/30;2;1.5
+    gear_ratio1(2)=64/40;1.6589;1.2
+    gear_ratio1(3)=64/50;.5;1.3824;1
+    gear_ratio1(4)=64/60;1.152;.85
+    gear_ratio1(5)=64/70;.5;.96;.8
+    gear_ratio1(6)=64/80;.8192;.8;.79
+    has_turbo=True
+    ruyscale=.65
+    car_turn_factor=.9
+    rear_wing=.5:front_wing=.5
+    field_advantage=1
+    engined$="engine1a"
+    turbod$="engine1t2"
+
+  Case 9
+    troll_off=1/2
+    rev_max=11000
+    turbo_dsp=250
+    turbo_boost=400
+    tyre_pressure=4
+    wing_strength=.02
+    drag_factor=2
+    HPower=6
+    rev_limit=.9
+    FR_drive=True
+    power_ratio=.5
+    motor_position=2
+    gear_ratio1(1)=64/10
+    gear_ratio1(2)=64/30
+    gear_ratio1(3)=64/50
+    gear_ratio1(4)=64/70
+    gear_ratio1(5)=64/80
+    gear_ratio1(6)=64/90
+    has_turbo=False
+    ruyscale=.65
+    car_turn_factor=.6
+    susp_strength=.5
+    rev_limiter=.5
+    field_advantage=3
+    engined$="engine4b"
+    turbod$="engine4t"
+  Default
+    no_choice_made=True
+End Select
+wing_strength=wing_strength*wing_strength_adj
+;wing_strength*4
+HPower*f_multiplier
+drag_factor*f_multiplier
+tyre_pressure*2
+car_turn_factor*.5
+gear_ratio1(0)=1000
+If no_choice_made=True Then Goto select_cars
+weight_ratio=2+(motor_position-2)/2
+
+
+
+weight_front=3/(1+weight_ratio)
+weight_rear=weight_front*weight_ratio
+
+
+Return
+.crap
+
+
+Return
+
+clear_landscape:
+  For m=0 To 255
+      GetReg a0,&heightmap(0,m)
+      MOVE.w #255,d0
+  _asm_clear_land:
+      MOVE.w #0,(a0)+
+      SUBQ.w #1,d0
+      BGE _asm_clear_land
+  Next m
+
+
+  Return
+
+
+
+
+_filtfreq: Dc.l 0
+
+

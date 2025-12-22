@@ -1,0 +1,92 @@
+/*
+ * snoop.empfe - Snoop module for Amiga Empire. All ships named 'snoop'
+ * will move to the nearest unknown sector and will do a radar scan
+ * there to improve your knowledge about the world.
+ * It _eats_ BTU's, use with care.
+ *
+ * Written by Håkan Thörngren 1990 and placed in Public Domain.
+ * It may serve as an example of using the path
+ * finder in Empfe and using the name field for ships for something
+ * else than ship names..
+ *
+ * Feel free to use, improve and earn a million from this code.
+ *
+ * Please add your own notes in this header if you do changes to the
+ * code!!!
+ *
+ */
+
+/*trace ?r*/
+/*trace ?scan*/
+
+if show("L", "rexxsupport.library") = 0
+then call addlib "rexxsupport.library", 0, -30, 0
+
+
+address "EMPFE"
+
+min_btu_left = 10
+min_mobility_left = 5
+
+ship = 0
+moved_a_ship = 0
+i = 0
+
+do while ship ~= -1
+    if get_ship('name',ship) = "snoop" & get_ship('mobility',ship) > min_mobility_left & get_ship('efficiency',ship) > 90 then do
+	path = find_path(get_ship('row',ship),get_ship('column',ship),500,1,' ')
+	if length(path) > 0 then do
+	    if nav_ship(ship,path) = 1 then moved_a_ship = 1
+	    i = i + 1
+	    end
+	end
+    ship = my_next_ship(ship)
+/*    if btu_left() < min_btu_left then exit(0)*/
+    end
+
+
+if moved_a_ship = 1 then do
+    check =  snoop()
+    end
+
+return(0);
+
+
+/***************************************************************************
+  near_unknown(row,column) - return 1 if the position has any unknown sector
+  around.
+***************************************************************************/
+near_unknown: procedure
+    parse arg row,col
+    if get_sector('type',row-1,col) = ' ' then return (1)
+    if get_sector('type',row-1,col-1) = ' ' then return (1)
+    if get_sector('type',row-1,col+1) = ' ' then return (1)
+    if get_sector('type',row+1,col) = ' ' then return (1)
+    if get_sector('type',row+1,col+1) = ' ' then return (1)
+    if get_sector('type',row+1,col-1) = ' ' then return (1)
+    if get_sector('type',row,col-1) = ' ' then return (1)
+    if get_sector('type',row,col+1) = ' ' then return (1)
+    return(0)
+
+
+/***************************************************************************
+  nav_ship(ship,path) - navigate a ship the given path-1.
+***************************************************************************/
+nav_ship: procedure expose min_btu_left
+    parse arg ship,path
+
+    ok = 0
+    if btu_left() > min_btu_left then do
+	cmd = 'navigate '||ship||' '||path||'e'
+	if length(path) > 1 then queue_command(cmd,0)
+	do_command('ship 'ship,0)
+	ok = 1
+	if near_unknown(get_ship('row',ship),get_ship('column',ship)) then do
+	    cmd = "radar "||ship
+	    queue_command(cmd,1)
+	    end
+	end
+    else exit(0)  /* Return from macro when btu is low. */
+    return(ok)
+
+

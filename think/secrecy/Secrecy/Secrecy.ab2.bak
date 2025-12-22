@@ -1,0 +1,754 @@
+SetErr:Stop:End:End SetErr
+
+optimize 7
+
+DEFTYPE .w
+
+loadpath$="PROGDIR:"
+;loadpath$="m:upload2aminet/fixing/secrecy/"
+
+
+.start
+WBStartup
+
+BitMap 1,320,200,5
+LoadBitMap 1,loadpath$+"gfx/default",1
+Screen 1,0,0,320,200,5,0,"Secrecy",1,0
+;ScreenTags 1,
+
+ScreensBitMap 1,1
+
+Window 0,0,0,319,199,$1900,"",2,0
+
+WindowInput 0
+
+Use Palette 1
+DuplicatePalette 1,2
+
+;Menus Off
+
+VWait 10
+;activate screen
+ClickButton 0
+VWait 2
+gamescreen.l=ActiveScreen
+
+
+
+.title
+
+WindowOutput 0
+Cls 0
+
+Dim textfade(7)
+textfade(1)=1
+textfade(2)=2
+textfade(3)=3
+textfade(4)=4
+textfade(5)=5
+textfade(6)=4
+textfade(7)=3
+Statement showtext{text$}
+SHARED textfade()
+text$=Centre$(text$,39)
+ For n=1 To 7
+ WColour textfade(n),0
+ WLocate 0,190
+ Print text$
+ VWait 2
+ Next
+End Statement
+
+
+
+gamefile$=loadpath$+"SGF"
+
+gfxfile$=loadpath$+"gfx/default"
+Gosub getgfx
+
+
+.dims
+;arena
+axs.b=33
+ays.b=26
+Dim arena.b(axs,ays)
+;default arena draw
+dax1.b=1
+day1.b=1
+dax2.b=axs-1
+day2.b=ays-1
+
+;players
+Dim ps.b(4)    ;player status
+Dim pnick$(4)  ;this string is not saved
+Dim pnick.l(4) ;long conversion of above string nick
+Dim ppass.l(4)
+Dim pmoney.l(4)
+cp.b=1         ;current player
+
+;player stuff not saved
+Dim pcolor$(4)
+ pcolor$(1)="Purple"
+ pcolor$(2)="Green"
+ pcolor$(3)="Blue"
+ pcolor$(4)="Orange"
+
+;units
+hmu.l=500
+Dim us.b(hmu)  ;unit status
+Dim ub.b(hmu)  ;belonging (what player)
+Dim ut.b(hmu)  ;type
+Dim ux.b(hmu)
+Dim uy.b(hmu)
+Dim uam.b(hmu) ;available moves
+Dim ukm.b(hmu) ;known/revealed/fake moves
+Dim urm.b(hmu) ;remaining moves in one round
+
+
+
+
+
+;max move prices
+Dim mmp(3)
+mmp(1)=2
+mmp(2)=6
+mmp(3)=16
+Dim mmp$(3)
+mmp$(1)=Str$(mmp(1))
+mmp$(2)=Str$(mmp(2))
+mmp$(3)=Str$(mmp(3))
+
+newgame.b=0
+
+
+.gamemenu
+MenuColour 4
+MenuTitle 0,0," Game  "
+ MenuItem 0,0,0,0,"Setup New"
+ MenuItem 0,0,0,1,"Load gamefile"
+ MenuItem 0,0,0,2,"Type path to gamefile"
+ MenuItem 0,0,0,3,"Edit arena (off)"
+ MenuItem 0,0,0,4,""
+ MenuItem 0,0,0,5,"About"
+ MenuItem 0,0,0,6,"Quit  "
+MenuTitle 0,1,"options"
+ MenuItem 0,0,1,0,"Move units"
+ MenuItem 0,0,1,1,""
+ MenuItem 0,0,1,2,"Show map"
+ MenuItem 0,0,1,3,"End turn"
+MenuTitle 0,2,"buy new"
+ MenuItem 0,0,2,0,"Rock"
+  SubItem 0,0,2,0,0,"Max move 1="+mmp$(1)+"$"
+  SubItem 0,0,2,0,1,"Max move 2="+mmp$(2)+"$"
+  SubItem 0,0,2,0,2,"Max move 3="+mmp$(3)+"$"
+ MenuItem 0,0,2,1,"Paper"
+  SubItem 0,0,2,1,0,"Max move 1="+mmp$(1)+"$"
+  SubItem 0,0,2,1,1,"Max move 2="+mmp$(2)+"$"
+  SubItem 0,0,2,1,2,"Max move 3="+mmp$(3)+"$"
+ MenuItem 0,0,2,2,"Scissors"
+  SubItem 0,0,2,2,0,"Max move 1="+mmp$(1)+"$"
+  SubItem 0,0,2,2,1,"Max move 2="+mmp$(2)+"$"
+  SubItem 0,0,2,2,2,"Max move 3="+mmp$(3)+"$"
+
+SetMenu 0
+
+;to show in move mode
+MenuTitle 1,0,"Press"
+MenuTitle 1,1,"RETURN"
+
+;to show in arena editor
+MenuTitle 2,0,"Editor Keys"
+ MenuItem 2,0,0,0,"blocks"
+  SubItem 2,0,0,0,0,"keypad 0 to erase"
+  SubItem 2,0,0,0,1,"R SHIFT for normal"
+  SubItem 2,0,0,0,2,"R ALT for moneypoint"
+ MenuItem 2,0,0,1,"player bases"
+  SubItem 2,0,0,1,0,"keypad 1 for PLR1 purple"
+  SubItem 2,0,0,1,1,"keypad 2 for PLR2 green"
+  SubItem 2,0,0,1,2,"keypad 3 for PLR3 blue"
+  SubItem 2,0,0,1,3,"keypad 4 for PLR4 orange"
+MenuTitle 2,1,"RETURN When done"
+
+showtext{"menu available"}
+
+
+._loop
+.loop ;------------------------------
+
+VWait 1
+
+
+.checkmenuhits
+ ;gamemenu hits
+ eve.l=Event
+  If eve=$100
+  mh=MenuHit
+  ih=ItemHit
+  subh=SubHit
+  ;game
+   If mh=0
+   ;start new game
+   If ih=0:game=1:EndIf
+   ;load gamefile was selected
+    If ih=1 ;or ih=2
+     ;If ih=2
+     ;title$="Load gamefile"
+     ;path$="ram"
+     ;fil$="sgf"
+     ;-doesnt work-
+     ;gamefile$=ASLFileRequest$(title$,path$,fil$,10,20,300,170)
+     ;;gamefile$=FileRequest$(title$,path$,fil$)
+     ;EndIf
+     If Exists(gamefile$)
+     Gosub loadgamefile
+     ;draw the whole arena
+     Gosub drawarena
+     showtext{"gamefile loaded"}
+     rup$="are you player "+Str$(cp)+"?|"+pnick$(cp)+" - "+pcolor$(cp)
+     o=Request("Play or Look?",rup$,"yes|no, im just looking")
+     If o=1:game=2:Else:game=0:EndIf
+     ;just looking
+      If o=0
+      VWait 5
+      Gosub drawarena
+      showtext{"Enjoy the sight"}
+      EndIf
+     Else
+     showtext{"File not found"}
+     EndIf
+    EndIf
+    If ih=2
+    showtext{"Type in filepath of gamefile"}
+    WLocate 1,180:Print ">"
+    k$=Inkey$
+    gf$=Edit$(40)
+    gamefile$=gf$
+    showtext{"New gamefile path set"}
+    EndIf
+   ;edit arena
+   ;off;If ih=3 AND game=3:edarena.b=1:EndIf
+  ;about
+    If ih=5
+    o=Request("About","Secrecy V1.0|By Joar Berntsen|joar.berntsen@netcom.no","yaaawn...")
+    EndIf
+   .gamequit
+    If ih=6
+    End
+    EndIf
+   EndIf
+  ;options
+   If mh=1 AND game=3
+    If ih=0
+    moveunits.b=1
+    EndIf
+    If ih=2
+    Cls 0
+    Gosub drawarenaonly
+    VWait 100
+    Gosub drawarena
+    EndIf
+   ;end turn
+    If ih=3
+     Repeat
+     cp+1
+     If cp>4:cp=1:EndIf
+     Until ppass(cp)=0 OR (ppass(cp)>0 AND ps(cp)=1)
+    Gosub savegamefile
+    game=0
+    showtext{"now send gamefile to player "+Str$(cp)}
+    VWait 140
+    showtext{pnick$(cp)+" - "+pcolor$(cp)}
+    EndIf
+   EndIf
+  ;buy new unit
+   If mh=2 AND game=3
+   buytype=ih+1
+   buymove=subh+1
+   EndIf
+  EndIf
+ ;end menu hits
+
+
+Gosub getmouse
+
+;new game
+ If game=1 OR edarena=1
+  If edarena=0
+  ;resettings
+  Dim arena.b(axs,ays)
+  ;players
+  Dim ps.b(4)    ;player status
+  Dim pnick$(4)  ;this string is not saved
+  Dim pnick.l(4) ;long conversion of above string nick
+  Dim ppass.l(4)
+  Dim pmoney.l(4)
+  cp.b=0         ;current player
+  ;units
+  hmu.l=500
+  Dim us.b(hmu)  ;unit status
+  Dim ub.b(hmu)  ;belonging (what player)
+  Dim ut.b(hmu)  ;type
+  Dim ux.b(hmu)
+  Dim uy.b(hmu)
+  Dim uam.b(hmu) ;available moves
+  Dim ukm.b(hmu) ;known/revealed/fake moves
+  Dim urm.b(hmu) ;remaining moves in one round
+  rounds.l=0
+  showtext{"create an arena, RETURN when done"}
+  Else
+  showtext{"Edit arena, RETURN when done"}
+  EndIf
+ ;redraw now empty arena
+ Gosub drawarena
+ ;simple arena creator
+ SetMenu 2
+  Repeat
+  VWait 1
+  Gosub getmouse
+  ;add playblock
+   If RawStatus($61)=-1
+   arena(smxarena,smyarena)=1
+   EndIf
+  ;erase/nothing
+   If RawStatus($0F)=-1
+   arena(smxarena,smyarena)=0
+   Boxf smxarena*10,smyarena*10,(smxarena*10)+9,(smyarena*10)+9,0
+   EndIf
+  ;moneypoints
+   If RawStatus($65)=-1
+   arena(smxarena,smyarena)=2
+   EndIf
+  ;player bases
+  If RawStatus($1D)=-1:arena(smxarena,smyarena)=11:EndIf
+  If RawStatus($1E)=-1:arena(smxarena,smyarena)=12:EndIf
+  If RawStatus($1F)=-1:arena(smxarena,smyarena)=13:EndIf
+  If RawStatus($2D)=-1:arena(smxarena,smyarena)=14:EndIf
+  ;realtime draw
+   If arena(smxarena,smyarena)>0
+   WBlit arena(smxarena,smyarena),smxarena*10,smyarena*10
+   EndIf
+  k$=Inkey$
+  Until RawStatus($44)=-1
+ ;new game
+  If edarena=0
+  ;find out wich players have got bases on this map
+  ppass(1)=1:ppass(2)=1:ppass(3)=1:ppass(4)=1
+   For x=1 To axs
+    For y=1 To ays
+    ;turn on those who have
+    If arena(x,y)=11:ppass(1)=0:EndIf
+    If arena(x,y)=12:ppass(2)=0:EndIf
+    If arena(x,y)=13:ppass(3)=0:EndIf
+    If arena(x,y)=14:ppass(4)=0:EndIf
+    Next
+   Next
+  showtext{"New game initialized"}
+  VWait 100
+  Else
+  showtext{"Now returned to game in progress"}
+  VWait 100
+  showtext{"You have "+Str$(pmoney(cp))+"$"}
+  EndIf
+ ;select first player playing
+  If game=1
+   Repeat
+   cp+1
+   ;array safety
+   If cp=5:cp=0:EndIf
+   Until ppass(cp)=0 OR cp=0
+  EndIf
+  If cp=0
+  showtext{"No bases made"}
+  game=0
+  EndIf
+ Gosub drawarena
+ ;the user might have hit some of the menu items
+ FlushEvents
+ SetMenu 0
+ VWait 50
+ edarena=0
+ If game=1:game=2:EndIf
+ EndIf
+
+;create pass and nick
+ If ppass(cp)=0 AND game=2
+ showtext{"Make your passnumber player "+Str$(cp)}
+ WLocate 40,180:Print ">"
+ k$=Inkey$
+ ppass(cp)=Edit(6)
+ ;ppass(cp)=1
+ showtext{"Your nick? (4 letters)"}
+ WLocate 40,180:Print "  >"
+ k$=Inkey$
+ pnick$(cp)=Edit$("PLR"+Str$(cp),4)
+ pnick$(cp)=Centre$(pnick$(cp),4)
+ ;convert nick from string to long
+ pnick(cp)=Cvl(pnick$(cp))
+ VWait 50
+ If ppass(cp)>0:ps(cp)=1:pmoney(cp)=50:EndIf
+ EndIf
+
+;type password
+ If ppass(cp)>0 AND game=2
+ showtext{"Type your passnumber player "+Str$(cp)}
+ WLocate 40,180
+ k$=Inkey$
+ pn.l=Edit(6)
+ ;pn.l=1
+ VWait 50
+  If pn<>ppass(cp)
+  showtext{"Incorrect..."}
+  game=0
+  Else
+  Cls 0
+  Gosub drawarena
+  game=3
+  moneypoints=0
+   For u=1 To hmu
+    If us(u)=1
+     If ub(u)=cp
+     urm(u)=uam(u)
+     ;on moneypoint
+      If arena(ux(u),uy(u))=2
+       For more=1 To 2
+       dax1=ux(u)
+       dax2=ux(u)
+       day1=uy(u):day2=uy(u)
+       VWait 20
+       Gosub drawarenaonly
+       VWait 8
+       dax1=ux(u):dax2=ux(u)
+       day1=uy(u):day2=uy(u)
+       Gosub drawarena
+       Next
+      moneypoints+1
+      EndIf
+     EndIf
+    EndIf
+   Next
+   If moneypoints>0
+   showtext{"You got "+Str$(moneypoints)+"$ from moneypoints"}
+   pmoney(cp)+moneypoints
+   VWait 140
+   EndIf
+  ;pmoney(cp)+3
+  rounds+1
+  showtext{"Its your turn. You are "+pcolor$(cp)}
+  VWait 90
+  showtext{"Round "+Str$(rounds)+". You have "+Str$(pmoney(cp))+"$"}
+  EndIf
+ EndIf
+
+ If game=3
+ ;wait for menuhits
+  If buytype>0
+   If pmoney(cp)=>mmp(buymove)
+   showtext{"place your new unit"}
+   VWait 50
+   showtext{"ESC to cancel purchase"}
+   placed.b=0
+    Repeat
+    VWait 1
+    Gosub getmouse
+     If Joyb(0)=1
+      If arena(smxarena,smyarena)=cp+10
+      freespot.b=1
+       For u=1 To hmu
+        If us(u)=1
+        If ux(u)=smxarena AND uy(u)=smyarena:freespot=0:EndIf
+        EndIf
+       Next
+       If freespot=1
+       Gosub makenewunit
+       uam(unr)=buymove
+       pmoney(cp)-mmp(buymove)
+       ut(unr)=buytype
+       ux(unr)=smxarena
+       uy(unr)=smyarena
+       placed=1
+       dax1=smxarena:dax2=smxarena
+       day1=smyarena:day2=smyarena
+       Gosub drawarena
+       Else
+       showtext{"Cannot place ontop of an other"}
+       EndIf
+      Else
+      showtext{"You have to place it on your base"}
+      EndIf
+     EndIf
+    Until placed=1 OR RawStatus($45)=-1
+   If placed=1:showtext{"unit placed"}:EndIf
+   If RawStatus($45)=-1:showtext{"Purchase aborted"}:EndIf
+   VWait 20
+   Else
+   showtext{"not enough money"}
+   VWait 100
+   EndIf
+  showtext{"You have "+Str$(pmoney(cp))+"$"}
+  buymove=0
+  buytype=0
+  EndIf
+ ;move units mode
+  If moveunits=1
+  SetMenu 1
+  showtext{"Use mouse. press RETURN when done"}
+  Gosub drawarena
+  selectedu=0
+   Repeat
+   take=0
+   enemyu=0
+   VWait 1
+   Gosub getmouse
+    If Joyb(0)=1
+    ;see if there are any units below pointer
+    freespot=1
+     For u=1 To hmu
+      If us(u)=1
+       If ux(u)=smxarena AND uy(u)=smyarena
+        If ub(u)=cp
+         ;unit already selected
+         If selectedu=u
+         ;deselect
+         dax1=ux(selectedu):dax2=ux(selectedu)
+         day1=uy(selectedu):day2=uy(selectedu)
+         selectedu=0
+         Gosub drawarena
+         showtext{"deselected"}
+         VWait 10
+         Else
+         selectedu=u
+         dax1=ux(selectedu):dax2=ux(selectedu)
+         day1=uy(selectedu):day2=uy(selectedu)
+         Gosub drawarena
+         showtext{"Remaining moves: "+Str$(urm(selectedu))+"/"+Str$(uam(selectedu))}
+         VWait 10
+         EndIf
+        Else
+        enemyu=u
+         If selectedu>0
+         ;attack
+         ;see if the selected unit can beat it
+         If ut(enemyu)=1 AND ut(selectedu)=2:take=enemyu:EndIf
+         If ut(enemyu)=2 AND ut(selectedu)=3:take=enemyu:EndIf
+         If ut(enemyu)=3 AND ut(selectedu)=1:take=enemyu:EndIf
+         EndIf
+        EndIf
+       freespot=0
+       EndIf
+      EndIf
+     Next
+    EndIf
+   ;move a previously selected unit
+   ;double joyb check to avoid attempt to move to same cell
+    If Joyb(0)=1
+    oktomove=0
+    distx.b=smxarena-ux(selectedu)
+    disty.b=smyarena-uy(selectedu)
+    If distx=1 OR distx=-1:oktomove=1:EndIf
+    If disty=1 OR disty=-1:oktomove=1:EndIf
+    If distx<>0 AND disty<>0:oktomove=0:EndIf
+     If ((freespot=1 AND arena(smxarena,smyarena)>0 AND selectedu>0 AND urm(selectedu)>0) OR take>0) AND oktomove=1
+      If take>0
+      us(take)=0
+      showtext{"Your unit kills the enemy unit"}
+      VWait 80
+      EndIf
+     ;erase unit from previous position
+     dax1=ux(selectedu):dax2=ux(selectedu)
+     day1=uy(selectedu):day2=uy(selectedu)
+     Gosub drawarenaonly
+     ;move to new
+     ux(selectedu)=smxarena
+     uy(selectedu)=smyarena
+     urm(selectedu)-1
+     ;reveal moveability
+     If ukm(selectedu)<uam(selectedu)-urm(selectedu):ukm(selectedu)=uam(selectedu)-urm(selectedu):EndIf
+     a=arena(ux(selectedu),uy(selectedu))
+      If a>10 AND a<15
+      ;on an alive enemy base
+       If a-10<>cp AND ps(a-10)=1
+       ps(a-10)=0
+       showtext{"Player "+Str$(a-10)+" "+pnick$(a-10)+" "+pcolor$(a-10)+" has lost"}
+       VWait 400
+       moneybonus=0
+        For u=1 To hmu
+        If us(u)=1 AND ub(u)=a-10:moneybonus+5:EndIf
+        Next
+       showtext{"money bonus: "+Str$(moneybonus)+"$"}
+       VWait 200
+       pmoney(cp)+moneybonus
+       EndIf
+      EndIf
+     dax1=ux(selectedu):dax2=ux(selectedu)
+     day1=uy(selectedu):day2=uy(selectedu)
+     Gosub drawarena
+     showtext{"Remaining moves: "+Str$(urm(selectedu))+"/"+Str$(uam(selectedu))}
+     VWait 10
+     Else
+     showtext{"It cant move there"}
+     VWait 50
+     showtext{"Remaining moves: "+Str$(urm(selectedu))+"/"+Str$(uam(selectedu))}
+     EndIf
+    EndIf
+   Until RawStatus($44)=-1
+  SetMenu 0
+  showtext{"Now out of move mode"}
+  VWait 100
+  showtext{"You have "+Str$(pmoney(cp))+"$"}
+  selectedu=0
+  moveunits=0
+  EndIf
+ EndIf
+
+
+
+
+Goto _loop
+End
+
+
+
+
+makenewunit
+u=0
+Repeat:u+1:Until us(u)=0
+us(u)=1
+ub(u)=cp
+ukm(u)=1  ;revealed to be able to move atleast 1
+unr=u
+Return
+
+
+getmouse
+smxarena=Int(SMouseX/10)
+smyarena=Int(SMouseY/10)
+Return
+
+
+getgfx
+;needs gfxfile$
+ If Exists(gfxfile$)
+ LoadBitMap 1,gfxfile$,1
+  For x=0 To 7
+   For y=0 To 10
+   GetaShape (x*10)+y+1,x*10,y*10,10,10
+   Next
+  Next
+ VWait 10
+ Cls 0
+ EndIf
+Return
+
+
+drawarena
+ For x=dax1 To dax2
+  For y=day1 To day2
+   If arena(x,y)>0
+   WBlit arena(x,y),x*10,y*10
+   EndIf
+  Next
+ Next
+ For un=1 To hmu
+  If us(un)=1
+ ;belonging color and known move ability
+  WBlit 20+(ub(un)*10)+ukm(un),ux(un)*10,uy(un)*10
+ ;type symbol ontop
+  WBlit 20+ut(un),ux(un)*10,uy(un)*10
+ ;hilite selected unit
+  If un=selectedu:WBlit 20+4,ux(un)*10,uy(un)*10:EndIf
+  EndIf
+ Next
+dax1=1
+day1=1
+dax2=axs-1
+day2=ays-1
+Return
+
+drawarenaonly
+ For x=dax1 To dax2
+  For y=day1 To day2
+   If arena(x,y)>0
+   WBlit arena(x,y),x*10,y*10
+   EndIf
+  Next
+ Next
+dax1=1
+day1=1
+dax2=axs-1
+day2=ays-1
+Return
+
+
+.load
+loadgamefile
+;to handle numbered files from amirc
+gf$=gamefile$
+nr=1
+ Repeat
+ nr+1
+  If Exists(gamefile$+"."+Str$(nr))
+  gf$=gamefile$+"."+Str$(nr)
+  Else
+  nr=0
+  EndIf
+ Until nr=0
+o=OpenFile(1,gf$)
+ ReadMem 1,&axs,1
+ ReadMem 1,&ays,1
+ ReadMem 1,&arena(0,0),(axs+1)*(ays+1)
+ ReadMem 1,&cp,1
+ ReadMem 1,&ps(0),5
+ ReadMem 1,&pnick(0),(4*5)
+ ReadMem 1,&pmoney(0),(4*5)
+ ReadMem 1,&ppass(0),(4*5)
+ ReadMem 1,&hmu.l,4
+ ReadMem 1,&us.b(0),(hmu+1)
+ ReadMem 1,&ub.b(0),(hmu+1)
+ ReadMem 1,&ut.b(0),(hmu+1)
+ ReadMem 1,&ux.b(0),(hmu+1)
+ ReadMem 1,&uy.b(0),(hmu+1)
+ ReadMem 1,&uam.b(0),(hmu+1)
+ ReadMem 1,&ukm.b(0),(hmu+1)
+ ReadMem 1,&urm.b(0),(hmu+1)
+ ReadMem 1,&rounds.l,4
+CloseFile 1
+;should this be here?
+;convert nicks from long to string
+ For n=1 To 4
+ pnick$(n)=Mkl$(pnick(n))
+ Next
+Return
+
+.save
+savegamefile
+o=OpenFile(1,gamefile$)
+ WriteMem 1,&axs,1
+ WriteMem 1,&ays,1
+ WriteMem 1,&arena(0,0),(axs+1)*(ays+1)
+ WriteMem 1,&cp,1
+ WriteMem 1,&ps(0),5
+ WriteMem 1,&pnick(0),(4*5)
+ WriteMem 1,&pmoney(0),(4*5)
+ WriteMem 1,&ppass(0),(4*5)
+ WriteMem 1,&hmu.l,4
+ WriteMem 1,&us.b(0),(hmu+1)
+ WriteMem 1,&ub.b(0),(hmu+1)
+ WriteMem 1,&ut.b(0),(hmu+1)
+ WriteMem 1,&ux.b(0),(hmu+1)
+ WriteMem 1,&uy.b(0),(hmu+1)
+ WriteMem 1,&uam.b(0),(hmu+1)
+ WriteMem 1,&ukm.b(0),(hmu+1)
+ WriteMem 1,&urm.b(0),(hmu+1)
+ WriteMem 1,&rounds.l,4
+CloseFile 1
+showtext{"gamefile saved to"}
+VWait 60
+showtext{gamefile$}
+VWait 70
+;convert nicks from long to string
+ For n=1 To 4
+ pnick$(n)=Mkl$(pnick(n))
+ Next
+Return
+
+

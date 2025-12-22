@@ -1,0 +1,78 @@
+/* expand.empfe
+	This ARexx macro will try and find sectors next to any that you own
+	which are owned by god, and will then try and move civilians onto them.
+*/
+
+me = get_country('my')
+rowmax = max_row()
+colmax = max_column()
+
+n = get_country('sector',me)
+r = 0
+c = 0
+string = out_fix_coordinate(0,0)
+parse var string rowoffset','coloffset
+
+do i=0 to n
+  string = my_next_sector(r,c)
+  parse var string r','c
+  type = get_sector('type',r,c)
+  /* don't mov civs out of a capital or bootcamp */
+  if type~='c' & type~='a' then do
+	string = out_fix_coordinate(r,c)
+say 'Working on sector 'string
+	parse var string r2','c2
+    if ~get_sector_flag('dirty',r,c) then
+	  if get_sector('mobility',r,c)>50 then
+		/* Be wary of changing this number. Increasing it too much
+			can cause you to run out of BTUs due to excessive moves */
+		if get_sector('civilian',r,c)>64 then do
+			/* We can move at least 32 civilians from this sector. */
+			move_out(r2,c2)
+		end
+  end
+end
+return 0
+
+
+move_out: procedure    expose me rowmax colmax coloffset rowoffset
+  arg row,col
+  string = out_fix_coordinate(row-1,col-1)
+  parse var string r1','c1
+  string = out_fix_coordinate(row+1,col+1)
+  parse var string r2','c2
+  if ok_sector(r1,c1) then move_civ(row,col,"\l",r1,c1)
+  else if ok_sector(r1,col) then move_civ(row,col,"u",r1,col)
+  else if ok_sector(r1,c2) then move_civ(row,col,"/r",r1,c2)
+  else if ok_sector(row,c1) then move_civ(row,col,"l",row,c1)
+  else if ok_sector(row,c2) then move_civ(row,col,"r",row,c2)
+  else if ok_sector(r2,c1) then move_civ(row,col,"/l",r2,c1)
+  else if ok_sector(r2,col) then move_civ(row,col,"d",r2,col)
+  else if ok_sector(r2,c2) then move_civ(row,col,"\r",r2,c2)
+  return 1
+
+/* ok_sector - return 1 if the given sector can be taken over. */
+ok_sector: procedure  expose me
+  arg row,col
+  if get_sector('owner',row,col)=-1 | get_sector('owner',row,col)=0 then do
+  	type = get_sector('type',row,col)
+	if type~='.' & type~='^' then
+		if get_sector_flag('dirty',row,col)=0  then do
+	    	call put_sector_flag('dirty',row,col,1)
+	    	return 1
+	    	end
+  end
+ return 0
+
+move_civ: procedure expose coloffset rowoffset rowmax colmax
+  parse arg row_f,col_f,dir,row_t,col_t
+  if btu_left()<10 then say "Too few BTU's left - command not sent!"
+  else do
+    string = 'move c 'row_f','col_f' 32 'dir'e'
+    say 'Queued 'string
+    call do_command(string,-1)
+    call put_sector_flag('dirty',row_f,col_f,1)
+    call put_sector_flag('dirty',row_t,col_t,1)
+  end
+  return 1
+

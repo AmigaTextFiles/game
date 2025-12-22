@@ -1,0 +1,317 @@
+;
+; Installer-Script für Schlachtfeld 2
+; 
+;    Autor     : Peter Weigoldt
+;    Version   : 2
+;    Datum     : 12.1.99
+;
+;    $VER: Install 2 (12.1.99)
+;
+;**************************************************
+
+(set @user-level 1)
+
+
+(set #askdir1 (cat "Wohin soll das Spiel kopiert werden?\n"
+"Ein Verzeichnis 'Schlachtfeld' wird angelegt."))
+
+(set #hd-diskeinlegen (cat "Bitte eine HD-Diskette in Laufwerk DF0: einlegen.\n"
+"(Diskette muß nicht formatiert sein).\n\n"
+"Achtung, alle Daten auf dieser Diskette werden gelöscht!!!"))
+
+(set #dd-diskeinlegen (cat "Bitte zwei DD-Disketten bereithalten.\n"
+"Die erste Diskette in Laufwerk DF0: einlegen.\n" 
+"(Diskette muß nicht formatiert sein).\n\n"
+"Achtung, alle Daten auf dieser Diskette werden gelöscht!!!"))
+
+(set #dd-diskeinlegen2 (cat "Diskette entnehmen und mit\n"
+"'SCHLACHTFELD#1'\n"
+"beschriften.\n\n\n"
+"Zweite Diskette einlegen.\n"
+"(Diskette muß nicht formatiert sein).\n\n"
+"Achtung, alle Daten auf dieser Diskette werden gelöscht!!!"))
+
+(set #sorry (cat "Kann 'SYS:System/Format' bzw. 'C:Install'\n"
+"nicht auf Deiner Festplatte finden.\n"
+"Diese zwei Dateien brauche ich aber zum Anlegen der Startdisk.\n"
+"Ich mache trotzdem weiter mit Kopieren..."))
+
+;**************************************************
+
+
+(complete 0)
+
+(set SelectedAktion
+     (askchoice
+        (help @askchoice-help)
+        (prompt "Art der Installation wählen")
+        (choices "Installation auf Festplatte"
+         "Spieldiskette erstellen (HD)"
+         "Spieldisketten erstellen (DD)")
+     )
+)
+
+(complete 5)
+     
+(if (= SelectedAktion 0)
+  (       (set #name
+               (askdir
+                    (prompt #askdir1)
+                    (help @askdir-help)
+                    (default "SYS:")
+               )
+          )
+
+          (set #Dname (tackon #name "Schlachtfeld"))
+
+          (makedir #Dname
+          (infos)
+          )
+     
+     (complete 10)   
+
+     (copyfiles 
+          (source "")
+          (dest #Dname)
+          (pattern "~(install#?|s|c|libs|fonts)")
+          (prompt "kopiere Dateien")
+          (help @confirm-help)
+          (confirm)
+     )
+     
+
+     (complete 90)
+     
+     (copyfiles
+          (source "fonts")
+          (dest "FONTS:")
+          (pattern "#?")
+          (prompt "kopiere Zeichensatz")
+          (help @confirm-help)
+          (confirm)
+        
+     )
+     
+     (complete 100)
+     
+     (message "Installation erfolgreich beendet.\n"
+     "Das Spiel befindet sich im Verzeichnis '"#Dname"'.\n\n"
+     "Für MCP-Benutzer: Bitte nicht vergessen, die Cachefontliste\n"
+     "der CacheFont-Funktion zu aktualisieren, falls diese aktiv ist.\n"
+     "Tip: Falls CacheFont nicht aktiv ist, aktivieren!\n\n"
+     "Viel Vergnügen auf dem Schlachtfeld!")
+     (exit (quiet))
+              
+     
+  )     
+     
+
+
+(if (= SelectedAktion 1)
+
+  ( 
+     (message #hd-diskeinlegen)
+    
+     (working "Formatiere HD-Disk in DF0:")
+          
+     (if (exists 'SYS:System/Format' (noreq))   
+          (run 'sys:system/format DRIVE=df0: NAME=Schlachtfeld FFS NOICONS')
+          (message #sorry)
+     )
+ 
+     (complete 40)
+     
+     (working "Installiere Bootblock")
+     
+     (if (exists 'C:Install' (noreq))   
+          (run 'c:install df0:')
+          (message #sorry)
+          
+     )
+        
+     (complete 45)
+    
+     (working "Kopiere Dateien...")
+    
+     (copyfiles 
+          (source "")
+          (dest "df0:")
+          (pattern "~(install#?|snd)")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )
+     
+     (complete 70)
+     
+     (copyfiles 
+          (source "snd")
+          (dest "df0:snd")
+          (pattern "#?")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )
+     
+     (complete 90)
+     
+     (copyfiles
+          (source "LIBS:diskfont.library")
+          (dest "df0:libs")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )
+     
+     (complete 95)
+     
+     (copyfiles
+          (source "LIBS:mathtrans.library")
+          (dest "df0:libs")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )     
+     
+     (complete 99)
+          
+     (copyfiles
+          (source "C:assign")
+          (dest "df0:c")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )     
+    
+ 
+
+     (complete 100)
+     
+     (message "Installation erfolgreich beendet.\n"
+     "Du bist jetzt stolzer Besitzer einer neuen Spieldiskette.\n\n"
+     "Hinweis: Beim Spielen von Diskette bitte den Rechner\n"
+     "mit dieser Diskette starten.\n\n"
+     "Tip: In der 'Schlachtfeld.prefs'-Datei den Eintrag SCREENSHOT\n"
+     "von 1 auf 0 setzen. Das beschleunigt das Speichern des Spielstandes.\n\n"        
+     "Viel Vergnügen auf dem Schlachtfeld.")
+     (exit (quiet))
+
+  ) 
+ 
+(if (= SelectedAktion 2)
+
+  ( 
+     (message #dd-diskeinlegen)
+    
+     (working "Formatiere DD-Disk in DF0:")
+          
+     (if (exists 'SYS:System/Format' (noreq))   
+          (run 'sys:system/format DRIVE=df0: NAME=Schlachtfeld#1 FFS NOICONS')
+          (message #sorry)
+     )
+ 
+     (complete 29)
+     
+     (working "Installiere Bootblock")
+     
+     (if (exists 'C:Install' (noreq))   
+          (run 'c:install df0:')
+          (message #sorry)
+          
+     )
+        
+     (complete 30)
+    
+     (working "Kopiere Dateien...")
+    
+     (copyfiles 
+          (source "")
+          (dest "df0:")
+          (pattern "~(install#?|snd|Anleitung.guide|Anleitung.guide.info)")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )
+                    
+     (complete 50)
+     
+     (copyfiles
+          (source "LIBS:diskfont.library")
+          (dest "df0:libs")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )
+     
+     (complete 52)
+     
+     (copyfiles
+          (source "LIBS:mathtrans.library")
+          (dest "df0:libs")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )     
+     
+     (complete 55)
+          
+     (copyfiles
+          (source "C:assign")
+          (dest "df0:c")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )
+     
+     (message #dd-diskeinlegen2)
+     
+     (working "Formatiere DD-Disk in DF0:")
+          
+     (if (exists 'SYS:System/Format' (noreq))   
+          (run 'sys:system/format DRIVE=df0: NAME=Schlachtfeld#2 FFS NOICONS')
+          (message #sorry)
+     )
+     
+     (complete 75)
+          
+     (copyfiles 
+          (source "snd")
+          (dest "df0:snd")
+          (pattern "#?")
+          (prompt "kopiere Dateien...")
+          (help @confirm-help)
+          (confirm)
+     )
+     
+     (complete 95)
+     
+     (copyfiles
+          (source "")
+          (dest "df0:")
+          (pattern "Anleitung.guide#?")
+          (prompt "kopiere Anleitung...")
+          (help @confirm-help)
+          (confirm)
+     )
+     
+     (complete 100)
+     
+     (message "Diskette entnehmen und mit\n"
+     "'SCHLACHTFELD#2'\n"
+     "beschriften.\n\n\n")     
+    
+     
+     (message "Installation erfolgreich beendet.\n"
+     "Du bist jetzt stolzer Besitzer von 'Schlachtfeld2'.\n\n"
+     "Hinweis: Beim Spielen von Diskette bitte den Rechner\n"
+     "mit Disk #1 starten.\n\n"
+     "Tip: In der 'Schlachtfeld.prefs'-Datei den Eintrag SCREENSHOT\n"
+     "von 1 auf 0 setzen. Das beschleunigt das Speichern des Spielstandes.\n\n"        
+     "Viel Vergnügen auf dem Schlachtfeld.")
+     (exit (quiet))
+
+  ) 
+  
+ 
+
+)))

@@ -1,0 +1,14 @@
+@START: REM POKE 23659,0
+  REM INK 0: PAPER 0: FLASH 0: BRIGHT 0
+  PRINT AT 0,0;
+  FOR i = 0 TO 21
+    PRINT,,
+  NEXT i
+  PRINT AT 0,0;
+  LOAD "MazezaM 2" CODE 65368,72
+  PRINT AT 0,0;
+#ifdef FINAL_BUILD
+  LOAD "MazezaM 3" CODE 23552,9500
+#else
+  MERGE "MazezaM 3"
+#endif

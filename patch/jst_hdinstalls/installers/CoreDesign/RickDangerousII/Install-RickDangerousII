@@ -1,0 +1,108 @@
+;----------------------------
+
+;try to figure out a place where the user usually installs his games
+(if (exists "Games:" (noreq) )
+    (set @default-dest "Games:")
+    (if (exists "SYS:Games" (noreq) )
+        (set @default-dest "SYS:Games")
+        (if (exists "Work:Games" (noreq) )
+            (set @default-dest "Work:Games")
+            (if (exists "JEUX:" (noreq) )
+               (set @default-dest "JEUX:")
+               (set @default-dest "SYS:")
+            )
+        )
+    )
+)
+
+
+(set @default-dest
+(askdir
+	(prompt ("Where should %s installed ?\nA drawer \"%s\" will automatically created." @app-name @app-name))
+	(help @askdir-help)
+	(default @default-dest)
+	(disk)
+)
+)
+
+(set #dest (tackon @default-dest @app-name))
+(set #CI_unit
+	(askchoice
+		(prompt "From which disk unit do you want\nto install the game")
+		(help	@askoptions-help)
+		(choices
+		   "DF0:"
+		   "DF1:"
+		   "DF2:"
+		   "DF3:"
+		)
+	)
+)
+
+(set #CI_drive ("DF%ld:" #CI_unit))
+
+(set #Rickd2_ver
+	(askchoice
+		(prompt "From which disk unit do you want\nto install the game")
+		(help	@askoptions-help)
+		(choices
+		   "Rick Dangerous II - Full priced"
+		   "Rick Dangerous II - Budget (Kixx)"
+		)
+	)
+)
+
+(makedir #dest
+	(help @makedir-help)
+	(infos)
+)
+
+;----------------------------
+
+(if (= #Rickd2_ver 0)
+(copyfiles
+	(help @copyfiles-help)
+	(source "RickDangIIHD")
+	(dest #dest)
+))
+(if (= #Rickd2_ver 1)
+(copyfiles
+	(help @copyfiles-help)
+	(source "rickv2/RickDangIIHD")
+	(dest #dest)
+))
+
+(copyfiles
+	(help @copyfiles-help)
+	(source "RickDangIIHD.info")
+	(dest #dest)
+)
+
+(copyfiles
+	(help @copyfiles-help)
+	(source "rickhd2.readme.info")
+	(dest #dest)
+)
+
+(copyfiles
+	(help @copyfiles-help)
+	(source "rickhd2.readme")
+	(dest #dest)
+)
+
+(message ("\nInsert %s disk 1 into drive %s !" @app-name #CI_drive))
+	(if (= #Rickd2_ver 0)
+		(if
+			(= 0 (run ("disk2file %ld \"%s/rd2.d1\" SKIPROB >con:0/0/450/200//CLOSE/WAIT" #CI_unit #dest )))
+			("")
+			(abort "\"disk2file\" must be in your PATH !")
+		))
+	(if (= #Rickd2_ver 1)
+		(if
+			(= 0 (run ("copy df%ld: df%ld:c/RICK2 to \"%s\" " #CI_unit #CI_unit #dest )))
+			("")
+			(abort "\"\" must be in your PATH !")
+		))
+
+(exit)
+

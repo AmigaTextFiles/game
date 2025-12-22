@@ -1,0 +1,80 @@
+/************************************\
+** French Scarf v1.0 for Solitarexx **
+**       by Michal Szafranski       **
+\************************************/
+OPTIONS RESULTS
+
+tex = '"French Scarf"'
+wintex = '"We Have a Winner"'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDSPACE 6 9
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 tex 6
+SELECTGUI 1
+
+SCREENSIZE 2 6 10 0
+DO i = 0 TO 9
+	NEWSTACK i 8 0 i 0 0 0 6
+	stack.i = RESULT
+END
+NEWSTACK 10 1 1 0 1 0 6 18
+deck = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SETGADGET 14 STR tex
+	SELECTGUI 4
+	sel = 0
+	fin = 0
+	mov = 1
+	DO i=0 TO 9
+		CARDSELECT deck 5
+		MOVECARDS deck stack.i REVERSE
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		SELECT
+		WHEN act = 1 THEN EXIT
+		WHEN act = 2 & mov = 1 THEN IF (sid//4)=0 THEN DO
+			mov = 0
+			CARDSELECT deck 1
+			MOVECARDS deck stack.sid REVERSE
+			sid = sid+1
+			CARDSELECT deck 1
+			MOVECARDS deck stack.sid REVERSE
+		END
+		ELSE ERRBEEP
+		WHEN act = 2 & card>0 & sid<10 THEN IF sel=0 THEN sel = stack
+		ELSE CALL DOSTACKS
+		WHEN act = 3 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+		OTHERWISE ERRBEEP
+		END
+	END
+RETURN
+DOSTACKS:
+	CARDSELECT sel 0 RELATIVE
+	PARSE VAR RESULT . w1 .
+	CARDSELECT stack 1
+	PARSE VAR RESULT . w2 .
+	IF w1 = w2 & sel ~= stack THEN DO
+		MOVECARDS sel deck
+		MOVECARDS stack deck
+		fin = fin +2
+		IF fin = 52 THEN SETGADGET 14 STR wintex
+	END
+	ELSE ERRBEEP
+	sel = 0
+RETURN

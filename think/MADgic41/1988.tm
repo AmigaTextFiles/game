@@ -1,0 +1,17 @@
+1988/asiwar.o
+1988/dude.o
+1988/wipe5.o
+1988/DMDmule.o
+1988/cowboy.o
+1988/sieve.o
+1988/immobili.o
+1988/death.o
+1988/lux2t.o
+1988/fydgitr.o
+1988/waspnest.o
+1988/slaver.o
+1988/drdeath.o
+1988/wally.o
+1988/hithard2.o
+1988/muledna.o
+1988/sud.o

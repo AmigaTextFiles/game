@@ -1,0 +1,53 @@
+Eternal Eclipse Taoyarin
+an MZX game by Lancer-X
+
+http://www.asceai.net/taoyarin/
+
+Controls
+--------
+
+Cursor keys		Movement
+Space			Use selected item (only applies to 'Silver Net', 'Lucent
+					Matter' and 'Lifeweb')
+Space + dir		Use selected item in direction (applies to all but 'Eternity
+					Charm', 'Lucent Matter' and 'Lifeweb')
+S				Skips (most) cutscenes. Mid-game, collects loose silver
+					essence.
+Z, X			Select weapon/item (Z scrolls up, X scrolls down)
+1				Select 'Glass Shard'
+2				Select 'Silver Net'
+3				Select 'Venom'
+4				Select 'Resound/Affect'
+5				Select 'Moon Flute'
+6				Select 'Tsuruoni'
+7				Select 'Paper Lantern'
+8				Select 'Eternity Charm'
+9				Select 'Lucent Matter'
+0				Select 'Lifeweb'
+
+Maps
+----
+
+Available at http://www.asceai.net/taoyarin/maps/ are maps of most areas in
+	the game. These can be useful to help you find your way around.
+
+Hints and tips
+--------------
+
+* The structure of the levels can change depending on which day it is. Some
+	exits may not be available on certain days. If an energy barrier is
+	blocking off access to part of a level, it may not be on a different day.
+
+* SAVE SAVE SAVE. Not only is the game difficult, but MZX has bugs. Save,
+	keep multiple saves and keep saving.
+
+* Even after your health drops to zero, you still have a small window of
+	opportunity to use a lifeweb to restore your health. Do so.
+
+* Keep at least one lantern around until you need it. After then, it becomes
+	expendible.
+
+* Energy barriers can be cut with a certain weapon found later on in the
+	game.
+
+* There are two endings to the game.

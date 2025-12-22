@@ -1,0 +1,67 @@
+##
+## Smakefile
+## =========
+## Makefile for multipuzzle.  Requires SAS/SMAKE.
+##
+## Copyright (C) 1994-1998 Håkan L. Younes (lorens@hem.passagen.se)
+##
+
+.ct.catalog:
+	-makedir $*
+   	CatComp catalogs/multipuzzle.cd $< CATALOG $@
+
+CDEFINES = 
+CDEBUGFLAGS = #debug=sf
+COPTFLAGS = opt optsched utillib
+CFLAGS = $(CDEFINES) $(CDEBUGFLAGS) $(COPTFLAGS) \
+         nochkabort noicons nover nostkchk nostkext math=ffp
+
+OBJS = multipuzzle.o puzzle.o displayinit.o requesters.o localize.o strings.o
+
+all: multipuzzle \
+     catalogs/svenska/multipuzzle.catalog \
+     catalogs/template.ct
+
+multipuzzle: $(OBJS)
+	$(LD) FROM LIB:c.o $(OBJS) TO $@ \
+	LIB LIB:scmffp.lib LIB:sc.lib LIB:amiga.lib
+
+catalogs/svenska/multipuzzle.catalog: catalogs/svenska.ct
+
+catalogs/template.ct: catalogs/multipuzzle.cd
+	CatComp $< CTFILE $@
+
+multipuzzle.o: multipuzzle.c displayinit.h puzzle.h requesters.h localize.h
+displayinit.o: displayinit.c displayinit.h requesters.h localize.h
+puzzle.o:      puzzle.c puzzle.h
+
+requesters.o: requesters.c requesters.h
+localize.o:   localize.c localize.h
+
+localize.h: strings.o
+	setdate localize.h
+
+strings.o: catalogs/multipuzzle.cd
+	CatComp $< CFILE strings.h OBJFILE $@
+
+
+clean:
+	-delete ALL \#?.o strings.h multipuzzle catalogs/~(\#?.\#?) \
+	catalogs/template.ct \#?.lha
+
+
+archive:
+	makedir t:multipuzzle
+	copy install t:multipuzzle/
+	copy install.info t:multipuzzle/
+	copy multipuzzle t:multipuzzle/
+	copy multipuzzle.info t:multipuzzle/
+	copy multipuzzle.guide t:multipuzzle/
+	copy multipuzzle.guide.info t:multipuzzle/
+	copy beach.ilbm t:multipuzzle/
+	makedir t:multipuzzle/catalogs
+	copy ALL catalogs/~(\#?.\#?) t:multipuzzle/catalogs/
+	copy catalogs/multipuzzle.cd t:multipuzzle/catalogs/
+	copy catalogs/template.ct t:multipuzzle/catalogs/
+	lha -aemqrx r multipuzzle.lha t:multipuzzle
+	delete ALL t:multipuzzle

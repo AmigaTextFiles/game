@@ -1,0 +1,480 @@
+@database Developer.guide
+@master Developer.guide
+@$VER: 0.4
+@author "Zach Forsyth"
+@(c) "1995"
+@index HeddleyAutoIndex
+@remark Created with Heddley v1.1 (c) Edd Dumbill 1994
+
+@node "Main" "Imp Professional Development Guide"
+   ****************************************************************
+   *           Imp Professional Module Development Docs           *
+   ****************************************************************
+
+Okay, first off this is very very preliminary documentation.  This file
+will attempt to explain how to write a module for my Imp Professional DM's
+assistant.  Good luck and thanks for the help!
+
+   @{"ImpPro shared library" link "Library" 0}
+   @{"Sample ImpPro modules" link "Modules" 0}
+   @{"Other misc junk" link "Junk" 0}
+@endnode
+
+@node "Library" "Imp Professional Shared Library"
+The shared library idea arose from the fact that most of the modules need
+similar functions (like random # generation).  The library also allows for
+easy access to the ImpPro shared semaphore, which contains information that
+can be shared between modules.
+
+The library contains the following functions:
+
+    @{u}Version 1@{uu}
+
+  @{"impSeedRand()" link "impSeedRand" 0}
+  @{"impRand()" link "impRand" 0}
+  @{"impInterpretAndRoll()" link "impInterpretAndRoll" 0}
+  @{"impComputeDHTRSS()" link "impComputeDHTRSS" 0}
+  @{"impSetGameTimeRaw()" link "impSetGameTimeRaw" 0}
+  @{"impGetGameTimeRaw()" link "impGetGameTimeRaw" 0}
+  @{"impSetPartyXP()" link "impSetPartyXP" 0}
+  @{"impGetPartyXP()" link "impGetPartyXP" 0}
+
+    @{u}Version 2@{uu}
+
+  @{"impLogEvent()" link "impLogEvent" 0}
+
+    @{u}Version 3@{uu}
+
+  @{"impReadSnapshot()" link "impReadSnapshot" 0}
+  @{"impWriteSnapshot()" link "impWriteSnapshot" 0}
+
+    @{u}Version 4@{uu}
+
+  @{"impArexxSelector()" link "impArexxSelector" 0}
+  @{"impLaunchCommand()" link "impLaunchCommand" 0}
+  @{"impLaunchCommandWait()" link "impLCWait" 0}
+
+    @{u}Version 5@{uu}
+
+  @{"impReturnStrSTEM()" link "impReturnStrSTEM" 0}
+  @{"impReturnNumSTEM()" link "impReturnNumSTEM" 0}
+  @{"impGotoFileLabel()" link "impGotoFileLabel" 0}
+
+@endnode
+
+@node "impSeedRand" "Seed the random # generator"
+@{b}int  impSeedRand(long);@{ub}
+
+This function seeds the random # generator.  If a non-NULL value is passed
+to impSeedRand, it will use that value as a seed.  If NULL is passed as an
+argument, the current time will be used as the seed.  The return value is
+undefined.
+
+@{u}Examples:@{uu}
+
+   impSeedRand(NULL);   // This seeds the rnd # generator based on time
+   impSeedRand(3234);        // This uses 3234 as a seed
+
+@{u}See Also:@{uu}
+
+   @{"impRand()" link "impRand" 0}
+@endnode
+
+@node "impRand" "Return random number"
+@{b}int  impRand(int);@{ub}
+
+This function returns a number between 1 and the value passed into it.
+
+@{u}Example:@{uu}
+
+   value = impRand(4);   // This will return a value between 1 and 4
+
+Be sure to seed the random # generator using impSeedRand before using this
+function for the first time.
+
+@{u}See also:@{uu}
+
+   @{"impSeedRand()" link "impSeedRand" 0}
+@endnode
+
+@node "impInterpretAndRoll" "Roll a die string"
+@{b}int  impInterpretAndRoll(char *);@{ub}
+
+This function takes a standard die string, and returns the result of
+rolling that string.  The string must be null terminated.
+
+@{u}Examples:@{uu}
+
+   value = impInterpretAndRoll("1d4");
+   value = impInterpretAndRoll("3d100+3");
+   value = impInterpretAndRoll("5d100-30");
+   value = impInterpretAndRoll("3d6*2");
+   value = impInterpretAndRoll("d6");
+   value = impInterpretAndRoll("6");        // This will return 6
+
+
+@{u}See also:@{uu}
+
+   @{"impRand()" link "impRand" 0} , @{"impSeedRand()" link "impSeedRand" 0}
+@endnode
+
+@node "impComputeDHTRSS" "Convert raw to to Days, turns, etc"
+@{b}int  impComputeDHTRSS(struct TimeStruct *);@{ub}
+
+This function fills in a TimeStruct based on the value of the raw field of
+the structure:
+
+struct TimeStruct {
+        int raw;
+        int value[TS_PARTS]; };
+
+@{u}Example:@{uu}
+
+   struct TimeStruct temp;
+
+   temp.raw = impGetGameTimeRaw();   // Get the current raw game time
+   impComputeDHTRSS(&temp);          // Fill in the Days,Hours,Turns
+                                     // etc...
+                                     // based upon the "raw" value
+   printf("%d\n", temp.value[TS_DAYS]);
+                                     // Print out the current # of days
+                                     // passed
+
+@{u}See also:@{uu}
+
+   @{"ImpLib.h" link "ImpLib.h/main" 0} , @{"impGetGameTimeRaw()" link "impGetGameTimeRaw" 0}
+@endnode
+
+@node "impSetGameTimeRaw" "Set current game time"
+@{b}int  impSetGameTimeRaw(int);@{ub}
+
+@{i}This function sets the current raw game time.  Only the clock module should
+do this!@{ui}
+@endnode
+
+@node "impGetGameTimeRaw" "Get current game time"
+@{b}int  impGetGameTimeRaw(void);@{ub}
+
+This function returns the current raw game time.  This number is
+meaningless unless you run it through impComputeDHTRSS().
+
+@{u}See also:@{uu}
+
+   @{"impComputeDHTRSS()" link "impComputeDHTRSS" 0}
+@endnode
+
+@node "impSetPartyXP" "Set running XP total"
+@{b}int  impSetPartyXP(int);@{ub}
+
+This function sets the current party XP value.  The encounter module uses
+this to communicate with the experience module.  ImpPro's shared semaphore
+is locked and written to with this function.
+
+@{u}See also:@{uu}
+
+   @{"impGetPartyXP()" link "impGetPartyXP" 0}
+@endnode
+
+@node "impGetPartyXP" "Get running XP total"
+@{b}int  impGetPartyXP(void);@{ub}
+
+Get the current cumulative party XP.  The experience module checks this
+value when attempting to import XP from the encounter module.  The return
+value is the current party XP.
+
+@{u}See also:@{uu}
+
+   @{"impSetPartyXP()" link "impSetPartyXP" 0}
+@endnode
+
+@node "impLogEvent" "Log a game event via GameLog"
+@{b}BOOL impLogEvent(UBYTE *event, ULONG id)@{ub}
+
+This function logs an event in the Game Log module.  This is attempted via
+messaging and will fail if Game Log's message port is not up and running.
+The event is passed in via a pointer to a string no longer than 80
+characters. If all goes well, TRUE is returned.  FALSE indicates failure.
+
+As of version 5, an ID is now required that indicates which module has sent
+the logging event.
+
+@{u}Example:@{uu}
+
+   impLogEvent("Fizzbin has died", MOD_CHARACTER);
+
+@endnode
+
+@node "impWriteSnapshot" "Read a snapshot from file"
+@{b}BOOL impWriteSnapshot(struct ImpSnapshot *)@{ub}
+
+This function saves snapshot information to the shared snapshot file.  This
+information allows you to record the size and position of your module's
+window(s).  Fill in the is_ID field before calling this function with your
+module unique window ID.
+
+@{u}Example:@{uu}
+
+   struct ImpSnapshot ssMain;
+
+   ssMain.is_ID = MAINWIN_ID;
+   GetAttr(WINDOW_Bounds, WO_Window, (ULONG *)&ssMain.is_Bounds);
+   impWriteSnapshot(&ssMain);
+
+@{u}See also:@{uu}
+
+   @{"impReadSnapshot()" link "impReadSnapshot" 0} , @{"struct ImpSnapshot" link "ImpLib.h/main" 35}
+@endnode
+
+@node "impReadSnapshot" "Write a snapshot to file"
+@{b}BOOL impReadSnapshot(struct ImpSnapshot *)@{ub}
+
+This function searches the shared snapshot file for your module's snapshot
+information and copies it into the structure you supply.  Fill in the is_ID
+field before calling this function.
+
+@{u}Example:@{uu}
+
+   struct ImpSnapshot ssMain;
+
+   ssMain.is_ID = MAINWIN_ID; // Our ID is ULONG, generated by MAKE_ID
+   if (impReadSnapshot(&ssMain))
+      SetAttrs(WO_Window, WINDOW_Bounds, &ssMain.is_Bounds, TAG_END);
+
+@{u}See also:@{uu}
+
+    @{"impWriteSnapshot()" link "impWriteSnapshot" 0} , @{"struct ImpSnapshot" link "ImpLib.h/main" 35}
+@endnode
+
+@node "impARexxSelector" "Bring up the standard ARexx selector"
+@{b}BOOL impARexxSelector(STRPTR extension)@{ub}
+
+This function will bring up the ImpPro standard ARexx selector containing a
+list of ARexx scripts with the specified extension in the "ImpPro:Scripts"
+directory.  When the user selects a script, it will be launched and the
+function will return immediately.  TRUE is returned if the user launches a
+script, FALSE if the user cancels
+
+@{u}Example:@{uu}
+
+   impARexxSelector("dungeon");  // Bring up all of the Dungeon scripts
+
+@{u}See also:@{uu}
+
+   @{"impLaunchCommand()" link "impLaunchCommand" 0} , @{"impLaunchCommandWait()" link "impLaunchCommandWait" 0}
+@endnode
+
+@node "impLCWait" "Launch an synchronous task"
+@{b}BOOL impLaunchCommandWait(STRPTR commandstring)@{ub}
+
+This function will spawn a task using the System routine in dos.library.
+Include the entire path and any arguments.  TRUE indicates success, FALSE
+indicates failure.  This function returns when the command has completed.
+
+@{u}Example:@{uu}
+
+   impLaunchCommandWait("SYS:Utilites/Multiview PUBSCREEN IMP.SCREEN");
+
+@{u}See also:@{uu}
+
+   @{"impLaunchCommand()" link "impLaunchCommand" 0}
+@endnode
+
+@node "impLaunchCommand" "Launch an asynchronous task"
+@{b}BOOL impLaunchCommand(STRPTR commandstring)@{ub}
+
+This function will spawn a task using the System routine in dos.library.
+Include the entire path and any arguments.  TRUE indicates success, FALSE
+indicates failure.  This function returns immediately.
+
+@{u}Example:@{uu}
+
+   impLaunchCommand("SYS:Utilites/Multiview PUBSCREEN IMP.SCREEN");
+
+@{u}See also:@{uu}
+
+   @{"impLaunchCommandWait()" link "impLCWait" 0}
+@endnode
+
+@node "impReturnStrSTEM" "Return a series of variables to ARexx"
+@{b}BOOL impReturnStrSTEM(struct RexxMsg *rxm, STRPTR basename, ULONG numvars,
+                      UBYTE **varnames, UBYTE **varvalues);@{ub}
+
+This function will return an array of variables to an ARexx program. Pass
+in the RexxMsg from your port, the desired base name of the STEM variable,
+the number of variables, an array of pointers to UBYTES containing the
+names of the variables, and finally the values of the variables.  The
+return value indicates success.
+
+@{u}Example:@{uu}
+
+   struct RexxMsg *rxm;
+   static UBYTE retbuf[2][80];
+   UBYTE *vars[] = {"FX0", "FY0", "FX1", "FY1"};
+   UBYTE *vals[2];
+
+   sprintf(retbuf[0], "%ld", fx0);
+   sprintf(retbuf[1], "%ld", fy0);
+   for (i = 0; i < 2; i++)
+      vals[i] = retbuf[i];
+
+   impReturnStrSTEM(rxm, "MySTEM", 2, vars, vals);
+
+@{u}See also:@{uu}
+
+   @{"impReturnNumSTEM()" link "impReturnNumSTEM" 0}
+@endnode
+
+@node "impReturnNumSTEM" "Return a series of variables to ARexx"
+@{b}BOOL impReturnNumSTEM(struct RexxMsg *rxm, STRPTR basename, ULONG numvars,
+                      ULONG numvars, UBYTE **varvalues);@{ub}
+
+This function will return an array of variables to an ARexx program. Pass
+in the RexxMsg from your port, the desired base name of the STEM variable,
+the number of variables, and finally the values of the variables.  The
+return value indicates success.
+
+Unlike @{"impReturnStrSTEM()" link "impReturnStrSTEM" 0}, this function does not allow you to name each
+STEM variable.  Instead, the variable names will be the basename with an
+index value:
+
+   <basename>.0
+   <basename>.1
+      ....
+   <basename>.numvars - 1
+
+@{u}Example:@{uu}
+
+   struct RexxMsg *rxm;
+   static UBYTE retbuf[2][80];
+   UBYTE *vals[2];
+
+   sprintf(retbuf[0], "%ld", fx0);
+   sprintf(retbuf[1], "%ld", fy0);
+   for (i = 0; i < 2; i++)
+      vals[i] = retbuf[i];
+
+   impReturnStrSTEM(rxm, "MySTEM", 2, vals);
+
+@{u}See also:@{uu}
+
+   @{"impReturnStrSTEM()" link "impReturnStrSTEM" 0}
+@endnode
+
+@node "impGotoFileLabel" "Goto a file label"
+@{b}BOOL impGotoFileLabel(BPTR fp, STRPTR label);@{ub}
+
+This function rewinds file @{i}fp@{ui} and searches for the specified file label.
+File labels are simply placeholders in an ASCII data file in this form:
+
+   ~ATTRIBUTES
+   18
+   13
+   14
+   16
+   13
+   ~END
+
+If the search is successful, the function returns TRUE and the file
+position is set to the line immediately following the label.  If the label
+is not found, FALSE is returned and the file pointer is at the end of the
+file.
+
+@{u}Example:@{uu}
+
+   if (impGotoFileLabel("ATTRIBUTES"))
+      FGets(fp, buffer, 80);
+@endnode
+
+@node "Modules" "Example Imp Professional Modules"
+The only difference between writing a normal C program and writing an
+ImpPro module is that you need to check for ImpPro's public screen and open
+your window there if it is available.  Otherwise, run the program on
+workbench. If you wish to use the functions in "@{"imppro.library" link "Library" 0}" you must
+open that as well.
+
+The first module example uses BGUI, and can be found in the "@{"BGUIModule.h" link "BGUIModule.h/main" 0}"
+and "@{"BGUIModule.c" link "BGUIModule.c/main" 0}" files in this archive.
+
+The second module example uses GadTools, and can be found in the
+"@{"GTModule.h" link "GTModule.h/main" 0}" and "@{"GTModule.c" link "GTModule.c/main" 0}" files in this archive.
+
+I would prefer that all modules be written using BGUI by Jan.van.den.Baard.
+The development archive for this excellent GUI engine can be found in the
+"dev/gui" directory of the Aminet.  If you need any help getting started
+using BGUI, just drop me a line and I'll be happy to help you.  Also be
+sure to join the BGUI mailing list.
+@endnode
+
+@node "Junk" "Other misc information"
+Of course I can always be contacted at fors0037@gold.tc.umn.edu if you have
+any questions while writing a ImpPro module.
+
+The only version of the final release that will contain copyrighted TSR
+material will be the version that is distributed via "ftp.mpgn.com"
+
+When you have a working module, please send me a copy (with or without
+source) so I can check it out and release it to the other beta-testers.
+
+Once again, thank you for your interest in writing an ImpPro module, and
+happy coding!!
+@endnode
+
+@node HeddleyAutoIndex "Index"
+@remark Index auto-generated by Heddley
+Index of database Developer.guide
+
+Documents
+
+@{"Bring up the standard ARexx selector" link "impARexxSelector"}
+@{"Convert raw to to Days, turns, etc" link "impComputeDHTRSS"}
+@{"Example Imp Professional Modules" link "Modules"}
+@{"Get current game time" link "impGetGameTimeRaw"}
+@{"Get running XP total" link "impGetPartyXP"}
+@{"Goto a file label" link "impGotoFileLabel"}
+@{"Imp Professional Development Guide" link "Main"}
+@{"Imp Professional Shared Library" link "Library"}
+@{"Launch an asynchronous task" link "impLaunchCommand"}
+@{"Launch an synchronous task" link "impLCWait"}
+@{"Log a game event via GameLog" link "impLogEvent"}
+@{"Other misc information" link "Junk"}
+@{"Read a snapshot from file" link "impWriteSnapshot"}
+@{"Return a series of variables to ARexx" link "impReturnStrSTEM"}
+@{"Return a series of variables to ARexx" link "impReturnNumSTEM"}
+@{"Return random number" link "impRand"}
+@{"Roll a die string" link "impInterpretAndRoll"}
+@{"Seed the random # generator" link "impSeedRand"}
+@{"Set current game time" link "impSetGameTimeRaw"}
+@{"Set running XP total" link "impSetPartyXP"}
+@{"Write a snapshot to file" link "impReadSnapshot"}
+
+Buttons
+
+@{"BGUIModule.c" link "BGUIModule.c/main" 0}
+@{"BGUIModule.h" link "BGUIModule.h/main" 0}
+@{"GTModule.c" link "GTModule.c/main" 0}
+@{"GTModule.h" link "GTModule.h/main" 0}
+@{"impArexxSelector()" link "impArexxSelector" 0}
+@{"impComputeDHTRSS()" link "impComputeDHTRSS" 0}
+@{"impGetGameTimeRaw()" link "impGetGameTimeRaw" 0}
+@{"impGetPartyXP()" link "impGetPartyXP" 0}
+@{"impGotoFileLabel()" link "impGotoFileLabel" 0}
+@{"impInterpretAndRoll()" link "impInterpretAndRoll" 0}
+@{"impLaunchCommand()" link "impLaunchCommand" 0}
+@{"impLaunchCommandWait()" link "impLCWait" 0}
+@{"impLaunchCommandWait()" link "impLaunchCommandWait" 0}
+@{"ImpLib.h" link "ImpLib.h/main" 0}
+@{"impLogEvent()" link "impLogEvent" 0}
+@{"ImpPro shared library" link "Library" 0}
+@{"imppro.library" link "Library" 0}
+@{"impRand()" link "impRand" 0}
+@{"impReadSnapshot()" link "impReadSnapshot" 0}
+@{"impReturnNumSTEM()" link "impReturnNumSTEM" 0}
+@{"impReturnStrSTEM()" link "impReturnStrSTEM" 0}
+@{"impSeedRand()" link "impSeedRand" 0}
+@{"impSetGameTimeRaw()" link "impSetGameTimeRaw" 0}
+@{"impSetPartyXP()" link "impSetPartyXP" 0}
+@{"impWriteSnapshot()" link "impWriteSnapshot" 0}
+@{"Other misc junk" link "Junk" 0}
+@{"Sample ImpPro modules" link "Modules" 0}
+@{"struct ImpSnapshot" link "ImpLib.h/main" 35}
+@endnode

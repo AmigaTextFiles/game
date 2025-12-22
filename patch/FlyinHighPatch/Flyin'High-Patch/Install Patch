@@ -1,0 +1,100 @@
+(set @app-name "Flyin\'Patch")
+(set @pretend 0)
+(set @user-level 2)
+(if (= @language "deutsch")
+ (
+  (set #MSG_WELCOME "Willkommen zur Installation des Patches für Flyin\'High.")
+  (set #HELP_CHOICE "Sie haben die Wahl zwischen der Version 1.05 (empfohlen für AGA-Amigas mit einem MC68030 oder kleiner) und der aktuellen Version 1.2 (empfohlen für alle Amigas mit Grafikkarte und/oder einem MC68040 oder besser).")
+  (set #MSG_ASKDIR "Bitte geben Sie das Verzeichnis auf Ihrer Festplatte an, in dem sich Flyin\'High befindet.")
+  (set #HELP_ASKDIR "Dieses Verzeichnis muß angegeben werden, damit der Installer weiß, wohin die Daten kopiert werden müssen.")
+  (set #MSG_WRONGDIR "In dem angegebenen Verzeichnis konnte keine existierende Installation von Flyin\'High gefunden werden.")
+  (set #MSG_WHICHTOINSTALL "Bitte geben Sie jetzt an, welche Version von Flyin\'High Sie installieren wollen.\n\nDerzeit installiert ist die Version ")
+  (set #MSG_VERSION105 "[2pVersion 1.05 (AGA-Amiga, MC68020 oder MC68030)")
+  (set #MSG_VERSION120 "Version 1.2 (AGA oder Grafikkarte, MC68040 oder MC68060)")
+  (set #MSG_UNPACK105 "Entpacke Archiv der Version 1.05. Dieser Vorgang kann etwas Zeit beanspruchen...")
+  (set #MSG_UNPACK120 "Entpacke Archiv der Version 1.2. Dieser Vorgang kann etwas Zeit beanspruchen...")
+  (set #MSG_DELOBSOLETE "Lösche nicht mehr benötigte Dateien...")
+  (set #MSG_COMPLETE "Die Installation des Patches ist abgeschlossen.\n\nViel Spaß mit Flyin\'High wünscht P.U.R.E.")
+ )
+ (if (= @language "italiano")
+ (
+  (set #MSG_WELCOME "Benvenuto all'installazione dell'aggiornamento di Flyin\'High.")
+  (set #HELP_CHOICE "Puoi scegliere tra la versione 1.05 (consigliata per Amiga AGA con un MC68030 o inferiore) e la nuova versione 1.2 (consigliata per Amiga con scheda grafica e/o MC68040 o superiore).")
+  (set #MSG_ASKDIR "Seleziona la directory del tuo disco rigido in cui è installato Flyin\'High, per favore.")
+  (set #HELP_ASKDIR "Questa directory deve essere selezionata per far sapere all'Installer dove copiare i dati.")
+  (set #MSG_WRONGDIR "Non è stata trovata alcuna installazione di Flyin\'High nella directory selezionata.")
+  (set #MSG_WHICHTOINSTALL "Scegli quale versione di Flyin\'High installare.\n\nLa versione attualmente installata è la ")
+  (set #MSG_VERSION105 "[2pVersione 1.05 (Amiga AGA, MC68020 o MC68030)")
+  (set #MSG_VERSION120 "Versione 1.2 (AGA o scheda grafica, MC68040 o MC68060)")
+  (set #MSG_UNPACK105 "Decomprimo l'archivio della versione 1.05. Questa operazione può richiedere del tempo...")
+  (set #MSG_UNPACK120 "Decomprimo l'archivio della versione 1.2. Questa operazione può richiedere del tempo...")
+  (set #MSG_DELOBSOLETE "Cancello i vecchi file...")
+  (set #MSG_COMPLETE "L'installazione dell'aggiornamento è stata completata.\n\nP.U.R.E. vi augura di divertirvi tantissimo con Flyin\'High.")
+ )
+ (
+  (set #MSG_WELCOME "Welcome to the installation of the patch for Flyin\'High.")
+  (set #HELP_CHOICE "You have the choice between version 1.05 (recommended for AGA-Amigas with a MC68030 or smaller) and the latest version 1.2 (recommended for Amigas with gfx-board and/or MC68040 or better).")
+  (set #MSG_ASKDIR "Please select the directory on your harddisk, in which Flyin\'High is installed.")
+  (set #HELP_ASKDIR "This directory must be selected, that the Installer knows where to copy the data to.")
+  (set #MSG_WRONGDIR "No installation of Flyin\'High was found in the selected directory.")
+  (set #MSG_WHICHTOINSTALL "Please select which version of Flyin\'High you want to install.\n\nThe version currently installed is ")
+  (set #MSG_VERSION105 "[2pVersion 1.05 (AGA-Amiga, MC68020 or MC68030)")
+  (set #MSG_VERSION120 "Version 1.2 (AGA or gfx-board, MC68040 or MC68060)")
+  (set #MSG_UNPACK105 "Unpacking archive of version 1.05. This procedure may take some time...")
+  (set #MSG_UNPACK120 "Unpacking archive of version 1.2. This procedure may take some time...")
+  (set #MSG_DELOBSOLETE "Deleting obsolete files...")
+  (set #MSG_COMPLETE "The installation of the patch is now complete.\n\nP.U.R.E. wishes you a lot of fun with Flyin\'High.")
+ )
+))
+
+;
+; welcome the user and ask him for the correct directory.
+;
+(message #MSG_WELCOME "\n\n" #HELP_CHOICE (all))
+(welcome)
+(set #default-dest "sys:")
+(until (AND (= (exists (tackon #default-dest "Flyin\'High") (noreq)) 1) (= (exists (tackon #default-dest "gfx") (noreq)) 2))
+    (
+        (set #default-dest (askdir (prompt #MSG_ASKDIR) (default @default-dest) (help #HELP_ASKDIR) (disk)))
+        (if (NOT (AND (= (exists (tackon #default-dest "Flyin\'High") (noreq)) 1) (= (exists (tackon #default-dest "gfx") (noreq)) 2)))
+            (message #MSG_WRONGDIR (all))
+        )
+    )
+)
+
+;
+; make the best selection on your own and let the user confirm it.
+;
+(if (patmatch "(68040|68060)" (database "cpu"))
+    (set #presel 1)
+    (set #presel 0)
+)
+(set #sel (askchoice (prompt (cat #MSG_WHICHTOINSTALL (/ (getversion (tackon #default-dest "Flyin\'High")) 65536) ".0" (BITAND (getversion (tackon #default-dest "Flyin\'High")) 65535) "\n\n")) (help #HELP_CHOICE) (choices #MSG_VERSION105 #MSG_VERSION120) (default #presel)))
+
+;
+; unpack the correct archive.
+;
+(complete 50)
+(if (= #sel 0)
+    (
+        (working #MSG_UNPACK105)
+        (run ("lhex >CON: -fw= \"%s\" x patch105.lha" #default-dest))
+        (run "avail >NIL: flush")
+    )
+    (
+        (working #MSG_UNPACK120)
+        (run ("lhex >CON: -fw= \"%s\" x patch120.lha" #default-dest))
+        (complete 95)
+        (working #MSG_DELOBSOLETE)
+        (foreach #default-dest "(ReadMe|Flyin'Startup)"
+            (delete (tackon #default-dest @each-name) (infos)))
+        (delete (tackon #default-dest "catalogs/deutsch/FlyinStartup.catalog"))
+    )
+)
+
+;
+; say good-bye to the user
+;
+(complete 100)
+(exit #MSG_COMPLETE (quiet))
+

@@ -1,0 +1,33 @@
+Sudoku (pronounced soo-dough-coo with the emphasis on the
+first syllable) is a simple number-based puzzle/game played on a
+9x9 grid that is divided into 3x3 subgrids. The goal is to enter
+a number from 1 to 9 in each cell so that each number appears
+only once in each column and row. In addition, each 3x3 subgrid
+may only contain one of each number.
+
+This version of the puzzle is Copyright 2005 by Michael R Sweet
+
+How to Play the Game
+
+At the start of a new game, Sudoku fills in a random selection
+of cells for you - the number of cells depends on the difficulty
+level you use. Click in any of the empty cells or use the arrow
+keys to highlight individual cells and press a number from 1 to 9
+to fill in the cell. To clear a cell, press 0, Delete, or
+Backspace. When you have successfully completed all subgrids, the
+entire puzzle is highlighted in green until you start a new
+game.
+
+As you work to complete the puzzle, you can display possible
+solutions inside each cell by holding the Shift key and pressing
+each number in turn. Repeat the process to remove individual
+numbers, or press a number without the Shift key to replace them
+with the actual number to use.
+
+The program is built with FLTK 1.1.6 and ported to AmigaOS 4.0.
+Port done by: Massimiliano m3x Tretene
+
+Source code included.
+To recompile the game:
+
+g++ -o sudoku sudoku.cxx -lfltk_images -lfltk_png -lfltk_jpeg -lfltk_z -lfltk -lauto -lm -lnet -lunix

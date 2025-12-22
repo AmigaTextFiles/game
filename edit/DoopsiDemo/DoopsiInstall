@@ -1,0 +1,254 @@
+;/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+;\                                              /
+;/      The Doopsi Installer                    \
+;\                                              /
+;/      written by:  Andrea Galimberti          \
+;\                                              /
+;/      $VER: Doopsi Installer V1.00 (1996)     \
+;\                                              /
+;/                                              \
+;\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
+
+
+;* preamble
+
+(set @app-name "Doopsi")
+(set @user-level 2)
+
+(procedure addslash (
+   (set len (- (strlen dest_dir) 1))
+   (if (= (substr dest_dir len 1) ":")
+      (set new_dest dest_dir)
+      (set new_dest (cat dest_dir "/"))
+   )
+                    ) ;end proc
+)
+
+
+;* messages
+
+(if (= @language "italiano")
+   (
+      (set welcome_msg (cat "Benvenuti nel meraviglioso mondo di Doopsi!\n\n"
+         "Prima di iniziare dovete accertarvi di due cose: "
+         "primo, questo script di installazione Deve essere nella directory "
+         "dove avete messo gli archivi Programs.lha e Tutorial.lha, "
+         "altrimenti avrete un paio di noiosi errori \"File non trovato\"; "
+         "secondo, suppongo che la vostra Lha utility sia nel path, "
+         "altrimenti non posso trovarla.\n\n\n"
+         "Siete pronti?    Iniziamo!"
+                       )
+      )
+      (set selectdest_msg (cat "Selezionare la directory destinazione.\n"
+         "La directory Doopsi verrà creata automaticamente.")
+      )
+      (set selectfiles_msg "Selezionare i files da installare")
+      (set firstc_msg "Eseguibili Doopsi")
+      (set secondc_msg "Tutorial")
+      (set decprg_msg "Sto decomprimendo i Programmi in ")
+      (set dectut_msg "Sto decomprimendo il Tutorial in ")
+      (set deccat_msg "Sto decomprimendo i Cataloghi in ")
+      (set err_msg (cat "Si è verificato un errore!\n"
+                        "(Vi avevo detto di stare attenti)\n\n")
+      )
+      (set notfound_msg "non trovato")
+      (set copyloc_msg (cat "Sto copiando \"locator.library\" nella "
+                            "vostra directory LIBS:"
+                            "(non preoccupatevi: solo se è una versione "
+                            "più recente)")
+      )
+      (set copyreq_msg (cat "Sto copiando \"reqtools.library\" nella "
+                            "vostra directory LIBS:"
+                            "(non preoccupatevi: solo se è una versione "
+                            "più recente)")
+      )
+      (set assign_msg (cat "\n Ora dovete assegnare Doopsi: alla directory "
+         "in cui avete copiato l'Editor. L'installer eseguirà questo "
+         "compito al vostro posto nel seguente passaggio."
+                      )
+      )
+      (set users_msg (cat "Sto modificando la user-startup:\n\n\n"
+                          "aggiungo la seguente riga:\n\n")
+      )
+      (set exitbad_msg (cat "Installazione non così completa: sembra si "
+         "sia verificato almeno un errore. Rileggete i suggerimenti che "
+         "appaiono all'inizio dell'installazione e riprovate (sarete più "
+         "fortunati).")
+      )
+      (set exitgood_msg (cat "Ora siete pronti per entrare in un nuovo "
+         "mondo: Doopsi sarà un'esperienza indimenticabile!\n\n"
+         "Buon divertimento!")
+      )
+   )
+   (
+      (set welcome_msg (cat "Welcome to the wonderful world of Doopsi!\n\n"
+         "Before we start you have to make sure of two things: "
+         "first, this installer script Must be in the directory where "
+         "you put the archives Programs.lha and Tutorial.lha, "
+         "otherwise you'll get a couple of annoying \"File not found\" "
+         "errors; second, I suppose your Lha utility is in your path, "
+         "otherwise I cannot find it.\n\n\n"
+         "Are you ready?    Let's go!"
+                       )
+      )
+      (set selectdest_msg (cat "Select destination directory.\n"
+         "The Doopsi directory will be automatically created.")
+      )
+      (set selectfiles_msg "Select which files to install")
+      (set firstc_msg "Doopsi executables")
+      (set secondc_msg "Tutorial")
+      (set decprg_msg "Decompressing Program files to ")
+      (set dectut_msg "Decompressing Tutorial files to ")
+      (set err_msg (cat "An error has occurred!\n"
+                        "(Well, I told you to be careful)\n\n")
+      )
+      (set notfound_msg "not found")
+      (set copyloc_msg (cat "Copying \"locator.library\" to your "
+                            "LIBS: directory\n"
+                            "(don't worry: only if newer version)")
+      )
+      (set copyreq_msg (cat "Copying \"reqtools.library\" to your "
+                            "LIBS: directory\n"
+                            "(don't worry: only if newer version)")
+      )
+      (set assign_msg (cat "\n Now you need to assign Doopsi: to the "
+         "directory where you put the Doopsi Editor.  The Installer will "
+         "do it for you in the next step."
+                      )
+      )
+      (set users_msg (cat "Modifying the user-startup:\n\n\n adding "
+                          "the following line:\n\n")
+      )
+      (set exitbad_msg (cat "Installation not so complete: it seems that "
+         "at least one error has occurred. Reread the hints that appear "
+         "at the beginning of the installation and retry (maybe you'll "
+         "be luckier).")
+      )
+      (set exitgood_msg (cat "You are now ready to enter a new world: "
+         "Doopsi will be an unforgettable experience!\n\n"
+         "Have fun!")
+      )
+   )
+)
+
+
+;* begin
+
+(message welcome_msg)
+
+(set oldpath (getassign ("Doopsi")))
+(if (<> oldpath 0)
+   (
+      (set oldpath (pathonly oldpath))
+      (set default_dir oldpath)
+   )
+   (set default_dir "Doopsi")
+)
+
+(set dest_dir (askdir (prompt selectdest_msg)
+                      (default default_dir)
+                      (newpath) (disk)
+                      (help @askdir-help)
+              )
+)
+
+(set @default-dest dest_dir)
+
+(set user_selected (askoptions (prompt selectfiles_msg)
+                               (choices firstc_msg
+                                        secondc_msg
+                               )
+                               (help @askoptions-help)
+                   )
+)
+
+(if (BITAND %01 user_selected)
+   (
+      (working "\n\n" decprg_msg dest_dir)
+      (addslash)
+      (if (NOT (exists "Programs.lha" (noreq)))
+         (
+            (message err_msg "Programs.lha " notfound_msg)
+            (set an_error 1)
+         )
+         (
+            (run ("lha x Programs.lha \"%s\"" new_dest))
+            (if (= @language "italiano")
+               (
+                  (working "\n\n" deccat_msg dest_dir)
+                  (run ("lha x Catalogs.lha \"%s\"" new_dest))
+               )
+            )
+            (copylib (prompt copyloc_msg)
+                     (source (cat new_dest "libs/locator.library"))
+                     (dest "Libs:")
+                     (nogauge)
+                     (help @copylib-help)
+            )
+            (copylib (prompt copyreq_msg)
+                     (source (cat new_dest "libs/reqtools.library"))
+                     (dest "Libs:")
+                     (nogauge)
+                     (help @copylib-help)
+            )
+            (delete (cat new_dest "libs/locator.library")
+                    (optional force)
+                    (help @delete-help)
+            )
+            (delete (cat new_dest "libs/reqtools.library")
+                    (optional force)
+                    (help @delete-help)
+            )
+            (delete (cat new_dest "libs")
+                    (optional force)
+                    (help @delete-help)
+            )
+            (set flag 1)
+         )
+      );EndIf
+   )
+)
+
+(if (BITAND %10 user_selected)
+   (
+      (working "\n\n" dectut_msg dest_dir)
+      (if (NOT new_dest)
+         (addslash)
+      )
+      (if (NOT (exists "Tutorial.lha" (noreq)))
+         (
+            (message err_msg "Tutorial.lha " notfound_msg)
+            (set an_error 1)
+         )
+         (run ("lha x Tutorial.lha \"%s\"" new_dest))
+      )
+
+   )
+)
+
+
+(if (= flag 1)
+   (if (<> oldpath dest_dir)
+      (
+         (message assign_msg)
+         (startup @app-name (prompt users_msg
+                                    "Assign Doopsi: \""
+                                    (tackon dest_dir "DOOPSI") "\""
+                            )
+                  (command (cat "assign Doopsi: \""
+                                (tackon dest_dir "DOOPSI") "\"")
+                  )
+                  (help @startup-help)
+         )
+         (makeassign "Doopsi" (tackon dest_dir "DOOPSI"))
+      )
+   )
+)
+
+
+;* epilogue
+
+(if (= an_error 1)
+   (exit exitbad_msg)
+   (exit exitgood_msg)
+)

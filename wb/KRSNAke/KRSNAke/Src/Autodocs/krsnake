@@ -1,0 +1,494 @@
+@database "krsnake"
+@master "Hilda:usr/src/KRSNAke/Src/Autodocs/krsnake.doc"
+
+@Node Main "krsnake.doc"
+    @{" ---overview---() " Link "---overview---()"}
+    @{" KsDeleteSoundObject() " Link "KsDeleteSoundObject()"}
+    @{" KsGetClientSig() " Link "KsGetClientSig()"}
+    @{" KsNotifyServer() " Link "KsNotifyServer()"}
+    @{" KsPlaySoundObject() " Link "KsPlaySoundObject()"}
+    @{" KsReadEvent() " Link "KsReadEvent()"}
+    @{" KsReadKRSNAkePrefs() " Link "KsReadKRSNAkePrefs()"}
+    @{" KsReadSoundObject() " Link "KsReadSoundObject()"}
+    @{" KsRegisterClient() " Link "KsRegisterClient()"}
+    @{" KsRemoveClient() " Link "KsRemoveClient()"}
+    @{" KsWaitForEvent() " Link "KsWaitForEvent()"}
+    @{" KsWriteKRSNAkePrefs() " Link "KsWriteKRSNAkePrefs()"}
+@EndNode
+
+@Node "---overview---()" "krsnake.library/---overview---"
+
+@{b}   WRITING KRSNAKE CLIENTS@{ub}
+
+        KRSNAke clients need to communicate with the main program. This is
+        done through krsnake.library. A client would call
+        @{"KsRegisterClient()" Link "KsRegisterClient()"} in order to receive messages from KRSNAke, wait
+        around for the client's signal to arrive, act upon the received
+        message, repeat that until a SNAKE_QUIT message arrives, then call
+        @{"KsRemoveClient()" Link "KsRemoveClient()"}. There's nothing more to it.
+
+        A KRSNAke client might look like this:
+
+            client = KsRegisterClient();
+                ...
+                KsWaitForEvent(client);
+                KsReadEvent(client,&event,&data);
+                ...
+            KsRemoveClient(client);
+
+        Although more commonly you'd want to listen to other ports as
+        well, for instance that of a window:
+
+            client = KsRegisterClient();
+                ...
+                mask = (1<<KsGetClientSig(client))|(1<<windowsigbit);
+                Wait(mask);
+                KsReadEvent(client,&event,&data);
+                ...
+            KsRemoveClient(client);
+
+        If you experience difficulties following my explanation (which I
+        suppose is entirely possible), try looking at the sources of the
+        clients I've written. Sources speak more eloquently than words. If
+        you don't read E - tough luck, you're stuck with my explanation.
+
+@{b}   NOTE ABOUT THE INTERFACE@{ub}
+
+        Clients should never open any interface window, or generally give
+        off any clue whatsoever that they exist, until told to do so by
+        KRSNAke. Clients should do general initialisation, attach them-
+        selves to KRSNAke, then wait around for a SNAKE_SHOWINTERFACE event
+        to be broadcast. At THIS point, they should render. Of course,
+        when dealing with particularly weird users, this could never
+        happen. Be prepared for everything.
+
+@{b}   EVENT CODES@{ub}
+
+        KRSNAke broadcasts the following event codes (with data codes in
+        parentheses):
+
+           SNAKE_QUIT (no data)
+
+                If your client receives SNAKE_QUIT, remove it as soon as
+                possible. This means KRSNAke is trying to quit - and it
+                can't until you've removed your client. Generally, this
+                message doesn't just mean "call KsRemoveClient()", it
+                means "quit your program".
+
+           SNAKE_NEWSCORE (current score)
+
+                This message is broadcast whenever the score (the length
+                of the snake) changes.
+
+           SNAKE_GAMEOVER (final score)
+
+                When the snake crashes, SNAKE_GAMEOVER is broadcast, along
+                with the snake's final length.
+
+           SNAKE_NEWGAME (no data)
+
+                This message is broadcast when the player begins a new
+                game.
+
+           SNAKE_PAUSED (no data)
+
+                This message is broadcast when the game is paused.
+
+           SNAKE_RESTARTED (no data)
+
+                This message is broadcast when the game is resumed after a
+                pause.
+
+           SNAKE_EATEN (fruit's value)
+
+                When the snake eats a fruit, this code is broadcast along
+                with the fruit's value.
+
+           SNAKE_MOVES (head graphic, head's coordinates)
+
+                Each time the snake's position changes (its head moves),
+                this message is broadcast along with the new coordinates
+                of the head. The coordinates are broadcast as a word,
+                where the most significant byte is the Y coordinate
+                (between 0 and 31), and the least significant byte is the
+                X coordinate (also between 0 and 31). Preceding this word
+                is a byte containing the head graphic that was rendered
+                (even if graphics are currently not used, in which case it
+                would be the head that WOULD have been rendered). This
+                provides direction information.
+
+           SNAKE_NEWCHUNK (fruit data; see below)
+
+                Whenever a new fruit arrives (either at the start of the
+                game, or when the snake eats a fruit), this message is
+                broadcast along with all info about the new fruit. The
+                data is coded as a longword, each value represented as a
+                byte as follows, most significant byte first: fruit value
+                (between 1 and 9), fruit colour (between 0 and 3; RGB
+                values can be obtained from KRSNAke's prefs file), fruit Y
+                coordinate (between 0 and 31), and fruit X coordinate
+                (between 0 and 31).
+
+           SNAKE_SHOWINTERFACE (no data)
+
+                When this message is broadcast, the client should open its
+                window. If the window is already open, do nothing - but
+                make sure you handle the message, because these messages
+                are sent occasionally just to be sure the client really
+                did get the message.
+
+           SNAKE_HIDEINTERFACE (no data)
+
+                When this message is broadcast, the client should close
+                its window and anything similar. The same applies here as
+                to SNAKE_SHOWINTERFACE - duplicate messages do occur!
+                It's generally unwanted that your client creates an AppIcon
+                or something similar for itself when it's hidden - all
+                show/hide info should come from KRSNAke.
+
+@{b}   NOTE@{ub}
+
+        Generally, it's a bad idea to call any of the server functions
+        from your own code. Only KRSNAke should do this; at any one time,
+        there can be only one server in existence, and this server should
+        be owned by KRSNAke's main task. This library is not intended as
+        a multipurpose client/server library - it's only for KRSNAke.
+
+        In fact, I've removed the docs for the server functions below.
+        Just be a nice fellow and don't call them, OK?
+
+        YOU HAVE BEEN WARNED!
+
+            "We hear what you say,
+             we see what you do;
+             we know everything we need to know about you."
+
+@EndNode
+
+@Node "KsDeleteSoundObject()" "krsnake.library/KsDeleteSoundObject"
+
+@{b}   NAME@{ub}
+        KsDeleteSoundObject -- delete a sound object
+
+@{b}   SYNOPSIS@{ub}
+        KsDeleteSoundObject(object)
+                            D0
+
+        void KsDeleteSoundObject(APTR);
+
+@{b}   FUNCTION@{ub}
+        Deletes a sound object created with @{"KsReadSoundObject()" Link "KsReadSoundObject()"}.
+
+@{b}   INPUTS@{ub}
+        object - pointer to an object returned from @{"KsReadSoundObject()" Link "KsReadSoundObject()"}
+
+@{b}   SEE ALSO@{ub}
+        @{"KsPlaySoundObject()" Link "KsPlaySoundObject()"}, @{"KsReadSoundObject()" Link "KsReadSoundObject()"}
+
+@EndNode
+
+@Node "KsGetClientSig()" "krsnake.library/KsGetClientSig"
+
+@{b}   NAME@{ub}
+        KsGetClientSig -- get the signal of a client port
+
+@{b}   SYNOPSIS@{ub}
+        signal = KsGetClientSig(client)
+        D0                      D0
+
+        UBYTE KsGetClientSig(APTR);
+
+@{b}   FUNCTION@{ub}
+        This function returns the signal that will be set when a message
+        arrives at the given client's message port. Using a @{"Wait()" Link "exec/Wait()"} for
+        this signal is somewhat more useful than using @{"KsWaitForEvent()" Link "KsWaitForEvent()"},
+        as this will let you listen to other signals as well.
+
+@{b}   INPUTS@{ub}
+        client - a pointer to the client whose signal you wish to obtain.
+
+@{b}   RESULT@{ub}
+        signal - the number of the signal associated with the given
+                 client's port.
+
+@{b}   SEE ALSO@{ub}
+        @{"KsReadEvent()" Link "KsReadEvent()"}, @{"KsWaitForEvent()" Link "KsWaitForEvent()"}
+
+@EndNode
+
+@Node "KsNotifyServer()" "krsnake.library/KsNotifyServer"
+
+@{b}   NAME@{ub}
+        KsNotifyServer -- notify the server about an event
+
+@{b}   SYNOPSIS@{ub}
+        success = KsNotifyServer(event,data)
+        D0                       A0    D0
+
+        ULONG KsNotifyServer(ULONG,ULONG);
+
+@{b}   FUNCTION@{ub}
+        Notifies the KRSNAke server about a particular event. At present,
+        only the SNAKE_NEWPREFS event (with no parameters) is recognised.
+        This event will cause KRSNAke to restart itself (and to restart
+        all clients).
+
+@{b}   INPUTS@{ub}
+        event - the event to broadcast
+        data - the data (if any) for the event
+
+@{b}   RESULT@{ub}
+        success - TRUE if the event was broadcast to the server, FALSE
+                  otherwise
+
+@{b}   SEE ALSO@{ub}
+
+@EndNode
+
+@Node "KsPlaySoundObject()" "krsnake.library/KsPlaySoundObject"
+
+@{b}   NAME@{ub}
+        KsPlaySoundObject -- trigger a sound object
+
+@{b}   SYNOPSIS@{ub}
+        success = KsPlaySoundObject(object)
+        D0                          D0
+
+        ULONG KsPlaySoundObject(APTR);
+
+@{b}   FUNCTION@{ub}
+        Starts playing a sound object created with @{"KsReadSoundObject()" Link "KsReadSoundObject()"},
+        either by triggering the sound.datatype or by starting the
+        respective replayer. Note that only datatypes can be played more
+        than one at a time. Also, beware of the ProTracker replayer, which
+        is not working at present.
+
+@{b}   INPUTS@{ub}
+        object - pointer to a sound object returned from
+                 @{"KsReadSoundObject()" Link "KsReadSoundObject()"}
+
+@{b}   RESULT@{ub}
+        success - TRUE if the object was successfully triggered, FALSE
+                  otherwise
+
+@{b}   SEE ALSO@{ub}
+        @{"KsDeleteSoundObject()" Link "KsDeleteSoundObject()"}, @{"KsReadSoundObject()" Link "KsReadSoundObject()"}
+
+@EndNode
+
+@Node "KsReadEvent()" "krsnake.library/KsReadEvent"
+
+@{b}   NAME@{ub}
+        KsReadEvent -- receive a message from the server
+
+@{b}   SYNOPSIS@{ub}
+        success = KsReadEvent(client,event,data)
+        D0                    A0     D1    D0
+
+        ULONG KsReadEvent(APTR,ULONG *,ULONG *);
+
+@{b}   FUNCTION@{ub}
+        This function reads a message from the client's message port. If a
+        message exists, it will copy the event and data codes into the
+        addresses provided by the caller, and dispose of the message.
+
+        You should keep calling this function until it returns FALSE, as
+        several messages might arrive at the port simultaneously.
+
+@{b}   INPUTS@{ub}
+        client - the client whose port to check.
+        event - pointer to a longword in which to store the event code of
+                the message, if there is one.
+        data - ditto for the data code.
+
+@{b}   RESULT@{ub}
+        success - TRUE if there was a message, in which case the longwords
+                  pointed to by the event and data fields will contain the
+                  info broadcast by the message, FALSE if there was no
+                  message.
+
+@{b}   SEE ALSO@{ub}
+
+@EndNode
+
+@Node "KsReadKRSNAkePrefs()" "krsnake.library/KsReadKRSNAkePrefs"
+
+@{b}    NAME@{ub}
+         KsReadKRSNAkePrefs -- read the user preferences
+
+@{b}    SYNOPSIS@{ub}
+         prefs = KsReadKRSNAkePrefs()
+         D0
+
+         struct KPrefs * KsReadKRSNAkePrefs(void);
+
+@{b}    FUNCTION@{ub}
+         Reads the file "ENVARC:KRSNAke/KRSNAke.prefs" and creates a
+         KPrefs structure out of it. This structure is allocated with
+         @{"AllocVec()" Link "exec/AllocVec()"}, so when you're done with it, call @{"FreeVec()" Link "exec/FreeVec()"}. If
+         you've changed anything and want to make it permanent, call
+         @{"KsWriteKRSNAkePrefs()" Link "KsWriteKRSNAkePrefs()"} rather than @{"FreeVec()" Link "exec/FreeVec()"}.
+
+@{b}    RESULT@{ub}
+         prefs - a pointer to an allocated KPrefs structure. Unless you
+                 are the KRSNAke prefs program, you should consider this
+                 structure read only! If no prefs could be found, or if
+                 there was no memory to read them, the function returns
+                 NULL.
+
+@{b}    SEE ALSO@{ub}
+         @{"KsWriteKRSNAkePrefs()" Link "KsWriteKRSNAkePrefs()"}
+
+@EndNode
+
+@Node "KsReadSoundObject()" "krsnake.library/KsReadSoundObject"
+
+@{b}   NAME@{ub}
+        KsReadSoundObject -- create a sound object
+
+@{b}   SYNOPSIS@{ub}
+        object = KsReadSoundObject(filename)
+        D0                         D0
+
+        APTR KsReadSoundObject(char *);
+
+@{b}   FUNCTION@{ub}
+        This function reads a file from a filesystem, and if the file is
+        a recognised sound data file, a sound object, which can
+        subsequently be played, is created.
+
+@{b}   INPUTS@{ub}
+        filename - a pointer to the name of the file to attempt to load
+
+@{b}   RESULT@{ub}
+        object - a sound object which can be played with KsPlaySoundObject,
+                 or NULL if something went wrong
+
+@{b}   SEE ALSO@{ub}
+        @{"KsDeleteSoundObject()" Link "KsDeleteSoundObject()"}, KsReadSoundObject()
+
+@EndNode
+
+@Node "KsRegisterClient()" "krsnake.library/KsRegisterClient"
+
+@{b}   NAME@{ub}
+        KsRegisterClient -- create a KRSNAke message client
+
+@{b}   SYNOPSIS@{ub}
+        client = KsRegisterClient()
+        D0
+
+        APTR KsRegisterClient(void);
+
+@{b}   FUNCTION@{ub}
+        This function creates a client of the KRSNAke message server. A
+        KRSNAke client should call this in order to receive messages from
+        KRSNAke through the @{"KsReadEvent()" Link "KsReadEvent()"} call.
+
+        The message server must be active before any clients can be
+        created. If it is not, this function will fail. Normally, clients
+        will be launched by KRSNAke after the server has been created, so
+        this should not be a problem.
+
+@{b}   RESULT@{ub}
+        client - a pointer to a KRSNAke message client structure, or FALSE
+                 if the client could not be created.
+
+@{b}   SEE ALSO@{ub}
+        @{"KsRemoveClient()" Link "KsRemoveClient()"}, @{"KsReadEvent()" Link "KsReadEvent()"}
+
+@EndNode
+
+@Node "KsRemoveClient()" "krsnake.library/KsRemoveClient"
+
+@{b}   NAME@{ub}
+        KsRemoveClient -- destroy a KRSNAke message client
+
+@{b}   SYNOPSIS@{ub}
+        success = KsRemoveClient(client)
+        D0                       D0
+
+        ULONG KsRemoveClient(APTR);
+
+@{b}   FUNCTION@{ub}
+        This function detaches a client from the server and destroys it.
+        All clients created by the @{"KsRegisterClient()" Link "KsRegisterClient()"} function must be
+        disposed of with this function.
+
+@{b}   INPUTS@{ub}
+        client - a pointer to a client returned from the
+                 @{"KsRegisterClient()" Link "KsRegisterClient()"} function.
+
+@{b}   RESULT@{ub}
+        success - TRUE if the client was removed, FALSE otherwise.
+
+@{b}   SEE ALSO@{ub}
+        @{"KsRegisterClient()" Link "KsRegisterClient()"}
+
+@EndNode
+
+@Node "KsWaitForEvent()" "krsnake.library/KsWaitForEvent"
+
+@{b}   NAME@{ub}
+        KsWaitForEvent -- wait for a message to arrive at a client's port
+
+@{b}   SYNOPSIS@{ub}
+        success = KsWaitForEvent(client)
+        D0                       D0
+
+        ULONG KsWaitForEvent(APTR);
+
+@{b}   FUNCTION@{ub}
+        This function calls @{"WaitPort()" Link "exec/WaitPort()"} for the given client's port, which
+        causes the calling task to wait until the client receives a
+        message from the server.
+
+@{b}   INPUTS@{ub}
+        client - the client whose port to wait on.
+
+@{b}   RESULT@{ub}
+        success - TRUE if the wait succeeded, FALSE otherwise. At present,
+                  the FALSE return value only happens if you pass a NULL
+                  client pointer.
+
+@{b}   SEE ALSO@{ub}
+        @{"KsGetClientSig()" Link "KsGetClientSig()"}, @{"KsReadEvent()" Link "KsReadEvent()"}
+
+@EndNode
+
+@Node "KsWriteKRSNAkePrefs()" "krsnake.library/KsWriteKRSNAkePrefs"
+
+@{b}    NAME@{ub}
+         KsWriteKRSNAkePrefs -- write the user preferences
+
+@{b}    SYNOPSIS@{ub}
+         success = KsWriteKRSNAkePrefs(prefs)
+         D0                            D0
+
+         ULONG KsWriteKRSNAkePrefs(struct KPrefs *);
+
+@{b}    FUNCTION@{ub}
+         Writes the KPrefs structure passed as the file
+         "ENVARC:KRSNAke/KRSNAke.prefs" and deallocates it.
+
+         If you just want to deallocate it, call FreeVec(prefs),
+         NOT KsWriteKRSNAkePrefs(prefs)! This function is only
+         meant for changes you want to be permanent - ie. if you're
+         the prefs program or something similar.
+
+@{b}    INPUTS@{ub}
+         prefs - pointer to a KPrefs structure.
+
+@{b}    RESULT@{ub}
+         success - TRUE if the operation succeeded, FALSE otherwise.
+                   Note that if this function fails, the structure is
+                   not deallocated. This is generally bad, but there's
+                   nothing the library will do about it, so you should
+                   @{"FreeVec()" Link "exec/FreeVec()"} it yourself.
+
+@{b}    SEE ALSO@{ub}
+         @{"KsReadKRSNAkePrefs()" Link "KsReadKRSNAkePrefs()"}
+
+
+@EndNode
+

@@ -1,0 +1,3514 @@
+_init:
+		clr.l wb_msg
+		sub.l a1,a1
+		move.l 4,a6
+		jsr -294(a6)
+		move.l d0,a4
+		tst.l $ac(a4)
+		bne from_cli
+		lea $5c(a4),a0
+		move.l 4,a6
+		jsr -384(a6)
+		lea $5c(a4),a0
+		move.l 4,a6
+		jsr -372(a6)
+		move.l d0,wb_msg
+from_cli:
+		bsr _openint
+		bsr _scropen
+		move.l _screenhd,a5
+		move.l $c0(a5),plane0
+		move.l $c4(a5),plane1
+		move.l $c8(a5),plane2
+		move.l $cc(a5),plane3
+		move.l $d0(a5),plane4
+		move.l $d4(a5),plane5
+		add.l #$2c,a5
+		move.l a5,_vp
+		bsr _openwindow
+		bsr _opengraph
+		add.l #$32,d0
+		move.l d0,a0
+
+		move.l (a0),d0
+		move.l d0,copper
+		bsr _double
+		move.b #0,_wwi
+		move.l #0,_koord
+		get_mem #220,#Chip_Ram
+		move.l d0,a1
+		move.l d0,_pointer0
+		lea _pointer(pc),a0
+		move.l #80,d0
+_init2:
+		move.b (a0)+,(a1)+
+		dbra d0,_init2
+_init2clr:
+		add.l #30,a1
+		move.l #70,d0
+_init2clrb:
+		move.b #0,(a1)+
+		dbra d0,_init2clrb
+		rts
+_exit:
+		tst.l wb_msg
+		beq _exit_cli
+		move.l 4,a6
+		jsr -132(a6)
+		move.l wb_msg(pc),a1
+		move.l 4,a6
+		jsr -378(a6)
+_exit_cli:
+_exitb:
+		bsr _double_back
+		wait_vbl
+_exit0:
+		move.l _intbase,a6
+		move.l _screenhd,a0
+		moveq #0,d0
+		move.l _koord,d1
+		jsr -$a2(a6)
+		add.l #1,_koord
+		cmp.l #25,_koord
+		beq _exit2
+		bra _exit0
+_exit2:
+		fre_mem #220,_pointer0
+		bsr _closewindow
+		bsr _scrclose
+		bsr _closegraph
+		bsr _closeint
+_exit2b:
+		rts
+
+_set_planes:
+		lea _planeptr(pc),a0
+		move.l plane0,(a0)
+		move.l plane1,4(a0)
+		move.l plane2,8(a0)
+		move.l plane3,12(a0)
+		move.l plane4,16(a0)
+		move.l plane5,20(a0)
+		rts
+
+_bitmap2:
+		dc.w 40		;Bytes pro Zeile
+		dc.w 256	;Anzahl der Zeilen
+		dc.b 0		;flags
+		dc.b 6		;Anzahl der planes
+		dc.w 0		;?
+_planeptr:	dc.l 0
+		dc.l 0
+		dc.l 0
+		dc.l 0
+		dc.l 0
+		dc.l 0
+		dc.l 0
+		dc.l 0,0,0,0
+
+
+_openwindow:
+		move.l _intbase,a6
+		lea my_window,a0
+		jsr -204(a6)
+		move.l d0,_windowhd
+		move.l d0,a0
+		move.l $32(a0),_rp
+		move.l _rp,a0
+		add.l #4,a0
+		move.l (a0),a1
+		add.l #8,a1
+		move.l a1,_bitmap
+		rts
+_closewindow:
+		move.l _intbase,a6
+		move.l _windowhd,a0
+		jmp -72(a6)
+_dosopen:
+		move.l ExecBase,a6
+		lea _dosname,a1
+		moveq #0,d0
+		jsr OpenLib(a6)
+		move.l d0,_dosbase
+		rts
+_dosclose:
+		move.l ExecBase,a6
+		move.l _dosbase,a1
+		jmp CloseLibrary(a6)
+_scropen:
+		move.l _intbase,a6
+		lea my_screen,a0
+		jsr OpenScreen(a6)
+		move.l d0,_screenhd
+		rts
+_scrclose:
+		move.l _intbase,a6
+		move.l _screenhd,a0
+		jmp CloseScreen(a6)
+_openint:
+		move.l ExecBase,a6
+		lea _IntName,a1
+		jsr OpenLib(a6)
+		move.l d0,_intbase
+		rts
+_opengraph:	move.l ExecBase,a6
+		lea _GraphName,a1
+		jsr OpenLib(a6)
+		move.l d0,_graphbase
+		rts
+_closeint:
+		move.l ExecBase,a6
+		move.l _intbase,a1
+		jsr CloseLibrary(a6)
+		rts
+_closegraph:
+		move.l ExecBase,a6
+		move.l _graphbase,a1
+		jsr CloseLibrary(a6)
+		rts
+
+_copper_farben:
+		and.l #$ff,d0
+		and.l #$fff,d1
+		move.l copper,a0
+_copper_farben2:
+		cmp.w #$0180,(a0)+
+		bne.s _copper_farben2
+		lsl.l #2,d0
+		add.l d0,a0
+		move.w d1,(a0)
+		rts
+
+_copper_pallette:
+		move.l copper,a1
+_copper_pallette_set:
+		cmp.w #$0180,(a1)+
+		bne.s _copper_pallette_set
+		moveq #31,d0
+_c_p_s2:
+		move.w (a0)+,(a1)+
+		add.l #2,a1
+		dbra d0,_c_p_s2
+		rts
+
+_windowhd:	dc.l 0
+_intbase:	dc.l 0
+_graphbase:	dc.l 0
+_cpos0:		dc.w 0,0
+
+_GraphName:	dc.b "graphics.library",0
+_IntName:	dc.b "intuition.library",0
+_dosname:	dc.b "dos.library",0
+		even
+
+_dosbase:	dc.l 0,0,0,0,0,0,0
+
+		even
+
+my_screen:
+a_x_pos:	dc.w 0
+a_y_pos:	dc.w 0
+width:		dc.w 320
+heigth:		dc.w 256
+depth:		dc.w 6
+detail_pen:	dc.b 0
+block_pen:	dc.b 1
+view_modes:	dc.w 130
+screen_type:	dc.w 15			;$0101
+font:		dc.l 0
+title:		dc.l 0
+gadget:		dc.l 0
+bitmap:		dc.l 0
+
+		even
+
+my_window:
+_x_pos:		dc.w 0
+_y_pos:		dc.w 0
+_width:		dc.w 320
+_heigth:	dc.w 256
+_pen:		dc.b 0
+_paper:		dc.b 0
+_flags:		dc.l 0
+_flags2:	dc.l $00011000+$1800
+_eigene:	dc.l 0
+_check:		dc.l 0
+_titel:		dc.l 0
+_screenhd:	dc.l 0
+_refresh:	dc.l 2048
+_limits:	dc.w 320,256,320,256
+_window_typ:	dc.w 15
+
+		even
+wb_msg:		dc.l 0
+_size0:		dc.l 0		;Größe des Hintergrund Buffers
+_size1:		dc.l 0		;Größe des Hintergrund Buffers
+_pointer0:	dc.l 0
+copper:		dc.l 0
+copper_plane0:	dc.l 0
+plane0:		dc.l 0
+plane1:		dc.l 0
+plane2:		dc.l 0
+plane3:		dc.l 0
+plane4:		dc.l 0
+plane5:		dc.l 0
+_plane00:	dc.l 0
+_plane01:	dc.l 0
+_plane02:	dc.l 0
+_plane03:	dc.l 0
+_plane04:	dc.l 0
+_plane05:	dc.l 0
+_dplane0:	dc.l 0
+_dplane1:	dc.l 0
+_dplane2:	dc.l 0
+_dplane3:	dc.l 0
+_dplane4:	dc.l 0
+_dplane5:	dc.l 0
+_backplane0:	dc.l 0
+_backplane1:	dc.l 0
+_backplane2:	dc.l 0
+_backplane3:	dc.l 0
+_backplane4:	dc.l 0
+_backplane5:	dc.l 0
+_vorplane0:	dc.l 0
+_vorplane1:	dc.l 0
+_vorplane2:	dc.l 0
+_vorplane3:	dc.l 0
+_vorplane4:	dc.l 0
+_vorplane5:	dc.l 0
+_graf_ram:	dc.l 0
+_char:		dc.l 0		;Adresse des gemalten Charsets
+_grafset:	dc.l 0		;Zeichensatz für Grafik
+_adr:		dc.l 0		;Adresse des Strings
+_back:		dc.l 0
+_filehd:	dc.l 0
+_vp:		dc.l 0		;View Port der Screen
+_rp:		dc.l 0		;Rast Port des Fensters
+_bitmap:	dc.l 0
+_wait:		dc.l 0
+_xcoord:	dc.w 0
+_ycoord:	dc.w 0
+_farbe:		dc.w 0
+_offset:	dc.w 0
+_wwi:		dc.b 0
+_front:		dc.b 0
+maus_click:	dc.b 0
+_bv:		dc.b 0
+		even
+
+_alert:
+		move.l #0,a0
+		move.l _intbase,a6
+		jmp -96(a6)
+
+_set_pointer:
+		cmp.l #0,d5
+		bne.s _set_pointer2
+		move.l _intbase,a6
+		move.l _windowhd,a0
+		jmp -60(a6)
+_set_pointer2:
+		move.l #0,d2
+		move.l #0,d3
+		move.l _intbase,a6
+		move.l _windowhd,a0
+		moveq #22,d0
+		moveq #16,d1
+		move.l _pointer0,a1
+		jmp -270(a6)		;setpointer(a6)
+
+_pointer:
+		dc.l 0,$3000300,$7a007a0,$1ff01ff0,$3ff03ff0
+		dc.l $30f83ff8,$3dfc3ffc,$7bfc7ffc,$30fe3ffe
+		dc.l $3f863ffe,$1fef1fff,$3fde3ffe,$1f861ffe
+		dc.l $ffc0ffc,$3f803f8,$e000e0,$3800380,$7e007e0
+		dc.l $3400340,0,$600060,$700070,$200020,0
+
+		even
+
+_clr_pointer:
+		move.l #0,d2
+		move.l #0,d3
+		move.l _intbase,a6
+		move.l _windowhd,a0
+		moveq #22,d0
+		moveq #16,d1
+		move.l _pointer0,a1
+		add.l #110,a1
+		jmp -270(a6)		;setpointer(a6)
+
+_double:
+		get_mem #61442,#Chip_Ram	;10240
+		move.l d0,_graf_ram
+		move.l d0,_plane00
+		swap d0
+		move.l d0,_backplane0
+		move.l _graf_ram,d0
+		add.l #10240,d0
+		move.l d0,_plane01
+		swap d0
+		move.l d0,_backplane1
+		move.l _graf_ram,d0
+		add.l #20480,d0
+		move.l d0,_plane02
+		swap d0
+		move.l d0,_backplane2
+		move.l _graf_ram,d0
+		add.l #30720,d0
+		move.l d0,_plane03
+		swap d0
+		move.l d0,_backplane3
+		move.l _graf_ram,d0
+		add.l #40960,d0
+		move.l d0,_plane04
+		swap d0
+		move.l d0,_backplane4
+
+		move.l _graf_ram,d0
+		add.l #51200,d0
+		move.l d0,_plane05
+		swap d0
+		move.l d0,_backplane5
+
+		move.l plane0,d0
+		swap d0
+		move.l d0,_vorplane0
+		move.l d0,_dplane0
+		move.l plane1,d0
+		swap d0
+		move.l d0,_vorplane1
+		move.l d0,_dplane1
+		move.l plane2,d0
+		swap d0
+		move.l d0,_vorplane2
+		move.l d0,_dplane2
+		move.l plane3,d0
+		swap d0
+		move.l d0,_vorplane3
+		move.l d0,_dplane3
+		move.l plane4,d0
+		swap d0
+		move.l d0,_vorplane4
+		move.l d0,_dplane4
+		move.l plane5,d0
+		swap d0
+		move.l d0,_vorplane5
+		move.l d0,_dplane5
+		move.l copper,a0
+_double2:
+		cmp.w #$00e0,(a0)+
+		bne.s _double2
+		;sub.l #2,a0
+		move.l a0,copper_plane0
+		rts
+
+_double_back:
+		wait_vblb
+		move.l _dplane0,d0
+		move.l _dplane1,d1
+		move.l _dplane2,d2
+		move.l _dplane3,d3
+		move.l _dplane4,d4
+		move.l _dplane5,d5
+		move.l copper_plane0,a0
+		move.w d0,(a0)
+		swap d0
+		add.l #4,a0
+		move.w d0,(a0)
+		add.l #4,a0
+		move.w d1,(a0)
+		swap d1
+		add.l #4,a0
+		move.w d1,(a0)
+		add.l #4,a0
+		move.w d2,(a0)
+		swap d2
+		add.l #4,a0
+		move.w d2,(a0)
+		add.l #4,a0
+		move.w d3,(a0)
+		swap d3
+		add.l #4,a0
+		move.w d3,(a0)
+		add.l #4,a0
+		move.w d4,(a0)
+		swap d4
+		add.l #4,a0
+		move.w d4,(a0)
+		add.l #4,a0
+		move.w d5,(a0)
+		swap d5
+		add.l #4,a0
+		move.w d5,(a0)
+		move.l _dplane0,d0
+		move.l _dplane1,d1
+		move.l _dplane2,d2
+		move.l _dplane3,d3
+		move.l _dplane4,d4
+		move.l _dplane5,d5
+		move.l _bitmap,a0
+		swap d0
+		move.l d0,(a0)+
+		swap d1
+		move.l d1,(a0)+
+		swap d2
+		move.l d2,(a0)+
+		swap d3
+		move.l d3,(a0)+
+		swap d4
+		move.l d4,(a0)+
+		swap d5
+		move.l d5,(a0)+
+		fre_mem #61442,_graf_ram
+		rts
+
+_flip:
+		eor.b #1,_wwi
+		cmp.b #0,_wwi
+		beq _flip2
+		move.l _backplane1,d1
+		move.l _backplane2,d2
+		move.l _backplane3,d3
+		move.l _backplane4,d4
+		move.l _backplane5,d5
+
+		move.l copper_plane0,a0
+		wait_vbl
+		move.l _backplane0,d0
+		move.w d0,(a0)
+		swap d0
+		add.l #4,a0
+		move.w d0,(a0)
+		add.l #4,a0
+		move.w d1,(a0)
+		swap d1
+		add.l #4,a0
+		move.w d1,(a0)
+		add.l #4,a0
+		move.w d2,(a0)
+		swap d2
+		add.l #4,a0
+		move.w d2,(a0)
+		add.l #4,a0
+		move.w d3,(a0)
+		swap d3
+		add.l #4,a0
+		move.w d3,(a0)
+		add.l #4,a0
+		move.w d4,(a0)
+		swap d4
+		add.l #4,a0
+		move.w d4,(a0)
+		add.l #4,a0
+		move.w d5,(a0)
+		swap d5
+		add.l #4,a0
+		move.w d5,(a0)
+_swap:
+		move.l plane0,d0
+		move.l plane1,d1
+		move.l plane2,d2
+		move.l plane3,d3
+		move.l plane4,d4
+		move.l plane5,d5
+		move.l _plane00,a0
+		move.l _plane01,a1
+		move.l _plane02,a2
+		move.l _plane03,a3
+		move.l _plane04,a4
+		move.l _plane05,a5
+
+		exg d0,a0
+		exg d1,a1
+		exg d2,a2
+		exg d3,a3
+		exg d4,a4
+		exg d5,a5
+		move.l a0,_plane00
+		move.l a1,_plane01
+		move.l a2,_plane02
+		move.l a3,_plane03
+		move.l a4,_plane04
+		move.l a5,_plane05
+		move.l d0,plane0
+		move.l d1,plane1
+		move.l d2,plane2
+		move.l d3,plane3
+		move.l d4,plane4
+		move.l d5,plane5
+		rts
+
+_flip2:
+		move.l _vorplane1,d1
+		move.l _vorplane2,d2
+		move.l _vorplane3,d3
+		move.l _vorplane4,d4
+		move.l _vorplane5,d5
+		move.l copper_plane0,a0
+		wait_vbl
+		move.l _vorplane0,d0
+		move.w d0,(a0)
+		swap d0
+		add.l #4,a0
+		move.w d0,(a0)
+		add.l #4,a0
+		move.w d1,(a0)
+		swap d1
+		add.l #4,a0
+		move.w d1,(a0)
+		add.l #4,a0
+		move.w d2,(a0)
+		swap d2
+		add.l #4,a0
+		move.w d2,(a0)
+		add.l #4,a0
+		move.w d3,(a0)
+		swap d3
+		add.l #4,a0
+		move.w d3,(a0)
+		add.l #4,a0
+		move.w d4,(a0)
+		swap d4
+		add.l #4,a0
+		move.w d4,(a0)
+		add.l #4,a0
+		move.w d5,(a0)
+		swap d5
+		add.l #4,a0
+		move.w d5,(a0)
+		bsr _swap
+		rts
+_equ:
+		wait_vblb
+		move.l copper_plane0,a0
+		move.w (a0),d0
+		swap d0
+		add.l #4,a0
+		move.w (a0),d0
+		move.l plane0,d1
+		cmp.l d0,d1
+		bne _equ2
+		copy_mem2 plane0,_plane00,#10240
+		copy_mem2 plane1,_plane01,#10240
+		copy_mem2 plane2,_plane02,#10240
+		copy_mem2 plane3,_plane03,#10240
+		copy_mem2 plane4,_plane04,#10240
+		copy_mem2 plane5,_plane05,#10240
+		rts
+_equ2:
+		copy_mem2 _plane00,plane0,#10240
+		copy_mem2 _plane01,plane1,#10240
+		copy_mem2 _plane02,plane2,#10240
+		copy_mem2 _plane03,plane3,#10240
+		copy_mem2 _plane04,plane4,#10240
+		copy_mem2 _plane05,plane5,#10240
+		rts
+
+_back_plane:
+		cmp.b #0,_wwi
+		beq _back1
+		bra _back2
+		rts
+_front_plane:
+		cmp.b #0,_wwi
+		bne _back1
+		bra _back2
+		rts
+
+_back1:
+		move.l _vorplane0,d0
+		move.l _vorplane1,d1
+		move.l _vorplane2,d2
+		move.l _vorplane3,d3
+		move.l _vorplane4,d4
+		move.l _vorplane5,d5
+		swap d0
+		swap d1
+		swap d2
+		swap d3
+		swap d4
+		swap d5
+		move.l d0,_plane00
+		move.l d1,_plane01
+		move.l d2,_plane02
+		move.l d3,_plane03
+		move.l d4,_plane04
+		move.l d5,_plane05
+
+		move.l _backplane0,d0
+		move.l _backplane1,d1
+		move.l _backplane2,d2
+		move.l _backplane3,d3
+		move.l _backplane4,d4
+		move.l _backplane5,d5
+		swap d0
+		swap d1
+		swap d2
+		swap d3
+		swap d4
+		swap d5
+		move.l d0,plane0
+		move.l d1,plane1
+		move.l d2,plane2
+		move.l d3,plane3
+		move.l d4,plane4
+		move.l d5,plane5
+		rts
+_back2:
+		move.l _vorplane0,d0
+		move.l _vorplane1,d1
+		move.l _vorplane2,d2
+		move.l _vorplane3,d3
+		move.l _vorplane4,d4
+		move.l _vorplane5,d5
+		swap d0
+		swap d1
+		swap d2
+		swap d3
+		swap d4
+		swap d5
+		move.l d0,plane0
+		move.l d1,plane1
+		move.l d2,plane2
+		move.l d3,plane3
+		move.l d4,plane4
+		move.l d5,plane5
+
+		move.l _backplane0,d0
+		move.l _backplane1,d1
+		move.l _backplane2,d2
+		move.l _backplane3,d3
+		move.l _backplane4,d4
+		move.l _backplane5,d5
+		swap d0
+		swap d1
+		swap d2
+		swap d3
+		swap d4
+		swap d5
+		move.l d0,_plane00
+		move.l d1,_plane01
+		move.l d2,_plane02
+		move.l d3,_plane03
+		move.l d4,_plane04
+		move.l d5,_plane05
+		rts
+_neue_adr:
+		move.l _bitmap,a0
+		move.l plane0,(a0)+
+		move.l plane1,(a0)+
+		move.l plane2,(a0)+
+		move.l plane3,(a0)+
+		move.l plane4,(a0)+
+		move.l plane5,(a0)+
+		rts
+
+		ifne text2__
+_text2_prg:
+		bsr _neue_adr
+		moveq #0,d0
+		move.w _color,d0
+		pen d0
+		add.w #6,_y
+		moveq #0,d1
+		move.w _y,d1
+		move.w _x,d0
+		gotoxy d0,d1
+		move.l _str,a0		;Adresse string
+		bsr _get_anz
+		move.l _rp,a1		;Rastport
+		move.l _graphbase,a6
+		jmp -60(a6)
+
+_str:		dc.l 0
+_color:		dc.w 0
+_x:		dc.w 0
+_y:		dc.w 0
+		even
+
+		ENDC
+
+		ifne text__
+_scan_text:
+		move.l a5,_adr		;Adresse des Strings speichern
+		move.w d0,_farbe	;Farbe sichern
+		mulu.w #40,d3		;Y Koord errechnen
+		add.w d3,d2		;x Koord + Y Koord
+		move.w d2,_offset	;Ergebnis sichern
+_pl0:
+		cmp.w #99,_farbe
+		bgt _only_one
+_pl0b:
+		lea _pl1(pc),a0
+		move.l a0,_back
+		move.l plane0,a0
+		add.w d2,a0		;plus Y Koordinate
+		move.w _farbe,d0
+		and.l #1,d0
+		bne _scan_text2
+		bra _zscan_text2
+_pl1:
+		lea _pl2(pc),a0
+		move.l a0,_back
+		move.l _adr,a5
+		move.l plane1,a0
+		move.w _offset,d2
+		add.w d2,a0		;plus Y Koordinate
+		move.w _farbe,d0
+		and.l #2,d0
+		bne _scan_text2
+		bra _zscan_text2
+_pl2:
+		lea _pl3(pc),a0
+		move.l a0,_back
+		move.l _adr,a5
+		move.l plane2,a0
+		move.w _offset,d2
+		add.w d2,a0		;plus Y Koordinate
+		move.w _farbe,d0
+		and.l #%00000100,d0
+		bne _scan_text2
+		bra _zscan_text2
+_pl3:
+		lea _pl4(pc),a0
+		move.l a0,_back
+		move.l _adr,a5
+		move.l plane3,a0
+		move.w _offset,d2
+		add.w d2,a0		;plus Y Koordinate
+		move.w _farbe,d0
+		and.l #%00001000,d0
+		bne _scan_text2
+		bra _zscan_text2
+
+_pl4:
+		lea _pl5(pc),a0
+		move.l a0,_back
+		move.l _adr,a5
+		move.l plane4,a0
+		move.w _offset,d2
+		add.w d2,a0		;plus Y Koordinate
+		move.w _farbe,d0
+		and.l #%00010000,d0
+		bne.s _scan_text2
+		bra.s _zscan_text2
+
+_pl5:
+		rts
+
+_scan_text2:
+		move.b (a5)+,d0		;Buchstabe hohlen
+		beq.s _ende		;wenn 0 dann Ende
+		and.w #$ff,d0		;kein Buchstabe >255
+		
+		lea _space(pc),a2	;Zeiger auf Zeichensatz
+		;add.w d0,a2		;Zeichen ermitteln
+_text_print2:
+		move.b (0,a2,d0*8),(a0)	;Daten von Tabelle in Plane
+		move.b (1,a2,d0*8),40(a0)
+		move.b (2,a2,d0*8),80(a0)
+		move.b (3,a2,d0*8),120(a0)
+		move.b (4,a2,d0*8),160(a0)
+		move.b (5,a2,d0*8),200(a0)
+		move.b (6,a2,d0*8),240(a0)
+		move.b (7,a2,d0*8),280(a0)
+		add.w #1,a0
+		bra.s _scan_text2
+
+_ende:
+		move.l _back,a0
+		jmp (a0)
+
+
+_zscan_text2:
+		move.b (a5)+,d0		;Buchstabe hohlen
+		beq.s _zende		;wenn 0 dann Ende
+		lea _space(pc),a2	;Zeiger auf Zeichensatz
+		moveq #7,d1		;
+_ztext_print2:
+		move.b (a2)+,(a0)	;Daten von Tabelle in Plane
+		add.w #40,a0		;eine Spalte tiefer
+		dbra d1,_ztext_print2
+		sub.w #319,a0		;Y Koord wieder zurrueck -320
+					;und plus x (1)
+		bra.s _zscan_text2
+
+_zende:
+		move.l _back,a0
+		jmp (a0)
+
+_only_one:
+		lea _only_one99(pc),a0
+		move.l a0,_back
+		cmp.w #255,_farbe
+		beq _charset
+		cmp.w #100,_farbe
+		beq _only_one0		
+		cmp.w #101,_farbe
+		beq _only_one1
+		cmp.w #102,_farbe
+		beq _only_one2
+		cmp.w #103,_farbe
+		beq _only_one3
+		cmp.w #104,_farbe
+		beq _only_one4
+		rts
+_only_one0:
+		move.l plane0,a0
+		add.w d2,a0		;plus Y Koordinate
+		bra _scan_text2
+_only_one1:
+		move.l plane1,a0
+		add.w d2,a0		;plus Y Koordinate
+		bra _scan_text2
+_only_one2:
+		move.l plane2,a0
+		add.w d2,a0		;plus Y Koordinate
+		bra _scan_text2
+_only_one3:
+		move.l plane3,a0
+		add.w d2,a0		;plus Y Koordinate
+		bra _scan_text2
+_only_one4:
+		move.l plane4,a0
+		add.w d2,a0		;plus Y Koordinate
+		bra _scan_text2
+
+_only_one99:
+		rts
+
+_charset:
+		move.l _adr,a5
+		move.l plane0,a0
+		move.w _offset,d2
+		add.w d2,a0
+		moveq #0,d6
+		bsr _scan_text22
+
+		move.l _adr,a5
+		move.l plane1,a0
+		move.w _offset,d2
+		add.w d2,a0
+		moveq #8,d6
+		bsr _scan_text22
+
+		move.l _adr,a5
+		move.l plane2,a0
+		move.w _offset,d2
+		add.w d2,a0
+		moveq #16,d6
+		bsr _scan_text22
+
+		move.l _adr,a5
+		move.l plane3,a0
+		move.w _offset,d2
+		add.w d2,a0
+		moveq #24,d6
+		bsr _scan_text22
+
+		move.l _adr,a5
+		move.l plane4,a0
+		move.w _offset,d2
+		add.w d2,a0
+		moveq #32,d6
+		bsr _scan_text22
+
+		move.l _adr,a5
+		move.l plane5,a0
+		move.w _offset,d2
+		add.w d2,a0
+		moveq #40,d6
+
+_scan_text22:
+		move.b (a5)+,d0
+		beq.s _ende2		;wenn 0 dann Ende
+		and.w #$ff,d0		;kein Buchstabe >255
+		sub.w #32,d0
+		move.l d0,d1
+		lsl.w #4,d0		;mal 48 (pro Buchstabe 48 Bytes)
+		lsl.w #5,d1
+
+		move.l _char,a2 	;Zeiger auf Zeichensatz
+		add.w d0,a2		;Zeichen ermitteln
+		add.w d1,a2
+		add.w d6,a2
+		moveq #7,d1		;
+_text_print22:
+		move.b (a2)+,(a0)	;Daten von Tabelle in Plane
+		add.w #40,a0		;eine Spalte tiefer
+		dbra d1,_text_print22
+		sub.w #319,a0		;Y Koord wieder zurrueck -320
+					;und plus x (1)
+		bra.s _scan_text22
+_ende2:
+		rts
+
+;***************************************
+;Zeichensatz Tabelle
+; , = Amiga Zeichen
+;die Nullen muessen UNBEDINGT bleiben, da sonst die falschen Zeichen
+;ermittelt werden
+
+_space:		
+		dc.l 0,0,0,0,0,0,0,0
+		dc.l 0,0,0,0,0,0,0,0
+		dc.l 0,0,0,0,0,0,0,0
+		dc.l 0,0,0,0,0,0,0,0
+		dc.l 0,0,0,0,0,0,0,0
+		dc.l 0,0,0,0,0,0,0,0
+		dc.l 0,0,0,0,0,0,0,0
+		dc.l 0,0,0,0,0,0,0,0
+
+		dc.l 0,0
+
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00000000
+		dc.b %00011000
+		dc.b %00000000
+
+		dc.l 0,0
+
+		dc.b %01101100
+		dc.b %01101100
+		dc.b %11111110
+		dc.b %01101100
+		dc.b %11111110
+		dc.b %01101100
+		dc.b %01101100
+		dc.b %00000000
+
+		dc.l 0,0,0,0,0,0,0,0
+
+		dc.b %00001100
+		dc.b %00011000
+		dc.b %00110000
+		dc.b %00110000
+		dc.b %00110000
+		dc.b %00011000
+		dc.b %00001100
+		dc.b %00000000
+
+		dc.b %00110000
+		dc.b %00011000
+		dc.b %00001100
+		dc.b %00001100
+		dc.b %00001100
+		dc.b %00011000
+		dc.b %00110000
+		dc.b %00000000
+
+		dc.l 0,0
+
+		dc.b %00000000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %01111110
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00000000
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00110000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %01111110
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00000000
+
+		dc.b %00000110
+		dc.b %00001100
+		dc.b %00011000
+		dc.b %00110000
+		dc.b %01100000
+		dc.b %11000000
+		dc.b %10000000
+		dc.b %00000000
+
+		dc.b %01111100
+		dc.b %11000110
+		dc.b %11001110
+		dc.b %11010110
+		dc.b %11100110
+		dc.b %11000110
+		dc.b %01111100
+		dc.b %00000000
+
+		dc.b %00011000
+		dc.b %00111000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %01111110
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %00000110
+		dc.b %00111100
+		dc.b %01100000
+		dc.b %01100110
+		dc.b %01111110
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %00000110
+		dc.b %00011100
+		dc.b %00000110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %00011100
+		dc.b %00111100
+		dc.b %01101100
+		dc.b %11001100
+		dc.b %11111110
+		dc.b %00001100
+		dc.b %00011110
+		dc.b %00000000
+
+		dc.b %01111110
+		dc.b %01100010
+		dc.b %01100000
+		dc.b %01111100
+		dc.b %00000110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01100000
+		dc.b %01111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %01111110
+		dc.b %01100110
+		dc.b %00000110
+		dc.b %00001100
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111110
+		dc.b %00000110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00000000
+
+		dc.l 0,0,0,0
+		dc.l 0,0,0,0
+
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00001100
+		dc.b %00011000
+		dc.b %00000000
+		dc.b %00011000
+		dc.b %00000000
+
+		dc.l 0,0
+
+		dc.b %00011000
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01111110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00000000
+
+		dc.b %11111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %11111100
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %11000000
+		dc.b %11000000
+		dc.b %11000000
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %11111000
+		dc.b %01101100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01101100
+		dc.b %11111000
+		dc.b %00000000
+
+		dc.b %11111110
+		dc.b %01100010
+		dc.b %01101000
+		dc.b %01111000
+		dc.b %01101000
+		dc.b %01100010
+		dc.b %11111110
+		dc.b %00000000
+
+		dc.b %11111110
+		dc.b %01100010
+		dc.b %01101000
+		dc.b %01110000
+		dc.b %01101000
+		dc.b %01100000
+		dc.b %11110000
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %11000000
+		dc.b %11000000
+		dc.b %11001110
+		dc.b %01100110
+		dc.b %00111110
+		dc.b %00000000
+
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01111110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00000000
+
+		dc.b %01111110
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %01111110
+		dc.b %00000000
+
+		dc.b %00011110
+		dc.b %00001100
+		dc.b %00001100
+		dc.b %00001100
+		dc.b %11001100
+		dc.b %11001100
+		dc.b %01111000
+		dc.b %00000000
+
+		dc.b %11100110
+		dc.b %01100110
+		dc.b %01101100
+		dc.b %01111000
+		dc.b %01101100
+		dc.b %01100110
+		dc.b %11100110
+		dc.b %00000000
+
+		dc.b %11110000
+		dc.b %01100000
+		dc.b %01100000
+		dc.b %01100000
+		dc.b %01100010
+		dc.b %01100110
+		dc.b %11111110
+		dc.b %00000000
+
+		dc.b %11000110
+		dc.b %11101110
+		dc.b %11111110
+		dc.b %11111110
+		dc.b %11010110
+		dc.b %11000110
+		dc.b %11000110
+		dc.b %00000000
+
+		dc.b %11000110
+		dc.b %11100110
+		dc.b %11110110
+		dc.b %11011110
+		dc.b %11001110
+		dc.b %11000110
+		dc.b %11000110
+		dc.b %00000000
+
+		dc.b %00111000
+		dc.b %01101100
+		dc.b %11000110
+		dc.b %11000110
+		dc.b %11000110
+		dc.b %01101100
+		dc.b %00111000
+		dc.b %00000000
+
+		dc.b %11111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01111100
+		dc.b %01100000
+		dc.b %01100000
+		dc.b %11110000
+		dc.b %00000000
+
+		dc.b %00111000
+		dc.b %01101100
+		dc.b %11000110
+		dc.b %11000110
+		dc.b %11011010
+		dc.b %11001100
+		dc.b %01110110
+		dc.b %00000000
+
+		dc.b %11111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01111100
+		dc.b %01101100
+		dc.b %01100110
+		dc.b %11100110
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01100000
+		dc.b %00111100
+		dc.b %00000110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %01111110
+		dc.b %01011010
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00011000
+		dc.b %00000000
+
+		dc.b %11000110
+		dc.b %11000110
+		dc.b %11000110
+		dc.b %11010110
+		dc.b %11111110
+		dc.b %11101110
+		dc.b %11000110
+		dc.b %00000000
+
+		dc.b %11000110
+		dc.b %01101100
+		dc.b %00111000
+		dc.b %00111000
+		dc.b %01101100
+		dc.b %11000110
+		dc.b %11000110
+		dc.b %00000000
+
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %11111110
+		dc.b %11000110
+		dc.b %10001100
+		dc.b %00011000
+		dc.b %00110010
+		dc.b %01100110
+		dc.b %11111110
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %00110000
+		dc.b %00110000
+		dc.b %00110000
+		dc.b %00110000
+		dc.b %00110000
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %11000000
+		dc.b %01100000
+		dc.b %00110000
+		dc.b %00011000
+		dc.b %00001100
+		dc.b %00000110
+		dc.b %00000010
+		dc.b %00000000
+
+		dc.b %00111100
+		dc.b %00001100
+		dc.b %00001100
+		dc.b %00001100
+		dc.b %00001100
+		dc.b %00001100
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.l 0,0
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %11111111
+
+		dc.b %00110000
+		dc.b %00011000
+		dc.b %00001100
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %01111000
+		dc.b %00001100
+		dc.b %01111100
+		dc.b %11001100
+		dc.b %01110110
+		dc.b %00000000
+
+		dc.b %11100000
+		dc.b %01100000
+		dc.b %01111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %11011100
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01100000
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %00011100
+		dc.b %00001100
+		dc.b %01111100
+		dc.b %11001100
+		dc.b %11001100
+		dc.b %11001100
+		dc.b %01110110
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01111110
+		dc.b %01100000
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %00011100
+		dc.b %00110110
+		dc.b %00110000
+		dc.b %01111000
+		dc.b %00110000
+		dc.b %00110000
+		dc.b %01111000
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00111110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111110
+		dc.b %00000110
+		dc.b %01111100
+
+		dc.b %11100000
+		dc.b %01100000
+		dc.b %01101100
+		dc.b %01110110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %11100110
+		dc.b %00000000
+
+		dc.b %00011000
+		dc.b %00000000
+		dc.b %00111000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %00000110
+		dc.b %00000000
+		dc.b %00001110
+		dc.b %00000110
+		dc.b %00000110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111100
+
+		dc.b %11100000
+		dc.b %01100000
+		dc.b %01100110
+		dc.b %01101100
+		dc.b %01111000
+		dc.b %01101100
+		dc.b %11100110
+		dc.b %00000000
+
+		dc.b %00111000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00011000
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %01101100
+		dc.b %11111110
+		dc.b %11010110
+		dc.b %11010110
+		dc.b %11000110
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %11011100
+		dc.b %01101100
+		dc.b %01101100
+		dc.b %01101100
+		dc.b %01101100
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00111100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %11011100
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01111100
+		dc.b %01100000
+		dc.b %11110000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %01110110
+		dc.b %11001100
+		dc.b %11001100
+		dc.b %01111100
+		dc.b %00001100
+		dc.b %00011110
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %11011100
+		dc.b %01110110
+		dc.b %01100000
+		dc.b %01100000
+		dc.b %11110000
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %00111100
+		dc.b %01100000
+		dc.b %00111100
+		dc.b %00000110
+		dc.b %01111100
+		dc.b %00000000
+
+		dc.b %00110000
+		dc.b %00110000
+		dc.b %01111100
+		dc.b %00110000
+		dc.b %00110000
+		dc.b %00110110
+		dc.b %00011100
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111110
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111100
+		dc.b %00011000
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %11000110
+		dc.b %11010110
+		dc.b %11010110
+		dc.b %11111110
+		dc.b %01101100
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %11000110
+		dc.b %01101100
+		dc.b %00111000
+		dc.b %01101100
+		dc.b %11000110
+		dc.b %00000000
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %01100110
+		dc.b %00111110
+		dc.b %00000110
+		dc.b %01111100
+
+		dc.b %00000000
+		dc.b %00000000
+		dc.b %01111110
+		dc.b %01001100
+		dc.b %00011000
+		dc.b %00110010
+		dc.b %01111110
+		dc.b %00000000
+
+		even
+
+		ENDC
+_cls0:
+		move.l #2559,d0
+		moveq #0,d1
+		move.l plane0,a0
+		move.l plane1,a1
+		move.l plane2,a2
+		move.l plane3,a3
+		move.l plane4,a4
+		move.l plane5,a5
+_cls2:
+		move.l d1,(a0)+
+		move.l d1,(a1)+
+		move.l d1,(a2)+
+		move.l d1,(a3)+
+		move.l d1,(a4)+
+		move.l d1,(a5)+
+		dbra d0,_cls2
+		rts
+
+;********************************************************
+; delz   = delete Zeichen **
+; anfang = Adresse des Input Strings **
+; D3 = xPos des Strings ;D4 = yPos des Strings
+; entlong = max Länge des Strings
+;Aufruf:
+;		lea string(pc),a0
+;		move.l a0,anfang
+;		move.b #laenge,entlong
+;		moveq #x,d3
+;		moveq #y,d4
+;		bsr _entername
+;	by   K D M
+;********************************************************
+		ifne input__
+_entername:
+		move.w d3,_entx
+		move.w d4,_enty
+		move.b #"-",_delz
+		move.l _anfang,a2
+		move.l a2,_zeiger		
+		move.b _delz,(a2)
+_entername2:
+		ptext _farbe2,_entx,_enty,_anfang
+		bsr _getch
+		bsr _test_taste
+		cmp.b #0,d0
+		beq _entername2
+		cmp.b #13,d0
+		beq _ente
+		cmp.b #8,d0
+		beq _delete
+		cmp.b #127,d0
+		beq _delete
+
+		move.l _anfang,d2
+		move.l _zeiger,d3
+		sub.l d2,d3
+		move.b _entlong,d1
+		and.l #255,d1
+		cmp.l d3,d1
+		beq _last_colon
+
+		move.l _zeiger,a0
+		move.b d0,(a0)+
+		move.b _delz,(a0)
+		move.l a0,_zeiger
+		bra _entername2
+
+_delete:
+		move.l _anfang,d2
+		move.l _zeiger,d3
+		sub.l d2,d3
+		cmp.l #0,d3
+		beq _delete0
+		move.l _zeiger,a0
+		move.b #" ",(a0)
+		move.b _delz,-(a0)
+		move.l a0,_zeiger
+		bra _entername2
+
+_delete0:
+		move.l _zeiger,a0
+		move.b #"-",(a0)
+		move.b #" ",1(a0)
+		bra _entername2
+
+_last_colon:
+		move.l _zeiger,a0
+		move.b d0,-1(a0)
+		move.b _delz,(a0)
+		bra _entername2
+
+_ente:
+		move.l _zeiger,a0
+		move.l _anfang,a1
+		cmp.l a0,a1
+		beq _entername2
+		move.b #0,(a0)
+		rts
+		ENDC
+
+_codes:		dc.l 0
+_zeiger:	dc.l 0
+_anfang:	dc.l 0
+_entx:		dc.w 0
+_enty:		dc.w 0
+_farbe2:	dc.w 0
+_entlong:	dc.b 0
+_delz:		dc.b 0
+
+		even
+
+;-----------------------------------------------------
+;-----------------------------------------------------
+; ** getch **
+; in  => none 
+; out => d0.w tastencode
+;-----------------------------------------------------
+;-----------------------------------------------------
+
+_getch:
+		moveq #0,d0 		
+		jsr _syskey
+		lea _keyasctab2,a0
+		move.b 0(a0,d0),d0
+		rts
+
+_keyasctab:	dc.b 0,"1234567890-=\",0,"0"
+		dc.b "QWERTZUIOP*+",0,111,112,113
+		dc.b "ASDFGHJKL:",0,0,0,114,115,116
+		dc.b 0,"YXCVBNM,./",0,".",117,118,119
+		dc.b " ",8,9,$d,$d,96,127,0,0,0,0,0,28,29,30,31
+		dc.b 97,98,99,100,101,102,103,104,105,106,107,108,109,0,0,110
+		dc.b 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		
+
+		even
+
+_keyasctab2:	dc.b 0,"1234567890-=\",0,"0"
+		dc.b "QWERTZUIOP*+",0,"123"
+		dc.b "ASDFGHJKL:",0,0,0,"456"
+		dc.b 0,"YXCVBNM,./",0,".","789"
+		dc.b " ",8,9,$d,$d,96,127,0,0,0,0,0,28,29,30,31
+		dc.b 97,98,99,100,101,102,103,104,105,106,107,108,109,0,0,110
+		dc.b 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		
+		;Tasten Codes
+		;8=BackSpace
+		;127=Delete
+		;13=Return/Enter
+		;255=Help
+		even
+
+_tasten_tab:	dc.b "A","B","C","D","E","F","G","H","I","J","K"
+		dc.b "L","M","N","O","P","Q","R","S","T","U","V"
+		dc.b "W","X","Y","Z","1","2","3","4","5","6","7"
+		dc.b "8","9","0","=","?","!"," ","+"
+		dc.b 13,8,127,0
+
+		even
+
+_tasten_tab2:	dc.b "1","2","3","4","5","6","7"
+		dc.b "8","9","0",13,8,127,0
+
+		even
+
+_test_taste:
+		moveq #0,d1
+		move.l _codes,a0
+_test_taste2:
+		move.b (a0)+,d1
+		beq.s _test_taste0
+		cmp.b d0,d1
+		beq.s _test_taste_back
+		bra.s _test_taste2
+
+_test_taste0:
+		moveq #0,d0
+		rts
+
+_test_taste_back:
+		rts
+
+;-----------------------------------------------------
+;-----------------------------------------------------
+; ** syskey **
+; in  => none
+; out => d0.w system tasten code
+;-----------------------------------------------------
+;-----------------------------------------------------
+
+_syskey:	btst #0,$bfec01
+		beq.s _syskey
+		move.b $bfec01,d0
+		move.b #0,$bfec01
+		ror.b #1,d0
+		eor.b #$ff,d0
+		rts
+
+;-----------------------------------------------------
+; ** getch **
+; in  => none 
+; out => d0.w tastencode
+;-----------------------------------------------------
+;-----------------------------------------------------
+
+_getch2:
+		moveq #0,d0 		
+		jsr _syskey2
+		cmp.b #0,d0
+		beq.s _rts3
+		lea _keyasctab,a0
+		move.b 0(a0,d0),d0
+		move.b #0,$bfec01
+_rts3:		rts
+
+
+
+;-----------------------------------------------------
+;-----------------------------------------------------
+; ** syskey **
+; in  => none
+; out => d0.w system tasten code
+;-----------------------------------------------------
+;-----------------------------------------------------
+
+_syskey2:	btst #0,$bfec01
+		beq.s _rts
+		move.b $bfec01,d0
+		move.b #0,$bfec01
+		ror.b #1,d0
+		eor.b #$ff,d0
+_rts:		rts
+
+;***************************************
+;zuzahl = Zufallszahl zwischen 0 - 15 **
+;by    K D M                          **
+;***************************************
+
+_fallzu:
+		move.b $bfe801,d0
+		move.b $dff000+6,d1
+		eor.b d1,d0
+		and.l #15,d0		;Zahl zwischen 0 - 15
+		addq #1,d0
+		move.b d0,_zuzahl
+		rts
+
+
+_zuzahl:	dc.b 0,0,0,0,0,0,0,0
+
+		even
+
+_fallzu16:
+		move.w _zuzahl16,d6
+		mulu #221,d6
+		addq.w #1,d6
+		move.w $dff014,d7
+		eor.w d7,d6
+		and.l #$ffff,d6
+		move.w d6,_zuzahl16
+		rts
+_zuzahl16:	dc.w 0,0
+;*************************************************************
+;****** String - Zahl ** in String(Stnumber) ** out number ***
+;****** Endkennung des Strings = 0
+;**
+;** Aufruf:
+;**		lea zahl(pc),a0		;Adresse des Strings
+;**		bsr stzahl
+;**		move.l d0,number	;Zahl sichern
+;**		by KDM
+;*************************************************************
+		ifne zahl2__
+_stzahl:
+		move.l a0,_stnumber
+		bsr _istzahl
+		tst.b d0
+		bne.s _stzahl0
+		moveq #0,d0
+		move.l d0,_number
+		rts
+_stzahl0:
+		move.l _stnumber,a0
+		moveq #0,d0
+		moveq #0,d1		;zähler
+		lea _stmulti(pc),a3	;Multiplikator
+		move.l d1,_number	;alte Zahl löschen
+_stzahlloop:
+		move.b (a0)+,d0		;erstes Zeichen
+		cmp.b #0,d0
+		beq.s _stzahlgef
+		bra _stzahlloop
+
+_stzahlgef:
+		sub.l #2,a0		;Zeiger auf Ende
+		move.l _stnumber,a1
+		sub.l #1,a1
+		cmp.l a0,a1
+		beq _nostzahl
+		add.l #1,a1
+_stzahlconv:
+		move.b (a0),d0
+		sub.b #48,d0
+		move.l (a3)+,d2
+		cmp.b 0,d0
+		beq _jadd
+		move.b d0,d5
+		and.l #$ff,d5
+		sub.l d0,d0
+		subq #1,d5
+_emul:
+		add.l d2,d0
+		dbra d5,_emul
+_jadd:		add.l d0,_number
+		cmp.l a0,a1
+		beq.s _stback
+		sub.l #1,a0
+		moveq #0,d0
+		bra _stzahlconv
+
+_nostzahl:
+_stback:	move.l _number,d0
+		rts
+
+_stnumber:	dc.l 0
+_number:	dc.l 0
+_stmulti:	dc.l 1,10,100,1000
+		dc.l 10000
+		dc.l 100000
+		dc.l 1000000
+		dc.l 10000000
+		dc.l 100000000
+		dc.l 1000000000 
+		dc.l 0
+		ENDC
+
+;*********************************************************
+;*****  Zahl - String *** in - zzahl ** out - z		 *
+;*** Aufruf:  
+;***		move.l zahl,d0
+;***		bsr zstring
+;***		text #3,#8,#8,#z
+;***		by KDM
+;********************************************************
+		ifne zahl__
+_zstring:
+		move.l d0,_zzahl
+		move.b #0,_zvor
+		tst.l d0
+		beq _zerozahl
+		tst.l d0
+		bpl _zstringpos
+		neg.l _zzahl
+		move.b #1,_zvor
+_zstringpos:
+		lea _z(pc),a0
+		bsr _zstringclr
+		addq #1,a0
+		lea _zzahlminus(pc),a1
+		add.l #1,_zzahl
+_stringa:
+		moveq #0,d2
+		move.l (a1)+,d0
+		move.l _zzahl,d1
+		cmp.l #0,d0
+		beq _stringende
+_stringa2:
+		addq #1,d2
+		sub.l d0,d1
+		cmp.l #0,d1		;kleiner gleich 0
+		ble _stringa5		;dann nächste Subtrahent
+		bra _stringa2
+_stringa5:
+		add.l d0,d1
+		move.l d1,_zzahl
+		add.l #47,d2
+		move.b d2,(a0)+	
+		bra _stringa
+_zstringclr:
+		move.l a0,a1
+		moveq #14,d0
+_zstringclr2:
+		move.b #0,(a1)+
+		dbra d0,_zstringclr2		
+		rts
+_stringende:
+		lea _z(pc),a0
+		move.b #"0",(a0)
+		moveq #0,d0
+_stringendeb:
+		move.b (a0),d0
+		cmp.b #"0",d0
+		bne.s _stringebc
+		move.b #" ",(a0)+
+		bra _stringendeb	
+_stringebc:
+		move.b _zvor,d0
+		tst.b d0
+		beq.s _stringende2
+		subq #1,a0
+		move.b #"-",(a0)
+_stringende2:
+		lea _z(pc),a0
+		move.l a0,a1
+		moveq #0,d1
+		moveq #0,d3
+_stringende3:
+		move.b (a0)+,d1
+		cmp.b #" ",d1
+		beq.s _stringende3
+		subq #1,a0
+_stringende4:
+		move.b (a0),d3
+		cmp.b #0,d3
+		beq.s _stringende5
+		move.b (a0)+,(a1)+
+		bra _stringende4
+_stringende5:
+		move.b #0,(a1)
+		rts
+_zerozahl:
+		lea _z(pc),a0
+		bsr _zstringclr
+		move.b #"0",(a0)+
+		move.b #0,(a0)
+		rts
+_zzahlminus:
+		dc.l 1000000000
+		dc.l 100000000
+		dc.l 10000000
+		dc.l 1000000
+		dc.l 100000
+		dc.l 10000
+		dc.l 1000
+		dc.l 100
+		dc.l 10
+		dc.l 1
+		dc.l 0
+
+_zzahl:		dc.l 0
+_z:		dc.b 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+_zvor:		dc.b 0
+
+		even
+
+_rbuendig:
+		move.l d0,_zzahl
+		cmp.l #0,_zzahl
+		bge _rb1
+		sub.w #1,_xcoord
+		neg.l _zzahl
+_rb1:
+		cmp.l #9,_zzahl
+		bgt _rb10
+		rts
+_rb10:
+		cmp.l #99,_zzahl
+		bgt _rb100
+		sub.w #1,_xcoord
+		rts
+_rb100:
+		cmp.l #999,_zzahl
+		bgt _rb1000
+		sub.w #2,_xcoord
+		rts
+_rb1000:
+		cmp.l #9999,_zzahl
+		bgt _rb10000
+		sub.w #3,_xcoord
+		rts
+_rb10000:
+		cmp.l #99999,_zzahl
+		bgt _rb100000
+		sub.w #4,_xcoord
+		rts
+_rb100000:
+		cmp.l #999999,_zzahl
+		bgt _rb1000000
+		sub.w #5,_xcoord
+		rts
+_rb1000000:
+		cmp.l #9999999,_zzahl
+		bgt _rb10000000
+		sub.w #6,_xcoord
+		rts
+_rb10000000:
+		cmp.l #99999999,_zzahl
+		bgt _rb100000000
+		sub.w #7,_xcoord
+		rts
+_rb100000000:
+		cmp.l #999999999,_zzahl
+		bgt _rb1000000000
+		sub.w #8,_xcoord
+		rts
+_rb1000000000:
+		sub.w #9,_xcoord
+		rts
+		ENDC
+
+;*******************************************
+; On d0 goto
+;Aufruf:
+;	move.b taste,d0
+;	lea table(pc),a0
+;	lea key(pc),a1
+;	bra ongoto
+;
+;table:	dc.l label1,label2,label3,aufruf
+;key:	dc.b "1","2","3",0
+;	by KDM
+;*******************************************
+ongoto:
+		moveq #0,d2
+		moveq #0,d1
+ongoto2:
+		move.b (a1)+,d1
+		cmp.b d0,d1
+		beq.s ongoto3
+		cmp.b #0,d1
+		beq.s ongoto3
+		addq #1,d2
+		bra ongoto2
+ongoto3:
+		lsl #2,d2
+		move.l 0(a0,d2),a0
+		jmp (a0)
+
+
+;***********************************************
+;Überprüfung eines Strings ob Zahl
+;Aufruf:
+;	lea string(pc),a0
+;	bsr istzahl
+;	tst.b d0
+;	beq.s nozahl
+;	by KDM
+;***********************************************
+
+_istzahl:
+	       	moveq #0,d0
+_istzahl2:
+		move.b (a0)+,d0		
+		cmp.b #0,d0
+		beq.s _istzahl99
+		sub.b #48,d0
+		cmp.b #0,d0
+		blt _istzahl00
+		cmp.b #9,d0
+		bgt _istzahl00
+		bra _istzahl2
+_istzahl99:
+		moveq #1,d0
+		rts
+_istzahl00:
+		moveq #0,d0
+		rts
+
+
+_m_r:
+		move.b $dff016,d0	;rechte Maustaste
+		and.l #15,d0		;gedrückt = 1
+		cmp.b #1,d0
+		bne.s _m_r
+		rts
+
+
+_bsave:
+		move.b #0,_frontback
+		set_pointer #1
+		cmp.b #0,_bv
+		beq.s _bsaveok
+		front
+		move.b #1,_frontback
+_bsaveok:	
+		bsr _neue_adr
+		move.l #1,_ioerror
+		bsr _dosopen
+		move.l _modus,d2
+		move.l _modus,d0
+		move.l _dosbase,a6
+		move.l _name_save,d1
+		jsr open(a6)
+		move.l d0,_filehd
+		move.l d0,_ioerror
+		tst.l d0
+		beq.s _save2
+		move.l _anfang_save,d2	;Anfang der Daten
+		move.l _lang_save,d3	;Laenge
+		move.l _dosbase,a6
+		move.l _filehd,d1
+		jsr write(a6)
+		move.l d0,_ioerror
+		move.l _dosbase,a6
+		move.l _filehd,d1
+		jsr close(a6)
+_save2:		bsr _dosclose
+		cmp.l #0,_ioerror
+		beq _bsave
+		set_pointer #0
+		cmp.b #1,_frontback
+		beq _richten
+		rts
+
+_warte:
+		bsr _dosopen
+		move.l _wait,d1
+		move.l _dosbase,a6
+		jsr -198(a6)
+		bsr _dosclose
+		rts
+
+_bload:
+		move.b #0,_frontback
+		set_pointer #1
+		cmp.b #0,_bv
+		beq.s _bloadok
+		front
+		move.b #1,_frontback
+_bloadok:
+		bsr _neue_adr
+		move.l #1,_ioerror
+		bsr _dosopen
+		move.l #1005,d2
+		move.l _dosbase,a6
+		move.l _name_load,d1
+		jsr open(a6)
+		move.l d0,_filehd
+		move.l d0,_ioerror
+		tst.l d0
+		beq.s _bload3
+		move.l _anfang_load,d2
+		move.l _dosbase,a6
+		move.l _filehd,d1
+		move.l _lang_load,d3
+		jsr read(a6)
+		move.l d0,_ioerror
+		move.l d0,d6
+		move.l _dosbase,a6
+		move.l _filehd,d1
+		jsr close(a6)
+_bload2:	bsr _dosclose
+		cmp.l #0,_ioerror
+		beq _bload
+		ble _bload
+		set_pointer #0
+		cmp.b #1,_frontback
+		beq _richten
+		rts
+_bload3:
+		move.l _dosbase,a6
+		jsr -132(a6)			;welcher Fehler
+		cmp.b #205,d0
+		beq _bload4
+		bra _bload
+_bload4:
+		bsr _dosclose
+		move.l #-1,_ioerror
+		set_pointer #0
+		cmp.b #1,_frontback
+		beq _richten
+		rts
+_richten:
+		back
+		bsr _neue_adr
+		rts
+
+_name_save:	dc.l 0
+_anfang_save:	dc.l 0
+_lang_save:	dc.l 0
+_name_load:	dc.l 0
+_anfang_load:	dc.l 0
+_lang_load:	dc.l 0
+_modus:		dc.l 0
+_ioerror:	dc.l 0
+_koord:		dc.l 0
+_frontback:	dc.b 0
+		even
+
+;*******************************************
+; _compare
+;		lea string1(pc),a0
+;		lea string2(pc),a1
+;		bsr _compare
+;		tst.b d0
+;		beq beide_gleich
+;	by KDM
+;*******************************************
+
+_compare:
+		moveq #0,d0
+		moveq #0,d1
+_compare2:
+		move.b (a0)+,d0
+		beq _compare6
+		move.b (a1)+,d1
+		beq _compare6
+		cmp.b d0,d1
+		bne.s _compare5
+		bra.s _compare2
+
+_compare5:
+		moveq #1,d0
+		rts
+
+_compare6:
+		moveq #0,d0
+		rts
+
+;********************************************
+;wartet auf Maus oder Tasten Druck
+
+_bf_2b:		key
+		cmp.b #0,d0
+		beq.s _bf_2c
+		rts
+_bf_2c:		btst #6,$bfe001
+		bne.s _bf_2d
+		cmp.b #0,maus_click
+		bne.s _bf_2b
+		bra.s _bf_2e
+
+_bf_2d:		move.b #0,maus_click
+		bra.s _bf_2b
+_bf_2e:
+		move.b #1,maus_click
+		rts
+
+_down:
+		move.l #0,_koord
+_down0:		move.l _intbase,a6
+		move.l _screenhd,a0
+		moveq #0,d0
+		move.l _koord,d1
+		jsr -$a2(a6)
+		add.l #1,_koord
+		cmp.l #25,_koord
+		beq _down2
+		bra _down0
+_down2:
+		rts
+_up:
+		move.l #-25,_koord
+_up0:
+		move.l _intbase,a6
+		move.l _screenhd,a0
+		moveq #0,d0
+		move.l _koord,d1
+		jsr -$a2(a6)
+		add.l #1,_koord
+		cmp.l #-1,_koord
+		beq _up3
+		bra _up0
+_up3:
+		rts
+
+_get_anz:
+		move.l a0,a2
+		move.l #-1,d0
+		moveq #0,d1
+_get_anz2:
+		move.b (a2)+,d1
+		addq #1,d0
+		cmp.b #0,d1
+		bne.s _get_anz2
+		rts
+
+_to_space:	move.l a5,a1
+_to_space_loop:
+		cmp.b #0,(a1)
+		beq.s _to_space_end
+		cmp.b #"_",(a1)
+		beq.s _to_space3
+_to_space2:	add.l #1,a1
+		bra.s _to_space_loop
+
+_to_space3:
+		move.b #" ",(a1)
+		bra.s _to_space2
+
+_to_space_end:	rts
+
+_set_kasten:
+		move.w d0,_pos55
+		move.l _y_aus,d5	;Y Ausdehnung
+_kast_loop0:
+		move.l _x_aus,d4	;X Ausdehnung
+_kast_loop:
+		move.w (a5)+,d2
+		and.l #$ffff,d2
+		move.l d2,d3
+		lsl.w #5,d2		;* 48
+		lsl.w #4,d3
+		add.l d3,d2
+		move.l _grafset,a6
+		add.l d2,a6
+
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l plane0,a0
+		move.l plane1,a1
+		move.l plane2,a2
+		move.l plane3,a3
+		move.l plane4,a4
+		move.l plane5,a5
+		move.l d1,d2
+		lsl.w #5,d1		;* 40
+		lsl.w #3,d2
+		add.l d2,d1
+		add.l d1,d0
+		add.l d0,a0
+		add.l d0,a1
+		add.l d0,a2
+		add.l d0,a3
+		add.l d0,a4
+		add.l d0,a5
+
+		move.b (a6),(a0)
+		move.b 1(a6),40(a0)
+		move.b 2(a6),80(a0)
+		move.b 3(a6),120(a0)
+		move.b 4(a6),160(a0)
+		move.b 5(a6),200(a0)
+		move.b 6(a6),240(a0)
+		move.b 7(a6),280(a0)
+
+		move.b 8(a6),(a1)
+		move.b 9(a6),40(a1)
+		move.b 10(a6),80(a1)
+		move.b 11(a6),120(a1)
+		move.b 12(a6),160(a1)
+		move.b 13(a6),200(a1)
+		move.b 14(a6),240(a1)
+		move.b 15(a6),280(a1)
+
+		move.b 16(a6),(a2)
+		move.b 17(a6),40(a2)
+		move.b 18(a6),80(a2)
+		move.b 19(a6),120(a2)
+		move.b 20(a6),160(a2)
+		move.b 21(a6),200(a2)
+		move.b 22(a6),240(a2)
+		move.b 23(a6),280(a2)
+
+		move.b 24(a6),(a3)
+		move.b 25(a6),40(a3)
+		move.b 26(a6),80(a3)
+		move.b 27(a6),120(a3)
+		move.b 28(a6),160(a3)
+		move.b 29(a6),200(a3)
+		move.b 30(a6),240(a3)
+		move.b 31(a6),280(a3)
+
+		move.b 32(a6),(a4)
+		move.b 33(a6),40(a4)
+		move.b 34(a6),80(a4)
+		move.b 35(a6),120(a4)
+		move.b 36(a6),160(a4)
+		move.b 37(a6),200(a4)
+		move.b 38(a6),240(a4)
+		move.b 39(a6),280(a4)
+
+		move.b 40(a6),(a5)
+		move.b 41(a6),40(a5)
+		move.b 42(a6),80(a5)
+		move.b 43(a6),120(a5)
+		move.b 44(a6),160(a5)
+		move.b 45(a6),200(a5)
+		move.b 46(a6),240(a5)
+		move.b 47(a6),280(a5)
+
+		movem.l (a7)+,d0-d7/a0-a6
+
+		addq.w #1,d0
+		dbra d4,_kast_loop
+		move.w _pos55,d0
+		addq.w #8,d1
+		dbra d5,_kast_loop0
+		rts
+
+_pos55:		dc.w 0
+_x_aus:		dc.l 0
+_y_aus:		dc.l 0,0
+
+_set_ein_kasten:
+		move.l d1,d3
+		lsl.w #5,d1		;y Pos * 40
+		lsl.w #3,d3
+		add.l d3,d1
+		add.l d1,d0
+
+		move.l d2,d3
+		lsl.w #5,d2		;* 48
+		lsl.w #4,d3
+		add.l d3,d2
+		add.l d2,a6
+
+		move.l plane0,a0
+		move.l plane1,a1
+		move.l plane2,a2
+		move.l plane3,a3
+		move.l plane4,a4
+		move.l plane5,a5
+		add.l d0,a0
+		add.l d0,a1
+		add.l d0,a2
+		add.l d0,a3
+		add.l d0,a4
+		add.l d0,a5
+
+		move.b (a6),(a0)
+		move.b 1(a6),40(a0)
+		move.b 2(a6),80(a0)
+		move.b 3(a6),120(a0)
+		move.b 4(a6),160(a0)
+		move.b 5(a6),200(a0)
+		move.b 6(a6),240(a0)
+		move.b 7(a6),280(a0)
+
+		move.b 8(a6),(a1)
+		move.b 9(a6),40(a1)
+		move.b 10(a6),80(a1)
+		move.b 11(a6),120(a1)
+		move.b 12(a6),160(a1)
+		move.b 13(a6),200(a1)
+		move.b 14(a6),240(a1)
+		move.b 15(a6),280(a1)
+
+		move.b 16(a6),(a2)
+		move.b 17(a6),40(a2)
+		move.b 18(a6),80(a2)
+		move.b 19(a6),120(a2)
+		move.b 20(a6),160(a2)
+		move.b 21(a6),200(a2)
+		move.b 22(a6),240(a2)
+		move.b 23(a6),280(a2)
+
+		move.b 24(a6),(a3)
+		move.b 25(a6),40(a3)
+		move.b 26(a6),80(a3)
+		move.b 27(a6),120(a3)
+		move.b 28(a6),160(a3)
+		move.b 29(a6),200(a3)
+		move.b 30(a6),240(a3)
+		move.b 31(a6),280(a3)
+
+		move.b 32(a6),(a4)
+		move.b 33(a6),40(a4)
+		move.b 34(a6),80(a4)
+		move.b 35(a6),120(a4)
+		move.b 36(a6),160(a4)
+		move.b 37(a6),200(a4)
+		move.b 38(a6),240(a4)
+		move.b 39(a6),280(a4)
+
+		move.b 40(a6),(a5)
+		move.b 41(a6),40(a5)
+		move.b 42(a6),80(a5)
+		move.b 43(a6),120(a5)
+		move.b 44(a6),160(a5)
+		move.b 45(a6),200(a5)
+		move.b 46(a6),240(a5)
+		move.b 47(a6),280(a5)
+		rts
+
+_get_joy:
+		moveq #0,d2
+		move.w #0,$dff036
+		move.w (a0),d0
+		cmp.w #$0100,d0
+		bne.s _joy_unten
+		moveq #1,d2
+		bra.s _joy_fire
+_joy_unten:
+		cmp.w #$0001,d0
+		bne.s _joy_left
+		moveq #3,d2
+		bra.s _joy_fire
+_joy_left:
+		cmp.w #$0300,d0
+		bne.s _joy_right
+		moveq #4,d2
+		bra.s _joy_fire
+_joy_right:
+		cmp.w #$0003,d0
+		bne.s _joy_fire
+		moveq #2,d2
+_joy_fire:
+		cmp.b #0,d1
+		bne.s _joy_fire1
+		and.b #64,$bfe001
+		bne.s _joy_end
+		moveq #1,d1
+		rts
+_joy_fire1:
+		and.b #128,$bfe001
+		bne.s _joy_end
+		moveq #1,d1
+		rts
+_joy_end:
+		moveq #0,d1
+		rts
+
+;**************** Punkt setzen *****************
+;d0.w x *** d1.w y *** d2.w color
+_set0:
+		move.l plane0,a0
+		move.l plane1,a1
+		move.l plane2,a2
+		move.l plane3,a3
+		move.l plane4,a4
+		move.l plane5,a5
+		move.w d1,d3
+		lsl.w #3,d3		;*8
+		lsl.w #5,d1		;*32
+		add.w d3,d1		;Y-Pos
+		move.w d0,d3		;x Puffern
+		lsr.w #3,d0		;welches Byte in der Reihe
+		add.w d0,d1		;offset
+		lsl.w #3,d0
+		sub.w d0,d3		;hier steht das zu ändernde Bit
+
+		and.l #255,d3
+		bsr _bit_wandel
+
+		roxr.b #1,d2
+		bcs.s _set_pl0
+		bclr.b d3,0(a0,d1.w)
+_set_tst1:
+		roxr.b #1,d2
+		bcs.s _set_pl1
+		bclr.b d3,0(a1,d1.w)
+_set_tst2:
+		roxr.b #1,d2
+		bcs.s _set_pl2
+		bclr.b d3,0(a2,d1.w)
+_set_tst3:
+		roxr.b #1,d2
+		bcs.s _set_pl3
+		bclr.b d3,0(a3,d1.w)
+_set_tst4:
+		roxr.b #1,d2
+		bcs.s _set_pl4
+		bclr.b d3,0(a4,d1.w)
+_set_tst5:
+		roxr.b #1,d2
+		bcs.s _set_pl5
+		bclr.b d3,0(a5,d1.w)
+		rts
+_set_pl0:
+		bset.b d3,0(a0,d1.w)
+		bra.s _set_tst1
+_set_pl1:
+		bset.b d3,0(a1,d1.w)
+		bra.s _set_tst2
+_set_pl2:
+		bset.b d3,0(a2,d1.w)
+		bra.s _set_tst3
+_set_pl3:
+		bset.b d3,0(a3,d1.w)
+		bra.s _set_tst4
+_set_pl4:
+		bset.b d3,0(a4,d1.w)
+		bra.s _set_tst5
+_set_pl5:
+		bset.b d3,0(a5,d1.w)
+		rts
+_bit_wandel:
+		cmp.b #7,d3
+		bne.s _bit_w6
+		moveq #0,d3
+		rts
+_bit_w6:
+		cmp.b #6,d3
+		bne.s _bit_w5
+		moveq #1,d3
+		rts
+_bit_w5:
+		cmp.b #5,d3
+		bne.s _bit_w4
+		moveq #2,d3
+		rts
+_bit_w4:
+		cmp.b #4,d3
+		bne.s _bit_w3
+		moveq #3,d3
+		rts
+_bit_w3:
+		cmp.b #3,d3
+		bne.s _bit_w2
+		moveq #4,d3
+		rts
+_bit_w2:
+		cmp.b #2,d3
+		bne.s _bit_w1
+		moveq #5,d3
+		rts
+_bit_w1:
+		cmp.b #1,d3
+		bne.s _bit_w0
+		moveq #6,d3
+		rts
+_bit_w0:
+		cmp.b #0,d3
+		moveq #7,d3
+		rts
+
+
+_sort_l:
+		sub.l #1,d0
+		move.l d0,d1
+		move.l d0,d2
+		move.l a0,a1
+		move.l a0,a2
+
+_sort_lloop0:
+		move.l (a0),d3
+		move.l d3,d4
+
+_sort_lloop1:
+		cmp.l (a0)+,d3
+		bgt _sort_ltausch
+_sort_lloop2:
+		dbra d0,_sort_lloop1
+		move.l d3,(a2)
+		move.l d4,(a1)+
+		move.l a1,a0
+		move.l a0,a2
+		sub.l #1,d2
+		move.l d2,d0
+		dbra d1,_sort_lloop0
+		rts
+
+_sort_ltausch:
+		cmp.l -4(a0),d4
+		blt _sort_lloop2
+		move.l -4(a0),d4		;kleinere Zahl gefunden
+		move.l a0,a2
+		sub.l #4,a2
+		bra.s _sort_lloop2
+
+_sort_w:
+		sub.l #1,d0
+		move.l d0,d1
+		move.l d0,d2
+		move.l a0,a1
+		move.l a0,a2
+
+_sort_wloop0:
+		move.w (a0),d3
+		move.w d3,d4
+
+_sort_wloop1:
+		cmp.w (a0)+,d3
+		bgt _sort_wtausch
+_sort_wloop2:
+		dbra d0,_sort_wloop1
+		move.w d3,(a2)
+		move.w d4,(a1)+
+		move.l a1,a0
+		move.l a0,a2
+		sub.l #1,d2
+		move.l d2,d0
+		dbra d1,_sort_wloop0
+		rts
+
+_sort_wtausch:
+		cmp.w -2(a0),d4
+		blt _sort_wloop2
+		move.w -2(a0),d4		;kleinere Zahl gefunden
+		move.l a0,a2
+		sub.l #2,a2
+		bra.s _sort_wloop2
+
+
+_sort_b:
+		sub.l #1,d0
+		move.l d0,d1
+		move.l d0,d2
+		move.l a0,a1
+		move.l a0,a2
+
+_sort_bloop0:
+		move.b (a0),d3
+		move.b d3,d4
+
+_sort_bloop1:
+		cmp.b (a0)+,d3
+		bgt _sort_btausch
+_sort_bloop2:
+		dbra d0,_sort_bloop1
+		move.b d3,(a2)
+		move.b d4,(a1)+
+		move.l a1,a0
+		move.l a0,a2
+		sub.l #1,d2
+		move.l d2,d0
+		dbra d1,_sort_bloop0
+		rts
+
+_sort_btausch:
+		cmp.b -1(a0),d4
+		blt _sort_bloop2
+		move.b -1(a0),d4		;kleinere Zahl gefunden
+		move.l a0,a2
+		sub.l #1,a2
+		bra.s _sort_bloop2
+
+_set_int:
+		moveq #5,d0		;vbi Interrupt
+		lea _int_strukt,a1
+		move.l a0,18(a1)	;Adresse der eigenen Routine
+		move.l 4,a6
+		jsr -168(a6)
+		rts
+_kill_int:
+		lea _int_strukt,a1
+		moveq #0,d0
+		move.l 4,a6
+		jsr -174(a6)
+		rts
+
+_int_strukt:	dc.l 0,0
+		dc.b 2
+		dc.b 0
+		dc.l 0,0,0
+
+		ifne blitter__
+_objekt:
+_woy:		dc.w 0
+_wox:		dc.w 0
+_boboff:	dc.b 2		;nur Bob schreiben
+_in:		dc.b 0
+_bly:		dc.w 0		;Y
+_blx:		dc.w 0		;X
+_hei:		dc.w 0
+_wowith:	dc.w 0
+_tiefe:		dc.w 6		;planes
+_image:		dc.l 0		;grafik Daten
+_shadow_mask:	dc.l 0		;was wird gesetzt
+_save_puffer:	dc.l 0		;Hintergrund Puffer
+_coll_mask:	dc.l 0,0,0,0
+
+
+;---- ein Objekt auf Bildschirm printen -----
+;---- A0 = Objektargs  ; po_bitmap = Zeiger auf Bitmap-Struktur
+;---- Objekte nicht höher und/oder breiter als Bitmap ---
+;---- Diese Routine kann PC-Relative assembliert werden ---
+PrintObjekt:
+ lea _bitmap2(pc),a1
+ move.l #$dff000,a2       ; Chip-Basisadresse $DFF000
+ move.w (a1),d6
+ lsr.w #1,d6              ; D6 = Screenbreite in Words
+ move.w 2(a1),d7          ; D7 = Screenhöhe
+;
+ move.w 6(a0),d0          ; Ypos nach D0
+ cmp.w 2(a1),d0           ; If YPos >= Screenhöhe then ende
+ bge po_clipping
+ move.w 10(a0),d1         ; Höhe des Objekts nach D1
+ neg.w d1                 ; negativ machen
+ cmp.w d1,d0              ; If YPos <= D1 then ende
+ ble po_clipping
+ move.w 8(a0),d0          ; X-Pos. nach D0
+ move.w (a1),d1           ; Zeilenbreite in Bytes
+ lsl.w #3,d1              ; mal 8 = Zeilenbreite in Pixel
+ cmp.w d1,d0              ; If XPos >= Zeilenbreite then ende
+ bge po_clipping
+ move.w 12(a0),d1         ; Objektbreite nach D1
+ sub.w #1,d1              ; ein Word abziehen
+ lsl.w #4,d1              ; mal 16 = Breite in Pixel
+ neg.w d1                 ; Objektbreite jetzt negativ
+ cmp.w d1,d0              ; If XPos <= D1 then ende
+ ble po_clipping
+;
+ cmp.b #1,4(a0)           ; BOBOff ?
+ bne po_bobon
+po_bob_aus:
+ bsr po_writehintergrund
+ clr.b 5(a0)              ; BOB nicht mehr init.
+ rts
+po_bobon:
+ tst.b 4(a0)              ; Objekt normal anschalten ?
+ bne po_bobon_xa
+ bsr po_writehintergrund
+ bsr po_readhintergrund   ; Hintergrund speichern
+ bsr po_writeobjekt       ; Objekt in Hintergrund printen
+ rts                      ; Ende
+po_bobon_xa:
+ cmp.b #2,4(a0)           ; Write BOB only
+ bne po_bobon_xb
+ bsr po_writeobjekt       ; Hintergrund zurückschreiben
+ rts
+po_bobon_xb:
+ cmp.b #3,4(a0)           ; Write Hintergrund only
+ bne po_bobon_xc
+ bsr po_writehintergrund
+ rts
+po_bobon_xc:
+ cmp.b #4,4(a0)           ; Read Hintergrund only
+ bne po_bobon_end
+ bsr po_readhintergrund
+po_bobon_end:
+ rts
+po_clipping:
+ tst.b 4(a0)              ; Objekt normal anschalten ?
+ beq po_bob_aus
+ cmp.b #1,4(a0)
+ beq po_bob_aus
+ cmp.b #3,4(a0)
+ beq po_bob_aus
+ rts
+;--- Masken/Offset/Blittersize berechnen ---
+;--- D0 = Y, D1 = X Position ---
+;--- Rückgabe: D0 = Blitterhöhe, D1 = Blitterbreite  ---
+;              D2 = PositionOffset, D5 = Shiftwert   ---
+;              D4 = muß zum Bitmapoffset addiert werden ---
+po_parameter:
+ tst.w d0                ; Y positiv ?
+ bpl po_para_1           ; wenn ja, dann verzweigen
+ move.w 12(a0),d2        ; Breite Objekt Words
+ lsl.w #1,d2             ; in Bytes
+ move.w d0,d3
+ neg.w d3
+ mulu d3,d2
+ add.w 10(a0),d0         ; plus höhe Objekt
+ bra po_para_x
+po_para_1:
+ move.w d7,d2            ; Screenhöhe
+ sub.w d0,d2             ; minus y-pos
+ move.w d2,d0            ; D0 = ergebnis
+ clr.l d2
+ cmp.w 10(a0),d0         ; minus höhe
+ bmi po_para_x           ; negativ ?
+ move.w 10(a0),d0        ; wenn positiv dann normale Height
+po_para_x:           ; D0 = Blitterhöhe , D2 = Y-Offset
+ tst.w d1                ; X positiv ?
+ bpl po_para_2           ; wenn ja, dann verzweigen
+ neg.w d1                ; X-pos jetzt positiv
+ move.w d1,d4            ; x-pos nach D4
+ lsr.w #4,d1             ; durch 16 teilen
+ move.w 12(a0),d5        ; Objektbreite nach D5
+ sub.w d1,d5             ;
+ clr.l d3
+ move.w d1,d3
+ lsl.w #1,d3             ; D3 = X-Offset
+ add.l d3,d2         ; D2 = Position-Offset
+ move.w d5,d1            ; D1 = Blitterbreite
+ and.w #15,d4            ;
+ clr.w d5
+ tst.w d4
+ beq po_para_44
+ move.w #16,d5
+ sub.w d4,d5             ; D5 = real Shiftwert
+ subq.w #1,d4
+ move.w #$ffff,d3
+po_para_shift:
+ lsr.w #1,d3
+ dbra d4,po_para_shift
+ move.w d3,$44(a2)        ; FirstMask
+ move.w d3,$46(a2)
+ cmp.w #1,d1
+ beq po_para_7
+ move.w #$ffff,$46(a2)    ; LastMask
+po_para_7:
+ move.l #2,d4             ; Bitmapoffset -2 Bytes
+ rts
+po_para_2:               ; X-Pos ist positiv
+ move.w d1,d5            ; X-pos nach D5
+ and.w #15,d5            ; D5 = Shiftwert
+ lsr.w #4,d1             ; X-Pos durch 16
+ move.w d6,d4            ; Screenbreite nach D4
+ sub.w d1,d4
+ move.w d4,d1            ; D1 = Blitterbreite
+ cmp.w 12(a0),d1         ; Ergebnis - Objektbreite
+ bmi po_para_3           ; hiernach normal weiter
+ move.w 12(a0),d1        ; Blitterbreite
+po_para_44:
+ move.l #-1,$44(a2)      ; First/LastMask
+ clr.l d4                ; Bitmapoffset + 0 Bytes
+ rts
+po_para_3:
+ tst.w d5
+ beq po_para_44
+ move.w d5,d3
+ subq.w #1,d3
+ move.w #$ffff,d4
+po_para_shifta:
+ lsl.w #1,d4
+ dbra d3,po_para_shifta
+ move.w d4,$44(a2)        ; FirstMask
+ move.w d4,$46(a2)
+ cmp.w #1,d1             ; Blitterbreite = 1
+ beq po_para_4
+ move.w #$ffff,$44(a2)    ; LastMask
+po_para_4:
+ clr.l d4                ; Bitmapoffset + 0 Bytes
+ rts
+
+;------ Hintergrund wieder printen ----
+po_writehintergrund:
+ tst.b 5(a0)             ; wurde ein Hintergrund schon gelesen ?
+ bne po_writehg_x
+ rts
+po_writehg_x:
+ move.w (a0),d0          ; OldY
+ move.w 2(a0),d1         ; OldX
+ bsr po_parameter
+ move.l #-1,$44(a2)      ; First/LastMask
+ move.l #$09f00000,$40(a2)     ; BLTCON0/1
+ move.l 24(a0),a3        ; A3 = real Quelle A
+ add.l d2,a3
+ lea 8(a1),a4
+ move.w d6,d5
+ sub.w d1,d5
+ lsl.w #1,d5
+ move.w d5,$66(a2)       ; ZModulo
+ move.w 12(a0),d5
+ sub.w d1,d5
+ lsl.w #1,d5
+ move.w d5,$64(a2)       ; AModulo
+ clr.l d3
+ tst.w 2(a0)
+ bmi po_writehg_nox
+ move.w 2(a0),d3         ; x-pos
+ lsr.w #4,d3
+ lsl.w #1,d3             ; X-Offset
+po_writehg_nox:
+ tst.w (a0)
+ bmi po_writehg_noy
+ move.w (a0),d4
+ mulu d6,d4
+ lsl.l #1,d4             ; Y-Offset
+ add.l d4,d3             ; D3 = Bitmapoffset
+po_writehg_noy:
+ move.w 12(a0),d4
+ mulu 10(a0),d4
+ lsl.l #1,d4             ; D4 = Map-Size vom Objekt
+ clr.w d5
+ move.b 5(a1),d5
+ subq.w #1,d5            ; D5 = Loop-zähler
+ and.w #$3ff,d0           ; Blittersize errechnen
+ lsl.w #6,d0              ; D1 = breite in Words
+ and.w #$3f,d1            ; D0 = höhe in Pixel
+ add.w d0,d1             ; D1 ist jetzt Blittersize
+po_writehg_loop:
+ move.l a3,$50(a2)       ; Quelle A
+ move.l (a4)+,a5
+ add.l d3,a5
+ move.l a5,$54(a2)       ; Ziel D
+ move.w d1,$58(a2)       ; Blitter starten
+po_writehg_wait:
+ dc.w $082a,$000e,$0002		;btst #14,$2(a2) Bit BBusy testen
+ bne po_writehg_wait     ; wenn Null, dann Blitterende
+ add.l d4,a3
+ dbra d5,po_writehg_loop
+ rts
+
+;------ Hintergrund speichern --------
+po_readhintergrund:
+ move.b #1,5(a0)         ; Init = 1, Hintergrund schon mal gelesen
+ move.w 6(a0),0(a0)      ; Ypos nach OldYpos
+ move.w 8(a0),2(a0)      ; Xpos nach OldXpos
+ move.w (a0),d0          ; Y
+ move.w 2(a0),d1         ; X
+ bsr po_parameter
+ move.l #-1,$44(a2)      ; First/LastMask
+ move.l #$09f00000,$40(a2)     ; BLTCON0/1
+ move.l 24(a0),a3        ; A3 = Ziel D
+ add.l d2,a3
+ lea 8(a1),a4
+ move.w d6,d5
+ sub.w d1,d5
+ lsl.w #1,d5
+ move.w d5,$64(a2)       ; AModulo
+ move.w 12(a0),d5
+ sub.w d1,d5
+ lsl.w #1,d5
+ move.w d5,$66(a2)       ; ZModulo
+ clr.l d3
+ tst.w 2(a0)
+ bmi po_readhg_nox
+ move.w 2(a0),d3         ; x-pos
+ lsr.w #4,d3
+ lsl.w #1,d3             ; X-Offset
+po_readhg_nox:
+ tst.w (a0)
+ bmi po_readhg_noy
+ move.w (a0),d4
+ mulu d6,d4
+ lsl.l #1,d4             ; Y-Offset
+ add.l d4,d3             ; D3 = Bitmapoffset
+po_readhg_noy:
+ move.w 12(a0),d4
+ mulu 10(a0),d4
+ lsl.l #1,d4             ; D4 = Map-Size vom Objekt
+ clr.w d5
+ move.b 5(a1),d5
+ subq.w #1,d5            ; D5 = Loop-zähler
+ and.w #$3ff,d0           ; Blittersize errechnen
+ lsl.w #6,d0              ; D1 = breite in Words
+ and.w #$3f,d1            ; D0 = höhe in Pixel
+ add.w d0,d1             ; D1 ist jetzt Blittersize
+po_readhg_loop:
+ move.l a3,$54(a2)       ; Ziel D
+ move.l (a4)+,a5
+ add.l d3,a5
+ move.l a5,$50(a2)       ; Quelle A
+ move.w d1,$58(a2)       ; Blitter starten
+po_readhg_wait:
+ dc.w $082a,$000e,$0002         ; Bit BBusy testen
+ bne po_readhg_wait       ; wenn Null, dann Blitterende
+ add.l d4,a3
+ dbra d5,po_readhg_loop
+ rts
+
+;--- Objekt Daten in Bitmap kopieren ---
+po_writeobjekt:
+ move.w 6(a0),d0          ; Y
+ move.w 8(a0),d1          ; X
+ bsr po_parameter
+ lsl.w #8,d5
+ lsl.w #4,d5              ; korekter Shiftwert
+ move.w d5,$42(a2)         ; BLTCON1
+ add.w #$0fca,d5
+ movem.l d5,-(sp)
+ move.w d5,$40(a2)         ; BLTCON0
+ move.l 20(a0),a5
+ add.l d2,a5             ; A5 = Quelle A (real ShadowMask)
+ move.l 16(a0),a3
+ add.l d2,a3             ; A3 = Quelle B (real Image)
+ lea 8(a1),a4
+ move.w d6,d5
+ sub.w d1,d5
+ lsl.w #1,d5
+ move.w d5,$66(a2)       ; ZModulo
+ move.w d5,$60(a2)       ; CModulo
+ move.w 12(a0),d5
+ sub.w d1,d5
+ lsl.w #1,d5
+ move.w d5,$64(a2)       ; AModulo
+ move.w d5,$62(a2)       ; BModulo
+ clr.l d3
+ tst.w 8(a0)
+ bmi po_writeo_nox
+ move.w 8(a0),d3         ; x-pos
+ lsr.w #4,d3
+ lsl.w #1,d3             ; X-Offset
+po_writeo_nox:
+ tst.w 6(a0)
+ bmi po_writeo_noy
+ move.w 6(a0),d5
+ mulu d6,d5
+ lsl.l #1,d5             ; Y-Offset
+ add.l d5,d3             ;
+po_writeo_noy:
+ sub.l d4,d3             ; D3 = Bitmapoffset
+ move.w 12(a0),d4
+ mulu 10(a0),d4
+ lsl.l #1,d4             ; D4 = Map-Size vom Objekt
+ move.w 14(a0),d5
+ subq.w #1,d5            ; D5 = Loop-zähler
+ and.w #$3ff,d0
+ and.w #$3f,d1
+ lsl.w #6,d0             ; D1 = breite in Words
+ add.w d0,d1             ; D1 ist jetzt Blittersize
+po_writeo_loop:
+ move.l a5,$50(a2)       ; Quelle A (ShadowMask)
+ move.l a3,$4c(a2)       ; Quelle B (Image)
+ move.l (a4)+,a6
+ add.l d3,a6
+ move.l a6,$48(a2)       ; Quelle C (BitMap)
+ move.l a6,$54(a2)       ; Ziel   D (BitMap)
+ move.w d1,$58(a2)       ; Blitter starten
+po_writeo_wait:
+ dc.w $082a,$000e,$0002         ; Bit BBusy testen
+ bne po_writeo_wait      ; wenn Null, dann Blitterende
+ add.l d4,a3
+ dbra d5,po_writeo_loop
+ movem.l (sp)+,d5        ; BLTCON0 wert holen
+ move.w 14(a0),d0        ; Depth BOB nach D0
+ cmp.b 5(a1),d0          ; = Anzahl Planes Screen ?
+ beq po_writeo_end       ; Wenn ja, dann Ende
+ sub.b 5(a1),d0          ; Planes-Anzahl abziehen
+ neg.b d0                ; Positiv machen
+ subq.w #1,d0
+ sub.w #$0400,d5         ; DMA-Kanal B = aus
+ move.w d5,$40(a2)       ; BLTCON0
+ clr.w $42(a2)           ; No Shift B
+ clr.w $72(a2)           ; Clear Datenregister B (Figur)
+po_writeo_loop2:
+ move.l a5,$50(a2)       ; Quelle A (ShadowMask)
+ move.l (a4)+,a6
+ add.l d3,a6
+ move.l a6,$48(a2)       ; Quelle C (BitMap)
+ move.l a6,$54(a2)       ; Ziel   D (BitMap)
+ move.w d1,$58(a2)       ; Blitter starten
+po_writeo_wait2:
+ dc.w $082a,$000e,$0002         ; Bit BBusy testen
+ bne po_writeo_wait2     ; wenn Null, dann Blitterende
+ dbra d0,po_writeo_loop2
+po_writeo_end:
+ rts
+
+
+;---- ShadowMask anlegen ----
+;--- A0 = ObjektArgs, D0 = Memory/CollMask-Zeiger --
+InitMask:
+im_1:
+ move.l #$dff000,a6
+ move.l #$0dfc0000,$40(a6); BLTCON0: A + B = D
+ move.l #-1,$44(a6)       ; First/Last Mask
+ clr.l $62(a6)            ; Modulowert von Quelle B
+ clr.w $66(a6)            ; Modulowert von Ziel   D
+ move.w 12(a0),d5         ; Breite in Words
+ move.w 10(a0),d6         ; Höhe in Pixel
+ move.w d5,d0             ; Breite nach D0
+ lsl.w #1,d0              ; mal 2 = Breite in Bytes
+ mulu d6,d0               ; D0 = ImageMapSize
+ and.w #$3ff,d6           ; Blittersize errechnen
+ lsl.w #6,d6              ; D5 = breite in Words
+ and.w #$3f,d5            ; D6 = höhe in Pixel
+ add.w d6,d5              ; D5 ist jetzt Blittersize
+ move.w 14(a0),d1         ; Anzahl Planes nach D1
+ sub.w #1,d1              ; minus 1, wegen DBra
+ move.l 20(a0),a1         ; A1 = ShadowMask (Ziel D und Quelle B)
+ move.l 16(a0),a2         ; A2 = Image-Zeiger
+initmask_loop:
+ move.l a2,$50(a6)        ; Anfangsadresse von Quelle A
+ move.l a1,$54(a6)        ; Anfangsadresse von Ziel   D
+ move.l a1,$4c(a6)        ; Anfangsadresse von Quelle B = Ziel D
+ move.w d5,$58(a6)        ; BLTSIZE und Blitteroperation starten
+initmask_wait:
+ dc.w $082e,$000e,$0002	;btst.w #14,$2(a6) Blitter fertig?
+ bne initmask_wait
+ add.l d0,a2              ; nächste ImageMap
+ dbra d1,initmask_loop
+ clr.l d0                 ; No Errors
+ rts
+
+		ENDC
+
+		ifne filer__
+
+_file_req:
+		move.l a0,_arp_strukt
+		move.l _windowhd,_arp_w
+		lea _arp_name,a1
+		moveq #0,d0
+		move.l 4,a6
+		jsr -552(a6)			;OpenLib
+		tst.l d0
+		beq _fehler
+		move.l d0,a6
+		lea _arp_strukt,a0
+		jsr -294(a6)			;Requester aufrufen
+
+		move.l d0,_file_req_ok		;Speichern oder Abruch
+
+		move.l a6,a1
+		move.l 4,a6
+		jsr -414(a6)			;CloseLib
+		cmp.l #0,_file_req_ok
+		beq _file_req5b
+		lea _dir(pc),a0
+		lea _file_name(pc),a1
+_file_req2:
+		move.b (a0)+,d0
+		beq _file_req3
+		move.b d0,(a1)+
+		bra.s _file_req2
+_file_req3:
+		cmp.b #":",-1(a1)
+		beq.s _file_req3b
+		move.b #"/",(a1)+
+_file_req3b:
+		lea _file(pc),a0
+		cmp.b #0,(a0)
+		beq _no_file_name		;wurde keine Name gewählt
+_file_req4:
+		move.b (a0)+,d0
+		beq _file_req5
+		move.b d0,(a1)+
+		bra.s _file_req4
+_file_req5:
+		move.b #0,(a1)
+		moveq #0,d0
+		rts
+_file_req5b:
+		moveq #1,d0		;Abruch
+		rts
+_fehler:
+		move.l #-1,d0
+		rts
+_no_file_name:
+		move.l #-1,d0
+		rts
+
+_file_req_ok:	dc.l 0
+_arp_strukt:
+		dc.l 0
+		dc.l _file
+		dc.l _dir
+_arp_w:		dc.l 0
+		dc.w 0
+		dc.l 1
+		dc.l 1
+
+
+_arp_name:	dc.b "arp.library",0
+_file_name:	ds.b 128		;dir + Filename
+_file:		ds.b 64			;Filename
+_dir:		ds.b 64			;Direktory
+
+		even
+
+		ENDC
+
+		ifne auto__
+
+_ts1:		dc.b 0,1
+		dc.b 0,0
+		dc.w 4
+		dc.w 4
+		dc.l 0
+		dc.l 0
+		dc.l 0
+_ts2:		dc.b 0,1
+		dc.b 0,0
+		dc.w 4
+		dc.w 4
+		dc.l 0
+		dc.l 0
+		dc.l 0
+_ts3:		dc.b 0,1
+		dc.b 0,0
+		dc.w 4
+		dc.w 4
+		dc.l 0
+		dc.l 0
+		dc.l 0
+
+		ENDC
+
+		ifne string__
+_cut_str:
+		move.b (a0)+,(a1)+
+		dbra d0,_cut_str
+		move.b #0,(a1)
+		rts
+_instr:
+		move.l a1,a3
+_instr1:
+		move.l a3,a1
+		cmp.b #0,(a0)
+		beq _instr_end0
+		move.b (a1),d0
+		cmp.b (a0)+,d0
+		bne.s _instr1
+_instr2:
+		lea -1(a0),a2
+		lea 1(a1),a1
+_instr3:
+		cmp.b #0,(a1)
+		beq.s _instr_end
+		cmp.b #0,(a0)
+		beq.s _instr_end0
+		cmp.b (a0)+,(a1)+
+		beq.s _instr3
+		bra.s _instr1
+_instr_end:
+		move.l a2,a0
+		rts
+_instr_end0:
+		moveq #-1,d0
+		rts
+
+_len:
+		moveq #-1,d0
+_len2:
+		add.l #1,d0
+		cmp.b #0,(a0)+
+		bne.s _len2
+		rts
+_right_str:
+		move.l a0,a2
+_right_str2:
+		cmp.b #0,(a0)+
+		bne.s _right_str2
+		lea -1(a0),a0
+		add.l d0,a1
+		lea 1(a1),a1
+		move.b #0,1(a1)
+_right_str3:
+		cmp.l a0,a2
+		beq.s _right_str4
+		move.b -(a0),-(a1)
+		dbra d0,_right_str3
+_right_str4:
+		rts
+
+_left_str:
+		move.b (a0)+,d1
+		beq.s _left_str2
+		move.b d1,(a1)+
+		dbra d0,_left_str
+		move.b #0,(a1)
+_left_str2:	rts
+
+_lower_str:
+		move.b #"A"-"a",d0
+_lower_str2:
+		cmp.b #0,(a0)+
+		beq.s _lower_str_end
+		cmp.b #"A",-1(a0)
+		blt.s _lower_str2
+		cmp.b #"Z",-1(a0)
+		bgt.s _lower_str2
+		sub.b d0,-1(a0)
+		bra.s _lower_str2
+_lower_str_end:
+		rts
+_upper_str:
+		move.b #"A"-"a",d0
+_upper_str2:
+		cmp.b #0,(a0)+
+		beq.s _upper_str_end
+		cmp.b #"a",-1(a0)
+		blt.s _upper_str2
+		cmp.b #"z",-1(a0)
+		bgt.s _upper_str2
+		add.b d0,-1(a0)
+		bra.s _upper_str2
+_upper_str_end:
+		rts
+		ENDC

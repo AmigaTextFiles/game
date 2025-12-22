@@ -1,0 +1,705 @@
+@database "WormsShell.guide"
+@author "Ben Hutchings <benjamin.hutchings@worcester.oxford.ac.uk>"
+@master "WormsShell.guide.fmt"
+
+
+
+@node Main "Contents"
+@font courier.font 15
+@{jcenter}
+@{b}WormsShell@{ub}
+Version 0.4 @{b}(beta)@{ub}
+
+by @{"Ben Hutchings" link Addresses}
+
+WormsShell provides bug fixes
+and additional features for
+the popular game "Worms".
+
+@{" Legal        " link Legal}
+
+@{" Background   " link Background}
+@{" Features     " link Features}
+@{" Requirements " link Require}
+@{" Installation " link Install}
+@{" History      " link History}
+Please read this if you've
+used earlier versions.
+
+@{" Addresses    " link Addresses}
+
+@endnode
+
+
+@node Legal "Legal Notices"
+@smartwrap
+
+
+The WormsShell package consists of the files:
+
+
+	Install_WormsShell
+
+	Install_WormsShell.info
+
+	Make_Report
+
+	Start_Logs
+
+	Worms
+
+	WormsShell
+
+	WormsShell.icon
+
+	WormsShell.guide
+
+	WormsShell.guide.info
+
+
+(hereafter "the files"). This package is copyright © Ben Hutchings 1996. It
+may freely be distributed provided
+
+
+(i)   no charge is made for distribution above the costs of duplication,
+distribution and the media used,
+
+(ii)  the files are distributed together, and
+
+(iii) none of the files are altered, except, if the distributor so wishes, by
+converting them into an archived or compressed form from which they can be
+retrieved unaltered using readily-available free software tools.
+
+
+Software released under these conditions is often known as Freeware.
+
+
+As far as I am aware, the NewIcons images used in the files
+"Install_WormsShell.info" and "WormsShell.guide.info" are © 1996 The NewIcons
+Team and may freely be distributed on their own.
+
+The NewIcons image used in the file "WormsShell.info" is © 1996 Phil Vedovatti
+and is used with permission.
+
+
+@endnode
+
+
+@node Background "Background to WormsShell"
+@smartwrap
+
+
+Worms has been phenonemally popular in all formats it has been released on,
+but unfortunately it seems that the original Amiga version is the most buggy.
+This is partly because it was compiled using Blitz Basic. Blitz Basic produces
+the slowest, most ridiculously bloated code I have ever seen in my life. Also,
+it does not support playing samples from Fast memory, which would of course
+make a lot of difference to Worms, which loads up to about 750K of samples.
+The main executable also seems to be missing a vital trap handler which would
+allow Worms to exit safely if it runs out of memory. Lastly, the CD features
+cannot be used without a CD³² pad.
+
+
+WormsShell aims to fix the above bugs and deficiencies. However, at the
+moment, I have yet to add any speedups or Fast-memory-playing since these may
+be quite complex. In addition, WormsShell provides a number of useful options,
+which make it easier to use some of the special features of Worms.
+
+
+"Worms: The Director's Cut" appears to address most if not all of the
+deficiencies which WormsShell deals with. There were several bugs in the demo
+I saw on CUCD 5, but I've been in contact with Andy Davidson and it looks like
+these have been dealt with. Blitz Basic's libraries have apparently been
+updated to eliminate some of the bugs I found in them. It looks like Worms:
+TDC will be duplicated some time this week (25-29 November) so it can be
+released just in time for Christmas.
+
+
+@endnode
+
+
+@node Features "Features of WormsShell"
+@smartwrap
+
+
+@{b}Bugs fixed@{ub}
+
+
+@{"Problems with CD-ROM drives " link B_cdrom}
+
+@{"Incompatibility with MUFS   " link B_locks}
+
+@{"Enforcer hits and crashes   " link B_enfhits}
+
+@{"Asks you to insert disks    " link B_wbcd}
+
+@{"Crashes if libraries missing" link B_libs}
+
+@{"Problems with 68010 CPU     " link B_68010}
+
+@{"Software failure 8000 0020  " link B_traph}
+
+@{"Doesn't work on NTSC Amigas " link B_ntsc}
+
+
+@{b}Features added@{ub}
+
+
+@{"Various options to modify memory usage        " link F_memory}
+
+@{"Option to use a CD³² pad (CD32PAD tooltype)   " link F_cd32}
+
+@{"Using audio CDs with any distribution of Worms" link F_cdda}
+
+@{"Start with Sheep Mode on (SHEEPMODE tooltype) " link F_sheep}
+
+@{"Set weapon availability                       " link F_weapons}
+
+@{"Use multiple sample sets (SAMPLEDIRn tooltype)" link F_sampdir}
+
+
+@{"Use multiple configurations                   " link F_multcon}
+
+
+You can also start WormsShell from the command line, using any of the
+tooltypes as command-line arguments.
+
+
+@{"To-do list" link todo}
+
+
+@endnode
+
+
+@node B_cdrom "Worms thinks a CD-ROM drive is a CD³² - duh!"
+@smartwrap
+
+
+The executable files used for the CD and floppy versions of Worms are the same
+If Worms can open "cd.device" when it starts, it assumes that it is running on
+a CD³² and accepts input only from a CD³² joypad and not from the keyboard.
+This means that if you have a CD-ROM drive, Worms will appear to have entered
+Helen Keller mode when you reach the code entry screen and can't type
+anything!
+
+
+If you have a CD-ROM drive, you can now @{"use the audio CD functions of Worms" link F_cdda}
+without the need for a CD³² controller.
+
+
+@endnode
+
+
+@node B_locks "0 is NOT a valid lock type"
+@smartwrap
+
+
+Every call Worms makes to the DOS function Lock(), apart from those in the
+Blitz library functions, specifies the lock type as 0 instead of SHARED_LOCK,
+which it should be. The standard Amiga file system doesn't mind this but, for
+security, MultiUserFileSystem does. This means that the Lock() call fails and
+Worms thinks files are not there. WormsShell fixes these calls to use
+SHARED_LOCK.
+
+
+@endnode
+
+
+@node B_enfhits "Worms causes Enforcer hits and crashes"
+@smartwrap
+
+
+I checked out Worms with the excellent "Enforcer" tool written by Michael
+Sinz. I found several places in the Worms code where it can read or write
+invalid memory addresses, sometimes causing crashes:
+
+
+· When Worms starts, it writes "WORM" to address 0. This is just plain @{u}wrong@{uu}.
+Actually, this isn't just a bug but deliberate bad behaviour. WormsShell
+removes this code.
+
+· Sometimes when a memory allocation fails, Blitz's memory list seems to get
+confused and it can try to use a null pointer when freeing memory. WormsShell
+fixes the code used to traverse the list.
+
+· Two Blitz functions which Worms uses for timing are bugged: they attempt to
+pack the three bytes of a CIA clock together in a memory buffer, but instead
+they use the contents of the buffer (which will always be 0) as the buffer
+address. WormsShell fixes the functions to use the buffer correctly. Note that
+these functions are illegal anyway as they read and write the CIAA TOD clock,
+which is always reserved for the use of the operating systems.
+
+
+@endnode
+
+
+@node B_wbcd "Worms uses an unreliable hack to find itself"
+@smartwrap
+
+
+Instead of following the correct procedure when started from Workbench, which
+is to find out where it has been run from using its startup message, Worms
+attempts to copy the current directory of the Workbench. If it is lucky, this
+will work, but if you do anything with the Workbench while Worms is derunching
+it won't. This could often make Worms ask you to insert disk 1 even though it
+was installed on a hard drive. WormsShell makes Worms use the correct
+directory.
+
+
+@endnode
+
+
+@node B_libs "Worms crashes if libraries are missing"
+@smartwrap
+
+
+Worms makes many calls to the OpenLibrary() and OldOpenLibrary() OS functions
+so that it can use various OS functions. In many cases it does not check
+whether the call succeeded. If the call fails, Worms will crash when it tries
+to use the library. This is a particular problem with diskfont.library and
+mathtrans.library, which are stored on disk.
+
+WormsShell should make Worms exit cleanly if it can't open a library - not all
+OpenLibrary/OldOpenLibrary calls are fixed, but those which open the
+disk-based libraries are.
+
+
+@endnode
+
+
+@node B_68010 "Acid Software doesn't believe in the 68010"
+@smartwrap
+
+
+Blitz appears to check the vector-base register only on a 68020 or better;
+this could potentially prevent Worms from working if you have a 68010 CPU.
+WormsShell makes it read the VBR on 68010s too. This fix has not been tested
+since I don't have a 68010 - I just noticed this problem while trying to
+understand the disassembled code.
+
+
+@endnode
+
+
+@node B_traph "A software company ate my trap handler!"
+@smartwrap
+
+
+If Worms encounters a fatal error, e.g. it runs out of memory, then it will
+issue the instruction TRAP #0, which should call an "trap handler" to deal
+with the problem. However, Worms does not set up such a trap handler, so
+instead the standard OS trap handler is invoked - which just tells you
+"Software Failure, Error: 8000 0020". WormsShell installs a trap handler which
+causes Worms to jump to its exit code if a fatal error occurs. This doesn't
+seem to work perfectly at the moment though; Worms still crashes the machine
+sometimes. Also, not all memory gets freed always.
+
+
+@endnode
+
+
+@node B_ntsc "Help for our American cousins"
+@smartwrap
+
+
+If you run Worms on an NTSC Amiga, part of Worms's screen will be cut off.
+This can also happen if you have a PAL Amiga but use an NTSC screenmode for
+your Workbench screen. But if you have the ECS Agnus or the AGA chipset (and
+virtually all Amigas have one or the other) and a suitable monitor or TV, then
+you can use PAL screenmodes anyway.
+
+
+Use the tooltype FORCEPAL=YES to force the display to PAL frequencies before
+Worms runs and to patch the OS so that your Amiga looks like a real PAL
+machine. The OS settings will be restored when Worms is finished. (Thanks to
+Nico François for the source code I based this on.) You may need to use the
+tooltype CLOSEWB=YES as well to make this work properly; unfortunately this
+may make it impossible to return to the Workbench after exiting Worms; I'm
+working on that problem.
+
+
+@endnode
+
+
+@node F_memory "Memory, and... I used to remember"
+@smartwrap
+
+
+There are a number of experimental options to let you control the way Worms
+uses memory. At some point I hope to be able to make WormsShell set these
+options automatically, but I need some experimental data and I want you - yes
+@{i}you@{ui} - to provide it. Please try out different combinations of options and
+@{"tell me" link Addresses} which ones work on your system.
+
+
+The tooltypes used for the options are:
+
+· USE2MCHIP - Worms normally sets this if you have 2M Chip RAM installed
+
+· USEFAST - Worms normally sets this if you have some Fast RAM installed
+
+· CLOSEWB - Worms normally sets this if and only if it didn't set both of the
+above
+
+
+@endnode
+
+
+@node F_cd32 "Using a CD³² joypad with Worms"
+@smartwrap
+
+
+You should be able to use a CD³² joypad with Worms on an A1200 and maybe on an
+A4000 too. To do this, use the CD32PAD tooltype. Note that this will disable
+keyboard input to Worms.
+
+
+@endnode
+
+
+@node F_cdda "Using CD audio disks with Worms"
+@smartwrap
+
+
+If you have a "cd.device" driver for your CD-ROM drive, Worms will give you
+the CD audio features it has on the CD³². Normally this would require you to
+use a CD³² joypad but WormsShell allows these two things to be used
+separately. See the Worms manual for information about the CD audio features.
+Clicking on track numbers cycles through the available tracks; clicking
+"CHANGE DISC" should eject the disc (I have a top-loading CD-ROM drive so I
+couldn't test this), wait for you to insert a new disc, and then read the new
+table of contents.
+
+
+@endnode
+
+
+@node F_sheep "I want exploding sheep! Exploding bananas! I want everything to explode!"
+@smartwrap
+
+
+Worms has a hidden feature called "Sheep Mode" which you can activate by
+typing "total wormage" while the title screen is displayed. This gives you
+lots of sheep, lots of dynamite and one banana bomb at the beginning of each
+round. If you like to play in this mode all the time, add the tooltype
+SHEEPMODE to the WormsShell icon and you will no longer have to enter the
+special code.
+
+
+@endnode
+
+
+@node F_weapons "Guns 'n' Ammo"
+@smartwrap
+
+
+WormsShell lets you set the availability of almost all weapons freely, without
+going to the appropriate options screen in Worms every time you start it, and
+it can even change a few weapons not listed there. Use the following
+tooltypes:
+
+
+AIRSTRIKES   BANANABOMBS   BAZOOKAS   BLOWTORCH   BUNGEE   CLUSTERBOMBS
+DRAGONBALLS   DRILL   DYNAMITE	 FIREPUNCHES   GIRDERS	 GRENADES   KAMIKAZE
+MINES	MINIGUN   MISSILES   NINJAROPE	 SHEEP	 SHOTGUN   TELEPORT
+
+
+The value for the tooltype should be OFF to turn the weapon off, 1-9 to allow
+it to be used that many times, or INFINITE to allow the weapon to be used
+freely.
+
+
+@endnode
+
+
+@node F_sampdir "I love it when worms talk dirty to me"
+@smartwrap
+
+
+The Worms manual mentions the possibility of replacing the Worms speech
+samples. There are several reasonably large sample sets available in the
+public domain, including "T2: Judgement Day", "Bottom" and "Beavis and
+Butthead". Normally you would install these by copying the new samples over
+the samples in the TWENGLISH/FRENCH/GERMAN directory. But this means you can't
+choose to go back to the old samples without re-installing from the original
+Worms disks.
+
+
+WormsShell lets you have up to 3 named sample sets which replace the language
+options you normally see when starting Worms. To install a new sample set,
+first create a subdirectory for it in the directory you installed Worms, with
+a name up to 9 letters long. Then copy the new samples into the new directory.
+Finally add the tooltype SAMPLEDIRn=mydirname to the WormsShell icon, where n
+= 1 to replace the English option, 2 to replace French, or 3 to replace
+German, and mydirname is the name of the directory you created.
+
+
+@endnode
+
+
+@node F_multcon "A different configuration for every day of the week!"
+@smartwrap
+
+
+If you want to use multiple configurations with WormsShell, just make copies
+of its icon and change the copy's tooltypes appropriately. You don't need to
+copy WormsShell itself. Use the command-line argument "SETTINGS" to read the
+configuration from a different icon.
+
+
+@endnode
+
+
+@node ToDo "Things which I'd like to do, but won't be really easy like the others"
+@smartwrap
+
+
+· Add code to make an intelligent decision when setting the three startup
+options.
+
+· Add Fast-memory sample playing.
+
+· Speed up important routines. (Some calculations are done using very slow
+floating point maths which could easily be replaced by integer routines over
+10× faster.)
+
+· Fix title screen colours when using SHEEPMODE tooltype.
+
+· Allow skipping of language/sample set selection.
+
+· Fix the many remaining bugs in Worms and WormsShell which I haven't found
+yet. (Every program is either trivial or contains at least one bug.)
+
+· Show a landscape list when you right-click during landscape generation.
+
+· Add a friendly installer for extra custom landscapes and sample sets.
+
+· Provide the option to run worms in a 31 kHz (VGA-compatible) screen-mode.
+Someone will have to help me with this as I have no idea how to do it.
+
+· Allow viewing of the silly animations on the CD when starting Worms from HD.
+
+· Allow running of CD version with only WormsShell installed on HD.
+
+· Translate the installer and this guide - and maybe even Worms itself - into
+other languages. If you would like to do this, please @{"contact me" link Addresses}.
+
+
+@endnode
+
+
+@node Require "What WormsShell requires in order to run"
+@smartwrap
+
+
+· An original copy of Worms. WormsShell should work with the original floppy
+release, the budget floppy release (which is the same), and the CD version. If
+you have a legal version which it doesn't recognise, please tell me.
+
+· A hard drive.
+
+· OS 2.0 or later.
+
+· Slightly more memory than Worms normally requires.
+
+· lowlevel.library v40 (should be included with CD³² "emulators" and some AGA
+games), if you want to use a CD³² joypad with Worms.
+
+· An appropriate version of cd.device (should be included with CD³²
+emulators), if you want to play CD audio tracks within Worms.
+
+
+@endnode
+
+
+@node Install "How to install WormsShell"
+@smartwrap
+
+
+To install WormsShell properly, you must have the official Installer program.
+If you are lucky, someone will have included an illegal copy along with
+WormsShell but since I prefer not to get into trouble with whoever owns the
+Amiga this week, I have not included it in the package as released. Maybe once
+VIScorp gets its act together, I will be able to get a license to distribute
+Installer myself. You should use Installer v43, as earlier versions don't seem
+to be able to run the installation script correctly. (There are known bugs in
+earlier versions.)
+
+
+If you have already installed Worms, you may want to delete your existing
+installation. My installation script can re-install Worms much more cleanly
+than the installer supplied with Worms, and won't copy any unnecessary files
+to your hard disk.
+
+
+If you are re-installing, or installing from the Worms CD, you should answer
+"No" when you are asked whether Worms is already installed. The installation
+procedure will let you select which languages to install and set up all the
+necessary icons for you.
+
+
+Alternatively, you can install WormsShell in an existing installation of
+Worms. Just answer "Yes" when you are asked whether Worms is already
+installed. You will be given the option to delete some files which Worms
+installs to your hard disk which are only needed used when it boots from a
+floppy disk.
+
+
+There are a number of questions you will be asked in order to set up the
+WormsShell icon with some initial settings. In particular, you will need to
+set the @{"memory options" link F_memory}. If you have lowlevel.library installed, you can
+choose to @{"use a CD³² joypad" link F_cd32} instead of the keyboard. You can also choose to
+switch @{"Sheep Mode" link F_sheep} on, although you can also set the
+@{"availability of each weapon individually" link F_weapons}  later on.
+
+
+At the end of the WormsShell installation you will be told the procedure which
+is needed to run WormsShell from the CLI if you have insufficient memory to
+run it from Workbench. @{b}If you have installed Worms before, you may find that
+is slightly different from what the original installer told you.@{ub} You should
+write it down as it will be different for different Amigas and you won't be
+shown it again. If you run WormsShell from the CLI, it will still read its
+icon tooltypes. (You can also add to or override these by adding tooltypes to
+the final command line.) In both cases, you can also choose to install this
+guide file in the Worms drawer.
+
+
+@endnode
+
+
+@node Addresses "Contact addresses for the author"
+
+If you send a bug report, please supply @{"all the required information" link report}. It
+would be best if you used the report form on the web at
+http://users.ox.ac.uk/~worc0223/amiga/freeware/WormsShell/bugreport.html.
+
+snail	Ben Hutchings
+	43 Harrison Close
+	Reigate
+	Surrey RH2 7HS
+email	benjamin.hutchings@worcester.oxford.ac.uk
+WWW	http://users.ox.ac.uk/~worc0223
+	(for support pages, append /amiga/freeware)
+IRC	wombleII (find me in #amigacafe on EFnet/Undernet)
+
+@endnode
+
+
+@node report "Information required in a bug report"
+@smartwrap
+
+
+I've had a lot of bug reports - hardly surprising since WormsShell is only in
+beta stages - and the problem I've found is keeping track of the details of
+all the different systems people are trying to run it on. If you send me a bug
+report, I'd like you to include the following information:
+
+
+· Model number (A500, A1200, etc.)
+
+· CPU (68000, 68010, 68020, etc.)
+
+· Amount of Chip RAM
+
+· Amount of Fast RAM
+
+· Amount of RAM available (of each type) before running WormsShell
+
+· Type and speed of CD-ROM drive (if present)
+
+· ROM version
+
+· Disk software version (if different)
+
+· Version of Worms (floppy or CD)
+
+· The settings for the WormsShell icon
+
+· Any different behaviour when running from Workbench, CLI, or boot CLI
+
+· If you can, try using SnoopDos and/or Enforcer (preferably with SegTracker)
+to log what happens, and send me any useful information they reveal. I've
+included a couple of scripts to help you do this. Execute Start_Logs to start
+logging with SnoopDos and Enforcer, and execute Make_Report to generate a
+report from the logs. The logs are stored on a recoverable RAM drive, so they
+should be retained even if the computer crashes.
+
+
+@endnode
+
+
+@node History "History of WormsShell"
+@smartwrap
+
+
+version 0.4 (beta), released 25th November 1996
+
+
+· Fixed more bugs and deficiencies in the installer script (which has become
+quite a monster!). It should also run faster now.
+
+· Changed boolean tooltypes/keywords to take a value, instead of always
+turning on a feature if present. Use YES/OUI/JA to turn an option on or
+NO/NON/NEIN to turn it off. This means you can override all settings in an
+icon on the command line.
+
+· Fixed version number in WormsShell. In versions 0.2 and 0.3 the version
+string still said it was version 0.1.
+
+· Fixed ILBM level loader so it should exit neatly if the image is wider,
+taller or deeper than the bitmap in memory, or if the image uses an unknown
+compression method. Previously it could crash or corrupt other data if it
+encountered such an image.
+
+· Added FORCEPAL tooltype which should let you run Worms on an NTSC Amiga or a
+PAL Amiga using an NTSC screenmode for the Workbench screen.
+
+
+version 0.3 (beta), released 12th November 1996
+
+
+· Fixed a couple of serious bugs in the installer script, which prevented some
+installations from working properly, and broke when installing from CD. I'm
+very sorry, I obviously didn't test properly.
+
+· Fixed bugs in the sample directory name handling. If you ran WS from the
+CLI, any names set in the icon would always get replaced by those read from
+the command line. Also the memory containing directory names in the DiskObject
+or ReadArgs structure was freed before patching the Worms executable, so the
+strings could be replaced with garbage.. Now the strings are duplicated before
+being freed.
+
+
+version 0.2 (beta), released 6th November 1996
+
+
+· Added CD-ROM and CD³² support.
+
+· Added option to decrunch Worms during installation.
+
+· Added free choice of weapon availability.
+
+· Added memory-usage settings.
+
+· Added SetPatch to the Worms script, which may solve some problems.
+
+· Added ability to use multiple configurations.
+
+· Improved documentation.
+
+· Started using XFD for decrunching (will fall back on internal routines if
+XFD is not installed).
+
+· Removed support for OS 1.x. One more reason to upgrade!
+
+· Removed option to deprotect Worms, following legal advice. Sorry, but I
+can't risk getting into legal trouble with Team 17.
+
+
+version 0.1 (beta), released 19th October 1996
+
+
+First public release.
+
+
+@endnode

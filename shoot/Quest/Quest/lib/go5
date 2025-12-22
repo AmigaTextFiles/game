@@ -1,0 +1,68 @@
+.key parm1/A,parm2/A
+.bra {
+.ket }
+
+echo
+echo ******** Quest Quake startup batch file ***********
+echo ******** Full Build version
+echo
+
+echo {parm1} {parm2}
+failat 20
+set olddir `cd`
+
+quest:lib/go-check
+if warn
+  quit 20
+endif
+
+cd Quakedir:
+makedir quest.tmp
+cd quest.tmp
+copy {parm1}.map ""
+
+stack 140000
+
+;# ---------
+;# QBSP Step
+;# ---------
+quest:bin/qbsp {parm2}
+if error
+  echo "Error building BSP!"
+  skip Bailout
+endif
+
+;# ----------
+;# Light Step
+;# ----------
+quest:bin/light -extra {parm2}
+if error
+  echo "Error building Lightmaps!"
+  skip BailOut
+endif
+
+;# --------
+;# Vis step
+;# --------
+quest:bin/vis -level 4 {parm2}
+if error
+  echo "Error building PVS!"
+  skip BailOut
+endif
+
+copy {parm2}.bsp {parm1}.bsp
+delete /id1/maps/{parm2}.bsp quiet
+rename {parm2}.bsp /id1/maps
+;rename {parm2}.pts /id1/maps
+
+echo "Starting Quake..."
+cd quakedir:
+stack 30000
+$QUAKE -nolan -nocdaudio -memory 16384 +map {parm2}
+echo "Script finished."
+
+lab Bailout
+cd quakedir:
+delete quest.tmp force all quiet
+unsetenv QUAKE
+cd $olddir

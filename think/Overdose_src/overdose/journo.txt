@@ -1,0 +1,342 @@
+JOURNAAL OVERDOSE
+3-1-96
+
+Veranderen van map gaat nu anders (en goed):
+  eerst worden de vier cells rond de speler met scanbomb{} gechecked op
+  bommen. als er een bom is dan wordt met explode{} de cell op #EXPLODED 
+  gezet.
+  hierna worden de vier cells veranderd met changecell{} (behalve als
+  deze cell #EXPLODED is natuurlijk, maar dat wordt in changecell{}
+  afgehandeld)
+        
+
+Nu zijn er ook animaties: het verschijnen en verdwijnen van blocks en
+explosies:
+  bij changecell{} en loadmap en andere routines die de map veranderen wordt
+  een waarde in de cmap() geschreven. showsmap ziet dit en blit de shape
+  canim(cmap(x,y)) en verhoogd cmap(x,y) totdat een bep. waarde bereikt is,
+  hierna wordt cmap(x,y) weer op 0 gezet.
+  Waarden voor cmap (zijn canim indexen!!!)
+    0       = niks veranderen
+    1..18   = block disappear (shapes 9->16 en 0 (=#EMPTY!))
+    19..36  = block 1 appear (shapes 16->9 en 1 )
+    37..54  = block 2 appear (shapes 16->9 en 2 )
+    55..72  = block 3 appear (shapes 16->9 en 3 )
+    73..90  = bomb appear (shapes 16->9 en 4 )
+    91..124 = explosion (shapes 17->32 en 0 )
+  In de canim() array staan alle shapes 2x omdat we double bufferen (en we
+  dus elke shape 2x moeten blitten (nou ja, moeten: het zorgt voor een goede
+  animatie snelheid [laatste shape moet wel altijd 2x geblit worden, want die
+  verandert een hele zooi frames niet, en anders gaat het staan flikkeren])
+
+Time: de balk is 92x11 pixels. Level\time wordt in secondes op gegeven. Er
+gaan 50 frames in een seconde. Dus het aantal frames per pixel is:
+ level\time*50/92 = level\time / 2 (ongeveer)
+We gebruiken nu 2 counters: fcount en tcount. fcount wordt elke frame verhoogd
+. als fcount > level\time/2 dan wordt tcount met 1 verhoogd en een nieuw stuk
+time balk getekend. als tcount>92 dan balk is vol en wordt de flag outoftime
+gezet. 
+Het tekenen van de balk gaat met een speciale teller, die elke frame met 1
+wordt verlaagd. de teller start op 2, en stopt op 0, dus we doen het totaal
+dus 2x (vanwege double bufferen!!!)
+
+Scoring:
+  aantal pixels over   = 92-level\tcount
+  voor elke pixel over krijg je 10 bonus punten...(dus niet voor elke sec.!!)
+  voor elke move onder par krijgt je 100 punten en voor elke move boven
+  par gaan er 100 punten vanaf... (OHOH, ik heb helemaal geen MIN teken shape,
+  zal ik maar doen dat 0 punten het minimum is !? klinkt wel fijn...)
+        
+Comparemaps{} vergelijkt de source met de destination map, als er een verschil is,
+dan is het level nog niet complete. Ook als de changesmap <> 0 is, (er is dan nog
+een animatie aan de gang: s&d maps kunnen al wel gelijk aan elkaar zijn) gebeurt dit.
+Bommen worden door comparemaps{} gewoon genegeerd.
+  
+4.1.96
+Intro, pause en cd player maken gebruik van dezelfde achtergrond (bitmap 3),
+maar ze hebben verschillende palettes. Cd player gebruikt bitmap 4 en 5 als
+scratch bitmaps (omdat tijdens het spelen bitmap 0 en 1 ook al gebruikt worden,
+Intro en pause gebruiken ook 4 en 5 (om het overzichtelijk te houden) en
+gebruiken 6 en 7 als dummy bitmaps (met bitplanesbitmap)
+
+5.1.96
+Als uit main loop ge#EXIT wordt, dan gaat program flow naar gameover. Deze
+kijkt mbv. checkhiscore{} of er een hiscore is (-1=niet, 0..#NUM_NAMES-1 is wel)
+Bij wel een hiscore wordt er een text op het scherm gezet en wordt er naar
+dohiscores gesprongen. Bij geen hiscore gaan we gelijk terug naar het intro.
+Als uit main loop ge#FINISHED wordt en alle levels zijn al bereikt dan geldt
+iets dergelijks: de routine welldone kijkt ook of er een hiscore is en gaat
+dan naar dohiscores. Bij geen hiscore krijgt speler een jammer-dan tekst op
+het scherm en na muisclick gaat hij terug naar intro.
+Dohiscores zet een naam invul scherm neer waar met de muis een naam in kan
+worden gegeven (A..Z, backspace en enter (geen spatie :)). Na enter worden
+alle 3 de hiscore lijsten gesaved (1 voor elk diff.level) als Overdose.Scores
+en gaat program flow terug naar intro.
+
+Bij Init van programma wordt hiscore lijst ingeladen, en als dit mislukt,
+dan wordt er een lege aangemaakt.
+
+Nog wel een showhiscores{dlevel} proc maken voor intro...
+
+Hmm, even over de samples:
+  button clicken (klikkend geluid)
+  in source map clicken (schuivend geluid)
+  explosie 
+  tijd balk vollopen (kort sampeltje, hele tijd achter elkaar doorspelen)
+  
+
+6.1.96
+de cd player: er zijn 2 shapes: 1= het menu, 2=de cursor
+display geeft 3 versch. toestanden aan: NO DISC, TOTAL TRACKS xx en
+TRACK xx OF yy. De ? button is een random play, maar speelt steeds maar
+1 track achter elkaar (pretty lame). Play speelt tot einde cd, >| en |< skippen
+naar volgende/vorige track en beginnen gelijk te spelen.
+
+Alles is nu geincbinned: ook de levels... Levels maken: met text editor file
+aanmaken en in levels/ saven als een getal (1,2,3,4,5....) en dan het proggel
+makebinlevels runnen, deze maakt een levelfile aan die door od kan worden
+geincluut...
+
+
+8.1.96
+intro: bitmap 4 en 5 worden gebruikt door de text
+       bitmap 6 en 7 door de OVERDOSE titel (dit zijn dummy bitplanes, die
+       alleen bestaan uit bitplane 5, door hierin de titelletters te blitten
+       wordt het schaduw effect verkregen (bij een juist opgebouwd palette:
+       de 1e 16 kleuren kunnen gewoon worden gebruikt, de laatste 16 zijn
+       schaduwtinten van deze kleuren.)
+De titel gebruikt buffers 4 en 5, de text gebruikt buffers 6 en 7 (deze 2 zijn
+vrij grote buffers, omdat er veel letters tegelijkertijd op het scherm kunnen)
+In de hoofd-introlus wordt een teller elke 25 frames ofzo opgehoogd, deze
+icount wordt gebruikt om de text op het scherm te zetten. Steeds als icount=xx
+en framecounter<2 dan wordt er een regel text geblit. framecounter<2 omdat
+we op bitmap 4 en 5 moeten blitten, maar ook niet meer dan 2x totaal omdat
+anders de buffer overflowed.
+Als het scherm weer leeg moet kan dat met If icount=xx then unbuffer yy.
+De blittext{} routine is aangepast, er moet nu een extra parameter mee
+worden gegeven: buf. Als deze -1 is, dan wordt er gewoon geblit (zonder buffer)
+en anders bblitten met buffer buf.
+
+
+9.1.96
+intro zit nu aan spel vast. grootte van overdspau letters is nu 40x40 omdat
+dat wat snelheid oplevert, en dat is wel nodig voor unbufferen van de text.
+
+spel wil niet op a500 werken; tenminste niet goed.. decoden wil niet echt;
+m'n in-game bitmap komt er nogal verneukt uit, hmmm niet zo leuk. de helft
+van de tijd start het niet eens op (odd-address guru..joepie), hmmm toch 
+maar A1200 ONLY maken of niet ??
+
+decrunch-windowtje is weer weg, je ziet het amper op een a1200 ...
+
+dohiscores is wat verkleind: het invoeren van de naam gaat nu mbv de functie
+getname{maxchars,firstx}, welke een string teruggeeft van maximaal maxchars
+tekens groot. het 1e teken wordt op x positie firstx geblit, dit zodat
+invoer van verschillende max.lengten altijd gecentreerd staat.
+nu kunnen options deze zelfde routine gebruiken om een levelcode in
+te voeren. (van max. 8 tekens, ipv. 15 voor een hiscore...)
+
+options: start pretty tough, brain damage, extremely insane, password, quit
+een verkeerd password invoeren = gewoon bij 1e level van pt beginnen!
+
+
+11.1.96
+intro tune zit erin geinc'd. 
+thanx to rene voor hall of shame
+
+intro is en wordt heel anders want std a1200 is er te traag voor.....
+nog wat probleempjes: om spel te draaien vanaf disk is ram:env nodig, en
+dus ook makedir (en assign) commando's.
+na quitten geeft bb2 een guru ($80000003) te weinig geheugen ofzo??? 
+spel draait nog steeds niet op a500 (ook niet vanaf opstartdisk...
+hd maar loskoppelen denk)
+
+docs: cdspeler heeft nog wel filesystem nodig: of od naar hd copieeren, of
+      filesystem naar opstartdisk copieeren... voorbeeld geven voor
+      overdrive...
+
+19.1.96
+diskfont.lib en mathtrans.lib zijn nodig...balen, nou ja mathtrans werkt
+ik wel weg door een quick sintab te maken mbv. een geinclude sinustabel.
+diskfont ...hmmm
+nog iets: ram:env moet ook aanwezig zijn (zucht)
+GAAF ram:env hoeft helemaal NIET!!!!! dan alleen nog afhankelijk van 
+diskfont.library en cd filesystem (wordt hd only met textfile: hoe doe ik
+dit op disk???)
+
+20.1.96
+hokey, we gaan het intro op de volgende manier doen:
+steeds na bep. aantal frames verschijnt er een ander scherm
+1- overdose letters die wiebelen: op scherm staat (C)1996 FF, CREATED BY MH
+2- pretty tough hall of shame, overdose letters zijn weg, text staat er in 1
+   keer (gewoon blitten op 1 bitmap, ook niet double bufferen, alleen by 1)
+3- brain damage hos
+4- extremely insane hos
+5- shareware
+en dan weer opnieuw
+
+blittext{} is weer zonder buf parameter: is niet meer nodig...
+icount is ook weg uit intro: we tellen gewoon het aantal frames...
+
+nu zijn er ook een aantal buffers overbodig: ik denk 0 en 1...
+grappig: diskfont.library is ook niet nodig als ik alle nprint's weghaal:
+simpel: gewoon vervangen door blittext{} (de enige nprint die nodig is, zit
+in intro...)
+
+sintab(), xtab() en ytab() worden nu gemaakt door sintab.bin, xtab.bin en
+ytab.bin te includen en de woorden 1 voor 1 in de arrays te zetten.
+het proggel makedancetabs maakt deze .bin files.
+
+SHIT SHIT SHIT SHIT SHIT: zelfs zonder nprint is diskfont.library toch nodig
+...ik gebruik helemaal geen font (of toch wel????)
+hmmm, verder helemaal geen files nodig (behalve overdose.scores dan)
+intro tune is dynamite geworden want beautiful klonk te depri...
+
+a500 werkt niet: net na het laden gaat het mis (grijs scherm en dan: reset)
+
+docs: game disk mag niet gewriteprotect worden en moet in de drive zitten
+bij saven hiscores (geldt natuurlijk niet voor harddisk), er wordt niet op
+gechecked en als er iets fout gaat dan heb je pech...
+
+goed: ik weet nu waarom het niet op A500 werkt: het inladen en saven van
+de hall of fames, en wel het alloccen en free'en van het geheugen gaat niet
+goed...
+het guru'en bij quit komt doordat end het geheugen niet kan free'en, dus
+op een of andere manier dat zelf maar doen denk ik...
+
+a500 werkt nu: met goed gamescreen (oude suckte...file niet helemaal ok denk
+ik) het werkt denk zelfs op 512k a500!
+
+
+22.1.96
+halloffame laden is nu met bank (0), saven gebruikt zelfde bank. Bank wordt
+bij laden aangemaakt en weergefree'd, zoook bij saven (omdat laden niet perse
+hoeft te gebeuren (file kwijt) en dan zou er geen bank zijn voor saven en
+wordt alles random in het geheugen gepoked...)
+saven: als scoresfile niet bestaat wordt er een nieuwe aangemaakt
+laden: als scoresfile niet bestaat worden er NOBODY 0 scores gemaakt (geen
+nieuwe file, dat doet saven!)
+saven + writeprotect werkt nog niet wow (helemaal niet vanuit Blitz mode:)
+gewoon jammer dan, moet user maar niet zo stom doen!
+
+24.1.96
+AAAAAAARRGGGHHH! Ik word helemaal gek van dit stomme kut spel, hiscores
+laden en saven wil gewoon niet werken op a500!!! 
+
+26.1.96
+hokay, aanpassen die handel: er is maar 1 hiscore lijst: of ik laden en saven
+doe zie ik nog wel. Er zijn geen verschillende difficulty levels meer.
+Na intro krijg je geen options maar password invulscherm met mededeling dat
+je 1e level kan starten door op end te klikken.
+#NUMDLEVELS, numlevels() en firstlevel() zijn dus weg. Hiscore arrays
+zijn nu 1 dimensionaal en hiscore file is 3x zo kort. dlevel is ook weg.
+Nu wel nieuwe constante #NUMLEVELS!
+Quit is ook weg.
+cheatmode: intro:rmb=quit, game:joy-up=next level, joy-down=game complete
+ \__activeren: intro:joyuprightfire.
+
+docs: OS3.1 heeft al ingebouwde cd-support (OS moet wel opgestart zijn!)
+
+hehe, gevonden: hiscores laden/saven ging fout omdat #maxchars 15 was, en
+dit is oneven: omdat 68020 dit wel aankan en 68000 niet werkte het niet
+op 500: #maxchars is nu 16! Uhhm, hifile$ is nu soort constante voor
+"Overdose.Scores" filenaam...
+
+Distribution gaan we zo doen: dms file MET diskfont.library en geinstallde
+disk (gewoon bootabledisk dms'sen dus)+docs. En document file voor installeren
+van cd-filesystem (Overdrive en OS3.1 voorbeelden...)
+
+27.1.96
+levels beginnen dus bij 1 en gaan tot #NUMLEVELS (niet van 0 tot #NL-1!!!)
+levels editten: password MOET 8 tekens lang zijn EN GEEN /spaties/, nergens!
+
+OOPS: password moet wel worden weergegeven na level complete (+ wachten op
+      fire) gefixed
+
+intro: speelt med mod alleen als sfx aanstaat, want anders speelt ie door
+cd heen, nu moet user het zelf weten. die zet toch sfx uit als cd aanstaat!
+
+hmmm, dit is beter: intro mod speelt alleen als cd speler niet speelt! (via
+CDSTATUS&32==32!)
+
+fuck cd filesystem installation: zoeken ze zelf maar uit!
+
+
+10.2.96
+leveleditor gemaakt + docs hiervoor. werkt allemaal wat beter (makkelijker)
+jaja, quitten werkt nu opeens wel...wow....intro dus wat veranderd (esc=quit
+erbij)
+
+bugje geremoved: na laatste level wordt nu GEEN password meer weergegeven
+(logisch natuurlijk)
+
+12.2.96
+het quitprobleem blijkt opgelost te zijn: een byte (0) toevoegen aan de
+version string maakte het verschil tussen guru'en en normaal terugkeren...
+waarschijnlijk kwam het niet helemaal EVEN uit (klopt ook wel, want de
+guru was 80000003 = odd address....weird, maar ja, het werkt!)
+Uiteindelijk op de laatste regel van het programma maar een EVEN neergezet...
+
+nog iets: het blijkt niet echt onder 1.3 te werken...even uitzoeken waarom
+ook testen of het wel met 512k chip only (of met 512k chip/fast werkt...)
+[1mb chip+0 fast werkt wel...]
+
+17.2.96
+nog een probleem opgelost: met showrequesters 0 zijn requesters automatisch
+cancellen, dus nu maakt het niet uit of disk writeprotect is of niet in de
+drive zit!!!!! joepie...docs ook maar even aangepast...
+
+
+27.4.96
+Milco Veljanoski maakt levels voor mij. Paul en Nol ook (zeggen ze...).
+
+Milco bracht mij op een aantal aardige ideetjes:
+
+* Scoring moet anders, je moet par halen om naar het volgende level te kunnen.
+  Voor het aantal moves onder par krijg je punten.
+  Geen minpunten meer.
+  Bonuspunten voor de tijd.
+  
+* Gewoon op een intuition-scherm, dus met multitasking. Dan kan de
+  CD-speler weg, die suckt toch... CD-speler button wordt dan een button
+  waarmee je het scherm weg kan klikken. Pause-button zorgt er dan gewoon
+  voor dat je niet meer kan zien wat erin de windows staat...
+
+* Alle meldingen (pause, levelfinished (=levelcode), levelfinished maar te
+  grote par, etc.) in window dat even groot is als max. speelveld (speciale
+  routine voor maken....) 
+
+* Ander intro (op zijn minst ander palette, misschien wel die van het nu
+  overbodig geworden Pause scherm). 
+
+* Docs herschrijven, lijkt me nogal logisch....
+
+Oh ja, het werkte op zijn 68060! (behalve de cheatmode blijkbaar).
+
+
+30.4.96 (Koninginnedag)
+Scoring is aangepast. Pause is aangepast. Geen multitasking, maar een
+iconify-button, waarmee het spel stopt en je terug gaat naar de workbench.
+Dmv. op een button in een requester te clicken keer je terug naar het spel.
+(Deze iconify-button zit in de plaats van de CD-speler).
+
+Er zijn 3 sampletjes bijgekomen: een applaus als je het level finished, een
+superapplaus als je het spel beindigd, of een hiscore haalt, en
+een medelijden-geluid (nou ja...) als je het overnieuw moet doen.
+
+
+29.5.96 (net na pinkpop :)
+Scoring even aanpassen: standaard krijg je 500 punten als je een level
+finished. Dus totale score is 500 + (par-moves) * 100 (en daarna nog
+bonus, 10 punten voor elk streepje).
+
+3.8.96 
+Hee, diskfont.library is niet nodig als ook BITMAPOUTPUT (en NPRINT en
+LOCATE) uit je source verdwenen is!!! Joepie! Wel een probleempje: voor
+inconify is reqtools.lib nodig, maar dat vertel ik maar niet ;)))
+
+21.9.96
+Hmmm, iconify crashte als reqtools.library niet aanwezig was. Nu zit er
+een check in (mbv. IsReqtoolsActive) zodat dit nu niet meer gebeurd !
+
+Hee, het werkt nu ook onder 1.3...joepie!

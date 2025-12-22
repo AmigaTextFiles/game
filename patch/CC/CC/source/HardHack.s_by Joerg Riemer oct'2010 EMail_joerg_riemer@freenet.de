@@ -1,0 +1,57 @@
+
+HardHack	moveq	#0,D0		;any version
+		lea	GFXName(pc),A1	;set libraryname
+
+		movea.l	4.w,A6		;set exec to call a function
+		jsr	-$228(A6)	;use exec to (openlibrary)
+		movea.l	D0,A5		;save library_base
+		suba.l	A1,A1		;no view
+		exg.l	A5,A6		;set gfx to call a function
+		jsr	-$DE(A6)	;use gfx to (loadview)
+		jsr	-270(A6)	;use gfx to (waittof)
+		jsr	-270(A6)	;use gfx to (waittof)
+
+		movea.l	A6,A1		;get library base
+		movea.l	A5,A6		;set exec to call a function
+		jsr	-$19E(A6)	;use exec to (closelibrary)
+
+*****************************************************************************
+
+		lea	SCode(pc),A5	;get supervisor_code
+		jmp	-$1E(A6)	;use exec to call (supervisor)
+
+*****************************************************************************
+
+GFXName		dc.b	"graphics.library",0,0
+
+*****************************************************************************
+
+SCode		btst	#0,$129(A6)	;check for 68020 or higher
+		beq.b	.MC68000	;branch if not
+
+****************************************
+
+		movec	vbr,D0		;get VBR 
+		beq.b	.DisCache	;branch if zero
+
+		suba.l	A1,A1		;prepare register
+		movea.l	D0,A2		;set vbr_base
+		move.w	#$FF,D0		;set loop_count
+.CopyVBR	move.l	(A2)+,(A1)+	;copy trap_table
+		dbra	D0,.CopyVBR	;copy trap_table
+		suba.l	A1,A1		;prepare register
+		movec	A1,vbr		;set vbr to zero
+
+****************************************
+
+.DisCache	movec	cacr,d0		;get cachecontrol
+		and.w	#~($1111),d0	;set Inst/Data Cache/Burst
+		movec	d0,cacr		;and disable
+
+****************************************
+
+.MC68000	lea	$DFF000,A6	;get custombase
+		move.w	#$7FFF,$096(A6)	;cut all DMA
+		move.w	#$7FFF,$09A(A6)	;all interrupts
+		move.w	#$7FFF,$09C(A6)	;and all requests
+

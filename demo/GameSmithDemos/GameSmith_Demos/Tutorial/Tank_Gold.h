@@ -1,0 +1,6 @@
+#ifndef	CTBL_TANK_BATTLE
+#define	CTBL_TANK_BATTLE	1
+#define	TANK_BATTLE_TANK	0x00000001
+#define	TANK_BATTLE_BULLET	0x00000002
+#endif
+#define	TANK_GOLD_ANIM		294	/* label/ID of anim */

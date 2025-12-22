@@ -1,0 +1,62 @@
+00SandStone.bpk
+01SandStoneBars.bpk
+02RayTracedDoor.bpk
+05StockVent.bpk
+06AirDuct.bpk
+08IceWall.bpk
+09IceSwitchOff.bpk
+10IceSwitchOn.bpk
+11SandStoneSwitchOff.bpk
+12SandStoneSwitchOn.bpk
+16FanFrames.bpk
+24SandStoneTorch.bpk
+-
+00Pillar.bpk
+01Bullets.bpk
+02FirstAidKit.bpk
+03Magazine.bpk
+04Lamp.bpk
+05Chest.bpk
+06Pearl.bpk
+07Sapphires.bpk
+08Battery.bpk
+13Barrel.bpk
+14ExplodedBarrel.bpk
+16NewExplosionFrames.bpk
+-
+00GemFrames.bpk
+-
+ 512
+ 129
+ 139
+ 0
+ 512
+ 0
+ 393
+ 0
+ 145
+ 0
+ 0
+ 0
+ 0
+ 576
+ 0
+ 0
+-
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 2
+ 1
+ 2
+ 1
+ 0
+ 0
+ 0
+-

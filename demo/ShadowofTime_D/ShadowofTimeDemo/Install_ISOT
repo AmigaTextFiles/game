@@ -1,0 +1,363 @@
+; $VER: ShadowDemoInstallscript 1.0 (07.2.97)
+; © 1998 by Henrik Smiding
+;
+;
+; /////////////////////////////// Requirements //////////////////////////////
+
+(set  #minreqcpu "68020"
+   #minreqosnr 39
+   #minreqos "3.0"
+   #minreqdisk 1100000
+   #minreqdisk1 (/ #minreqdisk 1000000)
+   #minreqdisk2 (- (/ #minreqdisk 100000) (* #minreqdisk1 10))
+   #minreqchipset "AA")
+
+; ////////////////////////////// Default strings /////////////////////////////
+
+(set
+   #DirName "ShadowofTime"
+   #Version (getversion "ShadowofTime")
+   #Ver (/ #Version 65536)
+   #Rev (- #Version (* #Ver 65536))
+
+   #Welcome (cat "\nWelcome to the installationscript of\n"
+            "--> In Shadow of Time V" #Ver "." #Rev " <--\n\n"
+            "This preview requires atleast a " #minreqcpu " processor, "
+            "AmigaDOS V" #minreqos " of better, "
+            "AGA chipset, "
+            "and " #minreqdisk1 "." #minreqdisk2 " Mb of free space.")
+
+   #OldOS (cat "\nYou need atleast AmigaDOS " #minreqos "(" #minreqosnr ") to run this preview.")
+   #LowCpu (cat "\nYou need a " #minreqcpu " or better to run this preview.")
+   #OldChip (cat "\nYou need the AGA chipset to run this preview.")
+   #LowDisk (cat "\nThis preview requires atleast " (/ #minreqdisk 1024) "Kbytes of free diskspace.")
+
+   #Location (cat "Where do you wish to install this preview?\n"
+             "A drawer named '" #DirName "' will be created here.")
+   #LocationH (cat "Please select where on your harddisk you wish to place "
+         "this previewdemo of 'In Shadow of Time'. A directory "
+         "called '" #DirName "' will be created there and all "
+         "files needed will be placed inside that directory."
+         "\nEx.\nIf you choose 'Work:', a directory called 'Work:" #DirName "' will be created, "
+         "and all files will be copied into it. You will then have an icon on you 'Work:' partition "
+         "called '" #DirName "' which you can access from workbench.")
+   #FontPrompt "Copying fonts..."
+   #FontLocation "Where should I copy the fonts?"
+   #FontHelp (cat "The game requires a set of fonts to work properly. "
+         "These font are included, but they have to be copied to the 'Fonts:' "
+         "directory, or the game won't be able to find them.\n"
+         "By pressing 'Proceed', the installer will copy this fontset "
+         "to the 'Fonts:' assign, which should be pointing to directory "
+         "where the rest of the fonts are located.\n"
+         "(Normally 'System:Fonts', or 'SYS:Fonts')")
+   #OtherIcons (cat "Choose the set of icons you want copied.")
+   #OtherIconsH (cat "\nStandard - This is a standard 4-colour iconset, like the ones on the Workbench disks.\n\n"
+           "MagicWB  - This is a 8-colour iconset that uses the 'MagicWorkbench' palette. "
+           "If you haven't installed MagicWB on your system, this set won't look very nice.")
+
+   #InsertDisk1 "\nPlease insert disk "
+   #InsertDisk2 " in any drive."
+
+   #CopyMainFiles "Copying main gamefiles..."
+   #CopyDataFiles "Copying datafiles disk #"
+
+   #Exists "\nIt seems there's already "
+   #Exists2 "version of the game installed here ("
+   #Exists3 (cat ").\nDo you want to overwrite it with this version (" #Ver "." #Rev ")?")
+   #ExistsH (cat "If you have an older version, you should go ahead and install."
+         "If you have a more recent version, you should abort, or atleast make a backup before you proceed.")
+
+   #Finished "\nTadaaaa!")
+
+
+(if (>= @installer-version 42)
+   (set #choicehead "\x1b[2p")
+   (set #choicehead "")
+)
+
+; ////////////////////////////////// Startup ///////////////////////////////////
+
+(message #Welcome)
+(complete 0)
+
+(if (< (/ (getversion) 65536) #minreqosnr) (abort #OldOS))
+(if (< (database "cpu") #minreqcpu) (abort #LowCpu))
+(if (not (patmatch #minreqchipset (database "chiprev"))) (abort #OldChip))
+
+(complete 1)
+
+(set #destdir
+   (askdir
+      (prompt #Location)
+      (help #LocationH)
+      (default @default-dest)
+   )
+)
+
+(complete 2)
+
+(set destdir (tackon #destdir #DirName))
+(set @default-dest destdir)
+
+(if (< (getdiskspace destdir) minreqdisk) (abort #LowDisk))
+
+(complete 3)
+
+(if (<> 0 (exists destdir))
+(
+   (set #DVersion (getversion (tackon destdir "ShadowofTime"))
+        #DVer (/ #DVersion 65536)
+        #DRev (- #DVersion (* #DVer 65536))
+   )
+
+   (set #VerStat (if (< #DVersion #Version)
+   ("an older ")
+   (if (= #DVersion #Version) ("a ") ("a more recent "))
+   ))
+
+   (if (= 0 (askbool
+      (Prompt #Exists #Verstat #Exists2 #DVer "." #DRev #Exists3)
+      (help #ExistsH)
+      (default 1)
+      (choices "Yes, overwrite" "No, abort installation")
+      )
+      )
+   (exit)
+   )
+)
+(makedir destdir)
+)
+(complete 4)
+
+; ///////////////////////// Ask Icons ///////////////////////////
+
+(set #MWBIcons
+   (askchoice
+      (prompt #OtherIcons)
+      (help #OtherIconsH)
+      (choices (cat #choicehead "Standard - 4 colour") "MagicWB  - 8 colour")
+   )
+)
+
+(complete 5)
+
+; ///////////////////////// Copy fonts ///////////////////////////
+
+(set #FontDir (if (= 2 @user-level)
+   (askdir
+      (prompt #FontLocation)
+      (help #FontHelp)
+      (default "Fonts:")
+      (newpath)
+   )
+   ("Fonts:")
+))
+
+(copyfiles
+   (all)
+   (prompt #FontPrompt)
+   (source  "Fonts")
+   (dest #FontDir)
+   (optional oknodelete)
+)
+
+(complete 6)
+
+; ///////////////////////// Copy Main Files /////////////////////////
+
+(if (= 0 #MWBIcons)
+   (
+      (copyfiles
+         (source "Icons/Org_drawer.info")
+         (newname "ShadowofTime.info")
+         (help @copyfiles-help)
+         (dest #destdir)
+      )
+      (copyfiles
+         (prompt #CopyMainFiles)
+         (source "")
+         (help @copyfiles-help)
+         (choices "ShadowofTime" "ShadowofTime.guide")
+         (dest destdir)
+         (infos)
+      )
+   )
+   (
+      (copyfiles
+         (source "Icons/MWB_Drawer.info")
+         (newname "ShadowofTime.info")
+         (help @copyfiles-help)
+         (dest #destdir)
+      )
+      (copyfiles
+         (prompt #CopyMainFiles)
+         (source "")
+         (help @copyfiles-help)
+         (choices "ShadowofTime" "ShadowofTime.guide")
+         (dest destdir)
+      )
+      (copyfiles
+         (prompt #CopyMainFiles)
+         (source "Icons/")
+         (help @copyfiles-help)
+         (choices "ShadowofTime.info" "ShadowofTime.guide.info")
+         (dest destdir)
+      )
+   )
+)
+
+(complete 7)
+
+(makedir (tackon destdir "Savedgames"))
+
+(complete 8)
+
+; ///////////////////////// Copy Data Files /////////////////////////
+
+(Set #DataDir (tackon destdir "data"))
+(makedir #DataDir)
+
+(copyfiles
+   (prompt #CopyDataFiles "1...")
+   (help @copyfiles-help)
+   (source  "Data/")
+   (dest #DataDir)
+   (all)
+)
+
+(complete 10)
+
+;(askdisk
+;  (prompt #InsertDisk1 "2" #InsertDisk2)
+;  (help @askdisk-help)
+;  (dest "ISOT_2")
+;)
+;
+;(copyfiles
+;  (prompt #CopyDataFiles "2...")
+;  (help @copyfiles-help)
+;  (source  "ISOT_2:Data/")
+;  (dest #DataDir)
+;  (all)
+;)
+;
+;(complete 20)
+
+;(askdisk
+;  (prompt #InsertDisk1 "3" #InsertDisk2)
+;  (help @askdisk-help)
+;  (dest "ISOT_3")
+;)
+;
+;(copyfiles
+;  (prompt #CopyDataFiles "3...")
+;  (help @copyfiles-help)
+;  (source  "ISOT_3:Data/")
+;  (dest #DataDir)
+;  (all)
+;)
+;
+;(complete 30)
+
+;(askdisk
+;  (prompt #InsertDisk1 "4" #InsertDisk2)
+;  (help @askdisk-help)
+;  (dest "ISOT_4")
+;)
+;
+;(copyfiles
+;  (prompt #CopyDataFiles "4...")
+;  (help @copyfiles-help)
+;  (source  "ISOT_4:Data/")
+;  (dest #DataDir)
+;  (all)
+;)
+;
+;(complete 40)
+
+;(askdisk
+;  (prompt #InsertDisk1 "5" #InsertDisk2)
+;  (help @askdisk-help)
+;  (dest "ISOT_5")
+;)
+;
+;(copyfiles
+;  (prompt #CopyDataFiles "5...")
+;  (help @copyfiles-help)
+;  (source  "ISOT_5:Data/")
+;  (dest #DataDir)
+;  (all)
+;)
+;
+;(complete 50)
+
+;(askdisk
+;  (prompt #InsertDisk1 "6" #InsertDisk2)
+;  (help @askdisk-help)
+;  (dest "ISOT_6")
+;)
+;
+;(copyfiles
+;  (prompt #CopyDataFiles "6...")
+;  (help @copyfiles-help)
+;  (source  "ISOT_6:Data/")
+;  (dest #DataDir)
+;  (all)
+;)
+;
+;(complete 60)
+
+;(askdisk
+;  (prompt #InsertDisk1 "7" #InsertDisk2)
+;  (help @askdisk-help)
+;  (dest "ISOT_7")
+;)
+;
+;(copyfiles
+;  (prompt #CopyDataFiles "7...")
+;  (help @copyfiles-help)
+;  (source  "ISOT_7:Data/")
+;  (dest #DataDir)
+;  (all)
+;)
+;
+;(complete 70)
+
+;(askdisk
+;  (prompt #InsertDisk1 "8" #InsertDisk2)
+;  (help @askdisk-help)
+;  (dest "ISOT_8")
+;)
+;
+;(copyfiles
+;  (prompt #CopyDataFiles "8...")
+;  (help @copyfiles-help)
+;  (source  "ISOT_8:Data/")
+;  (dest #DataDir)
+;  (all)
+;)
+;
+;(complete 80)
+
+;(askdisk
+;  (prompt #InsertDisk1 "9" #InsertDisk2)
+;  (help @askdisk-help)
+;  (dest "ISOT_9")
+;)
+;
+;(copyfiles
+;  (prompt #CopyDataFiles "9...")
+;  (help @copyfiles-help)
+;  (source  "ISOT_9:Data/")
+;  (dest #DataDir)
+;  (all)
+;)
+;
+;(complete 90)
+
+
+(complete 99)
+
+(message #Finished)
+
+(complete 100)

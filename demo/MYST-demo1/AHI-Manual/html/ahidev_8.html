@@ -1,0 +1,209 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.51
+     from ahidev.texinfo on 31 October 1997 -->
+
+<TITLE>Ahi Developers's Guide - Obtaining The Hardware</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="ahidev_1.html">first</A>, <A HREF="ahidev_7.html">previous</A>, <A HREF="ahidev_9.html">next</A>, <A HREF="ahidev_21.html">last</A> section, <A HREF="ahidev_toc.html">table of contents</A>.
+<P><HR><P>
+
+
+<H2><A NAME="SEC16" HREF="ahidev_toc.html#TOC16">Obtaining The Hardware</A></H2>
+
+<P>
+ If you wish to call any other function than
+
+</P>
+
+<UL>
+
+<LI>
+
+<CODE>AHI_AllocAudioRequestA()</CODE>
+
+<LI>
+
+<CODE>AHI_AudioRequestA()</CODE>
+
+<LI>
+
+<CODE>AHI_BestAudioIDA()</CODE>
+
+<LI>
+
+<CODE>AHI_FreeAudioRequest()</CODE>
+
+<LI>
+
+<CODE>AHI_GetAudioAttrsA()</CODE>
+
+<LI>
+
+<CODE>AHI_NextAudioID()</CODE>
+
+<LI>
+
+<CODE>AHI_SampleFrameSize()</CODE>
+
+</UL>
+
+<P>
+<A NAME="IDX31"></A>
+<A NAME="IDX32"></A>
+<A NAME="IDX33"></A>
+
+</P>
+<P>
+...you have to allocate the actual sound hardware.  This is done with
+<CODE>AHI_AllocAudioA()</CODE>.  <CODE>AHI_AllocAudioA()</CODE> returns an
+<CODE>AHIAudioCtrl</CODE> structure, or <CODE>NULL</CODE> if the hardware could not be
+allocated.  The <CODE>AHIAudioCtrl</CODE> structure has only one public field,
+<CODE>ahiac_UserData</CODE>.  This is unused by AHI and you may store
+anything you like here.
+
+</P>
+<P>
+ If <CODE>AHI_AllocAudioA()</CODE> fails it is important that you handle the
+situation gracefully.
+
+</P>
+<P>
+<A NAME="IDX34"></A>
+
+</P>
+<P>
+ When you are finished playing or recording, call <CODE>AHI_FreeAudio()</CODE> to
+deallocate the hardware and other resources allocated by
+<CODE>AHI_AllocAudioA()</CODE>.  <CODE>AHI_FreeAudio()</CODE> also deallocates all
+loaded sounds (see section <A HREF="ahidev_9.html#SEC18">Declaring Sounds</A>).
+
+</P>
+
+
+
+<H3><A NAME="SEC17" HREF="ahidev_toc.html#TOC17"><CODE>AHI_AllocAudioA()</CODE> Tags</A></H3>
+
+<P>
+<CODE>AHI_AllocAudioA()</CODE> takes several tags as input.
+
+</P>
+<DL COMPACT>
+
+<DT><CODE>AHIA_AudioID</CODE>
+<DD>
+<A NAME="IDX35"></A>
+ <A NAME="IDX36"></A>
+ 
+<A NAME="IDX37"></A>
+This is the audio mode to be used.  You must not use any hardcoded values
+other than <CODE>AHI_DEFAULT_ID</CODE>, which is the user's default fallback ID.
+In most cases you should ask the user for an ID code (with
+<CODE>AHI_AudioRequestA()</CODE>) and then store the value in your settings file.
+
+<A NAME="IDX38"></A>
+<A NAME="IDX39"></A>
+<A NAME="IDX40"></A>
+<A NAME="IDX41"></A>
+
+<DT><CODE>AHIA_MixFreq</CODE>
+<DD>
+<A NAME="IDX42"></A>
+This is the mixing frequency to be used.  The actual frequency will be
+rounded to the nearest frequency supported by the sound hardware.  To find
+the actual frequency, use <CODE>AHI_GetAudioAttrsA()</CODE>.  If omitted or
+<CODE>AHI_DEFAULT_FREQ</CODE>, the user's preferred fallback frequency will be
+used.  In most cases you should ask the user for a frequency (with
+<CODE>AHI_AudioRequestA()</CODE>) and then store the value in your settings file.
+
+<DT><CODE>AHIA_Channels</CODE>
+<DD>
+<A NAME="IDX43"></A>
+All sounds are played on a <STRONG>channel</STRONG>, and this tag selects how many you
+wish to use.  In general it takes more CPU power the more channels you use
+and the volume gets lower and lower.
+
+<DT><CODE>AHIA_Sounds</CODE>
+<DD>
+<A NAME="IDX44"></A>
+You must tell AHI how many different sounds you are going to play.
+See section <A HREF="ahidev_9.html#SEC18">Declaring Sounds</A> for more information.
+
+<A NAME="IDX45"></A>
+<A NAME="IDX46"></A>
+<A NAME="IDX47"></A>
+<A NAME="IDX48"></A>
+<A NAME="IDX49"></A>
+<A NAME="IDX50"></A>
+<A NAME="IDX51"></A>
+<A NAME="IDX52"></A>
+
+<DT><CODE>AHIA_SoundFunc</CODE>
+<DD>
+<A NAME="IDX53"></A>
+With this tag you tell AHI to call a hook when a sound has been
+started.  It works just like Paula's audio interrupts.  The hook receives an
+<CODE>AHISoundMessage</CODE> structure as message.
+<CODE>AHISoundMessage-&#62;ahism_Channel</CODE> indicates which channel the sound
+that caused the hook to be called is played on.
+
+<DT><CODE>AHIA_PlayerFunc</CODE>
+<DD>
+<A NAME="IDX54"></A>
+If you are going to play a musical score, you should use this "interrupt"
+source instead of VBLANK or CIA timers in order to get the best result with
+all audio drivers.  If you cannot use this, you must not use any
+"non-realtime" modes (see <CODE>AHI_GetAudioAttrsA()</CODE> in the autodocs,
+the <CODE>AHIDB_Realtime</CODE> tag).
+
+<DT><CODE>AHIA_PlayerFreq</CODE>
+<DD>
+<A NAME="IDX55"></A>
+If non-zero, it enables timing and specifies how many times per second
+<CODE>PlayerFunc</CODE> will be called.  This must be specified if
+<CODE>AHIA_PlayerFunc</CODE> is!  It is suggested that you keep the frequency
+below 100-200 Hz.  Since the frequency is a fixpoint number
+<CODE>AHIA_PlayerFreq</CODE> should be less than 13107200 (that's 200 Hz).
+
+<DT><CODE>AHIA_MinPlayerFreq</CODE>
+<DD>
+<A NAME="IDX56"></A>
+The minimum frequency (<CODE>AHIA_PlayerFreq</CODE>) you will use.  You should
+always supply this if you are using the device's interrupt feature!
+
+<DT><CODE>AHIA_MaxPlayerFreq</CODE>
+<DD>
+<A NAME="IDX57"></A>
+The maximum frequency (<CODE>AHIA_PlayerFreq</CODE>) you will use.  You should
+always supply this if you are using the device's interrupt feature!
+
+<DT><CODE>AHIA_RecordFunc</CODE>
+<DD>
+<A NAME="IDX58"></A>
+This hook will be called regularly when sampling is turned on (see
+<CODE>AHI_ControlAudioA()</CODE>).  It is important that you always check the
+format of the sampled data, and ignore it if you can't parse it.  Since
+this hook may be called from an interrupt, it is not legal to directly
+<CODE>Write()</CODE> the buffer to disk.  To record directly to harddisk you
+have to copy the samples to another buffer and signal a process to save it.
+To find out the required size of the buffer, see
+<CODE>AHI_GetAudioAttrsA()</CODE> in the autodocs, the
+<CODE>AHIDB_MaxRecordSamples</CODE> tag.
+
+<A NAME="IDX59"></A>
+<A NAME="IDX60"></A>
+
+<DT><CODE>AHIA_UserData</CODE>
+<DD>
+<A NAME="IDX61"></A>
+Can be used to initialize the <CODE>ahiac_UserData</CODE> field.  You do not have
+to use this tag to change <CODE>ahiac_UserData</CODE>, you may write to it
+directly.
+
+</DL>
+
+<P><HR><P>
+Go to the <A HREF="ahidev_1.html">first</A>, <A HREF="ahidev_7.html">previous</A>, <A HREF="ahidev_9.html">next</A>, <A HREF="ahidev_21.html">last</A> section, <A HREF="ahidev_toc.html">table of contents</A>.
+</BODY>
+</HTML>

@@ -1,0 +1,73 @@
+/* Copyleft Mike Arnautov, 31 Jul 2005 */
+#define v004 "Adv770, version 1.71 - 31 Jul 2005"
+#ifdef g003
+#define y006 "adv770.dat"
+#endif
+#define j000 499001
+#define y007 2
+#define g004 2
+#define n004 1
+#define k003 3
+#define k004 194
+#define w003 195
+#define j001 703
+#define e006 704
+#define k005 1123
+#define n005 1124
+#define g005 1245
+#define a003 1245
+#define a004 3417
+#define i003 25
+#define z003 42
+#define x001 1227
+#define j002 11
+#define a005 703
+#define b006 1126
+#define d004 1127
+#define d005 1158
+#define q004 1124
+#define x002 1125
+#define u002 1243
+#define t001 719
+#define i004 720
+#define t002 1244
+#define r005 3
+#define r006 4
+#define t003 5
+#define c005 6
+#define r007 7
+#define a006 8
+#define q005 6
+#define b007 6
+#define m004 0
+#define l002 5
+#define m005 705
+#define l001 3
+#define r008 1117
+#define y008 2538
+#define c006 166
+#define z004 1160
+#define y009 1242
+#define f000 4
+#define h005 704
+#define z005 721
+#define c007 722
+#define t004 740
+#define a007 741
+#define d006 753
+#define x003 711
+#define f001 3417
+#define v005 3418
+#define w004 3419
+#define c008 3420
+#define n006 3421
+#define g006 0
+#define v006 1
+#define e007 2
+#define x004 3
+#define q006 4
+#define g007 2
+#define q007 1
+#define q008 2
+#define w005(X) (z002[1124]==X || z002[1125]==X)
+

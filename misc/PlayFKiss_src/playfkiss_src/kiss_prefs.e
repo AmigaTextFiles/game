@@ -1,0 +1,14 @@
+OPT MODULE
+OPT EXPORT
+OPT PREPROCESS
+
+OBJECT kiss_prefs
+  screenmode:LONG
+  dir[256]:ARRAY OF CHAR
+  flags:LONG
+ENDOBJECT
+
+-> flags
+ENUM KISSF_FKiss
+
+

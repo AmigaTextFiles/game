@@ -1,0 +1,206 @@
+#
+# Run ./configure to generate a Makefile from Makefile.in
+# See INSTALL for more information
+#
+
+PRODUCT = @PRODUCT@
+VERSION = @VERSION@
+PATCHLEVEL = @PATCHLEVEL@
+
+SHELL = /bin/sh
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+CC = @CC@
+CFLAGS = @CFLAGS@
+ALL_CFLAGS = -I. -I$(srcdir) @X_CFLAGS@ @CONF_CFLAGS@ $(CFLAGS)
+DEFINES = @DEFS@ -DATTENTION 
+INSTALL = @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+LDFLAGS = @LDFLAGS@
+ALL_LDFLAGS = @CONF_LDFLAGS@ $(LDFLAGS)
+LEX = @LEX@
+LEXFLAGS = 
+LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
+LIBS = @X_LIBS@ -lXaw @PRE_XMULIB@ -lXmu @POST_XMULIB@ -lXt -lXext \
+	@X_PRE_LIBS@ -lX11 @X_EXTRA_LIBS@ @LIBS@ -lm
+NROFF = @NROFF@
+NROFFFLAGS = @NROFFFLAGS@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = $(exec_prefix)/bin
+mandir = $(prefix)/man/man6
+manext = .6
+
+DISTSOURCE = COPYING COPYRIGHT ChangeLog ChangeLog.2 FAQ INSTALL Makefile.in \
+	READ_ME ToDo backend.c backend.h bitmaps bitmaps.h bitmaps.xchess \
+	childio.c childio.h cmail.in cmail.man comment.in common.h \
+	config.guess config.sub configure configure.in frontend.h \
+	gamelist.c ics-addresses ics-info install-sh kk13.pgn lists.c \
+	lists.h moves.c moves.h parser.h parser.l pgntags.c pxboard \
+	xboard.c xboard.h xboard.man xedittags.c xedittags.h \
+	xgamelist.c xgamelist.h xboard.texi gpl.texinfo xboard.texinfo.in \
+	acconfig.h config.h.in
+
+ZIPPYSOURCE = zippy.README zippy.c zippy.h zippy.gnu-intf
+
+DISTDIR = @PRODUCT@-@VERSION@.pl@PATCHLEVEL@
+
+XBOARDOBJ = parser.o xboard.o backend.o moves.o childio.o gamelist.o \
+	lists.o pgntags.o xgamelist.o xedittags.o @ZIPPY_O@
+
+### Targets required by GNU standards #######################################
+
+all: xboard xboard.doc cmail.doc
+
+install:
+	$(INSTALL_PROGRAM) -s xboard $(bindir)/xboard
+	$(INSTALL_PROGRAM) cmail $(bindir)/cmail
+	$(INSTALL_PROGRAM) pxboard $(bindir)/pxboard
+	$(INSTALL_DATA) xboard.man $(mandir)/xboard$(manext)
+	$(INSTALL_DATA) cmail.man $(mandir)/cmail$(manext)
+
+uninstall:
+	rm -f $(bindir)/xboard $(bindir)/cmail 
+	rm -f $(mandir)/xboard$(manext) $(mandir)/cmail$(manext)
+
+clean:
+	rm -f xboard *.o *.doc $(LEX_OUTPUT_ROOT).c
+
+distclean: clean tidy
+	rm -f config.cache config.log config.status Makefile
+
+mostlyclean: clean
+
+maintainer-clean: distclean
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+	rm -f parser.c
+
+TAGS:
+	etags *.c *.h
+
+info:
+	@echo "** WARNING: Up-to-date xboard documentation is found in the **"
+	@echo "** man page xboard.man.  The texinfo file is a rough draft. **"
+	makeinfo --no-split -I $(srcdir) xboard.texinfo
+
+dvi:
+	@echo "** WARNING: Up-to-date xboard documentation is found in the **"
+	@echo "** man page xboard.man.  The texinfo file is a rough draft. **"
+	TEXINPUTS=.:$(srcdir) texinfo xboard.texinfo
+
+dist:
+	mkdir $(DISTDIR)
+	@echo Testing that no RCS files are locked...
+	@test `rlog -L -R RCS/*,v | tee .locked | wc -l` = 0 || \
+		( echo 'ERROR - the following are locked: ' 2>&1 ;\
+		  cat .locked 2>&1 ;\
+		  false )
+	@echo OK
+	rlog -h RCS/*,v | egrep '^RCS file:|head:' > RCS/$(DISTDIR).rcs
+	cp -r $(DISTSOURCE) $(DISTDIR)/
+	cp parser.c $(DISTDIR)/
+	if echo $(DISTDIR) | grep -i zippy ; then \
+	    cp -r $(ZIPPYSOURCE) $(DISTDIR)/ ; \
+	fi
+	if echo $(DISTDIR) | grep -i beta ; then \
+	    cp -r READ_ME_FIRST $(DISTDIR)/ ; \
+	fi
+	tar cvf - $(DISTDIR) | gzip > $(DISTDIR).tar.gz
+	uuencode $(DISTDIR).tar.gz $(DISTDIR).tar.gz > $(DISTDIR).tar.gz.uu
+
+check: all
+
+### End targets required by GNU standards ###################################
+
+Makefile: Makefile.in config.status
+	./config.status
+     
+config.status: configure
+	./config.status --recheck
+
+.SUFFIXES:
+.SUFFIXES: .c .o .man .doc
+
+.c.o:
+	$(CC) $(DEFINES) $(ALL_CFLAGS) -c $<
+
+.man.doc:
+	$(NROFF) $(NROFFFLAGS) $< > $*.doc
+
+xboard: $(XBOARDOBJ)
+	$(CC) -o xboard $(ALL_LDFLAGS) $(XBOARDOBJ) $(LIBS)
+
+parser.c: parser.l
+	$(LEX) $(LEXFLAGS) $(srcdir)/parser.l
+	mv $(LEX_OUTPUT_ROOT).c parser.c
+
+parser.o: parser.c
+
+
+tidy:
+	rm -f ,* .,* .emacs_[0-9]* core a.out *~ *.BAK *.CKP .nfs*
+
+backend.o: config.h
+backend.o: common.h
+backend.o: frontend.h
+backend.o: backend.h lists.h
+backend.o: parser.h
+backend.o: moves.h
+backend.o: @ZIPPY_H@
+childio.o: config.h
+childio.o: common.h
+childio.o: frontend.h
+gamelist.o: config.h
+gamelist.o: common.h
+gamelist.o: frontend.h
+gamelist.o: backend.h lists.h
+gamelist.o: parser.h
+lists.o: config.h
+lists.o: common.h
+lists.o: lists.h
+moves.o: config.h
+moves.o: common.h
+moves.o: backend.h lists.h
+moves.o: moves.h
+moves.o: parser.h
+parser.o: config.h
+parser.o: common.h
+parser.o: backend.h
+parser.o: frontend.h
+parser.o: parser.h
+parser.o: moves.h
+pgntags.o: config.h
+pgntags.o: common.h
+pgntags.o: frontend.h
+pgntags.o: backend.h lists.h
+pgntags.o: parser.h
+xboard.o: config.h
+xboard.o: common.h
+xboard.o: frontend.h
+xboard.o: backend.h lists.h
+xboard.o: moves.h
+xboard.o: xboard.h
+xboard.o: childio.h
+xboard.o: bitmaps.h
+xboard.o: xgamelist.h
+xboard.o: xedittags.h
+xedittags.o: config.h
+xedittags.o: common.h
+xedittags.o: frontend.h
+xedittags.o: backend.h lists.h
+xedittags.o: xboard.h
+xedittags.o: xedittags.h
+xgamelist.o: config.h
+xgamelist.o: common.h
+xgamelist.o: frontend.h
+xgamelist.o: backend.h lists.h
+xgamelist.o: xboard.h
+xgamelist.o: xgamelist.h
+zippy.o: config.h
+zippy.o: common.h
+zippy.o: zippy.h
+zippy.o: frontend.h

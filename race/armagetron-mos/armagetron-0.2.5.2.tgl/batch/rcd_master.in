@@ -1,0 +1,73 @@
+#! /bin/sh
+# 
+# script to be put in /etc/rc.d to start @progtitle@ server process
+# tested on SuSE 6.4
+# Author: Manuel Moos <manuel@moosnet.de>
+#
+
+#let the servers look for their configuration in /etc/.@prognamebase@
+HOME=/etc
+
+test -r /etc/rc.config && . /etc/rc.config
+
+# Determine the base and follow a runlevel link name.
+base=${0##*/}
+link=${base#*[SK][0-9][0-9]}
+
+#arguments the server will be called with
+server_args=""
+
+#user and group to run as
+user=armagetron
+group=users
+
+HOME=/home/$user
+
+LOGDIR=$HOME/.@prognamebase@
+STARTERPIDFILE=$LOGDIR/@progname@-masterstarter.pid
+MAINPIDFILE=$LOGDIR/@progname@-master.pid
+TYPE=master
+BINARY=masterstarter-@prognamebase@
+BINFILE=@prefix@/games/@progname@/bin/$BINARY
+LOGFILE=/var/log/@prognamebase@-master
+
+#TESTPROCESS="test -r $STARTERPIDFILE && test -n \"$( ps ax | grep $BINARY | grep $( cat $STARTERPIDFILE ) )\" "
+
+test -n $rc_done || rc_done="\t\t\tdone."
+test -n $rc_failed || rc_failed="\t\t\tfailed."
+
+# The echo return value for success (defined in /etc/rc.config).
+return=$rc_done
+case "$1" in
+    start)
+	echo -n "Starting @prognamebase@ $TYPE..."
+	test -r $STARTERPIDFILE || startproc -g $group -u $user -fl $LOGFILE $BINFILE $server_args
+	echo -e "$return"
+	;;
+    stop)
+	echo -n "Shutting down @prognamebase@ $TYPE..."
+	MAINPID=$( cat $MAINPIDFILE ) || return=$rc_failed
+	STARTERPID=$( cat $STARTERPIDFILE ) || return=$rc_failed
+	rm -f $STARTERPIDFILE
+	rm -f $MAINPIDFILE
+	kill -TERM $MAINPID || return=$rc_failed
+	kill -TERM $STARTERPID || return=$rc_failed
+
+	echo -e "$return"
+	;;
+    restart)
+	$0 stop  &&  $0 start  ||  return=$rc_failed
+	;;
+    status)
+	echo -n "Checking for service @prognamebase@ $TYPE: "
+
+	test -r $STARTERPIDFILE && echo OK || echo No process
+	;;
+    *)
+	echo "Usage: $0 {start|stop|status|restart}"
+	exit 1
+esac
+
+# Inform the caller not only verbosely and set an exit status.
+test "$return" = "$rc_done" || exit 1
+exit 0

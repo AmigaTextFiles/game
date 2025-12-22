@@ -1,0 +1,76 @@
+(set GameDir @app-name)
+
+;try to figure out a place where the user usually installs his games
+(if (exists "Games:" (noreq) )
+    (set @default-dest "Games:")
+    (if (exists "SYS:Games" (noreq) )
+        (set @default-dest "SYS:Games")
+        (if (exists "Work:Games" (noreq) )
+            (set @default-dest "Work:Games")
+            (if (exists "JEUX:" (noreq) )
+               (set @default-dest "JEUX:")
+               (set @default-dest "SYS:")
+            )
+        )
+    )
+)
+
+(message "\n\n\nThe startup-script needs the JST program/degrader (NOT INCLUDED)\n to be copied in your path\n\n(if you don't have it already)\n\nJST is available from aminet (game/patch) or on my site")
+
+;ask the user to select a directory to install the game into
+(set default-dest
+     (tackon (askdir (prompt "Where would you like " @app-name " installed?\n"
+                             "A drawer called " GameDir " will be created.")
+                     (help @askdir-help)
+                     (default @default-dest)
+                     (newpath)
+             )
+     GameDir
+     )
+)
+(set @default-dest default-dest)
+
+;create the selected directory
+(makedir @default-dest
+         (infos)
+)
+
+(askdisk
+	(prompt	("\n\n\n\n\n\nPlease insert %s disk in any drive" @app-name))
+	(dest		"imperium")
+	(help		"Insert disk 1 in any floppy drive\nor you'll wait for a while!")
+)
+
+(copyfiles (source "imperium:")
+           (dest @default-dest)
+	   (all)
+)
+
+;copy all extra files to this directory
+
+(copyfiles (source "GAME")
+           (dest @default-dest)
+)
+
+(copyfiles (source "GAME.icon")
+           (dest @default-dest)
+	   (newname "GAME.info")
+)
+
+(message "\n\n\n\n\nI will now patch the executable")
+
+	(if
+
+		(= 0 (run ("patchexe %s" (tackon @default-dest "sth") )) )
+		("")
+		(abort "patchexe could not be executed or wrong exe version!!")
+	)
+
+; cleanup
+
+(delete (tackon @default-dest "s/startup-sequence"))
+(delete (tackon @default-dest "s/startup-sequence.hd"))
+(delete (tackon @default-dest "s"))
+(delete (tackon @default-dest "devs"))
+(delete (tackon @default-dest "trashcan"))
+(delete (tackon @default-dest "trashcan.info"))

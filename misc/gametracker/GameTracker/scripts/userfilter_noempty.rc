@@ -1,0 +1,120 @@
+requestchoice TITLE "GameTracker by SuRgEoN" BODY "Select cachefile" "Requester" "Default" >env:Input
+
+run <>nil: Play16 $buttonsnd
+
+if $Input eq 1
+Requestfile >env:qwbbase TITLE "choose cache basisfile" DRAWER=qwbhome:cache/$defcachedir
+run <>nil: Play16 $buttonsnd
+endif
+
+if $Input eq 0
+setenv qwbbase $favorites
+echo " default file selected"
+endif
+
+
+Requestchoice TITLE "GameTracker by SuRgEoN" BODY "Select filter:" "none" " dir " "exdir" "map" "capacity" "dir & capacity" >env:userfilter
+run <>nil: Play16 $buttonsnd
+
+IF $userfilter EQ 0
+
+   echo "gamedir? (examples: arena, ctf, fortress)"
+   execute scripts/getgamedir.rc
+
+   echo "enter minimum player capacity:"
+   execute scripts/getminplayers.rc
+
+   echo "enter maximum player capacity:"
+   execute scripts/getmaxplayers.rc
+
+qstat -progress $pingfltr -P -R -sort gp -Ts filters/noempty/gamecapacity_filter -Tp filters/noempty/player_temp -Th filters/header_temp -Tt filters/trailer_temp -f $qwbbase >env:cmakerfile
+
+run <>nil: Play16 $qstatsnd
+ENDIF
+
+IF $userfilter EQ 1
+
+qstat -progress $pingfltr -P -R -sort gp -Ts filters/s_temp_not_empty -Tp filters/noempty/player_temp -Th filters/header_temp -Tt filters/trailer_temp -f $qwbbase >env:cmakerfile
+
+run <>nil: Play16 $qstatsnd
+ENDIF
+
+IF $userfilter EQ 2
+
+   echo "gamedir? (examples: arena, ctf, fortress)"
+   execute scripts/getgamedir.rc
+
+qstat -progress $pingfltr -P -R -sort gp -Ts filters/noempty/gamedir_filter -Tp filters/noempty/player_temp -Th filters/header_temp -Tt filters/trailer_temp -f $qwbbase >env:cmakerfile
+
+run <>nil: Play16 $qstatsnd
+ENDIF
+
+IF $userfilter EQ 3
+
+   echo "gamedir to exclude? (examples: arena, ctf, fortress)"
+   execute scripts/getexgamedir.rc
+
+qstat -progress $pingfltr -P -R -sort gp -Ts filters/noempty/exgamedir_filter -Tp filters/noempty/player_temp -Th filters/header_temp -Tt filters/trailer_temp -f $qwbbase >env:cmakerfile
+
+run <>nil: Play16 $qstatsnd
+ENDIF
+
+IF $userfilter EQ 4
+
+   echo "mapname? (examples: dm4, start, death32c)"
+   execute scripts/getmapname.rc
+
+qstat -progress $pingfltr -P -R -sort gp -Ts filters/noempty/map_filter -Tp filters/noempty/player_temp -Th filters/header_temp -Tt filters/trailer_temp -f $qwbbase >env:cmakerfile
+
+run <>nil: Play16 $qstatsnd
+ENDIF
+
+IF $userfilter EQ 5
+
+   echo "enter minimum player capacity:"
+   execute scripts/getminplayers.rc
+
+   echo "enter maximum player capacity:"
+   execute scripts/getmaxplayers.rc
+
+qstat -progress $pingfltr -P -R -sort gp -Ts filters/noempty/capacity_filter -Tp filters/noempty/player_temp -Th filters/header_temp -Tt filters/trailer_temp -f $qwbbase >env:cmakerfile
+
+run <>nil: Play16 $qstatsnd
+ENDIF
+
+execute env:cmakerfile
+delete env:cmakerfile >nil:
+
+Requestchoice TITLE "GameTracker by SuRgEoN" BODY "select option" "Refresh List" "ServerQuery" "MasterQuery" "Init Filters" "Quit" >env:optionfilter
+
+run <>nil: Play16 $buttonsnd
+
+IF $optionfilter EQ 0
+   setenv qwbautoref 0
+   run <>nil: Play16 $quitsnd
+   execute scripts/cleanup.rc
+   cd ram:
+   assign GameTracker: remove >NIL:
+   delete ram:GameTracker ALL >NIL:
+   endcli
+ENDIF
+
+IF $optionfilter EQ 1
+   execute scripts/refresh_noempty.rc
+ENDIF
+
+IF $optionfilter EQ 2
+delete env:cmakerfile >nil:
+   execute scripts/server.rc
+ENDIF
+ 
+IF $optionfilter EQ 3
+delete env:cmakerfile >nil:
+   execute scripts/userfilter_noempty.rc
+ENDIF
+
+IF $optionfilter EQ 4
+delete env:cmakerfile >nil:
+   execute scripts/initfilters.rc
+ENDIF
+

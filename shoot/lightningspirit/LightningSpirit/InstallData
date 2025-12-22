@@ -1,0 +1,72 @@
+.KEY QUIET/S
+.BRA {
+.KET }
+
+failat 21
+
+if not "{QUIET}" eq "QUIET"
+  requestchoice >env:lschoice "MorphOS Lightning Spirit Installer" "Would you like to install Lightning Spirit data from the internet?" "Yes|No"
+  if val "$lschoice" eq "0"
+    unsetenv lschoice
+    quit 5
+  endif
+  unsetenv lschoice
+endif
+
+set URL1  "http://jahjah.free.fr/morphos/unrar30.lha"
+set URL2  "http://realkogure.free.fr/Spirit.rar"
+set SIZE1 103395
+set SIZE2 35709695
+
+makedir >NIL: tmp
+
+bin/wget --passive-ftp --continue --tries 1 --waitretry 10 -T 5 -O tmp/unrar.tmp "$URL1"
+set RES "$RC"
+
+if val "$RES" eq "0"
+  bin/wget --passive-ftp --continue --tries 10 --waitretry 10 -O tmp/lsdata.tmp "$URL2"
+  set RES "$RC"
+endif
+
+if val "$RES" eq "0"
+  list "tmp/unrar.tmp" lformat "%l" >env:unrarlen
+  list "tmp/lsdata.tmp" lformat "%l" >env:lsdatalen
+  if val "$unrarlen" eq "$SIZE1"
+    if val "$lsdatalen" eq "$SIZE2"
+      echo "*NProcessing file..."
+      cd "tmp"
+      lha >NIL: -I x "unrar.tmp"
+      echo "Decompressing Lightning Spirit data files..."
+      unrar >NIL: x lsdata.tmp
+      if val "$RC" eq "0"
+        rename "Lightning Spirit/Images" "/Images"
+        rename "Lightning Spirit/Sound" "/Sound"
+        rename "Lightning Spirit/Readme.txt" "/Readme.txt"
+        cd "/"
+        copy >NIL: "MorphOS.ReadMe.info" "Readme.txt.info"
+        echo "Lightning Spirit data installed OK."
+        delete >nil: all force bin tmp InstallData InstallData.info COPYING
+      else
+        echo "Error extracting files from the data archive, giving up."
+      endif
+    else
+      echo "Data file size is wrong, giving up."
+    endif
+  else
+    echo "Unrar file size is wrong, giving up."
+  endif
+  unsetenv lsdatalen
+  unsetenv unrarlen
+else
+  echo "Failed to fetch files unrar-mos-bin.lha and Spirit.rar, giving up"
+endif
+
+unset RES
+unset SIZE2
+unset SIZE1
+unset URL2
+unset URL1
+
+echo "*NAll done. Thank you for using the automatic Lightning Spirit data installer."
+wait 3
+

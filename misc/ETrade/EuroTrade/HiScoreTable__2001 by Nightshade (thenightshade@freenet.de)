@@ -1,0 +1,158 @@
+G4C ;Hi-Score Tabelle für EuroTrade
+
+WINBIG -1 20 300 138 "Hi-Score Tabelle"
+WinType 11010000
+winbackground pattern 3 1
+winfont topaz.font 8 000
+varpath "EuroTrade/Name"
+screen Workbench
+
+box -1 -1 0 0 out icondrop
+box -1 107 282 2 in ridge
+
+xOnLoad
+   set margins 5/0/4
+   name = ""
+   lvuse #this 1
+   guiload name
+
+xonopen
+   changeimage EuroTrade 5 -1 -1 noscores
+   delay 15
+   attr sound opensnd
+
+xonclose
+   attr sound closesnd
+   guiwindow EuroTrade resume
+   guiwindow titlebar resume
+   changeimage EuroTrade 5 -1 -1 hiscores1
+   ifexists variable ende
+      gosub EuroTrade neues_spiel
+   endif
+
+xonquit
+   guiquit name
+
+xonrmb
+   guiclose #this
+
+;Der Schatten des Listview-Titels
+xtextbox 52 6 200 14 "" "Euro Trade Hi-Scores:"
+attr tbstyle 1/1/plain/center
+attr tbox 2/1/-1/none
+
+XLISTVIEW -1 20 280 85 "" "hiscore" "ETrade:ETrade.HiScores" 0 TXT
+attr title "2/3/outline/center/above/Euro Trade Hi-Scores:"
+attr flstyle %Rank/2031
+gadid 1
+
+xbutton 15 114 67 17 "_Löschen"
+gosub #this make delete
+
+xbutton 93 114 93 17 "S_chliessen"
+gosub #this make close
+
+xbutton 199 114 87 17 "_Speichern"
+gosub #this make save
+
+xroutine make it
+   if $it = delete
+      guiwindow #this wait
+      ezreq "Sollen die Hi-Scores gelöscht werden?" Löschen|Abbrechen delhi
+         if $delhi = 1
+            lvuse #this 1
+            lvgo first
+            count = 10
+            while $count > 0
+               %Rank = $count
+               %Name = Nightshade
+               %Geld = 500000
+               %Runden = 0
+               --count
+               lvgo next
+            endwhile
+            lvsort %Rank
+            lvsave T:ETrade.temp
+            lvchange T:ETrade.temp
+            setattr #this/1 flstyle %Rank/2031
+            redraw #this
+            delvar delhi
+         endif
+      guiwindow #this resume
+      guiscreen EuroTrade front
+   elseif $it = close
+      guiclose #this
+   elseif $it = save
+      guiwindow #this wait
+      ezreq "Hi-Scores speichern?" Ja|Nein savehi
+         if $savehi = 1
+            copy T:ETrade.temp ETrade:ETrade.HiScores
+            guiclose #this
+            delvar savehi
+         endif
+      guiwindow #this resume
+      guiscreen EuroTrade front
+   endif
+
+xroutine setup
+   lvuse #this 1
+   lvgo last
+   %Name = $name
+   %Geld = $geld
+   %Runden = $runde
+   lvgo first
+   lvsort %geld
+   count = 10
+   while $count > 0
+      %Rank = $count
+      --count
+      lvgo next
+   endwhile
+   lvsort %Rank
+   lvsave T:ETrade.temp
+   lvchange T:ETrade.temp
+   setattr #this/1 flstyle %Rank/2031
+   redraw #this
+
+;xxxxxxxxxxxxxxxxx
+   newfile name
+;xxxxxxxxxxxxxxxxx
+
+winbig -1 35 200 14 "Bitte geben Sie Ihren Namen ein:"
+wintype 00000000
+winfont ApplePL.font 13 000
+varpath "HiScoreTable/EuroTrade"
+screen EUROTRADE
+
+xonopen
+   attr sound opensnd
+   guiwindow EuroTrade wait
+   guiwindow titlebar wait
+   delay 10
+   setscreentitle #this $scrtitle
+   gosub #this setcur
+
+xonactive
+   gosub #this setcur
+
+xroutine setcur
+   update #this 1 $name
+   setattr #this/1 tipos 22
+   setgad #this 1 on
+
+xonclose
+   attr sound closesnd
+   guiwindow EuroTrade resume
+   guiwindow titlebar resume
+   delay 15
+   guiopen HiScoreTable
+
+xtextin -1 -1 0 0 "" name "" 21
+   if $name > " "
+      gosub HiScoreTable setup
+      guiclose #this
+   else
+      flash
+      gosub #this setcur
+   endif
+   gadid 1

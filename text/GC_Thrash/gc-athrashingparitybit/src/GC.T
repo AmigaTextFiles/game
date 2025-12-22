@@ -1,0 +1,9 @@
+#include <adv.t>
+#include <std.t>
+#include <classes.t>
+#include <verbs.t>
+#include <npc.t>
+#include <people.t>
+#include <tavern.t>
+#include <messages.t>
+#include <game.t>

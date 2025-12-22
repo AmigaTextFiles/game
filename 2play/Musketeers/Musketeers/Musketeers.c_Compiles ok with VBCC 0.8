@@ -1,0 +1,561 @@
+/* All this source is free to use. I am not responsible for any damage */
+/* this product may make.                                              */
+/* Copyright by Ventzislav Tzvetkov in 2002 ©                          */
+
+
+#include <intuition/intuition.h>
+
+#include "Musketeers.h"
+
+UBYTE Table[9][9],Player=1;
+
+struct IntuitionBase *IntuitionBase;
+struct GfxBase *GfxBase;
+
+struct Screen *my_screen;
+struct Window *my_window;
+
+struct IntuiMessage *my_message;
+
+void Board();
+void Hod(UBYTE x,UBYTE y,UBYTE color);
+void Winner (UBYTE Playercolor);
+
+static char *Mext[]={"Musketeers","Player One Wins",
+"Player Two Wins","$VER: Musketeers V1.0 (31.5.2002)"};
+
+
+/* The body text for the about info: */
+struct IntuiText my_body_text=
+{
+  0,       /* FrontPen, colour 0 (red). */
+  0,       /* BackPen, not used since JAM1. */
+  JAM1,    /* DrawMode, do not change the background. */
+  15,      /* LedtEdge, 15 pixels out. */
+  5,       /* TopEdge, 5 lines down. */
+  NULL,    /* ITextFont, default font. */
+  "Copyright © 2002", /* IText, the text . */
+  NULL,    /* NextText, no more IntuiText structures link. */
+};
+
+struct IntuiText my_Instruction_text2=
+{
+  0,       /* FrontPen, colour 0 (red). */
+  0,       /* BackPen, not used since JAM1. */
+  JAM1,    /* DrawMode, do not change the background. */
+  15,      /* LedtEdge, 15 pixels out. */
+  15,       /* TopEdge, 5 lines down. */
+  NULL,    /* ITextFont, default font. */
+  "at the end of the Board.", /* IText, the text . */
+  NULL,    /* NextText, no more IntuiText structures link. */
+};
+
+
+struct IntuiText my_Instruction_text=
+{
+  0,       /* FrontPen, colour 0 (red). */
+  0,       /* BackPen, not used since JAM1. */
+  JAM1,    /* DrawMode, do not change the background. */
+  15,      /* LedtEdge, 15 pixels out. */
+  5,       /* TopEdge, 5 lines down. */
+  NULL,    /* ITextFont, default font. */
+  "You have to block your opponent,", /* IText, the text . */
+  &my_Instruction_text2,    /* NextText, no more IntuiText structures link. */
+};
+
+
+
+
+/* The OK text: */
+struct IntuiText my_ok_text=
+{
+  0,       /* FrontPen, colour 0 (blue). */
+  0,       /* BackPen, not used since JAM1. */
+  JAM1,    /* DrawMode, do not change the background. */
+  6,       /* LedtEdge, 6 pixels out. */
+  3,       /* TopEdge, 3 lines down. */
+  NULL,    /* ITextFont, default font. */
+  "OK",    /* IText, the text that will be printed. */
+  NULL,    /* NextText, no more IntuiText structures link. */
+};
+ 
+struct TextAttr my_font=
+{
+  "topaz.font",                 /* Topaz font. */
+  8,                            /*                 */
+    NULL,
+ FPF_ROMFONT                   /* Exist in ROM. */
+};
+
+struct IntuiText my_intui_text=
+{
+  5,         /* FrontPen, colour register 2. */
+  0,         /* BackPen, colour register 3. */
+  JAM1,      /* DrawMode, draw the characters with colour 2, */
+             /* on a colour 3 background. */
+  0, 0,      /* LeftEdge, TopEdge. */
+  &my_font,  /* ITextFont, use my_font. */
+  NULL,   /* IText, the text that will be printed. */
+             /* (Remember my_text = &my_text[0].) */
+  NULL       /* NextText, no other IntuiText structures are */
+             /* connected. */
+};
+
+struct NewWindow my_new_window=
+{
+  0,            /* LeftEdge    x position of the window. */
+  0,            /* TopEdge     y position of the window. */
+  320,           /* Width      320 pixels wide. */
+  256,           /* Height     256 lines high. */
+  0,             /* DetailPen  Text should be drawn with colour reg. 0 */
+  1,             /* BlockPen   Blocks should be drawn with colour reg. 1 */
+  GADGETDOWN|MENUPICK, /* IDCMPFlags. */
+  SMART_REFRESH|BACKDROP|BORDERLESS|ACTIVATE,
+ /* Flags       Intuition should refresh the window. */ 
+  &BoardGadget64,/* FirstGadget. */
+  NULL,          /* CheckMark   Use Intuition's default CheckMark (v). */
+  NULL,          /* Title       Title of the window. */
+  NULL,          /* Screen      Connected to the Workbench Screen. */
+  NULL,          /* BitMap      No Custom BitMap. */
+  0,0,0,0,
+  CUSTOMSCREEN   /* Type        Connected to custom Screen. */
+};
+
+struct IntuiText my_third_text=
+{
+  2,          /* FrontPen, black. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0,          /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "Quit",     /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+struct MenuItem my_third_item=
+{
+  NULL,            /* NextItem, not linked anymore. */
+  0,               /* LeftEdge, 0 pixels out. */
+  20,              /* TopEdge, 10 lines down. */
+  150,             /* Width, 150 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude. NONE */
+  (APTR) &my_third_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'Q',               /* Command. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct IntuiText my_second_text=
+{
+  2,          /* FrontPen, black. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0,          /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "About",    /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+struct MenuItem my_second_item=
+{
+  &my_third_item,  /* NextItem, linked to the third item. */
+  0,               /* LeftEdge, 0 pixels out. */
+  10,              /* TopEdge, 10 lines down. */
+  150,             /* Width, 150 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude, mutualexclude the first item only. */
+  (APTR) &my_second_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'A',               /* Command, no command-key sequence. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct IntuiText my_first_text=
+{
+  2,          /* FrontPen, black. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0, /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "New Game", /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+struct MenuItem my_first_item=
+{
+  &my_second_item, /* NextItem, linked to the second item. */
+  0,               /* LeftEdge, 0 pixels out. */
+  0,               /* TopEdge, 0 lines down. */
+  150,             /* Width, 150 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude, , no mutualexclude. */
+  (APTR) &my_first_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'N',               /* Command. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct IntuiText Instructions_text=
+{
+  2,          /* FrontPen, black. */
+  0,          /* BackPen, not used since JAM1. */
+  JAM1,       /* DrawMode, do not change the background. */
+  0, /* LeftEdge, CHECKWIDTH amount of pixels out. */
+              /* This will leave enough space for the check mark. */
+  1,          /* TopEdge, 1 line down. */
+  NULL,       /* TextAttr, default font. */
+  "Instructions", /* IText, the string. */
+  NULL        /* NextItem, no link to other IntuiText structures. */
+};
+
+struct MenuItem Instructions_item=
+{
+  NULL, /* NextItem, linked to the second item. */
+  0,               /* LeftEdge, 0 pixels out. */
+  0,               /* TopEdge, 0 lines down. */
+  125,             /* Width, 150 pixels wide. */
+  10,              /* Height, 10 lines high. */
+  ITEMTEXT|        /* Flags, render this item with text. */
+  ITEMENABLED|     /*        this item will be enabled. */
+  COMMSEQ|         /*        accessible from the keyboard. */
+  HIGHCOMP,        /*        complement the colours when highlihted. */
+  0x00000000,      /* MutualExclude, , no mutualexclude. */
+  (APTR) &Instructions_text, /* ItemFill, pointer to the text. */
+  NULL,            /* SelectFill, nothing since we complement the col. */
+  'I',               /* Command. */
+  NULL,            /* SubItem, no subitem list. */
+  MENUNULL,        /* NextSelect, no items selected. */
+};
+
+struct Menu my_menu2=
+{
+  NULL,          /* NextMenu, no more menu structures. */
+  39,            /* LeftEdge, left corner. */
+  0,             /* TopEdge, for the moment ignored by Intuition. */
+  38,            /* Width, 38 pixels wide. */
+  0,             /* Height, for the moment ignored by Intuition. */
+  MENUENABLED,   /* Flags, this menu will be enabled. */
+  "Help",  /* MenuName, the string. */
+  &Instructions_item /* FirstItem, pointer to the first item in the list. */};
+struct Menu my_menu=
+{
+  &my_menu2,          /* NextMenu, no more menu structures. */
+  0,             /* LeftEdge, left corner. */
+  0,             /* TopEdge, for the moment ignored by Intuition. */
+  38,            /* Width, 38 pixels wide. */
+  0,             /* Height, for the moment ignored by Intuition. */
+  MENUENABLED,   /* Flags, this menu will be enabled. */
+  "Game",  /* MenuName, the string. */
+  &my_first_item /* FirstItem, pointer to the first item in the list. */
+};
+
+main()
+{
+BOOL close=FALSE;
+/* Open the Intuition library: */
+  IntuitionBase = (struct IntuitionBase *)
+    OpenLibrary( "intuition.library", 0 );
+  if( !IntuitionBase )
+    exit();
+/* Open the Graphics library: */
+  GfxBase = (struct GfxBase *)
+    OpenLibrary( "graphics.library", 0 );
+  if( !GfxBase )
+  {
+  CloseLibrary( IntuitionBase );
+  exit();    
+  }
+/* We will now try to open the screen: */
+
+ my_screen = (struct Screen *)
+ OpenScreenTags( NULL, SA_DisplayID,0x00021000,SA_Width,320,
+ SA_Height, 256, SA_Depth,     3, SA_Title,"Musketeers at home",TAG_DONE );
+
+  if( !my_screen )
+  {
+   CloseLibrary( GfxBase );
+   CloseLibrary( IntuitionBase );
+   exit();
+   }
+ SetRGB4( &my_screen->ViewPort, 0,  0,0,0   );
+ SetRGB4( &my_screen->ViewPort, 1,  15,0,0  );
+ SetRGB4( &my_screen->ViewPort, 2,  0,15,0  );
+ SetRGB4( &my_screen->ViewPort, 3,  15,15,0 );
+ SetRGB4( &my_screen->ViewPort, 4,  0,0,15  );
+ SetRGB4( &my_screen->ViewPort, 5,  15,0,15 );
+ SetRGB4( &my_screen->ViewPort, 6,  0,15,15 );
+ SetRGB4( &my_screen->ViewPort, 7,  15,15,15);
+
+ my_new_window.Screen = my_screen;
+ my_window = (struct Window *) OpenWindow( &my_new_window );
+
+if ( !my_window )
+  {
+    /* Could NOT open the Window! */
+    
+    /* Close the Intuition Library since we have opened it: */
+   CloseScreen( my_screen );
+   CloseLibrary( GfxBase );   
+   CloseLibrary( IntuitionBase );
+   exit();  
+  }
+SetMenuStrip( my_window, &my_menu );
+Board();
+
+  /* Stay in the while loop until the end */
+  while( close == FALSE )
+  {
+
+
+
+
+
+    /* Wait until we have recieved a message: */
+    Wait( 1 << my_window->UserPort->mp_SigBit );
+
+    /* As long as we can collect messages successfully we stay in the */
+    /* while-loop: */
+  while(my_message = (struct IntuiMessage *) GetMsg(my_window->UserPort))
+   { 
+    if (close)
+       break;
+
+      /* After we have successfully collected the message we can read */
+      /* it, and save any important values which we maybe want to check */
+      /* later: */
+
+if(my_message->Class == MENUPICK && my_message->Code == 63552)
+       close=TRUE;
+
+if(my_message->Class == MENUPICK && my_message->Code == 63520)
+AutoRequest( my_window, &my_body_text, NULL, &my_ok_text, NULL, NULL, 220, 72);
+
+if(my_message->Class == MENUPICK && my_message->Code == 63488)
+{ Board();/* New */}
+
+if(my_message->Class == MENUPICK && my_message->Code == 63489)
+{AutoRequest( my_window, &my_Instruction_text, NULL, &my_ok_text, NULL, NULL, 220, 72);}
+
+if (my_message->Class == GADGETDOWN){
+/* Pressed gadget. Now we check which one: */
+ if (my_message->IAddress==(APTR)
+&BoardGadget1){Hod(1,1,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget2){Hod(2,1,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget3){Hod(3,1,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget4){Hod(4,1,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget5){Hod(5,1,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget6){Hod(6,1,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget7){Hod(7,1,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget8){Hod(8,1,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget9){Hod(1,2,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget10){Hod(2,2,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget11){Hod(3,2,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget12){Hod(4,2,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget13){Hod(5,2,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget14){Hod(6,2,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget15){Hod(7,2,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget16){Hod(8,2,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget17){Hod(1,3,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget18){Hod(2,3,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget19){Hod(3,3,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget20){Hod(4,3,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget21){Hod(5,3,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget22){Hod(6,3,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget23){Hod(7,3,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget24){Hod(8,3,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget25){Hod(1,4,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget26){Hod(2,4,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget27){Hod(3,4,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget28){Hod(4,4,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget29){Hod(5,4,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget30){Hod(6,4,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget31){Hod(7,4,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget32){Hod(8,4,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget33){Hod(1,5,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget34){Hod(2,5,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget35){Hod(3,5,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget36){Hod(4,5,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget37){Hod(5,5,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget38){Hod(6,5,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget39){Hod(7,5,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget40){Hod(8,5,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget41){Hod(1,6,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget42){Hod(2,6,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget43){Hod(3,6,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget44){Hod(4,6,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget45){Hod(5,6,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget46){Hod(6,6,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget47){Hod(7,6,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget48){Hod(8,6,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget49){Hod(1,7,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget50){Hod(2,7,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget51){Hod(3,7,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget52){Hod(4,7,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget53){Hod(5,7,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget54){Hod(6,7,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget55){Hod(7,7,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget56){Hod(8,7,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget57){Hod(1,8,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget58){Hod(2,8,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget59){Hod(3,8,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget60){Hod(4,8,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget61){Hod(5,8,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget62){Hod(6,8,Player);}
+if (my_message->IAddress==(APTR)
+&BoardGadget63){Hod(7,8,Player);}
+ if (my_message->IAddress==(APTR)
+&BoardGadget64){Hod(8,8,Player);}
+ }
+
+ReplyMsg( my_message );}
+  }
+
+/* We should always close the screens we have opened before we leave: */
+ ClearMenuStrip( my_window );
+
+ CloseWindow ( my_window ); 
+
+ CloseScreen( my_screen );
+  
+/* Close the Graphics Library since we have opened it: */
+  CloseLibrary( GfxBase );
+
+  /* Close the Intuition Library since we have opened it: */
+  CloseLibrary( IntuitionBase );
+
+  /* THE END */
+exit();
+}
+
+void Board()
+{int i;
+char c;
+SetAPen(my_window->RPort,0);
+RectFill(my_window->RPort,0,0,319,255);
+SetAPen(my_window->RPort,2);
+RectFill(my_window->RPort,135,57,266,181);
+SetAPen(my_window->RPort,4);
+RectFill(my_window->RPort,267,57,272,181);
+RectFill(my_window->RPort,243,45,272,54);
+SetAPen(my_window->RPort,1);
+RectFill(my_window->RPort,157,45,242,54);
+my_intui_text.IText=Mext[0];
+my_intui_text.FrontPen=7;
+PrintIText( my_window->RPort, &my_intui_text ,161,47);
+SetAPen(my_window->RPort,0);
+for (i=73;i<170;i+=12) {RectFill(my_window->RPort,155,i,250,i+1);
+RectFill(my_window->RPort,i+82,73,i+83,170);}
+SetBPen(my_window->RPort, 2 );
+for (i=1;i<9;i++) {c=i+48;Move(my_window->RPort,145,179-12*i);
+ Text(my_window->RPort, &c,1);Move(my_window->RPort,256,179-12*i);
+ Text(my_window->RPort, &c,1);c+=16;Move(my_window->RPort,146+12*i,69);
+ Text(my_window->RPort, &c,1);Move(my_window->RPort,146+12*i,179);
+ Text(my_window->RPort, &c,1);
+SetAPen(my_window->RPort,7);
+RectFill(my_window->RPort,i*12+147,161,i*12+152,166);
+SetAPen(my_window->RPort,0);
+RectFill(my_window->RPort,i*12+147,77,i*12+152,82);}
+for(i=1;i<9;i++){Table[i][2]=Table[i][3]=Table[i][4]=Table[i][5]=Table[i][6]=Table[i][7]=0;Table[i][1]=1;Table[i][8]=2;}
+}
+
+void Hod(UBYTE x,UBYTE y,UBYTE color){int i,z;
+if (Table[x][y]!=0) return;
+for (z=1;z<9;z++) if (Table[x][z]==((color==1)?2:1) && ((z>y && color==1) || (z<y && color==2)))
+{SetAPen(my_window->RPort,((color==1)?7:0)); RectFill(my_window->RPort,x*12+147,173-y*12,x*12+152,178-y*12);
+SetAPen(my_window->RPort,2);for(i=1;i<9;i++)
+{if(Table[x][i]==color){RectFill(my_window->RPort,x*12+147,173-i*12,x*12+152,178-i*12);Table[x][i]=0;}} Table[x][y]=color;Player=(color==1)?2:1;break;}
+i=(color==1)?7:2;
+if(Table[1][i]==color && Table[2][i]==color && Table[3][i]==color && Table[4][i]==color && Table[5][i]==color && Table[6][i]==color && Table[7][i]==color && Table[8][i]==color) Winner(color);
+}
+
+void Winner (UBYTE Playercolor) 
+{ if (Playercolor==1) {my_intui_text.IText=Mext[1];
+my_intui_text.FrontPen=5;} else {my_intui_text.IText=Mext[2];
+my_intui_text.FrontPen=4;}
+PrintIText( my_window->RPort, &my_intui_text ,8,45);
+Delay(5*50);
+Board();
+}

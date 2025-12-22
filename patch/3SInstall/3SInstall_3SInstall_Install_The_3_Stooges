@@ -1,0 +1,185 @@
+;
+;$VER: Three Stooges HD Installer script v1.00 (c) 1997 John Girvin
+;
+
+;---------------------------------------------------------------------------
+;
+; Ask for a disk
+;
+
+(procedure S_AskDisk #DISKNUM
+(
+	(set #TMPNAME (cat "STG" (- #DISKNUM 1)))
+	(askdisk
+		(prompt "Please insert disk "
+				#DISKNUM
+				" of 'The Three Stooges' in any drive.")
+		(dest #TMPNAME)
+		(help @askdisk-help)
+	)
+))
+
+;---------------------------------------------------------------------------
+;
+; Install the specified drawer/disk
+;
+
+(procedure S_InstallDrawer #DISKNUM #DRAWNAME
+(
+	;
+	; Set name of dest dir for this disk and its volume name
+	;
+	(set #TMPDEST (tackon #DESTDIR (cat "Reel" #DISKNUM "/")))
+	(set #TMPNAME (cat "STG" (- #DISKNUM 1)))
+	(set #TMPNAME2 (cat #TMPNAME ":"))
+
+	;
+	; Wait for the disk to be inserted
+	;
+	(S_AskDisk #DISKNUM)
+
+	;
+	; Make destination directory
+	;
+	(makedir #TMPDEST)
+	(makedir (tackon #TMPDEST #DRAWNAME))
+
+	;
+	; Copy files from disk to dest
+	;
+	(copyfiles
+		(prompt (cat "Copying files from disk " #DISKNUM " '" #DRAWNAME "/'"))
+		(source (tackon #TMPNAME2 #DRAWNAME))
+		(dest   (tackon #TMPDEST  #DRAWNAME))
+		(all)
+		(infos)
+		(optional fail force)
+		(help @copyfiles-help)
+	)
+))
+
+;---------------------------------------------------------------------------
+;
+; Main installation script
+;
+
+(welcome "Welcome to the Three Stooges Hard Drive Installer")
+(set @app-name (cat "Three_Stooges_HD"))
+(set #ROOTDIR "DH0:")
+(set #DESTDIR "")
+
+(message "\n\nWelcome to The Three Stooges Hard Drive Installer\n"
+		 "(c) 1997 John Girvin\n\n"
+		 "Please read the documentation thoroughly before"
+		 " attempting to use this installer!\n\n"
+		 "This is version 1.00\n\n"
+		 "Click 'Proceed' to begin."
+)
+
+;
+; Get installation directory
+;
+(set #ROOTDIR
+	(askdir
+		(prompt "Where would you like The Three Stooges installed?\n"
+				"(a new drawer called 'ThreeStooges' will be created here)"
+		)
+		(help @askdir-help)
+		(default #ROOTDIR)
+	)
+)
+(set #DESTDIR (tackon #ROOTDIR "ThreeStooges/"))
+(set @default-dest #DESTDIR)
+
+;
+; Create directory for installed version
+;
+(makedir #DESTDIR
+	(prompt "I will now create the directory '" #DESTDIR "'")
+	(help @makedir-help)
+	(infos)
+	(confirm)
+)
+(complete 5)
+
+;
+; Install disk 1
+;
+
+(S_InstallDrawer 1 "art")
+(complete 20)
+(S_InstallDrawer 1 "d")
+(complete 25)
+(S_InstallDrawer 1 "z")
+(complete 40)
+
+(S_AskDisk 1)
+(working "Copying and patching Three Stooges executable '3S'\n\n\n"
+		 "Source file:\nSTG0:3S\n\nDestination file:\n" (tackon #DESTDIR "3S")
+)
+(set #RC (run (cat "GPatch STG0:3S 3S.gpch " (tackon #DESTDIR "3S"))))
+(if (<> #RC 0)
+		(abort
+			(cat "Patch process failed error " #RC)
+		)
+)
+(complete 50)
+
+;
+; Install disk 2
+;
+
+(S_InstallDrawer 2 "art")
+(complete 75)
+(S_InstallDrawer 2 "d")
+(complete 80)
+(S_InstallDrawer 2 "z")
+(complete 95)
+
+;
+; Copy HD running stuff
+;
+(copyfiles
+	(prompt (cat "Copying Three Stooges HD drawer icon"))
+	(source  "ThreeStooges.inf")
+	(newname "ThreeStooges.info")
+	(dest    #ROOTDIR)
+	(optional fail force)
+	(help @copyfiles-help)
+)
+
+(copyfiles
+	(prompt (cat "Copying Three Stooges HD Loader"))
+	(source  "3SHD")
+	(newname "The_Three_Stooges_HD")
+	(dest    #DESTDIR)
+	(optional fail force)
+	(help @copyfiles-help)
+)
+
+(copyfiles
+	(prompt (cat "Copying Three Stooges HD Loader icon"))
+	(source  "3SHD.inf")
+	(newname "The_Three_Stooges_HD.info")
+	(dest    #DESTDIR)
+	(optional fail force)
+	(help @copyfiles-help)
+)
+
+(copyfiles
+	(prompt (cat "Copying IconX"))
+	(source "IconX")
+	(dest   #DESTDIR)
+	(optional fail force)
+	(help @copyfiles-help)
+)
+
+(copyfiles
+	(prompt (cat "Copying RunIt"))
+	(source "RunIt")
+	(dest   #DESTDIR)
+	(optional fail force)
+	(help @copyfiles-help)
+)
+
+(complete 100)

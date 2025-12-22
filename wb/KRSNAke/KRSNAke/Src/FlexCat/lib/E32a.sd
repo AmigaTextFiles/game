@@ -1,0 +1,63 @@
+##stringtype E
+##shortstrings
+/****************************************************************
+   This file was created automatically by `%fv'
+   from "%f0".
+
+   Do NOT edit by hand!
+****************************************************************/
+
+OPT MODULE
+
+MODULE 'locale','libraries/locale','utility/tagitem','utility/hooks',
+       'tools/installhook'
+
+EXPORT CONST %i=%d
+
+DEF cat_%b:PTR TO catalog
+
+EXPORT PROC getstr(id)
+    IF cat_%b
+        RETURN GetCatalogStr(cat_%b,id,getdefstr(id))
+    ELSE
+        RETURN getdefstr(id)
+    ENDIF
+ENDPROC
+
+PROC getdefstr(id)
+    SELECT %n OF id
+        CASE %i\n           RETURN %s
+    ENDSELECT
+ENDPROC
+
+EXPORT PROC openCatalog(loc=NIL:PTR TO locale,lang=NIL:PTR TO CHAR)
+    closeCatalog()
+    IF (localebase) AND (cat_%b=NIL)
+        cat_%b:=OpenCatalogA(loc,'%b.catalog',[OC_BUILTINLANGUAGE,%l,
+                                               IF lang THEN OC_LANGUAGE ELSE TAG_IGNORE,lang,
+                                               OC_VERSION,%v,TAG_DONE])
+    ENDIF
+ENDPROC
+
+EXPORT PROC closeCatalog()
+    IF localebase AND cat_%b THEN CloseCatalog(cat_%b)
+    cat_%b:=NIL
+ENDPROC
+
+OBJECT fnord OF hook
+    strptr:PTR TO CHAR
+ENDOBJECT
+
+EXPORT PROC lStringF(s,f,d,loc=NIL)
+    DEF stuffCharHook:fnord
+    installhook(stuffCharHook,{stuffChar})
+    stuffCharHook.strptr:=s
+    FormatString(loc,f,d,stuffCharHook)
+    SetStr(s,StrLen(s))
+ENDPROC
+
+PROC stuffChar(hook:PTR TO fnord,loc,c)
+    PutChar(hook.strptr,c)
+    hook.strptr:=hook.strptr+1
+ENDPROC
+

@@ -1,0 +1,450 @@
+;Sid18
+;(C) 1997 by Ryszard Nowakowski, Amigos Computer Brotherhood
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 317
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT 114
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 306
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT 97
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 295
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT 80
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 284
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT 63
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 273
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT 46
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 262
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT 29
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 251
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT 12
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 240
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -5
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 229
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -22
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 218
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -39
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 207
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -56
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 196
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -73
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 185
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -90
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 174
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -107
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 163
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -124
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 152
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -141
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 141
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -158
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 130
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -175
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 119
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -192
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 108
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -209
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 97
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -226
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 86
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -243
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 75
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -260
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 64
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -277
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 53
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -294
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 42
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -311
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 31
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -328
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 20
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -345
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT 9
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -362
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT -2
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -379
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT -13
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -396
+	DAT 1
+	DAT 1
+	SPL 7
+	ADD #128 3
+	MOV 3 @2
+	JMP -2
+	DAT -24
+	DAT 1
+	DAT 1
+	ADD #-128 3
+	MOV 3 @2
+	JMP -2
+	DAT -413
+	DAT 1
+	DAT 1
+	END

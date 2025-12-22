@@ -1,0 +1,256 @@
+                               ---------------
+                                AGPPerf V0.5h
+                             -------------------
+
+                         Public Release Beta Version
+
+                                3 October 1995
+
+                                by Grant Reeve
+                           reeve1@cs.waikato.ac.nz
+
+
+ABOUT THIS VERSION
+------------------
+
+I finally got sick of not releasing this software, and people keep asking for
+copies to play with, so I decided to release the current version I am up to in
+development, to let everyone be happy.  When my exams and other uni stuff
+finish soon, I will then be able to sit down and produce a nice proper full
+release version.  This full version will be shareware (probably about 5 UKP
+registration), but completely uncrippled for those of you who can't part with
+any of your precious money :)
+
+
+OVERVIEW
+--------
+
+This program is based fairly loosely on the PC version of GPPerf.
+
+It records telemetry of your F1 car as you drive around the track in F1GP, and
+allows you to then save it to disk for viewing with some other displaying
+utility (ie: GPDisplay)
+
+It also puts some cute extra little thingies on the dashboard.
+
+
+INFO
+----
+
+How is the info formatted?
+
+Well, F1GP stores the track as a list of segments. These segments are
+approximately 16 feet, or 5 meters, apart. AGPPerf records info about the car
+as it crosses the start line of the current segment the car is on. These
+segments are numbered from 0 (the start line) to N, where N is the maximum
+segment for a track. Pit segments are numbered differently, but AGPPerf
+doesn't record pit segments, so that doesn't matter. A .perf file of 1 lap
+will contain N+2 segments: 0 to N, plus another 0 segment to finish the lap
+off. The first 0 segment of a recording will have a time of 0:00.000, and
+subsequent 0 segments will contain the lap time of the lap just driven.
+
+How many segments are there?
+
+This depends on the track. Here is a table, containing the highest segment
+number for a track (ie: the segment number of the segment before the start
+line)
+
+     Circuit                       #    Segments
+     --------------------------------------------
+     Phoenix - United States       00    767
+     Interlagos - Brazil           01    887
+     Imola - San Marino            02   1032
+     Monte-Carlo - Monaco          03    699
+     Montreal - Canada             04    913
+     Mexico City - Mexico          05    904
+     Magny Cours - France          06    875
+     Silverstone - Great Britain   07   1056
+     Hockenheim - Germany          08   1395
+     Hungaroring - Hungary         09    813
+     Spa-Francorchamps - Belgium   10   1416
+     Monza - Italy                 11   1188
+     Estoril - Portugal            12    891
+     Barcelona - Spain             13    972
+     Suzuka - Japan                14   1202
+     Adelaide - Australia          15    803
+
+What information does AGPPerf save?
+
+First, there is the file header:
+
+typedef struct {
+   UBYTE version;          // .perf file version (0)
+   UBYTE revision;         // .perf file revision (2)
+   UBYTE circuit;          // the track being driven (0-15)
+   UBYTE car_number;       // the number of the car being recorded (1-40)
+   UBYTE front_wings;      // front wing setting
+   UBYTE rear_wings;       // rear wing setting
+   UBYTE tyre_compound;    // tyre compound being driven (0=A..3=D, 4=Q, 5=W)
+   BYTE brake_balance;     // brake balance
+   UBYTE gears[6];         // the gear ratios
+   UWORD hp;               // horse power ($4000=716 HP)
+   ULONG ent_number;       // number of PERF entries saved in file
+   UWORD ent_size;         // size of a PERF entry
+} PERF_HEADER;
+
+Then one of these PERF entries is saved for every track segment that
+is crossed:
+
+typedef struct {
+	UWORD track_segment_id; // segment id of the bit of track crossed
+	ULONG time;             // time (in milliseconds) at the start of the seg
+	UWORD revs;             // revs
+	UWORD speed;            // speed, ($40 = 1 foot/s)
+	UBYTE gear;             // gear (1-6, 0=Neutral, -1=Reverse, 7=Spin)
+	UBYTE user_input;       // bit 0=forward, 1=back, 2=left, 3=right
+	WORD  angle;            // angle the car is facing (0=0 deg, $8000=180 deg)
+	LONG  car_x_pos;        // x position of the car
+	LONG  car_y_pos;        // y position of the car
+} PERF;
+
+
+USAGE
+-----
+
+First, make sure that the f1gp.library file is in LIBS:.
+
+Then, run F1GP, then AGPPerf with the following template:
+
+AGPPerf [outputfilename] [quiet] [datamem <size>] [winpos <x> <y>]
+   [surflight] [fullbar] [redcross]
+
+outputfilename
+  This is the name to save the output file to. Default is "out.perf". Since a
+filerequester is used to save with, this is not important, unless AGPPerf
+can't open the ASL library.
+
+quiet
+  This tells AGPPerf not to print anything to stdout.
+
+datamem <size>
+  This tells AGPPerf how much memory to allocate for recording data to, in KB.
+Default is 32K. The longest track (Belgium) needs 31218 bytes to save a lap.
+
+winpos <x> <y>
+  This tells AGPPerf where to put it's window on startup. Positive values will
+offset the top left corner from the top left of the screen. Negative values
+will offset the bottom right corner from the bottom right of the screen.
+ie: winpos -1 0 will put the window in the top right corner.
+
+surflight
+  This turns the surface lights off. 
+
+fullbar
+  This turns the full bar off.
+
+redcross
+  This stops AGPPerf from setting the red cross in the pitlight square.
+
+
+KEYS
+----
+
+Keys that work in the AGPPerf window:
+
+esc - quit
+  This quits
+
+s - save as
+  This brings up an ASL file requestor, if the ASL library is there, to ask
+you where to save the current perf. If ASL isn't there, it will just save to
+the default file name, or the name supplied on the command line.
+
+Once you are in the cockpit, you can use the following keys:
+
+F10 - Stop
+  This stops any recording.
+
+F9 - Start
+  This clears the buffer, then starts recording immediately.
+
+F8 - Autostart
+  This clears the buffer, then waits until you next cross the start/finish
+line, then starts recording from there. This is the key I usually use.
+
+If you have done a particularly cool lap, and want to save it, you just pause
+the game, press escape, then using left amiga-m, go back to workbench and save
+it, or use GPDisplay to grab it from memory.
+
+
+NEW DASHBOARD DISPLAY
+---------------------
+
+AGPPerf uses the "lights" on the left hand side of the dashboard to indicate
+it's current state. The old use of these lights, indicating the opposition
+driver skill level, has been replaced. Also, the red cross pit light is used
+too.
+
+ (surface lights)      Lights
+       outside wheel =  O   O = status of AGPPerf
+        inside wheel = O   O
+                     _    O
+                    //   O
+        full bar = //   O
+                   -
+
+status of AGPPerf:
+ This light has the following meanings:
+ grey  = not recording, and buffer is empty
+ white = not recording, but something is in the buffer
+ red   = recording has stopped, and the buffer is full
+ green = recording
+ blue  = autostart mode
+
+outside/inside wheels (surface lights):
+ These lights indicate the surface that the outside/inside wheels of the car
+is on.
+ grey   = road
+ white  = low curb
+ yellow = high curb
+ red    = grass (naughty!)
+
+full bar:
+ This bar shows how full the AGPPerf record buffer is.
+
+Red cross pit light:
+ This will come on if you touch the grass at any time. This light is a good
+indicator that you have done a naughty lap. It will get cleared when you cross
+the line.
+
+
+DISCLAIMER
+----------
+
+I hereby disclaim any responsibility if AGPPerf crashes, or formats your
+harddrive, eats up your pet bird, causes the extinction of mankind, etc. etc.
+
+
+BUGS
+----
+
+There is a bug, that AGPPerf will show it's dashboard stuff all the time, even
+if you are outside the cockpit, or in another car.
+
+If at some point a small window randomly appears with a flashing message
+saying "Ha ha! I am a bug from AGPPerf!" then you have a different version to
+mine and could you please send it to me.
+
+If you find a bug (in AGPPerf), then tell me. I will then make an attempt to
+try to fix it, if I'm not too busy elsewhere.
+
+
+OTHER STUFF
+-----------
+
+This program uses Oliver Roberts' f1gp.library (c) 1995.
+
+I wish to thank the following people, for giving me ideas and info and stuff:
+Rene Smit, Trevor Kellaway, Oliver Roberts, Edo Nijmeijer, Rob Buis.
+
+
+FINAL COMMENT
+-------------
+
+You WILL find this program useful. If not, then I will beat you up. :)
+
+

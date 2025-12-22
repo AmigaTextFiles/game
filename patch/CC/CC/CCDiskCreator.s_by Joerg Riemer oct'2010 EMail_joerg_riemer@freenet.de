@@ -1,0 +1,284 @@
+*****************************************************************************
+*									    *
+*	PROGRAM: CCDiskCreator						    *
+*	VERSION: 1.4							    *
+*   SOURCE CODE: 16 (25.10.2010)					    *
+*	   DATE: 15.01.2001 - 9.2.2001					    *
+*      LANGUAGE: Assembler (DevPac V3.14)				    *
+*	 SYSTEM: A1200	KS 40.68 WB 40.42 2MB chip 64MB fast 68030/50mhz    *
+*									    *
+*	 AUTHOR: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+*      FUNCTION: carrier command masterdisk creator			    *
+*									    *
+* 25.10.10 #016: save-routine a little bit optimized. game loading is a	    *
+*		 bit faster and the CCExtractor now requires approx. 	    *
+*		 35 sec. for reading whole disk. take a look at Savedatas.s *
+*									    *
+* 13.10.10 #014: password protection for the game removed to get a better   *
+*		 handling and make the testing of all these tools a bit	    *
+*		 easier.						    *
+*									    *
+*****************************************************************************
+
+	output	ram:CCDiskCreator
+
+*****************************************************************************
+
+WRITE	set	1	;use enhanced database_size
+
+*A2000 set 1	;if A2000 -> TimeS3 = 166ms
+		;	  -> CCBackupperPart2.bin=CCBUP2_mc68000_07.bin
+		;else
+		;	  -> TimeS3 = 172ms
+		;	  -> CCBackupperPart2.bin=CCBUP2_mc68030_50.bin
+
+*****************************************************************************
+
+	include	source/custom.i
+	include	source/DBStructure.i
+
+*****************************************************************************
+
+	section	ccdc_cf,code_f
+
+*****************************************************************************
+
+	cmp.b	#"x",(A0)
+	beq	HardHack
+
+Start	moveq	#0,D0			;set last supported version
+	lea	DosName(pc),A1		;get library name
+	movea.l	$4.w,A6			;set execbase to call a function
+	jsr	-$228(A6)		;use EXEC to (openlibrary)
+	tst.l	D0			;be sure it's open
+	beq.b	Quit			;quit if not
+	movea.l	D0,A6			;set dosbase to call a function
+	jsr	-$3C(A6)		;use DOS to find (output)
+	move.l	D0,D1			;set them
+	lea	InfoText(pc),A0		;get textbase
+	move.l	A0,D2			;set base of text
+	move.l	#TextSize,D3		;set size of text
+	jsr	-$30(A6)		;use DOS to (write) text
+	movea.l	A6,A1			;set dosbase for close
+	movea.l	$4.w,A6			;set execbase to call a function
+	jsr	-$19e(A6)		;use EXEC to (closelibrary)
+	moveq	#0,D0			;clear returncode
+Quit	rts				;back to console
+
+*****************************************************************************
+
+DosName	dc.b	"dos.library",0		;library name
+
+*****************************************************************************
+
+	dc.b	"$VER: CCDiskCreator 1.4 (25.10.2010)",0
+
+*****************************************************************************
+
+InfoText
+
+  dc.b	$A," CARRIER COMMAND MASTERDISK CREATOR",$A,$A
+
+  dc.b	" especially diskcreator program for CARRIER COMMAND",$A
+  dc.b	" RAINBIRD DISK: version A1.2 (19.08.1988) / A1200-fix TML!'2001",$A,$A
+
+  dc.b	" generates an original RAINBIRD DISK for Carrier Command.",$A
+  dc.b	" including titlesound, game saving ability and some AGA fixes.",$A
+  dc.b	" tested by using an A1200 environment, blizzard 030/882/50mhz 64mb.",$A,$A
+
+  dc.b	$9b,"32m » CC-DISKCREATOR TAKES OVER THE SYSTEM «",$9b,"0m",$A,$A
+
+  dc.b	" for safety reasons use",$9b,"32m CCDiskCreator x",$9b,"0m to e(x)ecute.",$A
+  dc.b	" it never returns, be sure to save all datas before run.",$A,$A
+
+  dc.b	" by joerg riemer oct'2010  email: <joerg_riemer@freenet.de>",$A,$A,0
+
+TextSize  equ	*-InfoText-1
+
+*****************************************************************************
+
+		cnop	0,4
+
+*****************************************************************************
+
+		include	source/HardHack.s
+
+*****************************************************************************
+
+		include	source/CopyMem.s
+
+Data2		incbin	bin/CCBackupperPart1.bin
+
+*****************************************************************************
+
+		lea	$1C00.w,SP
+
+		lea	CopList2(PC),A0
+		move.l	A0,cop1lc(A6)
+		move.w	copjmp1(A6),D0
+
+		move.w	#$87C0,dmacon(A6)
+
+		bsr	DrawBorder
+
+		lea	ColorTab(pc),A0
+		lea	color(A6),A1
+		moveq	#$F,D0
+.SetColor	move.w	(A0)+,D1
+		add.w	D1,D1
+		move.w	D1,(A1)+
+		dbra	D0,.SetColor
+
+*****************************************************************************
+
+		lea	HeadLine(pc),A0
+		bsr	lbC000662		;set screen
+
+Main		bsr	PrintText		;print text
+		dc.w	$0000,$0003,$0002	;insert empty disk
+
+		bsr	WaitMouse
+
+*****************************************************************************
+
+		lea	$1C00.w,A0
+		lea	Side1,A1
+		move.l	#Side1Size,D0
+.CopyMem1	move.l	(A1)+,(A0)+
+		subq.l	#1,D0
+		bne.b	.CopyMem1
+
+		bsr.b	SaveSide1 ;write bootblock + tracks 1-79 upperside
+
+*****************************************************************************
+
+		lea	$1C00.w,A0
+		lea	Side2,A1
+		move.l	#Side2Size,D0
+.CopyMem2	move.l	(A1)+,(A0)+
+		subq.l	#1,D0
+		bne.b	.CopyMem2
+
+		bsr	SaveSide2 ;write title-sound tracks 0-79 lowerside
+
+*****************************************************************************
+
+		bsr	PrintText		;print text
+		dc.w	$0003,$0005,$0000	;reset computer to run game
+
+End		bra.b	End			;wait for reset
+
+*****************************************************************************
+
+		include	source/SaveSide1.s
+		include	source/SaveSide2.s
+
+		include	source/DrawBorder.s
+		include	source/WaitMouse.s
+		include	source/PrintText.s
+
+		include	source/SaveDatas.s
+
+*****************************************************************************
+
+CopList2	dc.l	$00EC0007
+		dc.l	$00EE7478
+		dc.l	$00E80007
+		dc.l	$00EA7450
+		dc.l	$00E40007
+		dc.l	$00E67428
+		dc.l	$00E00007
+		dc.l	$00E27400
+CopError	equ	*	
+		dc.l	$01800000
+		dc.l	$FFFFFFFE
+
+*****************************************************************************
+
+CharTable	include	source/CharTable_new2.s
+
+*****************************************************************************
+
+ColorTab	dc.w	$0000,$0700,$0057,$0432,$0143,$0650,$0540,$0006
+		dc.w	$0777,$0555,$0026,$0152,$0030,$0333,$0732,$0000
+
+*****************************************************************************
+
+TextTab00	dc.w	Text00-TextTab00
+		dc.w	Text00-TextTab00
+		dc.w	Text01-TextTab00
+		dc.w	Text02-TextTab00
+
+TextTab01	dc.w	Text00-TextTab01
+		dc.w	Text00-TextTab01
+		dc.w	Text03-TextTab01
+		dc.w	Text04-TextTab01
+		dc.w	Text00-TextTab01
+		dc.w	Text05-TextTab01
+
+TextTab02	dc.w	Text00-TextTab02
+		dc.w	Text06-TextTab02
+		dc.w	Text07-TextTab02
+
+TextBuf00	dc.w	$0000
+TextBuf01	dc.w	$0001
+TextBuf02	dc.w	$0002
+
+lbB000FE2	dc.b	$00
+lbB000FE3	dc.b	$00
+lbB000FE4	dc.b	$00
+
+HeadLine	dc.b	$05,$05
+		dc.b	$03,$03,$08,'Carrier Command MasterDisk Creator'
+		dc.b	$03,$06,$18,'Remember, Piracy is illegal!',0
+
+Text00		dc.b	$01,$01,'                                      ',0
+
+TextPos00	dc.b	$02,$50,$05,$05,$00
+Text01		dc.b	$01,$0A,'Writing Master Disk',0
+Text02		dc.b	$01,$0D,'Master Complete',0
+
+TextPos01	dc.b	$02,$78,$05,$01,$00
+Text03		dc.b	$01,$07,'Error Writing Master Disk',0
+Text04		dc.b	$01,$0B,'Insert Empty Disk',0
+Text05		dc.b	$01,$07,'Reset Computer To Run Game',0
+
+TextPos02	dc.b	$02,$90,$05,$05,$00
+Text06		dc.b	$01,$04,'Press Both Buttons To Try Again',0
+Text07		dc.b	$01,$05,'Press Both Buttons When Ready',0,0
+
+		cnop	0,4
+
+*****************************************************************************
+
+DataBase	dcb.b	BSS_Size,0
+
+		cnop	0,4
+
+*****************************************************************************
+
+Data2Size	equ	*-Data2
+
+		cnop	0,4
+
+*****************************************************************************
+
+Side1		incbin	bin/CCBackupperPart1.bin	;bootprog
+
+		ifd	A2000
+		incbin	bin/CCBUP2_mc68000_07.bin	;backerupper
+		elseif
+		incbin	bin/CCBUP2_mc68030_50.bin	;backerupper
+		endc
+
+		incbin	bin/CCPicture.bin
+		incbin	bin/CCGame.bin
+
+Side1Size	equ	(*-Side1)/4
+
+Side2		incbin	bin/CCTitleSound.bin
+
+Side2Size	equ	(*-Side2)/4
+
+ end ************************************************************************

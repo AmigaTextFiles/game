@@ -1,0 +1,257 @@
+;======================================================================
+;
+; BattleDuel Install Script $VER: Install 1.7 (9.9.99)
+;
+; Copyright © 1995-1999 Jochen Terstiege
+;
+;======================================================================
+;
+;======================================================================
+; language strings
+;======================================================================
+
+(set language
+	(askchoice
+		(prompt ("Please select a language:\nBitte wählen Sie eine Sprache aus:"))
+		(help @askchoice-help)
+		(choices "English"
+					"Deutsch")
+	)
+)
+
+(if (= language 0)
+	(
+		(set #hello "\nWelcome to the BattleDuel Installation and Update\n\n\Freeware version 1.7.105")
+		(set #update (cat "BattleDuel is already installed on your system. "
+								"Some old files will be deleted and the new ones installed."))
+		(set #select_destination "Please create or select a directory where the BattleDuel files should be copied to!")
+		(set #destination_help "Choose a destination directory or create one yourself.")
+		(set #install_to1 "\nInstall BattleDuel to \"")
+		(set #install_to2 "\" ?")
+		(set #have_fun "Have fun with BattleDuel...")
+		(set #which_chipset "Which chipset do you have?")
+		(set #which_icons "Which icons do you want to install?")
+		(set #warning_msg (cat "This update should only be used with version 1.5.42 or higher "
+									"of BattleDuel! If you apply it to an older version, there could "
+									"be some problems with the old landscapes."))
+		(set #assign_msg (cat "The assign BD: is no longer necessary. Please remove the line from "
+								"your user-startup."))
+	)
+)
+(if (= language 1)
+	(
+		(set #hello "\nWillkommen zur BattleDuel Installation und Update\n\n\Freeware Version 1.7.105")
+		(set #update (cat "BattleDuel ist auf ihrem System schon installiert. "
+								"Einige alte Dateien werden gelöscht und die neuen Dateien werden installiert."))
+		(set #select_destination "Bitte erstellen Sie ein Verzeichnis oder wählen Sie aus, wo die BattleDuel-Dateien installiert werden sollen!")
+		(set #destination_help "Wählen Sie ein Verzeichnis aus oder erstellen Sie selber eins.")
+		(set #install_to1 "\nBattleDuel nach \"")
+		(set #install_to2 "\" installieren?")
+		(set #have_fun "Viel Spaß mit BattleDuel...")
+		(set #which_chipset "Welchen Chipsatz haben Sie?")
+		(set #which_icons "Welche Icons wollen Sie installieren?")
+		(set #warning_msg (cat "Dieses Update sollte nur mit Version 1.5.42 oder neuer von "
+									"BattleDuel benutzt werden! Wenn Sie es auf eine ältere Version "
+									"anwenden, gibt es evtl. Probleme mit den alten Landschaften. "))
+		(set #assign_msg (cat "Das Assign BD: wird nicht mehr benötigt! Bitte entfernen Sie es aus "
+									"der User-Startup."))
+	)
+)
+
+;======================================================================
+; variables
+;======================================================================
+
+(set inputdir	(pathonly @icon))		; from where we were started
+
+;======================================================================
+; welcome
+;======================================================================
+
+(message #hello)
+
+;======================================================================
+; ask for directory
+;======================================================================
+
+(set def (getassign "BD"))		; default destination
+(if (= def "")
+	(
+		(set def "Work:")
+		(set bd_dest
+			(askdir
+				(prompt #select_destination)
+				(default def)
+				(help #destination_help)
+			)
+		)
+		(message (cat #install_to1 bd_dest #install_to2))
+		(if (exists (tackon bd_dest "BattleDuel"))
+			(set update true)
+		)
+	)
+	(
+		(set assign true)
+		(set bd_dest def)
+		(set update true)
+	)
+)
+
+(makeassign "BD" bd_dest)
+(set @default-dest bd_dest)
+
+(if (= update true)
+	(message #update)
+)
+
+;======================================================================
+; check for old version
+;======================================================================
+
+(if (= update true)
+	(	(set version (getversion "BD:BattleDuel"))
+		(set ver (/ version 65536))
+		(set rev (- version (* ver 65536)))
+		(if (and (= ver 1) (< rev 5))
+			( (message #warning_msg) )
+		)
+	)
+)
+;======================================================================
+; ask for chipset
+;======================================================================
+
+(set chipset
+	(askchoice
+		(prompt #which_chipset)
+		(help @askchoice-help)
+		(choices "ECS" "AGA" "Graphicboard")
+		(default 0)
+	)
+)
+
+;======================================================================
+; delete old files
+;======================================================================
+
+(if (= update true)
+	(
+		(delete "BD:Landscapes/ECS/LandscapeUR.iff")
+		(delete "BD:Landscapes/AGA/LandscapeUR.iff")
+		(delete "BD:Mods/mod.BattleDuel")
+	)
+)
+
+;======================================================================
+; copy files
+;======================================================================
+
+(complete 0)
+
+(if (not (exists "BD:Gfx"))
+	(makedir "BD:Gfx")
+)
+(if (not (exists "BD:Landscapes"))
+	(makedir "BD:Landscapes")
+)
+(if (not (exists "BD:Mods"))
+	(makedir "BD:Mods")
+)
+(if (not (exists "BD:Settings"))
+	(makedir "BD:Settings")
+)
+(if (not (exists "BD:Catalogs"))
+	(makedir "BD:Catalogs")
+)
+
+(complete 10)
+(copyfiles (source "BattleDuel") (dest "BD:"))
+
+(complete 20)
+(if (= chipset 0)
+	(copyfiles (source "Gfx/ECS") (dest "BD:Gfx/ECS") (all))
+)
+(if (= chipset 1)
+	(copyfiles (source "Gfx/AGA") (dest "BD:Gfx/AGA") (all))
+)
+(if (= chipset 2)
+	(copyfiles (source "Gfx/GFXBOARD") (dest "BD:Gfx/GFXBOARD") (all))
+)
+
+(complete 30)
+(if (= chipset 0)
+	(copyfiles (source "Landscapes/ECS") (dest "BD:Landscapes/ECS") (all))
+)
+(if (= chipset 1)
+	(copyfiles (source "Landscapes/AGA") (dest "BD:Landscapes/AGA") (all))
+)
+(if (= chipset 2)
+	(copyfiles (source "Landscapes/GFXBOARD") (dest "BD:Landscapes/GFXBOARD") (all))
+)
+
+(complete 40)
+(copyfiles (source "Mods") (dest "BD:Mods") (all))
+(complete 50)
+(copyfiles (source "Settings") (dest "BD:Settings") (all))
+(complete 60)
+(copyfiles (source "Catalogs") (dest "BD:Catalogs") (all))
+
+;======================================================================
+; copy selected language
+;======================================================================
+
+(if (= language 0)
+	( (copyfiles (source "English") (dest "BD:") (all)) )
+)
+(if (= language 1)
+	( (copyfiles (source "Deutsch") (dest "BD:") (all)) )
+)
+(complete 70)
+
+;======================================================================
+; which icons?
+;======================================================================
+
+(set icons
+	(askchoice
+		(prompt #which_icons)
+		(help @askchoice-help)
+		(choices "Normal" "MagicWB" "GlowIcons")
+		(default 0)
+	)
+)
+
+(if (= icons 0)
+	(copyfiles (source "Icons") (dest "BD:") (all))
+)
+(if (= icons 1)
+	(copyfiles (source "MWB_Icons") (dest "BD:") (all))
+)
+(if (= icons 2)
+	(
+		(copyfiles (source "Glow_Icons") (dest "BD:") (all))
+		(delete (cat bd_dest ".info"))
+		(rename "BD:BattleDuel_Drawer.info" (cat bd_dest ".info"))
+	)
+)
+(complete 80)
+
+;======================================================================
+; set tooltypes
+;======================================================================
+
+(tooltype
+	(dest "BD:BattleDuel")
+	(settooltype "DISPLAY_ID" "0x0")
+)
+(complete 90)
+
+(if (= assign true)
+	( (message #assign_msg) )
+)
+
+(makeassign "BD")
+
+(complete 100)
+
+(exit #have_fun)

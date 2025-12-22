@@ -1,0 +1,55 @@
+VERSION = 2.04
+SDK = /Developer/SDKs/MacOSX10.4u.sdk
+CXXFLAGS_BASE = -Wall -pedantic -Wno-long-long `sdl-config --cflags` -O2 -ggdb -I../inc -DMULTIPLAYER -isysroot $(SDK)
+CXXFLAGS = $(CXXFLAGS_BASE) -arch ppc -arch i386
+LDFLAGS = -lm `sdl-config --libs` -framework SDL_ttf -framework IOBluetooth -framework IOBluetoothUI -Wl,-syslibroot,$(SDK) -F/Library/Frameworks -arch ppc -arch i386
+
+GLOBJECTS = bantumigl.o hand.o matrix.o mesh.o grid.o quat.o glfont.o
+GAMEOBJECTS = bantumi.o
+
+all: BantumiGL.app
+
+%.o : %.mm
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+pch: ../inc/cocoa.h.gch
+../inc/cocoa.h.gch: ../inc/cocoa.h
+	mkdir $@
+	$(CC) -c $(CXXFLAGS_BASE) -arch ppc -x objective-c++-header $< -o $@/pch.ppc
+	$(CC) -c $(CXXFLAGS_BASE) -arch i386 -x objective-c++-header $< -o $@/pch.i386
+
+bantumi-gl: main-sdlgl.o sdlttf.o sdlthread.o $(GLOBJECTS) $(GAMEOBJECTS) tcpip.o osxbt.o cocoa.o cocoatcp.o cocoabt.o socketconn.o
+	$(CXX) -o $@ $+ $(LDFLAGS)
+
+BantumiGL.app: bantumi-gl ../Info.plist ../InfoPlist.strings ../SDPRecord.plist
+	mkdir -p $@/Contents/MacOS
+	mkdir -p $@/Contents/Resources/English.lproj
+	cp bantumi-gl $@/Contents/MacOS
+	cp ../Info.plist $@/Contents
+	cp ../InfoPlist.strings $@/Contents/Resources/English.lproj
+	cp ../Vera.ttf $@/Contents/Resources
+	cp ../icon.icns $@/Contents/Resources
+	cp -Rf ../TCPClientGui.nib $@/Contents/Resources
+	cp -Rf ../TCPServerGui.nib $@/Contents/Resources
+	cp -Rf ../BluetoothWait.nib $@/Contents/Resources
+	cp -Rf ../SDPRecord.plist $@/Contents/Resources
+	cp -R ~/sdlmain/SDLMain.nib $@/Contents/Resources
+	touch $@
+
+dist: bantumigl-$(VERSION).dmg
+
+bantumigl-$(VERSION).dmg: BantumiGL.app
+	./makedmg.sh $@ $(VERSION)
+
+bantumi-es: CFLAGS = -Wall -pedantic -I/Users/martin/gles/gles-1.0c -DGLES -ggdb -I../inc
+bantumi-es: CXXFLAGS = $(CFLAGS)
+bantumi-es: LDFLAGS = -L/Users/martin/gles/gles-1.0c -lGLES_CM -L/usr/X11R6/lib -lX11
+bantumi-es: main-x11es.o window.o nofont.o pthread.o $(GLOBJECTS) $(GAMEOBJECTS)
+	$(CXX) -o $@ $+ $(LDFLAGS)
+
+makeh: makeh.o
+	$(CXX) -o $@ $+
+
+clean:
+	rm -rf *.o bantumi-gl bantumi-es makeh BantumiGL.app *.dmg ../inc/*.gch
+

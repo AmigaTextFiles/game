@@ -1,0 +1,80 @@
+; Start CircleMUD
+; 
+; J.J.M. Riethoven, JALABBS Fido: 2:283/604
+; Sat Oct 16 19:02:42 1993
+;
+
+; Change assign to the directory you installed CircleMUD in
+assign CIRCLE: DH2:Circle30bpl11
+
+; Comment this stack command if you compiled your source with AUTO
+; STACKEXTEND. Else leave it be...
+; stack 100000
+
+FAILAT 200
+
+LAB loopje
+  if exists CIRCLE:bin/Circle
+    cd CIRCLE:
+
+; Broadcast message to BBS, so users know when to expect some CPU-load.
+; Remove comment and replace it by your bbs broadcasting command.
+;    DLG:BroadCast >NULL: -p * -f "System" -m "Rebooting Multi-User-Dungeon, moderate CPU-load expected."
+
+    CIRCLE:bin/Circle -m >> syslog
+       
+    cd CIRCLE:
+  endif
+
+;# If .fastboot exists, the script will sleep for only 5 seconds between reboot
+;# attempts.  If .killscript exists, the script commit suicide (and remove
+;# .killscript).  If pause exists, the script will repeatedly sleep for
+;# 60 seconds and will not restart the mud until pause is removed.
+
+
+  grep "self-delete" syslog >> log/delete
+  grep "death trap" syslog >> log/dts
+  grep "killed" syslog >> log/rip
+  grep "Running" syslog >> log/restarts
+  grep "advanced" syslog >> log/levels
+  grep "equipment lost" syslog >> log/rentgone
+  grep "usage" syslog >> log/usage
+  grep "new player" syslog >> log/newplayers
+  grep "SYSERR" syslog >> log/errors
+  grep "(GC)" syslog >> log/godcmds
+  grep "Bad PW" syslog >> log/badpws
+
+  delete log/syslog.1 quiet
+  copy log/syslog.2 log/syslog.1
+  copy log/syslog.3 log/syslog.2
+  copy log/syslog.4 log/syslog.3
+  copy log/syslog.5 log/syslog.4
+  copy log/syslog.6 log/syslog.5
+  copy syslog       log/syslog.6
+  delete syslog quiet
+  circle:bin/touch syslog
+
+  if exists .fastboot then
+    wait 1 secs
+    delete .fastboot quiet
+  else
+    wait 1 secs
+  endif
+
+  if exists .killscript then
+    delete .killscript quiet
+    SKIP the_end
+  endif 
+
+LAB paused
+   if exists pause
+     wait 10 secs
+     SKIP paused BACK
+   endif
+
+
+   SKIP loopje BACK
+
+LAB the_end
+
+

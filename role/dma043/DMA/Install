@@ -1,0 +1,287 @@
+;
+; Installation script converted from Final Data HDInstall
+;
+; Sorry about that !
+;
+
+
+(set is_update 0)
+(set @user-level 1)	; force to use average mode
+(set #bad-kick
+(cat "You must be using Kickstart 2.04 to install using this script."
+))
+
+(if (< (/ (getversion) 65536) 37)
+(
+    (abort #bad-kick)
+))
+
+(complete 0)
+
+(set DMA_dest
+	(askdir
+		(prompt "In which disk or drawer should the "
+					"DMA drawer be created in?")
+		(help "The installation utility will create a drawer named "
+			"\"DMA\" in the selected drawer or directory.  All "
+			"DMA files and drawers will be placed inside "
+			"the new directory.")
+		(default @default-dest)
+	)
+)
+
+; Check if this is an update
+; the Mods directory is a tell-tale sign
+; that DMA is already installed here
+
+(if (exists (tackon DMA_dest "Mods"))
+	(set is_update 1)
+	(	(if (exists (tackon DMA_dest "DMA"))
+			(set is_update 1)
+			(makedir (tackon DMA_dest "DMA") (infos))
+		)
+		(set DMA_dest (tackon DMA_dest "DMA"))
+	)
+)
+
+(set @default-dest DMA_dest)
+(set disk_space (getdiskspace DMA_dest))
+
+(set disk_space_needed 500000)
+
+(if (AND (< disk_space disk_space_needed) (NOT is_update))
+	(
+		(set answer1
+			(askbool
+				(prompt	"There may not be enough room available on "
+							"this drive to install \"DMA\". "
+							"Do you wish to continue?")
+				(help	"DMA needs approximately .5 megabytes of "
+						"disk space for a complete installation or .5 megabytes "
+						"for a minimal installation. If Final Data is already "
+						"installed on this partition, you may wish to continue. "
+						"Otherwise, press ABORT or NO now and either free some "
+						"space on this partition or select a different partition "
+						"for the installation.")
+			)
+		)
+		(if (NOT answer1)
+			(abort "DMA installation cancelled. Not enough disk "
+					"space on Volume \""
+					(getdevice @default-dest)
+					"\"."
+			)
+		)
+	)
+)
+
+; Allow updating user to select what they want updated
+
+(if is_update
+	; YES - already installed
+	(set install_options
+		(askoptions
+			(prompt "What parts would you like to update?")
+			(help @askoptions-help)
+			(choices
+				"DMA Program"
+				"Modules"
+				"Sounds"
+				"Documentation"
+                                "Libraries")
+			(default 11)		; default to 0001-1001 = (1)Program, (8)Sys Files and (16)Libraries
+		)
+	)
+
+	; NO - First time install
+		(set install_options 31)	; hex 3F - 0011-1111 - all six options on
+)
+
+(set error 0)
+
+; Installing files from ""
+(if (IN install_options 0 1 2 3 4)
+	(
+		; -----------------
+		; Copy the CloseWB program to the hard drive
+		; so everyone is guaranteed to have it.
+		; -----------------
+		(if (NOT is_update)
+			(copyfiles
+				(source "c/CloseWB")
+				(dest "C:")
+			)
+		)
+		; -----------------
+		; If installing/updating the program
+		; -----------------
+		(if (IN install_options 0)
+			(
+				; ----- COPY the DMA program over
+				(working "Installing DMA program from current dir.")
+				(copyfiles
+					(source "DMA")
+					(dest DMA_dest)
+				)
+				; ----- CREATE Players,Chars dirs, COPY Players/#?
+				(makedir (tackon DMA_dest "Chars"))
+				(if (NOT (exists (tackon DMA_dest "Players")))
+					(
+					(makedir (tackon DMA_dest "Players"))
+					)
+				)
+				(working "Installing Players from Players dir.")
+				(copyfiles
+					(source "Players")
+					(dest (tackon DMA_dest "Players"))
+					(all)
+				)
+				; ----- COPY the DMA.info if the icon doesn't exists
+				(if (NOT (exists (tackon DMA_dest "DMA.info")))
+					(copyfiles
+						(source "DMA.info")
+						(dest DMA_dest)
+					)
+				)
+			)
+		)
+		(complete 40)
+
+
+		; -----------------
+		; Installing DMA Modules
+		; -----------------
+		(if (IN install_options 1)
+			(
+				; ----- CREATE Mods if it doesn't exist.
+				(if (NOT (exists (tackon DMA_dest "Mods")))
+					(
+					(makedir (tackon DMA_dest "Mods"))
+					)
+				)
+				(working "Installing Modules from Mods dir.")
+				(copyfiles
+					(source "Mods")
+					(dest (tackon DMA_dest "Mods"))
+					(all)
+				)
+			)
+		)
+		(complete 50)
+
+
+		; -----------------
+		; Installing DMA Sounds
+		; -----------------
+		(if (IN install_options 2)
+			(
+				; If Sounds doesn't exist, create it.
+				(if (NOT (exists (tackon DMA_dest "Sounds")))
+					(
+					(makedir (tackon DMA_dest "Sounds"))
+					)
+				)
+				(working "Installing Sounds from Sounds dir.")
+				(copyfiles
+					(source "Sounds")
+					(dest (tackon DMA_dest "Sounds"))
+					(all)
+				)
+			)
+		)
+		(complete 70)
+
+		; -----------------
+		; Installing DMA Docs
+		; -----------------
+		(if (IN install_options 3)
+			(
+				; If Docs doesn't exist, create it.
+				(if (NOT (exists (tackon DMA_dest "Docs")))
+					(
+					(makedir (tackon DMA_dest "Docs"))
+					)
+				)
+				(working "Installing Documentation from Docs dir.")
+				(copyfiles
+					(source "Docs")
+					(dest (tackon DMA_dest "Docs"))
+					(all)
+				)
+				(working "Installing Docs Icon from current dir.")
+				(copyfiles
+				 	(source "Docs.info")
+				 	(dest DMA_dest)
+					(files)
+				)
+			)
+		)
+		(complete 80)
+
+		; -----------------
+		; Installing DMA Libs
+		; -----------------
+		(if (IN install_options 4)
+			(
+				; If DMALibs doesn't exist, create it.
+				(if (NOT (exists "LIBS:"))
+					(
+					(makedir "SYS:libs")
+					)
+				)
+				(working "Installing System Libraries from Libs dir.")
+				(if (< (/ (getversion) 65536) 37)
+					 (copyfiles
+					 	(source "libs/reqtools.library")
+					 	(dest "LIBS:")
+						(files)
+					 )
+				)
+				(copyfiles
+				 	(source "libs/reqtools.library")
+				 	(dest "LIBS:")
+					(files)
+				)
+			)
+		)
+
+		(run ("Avail FLUSH")
+
+		)
+	)
+)
+
+; ------- STARTUP ÄNDERN
+
+(complete 90)
+
+(set command1 (cat "Assign DMA: " @default-dest))
+
+(set command1.txt
+	(cat 
+	 	"\n\n\nNow I'm going to add to your user-startup this line :\n\n"
+	 	command1
+	)
+)
+
+(startup "DMA"
+	(prompt command1.txt)
+	(help @startup-help)
+	(command command1)
+)
+
+(if @pretend
+	(makeassign "DMA" @default-dest)
+)
+
+; ------- FERTIG
+
+(complete 100)
+
+(message (cat 
+	"Installation of Dungean Master Aid completed.\n\n\n"
+	"Hope we'll meet with another versions ;]"
+)
+)
+
+(exit)

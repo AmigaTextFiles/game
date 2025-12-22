@@ -1,0 +1,94 @@
+/**********************************\
+** MonteCarlo v1.0 for Solitarexx **
+**      by Michal Szafranski      **
+\**********************************/
+OPTIONS RESULTS
+
+tex = '"Monte Carlo v1.0"'
+order.0 = '0 5 10 15 1 6 11 16 2 7 12 17 3 8 13 18 4 9 14 19 20'
+order.1 = '0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20'
+order.2 = '19 18 17 16 15 10 11 12 13 14 9 8 7 6 5 0 1 2 3 4 20'
+order.3 = '13 12 11 6 7 8 9 14 19 18 17 16 15 10 5 0 1 2 3 4 20'
+ADDBUTTON 0 10 "Start"
+ADDCYCLE 1 12 'Vert|Horiz|Snake|Spiral' 1
+ADDTEXT 4 30 tex 6
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 13 12 '""' 6
+ADDTEXT 14 30 tex 6
+SELECTGUI 1
+SCREENSIZE 4 0 6 0
+DO i = 0 TO 19
+	NEWSTACK i 0 0 (i//5) (i%5)
+	stack.i = RESULT
+END
+NEWSTACK 20 0 1 5 0
+stack.20 = RESULT
+NEWSTACK 21 0 1 5 3
+waste = RESULT
+ADDCARDS stack.20 SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP stack.20
+	SELECTGUI 4
+	sel = 20
+	fin = 52
+	SETGADGET 13 STR '"Left: 52"'
+	GETGADGET 1
+	order = order.RESULT
+	CALL DODECK
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sid = 20 THEN CALL DODECK
+			WHEN sid < 20 & sel = 20 & card>0 THEN sel=sid
+			WHEN sid < 20 & sel < 20 & card>0 THEN CALL DOSTACKS
+			OTHERWISE ERRBEEP
+		END
+		IF act = 3 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+	END
+RETURN
+DODECK:
+	sel = 20
+	sfrom = 1
+	DO sto = 1 TO 20
+		asto = WORD(order,sto)
+		DO FOREVER
+			asfrom = WORD(order,sfrom)
+			CARDSELECT stack.asfrom 1
+			IF RESULT = '' THEN sfrom = sfrom +1
+			ELSE LEAVE
+			IF sfrom = 22 THEN RETURN
+		END
+		IF sfrom = 21 THEN mode = 'REVERSE'
+		ELSE mode = ''
+		IF asfrom = asto THEN sfrom = sfrom +1
+		ELSE MOVECARDS stack.asfrom stack.asto mode
+	END
+RETURN
+DOSTACKS:
+	CARDSELECT stack.sel 1
+	PARSE VAR RESULT . w1 .
+	CARDSELECT stack 1
+	PARSE VAR RESULT . w2 .
+	IF w1 = w2 & ABS((sel//5)-(sid//5))<2 & 2>ABS((sel%5)-(sid%5)) & sel~=sid THEN DO
+		MOVECARDS stack.sel waste
+		MOVECARDS stack waste
+		fin = fin - 2
+		IF fin = 0 THEN SETGADGET 13 STR '"Winner"'
+		ELSE SETGADGET 13 STR '"Left:' fin||'"'
+	END
+	ELSE ERRBEEP
+	sel = 20
+RETURN

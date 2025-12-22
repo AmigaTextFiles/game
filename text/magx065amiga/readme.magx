@@ -1,0 +1,3511 @@
+===========================================================
+MAGX: MAKE AGX, AN AGT-COMPATIBLE ADVENTURE GAME COMPILER
+Version 0.6.4 (beta)
+===========================================================
+
+  Magx is an interactive fiction compiler based on AGT; if you wish to
+*play* AGT games, you will need AGiliTy, instead.
+
+  The following documentation is a description of differences (mainly
+extensions) between Magx and the AGT Master's Edition. It is not
+intended as comprehensive documentation of Magx.
+
+  (I'm working on a more complete manual for Magx; in the
+meantime, people will have to use the manual for the Master's Edition, 
+distributed as part of the Master's Edition v1.56 available 
+at ftp://ftp.gmd.de/if-archive/programming/agt/agtmastr.zip)
+
+
+
+=======================
+ CONTENTS
+-----------------------
+
+INTRODUCTION
+ACKNOWLEDGMENTS
+RUNNING MAGX
+
+1.0 GENERAL NOTES
+  1.1  Error Checking
+  1.2  Limits
+  1.3  Labels and Numbers
+  1.4  User Defined Verbs
+  1.5  Comments
+  1.6  The Backslash and Formatting Commands
+  1.7  Weight and Size
+  1.8  Duplicating Objects: DEFAULT and LIKE
+  1.9  Making Objects Behave Alike: CLASS
+  1.10 Metacommand Order of Execution
+  1.11 The AGATE Metacommand Format
+  1.12 Objects with Multiple Locations: GLOBAL and FLAG
+  1.13 Author Defined Properties and Object Flags
+  1.14 Other Miscellaneous Differences
+  1.15 List of Object Characteristics
+  1.16 Itemized Variables and Flags
+
+2.0 NEW AND MODIFIED DIRECTIVES
+   STATUS_OPTION 
+   SCORE_OPTION
+   LONG_STRING 
+   INTRO_FIRST   	
+   TITLE_BOX
+   NO_TITLE_BOX    
+   MILITARY_TIME
+   PREP
+   VERSION
+   #OPTIONS 
+   LABEL
+   STANDARD
+   CONFIG
+
+3.0 NEW METACOMMANDS
+  3.1 Special Tokens
+  3.2 Conditional Tokens
+  3.3 Action Tokens
+
+4.0 EXAMPLES 
+  4.1 Use of AND
+  4.2 Example of SetIt 
+  4.3 Disambiguation: Theory
+  4.4 Disambiguation: Practice
+  4.5 Example Use of AGATE Command Format and Next
+
+APPENDIX A: OBSOLETE TOKENS AND FEATURES
+  A.1 Version 1.83 Time Commands
+  A.2 Other Obsolete 1.83 Features
+  A.3 Other Obsolete Features
+  A.4 Configuration Options 
+  A.5 Metacommand Order of Execution
+
+APPENDIX B: TECHNICAL FEATURES
+  B.1 Low Level Metacommand Tokens
+  B.2 Compiler Defined Labels
+
+APPENDIX C: MAGX ERROR MESSAGES
+  C.1 Fatal Errors
+  C.2 Errors
+  C.3 Warnings
+  C.4 Notes
+
+==============
+INTRODUCTION
+--------------
+  Magx is a compiler for creating text adventures; the language it
+compiles is an extension of that used by Malmberg and Welch's
+Adventure Game Toolkit and is downward compatible with all of the
+existing versions of the AGT language: GAGS, Classic AGT, AGT 1.83,
+and the AGT Master's Edition. 
+  (Nonetheless, it is *not* a port of the original compilers but a
+completely new compiler built around the language and compiling to
+AGiliTy's AGX format.)
+
+   For general information on AGT and AGiliTy, I recommend Jay
+Goemmer's web page at http://www.ltlink.net/~jgoemmer/agt.html.
+You might also want to join the "agt-authors" mailing list at
+onelist.com.
+
+  Magx is not the only system available for creating text adventures.
+For those with programming experience, I would recommend Inform or
+TADS (or possibly Hugo), both of which have a C-like syntax. Both
+languages are more powerful but more complex than Magx.
+
+  For more information on the available authoring systems, see the
+"Which Authoring System is Better" FAQ by Bob Newell, available at
+	ftp://ftp.gmd.de/if-archive/info/whichsys.zip
+(it's a little out of date right now, though).
+
+  Magx creates files in the AGX ("Adventure Game eXecutable") format,
+which can be run using AGiliTy; you'll need to download a copy of
+AGiliTy (version 0.7.2 or later) to play games create with
+Magx. AGiliTy can be found at the Interactive Fiction archive, in the
+directory
+       ftp://ftp.gmd.de/if-archive/programming/agt/agil/   
+(with versions for various different platforms.) To use all of the
+features described below, you'll want version 0.8 or later. 
+
+
+  Like AGiliTy, Magx is written in ANSI C to be as portable to
+different platforms as possible. At the moment there are Linux, DOS
+and Amiga versions, but it should be straightforward to recompile on
+any system with a command line. (Systems without command lines should
+be possible too, but will require a little more work.) For more
+information on porting this program, see 'porting.txt'.
+
+
+   Send comments and bug reports to Robert Masenten at:
+	rcm-math@pacbell.net
+
+
+   This software is copyright 1996-99 by Robert Masenten.
+This program is free software; you can redistribute it and/or modify
+it under the terms of version 2 of the GNU General Public License,
+as published by the Free Software Foundation.
+  This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+  You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+  Games created using this software are the property of their authors,
+who may do with them as they please, including commercial and
+shareware distribution.
+
+
+------------------
+ACKNOWLEDGEMENTS
+------------------
+Thanks to the following people: 
+  *Jay Goemmer for proofreading a preliminary version of this
+document and making many suggestions for improving both this file and
+the program itself.
+  *Kevin Soucy, who has made several suggestions that have improved
+this program, including the design of the AGATE command format.
+  *David Youd, who has sent me pages of bug reports.
+  *Mitch Mlinar, who added support for $ON$, $LOCKED$, $FLAG$ and $OPEN$.
+  *Jan-Erik Karlsson, for his bug report/patch.
+  *GDighton, Al Golden, Walter Isaac, Kelly Sapergia, and "Grand Moff
+Tarkin", for their bug reports.
+
+
+--------------
+RUNNING MAGX
+--------------
+  (This section assumes you are running a command-line port of Magx
+and that the port for your platform uses the same file-name extensions
+as the original, MS-DOS-based, AGT.)
+
+  To compile 'mygame.agt' to  'mygame.agx', type
+     magx mygame
+The '-o' option can be used to change the output file name. For
+example, 'mygame.agt' can be compiled to 'hisgame.agx'by
+     magx mygame -o hisgame
+
+  Typing 'magx' without any arguments will give a list of command line
+options.
+
+
+  When given a game name, Magx will first look for '<game-name>.agt'; 
+if that doesn't exists, it will look for '<game-name>.dat'. It will stop
+and complain if it can't find at least one of them.
+
+  If it finds '<game-name>.dat', it will also read the files
+'<game-name>.cmd' and '<game-name>.msg' (if they exist), in that order.
+
+  Finally, Magx will look for '<game-name>.std' and read it. If it
+doesn't exists, the compiler will check for 'agt.std' and read it.
+Neither file is required.
+
+  Unlike the original compilers, it doesn't care what goes in which
+file. I recommend that authors of new games just put everything in
+'<game-name>.agt'.
+
+
+
+====================
+1.0 GENERAL NOTES
+--------------------
+ The major differences between Magx and earlier AGT compilers are:
+
+--Labels are more tightly integrated into the rest of the compiler.
+Among other things, this allows it to catch more errors.
+
+--For practical purposes, there are no limits on rooms, nouns, creatures, 
+or other game elements. 
+
+--Within certain limits it is possible to mix labels and numbers.
+
+--Classic, Master's Edition, and 1.83 are all supported.  Obsolete
+usages are documented in the appendix.
+
+--New options and metacommand tokens have been added, allowing games to
+take advantage of the extra capabilities of AGiliTy (such as improved
+disambiguation).
+
+--In particular, it supports generalized arguments to metacommand
+tokens; e.g. for Present, all of the following are legal
+   Present [The Apple]
+   Present NOUN   ! Logically equivalent to NounPresent
+   Present OBJECT ! Logically equivalent to ObjectPresent
+   Present NAME   ! Logically equivalent to NamePresent
+   Present [SomeVariable] 
+(The last one is true if the object whose number is contained in
+the variable [SomeVariable] is present).
+
+--It supports the extended AGATE command format, which allows
+complicated metacommands to be created more easily.
+
+--It supports the addition of author-defined properties to objects.
+
+(Some of these features require VERSION to be set to MAGX)
+
+--------------------
+1.1 Error Checking
+--------------------
+
+  The compiler tries to catch as many errors as it can: it's a lot
+faster to fix errors found during compilation than to figure out why
+a game isn't working right afterwards.
+
+  The compiler generates four types of error message; in order of
+decreasing severity, they are:
+
+  Fatal Errors, caused by things which prevent the compiler from 
+     continuing. They cause compilation to stop immediately.
+
+  Errors, indicating serious problems in the source file that
+     would prevent the game from working correctly.  Compilation
+     will finish (in order to catch as many problems as possible), 
+     but no game data file will be created.
+
+  Warnings, which indicate likely problems in the source file.
+     The game data file, however, will still be created.
+     Even when these turn out not to be errors, it is usually 
+     worthwhile to fix the source file to get rid of the warning
+     so that real problems aren't missed.
+
+  Notes, which don't indicate a problem at all, but warn when
+     something in the source file does something that might  
+     not be expected.
+
+  The actual error messages are listed and described in Appendix C.
+
+  Don't become intimidated if the compiler produces a long stream of
+errors; this is not uncommon. Often a single mistake will generate a
+lot of error messages; for example, if an author mistypes COMMAND as
+in the following example,
+  
+Conmamd Drink Any
+ Present Noun
+    ErrMessage 0 "That isn't here."
+ IsDrinkable Noun
+    ErrMessage 20 "You can't drink that!"
+ PrintMessage "You take a sip of the $noun$." 
+ AddToVariable [drunk?] 1
+ DoneWithTurn
+End_Command
+
+then the compiler will complain about an "Unrecognized directive"
+seven times, once for every line, since it doesn't realize that the
+later lines are supposed to be part of a COMMAND structure.
+
+  Likewise, if the author mistypes the name of a label, as in the
+following case
+
+  NOUN [glod tree]  ! supposed to be [gold tree]
+
+then the compiler will complain about an undefined label every time
+[gold tree] is used.
+
+
+------------
+1.2 Limits
+------------
+  The theoretical limits on most categories have been raised to
+approximately 32,000. This includes:
+ *Rooms, Nouns, and Creatures (which together count as one category).
+ *Variables
+ *Counters
+ *Flags
+ *User strings
+ *Author-defined verbs
+ *Subroutines
+ *Questions
+ *Global nouns
+ *Messages (but for technical reasons the number of rooms plus the
+number of messages must be smaller than 32,768).
+ *Metacommands (and, in theory, *each* metacommand could have 32,000
+tokens).  
+
+In addition:
+  *The number of synonyms that a verb or object can have is only
+limited by the dictionary size (see below). (It is possible to put any
+number of words on one "line" by using the backslash as described in
+Section 1.6) 
+  *The limits on the number of flag nouns and room PIXs has been
+raised to 31. 
+  *There are no limits on the length of a room's short description.
+  *Due to limitations of AGiliTy's parser, dictionary words shouldn't
+be longer than 24 characters. You can create longer dictionary words,
+but the player won't be able to type them in. (AGT allows 23 or 16
+letters, for Classic AGT and the Master's Edition respectively.)
+
+  There still remain some practical limits; in addition to the obvious
+memory limitations, on most platforms the dictionary is currently
+limited to 4096 words. This limits the number of objects, verbs,
+subroutines, global nouns, and synonyms.  
+  (Although one could still create 10,000 objects that all had the
+same name).  
+  
+  There are also some limits when assigning numbers to rooms, nouns,
+and creatures; these are taken care of automatically if labels are
+used (and are automatically satisfied if the original ranges from
+classic AGT or the Master's Edition are used.)
+  --All room numbers must be smaller than all noun numbers which in turn
+must be smaller than all creature numbers. 
+  --The numbers must be between 2 and 32,767 (inclusive). Furthermore,
+nouns and creatures can't use 2.   
+  --None of the three ranges can contain the number 1000.
+  --The sum of the last room number and the last message number must be
+smaller than 32,767.
+  --For memory reasons, "sparse" numbering should be avoided; if the
+game author creates a noun 23 and a noun 789, then memory will also be
+used for all of the numbers in between.
+
+
+------------------------
+1.3 Labels and Numbers
+------------------------
+
+  For any given category (flags, variables, messages, etc.) you can
+choose to use either numbers or labels, but you can't mix use of the
+two within a category. Remember: ROOMS, NOUNS, and CREATURES count as
+a *single* category.  
+
+ (So, for example, you could use numbers for FLAGS and labels for
+VARIABLES, but you couldn't use both numbers and labels for FLAGS).
+  
+  Numbers are supported mainly for the sake of existing games; I
+recommend that new games use labels for everything:
+
+  --They are more readable: '[Dragon's Lair]' is clearer than '53'. 
+
+  --They allow the compiler to worry about assigning numbers. Among
+other things, it can automatically change the way numbers are assigned
+if an author's game gets larger than originally expected, without
+her needing to renumber all of the nouns to make space for another
+room.
+
+  --The compiler is able to catch more errors if labels are used.
+For example, suppose that a game author wants to send all treasures
+worth more than 10 points to the Dragon's Lair but gets the order of
+the arguments wrong. If he is using numbers, then he will have
+typed 
+    SendTreasuresToRoom 10 53 
+which will send all treasures over 53 points to room 10 (whatever 
+that is); he may spend hours before finding the mistake.
+  If he had instead used labels, he would have typed
+    SendTreasuresToRoom 10 [Dragon's Lair]
+At least if VERSION MAGX is set, this will report an error (using
+a number instead of the expected label in the first entry).
+    
+  --There are also some features of the compiler that require labels
+in order to work. (In particular, see Section 1.14 and the beginning of
+Section 3.0)
+
+
+------------------------
+1.4 User Defined Verbs
+------------------------
+  User-defined verbs can be created without explicitly typing
+"DUMMY_VERBnnn". That is, 
+
+   VERB
+   South Aft   ! Built-in verb
+   Dummy_verb1 Summon Call
+   Dummy_verb2 Cast 
+   Dummy_verb3 Kiss Hug
+   END_VERB
+
+can be replaced by
+
+   VERB
+   South Aft  ! Built-in verb
+   Summon Call
+   Cast 
+   Kiss Hug
+   END_VERB
+
+
+  As with labels, however, you must do one or the other; if you
+explicitly specify DUMMY_VERBs for any user-defined verb, you must do
+it for all of them (built-in verbs *never* need to have DUMMY_VERB
+explicitly specified).
+
+
+  If GLOBAL_SCOPE is the last word on the synonym line for a verb,
+then the verb will be given global scope which has the following
+consequences, which are discussed in greater detail in Section 4.3: 
+
+   i) During disambiguation, objects which have a disambiguation
+priority of at least 500 will not be automatically eliminated in favor
+of visible objects; furthermore, if there is a tie, then the player
+will be asked for help even if none of the tieing objects is visible.
+  (Normally the disambiguator just chooses the first object in this
+case, to avoid giving away information to the player.)
+
+  ii) If the verb accepts multiple objects (see Section 1.14), then
+every noun and creature in the game will be considered during
+ALL-expansion (normally only visible objects are considered).
+
+  GLOBAL_SCOPE should be set for verbs which work with nouns that
+aren't present. 
+  The verb SUMMON, for example, which is used in Section 4.4 and in
+the example game fragment SUMMON.AGT, is normally used for spirits and
+ghosts that *aren't* present; it has the following verb definition 
+
+VERB
+summon call invoke global_scope
+END_VERB
+
+  One warning: for normal verbs, there are a set of standard
+rules which limit them to visible objects; even without any effort by
+the game author, there will be at least minimal disambiguation and
+ALL expansion rules.
+  Verbs using GLOBAL_SCOPE don't have these rules and so the author
+must explicitly set up their own disambiguation rules from the
+beginning. This gives greater versatility, but it places the whole
+responsibility for disambiguation on the author's shoulders.
+  For example, suppose the author creates the following command
+(and the VERSION is MAGX):
+
+COMMAND FROB ANY
+  PrintMessage "You frob the $noun$."
+  DoneWithTurn
+END_COMMAND
+
+  If FROB is a normal verb, FROB ALL will print a message for every
+object in the room.
+  If FROB has global scope, FROB ALL will print a message for every
+single noun and creature in the entire game. 
+
+
+
+--------------
+1.5 Comments
+--------------
+  The characters '!', '*', '>', and ';' will cause the rest of the
+line to be ignored if they occur outside of a label, quotation,
+'(*...*)' comment, or description block.
+  Text occurring between '(*' and '*)' on a line will also be ignored
+(again provided it isn't in a label, quotation, or description). 
+The begin and end markers need to be on the same line.
+
+
+-------------------------------------------
+1.6 The Backslash and Formatting Commands
+-------------------------------------------
+(The following only apply if VERSION MAGX is set and SLASH_BOLD is
+off).
+
+  If a backslash occurs as the last non-whitespace character on a
+line, then the newline will be ignored and the line will be combined
+with the following line.  Any whitespace between the backslash and
+the newline will also be ignored. 
+  For example:
+] Present \
+]   NOUN
+  would be treated the same as
+]  Present NOUN
+  This is most useful for description text, to join the different
+lines of a paragraph. (Which will enable the interpreter to format the
+paragraph intelligently even on screens and windows that aren't 80
+columns wide).
+  It is not limited to description text, however (unlike the commands
+below) and can be used to splice together any two lines. For example,
+this is useful for putting more verb synonyms on a line than would
+normally fit-- just put the extra synonyms on the following line and
+end the first line with a slash.
+  (There is one limitation: the entire "line" spliced together by
+backslashes all needs to fit in memory at one time)
+  The backslash itself does not create any whitespace itself, so it is
+even possible to join two parts of the same word as long as there is a
+backslash right after the first part and no space on the next line
+before the second part.
+
+  Inside description text and quotations, slashes are also used to
+delimit the following formatting codes:
+ \\		    -- This inserts a real backslash.
+ \bf\ or \bold\	    -- Turn on bold face.
+ \nobf\ or \nobold\ -- Turn off bold face.
+ \black\, \blue\, \green\, \cyan\, \red\, \magenta\, \brown\, and \white\
+	-- These all set text to the given color. These should be used
+	with caution since different ports of the interpreter may have
+	different background colors. Remember that while some
+	platforms may use a black background, others could use white
+	for this or something even more unusual. (Personally, I'm fond
+	of gold text on a navy blue background.)
+ \blink\ -- Turn on blinking.
+ \normal\ -- Set the text to standard color and turn off blinking.	
+ \fixed\ -- Force the interpreter to use a fixed-pitch font.
+ \nofixed\ -- Allow the interpreter to use a proportional font.
+
+  Not all platforms necessarily support all of these options, and
+some of these options may be interpreted differently on different
+platforms. (In particular, your game shouldn't depend on \blink\ or
+the color codes working or on \bold\ doing exactly what it does on
+your platform.) The formatting codes are good for making your game
+more appealing, but it should remain playable even if \bold\, \red\,
+\normal\ and \blink\ text are all indistinguishable from each other. 
+  
+  These codes don't insert a space (unlike the Master's Edition
+formatting codes) but they are still considered to be legitimate
+places to insert a line break and so putting them in the middle of
+words is not recommended.
+
+
+---------------------
+1.7 Weight and Size
+---------------------
+  Weight and size are handled differently depending on whether VERSION
+is CLASSIC, MASTERS, or MAGX. (VERSION 1.83 behaves like CLASSIC, as did
+Master's Edition versions 1.5 and earlier.)
+
+
+VERSION MAGX
+ The player can carry up to 100 units of weight and 100 units of size.
+There are no limits on what the player can wear, but he has to be able
+to pick things up to put them on. (Once an object is worn, it ceases to
+count against either total).
+        
+  An object has a size-capacity equal to its own size-- for example,
+a size 20 object could contain four size 5 objects, or a size 7 object
+and a size 13 object, or any other combination of objects with total
+size less than or equal to 20. There are no restrictions on weight
+(since lightweight objects are often able to carry heavy things). 
+
+  The size of a container doesn't change if it is empty or full, but
+its weight will include the weight of its contents: a box  containing
+a brick isn't any bigger than an empty box, but it *is* heavier.
+
+
+VERSION MASTERS
+  Weight and size are treated the same: an object can only carry its
+own weight in other things and the size of a container includes the
+size of its contents, so a full box is bigger than an empty box.
+  Otherwise, weight and size are handled the same as above.
+
+
+VERSION CLASSIC    
+  Classic AGT is identical to the Master's Edition except that there
+are no net limits to putting objects inside each other. It remains
+impossible to insert a single large object into a container, but not to
+insert many medium-sized objects.
+  For example, it is still impossible to put a weight-50 brick into a
+weight-20 sack... but the player can still put 5 weight-10 bricks into
+the sack.
+  (This is a bug in Classic AGT that was fixed in the later
+releases of the Master's Edition.)
+
+
+--------------------------------------------------------
+1.8  Duplicating Objects: DEFAULT and LIKE
+--------------------------------------------------------
+  You can change the default values of the various fields of rooms,
+nouns, and creatures; to do so, create a room, noun, or creature
+definition as usual, except
+   i) Use DEFAULT instead of the object label or number.
+   ii) Omit the name, adjective, and short description.
+For example, to cause all of the NOUNs to have size 2 and weight 3:
+
+   NOUN DEFAULT
+     SIZE 2
+     WEIGHT 3
+   END_NOUN
+
+Newly defined defaults only affect objects defined in the source file
+*after* the default is defined; you can even use different defaults
+in different sections of the source file by putting an appropriate
+default definition at the top of each section.
+
+  Defaults build on each other: unlisted fields take the value of the
+previous default. For example, if the game file had the previous
+definition followed by 
+
+   NOUN DEFAULT
+   LOCATION [Junk Room]
+   END_DEFAULT
+
+then all of the following nouns would be in the Junk Room (from this
+default) and would have size 2 and weight 3 (from the previous
+default). (This assumes none of the nouns explicitly set any of these
+things themselves; if a noun has, say, a LOCATION field, then that
+will be used instead of the default.).
+
+  If you don't want this-- if you want the default to be based on the
+original system defaults rather than the last default-- then you can
+use the CLEAR keyword:
+
+   NOUN DEFAULT CLEAR  
+   LOCATION [Junk Room]
+   END_DEFAULT
+
+Now nouns following this definition will have size and weight 1 (the
+system default) although their location will still be the Junk Room.
+
+
+  You can use CLEAR for normal object definitions as well, if you want
+to ignore the current default in favor of the system default, e.g.
+
+   ROOM [Entry Hall]  CLEAR
+   Entry Hall
+   END_ROOM
+
+
+  Sometimes you have several objects that are very similar. You could
+use a default for this-- define the default, define each of the
+objects, and then redefine the default to be 'normal'-- but this is a
+hassle and requires you to keep all of these objects in the same place
+in your code.
+
+  Instead, you can use the LIKE keyword. For example, if you have
+defined a [Red Rose] object and want to make [White Rose] that is
+almost identical, you can use a definition like the following:
+
+   NOUN [White Rose] LIKE [Red Rose]
+   Rose
+   White
+   A white rose blooms here.
+   LOCATION [Garden 2]
+   END_NOUN
+
+   The values for [Red Rose] will be used for all of the fields that
+aren't explicitly defined by [White Rose]. (Fields that *are* defined
+by [White Rose], such as LOCATION, above, will continue to function as
+usual.)
+
+  The only things that aren't inherited are the name, adjective, and short
+description.  Synonyms *are* inherited (at least as long as [White
+Rose] doesn't define its own).
+
+  One restriction: the object of the LIKE ([Red Rose] in this case)
+must appear earlier in the source file than the definition that refers
+to it.
+
+
+  DEFAULT definitions can also use LIKE.
+
+
+-----------------------------------------
+1.9  Making Objects Behave Alike: CLASS
+-----------------------------------------
+
+  In a game there sometimes exists families of objects which should
+behave alike: they should run the same metacommands, open the same
+doors, illuminate the same rooms, kill the same creatures, .... 
+  For example, there might be a group of lamp objects all of which
+acted as light sources; a collection of weapons (an axe, a sword, and
+a spear, say) that all killed a particular dragon; or a collection of
+herbs that could all be PICKed, SMELLed, and PUT in the cooking pot.
+
+  These can be modeled by setting the CLASS field of the objects in
+the family to point to a single common object. The group of weapons,
+for example, could be created as follows:
+
+NOUN [Generic Weapon]  
+Weapon
+Generic
+This is a dragon-slaying weapon.
+END_NOUN
+
+NOUN [Axe]
+Axe
+Huge
+This is a huge battleaxe.
+CLASS [Generic Weapon]
+SYNONYM Battleaxe
+END_NOUN
+
+(and similarly for [Spear] and [Sword])
+
+CREATURE [Dragon]
+Dragon
+Fire-breathing
+A fire-breathing dragon fills the room.
+WEAPON [Generic Weapon]
+END_CREATURE
+
+Now any noun with CLASS of [Generic weapon] can kill the dragon,
+including the axe, the sword, and the spear.
+
+  Classes are checked for the KEY and LIGHT fields of rooms, for the
+KEY field of NOUNS, for the WEAPON field of creatures, and for
+metacommands. The class of an object can be explicitly checked or
+changed by using the IsClass and SetClass metacommand tokens (see the
+relevant entries in sections 3.2 and 3.3). All objects, even rooms,
+have a CLASS field.
+
+  As an example of using classes with metacommands, consider the following:
+
+COMMAND WIELD GENERIC WEAPON
+  IsCarrying NOUN
+  PrintMessage "You wield the $noun$."
+  SetVariableTo [Current Weapon] NOUN
+  DoneWithTurn
+END_COMMAND  
+
+This command will be run if the player WIELDS any object with CLASS
+of [Generic Weapon], including the axe, spear, and sword presented
+above.
+ 
+  CLASS is cumulative: an object is a member of the class of its
+own parent class. For example, if I created a new object
+ 
+NOUN [Generic Axe]
+Axe
+Generic
+A generic axe.
+CLASS [Generic Weapon]
+END_NOUN
+
+and rewrote [Axe] to be
+
+NOUN [Battleaxe]
+Axe
+Huge
+A huge battleaxe
+CLASS [Generic Axe]
+SYNONYM Battleaxe
+END_NOUN
+
+then [Battleaxe] would have a CLASS of both [Generic Axe] (since we
+set that explicitly) and [Generic Weapon] (since [Generic Axe] is in
+this class); it would still kill the dragon.
+
+
+  When creating families of objects, a game author often wants to
+duplicate both behavior (using CLASS) and object information (using
+LIKE; see section 1.8). To make this easier, the keyword 'IS-A' can be 
+used in place of 'LIKE'.
+
+NOUN [Generic Weapon]
+Weapon
+Generic
+This is a dragon-slaying weapon.
+Weight 5
+END_NOUN
+
+Then other objects are declared to be "IS-A" this one, e.g.
+
+NOUN [Battleaxe] IS-A [Generic Weapon]
+Axe
+Huge
+A huge battleaxe
+SYNONYMS Battleaxe
+END_NOUN 
+
+IS-A here behaves in the same as LIKE (described in 1.8) with one
+difference: the CLASS field of [Battleaxe] will automatically be set
+to [Generic Weapon].
+  (With LIKE it would be set to be the same as the CLASS field of
+[Generic Weapon], rather than equal to '[Generic Weapon]' itself.)
+
+  This allows for both the behavior and the fields (just WEIGHT in
+this case) of [Generic Weapon] to be duplicated by [Battleaxe].
+
+
+--------------------------------------
+1.10  Metacommand Order of Execution
+--------------------------------------
+  The following notes apply to VERSION MAGX; if you are interested in
+the order of execution used by the earlier versions, see Appendix A.5.
+
+  Under VERSION MAGX, metacommands are executed in only three cycles:
+
+1) First, the ANY metacommands are run. (Those metacommands which
+   have no actor and no specific verb).
+
+2a) Then, if there is no actor, the verb-specific metacommands for the
+    given verb are run.
+
+2b) If there is an actor, then instead the commands with a matching
+    actor or with 'ANYBODY' as actor are run, in the order that they
+    appeared in the source code.
+
+[  3) Then built-in-verbs are run. ]
+
+
+4) Steps (1) and (2) are followed for AFTER ANY and AFTER <verb> commands.
+   (see below). These should not be confused with the Master's
+   Edition COMMAND AFTER metacommands.
+  
+5) Finally, COMMAND AFTER commands are run. (Those metacommands with AFTER as
+   their verb).
+
+[ 6) Then end-of-turn things happen-- this includes printing out the
+     room description if the player moved or typed LOOK. ]
+
+  At any stage, a metacommand can execute 'DoneWithTurn' which will
+skip ahead to step 5 (unless execution is already at step 5, in which
+case it has the same effect as 'QuitAllCmds'.)
+
+  'QuitAllCmds' will end the current stage and advance on to the next
+one. This will also happen automatically if all of the eligible
+metacommands have been given a chance to run.
+   
+  'QuitThisCmd' ends the current metacommand; this happens
+automatically at the end of the metacommand and it shouldn't be
+necessary to include this token explicitly.
+
+  Under Magx, it is possible to define metacommands that run after the
+built-in verbs in a more general way than the Master's Edition; they
+should be written as normal metacommands, but with COMMAND replaced by
+AFTER. For example:
+
+AFTER GET TREE
+ AtLocation [Tree Lot]
+ ....(and so forth)...
+END_AFTER
+
+which will run _after_ the usual, built-in, code for GET.
+
+
+-----------------------------------
+1.11 The AGATE Metacommand Format
+-----------------------------------
+[First, a couple of limitations:
+
+i) The extensions in this section require AGiliTy version 0.8.2 or
+   later.  
+
+ii) This section only applies if VERSION MAGX is set. Other versions
+    don't support this extension of the command format. 
+]
+
+  When VERSION MAGX is set, Magx understands an extension of the
+original AGT metacommand token format which allows for easier creation
+of complicated metacommand sequences by permitting the game author to
+put all of the branches from a condition in the same metacommand
+block.  
+  (This command format was invented by Kevin Soucy for his current
+work in progress, "AGATE".)
+
+  As an example (there is a more complex example in section 4.7):
+
+  COMMAND TALK TO OFFICIAL
+    1 Present [Obnoxious Bureaucrat]
+       2 FlagOn [Bribe Payed]
+          PrintMessage [Official's Speech] ! Contains important clue
+          DoneWithTurn
+       2       ! Default: if bribe not payed
+          PrintMessage "The official ignores you."
+          DoneWithTurn
+    1 FlagOn [Met Bureaucrat]
+       PrintMessage "The Director of Red Tape is at City Hall."
+       DoneWithTurn
+    1    ! We haven't met the official 
+       StandardMessage 3  ! "$You$ don't see any $noun$ here." 
+       DoneWithTurn
+  END_COMMAND
+ 
+(Magx refers to the numbers in front of the conditional tokens
+as "sequence IDs" since they control the sequence in which
+tokens are executed. Ideas for a better name are welcome :-).)
+
+The above example does the same thing as
+
+   COMMAND TALK TO OFFICIAL
+      Present [Obnoxious Bureaucrat]
+      FlagOn [Bribe Payed]
+      PrintMessage [Official's Speech] ! Contains important clue
+      DoneWithTurn
+   END_COMMAND
+
+   COMMAND TALK TO OFFICIAL
+      Present [Obnoxious Bureaucrat]
+      ! Bribe not payed
+      PrintMessage "The official ignores you."
+      DoneWithTurn
+    END_COMMAND
+
+   COMMAND TALK TO OFFICIAL    
+      ! (Bureaucrat not present, or we wouldn't have reached here) 
+      FlagOn [Met Bureaucrat]
+      PrintMessage "The Director of Red Tape is at City Hall."
+      DoneWithTurn
+   END_COMMAND
+
+   COMMAND TALK TO OFFICIAL        
+       ! We haven't met the official 
+       StandardMessage 3  ! "$You$ don't see any $noun$ here." 
+       DoneWithTurn
+   END_COMMAND
+
+
+THE DETAILS:
+  
+  When a conditional token fails, execution skips forward to the next
+sequence ID that is smaller than or equal to the the last
+ID. [*This is not quite true-- see the technical note below.]
+If there are none, then the interpreter moves on to the next
+metacommand.
+
+
+Comments:
+
+  i) the indentation of metacommands is done for readability, but
+isn't required. 
+
+  ii) The numbers you use for IDs don't actually matter; they're just
+used as labels. The above example would work the same if 145 and 888 
+were substituted for 1 and 2 above.
+
+  iii) You can use numbers from 1 to 9999 as sequence IDs. The numbers
+should get bigger as they get more deeply nested. (Magx will issue a
+warning if you don't do this. See also the technical note below.)
+  
+  iv) Execution of the different branches is not exclusive: if
+the DoneWithTurn tokens were missing from the above example, then
+execution would just continue downward until the end.
+  You can also use the Next token (described in Section 3.1) to quit
+just one section of a command without quitting the whole thing.
+See Section 4.5 for an example.
+
+  v) If a conditional token doesn't have an ID in front of it,
+then it will be associated with the most recent ID. If you
+wish, you can optionally mark such tokens with '-' or '&' (see the
+example in Section 4.7), but these symbols aren't required and are
+just ignored by Magx. 
+  (Barring a change in the design, Kevin Soucy's AGATE system *will*
+require them.) 
+
+
+DIFFERENCES BETWEEN MAGX AND AGA2AGT 
+  There is currently one other implementation of the AGATE command
+format: Kevin Soucy's AGA2AGT converter, a DOS program which takes
+AGATE-format source and converts it to normal AGT source code (which
+can then be run through Magx or the original compilers). It is
+available at
+   ftp://ftp.gmd.de/if-archive/programming/agt/agate/aga2agt.exe. 
+
+  There are the following differences between the two:
+
+  i) At the moment, AGA2AGT only allows IDs 1 to 9, whereas Magx allows
+IDs 1 to 9999.  This isn't a serious issue; I doubt anyone is going to
+run out of IDs with either system.
+
+  ii) In Magx, you could conceivably use IDs out of numerical order.
+(Although the compiler will issue a warning message.)  This isn't
+recommended. (See technical note below.)
+
+  iii) If Magx is used to handle the AGATE format, the resulting game
+requires AGiliTy 0.8.2 or later. AGA2AGT, on the other hand, can be
+used to create games for any interpreter that has an available
+compiler (in particular, for any version of AGiliTy since 0.7.2).
+
+iv) AGA2AGT only allows sequence IDs before conditional tokens.
+Magx lets the author put them before blank lines (as in the first
+example in this section) or before action tokens. This is mainly
+useful for the last ID of a given value, marking code that should run
+if nothing else worked.
+
+v) AGA2AGT has trouble if action and conditional tokens are intermixed.
+For example, the following example (adapted from the one in section
+4.7) will not work correctly with AGA2AGT:
+
+    COMMAND CAST FOO 
+       1 IsCarrying [Eye of Newt]
+           PrintMessage "  Abracadabra... Hocus Pocus.... "
+           Destroy [EyeOfNewt]
+           2 AtLocation [Library]	   
+               PrintMessage "One of the books suddenly starts glowing."
+               SendToRoom [Magic Book] [Library]
+	       DoneWithTurn
+           2 AtLocation [Wine Cellar]
+               PrintMessage "A door-shaped patch in the north wall glows."
+               TurnFlagOn [Found Secret Door]
+	       DoneWithTurn
+           2    ! Not at any of the above locations; the spell is wasted.
+               PrintMessage "Nothing seems to happen."
+	       DoneWithTurn
+       1 NOT IsCarrying [Eye of Newt]  
+           PrintMessage "You don't have the eye of newt!"
+           DoneWithTurn
+     END_COMMAND
+
+If the player has the eye of newt and is in the wine cellar, then
+under AGA2AGT, we get the following transcript:
+   >CAST FOO
+     Abracadabra.... Hocus Pocus....     
+   You don't have the eye of newt!
+   >
+Using Magx, this works correctly.
+
+(This is not intended as a criticism of AGA2AGT; this is a problem
+intrinsic in trying to get the new format to work with the old AGT
+command ordering and there is no simple solution:  it is the price
+that AGA2AGT pays for (iii). )
+
+
+TECHNICAL NOTE:
+  In fact, you could even substitute 2 for 1 and 1 for 2 in the first
+example and it would still work, although Magx will print out a
+warning message since this is often a typo.  Using IDs out of order
+like this is not recommended since it is likely to confuse people.
+  If the order in which IDs are nested is different from their
+numerical order (as it would be if the IDs 1 and 2 are swapped in the
+above example), then execution will following the nesting order rather
+than the numerical order.
+  So the execution rule is really "When a conditional token fails,
+execution skips forward to the next sequence ID that is nested no more
+deeply than the last sequence ID."  As long as you define IDs in the
+order in which they originally occur, there will be no problem.
+
+  
+-------------------------------------------------------
+1.12 Objects with Multiple Locations: GLOBAL and FLAG
+-------------------------------------------------------
+
+[These features require AGiliTy 0.8.5 or later.]
+
+  Ther are occasions that an author wants to create NOUNs or CREATUREs
+that can referred to from more than one location.
+
+  To create an object that the player can refer to from anywhere in
+the game, set the GLOBAL attribute of the object. For example,
+
+NOUN [sky]
+sky
+blue
+a blue sky
+GLOBAL
+END_NOUN
+
+Now the player can LOOK AT SKY from any location in the game.
+Nouns or creatures with GLOBAL set serve a similar purpose to
+GLOBAL_NOUNS from the Master's Edition (and are intended to replace
+them). 
+
+  To create an object that appears in some rooms but not all, you
+need to use the FLAG characteristic of the noun or creature
+together with the FLAGS property of the affected rooms.  For
+example, to create a river that flows through several locations in the
+game:
+
+NOUN [River]
+river
+wide
+a wide river
+FLAG [River Flag]
+END_NOUN
+
+and then add the line FLAGS [River Flag] to each room that you want
+the river to flow through. (This is similar to the usual FLAG_NOUNS
+from the Master's Edition.)
+
+  As with GLOBAL, FLAG objects aren't explicitly listed in the room
+description, but can be referred to by the player.  
+
+  Both GLOBAL and FLAG nouns are automatically made unmovable (you
+could in principle override this, but I can think of no way that this
+would be useful.)
+
+
+---------------------------------------------------
+1.13   Author Defined Properties and Object Flags   
+---------------------------------------------------
+[Requires AGiliTy 0.8.9 or later; $ATTR...$, $PROP...$, and #PROP...#
+require AGiliTy 1.1 or later]
+
+  The game-author can define new properties and attributes for rooms,
+nouns, and creatures, using the PROP and OBJFLAG keywords.  For
+example, to give CREATUREs the properties "hit points", "anger",
+and "owner" and NOUNS the properties "owner" and "cost", the game
+author would enter the following:
+ 
+  PROP CREATURE
+   [hp]     ! hit points
+   [anger]    ! How angry the creature is.
+  END_PROP
+ 
+  PROP NOUN
+   [cost]
+  END_PROP
+
+  PROP NOUN, CREATURE
+   [owner]
+  END_PROP
+
+To give CREATUREs the object flag "undead" (set if the creature is undead, 
+unset otherwise), the author could enter:
+ 
+  OBJFLAG CREATURE
+    [undead]
+  END_OBJFLAG
+
+If you only want to define one objflag, this can be abbreviated
+
+  OBJFLAG CREATURE [undead] 
+
+The PROP and OBJFLAG keywords can be followed by ROOM, NOUN, or
+CREATURE, or any combination of the three (if, as with [owner] above,
+the author wishes to give a property to more than one type of object).
+
+  To assign values to these properties, a game author would
+enter something like the following:
+
+  CREATURE [cat]
+  cat
+  king's
+  The King's personal cat is sunning itself here.
+  [hp] 5          ! The cat has 5 hit points
+  LOCATION [throne room]
+  [owner] [king]  ! The cat is owned by the king
+  END_CREATURE
+
+  CREATURE [zombie]
+  zombie
+  dead
+  A zombie stands here guarding the passageway.
+  LOCATION [west catacombs]
+  [undead]
+  HOSTILE
+  [hp] 15
+  END_CREATURE
+
+Properties default to 0 (or [nothing]) and object flags are not set.
+(So in the example above, the cat would not be [undead] and [owner] of
+the zombie would be [nothing]), although they can be given other
+default values using DEFAULT, IS-A, and LIKE (see section 1.8), just
+like built-in properties.  Should an object flag be set on by one of
+these means, it can be turned back off by use of NOT:
+
+  CREATURE [dragon] IS-A [monster]
+  dragon
+  fearsome
+  A fearsome dragon rests here on a pile of gold.
+  LOCATION [dragon's lair]
+  NOT [undead]  ! Only neccessary if [monster] is [undead].
+  END_CREATURE
+
+
+  In metacommands, both properties and object flags should be
+referred to using the notation  "[object].[property]". For instance,
+
+  ObjFlagOn NOUN.[undead]
+  TurnObjFlagOn [cat].[undead]
+  Subtract [cash] NOUN.[cost]
+  Set [dragon].[owner] [knight]
+  Equal [king].[anger] 10
+  ObjFlagOff [variable 13].[undead]
+  Add OBJECT.[owner].[anger] 1
+
+Object flags can be checked an manipulated by the following tokens:
+  ObjFlagOn, ObjFlagOff, TurnObjFlagOn, TurnObjFlagOff, ToggleObjFlag.
+
+Object properties can be used just about anywhere.  To change them,
+use the following tokens:
+  Set, Add, Subtract, Multiply, Divide, Remainder
+which also work with variables.
+
+  The "." above is left associative, and so the construction
+    Add OBJECT.[owner].[anger] 1 
+will add 1 to the [anger] property of the owner of the current OBJECT.
+
+  Properties and objflags can be printed out in messages with the #PROP...#, 
+$PROP...$, and $ATTR...$ constructions, as follows.
+
+  PrintMessage "The cat has #Prop[cat].[hp]# hit points left."
+  PrintMessage "The $noun$ has #PropNOUN.[hp]# hit points left."
+  PrintMessage "The $object$ has #PropOBJECT.[hp]# hit points left."  
+  PrintMessage "Is the $noun$ undead? $AttrNOUN.[undead]$."
+
+  By default, $attr[Object].[ObjFlag]$ will print out "yes" if the
+attribute is set, and "no" if it isn't.  This can be changed;
+see section 1.16.
+  For $PROP...$, also see section 1.16.
+
+  The built-in properties and attributes can be accessed in the same
+way.  The file 'stddecl.agt' defines labels for all of the built-in
+properties and attributes which can then be used in the same way as
+author-defined properties; for example:
+
+  Equal NOUN.[-weapon] OBJECT  ! Is OBJECT equal to the WEAPON that kills NOUN?
+  AttrOn [chest].[-open]       ! Is [chest] open?
+  TurnAttrOff [chest].[-open]  ! Close the chest
+  PrintMessage "The $noun$ weights $PropNoun.[-weight]$."
+
+Not all built-in properties and attributes can be changed during play;
+see "stddecl.agt".
+
+------------------------------------
+1.14  Other Miscellaneous Features
+------------------------------------
+
+Magx has the following additional differences from the original
+compilers, not documented elsewhere in this file:
+
+--For the exits of room, a message label can be used in place of a
+room label.  This will cause that message to print out when the player
+tries to go that way.  
+  (If not using labels for messages, then the message number must have
+added to it the larger of 1000 and (the last room number + 1).  For
+games created using the object number ranges from any of the original
+versions of AGT, this will always be 1000. )
+  If VERSION is MAGX, you can also put the name of a verb in place of
+a room label; if the player tries to go that way, then the
+metacommands associated with that verb will be run (in a way similar
+to autoexec verbs.) [This requires AGiliTy v0.8 or later.]
+
+--IN and OUT can be used to specify exits of a room. 
+
+--A flag label can be included on its own in a metacommand, as a
+  shorthand for 'FlagOn [someflag]'
+
+--If a <VERB> ALL metacommand exists in the game data file, then
+AGiliTy will allow the new to accept multiple objects. E.g.
+  COMMAND FROB ALL
+  END_COMMAND
+will cause the user-defined verb FROB to accept multiple objects.
+  (If ALL expansion is on-- this is automatic for VERSION MAGX-- 
+then such a metacommand will never actually be run;
+AGiliTy's parser will convert it to a list of nouns before ever
+reaching the metacommands.  The *existence* of such a metacommand,
+however, tells the parser to allow multiple objects for this verb.)
+
+--If VERSION is set to MAGX, then COMMANDS will match adjectives
+as well as nouns.
+
+--Both AGiliTy and Magx recognize the following two-word 
+  prepositions:
+    OUT OF  
+    IN TO
+
+--Text macros created with #DEFINE must be defined before use.
+  (This doesn't apply to any other type of label). 
+    The following will be treated as generic text if included in a
+  text macro (and so won't do what they usually do):
+    #DEFINE, #OPTION, #COMMENT, #END_COMMENT,	
+    END_<keyword>
+  Anything else will be treated normally.
+
+--They can include other #DEFINE labels up to a depth of 50 labels.
+
+--Under VERSION MAGX, multiple-word synonyms for verbs can be defined
+by using the dictionary space character, which by default is '.'. (It
+can be set using #OPTION.)  If they are used in commands, they should
+still use the '.' character; you should avoid using them elsewhere.
+(If necessary, define a space-free synonym and use it.)
+  (Actually, in COMMAND statements, '.' is converted to an embedded
+space for *all* of the words, regardless of whether they are verbs or
+not. If necessary, change the dictionary space character using 
+#OPTION; see Section 2.0)
+
+--NOUNs and CREATUREs can have the attributes GLOBAL or NOT_GLOBAL.
+(NOT_GLOBAL is the default.) GLOBAL objects are implicitly present in
+every room in the game.   Global NOUNs are also made UNMOVABLE.
+
+--CREATUREs can have the attributes PROPER or NOT_PROPER (NOT_PROPER
+is the default). The names of PROPER creatures are treated as proper 
+nouns:  they are capitalized and omit the definite article. For example,
+"Fred" instead of "the fred".
+
+--In addition to the $STR[label]$ replacaments supported by the original
+AGT, AGiliTy also supports the following:
+   $FLAG[label]$    prints "on" or "off" for the given flag.
+   $ON[label]$      prints "on" or "off" for the given noun.
+   $OPEN[label]$    prints "open" or "closed" for the given noun.
+   $LOCKED[label]$  prints "locked" or "unlocked" for the given noun.
+(Where '[label]' is a label or number of the appropriate type.)
+[These were added by Mitch Mlinar]
+
+--Under	VERSION MAGX, it is possible to use explicit objects in 
+RedirectTo; for example:
+   RedirectTo GET [green ball]
+instead of 
+   RedirectTo GET GREEN BALL
+Like $noun$ and $object$ explicit object redirections actually change
+the value of NOUN and/or OBJECT, which are used both by the built-in
+verbs and by various metacommand tokens (such as NOUNIsNumber).  Pure
+adjective-noun pairs (such as "GREEN BALL") affect metacommand
+scanning but do not change NOUN and OBJECT (because it is potentially
+ambiguous as to *which* object a particular adjective-noun pair
+refers.) [This requires AGiliTy 1.1 or later]
+
+--Explicit objects can also be used in COMMANDs themselves; e.g.
+   COMMAND GET [Green Ball]
+This has the same effect as the two lines
+   COMMAND GET GREEN BALL
+   IsClass NOUN [Green Ball]
+This allows you to write COMMANDs that will match a whole class
+of objects; e.g.
+  ATTACK [monster] WITH [weapon]
+will match any attack on an object of class [monster] using an
+object of class [weapon]. 
+  This can also be used to match individual objects more
+specifically than is possible with adjective-noun constructions.
+IsClass [Green Ball] [Green Ball] is always true, so any object
+will match itself with this construction.
+[This requires AGiliTy 1.1 or later]
+
+
+--------------------------------------
+1.15  List of Object Characteristics
+--------------------------------------
+  This lists all of the object charactaristics that can be either on
+or off. The default form is always listed second; authors don't need to
+use these unless 
+      i) they have changed the defaults (see section 1.8)
+ or  ii) they are using IS-A or LIKE.
+
+For rooms:
+  GAME_END / NOT_GAME_END
+  GAME_WIN / NOT_GAME_WIN
+  PLAYER_DEAD / NOT_PLAYER_DEAD
+
+For nouns:
+  OPEN / CLOSED
+  LOCKED /UNLOCKED 
+  ON / OFF
+  PLURAL / SINGULAR
+  GLOBAL / NOT_GLOBAL
+  UNMOVABLE / MOVABLE
+  CLOSABLE / UNCLOSABLE
+  LOCKABLE / UNLOCKABLE
+  IS_LIGHT / NOT_IS_LIGHT  
+  EDIBLE / INEDIBLE 
+  DRINKABLE / UNDRINKABLE
+  POISONOUS / NONPOISONOUS
+  READABLE / UNREADABLE
+  WEARABLE / UNWEARABLE
+  PUSHABLE / NOT_PUSHABLE
+  PULLABLE / NOT_PULLABLE
+  PLAYABLE / NOT_PLAYABLE
+  TURNABLE / NOT_TURNABLE 
+  CAN_SHOOT / NOT_CAN_SHOOT
+  GAME_WIN / NOT_GAME_WIN
+
+For creatures:
+  HOSTILE / FRIENDLY
+  GROUPMEMBER / NOT_GROUPMEMBER
+  GLOBAL / NOT_GLOBAL
+  PROPER/ NOT_PROPER 
+
+
+-----------------------------------
+1.16 Itemized Variables and Flags
+-----------------------------------
+[This requires AGiliTy 1.1 or later]
+
+  Itemization of flags, variables, objprops, and objflags allows the
+game author to control the way that they are printed out.  By default,
+the sequence "$flag[someflag]$" will print out "yes" or "no", 
+depending on whether [someflag] is set or not.  The game author
+can change this when the flag is defined by putting two quote-delimited
+strings after the flag definition; for example
+
+FLAG [main switch] "on" "off"
+FLAG [daytime] "day" "night"
+
+The first string will be printed out when the flag is true;
+the second will be printed out when the flag is false.
+
+  ObjFlags can be customized in the same way:
+
+OBJFLAG CREATURE [living] "living" "dead"
+
+  
+  In a similar way, properties and variables can be 'itemized';
+for example, we can define
+
+PROP NOUN,CREATURE [color] "red" "blue" "yellow" "green" "violet" "orange"
+
+Whenever "$Prop[someobject].[color]$" is used, one of the strings will be
+printed out: "red" if [color] is zero or negative; "blue" if [color] is 1;
+"yellow" if color is 2; and so forth.  "orange" will be printed if
+[color] is larger than or equal to 5.
+  
+  (#Prop[someobject].[color]# will still be print out the numeric value
+of the [color].)
+
+  Variables can be used the same; to print out the itemized string
+in a message, just use $var[somevariable]$ instead of #var[somevariable]#.
+
+
+  For all four of these, the DEFAULT and LIKE commands can be used to
+duplicate itemizations.  For example,
+
+FLAG DEFAULT "up" "down"
+
+will cause all flags defined between this statement and the next
+FLAG DEFAULT statement to print as "up" and "down".
+
+
+  LIKE can be used to copy an itemization defined for an earlier
+flag/objflag/objprop/variable:
+
+PROP CREATURE [sanity] "sane" "eccentric" "mad" "catatonic"
+VARIABLE [player sanity] LIKE [sanity]
+
+The thing being copied needs to be defined before the LIKE statement.
+ObjFlags and Flags can be copied from each other; ObjProps and Variables
+can be copied from each other. However, Flags/ObjFlags can't be copied
+from Variables/ObjProps, or vice-versa.
+
+  Itemization only affects the printed form of the variable/objprop/
+flag/objflag;  internally it is still a number, although this can
+be ameliorated with appropriate label definitions, e.g.
+
+LABEL [red] NUMBER 0
+LABEL [blue] NUMBER 1
+etc.
+
+
+=================================
+2.0 NEW AND MODIFIED DIRECTIVES
+---------------------------------
+
+  First, simple options:
+
+STATUS_OPTION {Num}
+  This determines what the status line will display:
+	0 = Room, Score, moves (the default)
+	1 = Room, score, time
+	2 = Room, moves
+	3 = Room, time
+	4 = Room only (centered) 
+        5 = Room, score
+
+SCORE_OPTION {Num}
+  This determines what will printed out for the score. 
+In general, score prints out both the actual score and the number of
+room visited. The follow table lists what is printed out for each
+value of {Num}; an asterisk indicates that the maximum possible value
+is also printed out. (e.g. "You have 10 points (out of 400
+possible)."). [Options above 3 require AGiliTy 0.8.]
+  0-- Score*, Room*     6-- Room*
+  1-- Score*, Room      7-- Room
+  2-- Score,  Room*     8-- <Nothing, and SCORE is disabled>
+  3-- Score,  Room
+  4-- Score*
+  5-- Score
+
+
+LONG_STRING 
+  Allows user strings to contain more than one word.
+
+INTRO_FIRST   	
+  If include, causes the introduction to be printed before the title.
+
+TITLE_BOX
+  Causes the title to be printed in a box; on by default
+  for MASTERS and MAGX. 
+
+NO_TITLE_BOX    
+  Causes the title to *not* be printed in a box; the default for 1.83
+  and CLASSIC.  If most of the non-blank lines start with spaces,
+  the title won't be centered.
+
+MILITARY_TIME
+  Display the time in military format. 
+
+PREP {list of words}
+  This defines each of the words as a new preposition.
+Multiple-word prepositions (such as "out of") can be defined using
+the dictionary space character('.' by default, but see #OPTION); if
+the preposition shows up in a command, it should again use the
+dictionary space character instead of a real space.
+  For example:
+  PREP in.to  
+would define "in to" as a preposition. (Not necessary since this is 
+already done.)
+  The two built-in multi-word prepositions ("in to" and "out of")
+still work in commands with a normal space.
+
+ 
+---------------------------------
+VERSION  <AGT version>
+
+  This can be GAGS, CLASSIC, 1.83, MASTERS, or MAGX. If VERSION isn't
+given, the compiler will assume that the game file was created for
+either Classic AGT or the Master's Edition and will compile
+accordingly. 
+
+  New games should be created with VERSION MAGX; the other options
+only exist for the purpose of compiling existing games.
+  The versions have the following properties and default settings:
+(The default settings can be changed, of course-- see CONFIG below and
+the other options in this chapter)
+
+VERSION MAGX
+  NO_SLASH_BOLD, NO_INTRO_FIRST, NO_PURE_ANSWER, CHECK_GRAMMAR
+  NO_PURE_AFTER, FIX_MULTINOUN, FIX_METAVERB,
+   (so time will not pass for multiple nouns or metaverbs)
+  SMART_DISAMBIG, EXPAND_ALL,   
+   (smart disambiguation and all expansion are turned on)
+  STARTING_TIME 1200
+  DELTA_TIME 5
+  MAX_LIVES 1
+  #OPTION +warn_extratext -assume_any
+  --Adjective matching of commands supported.
+  --Spaces are not stripped from the end of description lines.
+  --Backslash formatting options supported (see Section 1.5).
+  --The DOOR virtual object is not recognized (and so the	
+       LOCKED_DOOR option is no longer meaningful). It's still
+       possible to define your own 'door' noun, of course.
+  --There are differences in handling of weight and size.(See Section 1.7)
+  --Metacommands are scanned in a slightly different order.
+        (See Section 1.10 and Appendix A.5)
+  --NOUN, OBJECT, NAME, and variable arguments supported 
+        (see Section 3.0) 
+  --The compiler will complain if numbers occur where a label could be
+    used. 
+
+DEFAULT (Used if VERSION not specified)
+  NO_SLASH_BOLD, NO_INTRO_FIRST, PURE_ANSWER, NO_CHECK_GRAMMAR, PURE_AFTER
+  TITLE_BOX and ROOMTITLE set if rooms/nouns/creatures use labels;
+      not set otherwise.
+  STARTING_TIME 1200
+  DELTA_TIME 5
+  MAX_LIVES 3
+  #OPTION -warn_extratext +assume_any
+ 
+VERSION MASTERS
+  NO_SLASH_BOLD, NO_INTRO_FIRST, PURE_ANSWER, NO_CHECK_GRAMMAR, PURE_AFTER
+  TITLE_BOX, ROOMTITLE
+  STARTING_TIME 1200
+  DELTA_TIME 5
+  MAX_LIVES 3
+  #OPTION -warn_extratext +assume_any
+
+VERSION CLASSIC (emulate AGT 1.35)
+  NO_SLASH_BOLD, NO_INTRO_FIRST, PURE_ANSWER, NO_CHECK_GRAMMAR, PURE_AFTER
+  NO_TITLE_BOX, NO_ROOMTITLE
+  STARTING_TIME 1200
+  DELTA_TIME 5
+  MAX_LIVES 3
+  #OPTION -warn_extratext +assume_any
+
+VERSION GAGS
+  Identical to VERSION CLASSIC except that nouns default to being OPEN
+  rather than CLOSED.
+
+VERSION 1.83 (emulate Menichelli's 1.83)
+  SLASH_BOLD, INTRO_FIRST, PURE_ANSWER, NO_CHECK_GRAMMAR, NO_PURE_AFTER,
+  MAX_LIVES 1 
+  STARTING_TIME 0000
+  DELTA_TIME 0
+  #OPTION -warn_extratext +assume_any
+  --'is' is treated as a noise word and ignored in COMMANDs.
+  --1.83 time functions are supported instead of the usual (Master's
+	Edition) ones
+  --Metacommands are run in two passes, "before" and "after".
+  
+All of them share these default settings:
+  NO_PURE_DUMMY, NO_PURE_SUBNAME, BLOCK_HOSTILE, GET_HOSTILE,
+
+
+Notes on Converting to VERSION MAGX
+
+  Adding VERSION MAGX to a pre-Magx game may result in a lot of
+warnings about "Extra text found on line".  This is usually 
+caused by comments that aren't clearly delimited.
+  The *best* solution is to go through the source and insert (* and *)
+around all of the comments (assuming there isn't a real error, of
+course).  For a large game, though, this may be too much work; in
+this case, this warning message can be turned off with 
+   #OPTION -warn_extratext
+(Doing so may also turn off warnings about *real* errors, which is why
+it is better to insert (* and *) if possible).
+  When writing new games, you should always either surround comments
+with (* and *) or precede them with '!' (see Section 1.4).
+  
+  Another warning you may receive is "Expect labels instead of numbers
+for ...".  This could occur, for example, if a room is referred to by
+number when rooms are defined with labels.
+
+  Most commonly, it occurs when 0 or 1 or 1000 is used for an object
+number, or when 0 is used for a flag number.  In this case, the
+solution is to use LABEL to create labels for these things (or
+'#include stddecl.agt' which does it for you) and replace the numbers
+by labels. 
+
+  Text macros don't count as labels for this purpose, so you may see
+this error with a line like the following:
+  LOCATION [Nowhere]
+where [Nowhere] is defined by
+  #DEFINE [Nowhere] 0
+The solution in this case is to replace the #DEFINE by a LABEL:
+  LABEL [Nowhere] object 0
+(See the description of LABEL below).
+
+  'stddecl.agt' already does this and can be used as a replacement for
+'stddef.agt'. (They shouldn't both be #included in the same 
+game).
+
+
+---------------------------------
+#OPTIONS
+
+  The following can appear on the line after #OPTIONS:
+
++warn_extratext , -warn_extratext  
+   Turn warnings about extra text on a line on or off. This warning is
+   most commonly caused by comments that aren't clearly marked.
+
++whitespace, -whitespace
+   Turn on/off whitespace insensitivity in labels. If on then extra
+   spaces will be ignored; [ Abc ] will be the same as [Abc] and
+   [The  Man] will be the same as [The Man] (although distinct from 
+   [TheMan]).
+     For VERSION MAGX this is on by default; for other VERSIONS it
+   is off.  It is recommended that this be set on for new games since
+   people don't usually notice differences in whitespace unless
+   reading carefully.
+
+-assume_any, +assume_any
+    This affects the way that COMMANDs are parsed if something is left
+  out. If assume_any is turned on, then the blanks will be filled in
+  by ANY; if it is turned off, they will be marked as <NONE>.
+    For example,
+      COMMAND GIVE COAT 
+  becomes 
+      COMMAND GIVE COAT ANY ANY
+  if assume_any is active, but not if assume_any is turned off. 
+  (And so it will match "give coat to stranger" if assume_any is on,
+  but not if assume_any is off.)   
+    This is off by default for VERSION MAGX; it is on for all other
+  VERSIONS. 
+
+messages"" or messages<> or ...
+   Define the delimiters of the one-line short messages; by default
+they are quotation marks. If only one non-space character follows the
+keyword, then it will be used for both of the delimiters.
+
+dictspace. or dictspace& or ...
+  Set the symbol that represents a space in multiple-word verbs and
+prepositions. This option is only meaningful under VERSION MAGX.
+  By default, this is '.', but you might need to change it if you
+wanted to put a *real* period in your text.
+
+
+
+
+---------------------------------
+LABEL {Label} <type> {value}
+
+  This defines a new label equal to {value}, but doesn't actually
+create a new object.  It is mainly intended to allow labels to be
+attached to directions, to special objects (0, 1, and 1000), and to 
+numbers. 
+  <type> can be one of OBJECT, ROOM, NOUN, CREATURE, VARIABLE, FLAG,
+QUESTION, MESSAGE, STRING, COUNTER, DIRECTION, SUBROUTINE, PICTURE,
+PIX, FONT, SONG, ROOMFLAG, STDMSG, OBJFLAG, OBJPROP, ATTRIBUTE,
+PROPERTY, or EXIT.  (ATTRIBUTE and PROPERTY refer to *built-in*
+attributes and properties.)
+  Most of these are only useful under special circumstances since
+LABEL *doesn't actually create anything*; it just attaches a name to a
+number.  
+  A couple of these require further explanation:
+    OBJECT indicates one of the special objects: 0, 1, or 1000.
+    EXIT  refers to an exit label-- either a room or a message number
+     plus the exit message base (usually 1000). 
+    DIRECTION indicates one of the directions, 1 through 12.
+
+ Examples:
+label [north] direction 1
+label [nowhere] object 0
+label [number of treasures] number 5
+  
+  Aside from the labels defined in 'stddecl.agt', the main use of LABEL
+is to define constants, either for readability or to allow the author
+to change them later.
+  In general, any time there is something of the form
+         #DEFINE [somelabel]  <a number>
+it can be replaced with a LABEL statement.
+(If the #DEFINE contains something other than a number then it *can't*
+be replaced by a LABEL).
+
+
+---------------------------------
+STANDARD {Number or Label}
+<Text of standard message>
+END_STANDARD
+
+  This provides a replacement for one of the interpreter's standard
+messages. Unlike the original interpreter, this can be included in the
+game file itself (instead of in a separate file). If you do this,
+however, you need to make sure that there is no file titled
+<game-name>.STD or AGT.STD in the same directory as your game file.
+Unlike the Master's Edition, this file is not required. If a
+particular standard error message is not included, the interpreter
+will use its own internal default. 
+ 
+  The original interpreters had 185 messages; AGiliTy adds more, which
+by default are:
+  186: You can't use AGAIN until you've entered at least one command.
+  187: Inside, $you$ see the following:
+  188: $You$ fire a shot into the air.
+  189: The $object$ doesn't want it.
+  190: $Verb$ doesn't take an object.
+  191: $Verb$ doesn't take $prep$ as a preposition.
+  192: $Name$ doesn't want to.
+  193: $You$ learn nothing new.
+  194: $You$ see nothing unexpected.
+        (printed when examining nouns that have no description defined)
+  195: $You$ see nothing unexpected.
+	(printed when examining creatures that have no description defined)
+  196: I don't know who $you$ $are$ trying to address.
+  197: $You$ can't enter anything here.
+  198: $You're$ not inside anything that $you$ can exit. 
+  199: You can't use ALL as an indirect object.
+  200: $You're$ not able to $verb$ $the_n$$noun$.
+        (Printed for DROP)
+  201: $You're$ not able to remove $the_n$$noun$.");
+  202: $You$ can't move $the_n$$noun$.
+        (When trying to WEAR something)
+  203: $You$ can't wear that.
+  204: $The_n$$noun$ counterattacks! $N_pro$ fights viciously
+       and $you$ $are$ unable to defend $your$self against $n_indir$.
+  205: You $verb$ $the_n$$noun$ into $the_o$$object$,
+       but there isn't enough room and $n_pro$ falls out.
+         (Throwing things into an object with no room left)
+  206: Attack what???
+  207: $You$ don't see any $object$ here.
+         (When trying to UNLOCK something)
+  208: $You$ will need to use something to do that.
+         (When trying to LOCK something)
+  209: $You$ can't turn $the_n$$noun$ $prep$.
+         (Turning something on)
+  210: $You$ can't turn $the_n$$noun$ $prep$.
+         (Turning something off)
+  211: Who $are$ $you$ addressing?
+         (TALK without noun)
+  212: Who $are$ $you$ addressing?
+         (Talking to something that isn't present) 
+  213: $You're$ not wearing that.
+  214: What do $you$ want to $verb$ $the_n$$noun$ $prep$?
+  215: $You$ can't move $the_n$$adjective$ $noun$.
+         (When trying to THROW something)
+  216: (Taking $n_indir$ off first)
+  218: Please enter a *number*.
+  219:   Illustrations:
+  220:  (Providing light)
+  221: (Carried by
+  222:  (Inside
+  223: )
+       (Used after 221 or 221)
+  224: There are no immediately visible exits.
+  225: There are exits to 
+         (Followed by list of exit directions)
+  226: Which contains:
+  227: [Your score just went up]
+  228: [Your score just went down]
+  229: Who is this '$word$' you are addressing? 
+  230: I don't understand '$word$' as a verb.\n 
+  231: The verb '$word$' doesn't take multiple objects.
+  232: You can't use multiple indirect objects.
+  233: I don't understand the word '$word$' as a noun.
+  234: I don't know to what '$word$' refers.
+  235: I don't understand the word '$word$' as a noun.
+  236: I don't know to what '$word$' refers.
+  237: Preposition $word$ requires an object.
+  238: Extra input found: "$word$..."
+  239: I don't know what you are referring to. 
+        (When ALL doesn't refer to anything.)
+  240: In that case, I don't know what you mean.
+
+---------------------------------
+CONFIG
+<Configuration options>
+END_CONFIG
+
+  This allows the inclusion of configuration options. The following
+options can appear in this section (any of which can be prefixed with
+NO_ to turn them off).
+  See the discussion of VERSION for the default settings of some of
+these.
+	
+ROOMTITLE  
+  Print the room title in bold before the room description.
+  Default depends on version.
+
+IRUN  
+    Print error messages in first person.
+
+NO_BLOCK_HOSTILE   
+  Allow the player to leave a room containing a hostile
+  creature if they go back the way they came.
+
+NO_GET_HOSTILE  
+  Prevents the player from picking up objects in a room
+  containing a hostile creature. (Intended to be used with 
+  NO_BLOCK_HOSTILE)
+
+NO_OBJECT_NOTES  
+  Turns off notes after object description, such as '[providing light]'.
+
+CONST_TIME  
+  Increment time at a constant rate instead of randomly.  
+
+FIXED_FONT 
+  Force system to use a fixed-pitch font.
+
+NO_FIXED_FONT
+  Allow the system to use proportional fonts.
+
+SLASH_BOLD  
+  If set the backslash character toggles bold on and off. This is off
+  by default except for VERSION 1.83 games. If on, it also prevents
+  the use of the backslash formatting commands described above.
+
+NO_PRONOUN_SUBS  
+  Don't do $you$-style substitutions in game-author defined messages.
+
+SMART_DISAMBIG   
+  This turns on smart disambiguation. 
+  This is on by default for VERSION MAGX.
+
+EXPAND_ALL  
+  This turns on ALL and ALL EXCEPT expansion in the parser (by
+  default, expanding them is the responsibility of the individual
+  verb execution routines); see remarks on SMART_DISAMBIG: both of
+  these options use the same engine and so they are likely to work or
+  fail together. If you're using this, you'll probably also want to
+  set FIX_MULTINOUN.
+    This is also on by default for VERSION MAGX.
+
+FIX_METAVERB  
+   Don't run ANY metacommands when executing a metaverb (such as SAVE 
+   or RESTORE).
+   On by default for VERSION MAGX.
+
+FIX_MULTINOUN
+   Only advance one turn when manipulating multiple nouns, rather than
+   a turn for each noun. On by default for VERSION MAGX.
+
+PURE_ANSWER   
+   Require AND-connected answers to be in the right order.
+   On by default for VERSION MAGX.
+
+CHECK_GRAMMAR
+   Causes the game to print out an error message if the player
+   enters a verb with too many objects. (For example, 'N TREE', since
+   the verb 'N' doesn't take any objects.)
+   On by default for VERSION MAGX.
+
+VERBOSE  
+   Force the game to start in VERBOSE.  Normally you shouldn't
+   specify this but leave the decision up to the player. (Who
+   can set their preference in their personal configuration
+   file).  
+
+PURE_AFTER  
+   Causes LOOK and other end-of-turn actions to take place
+   after AFTER commands. (This is on by default for Master's
+   Edition games.)
+
+
+======================
+3.0 NEW METACOMMANDS
+----------------------
+
+  If VERSION MAGX is set, then the compiler accepts an extended
+syntax for the arguments of tokens. In addition to the usual
+arguments, you can use
+
+--NOUN, OBJECT, NAME  which refer to the direct object, 
+   indirect object, and creature being addressed, respectively. 
+   These can be used anywhere a noun or creature could be. So, for
+   example:
+     Present NOUN    (logically equivalent to NounPresent).
+     IsSomewhere OBJECT
+     IsHostile NAME
+
+--The label for a variable; the value for this variable will then be
+    used as the argument.  Variables can replace any argument
+    *except* another variable. For example,
+  GoToRoom  [Some Variable] (equivalent to  GoToVariableRoom [Some Variable])
+  GetIt [This Variable]
+  AddToTime [Some Other Variable]
+
+--TOS, which refers to the top of the internal stack.  See appendix
+B.1.
+
+
+--------------------
+3.1 Special Tokens
+--------------------
+
+AND
+  This is used to link together OR blocks (or to link an OR block with
+following conditional tokens). There is an example below.  
+(Section 4.1). 
+
+
+Next {token sequence ID}
+Prev {token sequence ID}
+  These jump to the next and previous occurrence of the given token
+sequence ID. (See section 1.11 for information on token sequence IDs).
+The argument can't be a label since a given ID is only meaningful in the
+current metacommand.
+  Prev 0 jumps to the beginning of the current metacommand.
+  Next 0 jumps to the end of the current metacommand (which is
+logically equivalent to QuitThisCMD).
+
+
+EndDisambig {value}
+  This does nothing except when disambiguating or doing ALL expansion.
+In either of these two cases, it is equivalent to "DoneWithTurn"
+except that it also sets the disambiguation priority to {Value}.
+  (See Section 4.3 for more on disambiguation priority).
+  Most often, {value} will be zero.
+ 
+------------------------
+3.2 Conditional Tokens
+------------------------
+
+OnDisambig
+  This is true if the interpreter is scanning metacommands for the
+  sake of disambiguation or ALL expansion and false otherwise (if the
+  metacommands are really being executed).
+
+NameWasPresent
+  True if the person being addressed was present at the beginning of
+  the current line of commands. This is included to allow things like
+  >FRED, GO NORTH AND DROP STICK
+  By the time the interpreter gets to DROP STICK, Fred is no longer in
+  the same room as the player so NamePresent would fail.
+  NameWasPresent would still be true.
+
+OncePerTurn
+  When executing verbs with multiple nouns, this is true for the first
+  one and false thereafter.   This lets you set up events that run
+  every turn without counting multiple turns whenever the player uses
+  multiple objects.  (If used in an AFTER or COMMAND AFTER block,
+  it runs for the *last* object in the group.)
+   To use this, you need to have FIX_MULTINOUN set. (VERSION MAGX
+  sets this automatically).
+
+IsHostile {Noun/Creature}
+  True if the object is hostile. This is normally used in the form
+    IsHostile NOUN
+    IsHostile OBJECT
+    IsHostile NAME
+
+HostilePresent
+   True if there is a hostile creature present in the room.
+
+NumericNOUN
+NumericOBJECT
+  True is the noun or object (respectively) entered by the player
+  is a number. The value of the number can be gotten by using 
+  NounToVariable and ObjectToVariable (see the original AGT manual).
+
+IsClass {Object1} {Object2}
+  [Requires AGiliTy 0.8 or later]
+  True if {Object2} is a superclass of {Object1}.
+
+CompareStrings {Str1} {Str2} 
+  [Requires AGiliTy 0.8.6 or later]
+  True if the two user strings are identical, ignoring the difference
+  between upper and lower case.
+
+StringBefore {Str1} {Str2}
+  [Requires AGiliTy 0.8.6 or later]
+  True if {Str1} occurs before {Str2} in alphabetical order, ignoring
+  differences between upper and lower case.
+
+StringAfter {Str1} {Str2}
+  [Requires AGiliTy 0.8.6 or later]
+  True if {Str1} occurs after {Str2} in alphabetical order, ignoring
+  differences between upper and lower case.
+
+CaseCompareStrings {Str1} {Str2} 
+CaseStringBefore {Str1} {Str2}
+CaseStringBefore {Str1} {Str2}
+  [Requires AGiliTy 0.8.6 or later]
+  Equivalent to the three previous tokens except that they distinguish
+  between upper and lower case.  All lower case letters are "larger"
+  than all upper case letters (so "Z" is before "a").
+
+StringIsAnswer {Str} {Question}
+  [Requires AGiliTy 0.8.6 or later]
+  Checks to see if the string matches the answer to {Question}.
+
+HasSeen {Object}
+  [Requires AGiliTy 0.8.7 or later]
+  Checks to see if the player has seen the given room, noun, or creature.
+  (A player is considered to have "seen" an object if it was theoretically
+  visible to the player at any one of the following times:
+    i) After ANY and <verb> metacommands have run (that is, just before
+        built-in verbs are checked).
+    ii) At the end of the turn
+    iii) Anytime the room description is printed out.)
+
+
+ObjFlagOn {Object} {Object Flag ID}
+  [Requires AGiliTy 0.8.9 or later]	 
+  True if the given objflag for this object is on.
+
+ObjFlagOff {Object} {Object Flag ID}
+  [Requires AGiliTy 0.8.9 or later]	 
+  True if the given objflag for this object is off.
+
+CanGo {Object} {Direction}
+  True if there is an exit in {Direction }from the room which {Object}
+  is currently in.  (If {Object} is itself a room, then this is true of
+  that room has an exit in the given direction.)
+  See also MoveInDirection
+
+-------------------
+3.3 Action Tokens
+-------------------
+
+Quote {Msg} 
+  Prints the given message in a quote box.
+
+WaitForKey
+  Waits for the user to press a key. Unlike WaitForReturn it
+  doesn't print out a prompt.
+
+PrintMessageNoNL {Msg}
+  Prints a message with no newline, so the next message printed will
+  continue on the same line.
+
+ChangeStatus {Num}
+  Change STATUS_OPTION during play; the number values are the same as
+  for STATUS_OPTION.
+
+
+SetVariableToInput {Var}
+  Sets {Var} equal to the number entered by the player in
+  response to the last GetNumberInput token.
+  [Requires AGiliTy 0.8 or later]
+
+
+SubtractFromTime {Num}
+  Subtracts {Num} from the current time; {Num} should be in the usual
+  format for Master's Edition time commands (hhmm).
+
+SetDeltaTime {Num}
+  Sets DELTA_TIME.
+
+SetVariableToDeltaTime {Var}
+  Sets a variable equal to the current value of DELTA_TIME.
+
+Set {Var or Prop} {Num}
+  [Using a property here requires AGiliTy 0.8.9 or later]	   
+  Set the variable or object property to the given value.
+
+Add {Var or Prop} {Num}
+Subtract {Var or Prop} {Num}
+Multiply {Var or Prop} {Num}
+Divide {Var or Prop} {Num}
+  [Using a property here requires AGiliTy 0.8.9 or later]	   
+  Set the variable or object property to itself 
+plus/minus/times/divided by the second argument.
+
+Remainder {Var or Prop} {Num}
+  [Using a property here requires AGiliTy 0.8.9 or later]
+  Set the variable or object property equal to the remainder resulting
+from dividing it by the second argument.
+
+SetHE {Noun/Creature}
+SetSHE {Noun/Creature}
+SetIT {Noun/Creature}
+SetTHEY {Noun/Creature}
+  These four commands set the object that the various pronouns will  
+  refer to when used by the player. Normally these are managed
+  automatically, but under some circumstances you may need to
+  explicitly set which object a pronoun refers to. 
+
+SetDisambigPriority {Num}
+  This has no effect except during disambiguation or ALL expansion.
+    Although it is an action token, it does not cause disambiguation
+  to stop. Instead it sets the disambiguation priority to {Num} and
+  allows execution to continue.  Should execution finish without
+  encountering any (normal) action tokens, this will be the
+  disambiguation priority returned. 
+   See Section 4.3.
+
+StandardMessage {StdMsg}
+  Print out one of the standard messages, defined by the STANDARD
+  directive. At the moment this will only work for messages that are
+  explicitly defined in the game file.  
+    This is only rarely useful.
+
+
+SetClass {Object1} {Object2}
+  Sets the CLASS of {Object1} to be {Object2}
+  [Requires AGiliTy 0.8 or later]
+
+SetVariableToClass {Var} {Object}
+  Sets the variable equal to the CLASS value of the object.  
+  [Requires AGiliTy 0.8 or later]
+
+CopyString {Str1} {Str2}
+  Sets the user string {Str1} equal to {Str2}. (The order of arguments
+is the same as SetVariableTo: the target comes first).
+  [Requires AGiliTy 0.8.6 or later]
+
+UpcaseString {Str1} 
+  Convert a user string to all upper case.
+  [Requires AGiliTy 0.8.6 or later]
+
+DowncaseString {Str2} 
+  Convert a user string to all lower case.
+  [Requires AGiliTy 0.8.6 or later]
+
+TurnObjFlagOn {Object} {Objflag id}
+TurnObjFlagOff {Object} {Objflag id}
+ToggleObjFlag {Object} {Objflag id}
+  [Requires AGiliTy 0.8.9 or later]	 
+  Turn the given objflag for the specified object on or off, or toggle it.
+
+MultiplyVariable {Var} {Num}
+  Multiplies {Var} by {Num}.
+
+DivideVariable {Var} {Num}
+  Divide {Var} by {Num}.
+
+ComputeRemainder {Var} {Num}
+  Computes the remainder of {Var} divided by {Num}, storing the result
+  in {Var}.
+
+MoveInDirection {Object} {Direction}
+  This moves the given object in the given direction if possible.  It
+  will not attempt to move an object through an exit with a message or
+  autoverb attached.
+  See also CanGo.
+
+==============
+4.0 EXAMPLES 
+--------------
+  
+  This section provides some examples and additional clarification of
+some of the new features of the Magx compiler and the AGiliTy interpreter.
+
+
+----------------
+4.1 Use of AND
+----------------  
+
+  The sequence of metacommands:
+
+     Present [Captain Black]
+     OR
+     Present [Captain White]
+     FlagOn  [Ship Sunk]
+     OR
+     FlagOn [Cannon Fired]
+
+will be true if either
+      i) Captain Black is present.
+ or  ii) Captain White is present and the flag [Ship Sunk] is on.
+ or iii) The flag [Cannon Fired] is on. 
+
+  On the other hand, if we insert an AND between the second and third
+condition, we get
+
+     Present [Captain Black]
+     OR
+     Present [Captain White]
+     AND
+     FlagOn  [Ship Sunk]
+     OR
+     FlagOn [Cannon Fired]
+
+which will be true if 
+        i) Either Captain Black or Captain White is present
+ *and* ii) Either one of the two flags is on.
+
+This is also often useful for marking the end of an OR block when you
+wish to follow the OR'ed tokens with more conditional tokens that
+*shouldn't* be part of the OR.
+
+
+----------------------
+4.2 Example of SetIt 
+----------------------
+The following gives the player the "Midas touch":
+
+COMMAND TOUCH TREE
+  Present NOUN 
+    ErrMessage "You don't see the $noun$ here."
+  NounIsNumber [Live Tree]
+  PrintMessage "The tree turns to gold!"
+  SwapLocations [Live Tree] [Gold Tree]
+  SetIt [Gold Tree]   
+  DoneWithTurn
+END_COMMAND
+
+This allows a transcript like the following:
+
+  > TOUCH TREE
+  The tree turns to gold!  
+{At this point, we swap [Live Tree] and [Gold Tree], but now         }
+{"it" still refers to [Live Tree]; if the player were to type "X IT" }
+{then they would be told that the object wasn't here. To fix this,   }
+{we do "SetIT [Gold Tree]", and now the following works:             }
+  > X IT
+  The tree seems to be made of pure gold. It looks remarkably natural.
+
+
+
+----------------------------
+4.3 Disambiguation: Theory
+----------------------------
+
+  While disambiguation isn't terribly complicated, it can be difficult
+to wrap one's mind around since its effects are subtle. When working
+correctly, it should be completely invisible to the player; only when
+something goes wrong is the disambiguation system noticed.
+
+  Section 4.4 gives an example, which you may want to glance at as
+you read this section.
+
+
+  The disambiguator is responsible for determining which object the
+player meant when she could be referring to more than one. For example,
+suppose there is a brass key in the room and the player has a gold
+key.  When the player types "GET KEY", it is up to the disambiguator
+to figure out which key she means. (Presumably the brass key in this
+case). 
+
+  The disambiguator operates by giving each possible object a "score"
+or priority, indicating how likely it is that this was the object the
+player was referring to (more on this below). It then takes the object
+with the highest priority. In the event of a tie, it eliminates
+objects that aren't visible (unless the verb has GLOBAL_SCOPE set; see
+below). As a last resort, it asks for help from the player; e.g. "Do
+you mean the brass key or the gold key?" 
+
+  (If none of the objects are visible, then it will just pick the
+first one rather than asking the player for help. Again, GLOBAL_SCOPE
+changes this slightly; see below.)
+
+  (If the verb *does* have GLOBAL_SCOPE, then objects with a priority
+greater than or equal to 500 will be treated in the same way as
+visible objects: they won't be automatically eliminated in favor of
+visible objects and the player will be asked about them instead of
+having the first object chosen. See Section 1.4 for more on
+GLOBAL_SCOPE.)  
+
+  In the example above, assuming no metacommands interfere, the brass
+key will be given score 1000 and the gold key will be given priority
+0; the player will pick up the brass key.
+
+  (The above discussion is oversimplified since there are also
+syntactic criteria which the disambiguator uses to resolve ambiguous
+object names. You usually don't need to worry about this, but it's
+discussed in greater detail below for those interested)
+
+
+  ALL expansion (which causes ALL and ALL EXCEPT to be converted into
+an explicit list of objects) uses the same underlying system.  For
+each visible object (or every object if the verb has GLOBAL_SCOPE), it
+computes the priority as above. If the priority is greater than 500,
+then the object is included on the total list; if the priority is less
+than 500, the object is excluded. (Of course, ALL expansion only takes
+place for verbs that accept multiple objects; see section 1.14 for how
+to specify this) 
+
+  In the example above, if the player typed "GET ALL" then "ALL" would
+be expanded to "BRASS KEY" since it scores 1000 (greater than
+500) while the gold key scores 0 (less than 500). 
+
+
+  Notice that GET and DROP score objects differently.  If the
+player typed "DROP KEY" then it would be the *gold* key that would be
+selected.  
+
+  The disambiguator has been written to figure as much of this out for
+itself as possible, but it requires some help from the game author to
+work perfectly. 
+
+
+  How, then, does the disambiguation system score objects?
+
+  For each possible object, the disambiguator runs through the
+verb-specific metacommands and built-in verbs, almost exactly as if it
+was really running the command, until it reaches an action token. When
+this happens, it stops and gives the object a priority of  1000.  If
+it never reaches an action token (and none of the built-in verbs do
+anything), then it gives the object a priority of 0. (Unless it has
+encountered SetDisambigPriority, in which case the object will have
+the priority set by the last SetDisambigPriority instead of 0.)  
+
+  There are a few important exceptions: 
+
+  --QuitThisCmd, QuitAllCmds, DoneWithTurn, RedirectTo, DoSubroutine, 
+Return, AND, and SetDisambigPriority behave has they usually do
+and don't cause the object to be automatically given priority 1000
+(and, except for DoneWithTurn, checking of metacommands and built-in
+verbs continues). 
+
+  --ErrMessage and ErrStdMessage set the object's priority explicitly.
+Along with SetDisambigPriority, these are the main way that the author
+provides the disambiguator with information about what objects are
+appropriate. (See section 4.4 for a concrete example)
+
+  --FailMessage and FailStdMessage are ignored unless they would
+normally print a message out (that is, unless the previous conditional
+token was false).  They are equivalent to ErrMessage/ErrStdMessage
+with a priority of 1000.
+
+  --Even though PromptForYES and PromptForNO are conditional tokens,
+they are treated as action tokens for purposes of disambiguation
+(since they cause something to happen: the player is asked for a
+response). 
+
+  By using ErrMessage and ErrStdMessage, the game author can explicitly
+set the priorities of various objects; the example in 4.4 is typical. 
+(OnDisambig and SetDisambigPriority can also be used for more
+sophisticated tuning of the disambiguator). 
+
+
+
+TECHNICAL DETAILS	
+
+  Aside from the process described above, there are a few other 
+rules based on syntax that are used to narrow down the possibilities:
+
+  i) Matches that include a synonym or noun are preferred over those
+consisting only of an adjective. (This can be controlled with the
+configuration option ADJ_NOUN; see Appendix A.4.)
+
+  ii) Visible objects are preferred over those not visible (but if a
+verb has GLOBAL_SCOPE set, then all objects with a disambiguation
+priority of at least 500 will be treated in the same way as visible
+objects).
+
+  iii) Matches to real objects are preferred over matches to numbers
+and special words (such as ALL, DOOR, SCENE, and pronouns).
+
+  iv) As noted above, if none of the objects are visible, then the
+one with the lowest number will be preferred over the
+others. (However, if the verb has GLOBAL_SCOPE, see also the remark in (ii)
+above.) 
+
+ 
+------------------------------
+4.4 Disambiguation: Practice
+------------------------------
+First, the transcript (from the included example, SUMMON.AGT):
+
+  > LOOK
+  The Blue Hawk
+  This inn has seen better days, but is still well stocked with drink.
+     There is a bottle of French red wine sitting here.
+     There is a bottle of Russian vodka here.
+  > SUMMON SPIRIT
+  Do you mean the captain black or the air spirit?
+  > AIR
+  You cast the spell of summoning!
+  > LOOK
+  The Blue Hawk
+  This inn has seen better days, but is still well stocked with drink.
+     There is a bottle of French red wine sitting here.
+     There is a bottle of Russian vodka here.
+     An air spirit hovers here, looking like a cloud.
+  > SUMMON SPIRIT
+  You cast the spell of summoning!
+  > LOOK
+  The Blue Hawk
+  This inn has seen better days, but is still well stocked with drink.
+     There is a bottle of French red wine sitting here.
+     There is a bottle of Russian vodka here.
+     The ghost of Captain Black hovers here, glaring at you.
+     An air spirit hovers here, looking like a cloud.
+  > X SPIRIT
+  Do you mean the red wine, the russian vodka, the captain black, or the air
+  spirit?
+  > SUMMON SPIRIT
+  Do you mean the captain black or the air spirit?
+  > CAPTAIN
+  The spirit is already here.
+  > DRINK SPIRIT
+  Do you mean the red wine or the russian vodka?
+  >
+
+There are four objects, the wine, the vodka, Captain Black, and the
+air spirit.  *All* of them can be referred to as 'spirit'.  Notice in
+particular that, when the player types SUMMON, the interpreter
+doesn't ask about the two drinks. 
+  (Likewise, when the player types DRINK, they are not asked about 
+the two ghosts.)
+   
+  The code to define the verb 'summon' is as follows (the rest of the
+example can be found in SUMMON.AGT); notice that the verb is declared
+to have GLOBAL_SCOPE since it can be applied to objects that aren't
+present.
+
+   VERB
+     summon call invoke global_scope
+   END_VERB
+
+   COMMAND SUMMON ANY
+     1 NOT ObjFlagOn NOUN.[is ghost]
+       EndDisambig 0
+       PrintMessage "You can't summon the $noun$." 
+       DoneWithTurn
+     1 Present NOUN
+       EndDisambig 100
+       PrintMessage "The $noun$ is already here."
+       DoneWithTurn
+     1 PrintMessage "You cast the spell of summoning!"
+       PutInCurrentRoom Noun
+       DoneWithTurn
+   END_COMMAND
+
+  I could change the 100 above to 200 or even 300 without affecting
+anything; only the relations of the priorities to each other matter
+(and their relations to 0, 500, and 1000). 
+
+  Since the second EndDisambig has a priority of 100, objects which
+reach it will preferred over those that don't.  That is, even when
+Captain Black and the air spirit are present, they will *still* be
+preferred over the two drinks. (As can be seen from the transcript). 
+
+  Almost always the priorities will be increasing as you travel down
+an individual metacommand, since they reflect objects that have passed
+an increasing number of tests. 
+
+I recommend experimenting some, to understand why the fragment above
+is written the way it is. 
+
+  --Try converting the 'EndDisambig 100' to 'EndDisambig 0' and
+see what happens.
+
+  --Try leaving out either or both of these.
+
+  --Try converting the 'EndDisambig 0' to 'EndDisambig 200' (this has a
+bizarre effect once both ghosts are present)
+
+  For each of these cases, I suggest trying SUMMON when both, one, and
+neither of the ghosts is present.
+
+
+--------------------------------------------------
+4.5 Example Use of AGATE Command Format and Next
+--------------------------------------------------
+  This is a more elaborate example of the use of the AGATE command
+format than those given in 1.11; it also shows one use of the Next
+token.
+  
+  The following code defines the casting of a spell for magic
+detection that requires all sorts of ingredients-- but if the player
+isn't properly shielded, there's a 20% chance that the evil sorcerer
+will notice that the spell has been cast.
+
+! Foo is some sort of magic-detection spell
+Command Cast Foo
+ 1 FlagOn [Know Foo Spell]
+    2 VariableLT [Amt Dragon Blood] 5 
+       PrintMessage "You don't have enough dragon's blood." 
+       DoneWithTurn
+    2 NOT IsCarrying [Eye of Newt]
+       PrintMessage "You don't have an eye of newt."
+       DoneWithTurn
+    2    ! Have all of the ingredients
+        ! The ingredients are destroyed regardless of whether the spell
+        ! does anything useful. 
+       Destroy [Eye of Newt]
+       SubtractFromVariable [Amt Dragon Blood] 5
+       PrintMessageNoNL "You cast the spell"
+	! For certain locations, the spell gives the player some new
+	!  information.
+       3 AtLocation [Library]
+          PrintMessage " and one of the books suddenly starts glowing."
+          SendToRoom [Magic Book] [Library]
+          Next 2
+       3 AtLocation [Wine Cellar]
+          PrintMessage "; a door-shaped patch in the north wall glows."
+	  TurnFlagOn [Found Secret Door]
+          Next 2
+       3 AtLocation [Tower Roof]
+          PrintMessage ", causing the great bell to glow."
+          Next 2
+       3    ! Not at any of the above locations; the spell is wasted.
+          PrintMessage ", but nothing seems to happen."
+    2 VariableEquals [Amt Dragon Blood] 0
+       BlankLine
+       PrintMessage "(You're out of dragon's blood.)"
+    2 Not IsCarrying [Spell Damper]
+    - Not [Evil Sorcerer aware]
+    - Chance 20
+        BlankLine    
+        PrintMessage "The Evil Sorcerer feels your spell!"
+        TurnFlagOn [Evil Sorcerer aware]
+   2
+      DoneWithTurn
+1  ! Don't know the spell
+  EndDisambig 100
+  PrintMessage "You don't know that spell."
+  DoneWithTurn
+End_Command
+
+  The '-' in front of a few of the conditional tokens are not required
+by Magx; they may eventually be required by some other programs that
+understand this format. (In particular, Kevin Soucy's AGATE will
+probably require them).
+
+  The "Next 2" statements in the above example cause execution to jump 
+forwards to the line "2 VariableEquals [Amt Dragon Blood] 0". We don't
+want to use DoneWithTurn here because we still need to warn the player
+if she is running out of Dragon's blood and we need to check to see if
+the evil sorcerer notices.
+
+  Overall, it would be difficult to convert this to the original AGT
+format without introducing several "bookkeeping" flags to keep track of
+where in the command we are.
+
+
+==========================================
+APPENDIX A: OBSOLETE TOKENS AND FEATURES
+------------------------------------------
+  This section lists directives and metacommands that are only included
+for compatibility with earlier versions of AGT (particularly the
+unauthorized version 1.83).  Many of these commands only work if
+VERSION is set correctly.
+  They should not be used in new games.
+
+--------------------------------
+A.1 Version 1.83 Time Commands
+--------------------------------
+  For new games, use the Master's Edition time commands instead.
+These commands will only work if VERSION 1.83 is set (in which case
+the Master's Edition time commands *won't* work).
+
+Directives:
+  HOURS
+  MINUTES
+  AM_TIME		
+  PM_TIME		
+  RANDOM_TIME	
+Conditional Tokens:
+  HourEquals {Num} 
+  HourGT {Num}     
+  HourLT {Num}     
+  MinuteEq {Num}
+  MinuteGT {Num}
+  MinuteLT {Num}
+  IsAM          
+Action Tokens:
+  TimePlus {Num}   
+  TimeMinus {Num}  
+  SetHour {Num}    
+  SetMinute {Num}   
+  TimePlusVariable {Var}    
+  TimeMinusVariable {Var}   
+  SetHourToVariable {Var}    
+  SetMinutesToVariable {Var}
+
+
+----------------------------------
+A.2 Other Obsolete 1.83 Features
+----------------------------------
+STATUS_LINE  
+    In new games, you should use STATUS_OPTION instead. 
+  Be aware that the STATUS_LINE and STATUS_OPTION use different
+  values for the various status line formats.
+
+BeforeCommand    
+AfterCommand     
+    These will only work if VERSION is set to '1.83' since they rely on
+  the 1.83 two-pass execution of metacommands, which isn't used in any
+  other version of AGT.   
+    Use the AFTER feature of Magx instead (see the end of section
+  1.10). 
+    (If you look at a compiled game file with AGTOUT, you'll see that
+  Magx actually uses BeforeCommand and AfterCommand internally to 
+  implement the AFTER feature-- but you shouldn't use these directly
+  yourself.)
+
+
+-----------------------------
+A.3 Other Obsolete Features
+-----------------------------
+  It is recommended that you avoid using all of these. 
+
+
+REM 
+ Remark-- the rest of the text on this line is ignored by the
+ compiler.  Use '!' instead.
+
+#OPTION labels[] 
+   (Use of this option in new games is not recommended since it makes
+   it harder to exchange code with other Magx users)
+   Set the label delimiters to the two characters following the
+   keyword behaves like 'messages'.
+
+#OPTION messagedelimiters, labeldelimiters
+   Obsolete forms of the 'messages' and 'labels' options, respectively.
+ 
+
+FailMessage {Msg}
+ErrMessage {Num} {Msg}
+
+  [DO NOT USE THESE; they are obsolete and likely to be removed from
+future versions of AGiliTy.  The AGATE command format is simpler and
+more flexible.]
+  These should occur just after a conditional token. If the
+conditional token fails, then the message will be printed and the turn
+will end; if the condition succeeds, then these commands don't do
+anything.  They are intended for printing the "You can't do that because
+of XXX" that occur so often in adventure games.
+  In addition, ErrMessage affects disambiguation; the numeric argument
+is the disambiguation priority that should be associated with this
+message. (See section 4.3)
+
+
+FailStdMessage {StdMsg}
+ErrStdMessage {StdMsg}
+
+  [DO NOT USE THESE; they are obsolete and likely to be removed from
+future versions of AGiliTy.  The AGATE command format is simpler and
+more flexible.]
+  These work exactly the same way as FailMessage and ErrMessage except
+that they print out one of the STANDARD messages rather than a normal
+message. (See the notes on the StandardMessage action token below).
+
+
+
+
+----------------------------
+A.4  Configuration Options 
+----------------------------
+  These are configuration options that should be avoided except to
+support older games:
+
+ALT_ANY 
+  This scans the ANY metacommands *with* the <verb> metacommands
+  rather than before them.  Should be set for _Pyramids of Mars_ and
+  not for any other games I know of. 
+
+The following options are technical and shouldn't need to be changed.
+PURE_DUMMY   Allow dummy verbs to be run by typing "dummy_verb3"
+PURE_SUBNAME Allow subroutines to be run by typing "subroutine3"
+PURE_SYNONYM Treat synonyms exactly as nouns during parsing.
+ADJ_NOUN     Don't pick noun matches over adjective-only matches.
+
+
+-------------------------------------
+A.5  Metacommand Order of Execution
+-------------------------------------
+  The original AGT interpreters executed metacommands in a more
+complex order than VERSION MAGX.  The earlier execution rules make
+extensive use of ranges of commands.  Actors are used in determining
+what the range of commands should be, but are not checked during
+actual execution.
+  The following is less clear than I would like; the approach 
+followed by AGT isn't really that complicated, but it is messy and
+counterintuitive.
+  (For the simpler VERSION MAGX order of execution, see Section 1.10)
+
+
+1. Run all commands with verb ANY in the range from the first pure ANY
+(that is, no actor) to the last pure ANY verb.  Commands within the
+interval will be run if their verb is ANY, regardless of whether they
+have an actor or not.
+
+2. If the player's command was addressed to somebody, then run
+commands from the first ANYBODY to the last ANYBODY; any other
+commands in this range whose verb matches the given verb (or whose
+verb is ANY) will also be run, regardless of what their actor is. 
+
+3a. If the player's command wasn't addressed to anybody, then scan the
+range from the first pure <verb> command to the last pure <verb>
+command, filling in <verb> with whatever the current verb is, and run
+every command in this range whose verb, noun, preposition, and direct
+object match the ones entered by the player.  ("pure" commands are
+ones without actors.) ANY entries in any of these fields (*including
+the verb field*) match everything, of course.   
+  Note that the actor field isn't checked during this except to
+determine the initial range to scan.
+
+3b. If the player's command was addressed to somebody, then scan the
+range from the first command addressed to that person to the last such
+command, following the same matching rules in 3a. (In particular, the
+actor field isn't checked again after the range is set.)
+
+4.Run built-in verbs.
+
+5. Run AFTER commands.
+
+
+  In principal an ANY metacommand could be run as many as three
+different times in a single turn (during steps 1, 2, and 3a/b), if
+the metacommands were ordered so it was inside all of the key
+execution ranges.
+
+
+================================
+APPENDIX B: TECHNICAL FEATURES
+--------------------------------
+  This appendix discusses features of the language that are
+lower-level and more technical than those discussed elsewhere 
+in this manual.
+
+-----------------------------------
+B.1  Low Level Metacommand Tokens
+-----------------------------------
+  These tokens are intended primarily for internal use by future
+versions of Magx, although a game author can use them if she wants.
+Unless otherwise noted, all of these tokens require AGiliTy 0.8 or
+later.
+
+  Magx has an internal expression stack that can be used like a
+Hewlett-Packard calculator.  As of AGiliTy 0.8.7, this stack is
+cleared before each major step of the metacommand scan (see section
+1.10) and before AUTOEXEC verbs are run.
+
+  Those Tokens below that *only* affect the stack (and not any
+variables or the properties of any object) are not treated as action
+tokens for the purposes of disambiguation or for purposes of ending an 
+OR-block.
+
+  The contents of the top of the stack can also be refered to by the
+name TOS.  (For example,  "Equal TOS 103" would check wheter the top
+of the stack was equal to 103.)  Doing so pops this element off of 
+the stack.  (If a token has *two* TOS references, then they are popped
+off the stack second argument first, as of AGiliTy 0.8.8.)
+
+
+PushStack {Num}
+  Pushes {Num} onto the internal expression stack.
+
+DupStack 
+  Duplicates the top of the stack.
+
+PopStack {Var}
+  Pops the top element off of the expression stack and stores it in {Var}
+
+DiscardStack
+  Pops the top element off of the stack and discards it.
+
+AddStack
+SubStack
+MultStack
+DivStack
+ModStack
+  All of these pop the top two elements off of the stack, perform 
+the given operation on them (with the original top-of-stack element
+occurring as the first argument), and then push the result back on 
+the stack. The operations are (in order) addition, subtraction,
+multiplication, division, and modulus (taking the remainder).
+
+PushProp {Object} {Number}
+  Push the given built-in property of the object onto the stack.
+The properties are:
+  0: Class              8: Location
+  1: Points             9: Key
+  2: Light             10: Weapon
+  3: Number of shots   11: Attack Threshold
+  4: Weight            12: Time Threshold
+  5: Size	       13: Associated Flag
+  6: Attack Counter
+  7: Time Counter 
+
+PopProp {Object} {Number}
+  Sets the given property of {Object} to the top of stack and pops 
+  the top of stack. For property numbers, see PushProp
+  Only properties 0 through 7 can be used with this token.
+
+AttrOn {Object} {Property Number}
+  A conditional token that is true if the given attribute of {Object}
+is set. The attributes are:
+  0: On             9: Plural      18: Wearable
+  1: Open          10: Pushable    19: Drinkable
+  2: Locked        11: Pullable    20: Poisonous
+  3: Movable       12: Turnable    21: Light
+  4: Group Member  13: Playable    22: Shootable
+  5: Hostile       14: Readable    23: Global
+  6: End           15: Closable    24: Seen
+  7: Win           16: Lockable    25: Proper
+  8: KillPlayer    17: Edible     
+
+TurnAttrOn {Object} {Attribute Number}
+  Sets the given attribute of {Object}; see IsSet for a list of attribute
+codes. Only attributes 0 to 5 and 24 can be used with TurnAttrOn.
+
+TurnAttrOff {Object} {Number}
+  Clears the given attribute of {Object}; see IsSet for a list of attribute
+codes. Only attributes 0 to 5 and 24 can be used with TurnAtrrOff.
+
+PushObjProp {Object} {Property id}
+  [Requires AGiliTy 0.8.9 or later]	   
+  Push the value of the given user-defined property onto the stack.
+
+PopObjProp {Object} {Property id}
+  [Requires AGiliTy 0.8.9 or later]	   
+  Pop the value of the given user-defined property off of the stack.
+
+Goto {Number}
+  [Requires AGiliTy 0.8.2 or later]
+  Moves execution to the given offset in the current metacommand
+sequence. The numeric offsets of the commands are the same as the
+numbers printed out by AGTOUT in front of each metacommand token.
+
+OnFailGoto {Number}
+  [Requires AGiliTy 0.8.2 or later]
+  Set the failure address; this is the offset that execution will move
+to after a conditional token fails. By default it points beyond the
+end of the current metacommand sequence.  After being jumped to, this
+value is reset to its default.
+
+XRedirect {Number}
+  [Requires AGiliTy 0.8.6 or later]
+  This is used internally by Magx to handle multiple RedirectTos in a
+single metacommand block; it is difficult to use by hand.  The
+argument indicates which metacommand header to use as the redirect
+target (numbered relative the the current header, so that the value 1
+corresponds to the usual RedirectTo).  Since commands can be reordered
+during compilation, the argument should only point to one of the
+redirect headers attached to the current metacommand.
+
+-----------------------------
+B.2 Compiler Defined Labels
+-----------------------------
+  If VERSION is MAGX, then the compiler defines several labels
+automatically, all starting with 'magx:'; game authors shouldn't
+define any labels with names beginning with this phrase, since
+additional labels may be defined in future versions of Magx.
+
+  Six of the compiler-defined labels gives values of the first and
+last object in each of the three major categories:
+   [magx:first room], [magx:last room], 
+   [magx:first noun], [magx:last noun]
+   [magx:first creature], [magx:last creature]
+
+Finally, the compiler also defines
+  [magx:exit message base]
+which is equal to the value added on to messages when they are used as
+exit directions. 
+
+ 
+
+
+=================================
+APPENDIX C: MAGX ERROR MESSAGES
+---------------------------------
+  This section lists all of the messages printed out by the compiler.
+See Section 1.1 for the distinctions between the four levels of
+messages.
+
+  
+------------------
+C.1 Fatal Errors
+------------------
+#DEFINE expansion depth exceeded.
+   #DEFINE's can only be nested within other #DEFINE's to a depth of 50.
+   This error is usually caused by a #DEFINE that refers to itself, directly
+   or indirectly.  (e.g. '#DEFINE [loop1] [loop2]'  and '#DEFINE [loop2]
+   [loop1]').
+ 
+Couldn't open include file <file name>.
+   The compiler couldn't find the file specified in a #INCLUDE
+   statement.  Make sure the file name is spelled properly and that
+   the file is in the current directory.
+
+Labels and numbers both used for objects.
+   Rooms, nouns, and creatures must either all be defined in terms of
+   labels ('ROOM [Throne Room]') or all in terms of numbers('ROOM 4').
+   See section 1.3.
+
+Mixing numbers and labels for <something>.
+   Things in the same category(all variables, all flags, all
+   messages, etc.) must all be defined using labels or all using
+   numbers. It is perfectly okay to use numbers for one category and
+   labels for another. See section 1.3.
+
+Section <section> continues past end of file
+   Probably there is a missing (or misspelled) END_ marker.
+
+Too many nested include files.
+   You can #INCLUDE files from within an #INCLUDEed file, but only up
+   to a depth of five files.
+
+Too many rooms and messages.
+   The sum of the last room number and the last message number must be
+   smaller than 32,767. See section 1.2.
+
+
+------------
+C.2 Errors
+------------
+<token> must come after conditional token.
+   FailMessage, FailStdMessage, ErrMessage, and ErrStdMessage
+   only make sense following a conditional token; after an action
+   token they would never do anything. (Since action tokens can't
+   fail.) 
+
+$<word>$ not a valid substitution. 
+   Check to make sure that the word is spelled correctly.
+
+$<word>$ only allowed in RedirectTo.
+   Substitutions like '$noun$' and '$verb$' aren't allowed in 
+   COMMANDs.
+
+All noun numbers must be smaller than all creature numbers.
+   See section 1.2.
+
+All room numbers must be smaller than all noun numbers.
+   See section 1.2.
+
+Argument to option '<option>' is too big.
+
+CREATURE missing adjective and short description.
+   CREATURE definitions must be at least three lines long, with one line
+   for the noun, one for the adjective and one for the short
+   description. (Although it is possible for any or all of these lines
+   to be blank.) 
+
+CREATURE missing short description.
+   CREATURE definitions must be at least three lines long, with one line
+   for the noun, one for the adjective and one for the short
+   description. (Although it is possible for any or all of these lines
+   to be blank.) 
+
+Creature range may not contain 1000.
+  See section 1.2.
+
+Do not recognize object '<object>'.
+   Check spelling both in the COMMAND statement and in the object's
+   definition. 
+
+Do not recognize operand '<operand>'.
+   Check spelling; you may also want to look at the beginning of
+   section 3.0.
+
+Duplicate CREATURE definition.
+   Either change the labels or delete one of them.
+
+Duplicate NOUN definition.
+   Either change the labels or delete one of them.
+
+Duplicate ROOM definition.
+   Either change the labels or delete one of them.
+
+Duplicate description.
+   This is usually caused by copying an object and forgetting to change
+   the labels or numbers on all of the descriptions.
+
+Empty creature description.
+   CREATURE definitions must be at least three lines long, with one line
+   for the noun, one for the adjective and one for the short
+   description. (Although it is possible for any or all of these lines
+   to be blank.) 
+
+Empty noun description.
+   NOUN definitions must be at least three lines long, with one line
+   for the noun, one for the adjective and one for the short
+   description. (Although it is possible for any or all of these lines
+   to be blank.)    
+
+Empty room description.
+   ROOM definitions must be at least one line long, with a line for
+   the room description. (Although it is possible for this to be
+   blank.)
+
+Expected label or number, found nothing.   
+  A couple of possible causes: not having enough arguments to a metacommand 
+  token, forgetting the '[' and ']' around a label, a typo. If the label in
+  question was created by a #DEFINE, you should also check that its definition 
+  is correct.
+
+Expected label, found nothing.
+  The first argument to a LABEL statement must be a label, surrounded
+  by '[' and ']'. Make sure that the label isn't #DEFINE'd earlier in the
+  code.
+
+Expected number, found '<text>'.
+  Only numbers can appear as the last argument to a LABEL statement.
+  (In particular, other labels can't occur unless they are really 
+  #DEFINEs).
+
+Expected verb, found '<text>'.
+  AUTOEXEC requires a verb. Make sure it isn't misspelled and is either 
+  one of the pre-defined verbs or appears in a VERB block.
+
+Expected word after '$'.
+  In a RedirectTo statement, '$' should only appear as the
+  first character in a replacement word: '$noun$', '$verb', '$object', 
+  etc. 
+
+First argument of range should be smaller than second.
+  Several metacommand tokens take two arguments which give a range
+  of values; the first of these values should be less than the second.
+
+Format code found outside of quote.
+  You are using one of the backslash format codes (\bold\, \normal\, ...)
+  outside of printable material. See Section 1.6.
+
+Found room number smaller than 2.
+  See Section 1.2.
+
+Found noun number less than 3.
+  For technical reasons, nouns and creatures must be labeled by numbers
+  no smaller than 3. See Section 1.2.
+
+Found creature number less than 3.
+  For technical reasons, nouns and creatures must be labeled by numbers
+  no smaller than 3. See Section 1.2.
+
+Invalid 1.83 STATUS_LINE options
+  The number 0 is not allowed as a STATUS_LINE option. See A.2 and
+  the 1.83 documentation.
+
+Invalid argument to NEXT.
+  NEXT requires a numeric argument. Labels are not allowed since
+  the numeric argument has meaning only within the current metacommand.
+
+Invalid delimiter in #OPTIONS.
+  Whitespace characters can't be used as label or message delimiters.
+
+Invalid initial verb in ROOM_SYNONYM.
+  The first verb on a ROOM_SYNONYM line must be either one of the
+  built-in verbs or defined in a VERB block.
+
+Invalid metacommand token '<token>'.
+  Check for misspelling. This can also occur if you forget or misspell
+  the END_COMMAND statement, causing following lines of text to be
+  treated as if they were metacommands.
+
+Invalid subroutine name <name>.
+  Subroutines must be declared in a SUBROUTINE block before being
+  used.
+
+Label <label> defined twice.
+  This occurs most commonly when cutting and pasting definitions and
+  forgetting to change all of the labels. Search for the previous 
+  definition and change or delete one of them.
+
+Label <label> without end brace.
+  The ']' end delimiter is missing from a label.
+
+LIKE may only reference previous objects.
+  LIKE and IS-A may only refer to room/noun/creature whose definitions
+  appear earlier in the source, since the compiler needs the earlier
+  definition to copy from. See Section 1.7.
+
+NAME not of the correct type.
+  When used as an argument, NAME is usable in the same places as a
+  creature label. Make sure the arguments of the metacommand token are
+  in the right order and double-check the documentation to make sure
+  the metacommand works the way you think it does.
+
+NOT applied to action token.
+  NOT is only meaningful before a condition token.
+
+NOT not followed by conditional token.
+  NOT is only meaningful before a condition token.
+
+NOUN missing adjective and short description.
+   NOUN definitions must be at least three lines long, with one line
+   for the noun, one for the adjective and one for the short
+   description. (Although it is possible for any or all of these lines
+   to be blank.)    
+
+NOUN missing short description.
+   NOUN definitions must be at least three lines long, with one line
+   for the noun, one for the adjective and one for the short
+   description. (Although it is possible for any or all of these lines
+   to be blank.)    
+
+NOUN not of the correct type.
+  When used as an argument, NOUN is usable in the same places as an
+  object label. Make sure the arguments of the metacommand token are
+  in the right order and double-check the documentation to make sure
+  the metacommand works the way you think it does.
+
+Negative <type> number found.
+  Most things (e.g. rooms, nouns, messages, ...) can only be defined
+  with positive numbers.
+ 
+Negative argument to option '<option>'.
+  Re-read the documentation of the option.
+
+NEXT <id> without target.
+  The <id> of a NEXT statement doesn't occur anywhere after the statement
+  in the current metacommand.
+  Note that this error will occur at the bottom of the metacommand, 
+  regardless of where the offending NEXT statement is.
+
+No end-quote found.
+  There is a short message that doesn't have an end-quote on the same
+  line. (Short messages can't cross more than one line; for that, you
+  use a slightly different syntax).
+
+Noun range may not contain 1000.
+  See section 1.2.
+
+Number for <type> is too large.
+  See section 1.2 for restrictions.
+
+OBJECT not of the correct type.
+  When used as an argument, OBJECT is usable in the same places as an
+  object label. Make sure the arguments of the metacommand token are
+  in the right order and double-check the documentation to make sure
+  the metacommand works the way you think it does.  
+
+OBJFLAG <objflag name> in ROOM/NOUN/CREATURE declaration not allowed.
+  When a new objflag is defined, the definition specifies whether
+it applies to rooms, nouns, creatures, or some combination of the three.
+This error indicates an objflag was used in a way that disagreed
+with its definition-- for example, using a noun/creature objflag in
+a room declaration.  The solution is to either remove the offending
+use of the objflag or to change its original definition to encompass
+more object types. See section 1.13.
+
+OR applied to action token.
+  OR is only meaningful between two sets of conditional tokens.
+
+Only 0, 1 and 1000 are allowed here.
+  For LABELs, the type 'object' is only used for 0, 1, and 1000.
+  Other objects should be declared of type 'room', 'noun', or
+  'creature'. See section 2.0, LABEL.
+
+PREV <id> without target.
+  The <id> of a PREV statement doesn't occur anywhere before the statement
+  in the current metacommand.
+
+PROP <property name> in ROOM/NOUN/CREATURE declaration not allowed.
+  When a new object property is defined, the definition specifies whether
+it applies to rooms, nouns, creatures, or some combination of the three.
+This error indicates that a property was used in a way that disagreed
+with its definition-- for example, using a noun/creature property in
+a room declaration.  The solution is to either remove the offending
+use of the property or to change its original definition to encompass
+more object types. See section 1.13.
+
+ROOM, NOUN, or CREATURE expected.
+  An OBJFLAG or PROP declaration must be followed by at least one of 
+  these three keywords.
+
+Room range may not contain 1000.
+  See 1.2.
+
+RoomFLAG value out of range.
+  Only 31 RoomFlags can be declared, numbered from 1 to 31.
+
+RoomPIX out of range.
+  Only 31 RoomPIXs can be declared, numbered from 1 to 31.  
+
+Spurious OR found.
+  OR is only meaningful between two sets of conditional tokens.
+  In particular, it shouldn't occur immediately after a NOT or another
+  OR.
+
+Token <token> is no longer supported.
+  FailMessage, ErrMessage, FailStdMessage, and ErrStdMessage are
+  obsolete and are no longer supported by Magx.
+  Use the AGATE command structure, instead.
+
+Token sequence ID must be positive.
+  The ID numbers used for the AGATE command sequence must all be
+  positive; 0 and negative numbers are not allowed.
+  See Section 1.11.
+
+Token sequence ID too large.
+  AGATE sequence IDs must be in the range from 1 to 9999.
+  See Section 1.11.
+
+Too many flag nouns defined.
+  Only 31 RoomFlags can be declared, numbered from 1 to 31.  
+
+Too many RoomPIXs defined.
+  Only 31 RoomPIXs can be declared, numbered from 1 to 31.  
+
+Undefined label [%s].
+  You used a label that hasn't been defined. Check the spelling
+  both where the error occurs and where the label is original defined.
+
+Unexpected end of line while reading #DEFINE.
+  #DEFINE must be followed by a label on the same line.
+
+Unrecognized preposition '<word>'; ignoring.  
+
+
+Unrecognized type in '<text>....'
+  The compiler didn't recognized the type you were using in a LABEL
+  statement. See section 2.0 entry for LABEL.
+
+Unrecognized verb '<word>'.
+  The word is neither a built-in verb nor has it been defined in a
+  VERB block. Check the spelling both on this line and where the verb
+  is originally defined.
+
+Unrecognized word '<word>'.
+  The word hasn't been defined anywhere. Check the spelling both on
+  this line and wherever the word was supposed to be defined (which
+  might be in a ROOM or CREATURE definition).
+
+
+--------------
+C.3 Warnings
+--------------
+<label> is not a string.
+  In the text of a message or description, $STR[label]$ was used but
+  [label] doesn't refer to a user string.
+
+<label> is not a variable.
+  In the text of a message or description, #VAR[label]# was used but
+  [label] doesn't refer to a variable.
+
+AFTER requires VERSION MAGX.
+  The AFTER keyword can only be used in VERSION MAGX games. In pre-Magx
+  games, this is most likely an unmarked comment.  (The AFTER keyword
+  should not be confused with the Master's Edition "COMMAND AFTER"
+  feature, although they are very similar.)
+
+AND not needed.
+  An AND statement is only needed to separate OR-linked blocks of
+  conditional tokens. If there are no ORs, there is no need of an AND
+  (since two adjacent conditional tokens are already linked by an 
+  implicit "and"). See section 3.1.
+  
+BeforeCommand and AfterCommand require VERSION 1.83 in order to work.
+  These two tokens require the 1.83 execution sequence to work; this
+  causes all metacommands to be run twice. See Appendix A.2 and the
+  1.83 documentation.
+
+Command without verb; assuming ANY.
+  If no verb is found, then the command is assumed to be an ANY command.
+
+Double NOT found.
+  Since two NOT statements are logically equivalent to no NOTs at all,
+  a pair of them almost always indicates a mistake. (Possibly a
+  conditional token between the two was deleted without also removing
+  its preceding NOT statement).
+
+Duplicate STANDARD Message.
+  There are two STANDARD messages with the same number. This is
+  sometimes caused by having both an AGT.STD file and also redefining
+  error messages in your game.  Either make your modificatations to
+  the AGT.STD file or get rid of it entirely (the latter allows
+  AGiliTy to use its internal defaults for error messages that you
+  don't explicitly replace).
+
+Expect labels instead of numbers for <type>.
+  Things of the given type (objects or messages or variables or ...)
+  are defined using labels but you are referring to one here by a
+  number.  This may indicate that you have reversed the order of
+  arguments for a metacommand token. Even if it isn't an error, using
+  numbers in this way bypasses the compiler's type-checking and so 
+  potentially allows more errors to slip through.
+
+Expected number or label, found nothing.
+  A couple of possible causes: not having enough arguments to a metacommand 
+  token, forgetting the '[' and ']' around a label, a typo. If the label in
+  question was created by a #DEFINE, you should also check that its definition 
+  is correct.
+
+Expected OBJFLAG label.
+  In a room, noun, or creature declaration, only an objflag
+  label can follow a NOT.
+
+Expected OBJFLAG or PROP label.
+  In a room, noun, or creature declaration, the only labels that
+  should start a line are those refering to objflags or properties.
+
+Expected option.
+  While parsing a #option line, the compiler ran across a
+  non-alphanumeric character when it was expecting an option name.
+  See the 2.0 entry on #OPTION for valid option names.
+
+Extra comma ignored.
+  The compiler found two or more commas in a COMMAND statement.
+  There shouldn't be more than one, separating the actor from the
+  verb. (Multiple objects aren't allowed in a COMMAND statement.)
+
+Ignoring extra text on line: "<text>".
+  There are two common causes for this: misspelling of keywords and
+  comments that aren't properly marked. For the first case, just fix
+  the spelling. In the second case, mark the comment using either '!'
+  (if the comment extends to the end of the line) or '(*' and '*)' (if
+  the comment is in the middle of the line); see Section 1.5.
+    Unmarked comments are particularly common for pre-Magx games;
+  see the comments on converting to VERSION Magx at the end of the
+  Section 2.0 entry for VERSION. (Which includes information on turning
+  this error message off).
+
+Ignoring mismatched '<# or $>'.
+  For '#VAR[label]#' or '$STR[label]$', the last symbol (either '#' or
+  '$') is missing.
+
+Invalid command character for option.
+  You are using a control character (such as '+' or '-') for one of
+  the delimiter options. See the section 2.0 entry on #OPTION.
+
+Invalid GENDER.
+  Only 'man', 'woman', 'male', 'female', and 'thing' are allowed.
+
+Invalid VERSION <version>; ignoring.
+  See the section 2.0 entry for VERSION.
+
+Invalid keyword in CREATURE structure.
+  If this error occurs somewhere outside of a CREATURE structure,
+  check to make sure the last END_CREATURE statement is correctly
+  spelled.
+
+Invalid keyword in NOUN structure.
+  If this error occurs somewhere outside of a NOUN structure,
+  check to make sure the last END_NOUN statement is correctly
+  spelled.
+
+Invalid keyword in ROOM structure.
+  If this error occurs somewhere outside of a ROOM structure,
+  check to make sure the last END_ROOM statement is correctly
+  spelled.
+
+Invalid object type.
+  A PROP or OBJFLAG declaration must be followed by 
+  ROOM, NOUN, or CREATURE (or a combination of these).
+
+Invalid option '<option>' in #OPTIONS.
+  See the section 2.0 entry for #OPTION for a list of option names.
+
+Invalid value for STARTING_ROOM; set to first room.
+   STARTING_ROOM must refer to a real room; this error occurs if it is 
+   too small or too big.
+
+Label <label> has wrong type.
+  For example, this error will occur if you try to use a NOUN label
+  for the exit of a room, or use a message label for the KEY field of 
+  a noun.
+
+Metacommand token never reached.
+  Metacommand execution can never reach this token; it could be
+  deleted without changing anything. This usually indicates that 
+  there is something wrong with the previous tokens.
+
+Multiple sets of synonyms for verb <verb> ignored.
+  A verb is referred to twice in VERB blocks, giving two different
+  synonym lists; the second list will be ignored. The solution is to 
+  combine the two definitions.
+
+Multiple words treated as one word.
+  The noun and adjective fields of NOUNs and CREATUREs are each only
+  one word; if more than one word occurs, the whole mess will be
+  treated as a single word with a space in it (which will be
+  impossible for the player to type in).
+
+Nonstandard section end directive '<directive>'.
+  For example, a ROOM definition end with END_NOUN, or a PrintMessage
+  command with END_COMMAND. (Which may indicate that the
+  'End_PrintMessage' was forgotten.)
+ 
+OR follows action token.
+  OR is only meaningful between two sets of conditional tokens.
+  
+OncePerTurn requires FIX_MULTINOUN to be set (in the CONFIG section).
+  See Section 3.2.
+
+This time command is 1.83-specific, but you are not compiling it as a 
+1.83 game.
+  The Master's Edition and 1.83 time commands are mutually incompatible.
+  See Appendix A.1
+
+This time command may not work in a 1.83 game.
+  The Master's Edition and 1.83 time commands are mutually incompatible.
+  See Appendix A.1
+
+Token sequence ID out of numerical order.
+  To avoid confusion, you should define the sequence IDs so that they
+  increase in size as they become more deeply nested.  This error may
+  be caused by an ID that was mistyped.
+  (See section 1.11).
+
+Too many objects for Master's Edition.
+  VERSION is set to MASTERS, but there are more objects than the 
+  original Master's Edition allowed. This forces the compiler to use
+  a different numbering scheme than the Master's Edition, which could
+  break some games. 
+ 
+Too many words on configuration line.
+  Only 50 words are allowed on each CONFIG line.
+
+Unexpected comma in COMMAND.
+  A comma occurs, but the words before it don't refer to an actor.
+
+Unexpected directive at top-level.
+  You have used a keyword that can only appear inside another
+  structure (such as a ROOM, NOUN, or CREATURE definition).
+
+Unmatched '\'.
+  If you really just wanted a single slash, use "\\". See Section 1.6.
+  
+Unrecognized compiler directive.
+  The first word on the line starts with '#' but isn't one of the
+  recognized directives.
+  
+Unrecognized configuration option.
+  Remember that not all configuration options can occur in a CONFIG 
+  section. See the entry for CONFIG in Section 2.0.
+
+Unrecognized directive.
+  The first word on the line isn't a legal keyword.
+
+Unrecognized format code <format code>.
+  See Section 1.6 for a list of legal format codes. If you were trying
+  to get backslashes in the output, use "\\" for each.
+
+Unrecognized keyword.
+  The first word on the line isn't a legal keyword.
+
+Unterminated comment.
+  The compiler found a '(*' but no '*)' on the line. Remember that
+  comments can't span more than one line. (Except those created with 
+  #COMMENT.)
+
+Use of ANY where ANYBODY is expected.
+  The compiler found 'ANY' while it was looking for the name of 
+  a creature (usually before a comma).
+
+User string longer than 80 characters; truncated.
+  User strings can only be 80 characters long.
+
+VERSION redefined.
+  There are two or more VERSION statements in the game file.
+  Get rid of all but one.
+
+VERSION should be the first directive in the file.
+  Since VERSION affects the way some things are compiled (and even the
+  way that lines are read in), it should appear before anything else. 
+
+Value out of range for <type>.
+  The given value is too small or too big to refer to something of 
+  the given type.
+
+
+-----------
+C.4 Notes
+-----------
+Adjective <adjective> will be ignored.
+  If VERSION is not MAGX, then adjectives in COMMAND statements
+  will be ignored, following the behavior of the original AGT 
+  interpreters.  This message is only printed out if there are two or
+  more objects with the same noun and different adjectives.
+
+Created new verb <verb>.
+  You used a new verb without declaring it in a VERB section.
+
+LABEL does not create new objects.
+  A LABEL statement is being used to declare a label of one of the
+  standard types, such as room, noun, creature, message, etc.
+  This declaration doesn't actually create an object, though;
+  for that a ROOM or NOUN or CREATURE or MESSAGE or ... statement is
+  needed. (Which also automatically declares a label.)
+
+Found <BeforeCommand/AfterCommand>; switching to VERSION 1.83.
+  BeforeCommand and AfterCommand only work under VERSION 1.83.
+  It is recommended that you add a VERSION 1.83 statement at the 
+  beginning of the file.
+
+Label <label> declared but not used.
+  The given label was declared but never explicitly referred to in the
+  game. If there is some object that is only being referred to
+  indirectly through a variable, then the compiler won't realize
+  that it really is being used.
+
+More than 998 rooms; base for illegal direction messages shifted.
+  See Section 1.14. If you are using labels for everything, you 
+  shouldn't need to worry about this.
+
+OncePerTurn found; turning on FIX_MULTINOUN.
+  OncePerTurn is only meaningful when FIX_MULTINOUN is active.
+
+Suspicious room name.
+  The room name begins with a ROOM keyword; while there is nothing 
+  wrong with this, it raises the possibility that you forgot to
+  include the room name.
+
+Suspicious short description.
+  The short description of a NOUN or CREATURE begins with a keyword.
+  There is nothing wrong with this, if the line in question really is
+  intended to be a short description. But this note may indicate that
+  you forgot to include the short description (or the adjective or noun).
+ 

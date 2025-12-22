@@ -1,0 +1,851 @@
+
+
+The text below is the instruction file from the PC "SGE" program by Steve
+Critchlow that performs a similar function to AmiSGE. The save game format
+described in it applies to the PC version of Frontier and may prove useful
+in deciphering the save game format of Frontier on the Amiga. However there
+is no guarantee that the two will be identical!
+
+If you do uncover any details about how the Amiga save games are organised,
+please contact me (see main AmiSGE.guide file for details) and I will add
+your information to the Amiga documentation. Your help in this matter is
+very much appreciated!
+
+/John Girvin, author of AmiSGE.
+
+=============================================================================
+=============================================================================
+
+A frontier ELITE II save game extractor is unleashed on the unsuspecting
+multitude!.
+
+This is it, a program to descramble the frontier save game file.
+
+Usage: SGE [options] file file
+Options:
+	-d  <commander file> <clear file>
+	-e  <clear file> <commander file>
+
+By default, the program will refuse to overwrite a file if it already exists.
+This can be modified by updating the value in the SGE.INI file.
+
+Remember, this program is supplied 'AS IS' and is without any warranty
+whatsoever.  Your files are your responsibility.  It is upto YOU to
+ensure that any data you consider important is safe.
+
+IMPORTANT
+---------
+The very nature of this program exposes the copy protection of FEII, which is
+stored in the save game files.  By using this program, you are agreeing NOT to
+use this program to permanently break the copy protection.
+
+
+You should have the following files:
+   abstract.txt A brief summary.
+   readme.txt   This file.
+   start.txt	A few worked examples, just to show how easy
+		it all is.
+   sge.exe      The executable file.
+   sge.ini      Startup options file.
+   fe2cmp1.exe	Allows comparisons of real world objects
+		in FE2 decoded files.  Use this to compare
+		your ship in two different save games.
+		Enter -? as a single parameter for help.
+   el2objs.exe  Displays the names of all the game objects
+		in a commander file.  This is useful for
+		quickly locating items of interest.
+   hexed.exe	A compact editor for editing binary files.
+		Or you can use whatever you use at the moment.
+   mdiff.zip	Compares multiple binary files,
+		like DOS FC /B *.sav could have been.
+
+Unpack all the files to your commander directory.
+------------------------------------------------------------------------------
+
+The unpacked save game is structured as follows:
+
+There are five sections to the save game file.  In the decoded version,
+each begins with 16 bytes of the form '==== BLOCKn ===='.  I put these
+in while I was decoding the save game file.
+
+There may be a byte at offset 0xC051.  This is not used, and was only
+stored when the game was saved to make the save game an even number of
+bytes long.
+
+When reading the data, remember that all integer numbers are stored with
+the least significant byte first, but I will write them in this text with
+the most significant byte first.
+
+All offsets into the data file are in hex and assume the presence of the
+above mentioned padding.
+
+All other numbers are in decimal, or hexadecimal if preceded by '0x'.
+
+
+
+Data Types
+----------
+
+There are three basic data types (so far) used in the save game, they being
+bytes (8 bits), words (16 bits), and longs (32bits).
+
+
+Whats in the file then?
+-----------------------
+
+block 1, begins at offset 0x0010
+--------------------------------
+
+This contains the dynamic information about each solid object in the game.
+It contains details of all the permanent stars, planets, planetoids, space
+stations and star ports (for the current star system only).
+It also contains the dynamic information on all the transitory objects in
+the game (ships, asteroids (the minable ones), released cargo, hyperspace
+clouds etc).  Ships currently in hyperspace (to all destinations) are also
+stored, though I suspect that they are quickly recycled unless you are in
+the destination system already.
+
+I have provided two forms of presentation for block 1.
+
+In format=0, the data is saved in the same way that FE2 saves it.
+It begins with 0x73 bytes which identify the type of the object.  There
+is then a spare byte (always zero?), followed by 0x73 blocks of data,
+each 0x11e bytes long.  This is provided, just in case my interpretation
+for format=1 (see below) is wrong.
+
+In format=1, I have rearranged the data, so that the type byte is next
+to the data which it describes.  I have also added an index byte, which
+is the numerical ID of the block.  This ID appears in the data itself
+(tells you which object you are relative to for instance).  This makes
+each block 0x120 bytes long (no more staggered data).  The format is
+ID byte, type byte, 0x11e bytes of data.
+
+Object types (so far):
+
+The following offsets (assuming format=1 are known):
+
+0x00	- object ID, ranges from 0x00 to 0x72
+
+0x01	- Object type.
+	0x00    - unused, but sometimes contains information?
+	0x02    - a ship in hyperspace
+	0x0A    - a kind of ship, in hyperspace?
+	0x0F    - planetary starport
+	0x1D    - stellar or planetary object.
+	0x1F    - space station
+	0x4E    - ships in general, in the current solor system
+	0x4F    - a ship thats active in the current solar system
+
+0x02
+0x03
+0x04
+0x05
+0x06
+0x07
+0x08
+0x09
+0x0a
+0x0b
+0x0c
+0x0d
+0x0e
+0x0f
+0x10
+0x11
+
+0x12,15 - Set speed in 0.1 metre per second units.  The conversion is not
+	  quite accurate.  I think it may be accounting for the gravitational
+	  field as well (check after a ALT-H jump into void space).
+
+0x16
+0x17
+0x18
+0x19
+0x1a,b	- some counter???
+
+0x1c
+0x1d
+0x1e,f  - mirrors 1a,b
+
+0x20
+0x21
+0x22
+0x23
+0x24
+0x25
+0x26
+0x27
+0x28
+0x29
+0x2a
+0x2b
+0x2c
+0x2d
+0x2e
+0x2f
+0x30
+0x31
+
+0x32,33 - Bounty for this ship, in whole $.
+
+0x34
+0x35
+0x36
+0x37
+0x38
+0x39
+
+0x3A,4d - name of the object as a NUL terminated character string.  Ships are
+	  always 6 characters, but planets and space stations can have longer
+	  names (upto about 20 characters).
+	  The longest name I know of is 'La Soeur du Dan Ham', - 19 chars.
+
+
+0x4e
+0x4f
+0x50
+0x51
+0x52
+0x53
+0x54
+0x55
+0x56
+0x57
+0x58
+0x59
+0x5a
+0x5b
+0x5c
+0x5d
+
+0x5e	- for an asteroid, this changed from 0x00 to 0x0a when the shooting
+	  started.
+
+0x5f
+0x60
+0x61
+0x62
+0x63
+0x64
+0x65
+0x66
+0x67
+0x68
+0x69
+0x6a
+0x6b
+0x6c
+0x6d
+0x6e
+0x6f
+0x70
+0x71
+0x72
+0x73
+0x74
+0x75
+0x76
+0x77
+0x78
+0x79
+0x7a
+0x7b
+0x7c
+0x7d
+0x7e
+0x7f
+0x80
+0x81
+0x82
+0x83
+0x84
+0x85
+0x86
+0x87
+0x88
+0x89
+0x8a
+0x8b
+0x8c
+0x8d
+0x8e
+0x8f
+0x90
+0x91
+0x92
+0x93
+0x94
+0x95
+0x96
+0x97
+0x98
+0x99
+0x9a
+0x9b
+0x9c
+0x9d
+0x9e
+0x9f
+0xa0
+0xa1
+0xa2
+0xa3
+0xa4
+0xa5
+
+0xA6    - ID of the object which the object is relative to.  This should
+	  be a star, planet, starport or space station.  Could be useful
+	  if you are having difficulty landing at certain systems.
+
+0xa7
+0xa8
+0xa9
+0xaa
+0xab
+0xac
+0xad
+0xae
+0xaf
+0xb0
+0xb1
+0xb2
+0xb3
+0xb4
+0xb5
+0xb6
+0xb7
+0xb8
+0xb9
+0xba
+0xbb
+0xbc	- object sprite ID, see later in this file for
+	  what each type is.
+
+0xbd
+0xbe
+
+0xBF    - Always contains ID of the next block?
+
+0xc0
+0xc1
+0xc2
+0xc3
+0xc4
+0xc5
+0xc6
+0xc7
+0xc8
+0xc9
+0xca
+0xcb
+0xcc
+0xcd
+0xce
+0xcf
+0xd0
+0xd1
+0xd2
+0xd3
+0xd4
+0xd5
+0xd6
+0xd7
+0xd8
+0xd9
+0xda
+0xdb
+0xdc
+0xdd
+0xde
+0xdf
+
+0xe0,7	- 8 bytes containing a time (see block 4 for details).  Usually time
+	  now for objects in this system.  I think it is ETA time for
+	  hyperspace clouds, and time when the object should next be updated?
+
+0xe8
+0xe9
+0xea
+0xeb
+0xec
+0xed
+0xee
+0xef
+0xf0
+0xf1
+0xf2
+0xf3
+0xf4,5	- looks like a +ve acceleration
+0xf6,7	- looks like a -ve acceleration
+0xf8,9	- looks like a +ve acceleration
+0xfa,b	- looks like a -ve acceleration
+	- I havn't tried these yet, but these could be the manoeuvring
+	  thrusters which occasionally get damaged.
+0xfc,d	- main forward acceleration
+0xfe,f	- main reverse acceleration
+
+	- Acceleration notes:
+	- +ve accelerations range from 0000 to 7fff,
+	- -ve accelerations range from ffff to 8000
+	- divide the value by 540 (approx) to get 'G' values.
+
+0x100	- Ships equipment (1), bit encoded
+		bit0	Laser Cooling Booster
+		bit1	Auto Refueller
+		bit2	Military Cameras
+		bit3	<Unused>
+		bit4	""
+		bit5	""
+		bit6	""
+		bit7	""
+
+0x101
+
+0x102	- Ships equipment (2), bit encoded
+		bit0	Cargo Bay Life Support
+		bit1	Cargo Bay Life Support (as well?)
+		bit2	Scanner
+		bit3	Normal ECM
+		bit4	Fuel Scoop
+		bit5	Autopilot
+		bit6	Radar Mapper
+		bit7	Naval ECM
+
+0x103	- Ships equipment (3), bit encoded
+		bit0	Hyperspace Cloud Analyser
+		bit1	Fighter Launch Device (I haven't made it work yet!)
+		bit2	Energy Bomb
+		bit3	Escape Capsule
+		bit4	Energy Booster Unit
+		bit5	Cargo Scoop Conversion
+		bit6	Atmospheric Shielding
+		bit7	Hull Auto Repair System
+
+0x104
+0x105
+0x106
+0x107
+0x108	Drive Type
+	00 - none,
+	01 - interplanetary,
+	02..09 - normal	hyperdrive class 1..8,
+	0a..0d - military class 1..4
+
+0x109	Number of gun mounts, which appear in the following 4 bytes.
+
+0x10a,d	Gun types in front, rear, top, bottom order.
+	It seems that you can put any value in here, and you will get
+	a weapon of some sort.  It appears(?) that several numbers represent
+	the same gun type.  I wonder if this codes an accuracy value in some way?
+
+	An interesting gun type is 0xd8.  This is so powerful, it will remove
+	1023 shields and about 120 tonnes of hull from whatever ship you aim at.
+	If you decide to use this, make sure you have an auto refueller, and
+	an awful lot of hydrogen fuel, as each shot consumes 1t of hydrogen
+	from the main engine fuel store.
+
+0x10e,15  Slots for 8 missiles, even if you dont have space for missiles
+	  officially.
+	  Value is in the range 0x80 to 0x85, for all types of mines
+	  and missiles (including nuclear).
+	  0x80 Dummy Mine
+	  0x81 Proximity Mine
+	  0x82 Homing Missile
+	  0x83 Smart Missile
+	  0x84 Naval Missile
+	  0x85 Nuclear Missile
+
+0x116,7	- Current shield strength * 64
+	  The maximum value is 0xffc0, which equates to 1023 shields.
+
+0x118,9	- Maximum shield strength * 64
+	  The maximum value is 0xffc0, which equates to 1023 shields.
+
+0x11a,b	- current strength of the object.
+	  eg1. asteroids start at 0xfffc.  1MW pulse lasers decrement this
+	  by 500 with each hit.
+	- For ships, this is the hull mass * 4.
+
+0x11c
+0x11d
+0x11e
+0x11f
+
+List of object offsets by ID
+----------------------------
+     00   01   02   03   04   05   06   07   08   09   0A   0B   0C   0D   0E   0F
+00  0010 0130 0250 0370 0490 05b0 06d0 07f0 0910 0a30 0b50 0c70 0d90 0eb0 0fd0 10f0
+10  1210 1330 1450 1570 1690 17b0 18d0 19f0 1b10 1c30 1d50 1e70 1f90 20b0 21d0 22f0
+20  2410 2530 2650 2770 2890 29b0 2ad0 2bf0 2d10 2e30 2f50 3070 3190 32b0 33d0 34f0
+30  3610 3730 3850 3970 3a90 3bb0 3cd0 3df0 3f10 4030 4150 4270 4390 44b0 45d0 46f0
+40  4810 4930 4a50 4b70 4c90 4db0 4ed0 4ff0 5110 5230 5350 5470 5590 56b0 57d0 58f0
+50  5a10 5b30 5c50 5d70 5e90 5fb0 60d0 61f0 6310 6430 6550 6670 6790 68b0 69d0 6af0
+60  6c10 6d30 6e50 6f70 7090 71b0 72d0 73f0 7510 7630 7750 7870 7990 7ab0 7bd0 7cf0
+70  7e10 7f30 8050
+
+I have experienced on occasions objects splitting into two blocks, where one
+contains the name (and little else), and the other contains no name, but all
+the data for the object.  The reasons why are a complete mystery at the moment.
+
+Most(?) ships seem fond of doing this, so look in the previous block if nothing
+is making any sense.
+
+block 2, begins at offset 0x8400
+-------
+
+block 3, begins at offset 0x8600
+-------
+
+Blocks 2 and 3 are unknowns at the present time.  For anyone looking at them,
+I think the data is composed of 64 longs, rather than 256 bytes.  At least
+thats the impression I get when I looked at how the data was saved.
+
+
+block 4, begins at offset 0x8800
+--------------------------------
+
+8800-8803       This unsigned long contains the fraction of the current day,
+		eg. 0x40000000 = 6am, 0x800000 = noon, 0xc0000000 = 6pm.
+		It therefore counts up at approx 47000 per second.
+		The time is displayed at the bottom left corner of the screen,
+		and also on the clocks on the church spires in surface cities.
+
+8804-8807       This contains the number of days since 1-Jan-0000 (AD).  It
+		assumes that there are 365.25 days in each year.  It ignores
+		all the exceptions to the leap year rule, and the change of
+		calendar in 1752.  Look out for numbers slightly bigger
+		than this for all those 'finish ... by midnight on ....'.
+		The initial value = 0x0011D5A0, which divided by 365.25
+		gives = 1/1/3200.
+
+8808-880B       Something counting up, at a similar rate to the clock.
+
+8818-881F       This is seriously random data, as it changes a lot with no
+		obvious pattern, even between adjacent clicks of the pause
+		control.
+
+8856-8857	Seems to be counting down.  I don't know what the significance
+		of this is yet.
+
+885A-885D       Setting this to 0xFFFFFFFF maximises the amount of time between
+		the 'look up a letter in the manual' check.  It is however reset
+		to its normal value when the question is asked, so it isn't
+		permanent.  Contains 0x05555370 when all is well.  Seems to be
+		divided by 16 each time you get it wrong.
+
+888E-8891       Sort of counter, which counts the incremental activity of the
+		game.  When it reaches a critical value, it will ask you to look
+		up a letter in the manual.  The limiting value is regulated in
+		some way by the long word at offset 0x885A.
+
+8892		Object ID in block 1 of own ship.  Use this value to locate
+		where your own ship is stored in the list of objects in block 1.
+
+88B5            Flags for various game options, stored as bits.
+		bit0
+		bit1
+		bit2    Set to show labels on planets,ships etc.
+		bit3
+		bit4
+		bit5
+		bit6
+		bit7
+
+88B6            Contains the current view (0=Front,1=Read,2=Top,4=External)
+
+88B8            Contains the object ID of the selected target.  See the block1
+		data for further details.
+
+88D2-88D5       This is your bank balance in $0.1 units, stored in a
+		signed long.  If you make it more than 0x7FFFFFFF (just
+		over $214 million), it will be displayed as a negative amount,
+		though it does seem to still work correctly.
+
+88D6,88D7	Overall cargo space.
+
+88DA,88DB       Copy of the amount of fuel on board.
+
+88E6-8923       Each word contains the number of tonnes of the commodity on
+		board ship.  I haven't tried putting more than the ships
+		capacity yet.
+
+892D-892E       Current ELITE Rating.  You get one point for each ship killed
+		whether it has bounty or not.  You get a 'Right On Commander'
+		after every 256 kills.
+		Harmless           0    0x0000
+		Mostly Harmless    4    0x0004
+		Poor               8    0x0008
+		Below Average     16    0x0010
+		Average           32    0x0020
+		Above Average     64    0x0040
+		Competent        128    0x0080
+		Dangerous       1000    0x03e8
+		Deadly          3000    0x0bb8
+		ELITE           6000    0x1770
+
+8930-8931	Current Federal rank rating.  See Imperial for points needed.
+
+8932-8933       Current Imperial rank rating.  Each successful mission is
+		credited as follows:
+		delivery                        2 points
+		Assassinations                  12 points
+		Photograph Enemy Installation   16 points (Film OK)
+		Bomb Enemy Installation         18 points
+		Photograph Enemy Installation   20 points (Film Excellent)
+
+		The points needed for each rank are as follows:
+		Outsider     None                    0   0x0000
+		Serf         Private		     2   0x0002
+		Master       Corporal               16   0x0010
+		Sir          Sergeant               82   0x0052
+		Squire       Sergeant-Major        256   0x0100
+		Lord         Major                 576   0x0240
+		Baron        Colonel              1296   0x0510
+		Viscount     Lieutenant           2402   0x0962
+		Count        Lieutenant Commander 4096   0x1000
+		Earl         Captain              6562   0x19a2
+		Marquis      Commodore           10000   0x2710
+		Duke         Rear Admiral        14642   0x3932
+		Prince       Admiral             20736   0x5100
+
+8944-8947       Set speed, similar to what is stored in the ship data block.
+
+8948-894F       NUL terminated commander name (max 7 chars).  It is copied
+		from the filename entered, but may be changed.  It is this
+		string that appears on the tombstone when you die.
+
+8986-8989	X (long integer)	= 0x17180800 at sol(0,0)
+898A-898D	Y (long integer)	= 0x1524A000 at sol(0,0)
+		This is the position of the 'cursor' used to select the destination
+		of the next hyperspace jump.
+		To find the system coordinates, as displayed during the game,
+		use the following formulas
+		Actual_x = X / 65536 - 5912
+		Actual_y = Y / 65536 - 5412
+		It seems that internally, 0,0 is at the bottom left corner of
+		a notional square which surrounds the galaxy.
+
+899C-899F
+89A0-89A3	Another XY coordinate like the above, possibly where you are now?
+
+89A8-89AB
+89AC-89AF	Yet another XY coordinate, see above.
+
+8A8C-8B07       Each entry contains 4 bytes, and corresponds to the list of
+		commodities below.
+		The first word contains the number of tonnes for sale.  Goods
+		out of stock and illegal goods have a value of zero.
+		The second word contains the price of the goods in $0.1 units.
+		The price of illegal goods is also fixed here (for trading with
+		the secondary market on the BBS).  Negative numbers are used
+		for when you are 'paid' to take stuff away.
+
+	Water,          Liquid Oxygen,          Grain,          Fruit and Veg.
+	Animal Meat,    Synthetic Meat,         Liquor,         Narcotics
+	Medicines,      Fertilizer,             Animal Skins,   Live Animals
+	Slaves,         Luxury Goods,           Heavy Plastics, Metal Alloys
+	Precious Metals,Gem Stones,             Minerals,       Hydrogen Fuel
+	Military Fuel,  Hand Weapons,           Battle Weapons, Nerve Gas
+	Industrial Parts,Computers,             Air Processors, Farm Machinery
+	Robots,         Radioactives,           Rubbish
+
+8B08?-?         Seems to contain the current BBS list.  This contains some
+		encoded fields, so even changing one bit has a multitude
+		of possible effects.  Prices seem to be coded in whole $
+
+ABE0?           Current contracts (deliver, photo, bomb, assassin) on offer
+		from the military BBS.  Contains lots of numbers looking like
+		the current time (in days).
+
+B820?           Current list of contracts being undertaken by you.
+		May also contain some old historic information.
+
+BDE4-BDEB       Filename by which it was saved by.
+
+BDF8-BDFB       Extension for the filename.
+
+
+Block 5, begins at offset 0xC000
+--------------------------------
+
+This contains the current star system name and description.  Both are
+stored as NUL terminated character strings.  Note that any previously
+longer names are not cleared out, so there will be some junk eventually.
+
+=================
+Other information
+=================
+
+Object sprite information
+-------------------------
+
+    06    XB13 Dummy Proximity Mine
+    08    XB74 Proximity Mine
+    0A    KL760 Homing Missile
+    0C    LV111 Smart Missile
+    0E    MN500 Naval Missile
+    10    Nuclear Missile
+    12    Escape Capsule (defaults to Eagle I)
+    14    Interplanetary Shuttle
+    16    Lifter
+    18    Osprey Attack Fighter
+    1A    Falcon Attack Fighter
+    1C    Hawk Airfighter
+    1E    Kestrel Airfighter
+    20    Eagle Long Range Fighter
+    22    Eagle Mark II
+    24    Eagle Mark III
+    26    Sidewinder << big guns display >>
+    28    Krait Assault Craft
+    2A    Gecko
+    2C    Adder
+    2E    Viper Defence Craft
+    30    Cobra Mark I
+    32    Moray Starboat
+    34    Cobra Mark III << big guns display >>
+    36    Constrictor
+    38    Asp Explorer << big guns display >>
+    3A    Transporter
+    3C    Lion Transport
+    3E    Tiger Trader
+    40    Imperial Courier
+    42    Python Freighter
+    44    Imperial Trader
+    46    Anaconda Freighter
+    48    Puma Clipper
+    4A    Boa Freighter
+    4C    Panther Clipper
+    4E    (no name)  <<Thargoid>>
+    50    Lynx Bulk Carrier
+    52    Long Range Cruiser
+    54    Orbital Trading Post
+    56    Orbital Station
+    58    Orbital City
+    5A    Station - 4 pad - atm - city - mtns - hills
+    5C    Station - 4 pad - atm - city - mtns - factory
+    5E    Station - 6 pad - atm - large city - factory
+    60    Station - 6 pad - atm - city - mtns - lake
+    62    Station - 2 pad - grey dome - clear dome
+    64    Station - 6 pad - atm - city - mtns - river - bridge
+    66    Station - moon - grey dome (lg/sm) - mtns
+    68    Station - moon - grey dome (lg/sm) - clr dome - factory
+    6A    Station - moon - (double 68) - mtns
+    6C    Station - moon - (double 68) - hills
+    6E    Base - towers - grey dome - city - 3 dish
+    70    Base - towers - grey dome - city - 4 dish
+    72    Base - towers - grey dome - clr dome - big city - 3 dish
+    74    Base - towers - grey dome - city - 3 dish - Thargoid
+    76    Starfield
+    78    MB4 Mining Machine
+    7A    Moon - grey
+    7C    Moon - asteroid
+    7E    Moon - blue
+    80    Moon - grey
+    82    Moon - orange - yellow - dk grey
+    84    Moon - lt grey
+    86    Moon - lt/dk tan
+    88    Moon - lt/dk green
+    8A    Moon - lt/dk blue - green
+    8C    Moon - lt blue - lt grey
+    8E    no display
+    90    Planet - dk blue - blue atm
+    92    Planet - md blue - lt red atm
+    94    Planet - dk blue - green atm
+    96    Planet - dk blue - grey atm
+    98    Star - red - no aurora
+    9A    Star - orange - yellow aurora
+    9C    Star - orange - yellow aurora
+    9E    Star - lt yellow - lt green aurora
+    A0    Star - yellow
+    A2    Star - white
+    A4    Star - blue
+    A6    Star - blue
+    A8    Star - orange
+    AA    Star - orange
+    AC    Star - blue
+    AE    Ringed gas giant - blue
+    B0    not useful?
+    B2    Map display green orbit ring
+    B4    Map position cross
+    B6    Map position cross
+    B8    Cargo pod
+    BA    Hyperspace departure cloud
+    BC    not useful?
+    BE    Laser pulse - red
+    C0    Shield glow (light blue)
+    C2    Space dust
+    C4    A cloud (don't shoot!)
+    C6    6 clouds and shadows
+    C8    Energy bomb deployed 'stars'
+    CA    Nuclear missile crater
+    CC    Ground Forestry/Farms
+    CE    Green snow capped mountains
+    D0    Grey mountains
+    D2    not useful
+    D4    <<HALTS GAME>>
+    D6    Control tower???
+    D8    Broken wing section???
+    DA    Cockpit
+    DC    Broken wing section???
+    DE    Ships hull component???
+    E0    Ships hull component???
+    E2    Ships hull component???
+    E4    Ships hull component???
+    E6    Ships hull component???
+    E8    Ships hull component???
+    EA    Ships hull component???
+    EC    Ships hull component???
+    EE    Ship pilot component
+    F0    Fuel scoop component
+    F2    <<HALTS GAME>>
+    F4    <<HALTS GAME>>
+    F6    Dish aerial component???
+    F8    Gun component???
+    FA    <<HALTS GAME>>
+    FC    Underground station radiation bill board
+    FE    Thargon (Like what thargoids deployed in days of old)
+
+Getting started
+---------------
+
+This is what I did to get started.
+
+1. Run frontier.
+2. Select option 5 to load a position from disk.
+3. Click on the save icon, and save this as jameson._01.
+   This establishes your initial position.
+4. Click on the pause icon twice (quite quickly).
+   This runs the game for a fraction of a second.
+5. Click on the save icon, and save this as jameson._02.
+
+If you decompress these files, and compare them, you will see the areas
+of the file which change rapidly.
+
+
+Please E-mail me at 100023,1265 (100023.1265@compuserve.com),
+or spc@cix.compulink.co.uk with any info you can discover.
+
+I hope to post updates to this list as more things are discovered.
+
+Credits
+-------
+
+Gametek/Frontier Developments for this game.
+
+James R. Van Zandt, for writing dis86, an Interactive Disassembler for the
+Intel 80386 and its predecessors.  I used this to discover how the save
+games were encoded.
+
+People who have found things in the save game files:
+----------------------------------------------------
+
+Gerd Troeger	(gerd@rzaix530.rz.uni-leipzig.de)
+        For finding all the ships equipment stuff in block 1
+	In particular the internal equipment ECMs and the like
+	plus engines, guns, missiles.
+
+George Hooper	(hooplah@ix.netcom.com)
+	Lots of stuff on the sprite information.
+
+=============================================================================
+=============================================================================

@@ -1,0 +1,85 @@
+/*
+ * $VER: JCYam.rexx 1.0 (February 2004)
+ *
+ * ARexx script to send mail from Total Chaos to Yam
+ * because YAM cli interface is totally broken and useless.
+ *
+ * By James Conwell © 2004
+ *
+ * Total Chaos used to automatically mail its turnfiles via cli command
+ * but there are NO cli commands which support SMTP_AUTH
+ * Fortunately YAM and SimpleMail and other "real" email programs
+ * do support SMTP_AUTH, unfortunately their cli interfaces are broken
+ * so I had to make this silly script.
+ *
+ *    Type: External
+ * Command: rx <path>JCYam.rexx address|subject|body|attach
+ *
+ * EXAMPLE: rx c/JCYam JamesConwell@yahoo.com|"¡Total Chaos! Turn 1"|DefaultBody.txt|t:TurnFile.lha
+ *
+ */
+
+PARSE ARG paddress '|' psubject '|' pbody '|' pattach
+
+/* This library is opened by Total Chaos startup so its already in the system */
+CALL ADDLIB('rexxsupport.library', 0, -30, 0)
+
+/* IF yam isn't loaded THEN load it */
+IF ~SHOW('Ports', 'YAM') THEN DO
+  IF ~EXISTS('YAM:YAM') THEN DO
+    ADDRESS COMMAND 'RequestChoice <>NIL: "YAM Error" "YAM does not exist on this system! *NYAM (Your Amiga Mailer) *Nmust be installed and configured on your system *Nin order to play Total Chaos by Email. *NIf you need to use some other mailer such as SimpleMail *Nthen please contact JamesConwell@yahoo.com" "OK"'
+    EXIT
+  END
+
+ ADDRESS COMMAND
+ 'Run >NIL: YAM:YAM NOCHECK'
+ 'SYS:RexxC/WaitForPort YAM'
+END
+
+IF ~SHOW('Ports', 'YAM') THEN DO
+    ADDRESS COMMAND 'RequestChoice <>NIL: "YAM Error" "YAM did not start for some reason. *NYou are probably low on memory or have fragmented memory. *NSorry, but your Total Chaos turnfile was not mailed." "OK"'
+    EXIT
+END
+
+
+/* Set pbodyfilesize */
+pbodyfilesize=0
+IF (pbody ~= '') & (EXISTS(pbody)) THEN DO
+ PARSE VALUE STATEF(pbody) WITH pbodyfiletype ' ' pbodyfilesize ' ' pbodyfiletherest
+END
+
+/* Set pattachfilesize*/
+pattachfilesize=0
+IF (pattach ~= '') & (EXISTS(pattach)) THEN DO
+ PARSE VALUE STATEF(pattach) WITH pattachfiletype ' ' pattachfilesize ' ' pattachfiletherest
+END
+
+/* Create the mail in YAM and attach the turnfile */
+IF SHOW('Ports', 'YAM') THEN DO
+ ADDRESS YAM
+ SHOW
+/* Use this line for debugging and testing */
+/* MAILWRITE */
+ MAILWRITE QUIET
+
+ WRITETO paddress
+ WRITESUBJECT psubject
+ IF (pbodyfilesize > 0) THEN WRITELETTER pbody NOSIG
+ IF (pattachfilesize > 0) THEN WRITEATTACH pattach
+
+/*
+WRITEATTACH      FILE/A,DESC,ENCMODE,CTYPE
+
+Attaches a file to a new message.
+
+FILE  is  the filename, DESC is the description, ENCMODE is either "uu" or
+"b64" and CTYPE is the content-type.
+*/
+
+  WRITESEND
+END
+
+
+
+
+EXIT 0

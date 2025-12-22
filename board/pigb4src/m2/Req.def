@@ -1,0 +1,546 @@
+DEFINITION MODULE Req {"req.library",1}; (* V1.0 *)
+(*$ Implementation:=FALSE *)
+
+(* req library modifified from C to Modula2 (M2Amiga 3.30e, 4.0)
+   EBM Copenhagen Denmark Feb 91, 92
+
+   Currently tested :
+      ColorRequester,
+      FileRequester, PurgeFiles, 
+      TextRequest,
+      GetString,
+      GetLong,
+   with the eventual belonging RECORD types, and found OK. 
+   The rest may work, but no testing has been done. 
+*)
+  
+FROM SYSTEM IMPORT
+  ADDRESS, BYTE;
+FROM GraphicsD IMPORT
+  RastPortPtr, GfxBasePtr;
+IMPORT ExecD; FROM ExecD IMPORT
+  IOStdReqPtr, Library, ExecBasePtr;
+FROM IntuitionD IMPORT
+  WindowPtr, GadgetPtr, Gadget, Border, IntuiText, PropInfo, 
+  StringInfo, Image, IntuitionBasePtr, NewWindow;
+FROM DosD IMPORT
+  Date, FileInfoBlockPtr, DosLibraryPtr;
+
+VAR
+  reqVersion:INTEGER;
+  reqBase:ExecD.LibraryPtr;
+
+CONST
+  REQVERSION = 2;
+  NUMPAIRS   = 10;
+
+TYPE
+  NewWindowPtr=POINTER TO NewWindow;
+  StrPtr = POINTER TO ARRAY [0..4999] OF CHAR;
+  BufferPtr=StrPtr;
+  GadgetBlockPtr=POINTER TO GadgetBlock;
+  GadgetBlock=RECORD
+	gadget:	Gadget;
+	border: Border;
+	Pairs: ARRAY [0..NUMPAIRS-1] OF INTEGER;
+	Text:IntuiText;
+  END;
+  StringBlockPtr=POINTER TO StringBlock;
+  StringBlock=RECORD
+	gadget:Gadget;
+	info:StringInfo;
+	border:	Border;
+	Pairs: ARRAY [0..NUMPAIRS-1] OF INTEGER;
+  END;
+  PropBlockPtr=POINTER TO PropBlock;
+  PropBlock=RECORD
+    gadget:Gadget;
+    info:PropInfo;
+    image:Image;
+  END;
+  ScrollBlockPtr=POINTER TO ScrollBlock;   (* SliderBlock ?? *)
+  ScrollBlock=RECORD
+	ArrowUpLt:Gadget;
+	ImageUpLt:Image;
+	ArrowDnRt:Gadget;
+	ImageDnRt:Image;
+	Prop     :PropBlock;
+  END;
+  TwoImageGadgetPtr=POINTER TO TwoImageGadget;
+  TwoImageGadget=RECORD
+	gadget:Gadget;
+	Image1:Image;
+	Image2:Image;
+  END;
+
+CONST
+  ATTITUDEB   = 16;
+  HORIZSLIDER = 0;       (* (0L<<ATTITUDEB)  ; which way the slider stands*)
+  VERTSLIDER  = 10000H;  (* (1L<<ATTITUDEB)  ; This is so that it bypasses all gadget flags.*)
+
+TYPE
+  (*;This structure is used with the TextRequester function.*)
+  TRStructurePtr=POINTER TO TRStructure;
+  TRStructure=RECORD
+	Text:StrPtr;		(* ;This is the message text, including printf() style formatting if desired.*)
+	Controls:ADDRESS;	(* ;This is the address of the parameter list, if printf() style formatting is used.*)
+	Window:WindowPtr;       (* ;This is an optional (zero if not used) pointer to a window on the screen you*)
+				(* ;would like the requester to show up on.*)
+	MiddleText:StrPtr;	(* ;If non-zero, this is the text for the gadget in the lower middle (returns 2).*)
+	PositiveText:StrPtr;	(* ;If non-zero, this is the text for the gadget in the lower left hand corner (returns 1).*)
+	NegativeText:StrPtr;	(* ;If non-zero, this is the text for the gadget in the lower right (returns 0).*)
+	Title:StrPtr;			(* ;This is the title for the window.*)
+	KeyMask:CARDINAL;		(* ;This is the qualifier mask for the keyboard shortcuts.*)
+					(* ;Use $FFFF to allow any qualifiers (or none).*)
+					(* ;Zero means that no keyboard shortcuts are allowed.*)
+	textcolor:INTEGER;		(* ;Color of the text.  Uses color 1 if no color specified. *)
+	detailcolor:INTEGER;	        (* ;Detail and block color, as in a NewWindow structure.  If *)
+	blockcolor:INTEGER;		(* ;both are left zero, block pen will be set to 1. *)
+	versionnumber:INTEGER;	        (* ;Make SURE this is set to the current version of REQVERSION. *)
+	Timeout:CARDINAL;		(* ;The timeout value, in seconds. *)
+        AbortMask:LONGINT;              (* If the requester gets a Signal() with this bit, it will abort *)
+	rfu1:CARDINAL;			(* ;Make SURE you leave this zeroed also. *)
+  END;
+
+(* NOTE:
+    The  control  values  mentioned above are used if you choose to insert
+printf  style directives in your strings and should contain the address of
+a list of control parameters, usually on the stack.
+    *)
+(*;         Remember,   if  you  don't  want  to  go  through  the  hassle  of *)
+(*; initializing a ExtendedColorRequester structure, you can always just call *)
+(*; ColorRequester  (as opposed to ExtendedColorRequester).  ColorRequester *)
+(*; just  takes  a  single  parameter, in D0, the color that should start out *)
+(*; being highlit.  It returns a single value, the color that was selected at *)
+(*; the end. *)
+(*;         This structure is for use with the ExtendedColorRequester (_not_, *)
+(*; the ColorRequester) function. *)
+
+  extendedColorRequesterPtr=POINTER TO extendedColorRequester;
+  extendedColorRequester=RECORD
+	defcolor:LONGINT;		(*;The color that is initially highlit. *)
+	window  :ADDRESS;		(*;The window the 'requester' opens up in. *)
+	rfu1    :LONGINT;		(*;Who knows what these will be used for, *)
+	rfu2    :LONGINT;		(*;but I'm sure we'll think of something. *)
+	rfu3    :LONGINT;		(*;Until then, just keep these zeroed. *)
+	rfu4    :LONGINT;		(*;Okay? *)
+	rfu5    :LONGINT;
+  END;
+
+(*;         This structure is for use with the GetLong function.*)
+
+CONST
+  GLNODEFAULTB=0;	(*;Set this bit in the flags if you don't want a default*)
+							(*;value to show up in the get long string gadget.  For*)
+							(*;some things this is much better than having a zero*)
+							(*;show up.*)
+  GLNODEFAULTM=1;   (* (1<<GLNODEFAULTB) *)
+
+TYPE
+  GetLongStructPtr=POINTER TO GetLongStruct;
+  GetLongStruct=RECORD
+	titlebar:StrPtr;
+	defaultval:LONGINT;
+	minlimit:LONGINT;
+	maxlimit:LONGINT;
+	result:LONGINT;
+	window:WindowPtr;
+	versionnumber:INTEGER;	        (* ;Make SURE this is set to REQVERSION *)
+	flags:LONGINT;			(* Some, uh flags.  See above for bit definitions. *)
+	rfu2:LONGINT;			(* ;Make SURE you leave these two zeroed also. *)
+  END;
+  GetStringStruct=RECORD
+	titlebar:StrPtr;
+	stringbuffer:StrPtr;
+	window:WindowPtr;
+	stringsize:INTEGER;		(* how many characters in the buffer *)
+	visiblesize:INTEGER;		(* how many characters show on screen *)
+	versionnumber:INTEGER;		(* make sure this is REQVERSION *)
+	flags:LONGINT;
+	rfu1:LONGINT;
+	rfu2:LONGINT;
+	rfu3:LONGINT;
+  END;
+
+CONST
+
+  DSIZE=130;
+  FCHARS=30;
+  WILDLENGTH=30;
+
+  FRQSHOWINFOB=0;	(*;Set this in Flags if you want .info files to show.  They default to hidden.*)
+  FRQEXTSELECTB=1;	(*;Set this in Flags if you want extended select.  Default is not.*)
+  FRQCACHINGB=2;    (*;Set this in Flags if you want directory caching.  Default is not.*)
+  FRQGETFONTSB=3;	(*;Set this in Flags if you want a font requester rather than a file requester.*)
+  FRQINFOGADGETB=4;	(*;Set this in Flags if you want a hide-info files gadget.*)
+  FRQHIDEWILDSB=5;	(*;Set this in Flags if you DON'T want 'show' and 'hide' string gadgets.*)
+  FRQABSOLUTEXYB=6;	(*;Use absolute x,y positions rather than centering on mouse.*)
+  FRQCACHEPURGEB=7;	(*;Purge the cache whenever the directory date stamp changes if this is set.*)
+  FRQNOHALFCACHEB=8;(*;Don't cache a directory unless it is completely read in when this is set.*)
+  FRQNOSORTB=9;	    (*;Set this in Flags if you DON'T want sorted directories.*)
+  FRQNODRAGB=10;    (*;Set this in Flags if you DON'T want a drag bar and depth gadgets.*)
+  FRQSAVINGB=11;	(*;Set this bit if you are selecting a file to save to.*)
+  FRQLOADINGB=12;	(*;Set this bit if you are selecting a file(s) to load from.*)
+							(*;These two bits (save and load) aren't currently used for*)
+							(*;anything, but they may be in the future, so you should*)
+							(*;remember to set them.  Also, these bits make it easier if*)
+							(*;somebody wants to customize the file requester for their*)
+							(*;machine.  They can make it behave differently for loading*)
+							(*;vs saving.*)
+  FRQDIRONLYB=13;                                       (*;Allow the user to select a directory, rather than a file. *)
+
+  FRQSHOWINFOM=1;	(* (1<<FRQSHOWINFOB)    *)
+  FRQEXTSELECTM=2;	(* (1<<FRQEXTSELECTB)   *)
+  FRQCACHINGM=4;	(* (1<<FRQCACHINGB)     *)
+  FRQGETFONTSM=8;	(* (1<<FRQGETFONTSB)    *)
+  FRQINFOGADGETM=16;	(* (1<<FRQINFOGADGETB)  *)
+  FRQHIDEWILDSM=32;	(* (1<<FRQHIDEWILDSB)   *)
+  FRQABSOLUTEXYM=64;	(* (1<<FRQABSOLUTEXYB)  *)
+  FRQCACHEPURGEM=128;	(* (1<<FRQCACHEPURGEB)  *)
+  FRQNOHALFCACHEM=256;	(* (1<<FRQNOHALFCACHEB) *)
+  FRQNOSORTM=512;	(* (1<<FRQNOSORTB)      *)
+  FRQNODRAGM=1024;	(* (1<<FRQNODRAGB)      *)
+  FRQSAVINGM=2048;	(* (1<<FRQSAVINGB)      *)
+  FRQLOADINGM=4096;	(* (1<<FRQLOADINGB)     *)
+  FRQDIRONLYM=8192;     (* (1<<FRQDIRONLYB)     *)
+
+TYPE
+
+  ESStructurePtr=POINTER TO ESStructure;
+  ESStructure=RECORD                    (* ExtendedSelectStructure *)
+	NextFile    : ESStructurePtr;   (* ;This must be the first element! *)
+	NameLength  : INTEGER;	(* Length of thefilename field, not including the terminating zero. *)
+	Pad         : INTEGER;
+	Node        : ADDRESS;				(* For internal use only. *)
+	thefilename : StrPtr;  (* ARRAY[0..1] OF CHAR;  This is a variable size field. *)
+  END;
+
+(*        When  using  extended  select,  the  directory pointer is required
+; since  only  the  file  names  are stored in the frq_ExtendedSelect linked
+; list.   When  not  using  extended select, you can either have frq_Dir and
+; frq_File  point  be initialized, or you can have frq_PathName initialized,
+; or  both.   frq_PathName will contain the concatenation of the file and
+; directory chosen. *)
+
+  reqFileRequesterPtr=POINTER TO reqFileRequester;   
+  reqFileRequester=RECORD
+	VersionNumber:CARDINAL;			(* MUST BE REQVERSION!!!!!!!!!!!!!!!!!! *)
+	(* You will probably want to initialize these three variables. *)
+        Title:StrPtr;					(* Hailing text *)
+	Dir:StrPtr;					(* Directory array (DSIZE+1) *)
+	File:StrPtr;					(* Filename array (FCHARS+1) *)
+	(* ;If you initialize this variable then the file requester will place the complete path name in here on exit. *)
+        PathName:StrPtr;				(* Complete path name array (DSIZE+FCHARS+2) *)
+        (* If you want the file requester to pop up on your custom screen, put one of your window pointers here.
+	Or better yet, you can leave this field zeroed and put a pointer to one of your windows in the
+	WindowPtr field in your process structure. *)
+	Window:WindowPtr;	           	(* Window requesting or NULL *)
+	(* Initialize these to the number of lines and columns you want to appear in the inner window that
+	displays the file names.  If you leave these set to zero then default values will be used.*)
+	MaxExtendedSelect:CARDINAL;		(* Zero implies a maximum of 65535, as long as FRQEXTSELECT is set.*)
+	numlines:CARDINAL;			(* Number of lines in file window. *)
+	numcolumns:CARDINAL;			(* Number of columns in file window. *)
+	devcolumns:CARDINAL;                    (* Number of columns in device window. *)
+	Flags:LONGCARD;				(* Various - umm - flags.  See above for more info. *)
+	dirnamescolor:CARDINAL;			(* These five colors will all default *)
+	filenamescolor:CARDINAL;		(* to color one if you don't specify *)
+	devicenamescolor:CARDINAL;		(* a color (ie; if you specify color zero). *)
+	fontnamescolor:CARDINAL;		(* If you want color zero to be used, specify *)
+	fontsizescolor:CARDINAL;		(* color 32, or some other too large number *)
+    					        (* which mods down to zero. *)
+
+        detailcolor:CARDINAL;			(* If both of these colors are specified as *)
+	blockcolor:CARDINAL;			(* zero then the block pen will be set to one. *)
+
+	gadgettextcolor:CARDINAL;		(* The color for the text of the five boolean gadgets.  Defaults to 1. *)
+	textmessagecolor:CARDINAL;		(* The color for the message at the screen top.  Defaults to 1. *)
+	stringnamecolor:CARDINAL;		(* The color for the words Drawer, File, Hide and Show.  Defaults to 3. *)
+	stringgadgetcolor:CARDINAL;		(* The color for the borders of the string gadgets.  Defaults to 3. *)
+									(* Unfortunately it is not possible to specify *)
+									(* the color of the actual text in an Intuition *)
+									(* string gadget. *)
+	boxbordercolor:CARDINAL;			(* The color for the boxes around the file and directory areas.  Defaults to 3. *)
+	gadgetboxcolor:CARDINAL;			(* The color for the boxes around the five boolean gadgets.  Defaults to 3. *)
+	FRUStuff:ARRAY[0..18-1] OF CARDINAL;	(* This area, which is reserved for *)
+							(* future use, should all be zero. *)
+	DirDateStamp: Date;                 (* DateStamp; A copy of the cached directories date stamp. *)
+						(* There should never be any need to change this. *)
+	WindowLeftEdge:CARDINAL;		(* These two fields are only used when the *)
+	WindowTopEdge:CARDINAL;			(* FRQABSOLUTEXY flag is set.  They specify *)
+						(* the location of the upper left hand *)
+						(* corner of the window. *)
+
+	FontYSize:CARDINAL;			(* These fields are used to return the selected *)
+	FontStyle:CARDINAL;			(* font size and style, only applicable when the *)
+						(* font bit is set. *)
+
+	(*If you set the extended select bit and the user extended selects, the list of filenames will start from here.*)
+	ExtendedSelect:ESStructurePtr;
+	(* All of the following variables you shouldn't need to touch.  They contain fields that the file
+	;requester sets and likes to preserve over calls, just to make life easier for the user. *)
+	Hide : ARRAY[0..WILDLENGTH+2-1] OF CHAR;	(* The wildcards text. *)
+	Show : ARRAY[0..WILDLENGTH+2-1] OF CHAR;	(* More wildcards text. *)
+	FileBufferPos   :INTEGER;		(* Various fields taken from the various *)
+	FileDispPos     :INTEGER;		(* string gadgets so that the cursor *)
+	DirBufferPos    :INTEGER;		(* can be returned to the same position *)
+	DirDispPos      :INTEGER;		(* on subsequent calls. *)
+	HideBufferPos   :INTEGER;
+	HideDispPos     :INTEGER;
+	ShowBufferPos   :INTEGER;
+	ShowDispPos     :INTEGER;
+
+(**;      The  following  fields are PRIVATE!  Don't go messing with them or
+; wierd  things may/will happen.  If this isn't enough of a warning, go read
+; the one in intuition.h, that should scare you off.**)
+
+	Memory  : ADDRESS;				(* Memory allocate for dir entries. *)
+	Memory2 : ADDRESS;				(* More memory, used for hidden files. *)
+	Lock    : ADDRESS;      (* Contains lock on directories being read across calls. *)
+	PrivateDirBuffer: ARRAY[0..DSIZE+2-1] OF CHAR;	(* Used for keeping a record of which *)
+							(* directory we have file names for. *)
+	fileInfoBlock    :FileInfoBlockPtr;
+	NumEntries       :INTEGER;
+	NumHiddenEntries :INTEGER;
+	filestartnumber  :INTEGER;
+	devicestartnumber:INTEGER;
+  END; (* reqFileRequester record *)
+
+(*        This is used with the RealTimeScroll function. *)
+  ReqScrollStructPtr=POINTER TO ReqScrollStruct;
+  ReqScrollStruct=RECORD
+	TopEntryNumber:LONGCARD;	(*;This is the ordinal number of the first*)
+					(*;displayed entry.*)
+	NumEntries:LONGCARD;		(*;This is the total number of entries in*)
+					(*;the list.*)
+	LineSpacing:LONGCARD;		(*;This is how many pixels high each entry is.*)
+	NumLines:LONGCARD;		(*;This is how many entries can be displayed simultaneously.*)
+	PropGadget:GadgetPtr;       	(*;This is a pointer to the prop gadget being monitored.*)
+
+	RedrawAll:PROC;     			(*;This routine is used to redraw all of the*)
+									(*;entries when the user moves far enough*)
+									(*;that scrolling will take too long.*)
+        ReadMore:PROC;		        	(*;An optional routine that is called when*)
+									(*;the scroll routine is waiting for movement.*)
+									(*;This allows reading of new data while real*)
+									(*;time scrolling.*)
+	ScrollAndDraw:PROC;		        (*;This routine is called when the data needs*)
+						(*;to be scrolled and updated.  This routine is*)
+						(*;passed four long parameters (on the stack and*)
+						(*;in D0-D3) which are, respectively:*)
+						(*;D0 - entry number of first line to be drawn.*)
+						(*;D1 - pixel offset to draw first line at.*)
+						(*;D2 - amount to scroll before doing any drawing.*)
+						(*;D3 - number of lines of data to draw.*)
+                                                (*;A0 - the Scroll structure itself.*)
+	versionnumber:INTEGER;			(*;REQVERSION should be put here. *)
+	rfu1:LONGINT;				(*;Make SURE you leave these two zeroed also. *)
+	rfu2:LONGINT;				(*;Make SURE you leave these two zeroed also. *)
+  END;
+
+  chipstuffPtr=POINTER TO chipstuff;
+  chipstuff=RECORD
+	ArrowUp   :ARRAY[0..20-1] OF CHAR;	(* 16 pixels wide, 10 pixels high. *)
+	ArrowDown :ARRAY[0..20-1] OF CHAR;	(* 16 pixels wide, 10 pixels high. *)
+	ArrowLeft :ARRAY[0..18-1] OF CHAR;	(* 16 pixels wide, 9 pixels high. *)
+	ArrowRight:ARRAY[0..18-1] OF CHAR;	(* 16 pixels wide, 9 pixels high. *)
+	LetterR   :ARRAY[0..20-1] OF CHAR;	(* 16 pixels wide, 10 pixels high. *)
+	LetterG   :ARRAY[0..20-1] OF CHAR;	(* 16 pixels wide, 10 pixels high. *)
+	LetterB   :ARRAY[0..20-1] OF CHAR;	(* 16 pixels wide, 10 pixels high. *)
+	LetterH   :ARRAY[0..20-1] OF CHAR;	(* 16 pixels wide, 10 pixels high. *)
+	LetterS   :ARRAY[0..20-1] OF CHAR;	(* 16 pixels wide, 10 pixels high. *)
+	LetterV   :ARRAY[0..20-1] OF CHAR;	(* 16 pixels wide, 10 pixels high. *)
+  END;
+
+(*; These are the positions relative to the ReqLib.Images pointer.
+  ;ie
+  ;	MOVE.L	rl_Images(A6),A0
+  ;	ADD.L	#ArrowLeft,A0		;A0 now points at the left arrow.
+*)
+
+  ReqLibPtr=POINTER TO ReqLib;
+  ReqLib=RECORD
+	RLib    :Library; 
+	SysLib  :ExecBasePtr;
+	DosLib  :DosLibraryPtr;         (*These must be kept in the same order,*)
+        IntuiLib:IntuitionBasePtr;      (*the library expunge code depends on it.*)
+	GfxLib  :GfxBasePtr;
+	SegList :ADDRESS;
+	Images  :chipstuffPtr;          (*pointer to the arrow images.*)
+	Flags   :BYTE;
+	Pad     :BYTE;
+	ConsoleDev    :StrPtr;         (* for RawKeyToAscii, Not really a char*, but it should work *)
+	ConsoleHandle :IOStdReqPtr;    (* ;so we can close the device later *)
+        RexxSysBase :Library;          (* pointer to rexxsyslib.library *)
+  END;
+
+(**********************************************************************)
+(*  Short C-style documentation of the functions :                    *)
+(**********************************************************************)
+
+(* d0..7=0..7:LONGINT, a0..7=8..15:ADDRESS     JSR d(A6) 
+   Offset  (4,28) ,30     CODE -Offset-Vektor 
+
+Vektor navn                 beskrivelse
+
+  0 Center..................Center a new window over the mouse.
+    Center( nw{8}:NewWindowPtr; x{0}, y{1}:CARDINAL);
+
+  6 SetSize.................Prop gadget handling routines (32 bit)
+    SizeVal=SetSize(MaxValue{0},ViewSize{1}:LONGINT):INTEGER;
+
+ 12 SetLocation
+    NewLoc=SetLocation(MaxValue{0},ViewSize{1},Value{2}:LONGINT):INTEGER;
+
+ 18 ReadLocation
+    LocVal=ReadLocation(MaxValue{0},ViewSize{1}:LONGINT; PotValue{2}:INTEGER):LONGINT;
+
+ 24 ReqFormat..................sprintf() format routine
+    ReqFormat(Buffer{10},string{8},values{9}:ADDRESS);
+
+ %  SimpleRequest...........Starter gluecode to TextRequest- Single gadget
+    SimpleRequest(string:StrPtr; parameterlist:ADDRESS):CARDINAL;
+
+ %  TwoGadRequest...........Starter gluecode to TextRequest- Two gadgets
+    result = TwoGadRequest(string:StrPtr; parameterlist:ADDRESS):
+
+ 54 ReqFileRequester...........FileRequester routines
+    ReqFileRequester(frq{8}:reqFileRequesterPtr):BOOLEAN;
+
+    PurgeFiles
+    PurgeFiles(frq{8}:fileRequesterPtr);
+
+ 60 ColorRequester..........a colorrequester
+    NewColor=ColorRequester(DesiredColor{0}:LONGINT):LONGINT;
+
+162 ExtendedColorRequester.....
+    NewColor=ExtendedColorRequester(ECRP{8}:extendedColorRequesterPtr):INTEGER;
+
+ 96 MakeGadget..............Gadget creation routines
+    MakeGadget(Buffer{8}:GadgetBlockPtr; String{9}:StrPtr; X{0}, Y{1}:LONGINT);
+
+102 MakeString
+    MakeString(Buffer{8}:BufferPtr; StringBuff{9},UndoBuff{10}:StrPtr;
+               MaxWidthBits{0},MaxNumChars{1}, X{2}, Y{3}:LONGINT);
+
+108 MakeProp
+    MakeProp(Buffer{8}:BufferPtr; Width{0},Height{1},Flags{2}:LONGINT);
+
+ 72 MakeButton
+    MakeButton(Buffer{8}:TwoImageGadgetPtr; Image{9},Image2{10}:ADDRESS;
+               Width{0},Height{1},Depth{2}:LONGINT);
+
+ 78 MakeScrollBar...........3   part   gadget;   2   arrows  and  a  prop.
+                            Horizontal or Vertical
+    MakeScrollBar(Buffer{8}:ScrollBlockPtr; Flags{0},Size{1},X{2},Y{3}:LONGINT);
+
+114 LinkGadget..............Gadget  creation  routines that self-hook into
+                            the newwindow
+    LinkGadget(Buffer{8}:GadgetBlockPtr; String{9}:StrPtr;
+               nw{10}:NewWindowPtr; X{0},Y{1}:LONGINT);
+
+120 LinkStringGadget........gadget list.
+    LinkStringGadget(Buffer{8}:StringBlockPtr; StringBuf{9},UndoBuf{10}:StrPtr;
+                     nw{11}:NewWindowPtr; WidthBits{0},NumChars{1},X{2},Y{3}:LONGINT);
+
+126 LinkPropGadget
+    LinkPropGadget(Buffer{8}:PropBlockPtr; nw{11}:NewWindowPtr; Width{0},
+                   Height{1},Flags{2},LeftEdge{3},TopEdge{4}:LONGINT);
+
+ 66 DrawBox.................Draw a box (x1y1)(x2y2) in one command
+    DrawBox(rp{8}:RastPortPtr; MinX{0},MinY{1},MaxX{2},MaxY{3}:LONGINT);
+
+ 90 GetFontHeightAndWidth...return height and width of current font
+    GetFontHeightAndWidth(Width{0},Height{1}:LONGINT);
+
+138 RealTimeScroll..........scroll routine used in file requester
+    RealTimeScroll(sc{8}:ScrollStructPtr);
+
+144 TextRequest.............Powerful requester function
+    result = TextRequest(TRS{8}:TRStructurePtr):CARDINAL;
+
+132 GetString...............Get a line of text from the user
+    GetString(buffer{8},title{9}:StrPtr; window{10}:WindowPtr; 
+              visiblechars{0},maxchars{1}:CARDINAL):BOOLEAN;
+
+150 GetLong.................Get a signed long from the user
+    GetLong(GLSP{8}:GetLongStructPtr):BOOLEAN;
+
+156 RawKeyToAscii...........Convert raw key to ascii
+    key=RawKeyToAscii(Code{0},Qualifier{1}:CARDINAL; IAddress{8}:ADDRESS):CHAR;
+
+
+Because C's BOOL is 0 or not 0 (1) and M2Amiga's BOOLEAN is either 0 eller -1
+, the BOOLEAN PROCEDURE FUNCTIONS's returns an INTEGER.
+*) 
+
+PROCEDURE Center(nw{8}:NewWindowPtr; x{0}, y{1}:CARDINAL); CODE -30;
+
+PROCEDURE ColorRequester(DesiredColor{0}:LONGINT):INTEGER; CODE -90;
+
+PROCEDURE DrawBox(rp{8}:RastPortPtr; MinX{0},MinY{1},
+                  MaxX{2},MaxY{3}:LONGINT); CODE -96;
+
+PROCEDURE ExtendedColorRequester(ECRP{8}:extendedColorRequesterPtr)
+                                 :INTEGER; CODE -192;
+
+PROCEDURE ReqFileRequester(frq{8}:reqFileRequesterPtr):INTEGER; CODE -84;
+
+PROCEDURE ReqFormat(Buffer{10},string{8},values{9}:ADDRESS):INTEGER; CODE -54;
+
+PROCEDURE GetFontHeightAndWidth(VAR Width{0},Height{1}:LONGINT); CODE -120;
+
+PROCEDURE GetLong(GLSP{8}:GetLongStructPtr):INTEGER; CODE -180;
+
+PROCEDURE GetString(buffer{8},title{9}:StrPtr; window{10}:WindowPtr; 
+          visiblechars{0},maxchars{1}:CARDINAL):INTEGER; CODE -162;
+
+PROCEDURE LinkGadget(Buffer{8}:GadgetBlockPtr; String{9}:StrPtr;
+                     nw{10}:NewWindowPtr; X{0},Y{1}:LONGINT); CODE -144;
+
+PROCEDURE LinkPropGadget(Buffer{8}:PropBlockPtr; nw{11}:NewWindowPtr;
+                         Width{0},Height{1},Flags{2},LeftEdge{3},
+                         TopEdge{4}:LONGINT); CODE -156;
+
+PROCEDURE LinkStringGadget(Buffer{8}:StringBlockPtr; StringBuf{9}, 
+                           UndoBuf{10}:StrPtr;nw{11}:NewWindowPtr; 
+                           WidthBits{0},NumChars{1},X{2},Y{3}:LONGINT); CODE -150;
+
+PROCEDURE MakeButton(Buffer{8}:TwoImageGadgetPtr; Image{9},Image2{10}:ADDRESS;
+                     Width{0},Height{1},Depth{2}:LONGINT); CODE -102;
+
+PROCEDURE MakeGadget(Buffer{8}:GadgetBlockPtr; String{9}:StrPtr; X{0}, 
+                     Y{1}:LONGINT); CODE -126;
+
+PROCEDURE MakeProp(Buffer{8}:BufferPtr; Width{0},Height{1},
+                   Flags{2}:LONGINT); CODE -138;
+
+PROCEDURE MakeScrollBar(Buffer{8}:ScrollBlockPtr; Flags{0},Size{1},X{2},
+                        Y{3}:LONGINT); CODE -108;
+
+PROCEDURE MakeString(Buffer{8}:BufferPtr; StringBuff{9},UndoBuff{10}:StrPtr;
+                     MaxWidthBits{0},MaxNumChars{1}, X{2}, Y{3}:LONGINT); CODE -132;
+
+PROCEDURE PurgeFiles(frq{8}:reqFileRequesterPtr); CODE -114;
+
+PROCEDURE RawKeyToAscii(Code{0},Qualifier{1}:CARDINAL; 
+          IAddress{8}:ADDRESS):CHAR; CODE -186;
+
+PROCEDURE ReadLocation(MaxValue{0},ViewSize{1}:LONGINT; 
+                       PotValue{2}:INTEGER):LONGINT; CODE -48;
+
+PROCEDURE RealTimeScroll(sc{8}:ReqScrollStructPtr); CODE -168;
+
+PROCEDURE SetLocation(MaxValue{0},ViewSize{1},
+                      Value{2}:LONGINT):INTEGER; CODE -42;
+
+PROCEDURE SetSize(MaxValue{0},ViewSize{1}:LONGINT):INTEGER; CODE -36;
+
+(* Can be found in ReqSupport.def (it's a routine calling TextRequest) *)
+(* PROCEDURE SimpleRequest(string:StrPtr; parameterlist:ADDRESS):CARDINAL; *)
+
+PROCEDURE TextRequest(TRS{8}:TRStructurePtr):CARDINAL; CODE -174;
+
+(* Can be found in ReqSupport.def (it's a routine calling TextRequest) *)
+(* PROCEDURE TwoGadRequest(string:StrPtr; parameterlist:ADDRESS):CARDINAL; *)
+
+END Req.lib1

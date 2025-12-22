@@ -1,0 +1,355 @@
+general:
+
+- removed builtin StringToInt, and renamed StringToPosInt as StringToInt
+
+- added type "fixed", and builtins FixedToInt, IntToFixed, FixedToString
+    and StringToFixed
+
+- cleaned up what happens when an IP connection is made to the server
+    machine, which starts up MUDBinary, but there is no MUDServ program
+    running there
+
+- changed direct procs so that they allow any type of result
+
+- added builtin StringToProc. It is the same as StringToAction, except
+    that the string parsed must be a full proc definition, starting
+    with 'proc', '(', any parameters, ')', result type, ':', any
+    local declarations, body, and 'corp'
+
+- added builtin SymbolType
+
+- changed around a lot of stuff dealing with tables and grammars, as
+    cached in the server
+
+- changed how a lot of output is done. Many things will now be in a more
+    uniform, lower-case style.
+
+- added builtins ZapAction, ZapGrammar, ZapTable and ZapCharacter
+
+- fixed a hole where NukeCharacter could leave the character pointing
+    at deleted action functions (very unlikely in real use)
+
+- increased the amount of automatic deletion of things that happens.
+    Thus, if the last reference to a thing is removed, then that thing
+    is cleared and deleted. This is turn can result in the last references
+    to other things, properties, lists, actions, etc. going away, which
+    triggers further clearing and deletion, etc. This pointed out some
+    bugs in the scenario, where it was deleting the last reference to
+    a thing, and then continuing to use it.
+
+- added builtin ProcToString
+
+- changed EditString so that it has a 3-value "mode" parameter instead
+    of the bool "raw" parameter.
+
+- added a new message whereby the new name of a character is sent to the
+    client when a player does a name change. This allows the logs done by
+    the clients to use the updated name.
+
+- switched to a full 4-digit year format for the log file and for the
+    builtin 'DateShort'. That ought to let us survive past 2000!
+
+- added a 'cycles' parameter to 'SPlaySound' to say how many cycles of
+    the 8SVX sample to play. A value of 0 means "play forever", but can
+    be shut off by 'AbortEffect'. The repeating is done right in the
+    MUD client, so no delays between the cycles should be noticed.
+
+- added the concept of sound effect id 0, which says that no notification
+    of the completion of the sound is sent to the server. Thus, that
+    id can be freely re-used.
+
+- added the concept of effect id 0, which tells the client to not cache
+    the effect, and to delete it after it has been called. This is useful
+    for temporary, once-only effects.
+
+- added builtin FindIntOnList.
+
+- added the 'Punctuation' builtin
+
+
+MUDServ:
+
+- removed some redundant newlines in abort messages
+
+- added some more general paranoia about sending to client ports
+
+- cleaned up some wierd cases that could leave dangling values in
+    the database
+
+- fixed a bug involving tables and grammars. If a newly created table
+    or grammar was given no entries in a run, then it was not properly
+    created (it's useCount was 1 too small), and could be randomly
+    deleted from the database, resulting in invalid database pointers.
+
+- fixed the various "SetCharacterXXXAction" and "SetMachineXXXAction"
+    builtins to return nil if their decrementing of the usecount on
+    the old actions results in those actions being deleted.
+
+- fixed a bug relating to one of the internal caches. This was resulting
+    in MUD-code aborts when killing monsters. Hopefully this didn't show
+    up in V1.0!
+
+- fixed a bug in the printout of MUD code. In a situation like this:
+
+	x / (2 * (y + 1))
+
+    the outer parentheses were omitted.
+
+- fixed two unlikely (but hit!) bugs that resulted in a corrupt database.
+
+- fixed a bug relating to the buffer for "MeString". There were situations
+    in which a too-long machine name could be copied into the buffer,
+    stomping memory and causing later troubles. This didn't happen so
+    long as no machine name was longer than 19 characters, and so long
+    as any string passed to "SetMeString" was similarly limited.
+
+- MUDServ will change directory to any directory specified via a 'PATH'
+    tooltype or command line argument. This allows a backup directory,
+    created via the 'backup' SysAdmin command, to be in the right place.
+
+- increased the default database cache size from 50000 to 100000.
+
+
+MUDAgent:
+
+- added the INITSTRING tooltype.
+
+
+SMUD:
+
+- added some missing unlock calls when editing is failing in two
+    very unlikely circumstances
+
+- fixed editing of strings so that '\' is properly escaped on output
+
+- erase the prompt on exit if needed
+
+
+MUD:
+
+- the code was limiting a normal PAL screen to 227 lines, instead of 283.
+    Fixed, but untested since I don't have a true PAL system.
+
+- cleanup of some of the early connect messages
+
+- be more careful in copying some parameter strings into buffers.
+
+- changed MUD to ignore the MUDLocal environment variable when using a
+    TCP/IP connection. This was a serious bug - it prevented a TCP/IP
+    connection from working if MUDLocal was not set to true.
+
+- all outgoing messages were not being freed when TCP/IP is used. A major
+    memory leak! How did I miss this? Well, I have 14 Meg, so I need a
+    long session to notice it. In the direct connect case, the messages
+    are not freed, but are PutMsg'd directly to the server. In the
+    serial connect case, the messages are freed down in the guts of
+    the serial code, when the sent message has been acknowledged.
+
+- fixed the editing code so that the 'raw' flag on EditString is not
+    ignored when using an external editor.
+
+- fixed editing of strings so that '\' is properly escaped on output
+
+- added the ability to use a high resolution display, with the graphics
+    window having twice as many lines and columns, and the text window
+    having twice as many lines. This is enabled by flag -h, or by
+    tooltype HIRES.
+
+- in V36 and above of the AmigaOS, switched to the newlook (3D) window
+    style for the text window. Also disabled text window palette
+    changes. Does anybody use these, or can I just remove the whole
+    facility? Programming note: I am now using the newlook-3D scrollbar
+    in the text window.
+
+- once in the past I had seen a small glitch appear on the original image
+    when in the old lores mode. I couldn't find a cause for it, and it
+    came and went seemingly at random. When I saw it again now, I chased
+    it down - I was freeing a temporary bitmap holding the graphics data
+    before the blitter had finished copying the data to the screen! Adding
+    a "WaitBlit" call fixed it. [Not long after fixing this, I deleted
+    that whole section of code because of new graphics stuff.]
+
+- the simple terminal mode should now silently ignore ANSI control
+    sequences. The processing is very dumb - any ESCAPE character is
+    assumed to start such a sequence, and the character after it, followed
+    by any sequence of decimal digits and semicolons, and the single
+    character after them, are all silently discarded.
+
+    It might be nice if the terminal mode actually supported ANSI control
+    sequences, but that is a lot of effort and code, and would require
+    some signficant changes to the program's internal structure.
+
+- a couple of hacks to make the history buffer a bit more accurate, with
+    respect to empty lines.
+
+- added flag -o (tooltype ONESCREEN) to make MUD open only a single,
+    combined screen. This single screen is used for both text and graphics
+    output. To enable the proper colour use, this single screen is 6 bits
+    deep (64 colours). This mode may be needed with some graphics boards.
+    The hires flag can be used with onescreen mode. [The flag was later
+    changed to -1 instead of -o.]
+
+- added flag -O (tooltype OLDSTYLE) to use the old style of screens, even
+    on the newer OS's. Mostly of use for my testing.
+
+- added Workbench tool type FULLREDRAW in case there are problems with the
+    new code in some situations.
+
+- now check for environment variables MUDHiRes, MUDOneScreen,
+    and MUDFullRedraw as well as MUDLocal. [MUDOneScreen is gone, replaced
+    by MUDMode.]
+
+- made a graphics snapshot use the active graphics palette rather than
+    always using the default palette
+
+- changed the "pink" and "blue green" colours slightly
+
+- MUD now reports many problems it encounters with IFF files, both ILBM
+    and 8SVX. It also reports problems with image/display offsets and
+    sizes (as provided to the builtin functions for displaying things).
+    These reports can make debugging of graphics operations easier.
+
+- MUD is now much more flexible in loading images. If the image has its
+    own colourtable, MUD will map colours in the image from that table
+    to the current table it is using. This latter is either the default
+    table, or the colourtable of the last background loaded. This colour
+    remapping can take a while, especially on a slower CPU. The mapping
+    is only done once when the image is loaded from file, however. MUD
+    will also use the 2.0 and above function 'BitMapScale' to scale
+    images from the size in the file to the size needed. Note that this
+    will silently not happen on pre-2.0 systems. This scaling is done
+    each time the image is displayed. The parameters to the 'GShowImage'
+    builtin changed to allow for this.
+
+- sound channels were not being freed, and effects cache files released,
+    when a sound effect was aborted with AbortEffect. Fixed.
+
+- sound samples longer than 128K were not being played properly - only
+    the first 128K was played. Fixed. Note that MUD still needs to have
+    the entire sample in one contiguous region of chip RAM.
+
+- added flag -q, tooltype EFFECTSQUIET, variable MUDEffectsQuiet and
+    menu item under "Effects" (renamed from "Caches") to control whether
+    or not an error comment is produced when MUD cannot find a needed
+    effect file (e.g. an image for a room or a sound for an NPC).
+
+- added flags -? and -help to print out a summary of the flags.
+
+- added flag -w to allow MUD to run in a Workbench window. In this mode,
+    the graphics are always visible. Companion flag '-m' controls whether
+    or not MUD tries to emulate the normal 32 colours for graphics, or
+    just reports and uses the Workbench colours available to it. Icon
+    tooltypes are ONWORKBENCH and MAPCOLOURS. Shell environment variables
+    are MUDOnWorkbench and MUDMapColours. [Some names changed later -
+    the MUD.txt doc file.]
+
+- made the source, log and snapshot menu items use the Amiga 'asl' file
+    requester when appropriate. This is done only when NOT in default
+    lo-res graphics mode, since in that mode there aren't enough lines in
+    the text window for a proper file requester.
+
+- the default is now to try to connect to a local server, instead of
+    using a serial port.
+
+
+mud.library:
+
+- added a missing initial clear. Without it, an out-of-memory abort in
+    mud.library from a binary-mode MUDAgent would have had an uninitialized
+    pointer
+
+- the programming input terminator has changed from '.' to '$' to allow
+    '.' to be used in fixed constants
+
+- if the action parsed by 'StringToAction' had errors, memory would be
+    lost in MUDServ - fixed
+
+- disallow the body of an action from being just a direct proc. This
+    isn't really useful, and proved to be a problem in the code,
+    relating to usecounts on actions.
+
+- fixed the parsing, so that actions with no name can be edited
+
+- fixed parser to properly allow procs to return 'nil', so long as they
+    are parsed with a header which specifies the true return type, and
+    that type is compatible with 'nil'
+
+- the flag bit that turned off proc caching was not working properly.
+    I'm surprised that wizarding was possible at all using "MUD". It
+    should be fixed now.
+
+
+Scenario:
+
+- made the strength and speed potions last 10 minutes instead of 5
+
+- beefed up the large troll and the Guardian Troll
+
+- using buttons to build an object failed if you were carrying the
+    maximum number of objects - fixed
+
+- added an 'enrich' spell to extras/spells.m
+
+- added laughably ugly icons for the common monsters. At least you can
+    tell them apart.
+
+- changed the default icon colour to red (to show monsters better), and
+    default cursor colour to blue.
+
+- renamed the Proving Grounds files and tables. Updated Scenario.txt.
+
+- added a bunch of sounds for the monsters, etc. and code to play them.
+    Check out the stream, and the doors-room area. Note that the quality
+    of these sounds is not very good. This is because I grabbed them
+    from some CD's, and used resampling, etc. to reduce their size and
+    change their nature. I wanted the samples to be as small as possible,
+    so that the distribution isn't bloated, and so that people with
+    memory constraints can still hope to play and cache the sounds. You
+    are certainly free to replace the samples - they are just normal
+    IFF 8SVX sampled sounds.
+
+- minor modification to default graphics displaying
+
+- added one location as a short-cut
+
+- added a 'showmachines' spell which scans the system and summarizes the
+    current set of active machines. The report is accurate, but has some
+    output that may be hard to understand.
+
+- changed the spells a bit so that they accept a machine name followed
+    by a number, to identify which of several machines is meant. This
+    is useful when testing with my "wanderer" machines.
+
+- added abbreviations for all machine names. E.g. 'gob' for 'goblin',
+    'pac' for 'Packrat', etc. Now 3-character forms work for all such
+    names. This required changes throughout the scenario to use the new
+    routine "CharacterNameG" much more often.
+
+- attempting to change your character name to a name that is already in
+    use failed with a traceback to the user. Fixed.
+
+- added SysAdmin commands 'freeposes', 'freebuilding' and 'makeapprentice'.
+
+- added the 'emit'/'.' command
+
+- added the 'speak'/'sp' and 'page'/'pa' commands
+
+- added SysAdmin command 'shutdown'
+
+- fixed smelling in garbage room
+
+- minor changes/fixes to name changing, in-MUD mail handling
+
+- redid the way 'lock' and 'unlock' work. Better now.
+
+- moves spells (for 'cast') from private table to nested t_spells table
+
+- all of the source files now referenced "AmigaMUD:Src/" rather than
+    the old assign of "st:", which is now no longer needed
+
+- "humanoid" monsters have become better long-term opponents. They will
+    take and use anything dropped by someone they kill, and will then
+    stick around until killed. All monsters are now capable of gaining
+    experience and levels, thus becoming more powerful over time.
+
+- added smell and listen strings all over the place

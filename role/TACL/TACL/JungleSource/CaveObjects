@@ -1,0 +1,302 @@
+*
+* Sample T.A.C.L. Adventure Game source code © 1989 by Kevin Kelm.
+* total of 45 points possible this file
+OBJECT Lever
+
+NAME Lever, Switch
+
+ADJ South
+
+ATTRIB
+ Pulled N
+ FirstPull Y
+ENDATTRIB
+
+INITROOM Western_Passage
+
+CODE
+ T There is a large lever in the wall here.
+ IF Lever IS Pulled THEN
+  T It has been pulled.
+ ENDIF
+ENDCODE
+
+ACTION EXAMINE, LOOK, SEE, VIEW
+ T It is a large lever in the southern wall of the passage.
+ IF Lever IS Pulled THEN
+  T It has been pulled.
+  IMAGE Western_Passage Switch_Hall2
+  SHOW Switch_Hall2
+ ELSE
+  IMAGE Western_Passage Switch_Hall1
+  SHOW Switch_Hall1
+ ENDIF
+ENDACT
+
+ACTION PULL, FLIP
+ IF Lever IS Pulled THEN
+  UNSET Lever Pulled
+  T With some difficulty, you flip the lever back up.  You hear a distant
+  T rumble.
+  IMAGE Western_Passage Switch_Hall1
+  SHOW Switch_Hall1
+ ELSE
+  SET Lever Pulled
+  T You put all of your weight on the lever and it slowly gives.  There
+  T is a rumble in the distance.
+  IMAGE Western_Passage Switch_Hall2
+  SHOW Switch_Hall2
+  IF Lever IS FirstPull THEN
+   SCORE 10
+   UNSET Lever FirstPull
+  ENDIF
+ ENDIF
+ENDACT
+
+ENDOBJ
+*
+*
+*
+OBJECT Idol
+
+NAME Idol, Statue, Figure
+
+ADJ Sacred, Gold, Golden
+
+ATTRIB
+ FirstGrab Y
+ENDATTRIB
+
+INITROOM Sacred_Chamber
+
+CODE
+ IF PLAYER HAS Idol THEN
+  T A golden idol
+ ELSE
+  T There is a golden idol here!!!
+ ENDIF
+ IMAGE Idol Idol_Img
+ENDCODE
+
+ACTION EXAMINE, LOOK, SEE, VIEW
+ T It is a golden idol from ancient Mayan rites.  It is the object of your
+ T mission!
+ SHOW Idol_Img
+ENDACT 
+
+ACTION GET, TAKE, GRAB, STEAL
+ IF PLAYER HAS Idol THEN
+  T I know you're excited about your find, but you already have the idol!
+ ELSE
+  T You delicately pick up the idol and examine its every feature;  yup,
+  T this is the one you are after!
+  GRAB Idol
+  IMAGE Altar The_Altar2
+  IF Idol IS FirstGrab THEN
+   SCORE 25
+   UNSET Idol FirstGrab
+  ENDIF
+  IF SlabPushed = 1 THEN
+   IMAGE Sacred_Chamber Sacred4
+   IF PLAYER IN Sacred_Chamber THEN
+    SHOW Sacred4
+   ENDIF
+  ELSE
+   IMAGE Sacred_Chamber Sacred2
+   IF PLAYER IN Sacred_Chamber THEN
+    SHOW Sacred2
+   ENDIF
+  ENDIF
+ ENDIF
+ENDACT
+
+ACTION DROP
+ IF PLAYER HAS Idol THEN
+  T You know best!  You reluctantly set down the idol.
+  DROP Idol
+  IF PLAYER IN Sacred_Chamber THEN
+   IMAGE Altar The_Altar1
+   IF SlabPushed = 1 THEN
+    IMAGE Sacred_Chamber Sacred3
+    IF PLAYER IN Sacred_Chamber THEN
+     SHOW Sacred3
+    ENDIF
+   ELSE
+    IMAGE Sacred_Chamber Sacred1
+    IF PLAYER IN Sacred_Chamber THEN
+     SHOW Sacred1
+    ENDIF
+   ENDIF
+  ENDIF
+ ELSE
+  T Even if you had it, you wouldn't want to do that!
+ ENDIF
+ENDACT
+
+ENDOBJECT
+*
+*
+*
+OBJECT Altar
+
+NAME Altar, Alter
+
+ADJ Sacred
+
+INITROOM Sacred_Chamber
+
+CODE * no description -- described in the room.
+ IF Idol IN Sacred_Chamber THEN
+  IMAGE Altar The_Altar1
+ ELSE
+  IMAGE Altar The_Altar2
+ ENDIF
+ENDCODE
+
+ACTION LOOK, SEE, VIEW, EXAMINE
+ T It is your standard Mayan sacrifice altar, catalog # 9957E-12.
+ IF Idol IN Sacred_Chamber THEN
+  SHOW The_Altar1
+ ELSE
+  SHOW The_Altar2
+ ENDIF
+ENDACT
+
+ENDOBJ
+*
+*
+*
+OBJECT Rock
+
+NAME Rock, Rocks, Stone, Stones
+
+ATTRIB
+ Moved
+ENDATTRIB
+
+INITROOM Pit_Passage
+
+CODE
+ T A row of stones separate the riverbed from the pit.
+ENDCODE
+
+ACTION WALK
+ IF PREP IS ON THEN
+  T As you walk on the stones, you slip and fall.
+  RANDOM Temp 2
+  IF Temp = 0 THEN
+   T You fall into the water, are carried downstream and you get sucked
+   T into a water syphon.  You drown.
+   CALL BuyTheFarm
+  ELSE
+   T You fall into the pit and are skewered by the spikes at the bottom.
+   CALL BuyTheFarm
+  ENDIF
+ ELSE
+  T I don't understand.
+ ENDIF
+ENDACT
+
+ACTION GET, TAKE, GRAB
+ T The stones are too heavy for you to ~ilift out~n.
+ENDACT
+
+ACTION MOVE, PUSH, DISLODGE, DISTURB, SHIFT, KICK
+ IF Rock NOT Moved THEN
+  T With great effort, you manage to shift some of the stones and water
+  T begins to leak through into the pit!  Before long the pit is filled
+  T completely with water!
+  EQU PitFull 1
+  EQU CrossedWater 1    * not really true, but its easier to deal with
+  IMAGE Pit_Passage Pit2
+  SHOW Pit2
+  SCORE 10
+ ELSE
+  T There's little point in that now!
+ ENDIF
+ENDACT
+
+ACTION EXAMINE, LOOK, SEE, VIEW
+ T The stones provide the boundary between the the riverbed and the pit.
+ENDACT
+
+ENDOBJECT
+*
+*
+*
+OBJECT Log
+
+NAME Log, Wood
+
+ADJ Old
+
+INITROOM Pit_Passage
+
+CODE
+ T There is an old log across the pit.
+ENDCODE
+
+ACTION EXAMINE, LOOK, SEE, VIEW
+ T The log looks very old and rotten.  I wouldn't walk on it.
+ENDACT
+
+ACTION CROSS, WALK, USE, GO
+ PLACEOBJ Log NoWhere      * presume the log sinks
+ T Things go well for the first few steps, but as you approach the center,
+ T it begins to crack and sag.  You dive for the opposite edge just as it
+ IF PitFull = 0 THEN
+  T gives way.  You land on the bottom of the pit almost a whole meter
+  T after you land on the spikes.  Yuck!
+  CALL BuyTheFarm
+ ELSE
+  T gives way, and you land in the water.  Though you didn't stay dry, you
+  T did manage to survive, which is what counts!  You crawl out on the other
+  T side.
+  EQU CrossedWater 1
+  EQU InConnTunn 1
+  Go Connecting_Tunnel
+  IMAGE Pit_Passage Pit3
+ ENDIF
+ENDACT
+
+ENDOBJ
+*
+*
+*
+OBJECT Pit
+
+NAME Pit, Hole, Chasm
+
+ADJ Deep, Dark
+
+INITROOM Pit_Passage
+
+ACTION EXAMINE, LOOK, SEE, VIEW
+ IF PitFull = 1 THEN
+  T There isn't much to see; it's filled completely with water!
+ ELSE
+  T You peer over the edge and see long, deadly spikes at the bottom.  You
+  T then firmly resolve not to look into the pit anymore.
+ ENDIF
+ENDACT
+
+ACTION SWIM
+ IF PitFull = 1 THEN
+  IF PREP IS ACROSS THEN
+   CALL SwimAcross        * this is a sub to save space...
+  ELSIF PREP IS OVER THEN
+   CALL SwimAcross        * ...not that we NEED to, it's just...
+  ELSIF PREP IS IN THEN
+   CALL SwimAcross        * ...a nice thing to do! :^)
+  ELSE
+   T I'm not sure I understand.
+  ENDIF
+ ELSE
+  T That's not very feasible.  The pit is full of air.
+ ENDIF
+ENDACT
+
+ENDOBJECT
+*
+* ----- END OF FILE
+*

@@ -1,0 +1,154 @@
+-- Cube 2 Preconfiguration scriupt. Based on Icaros Services script by Yannick Erb
+require "muidefs"
+require "muifuncs"
+require "muiasl"
+require "lfs"
+
+VRAMCycleArr = strarray.new("128MB","256MB","512MB")
+VideoCardSpecCycleArr = strarray.new("Low end (GF5200, GF6200)", "Medium range (GF6600, GF7800)", "High-end (GF8XXX, GF9XXX)")
+SAVE_ID = 60
+CLEAR_ID = 70
+
+function ClearOnceCfg()
+	local cf
+	
+	cf = io.open("once.cfg", "w")
+	if cf ~= nil then
+		cf:close()
+	end
+end
+
+function SaveAutoexecCfg()
+	local cf
+
+    cf = io.open("once.cfg","w")
+    if cf ~= nil then
+    	local vramsel = mui.getint(VRAMCycle, mui.MUIA_Cycle_Active)
+    	if vramsel == 0 or vramsel == 1 then
+    		cf:write("maxtexsize 128")
+    	else
+    		cf:write("maxtexsize 0")
+    	end
+   		cf:write("\n")
+
+    	local vspecsel = mui.getint(VideoCardSpecCycle, mui.MUIA_Cycle_Active)
+    	if vspecsel == 0 then
+    		cf:write("shaders 0")
+    	else
+    		cf:write("shaders 1")
+    	end
+   		cf:write("\n")
+    	
+        cf:close()
+    end
+
+    cf = io.open("preconfigured", "w")
+    if cf ~= nil then
+    	cf:close()
+    end
+end
+
+function CreateGUI()
+
+	VRAMCycle	= mui.CycleObject(mui.MUIA_Cycle_Entries, VRAMCycleArr, mui.MUIA_Cycle_Active, 0)
+	VideoCardSpecCycle	= mui.CycleObject(mui.MUIA_Cycle_Entries, VideoCardSpecCycleArr, mui.MUIA_Cycle_Active, 0)
+							
+	SAVE 	= mui.SimpleButton("_Save")	
+	CANCEL 	= mui.SimpleButton("_Cancel")
+	CLEAR	= mui.SimpleButton("C_lear")
+    
+    window = mui.WindowObject(
+		mui.MUIA_Window_Title, "Cube 2 Preconfiguration",
+		mui.MUIA_Window_ID   , mui.makeid("C2PC"),
+		mui.WindowContents, mui.VGroup(
+			mui.MUIA_Group_SameWidth, true,
+            
+			mui.Child, mui.TextObject(
+				mui.MUIA_Frame, mui.MUIV_Frame_Group,
+				mui.MUIA_Text_Contents,"\27cThis preference tool allows you\n\27cto preconfigure Cube 2\n\27cbased on your available hardware"
+			),
+			
+			mui.Child, mui.VSpace(2),
+            
+            mui.Child, mui.ColGroup( 2,
+                mui.MUIA_Frame, mui.MUIV_Frame_Group,
+                mui.Child, mui.Label1("Video hardware")	, mui.Child, VideoCardSpecCycle,
+                mui.Child, mui.Label1("VRAM Size")	, mui.Child, VRAMCycle
+            ),
+						
+			mui.Child, mui.VSpace(2),
+			
+			mui.Child, mui.HGroup(
+				mui.MUIA_Group_SameWidth, true,
+				mui.MUIA_Frame, mui.MUIV_Frame_Group,
+				mui.Child, CLEAR,
+				mui.Child, SAVE,
+                mui.Child, CANCEL
+			)
+		)
+	)
+
+
+	app = mui.ApplicationObject(
+		mui.MUIA_Application_Title      , "Cube 2 Preconfiguration",
+		mui.MUIA_Application_Version    , "$VER: Cube 2 Preconfigure v1.0",
+		mui.MUIA_Application_Author     , "DeadwooD",
+		mui.MUIA_Application_Description, "Cube 2 Preconfiguration",
+		mui.MUIA_Application_Base       , "C2PC",
+		mui.SubWindow, window
+	)
+
+	assert(app:check(), "Failed to create Application.")
+
+	collectgarbage("collect")
+	
+	-- set up button actions
+	window:doint(mui.MUIM_Notify, mui.MUIA_Window_CloseRequest, true,
+    app, 2, mui.MUIM_Application_ReturnID, mui.MUIV_Application_ReturnID_Quit)
+
+	CANCEL:doint(mui.MUIM_Notify, mui.MUIA_Pressed, false,
+    app, 2, mui.MUIM_Application_ReturnID, mui.MUIV_Application_ReturnID_Quit)
+
+	SAVE:doint(mui.MUIM_Notify, mui.MUIA_Pressed, false,
+    app, 2, mui.MUIM_Application_ReturnID, SAVE_ID)
+
+	CLEAR:doint(mui.MUIM_Notify, mui.MUIA_Pressed, false,
+    app, 2, mui.MUIM_Application_ReturnID, CLEAR_ID)
+
+	-- Open Window
+	window:set(mui.MUIA_Window_Open, true)
+    
+end
+
+function main()
+
+    CreateGUI()
+    
+	running = true
+
+	-- Main loop
+	while running do
+		id, signals = app:input()
+		if id == mui.MUIV_Application_ReturnID_Quit then
+			-- Exit GUI
+			running = false
+
+		elseif id == SAVE_ID then
+			-- Generate configuration based on selection
+			SaveAutoexecCfg()
+            running = false
+		elseif id == CLEAR_ID then
+			-- Clear configuration
+			ClearOnceCfg()
+			running = false
+		end  
+      
+		if running then mui.wait(signals) end
+	end  
+end
+
+--main()
+_, err = pcall(main)
+if err then print("Error: " .. err) end
+if app then app:dispose() end
+VRAMCycleArr:dispose()

@@ -1,0 +1,175 @@
+DEFINITION MODULE QISupport; (* V1.1 of Quick Intuition Windows, EBM 95 *)
+
+(*$ LongAlign:=TRUE StackParms:=TRUE CStrings:=TRUE LargeVars:=FALSE *)
+
+FROM SYSTEM IMPORT
+  ADDRESS;
+FROM GraphicsD IMPORT
+  RastPortPtr;
+FROM IntuitionD IMPORT
+  WindowPtr, ScreenPtr, GadgetPtr, IDCMPFlagSet, WindowFlagSet;
+FROM InputEvent	IMPORT	
+  QualifierSet;
+
+TYPE 
+  STRINGPTR=POINTER TO ARRAY[0..4095] OF CHAR;
+  VINDUE=RECORD
+           Window :WindowPtr;
+           Gadgets:GadgetPtr;
+           Tekst  :STRINGPTR; (* Can contain several lines using \n *)
+           MinMinX:INTEGER;
+           PoX,PoY:INTEGER;   (* Last PosX,PosY *);
+           SzX,SzY:INTEGER;   (* Last Width,Height *)
+           La1,La2:INTEGER;   (* Later1-3 *)
+           La3    :LONGINT;
+         END;
+CONST
+  (* Values returned by MSGWIN, WAITWIN, SimpleWIN, TwoGadWIN, ThreeGadWIN: *)
+  NoWIN      = -3;     (* MSGWIN ONLY *)
+  NoMSG      = -2;     (* MSGWIN ONLY *)
+  NoKnownMSG = -1;     (* MSGWIN ONLY *)
+  EscWIN     =  0;
+  OkWIN      =  1;
+  DropWIN    =  2;
+  NewSizeWIN =771;     (* MSGWIN ONLY *)
+  ActiveWIN  =787;     (* MSGWIN ONLY *)
+  InactiveWIN=788;     (* MSGWIN ONLY *)
+
+  (* MSGWIN ONLY: *)
+  (* some of the rawkey codes returned as 512+code (not Return,Esc,Space) *)
+  kHome=3DH;  kEnd =1DH;  kPgUp=3FH;  kPgDn=1FH;  kHelp=5FH;  kUp  =4CH;
+  kDn  =4DH;  kRt  =4EH;  kLt  =4FH;  kUpN =3EH;  kDnN =1EH;  kRtN =2FH;
+  kLtN =2DH;  kF1  =50H;  kF2  =51H;  kF3  =52H;  kF4  =53H;  kF5  =54H;
+  kF6  =55H;  kF7  =56H;  kF8  =57H;  kF9  =58H;  kF0  =59H;  kCr  =44H;
+  kCrN =43H;  kNumL=5AH;  kScrL=5BH;  kSyRq=5CH;  kPrSc=5DH;  kEsc =45H;
+
+VAR
+  WFS    :WindowFlagSet; (* d: {windowDrag,windowClose} (windowDepth,activate)  *)
+
+  IFS    :IDCMPFlagSet;  (* {inactiveWindow,activeWindow,closeWindow,gadgetDown,
+                             gadgetUp,refreshWindow,(vanillaKey),(rawKey)}      *)
+  FontX,FontY:INTEGER;        (* Char width, height used (defaults to 8,9)      *)
+
+  txtUPS,txtOK,txtDROP:STRINGPTR;
+  (* Pointers to texts for Gadgets 1-3, default: UPS,OK,DROP *)
+
+  CenterWIN:BOOLEAN;      (* Used by Two, Three and SimpleWIN (default: TRUE),  *)
+                          (* uses mouseposition from Screen if set to FALSE     *)
+
+  swptr:ScreenPtr;        (* What screen to open on, dflt: NIL (WorkBench scrn) *)
+
+  wbMusX,wbMusY:INTEGER;  (* MouseX,Y used to place window if wanted & swptr=NIL*) 
+                          (* defaults: 160,100  used by OPENWIN *)
+
+  qualifier:QualifierSet; (* (Shift,Alt,,,) Set after a MSGWIN got a rawKey code*)
+
+  Xofs,Yofs:INTEGER;      (* Offsets for printing of text in chars,lines *)
+
+(* FontY=swptr^.font^.ySize,  swptr^.barHeight*)
+
+(* call one time to initiate a window, Make a UPSgadget,OKgadget,DROPgadget? *)
+PROCEDURE CREATEWIN(VAR Vindue:VINDUE; UPS,OK,DROP,Size:BOOLEAN);
+
+(* Prints a text in the window on position X,Y *)
+PROCEDURE PRINTWIN(Vindue:VINDUE; X,Y:INTEGER; Tekst:STRINGPTR; FrontPen,BackPen:SHORTCARD);
+
+(* Gets the size used of the Vindue.Tekst (can be several lines using \n) *)
+PROCEDURE GETTEXTSIZE(Vindue:VINDUE; VAR wx,wy:INTEGER);
+
+(* <-1 then no messages to handle, Wait=TRUE: wait until message *)
+PROCEDURE MSGWIN(Vindue:VINDUE; Wait:BOOLEAN):INTEGER;
+(*
+    -3=NoWindow,      -2=NoMsg,            -1=NoKnown,
+     0=ESC/CLOSE/UPS,  1=RETURN/OK,         2=SPACE/DROP
+ 3-255=GadgetUp, 259-511=GadgetDown,   rawkey=512+Code
+ 768+2=newSize,   768+19=activeWindow, 768+20=inactiveWindow
+ >1024=ascii *)
+
+(* Empty message-queue and close *)
+PROCEDURE CLOSEWIN(VAR Vindue:VINDUE);
+
+(* Erase the window, Size=TRUE if SIZING Gadget used *)
+PROCEDURE CLEARWIN(VAR Vindue:VINDUE; Size:BOOLEAN);
+
+(* Close if open, then open and print Vindue.Tekst in a fitting windowsize *)
+PROCEDURE OPENWIN(VAR Vindue:VINDUE; Title:STRINGPTR; MinX,MinY, MaxX,MaxY,
+          PosX,PosY, ScrX,ScrY:INTEGER; Activate,OnMouse,OnCenter,
+          Key,Raw,Size:BOOLEAN);
+(* MinX,Y  : Size (Y>27) will be between and:
+   MaxX,Y  : dependent of the text *)
+(* PosX,Y  : Placed on IF OnMouse=FALSE & OnCenter=FALSE, then 
+             the Pos is adjusted to fit Scr *)
+(* ScrX,Y  : The Size The Window must be inside, set to -1 to read from the
+             Screen (swptr). If swptr=NIL then is 640,256 used when -1 *)
+(* Activate: Window activated? *)
+(* OnMouse : Place Window so that the OK box is placed on the Mouse Position *)
+(*           you have to set wbMusX and wbMusY if swptr=NIL *)
+(* OnCenter: Place Window Centered (around ScrX,Y) *)
+(* Key     : Let MSGWIN Return keypress as 1024+asciicode (no OK on return) *)
+(* Raw     : Let MSGWIN Return keypress as 512+rawKeyCode (OK on return if ~key)
+             Raw will only return what Key doesn't *)
+(* Size    : Let WINDOW be with a NewSize Gadget *)
+
+(* Window Min/Max/Pos X,Y =-1 to get standard *)
+
+(* Waits for 0 , 1 or 2 message (Esc/ups, return/ok, Space/drop), then Close WIN *)
+PROCEDURE WAITWIN(VAR Vindue:VINDUE):INTEGER;
+
+
+(* 3 Quick windows: *)
+
+PROCEDURE SimpleWIN(string:STRINGPTR):INTEGER;
+(* ok=1 *)
+
+PROCEDURE TwoGadWIN(string:STRINGPTR):INTEGER;
+(* ok=1, ups/close=0 *)
+
+PROCEDURE ThreeGadWIN(string:STRINGPTR):INTEGER;
+(* ok=1, drop=2, ups/close=0 *)
+
+
+(* The quick Info WIN procedures: *)
+
+PROCEDURE OpenInfoWIN(string:STRINGPTR);
+(* Opens the InfoWIN (centered and scaled to text) *)
+
+PROCEDURE PrintInfoWIN(X,Y:INTEGER; Tekst:STRINGPTR);
+(* Prints a text in the InfoWIN if open *)
+
+PROCEDURE MsgCloseInfoWIN():BOOLEAN;
+(* Returns TRUE if InfoWin is tried closed (Esc too) by user *)
+
+PROCEDURE CloseInfoWIN();
+(* Closes the InfoWIN if open *)
+
+
+(* Gadget manipulating procedures: *)
+
+PROCEDURE MarkGadget(gptr:GadgetPtr; rp:RastPortPtr);
+(* Marks a gadget with a square around it *)
+
+PROCEDURE RefreshGadget(gptr:GadgetPtr; wptr:WindowPtr);
+(* Refreshes that gadget only (not all the rest in the chain too) *)
+
+PROCEDURE SetGadget(gptr:GadgetPtr; wptr:WindowPtr; OnOff:BOOLEAN);
+(* Off=Ghosted , refresh too *)
+
+PROCEDURE SetToggl(gptr:GadgetPtr; wptr:WindowPtr; OnOff:BOOLEAN);
+(* Toggle a Boolean gadget on/off, refresh too *)
+
+PROCEDURE GetToggl(gptr:GadgetPtr):BOOLEAN;
+(* look at a boolean gadgets state *)
+
+
+(* Editor Procedures: *)
+
+PROCEDURE CURSOR(VAR Vindue:VINDUE; x,y:INTEGER);
+(* Sets a cursor, at char nr x in line y (start at 0,0), NoCursor if x<0 *)
+
+PROCEDURE Edit(VAR txt:ARRAY OF CHAR; Title:ADDRESS; MinX,MinY, MaxX,MaxY,
+          PosX,PosY:INTEGER; Size:BOOLEAN):INTEGER;
+(* ScreenEditor on a string (with linefeeds), upto 32767 chars total? *)
+(* see OPENWIN for Min/Max X/Y and Size meaning *)
+(* Returns 0 on Esc or 1 on OK *)
+
+END QISupport.

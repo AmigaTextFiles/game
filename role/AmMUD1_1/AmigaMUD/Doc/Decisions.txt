@@ -1,0 +1,385 @@
+Some Rambling Thoughts on Various Things
+
+
+Could have a size on objects. Then, a container would have a maximum size
+that it could handle, and its size would be its base size plus the size of
+everything in it. => Don't bother. It might add a bit of realism, but likely
+doesn't do much for gameplay.
+
+Could put a digital clock in the title bar of the MUD program. => Don't bother.
+It doesn't add much and is kinda tacky.
+
+Might be nice in the proving grounds to have:
+    place to buy speed/strength/hits  (suggest prices each of 50000/50000/1000)
+    very occasionally find gems lying around
+    need place to sell them
+
+If a picture is loaded that has no palette, it would often be useful to
+    reset to the default palette at that time. Then again, if a scenario
+    is consistently using a different palette, you wouldn't want to.
+    So, let's not. The scenario can force a palette if needed.
+
+Might want to add an 'ActionToString' builtin, to return a string containing
+the text of a routine. The resulting string would be a pain to process,
+however (essentially have to write part of a proc parser in MUD code), so
+I don't think it would really be useful.   *** DONE ***
+
+Could conceivably add a 'resynch' packet to the serial protocol. This could
+be used to re-establish a connection that MUDAgent thinks is still there,
+but that went away on the client end. This would only work on a direct line,
+however, since MUDAgent normally pays attention to CD. It could also be a
+big security hole - there is no way to check that the person reattaching
+is the same one that detached.
+
+In the build stuff, could have button-driven entries for destroy object,
+move symbol, rename symbol and delete symbol. Decided not to - they are
+less likely to be needed and can be potentially dangerous.
+
+Some "spam" preventing stuff can be done. Set up a clock tick to go off
+every second. When it does, check the number of inputs that
+have come from a client in that second (keep a count, and reset on the
+ticks). If it is over a threshold that is settable by a builtin call, then
+mark that client as spamming. In that mode, send failing replies to any
+request that needs a reply. For requests that don't (most), just chuck
+them. Hmm. Perhaps just handle the ones that need replies - they are
+wizard mode stuff mostly. Have another builtin-settable parameter which is
+how long they stay in "spamming" mode. Need to set the first to a very high
+value for the initial sourcing of the scenario (or anything similar).
+
+Might also want to put limits on the number of rooms or objects that can
+be created by a character using the build stuff. Give some kind of message
+like "apply to SysAdmin for more". SysAdmin can just clear their counters.
+
+Thought of having a 'FlashButton' graphics effect, so that when the user
+uses a function key for moving, I could "flash" the on-screen image of
+the corresponding button. I decided against this, since with a slow
+connection or a slow server, the flashing would be too long after the
+keypress to have the right feedback effect.
+
+Had a note suggesting adding an AreaEnterCheck/AreaLeaveCheck action list.
+I believe this was to be used when teleporing in/out of an area, to do
+whatever cleanup was necessary. E.g. if a wizard teleports out of Questor's
+office, no-one else can go in. Decided not to do this for now - the wizard's
+will have to be careful.
+
+Could add a flag to MUD and MUDAgent for "-reliable", which would indicate
+that the serial connection is fully reliable. Then, don't need to use CRC,
+ACK/NAK or sequence numbers. Decided not to do this. The gain would likely
+not be that much, either in CPU usage or amount of data transmitted. Also,
+any error or glitch encountered would hang the connection permanently.
+
+Parser Extensions:
+    Would like to be able to properly parse things like:
+
+	take a picture of the book
+	sit down on the bench		[currently kludged]
+
+    This could be done either by allowing a multi-word separator
+    ("a,picture;of") or by allowing multi-word verbs ("take,a,picture,of").
+    Either requires some changes to the data structures used in-memory and
+    in-database for grammars and verbs.
+
+    Put off until later, if ever. (How important is it?)
+
+Out on the nets is the concept of "Tiny-Mail", where a player can mail
+commands to a MUD and get the results back. Could do this for AmigaMUD.
+Is there any point? (It would be VERY slow to play!)
+
+Want some kind of more intelligent/realistic NPC. This could be a lot
+of work. Have to think about it. Not for this release.
+
+It might be possible to do some kind of mazewars type game with AmigaMUD.
+Experiments show that this would not be feasible at 2400 baud, even with
+effects routines. To do this, might want to increase the resolution of
+'After' to 1/100 second instead of 1 second. Maybe later.  *** The
+parameter to 'After' is now a fixed-point value, allowing subsecond
+timing. ***
+
+Could add a 'CreateThingWithSpace(thing parent; int propCount)', which
+would create a thing in the database with space pre-allocated for 'propCount'
+properties. Might reduce fragmentation. Probably not worth it.
+
+The MUD client can end up temporarily suspended after typing a RETURN, so
+that further typing works, but hitting RETURN again doesn't work. This is
+carefully done in the text I/O code, but I don't quite remember the reason
+for it. An extra level of recursion would happen if it were allowed, and
+too many of these could cause problems. The situation is that the client
+is busy doing something (like editing, or processing effects stuff), not
+that the client is waiting for the server (input lines are not acknowledged).
+*** The simple case of the client being busy handling stuff from the server,
+while waiting inside the recursion-locked code has been mostly fixed. You
+will still lock if you are parsing code from the edit buffer in wizard
+mode and you try to enter a direct wizard-mode command at the same time -
+that would take two simultaneous parses to handle! ***
+
+Could have ANSI terminal output stuff. Then, players without the remote
+client could get a bit more than just straight text. Would need routines
+like ANSIOn, ANSIMove, ANSIClearLine, etc. One problem is the nature of
+MUDs in general - output can come at any time. A possible approach to
+handling this is to require that the ANSI emulator support a scrolling
+region, which would be used for all output not specifically directed to
+other parts of the screen. The scenario would have to make sure that any
+non-scrolling output sequences leave the cursor at the bottom left of the
+scrolling region. Descision: no ANSI support - we are trying to move to
+graphics support - ANSI support doesn't help that goal and might even
+hinder it.
+
+Some MUDs have a "snoop" facility, which can let wizards or sysadmins
+directly watch what players are doing. This includes displaying all of
+their input and output. I could add such a facility to the AmigaMUD server
+without too much trouble, but have decided not to. The only legitimate
+uses of snoop that I can think of are a sysadmin watching for abusers;
+and for wizards to watch people playing their creations, looking for
+problems with them. Both of these can be handled by proper reporting.
+The possible abuses of a snoop facility are many.
+
+Under V1.3 it is possible to select multiple menu items at once, by holding
+down the shift key. In doing so, it is possible to select any number of
+the items in a set which are supposed to be mutually exclusive. Because
+of the way Intuition reports these events, some will be missed if a given
+item is selected more than once. If a program just follows the codes in
+the menu events given to it, it can then be out of step with the checkmarks
+in a set of items. This can be fixed by checking the state of the checkmark
+flag bit before doing anything. I started to do this, but it was adding
+too much code to handle a rare and not fatal case. Also, later versions
+of the system handle this better. So, I do not handle this situation, and
+do not plan to do so.
+
+Fighting in the dark is currently not allowed. Changing this, and keeping
+darkness consistent (i.e. you can't see where you are or who/what is there
+with you) would require a bunch of new checks and messages in the fighting
+code, including changes to the 'hit' command (how does the player decide
+who/what to hit if they aren't visible?). Could have 'hit it' hit some
+random who/what in the same location. Anyway, not done for now.
+
+There is currently no easy way to talk about parts of objects. E.g. if we
+had a small box with a bunch of buttons on it, how do we set it up so
+that the player can 'push red button'? One way is to have pickup/drop
+routines on the box which add/remove invisible button objects to/from
+the player's carrying list. Hmm. Just checking util.m - a much better
+way is to add a 'push' p_oActWord to the box - that could then know about
+the buttons and do the right thing. A limitation here is that a given
+object only gets to have one 'actword'. A more general way that is not
+implemented in this scenario is to use grammar properties on rooms and
+objects, which must be checked before the main one. Note that this would
+require some kind of pre-parsing of the input command to pick off a direct
+object to look the command up on. This doesn't work well with the way
+that 'Parse' handles multiple sentences in an input string. Perhaps what
+is needed is a callout from 'Parse' that can check each individual
+sentence in this way. Something to think about, but nothing done for now.
+
+It would be possible to run the MUD client with no text window, if this
+is requested by the scenario. In this mode, no text output should be
+sent from the server to the client. This could be useful for games of
+a slightly different flavour than the normal text MUD. All input would
+be keypad or mouse, and all output would be graphics/sound. One COULD
+fake a small text output window using the existing graphics commands and
+some code in a scenario. There is currently no way to do text input in
+this fashion - would require a 'raw' mode for other keyboard input, and
+a handler for such raw keys. Decided not to persue this for now.
+
+If there is no handler for mouse regions and/or buttons, it might be
+nice to 'beep' if the user clicks in the graphics region. I think this
+is a pretty minor detail, however, so I haven't done anything about it.
+
+I'm somewhat bothered by the inconsistent nature of the current standard
+scenario - it has areas of present-day modern-world stuff just down the
+street from fantasy stuff like the Squirrel area, and D & D medieval
+stuff like the Proving Grounds. There are lots of ways to blend these
+together better. One would be to have a 'dimensional gate' in a building
+on the street somewhere, and this is the opening to these other areas.
+The 'teleporter gizmo' idea is another one. For now, I'm not going to
+do either one. Perhaps if the mall/streets area gets expanded more, so
+that there are more quests, and more stuff to explore.
+
+More traditional D & D stuff could be added to the Proving Grounds area.
+Player's could find gems/jewelry/artifacts pseudo-randomly (or in some of
+the "special" areas), which they can redeem at a jeweler's shop or some
+such. It would also be nice to be able to sell stuff back in the stores,
+say for half-price or something. This could reduce clutter faster than
+the monster-cleanup stuff. Nothing done for now.
+
+Could write a builtin
+    RunCheckers(thing room; property action checkProp; thing actor)status
+that checks the room and all clients in the room for the prop. Any that
+exist are called, until one returns other than 'continue'.
+Not needed currently, so not done.
+
+The text window on the MUD client should make use of 2.0 features and
+routines when available. It should also open a text window consistent in
+size and mode with the user's default settings (e.g. interlace). I'm not
+doing this for now - I'm more concerned with functionality, and that this
+version at least be useable on nearly all current Amigas.  *** DONE ***
+
+In the current scenario, there are movement checkers in the current room,
+on the direction in the current room, on the player, and in the destination
+room. In some situations, it might be good to have some on other players
+or machines in either of the rooms. So that, e.g. a monster could prevent
+you from leaving a room. I haven't done this, partly because it would be
+expensive in CPU time to do, and partly because most of the functionality
+can be had by dynamically adding checkers as needed. E.g. the blocking
+done currently by monsters in the proving grounds is handled by a single
+checker added to the player as part of combat initialization.
+
+I had written down that there should be a way to create machines with
+empty or special names, such that they won't show up when you look around
+the room. Not needed - just make them hidden and have null names.
+
+It is desireable that a wizard be able to prevent others from adding to
+their areas. This is done by making the rooms ts_readonly. This does not
+prevent other wizards from making connections TO rooms, however. This
+is prevented by the build code, but that isn't enough for wizards. It
+would be possible to make the basic AmigaMUD interpreter not add a thing
+as a property if that thing is ts_readonly and not owned by the effective
+player. This could have bad consequences for purposes other than just
+connecting up rooms, however. It would appear that either another basic
+attribute of things is needed, or that the ts_ status values be expanded
+to handle this. This needs more thought. For now, I will do nothing.
+
+Need some way to delete stuff in bulk. E.g. if a SysAdmin wants to delete
+a whole area, added either online with build commands/buttons or added
+by sourcing files. How is the stuff to be identified? One way would be
+based on the owner of the rooms. I think this could be done entirely in
+the scenario, but I'm not sure. The code would have to build up a list
+of the tables that the owning player has, and so look up in all of them
+every thing, action, etc. that needs deleting. How does it delete
+properties? There is no way to get the name of a property. This needs more
+thought, and perhaps user feedback. Do nothing for now. *** Some new
+builtins, the ZapXXX ones, partially address this. ***
+
+How useful is the concept of apprentices? Are they noticeably less able
+to mess things up than full wizards? The only thing I can see currently
+is that they can't build out from rooms marked ts_wizard, whereas full
+wizards can. Thus, they can't mess up areas that are specifically so
+protected. Is this worth it?
+
+One way of identifying areas is to have an "id" on stuff. This could be
+something that the player can set on themselves, and which is copied into
+everything they create. Could do this with the build code - is that enough,
+or is it wanted for wizard/apprentice direct building too? The ultimate
+would be to make such an identifier be something in every symbol table
+entry, and then have a builtin that deletes all symbols with a given id.
+This could lead to recursion, so would require careful implementation if
+it is to not loop, but still delete everything. Nothing done for now.
+
+Something on an early list of things to do was to add some kind of
+server supported trigger which would idle machines when there has been
+no player on the MUD for a while. This would need a pair of different
+idle/active actions on machines. I've decided not to bother doing this.
+The current machines accomplish much the same thing by calling 'ClientsActive'
+to see if there are any active players, and making their step timing much
+less frequent if there aren't.
+
+Another early desire was for a 'pageProc' on machines, and a 'page'
+builtin to page players/machines. This isn't needed anymore. A player
+can be paged using SPrint, and a machine can be triggered using 'ForceAction'.
+
+Some MUDs have a 'gag' facility, which will prevent output from a given
+client X from being sent to client Y. This is set by client Y, who can
+do it for any number of clients. This is used to make conversations more
+understandable when there are lots of people in a room, or to shut out
+the cries of the mortals when a wizard is busy doing something. The proper
+place to implement this is in the server, so that the unwanted output is
+not even sent to the remote client. I have not done this, and I'm not sure
+that it will be needed on AmigaMUD - most games will not have that large
+a number of simultaneous players, and the wizards can always go somewhere
+else to work, even if they have to create and block off that somewhere.
+As a partial measure, the builder's guild has four separate meeting rooms
+that are only enterable by builders.
+
+The AmigaMUD programming language could be made a bit more complete by
+allowing direct procs, as in:
+
+    Me()@pProc := proc Print("Hello there world!\n"); fail corp.
+    call(Me()@pProc, status)().
+
+to have parameters and to have result types other than 'status'. This
+would be conceptually nice, but I can't see any immediate need, and I
+would rather not mess with that bit of code right now! The current
+limitations can be worked around, and are certainly adequate for the
+procs dynamically built via 'StringToAction' by the build code.
+*** DONE ***
+
+Could rig the shifted functions keys in the MUD client to be macro keys
+that the user can program (e.g. via the MUD icon). Hey users! Is this
+something I should bother doing? How should it be set up?
+
+It should be possible to set up profiling of MUD code. Set up a timer
+interrupt to go off often enough, and when it does, run through the
+current interpreter traceback, incrementing a counter on each function
+encountered. Alternatively, just increment the counter for the innermost
+function on the traceback. Then have a command to dump the counts on
+all procs in a given table. Is this of any real use? Not done for now.
+
+If a change in prompt comes along when the MUD client input buffer is
+not empty (i.e. in the middle of typing some input), things get messed
+up a bit. I'm not too worried about this, so won't chase it.
+
+If a remote server machine crashes, or the server is aborted, a MUD client
+has no way of knowing, and will sit around waiting for a reply to whatever
+requests it has sent. It might be useful to have a timeout applied to all
+requests that need a reply (not readily known outside of mud.library!),
+and ask the user if they want to abort if the timeout goes off without a
+reply. I've decided not to bother with this. In most cases, the serial
+protocol will time out and give up on one of its packets. The only case
+where this won't happen is if only the MUDServ process on the server
+machine bungs up, so that the MUDAgent continues to acknowledge packets
+at the serial level. This would also happen with a text-only connection.
+On a local connection, it should be fairly obvious if the server goes away.
+
+It would be possible to handle a ^C typed on a client that is messing
+around with wizard-level stuff. Have the server receive messages via an
+interrupt, which just puts them on a queue of incoming messages. If the
+handler sees a ^C message (special type), and it is for the client that
+is currently executing in wizard mode, set the interpreter's shutdown flag
+right away. Decided not to do this. The execution timeout limit can handle
+most of the cases. A running system SHOULD have a reasonable timeout,
+like 5 seconds or so. Also, in a standalone environment while developing,
+execution of code under a long timeout can be stopped with a BREAK command
+from a shell.
+
+It would be possible to trivially encrypt the database files. This would
+make it harder for people to 'cheat' when trying to solve quests, etc.
+Decided not to do this. Someone would soon produce a decrypting program
+anyway.
+
+It should be possible to allow the use of 'it' as a direct object. Just
+retrieve the value of It() (complain if none) and grab its p_oName. Hmm,
+that can't be done in the server, since it doesn't know about p_oName. So,
+it would have to be done in all verbs in the scenario. This wouldn't be
+too hard, but I'm not convinced the benefits are all that great - there
+are likely lots of cases where it wouldn't do what the player expected,
+hence most players wouldn't use it.
+
+It would be nice if a future version of the system with higher resolution
+(likely only usable on AGA systems) could have a 'MUD' that is compatible
+with older servers. It would double all pixels sent by a lo-res scenario.
+In order for this to work, it would have to send its resolution to the
+scenario as the older, small size. To know it should do this, it needs
+to know the server version before the EffectsInfo data is sent to the
+server. Unfortunately, the EffectsInfo is currently sent in the first
+message from a remote client to the server, so there is no chance to do
+this. I guess it'll have to be a manual flag on 'MUD'. *** DONE (well,
+you can go into hires mode, and the system handles whatever resolution
+you run in. ***
+
+One user requested the ability for MUD to put its windows on a public
+screen, instead of opening its own. I've thought about this, and how
+it would work, and have finally decided not to do it. Using MUD just
+won't work well unless both screens (graphics and text) are visible at
+once. This means that the public screen would have to be at least 300
+pixels high (100 for graphics, 200 for the full-height text window),
+640 pixels wide (for the text window) and 5 bits deep (for the
+graphics window). MUD would have to change the palette of the screen
+(which is normally a no-no when using someone else's public screen) to
+get the colours right (and when a scenario requests it). The colour
+changes for the text screen would have to be disabled, since they
+would no longer be separate. The graphics screen would physically be
+very small, since it is only half the resolution of the text screen.
+Finally, the code would have to be re-arranged so that there is always
+a full-size text window, so that no rearrangements are needed when
+going in and out of the built-in editor. This is just too much work for
+the small benefit gained. The right thing to do in the future is to
+have only one higher-res screen, with hi-res graphics and text on it.
+*** DONE *** MUD will now run in many display modes, including a couple
+of on-Workbench modes.

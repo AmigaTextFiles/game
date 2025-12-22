@@ -1,0 +1,120 @@
+/**********************************\
+** Metternich v1.0 for Solitarexx **
+**      by Michal Szafranski      **
+\**********************************/
+OPTIONS RESULTS
+
+tex = '"Metternich"'
+wintex = '"We Have a Winner"'
+seq = '0 1 3 7 2 5 11 10 8 4 9 6 0 E'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDSPACE 7 11
+ADDCYCLE 9 12 '"Inf.|Once|Twice|3 Times|4 Times|5 Times|6 Times"' 2 '"Rotate deck"' 16
+ADDCYCLE 11 12 '"3-2-1|One|Two|Three"' 1 '"Cards at once"' 17
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 tex 6
+SELECTGUI 3
+
+SCREENSIZE 2 15 7 0
+DO i = 0 TO 6
+	NEWSTACK 3 8 0 i 1 0 0 15
+	stack.i = RESULT
+END
+NEWSTACK 4 8 0 4
+base = RESULT
+NEWSTACK 1 8 1 1
+deck = RESULT
+ADDCARDS deck
+CARDSELECT deck 4
+NEWSTACK 2 32+8+1 1 2 0 0 0 2 2
+waste = RESULT
+NEWSTACK 0 64
+MOVECARDS deck RESULT
+SHUFFLECARDS deck
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SETGADGET 14 STR tex
+	SELECTGUI 4
+	sel = 0
+	time = 0
+	fin = 1
+	GETGADGET 9
+	gadtimes = RESULT
+	GETGADGET 11
+	gadcards = RESULT
+	ile. = 0
+	SELECT
+		WHEN gadcards = 0 THEN DO
+			ile.0 = 3
+			ile.1 = 2
+			ile.2 = 1
+		END
+		WHEN gadtimes = 0 THEN ile. = gadcards
+		OTHERWISE DO i = 0 TO gadtimes-1
+			ile.i = gadcards
+		END
+	END
+	DO i=0 TO 6
+		CARDSELECT deck 1
+		MOVECARDS deck stack.i REVERSE
+	END
+	CARDSELECT deck 1
+	MOVECARDS deck base REVERSE
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sid=1 THEN CALL DODECK
+			WHEN sel=0 & card>0 & sid~=4 THEN sel = stack
+			WHEN sel>0 & (sel = stack | sid = 4) THEN CALL DOBASE
+			WHEN sel=waste & sid = 3 THEN CALL DOSTACKS
+			OTHERWISE ERRBEEP
+		END
+		IF act = 3 THEN DO
+			SELECTGUI 3
+			RETURN
+		END
+	END
+RETURN
+DODECK:
+	sel=0
+	CARDSELECT deck ile.time
+	IF RESULT = '' THEN DO
+		CARDSELECT waste 52
+		MOVECARDS waste deck REVERSE
+		time = time+1
+	END
+	ELSE MOVECARDS deck waste REVERSE
+RETURN
+DOSTACKS:
+	CARDSELECT sel 1
+	PARSE VAR RESULT xx warb xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT xx wara xx
+	IF FIND(seq,warb wara)>0 THEN MOVECARDS sel stack
+	ELSE ERRBEEP
+	sel = 0
+RETURN
+DOBASE:
+	CARDSELECT sel 1
+	PARSE VAR RESULT xx wara xx
+	CARDSELECT base 1
+	PARSE VAR RESULT xx warb xx
+	IF FIND(seq,warb wara)>0 THEN DO
+		fin = fin +1
+		MOVECARDS sel base
+		IF fin = 48 THEN SETGADGET 14 STR wintex
+	END
+	ELSE ERRBEEP
+	sel = 0
+RETURN

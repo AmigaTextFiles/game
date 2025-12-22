@@ -1,0 +1,362 @@
+; $VER: Installation script for MahjonggTiles 1.0 ( 1. August 2000)
+; © Geoffrey Whaite
+; Created with GoldED 5.0
+
+; check if we are running under correct OS
+
+(if (< (/ (getversion) 65536) 39)
+
+    (
+        (abort "Incorrect OS version (software requires OS 39 or better )!")
+    )
+)
+
+; error handling
+
+(onerror
+
+    (if (> @ioerr 0)
+
+        (
+            (message
+
+                ("An error has occurred during installation. Please check the log file to understand the error.")
+            )
+        )
+    )
+
+    (exit (quiet))
+)
+
+(welcome)
+
+(set @default-dest
+
+    (askdir
+
+        (prompt "Please choose the installation path. A new drawer named 'MahjonggTiles' will be created here.")
+
+        (help "Installation creates a new drawer for MahjonggTiles in the path you specify.")
+
+        (default @default-dest)
+    )
+)
+
+; --- insert your code below ---
+
+;
+;   define procedure to copy a file only if the file does not exist in
+;   the destination directory
+;
+(procedure P_CopyNotExist #srcDir_CNE #destDir_CNE #fileName_CNE
+    (if (not (exists (tackon #destDir_CNE #fileName_CNE)))
+        (copyfiles
+            (source (tackon #srcDir_CNE #fileName_CNE))
+            (dest #destDir_CNE)
+        )
+    )
+)
+
+;
+;   define a procedure to copy all the files matching a pattern in a source
+;   directory to a destination directory only if the file does not already
+;   exist in the destination directory
+;
+(procedure P_DirCopyNotExist #srcDir_DCNE #destDir_DCNE #pattern_DCNE
+
+    (
+        (makedir #destDir_DCNE)
+
+        (foreach #srcDir_DCNE #pattern_DCNE
+            (if (< @each-type 0)
+                (P_CopyNotExist #srcDir_DCNE #destDir_DCNE @each-name)
+            )
+        )
+    )
+)
+
+;
+;   define a procedure to copy all the files matching a pattern in a
+;   source directory to a destination directory using the 'copylib'
+;   function for version checking
+;
+(procedure P_DirCopyLib #srcDir_DCL #destDir_DCL #pattern_DCL
+
+    (foreach #srcDir_DCL #pattern_DCL
+        (if (< @each-type 0)
+            (copylib
+                (source (tackon #srcDir_DCL @each-name))
+                (dest #destDir_DCL)
+                (infos)
+            )
+        )
+    )
+)
+
+;
+;   define a procedure to copy a documentation file directory for a
+;   given language, uses 'copylib' for version checking while copying
+;
+(procedure P_CopyDocDir #lang_CDD
+    (
+        (set #srcDir_CDD  (tackon "docs"   #lang_CDD))
+        (set #destDir_CDD (tackon #doc-dir #lang_CDD))
+
+        (makedir #destDir_CDD (infos))
+        (P_DirCopyLib #srcDir_CDD #destDir_CDD "#?")
+    )
+)
+
+;
+;   define a procedure to copy a set of tilesets related by name, it is
+;   assumed that the tilesets are organized as one or more tileset descriptor
+;   files of the form <name>#?.tiles with the image files in a sub-directory
+;   named <name>, where <name> is the given name for the set of tilesets, the
+;   tileset files are copied only if they do not already exist
+;
+(procedure P_CopyTileSets #name_CTS
+    (
+        (P_DirCopyNotExist "tiles" #tiles-dir (cat #name_CTS "#?.tiles"))
+        (P_DirCopyNotExist
+            (tackon "tiles"    #name_CTS)
+            (tackon #tiles-dir #name_CTS)
+            "#?"
+        )
+    )
+)
+
+;
+;   set some variables
+;
+(set #mahjonggTiles-dir (tackon @default-dest "MahjonggTiles"))
+
+(set #source-dir "MahjonggTiles")
+(set #images-dir (tackon #mahjonggTiles-dir "images"))
+(set #tiles-dir (tackon #mahjonggTiles-dir "tiles"))
+(set #layouts-dir (tackon #mahjonggTiles-dir "layouts"))
+(set #doc-dir (tackon #mahjonggTiles-dir "docs"))
+(set #cat-dir (tackon #mahjonggTiles-dir "catalogs"))
+
+(set #copylib-confirm-fmt "Copying file '%s'")
+
+(set #installing-shared "Installing shared libraries ...")
+(set #creating-dirs "Creating directories ...")
+(set #installing-bin "Installing executable files ...")
+(set #installing-cats "Installing language catalog files ...")
+(set #installing-docs "Installing documentation files ...")
+(set #installing-images "Installing GUI image files ...")
+(set #installing-layouts "Installing layouts ...")
+(set #installing-tilesets "Installing tilesets ...")
+
+(set #tiles-default-name "Default Tilesets (three tilesets)")
+(set #tiles-hongkong-name "Hong Kong Tilesets (two tilesets)")
+(set #tiles-taipei-name "Taipei Tileset")
+(set #tiles-gnome-name "Gnome Tileset")
+(set #tiles-kme-name "KME Tileset")
+(set #tiles-arch-name "Archaeological Icons Tileset")
+(set #tiles-smiley-name "Smiley Tileset")
+
+(set #tileset-opts-prompt "Select which optional tilesets to install.")
+(set #tileset-opts-help
+    (cat
+        "Check the optional tilesets you wish to install.\n\n"
+        "The following optional tilesets are available :-\n\n"
+        #tiles-hongkong-name " -\n"
+        "    from the OS/2 game 'Mahjongg Solitaire'.\n\n"
+        #tiles-taipei-name " -\n"
+        "    from the Windoze game 'Taipei'.\n\n"
+        #tiles-taipei-name " -\n"
+        "    from the Linux/Gnome Mahjongg game.\n\n"
+        #tiles-kme-name " -\n"
+        "    from the Linux/KME Mahjongg game.\n\n"
+        #tiles-arch-name " -\n"
+        "    derived from Lyle Zapato's Archaeological Icons.\n\n"
+        #tiles-smiley-name " -\n"
+        "    smiley face tileset by Richard Kapp.\n"
+    )
+)
+
+;
+;   currently there is only english documentation and no additional language
+;   catalogs
+;
+(set #doc-opts $FFFFFFFF)
+(set #cat-opts $FFFFFFFF)
+
+;
+;   decide which optional tilesets to install, the default is to install all
+;   but if the user level is expert then ask which tilesets to install
+;
+(set #tileset-opts $3F)
+(if (= @user-level 2 )
+    (set
+        #tileset-opts
+        (askoptions
+            (prompt #tileset-opts-prompt)
+            (help #tileset-opts-help)
+            (default #tileset-opts)
+            (choices
+                #tiles-hongkong-name
+                #tiles-taipei-name
+                #tiles-gnome-name
+                #tiles-kme-name
+                #tiles-arch-name
+                #tiles-smiley-name
+            )
+        )
+    )
+)
+
+;
+;   start copying
+;
+(complete 0)
+
+;
+;   copy shared libraries
+;
+(working #installing-shared)
+(P_DirCopyLib "libs" "LIBS:" "#?")
+(complete 1)
+
+;
+;   create the MahjonggTiles directory structure
+;
+(working #creating-dirs)
+(makedir #mahjonggTiles-dir)
+;(copyfiles (source "MahjonggTiles") (dest #mahjonggTiles-dir) (all) (infos))
+(if (not (exists (tackon @default-dest "MahjonggTiles.info")))
+    (copyfiles
+        (source "icons/MahjonggTiles_Drawer.info")
+        (dest @default-dest)
+        (newname "MahjonggTiles.info")
+    )
+)
+(makedir (tackon #mahjonggTiles-dir "settings"))
+(makedir #doc-dir (infos))
+(makedir #cat-dir)
+(makedir #images-dir)
+(makedir #layouts-dir)
+(makedir #tiles-dir)
+(complete 2)
+
+;
+;   install the binaries
+;
+(working #installing-bin)
+(P_DirCopyLib "bin" #mahjonggTiles-dir "#?")
+(complete 26)
+
+;
+;   install the language catalog files, first we install the '.cd' files
+;   then install any requested language catalogs (currently there are none)
+;
+(working #installing-cats)
+(P_DirCopyLib "catalogs" #cat-dir "#?.cd")
+(complete 32)
+
+;
+;   copy the GUI image files, only copy those files that do not exist in
+;   the destination as these files are unlikely to change so there is no
+;   need to copy them if they already exist
+;
+(working #installing-images)
+(P_DirCopyNotExist "images" #images-dir "#?")
+(complete 33)
+
+;
+;   copy the documentation files for the requested languages, currently
+;   there is only english documentation
+;
+(working #installing-docs)
+(if (<> 0 (BITAND #doc-opts $01))
+
+    (P_CopyDocDir "english")
+)
+(complete 42)
+
+;
+;   copy the layouts, only copy those layouts that do not exist already as
+;   layout files also contain best time data that we would not want to
+;   overwrite
+;
+(working #installing-layouts)
+(P_DirCopyNotExist "layouts" #layouts-dir "#?.layout")
+(complete 44)
+
+;
+;   copy the tilesets, only copy those files that do not exist as the
+;   image files can be large and are unlikely to change so not copying
+;   existing files can be much quicker when installing an update
+;
+(working #installing-tilesets)
+;
+;   copy tileset backgrounds
+;
+(P_DirCopyNotExist "tiles/backgrounds" (tackon #tiles-dir "backgrounds") "#?")
+(complete 63)
+
+;
+;   copy the default tilesets
+;
+(P_CopyTileSets "Default")
+(complete 72)
+
+;
+;   install the Hong Kong tilesets if selected for installation
+;
+(if (<> 0 (BITAND #tileset-opts $01))
+
+    (P_CopyTileSets "HongKong")
+)
+(complete 79)
+
+;
+;   install the Taipei tileset if selected for installation
+;
+(if (<> 0 (BITAND #tileset-opts $02))
+
+    (P_CopyTileSets "Taipei")
+)
+(complete 82)
+
+;
+;   install the Gnome tileset if selected for installation
+;
+(if (<> 0 (BITAND #tileset-opts $04))
+
+    (P_CopyTileSets "Gnome")
+)
+(complete 84)
+
+;
+;   install the KME tileset if selected for installation
+;
+(if (<> 0 (BITAND #tileset-opts $08))
+
+    (P_CopyTileSets "kme")
+)
+(complete 87)
+
+;
+;   install the Archaeological tileset if selected for installation
+;
+(if (<> 0 (BITAND #tileset-opts $10))
+
+    (P_CopyTileSets "Archaeological")
+)
+(complete 92)
+
+;
+;   install the Smiley tileset if selected for installation
+;
+(if (<> 0 (BITAND #tileset-opts $20))
+
+    (P_CopyTileSets "Smiley")
+)
+(complete 100)
+
+; --- end of your code ---
+
+(exit)
+

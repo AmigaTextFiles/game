@@ -1,0 +1,503 @@
+;Sid43
+;(C) 1997 by Ryszard Nowakowski, Amigos Computer Brotherhood
+;Wojownik dostosowany do areny o rozmiarze 2000.
+	SPL 7
+	MOV 3 -3
+	MOV 3 -3
+	JMP -5
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -33
+	MOV 3 -33
+	JMP -35
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -63
+	MOV 3 -63
+	JMP -65
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -93
+	MOV 3 -93
+	JMP -95
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -123
+	MOV 3 -123
+	JMP -125
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -153
+	MOV 3 -153
+	JMP -155
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -183
+	MOV 3 -183
+	JMP -185
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -213
+	MOV 3 -213
+	JMP -215
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -243
+	MOV 3 -243
+	JMP -245
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -273
+	MOV 3 -273
+	JMP -275
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -303
+	MOV 3 -303
+	JMP -305
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -333
+	MOV 3 -333
+	JMP -335
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -363
+	MOV 3 -363
+	JMP -365
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -393
+	MOV 3 -393
+	JMP -395
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -423
+	MOV 3 -423
+	JMP -425
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -453
+	MOV 3 -453
+	JMP -455
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -483
+	MOV 3 -483
+	JMP -485
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -513
+	MOV 3 -513
+	JMP -515
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -543
+	MOV 3 -543
+	JMP -545
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -573
+	MOV 3 -573
+	JMP -575
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -603
+	MOV 3 -603
+	JMP -605
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -633
+	MOV 3 -633
+	JMP -635
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -663
+	MOV 3 -663
+	JMP -665
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -693
+	MOV 3 -693
+	JMP -695
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -723
+	MOV 3 -723
+	JMP -725
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -753
+	MOV 3 -753
+	JMP -755
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -783
+	MOV 3 -783
+	JMP -785
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -813
+	MOV 3 -813
+	JMP -815
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -843
+	MOV 3 -843
+	JMP -845
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -873
+	MOV 3 -873
+	JMP -875
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -903
+	MOV 3 -903
+	JMP -905
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -933
+	MOV 3 -933
+	JMP -935
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -963
+	MOV 3 -963
+	JMP -965
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -993
+	MOV 3 -993
+	JMP -995
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1023
+	MOV 3 -1023
+	JMP -1025
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1053
+	MOV 3 -1053
+	JMP -1055
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1083
+	MOV 3 -1083
+	JMP -1085
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1113
+	MOV 3 -1113
+	JMP -1115
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1143
+	MOV 3 -1143
+	JMP -1145
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1173
+	MOV 3 -1173
+	JMP -1175
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1203
+	MOV 3 -1203
+	JMP -1205
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1233
+	MOV 3 -1233
+	JMP -1235
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1263
+	MOV 3 -1263
+	JMP -1265
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1293
+	MOV 3 -1293
+	JMP -1295
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1323
+	MOV 3 -1323
+	JMP -1325
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1353
+	MOV 3 -1353
+	JMP -1355
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1383
+	MOV 3 -1383
+	JMP -1385
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1413
+	MOV 3 -1413
+	JMP -1415
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1443
+	MOV 3 -1443
+	JMP -1445
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1473
+	MOV 3 -1473
+	JMP -1475
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1503
+	MOV 3 -1503
+	JMP -1505
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1533
+	MOV 3 -1533
+	JMP -1535
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1563
+	MOV 3 -1563
+	JMP -1565
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1593
+	MOV 3 -1593
+	JMP -1595
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1623
+	MOV 3 -1623
+	JMP -1625
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1653
+	MOV 3 -1653
+	JMP -1655
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1683
+	MOV 3 -1683
+	JMP -1685
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1713
+	MOV 3 -1713
+	JMP -1715
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1743
+	MOV 3 -1743
+	JMP -1745
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1773
+	MOV 3 -1773
+	JMP -1775
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1803
+	MOV 3 -1803
+	JMP -1805
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1833
+	MOV 3 -1833
+	JMP -1835
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1863
+	MOV 3 -1863
+	JMP -1865
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	SPL 7
+	MOV 3 -1894
+	MOV 3 -1894
+	JMP -1896
+	MOV @-1 <-1
+	JMP -1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	DAT 1
+	END

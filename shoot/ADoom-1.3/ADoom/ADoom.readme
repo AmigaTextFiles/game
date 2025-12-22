@@ -1,0 +1,1273 @@
+Short: Amiga port of DOOM v1.3
+Author: Peter McGavin  (p.mcgavin@irl.cri.nz)
+Type: game/shoot
+Uploader: Peter McGavin  (p.mcgavin@irl.cri.nz)
+
+
+
+                            ADoom  1.3                      4 Feb 2001
+                            ----------
+
+
+This archive contains an Amiga port of DOOM, compiled as directly as
+possible from ID Software's Linux DOOM source code.
+
+On 26th Dec 1997 I learnt that ID Software released the source code of
+DOOM and made it available by ftp.  So I immediately downloaded it and
+tried compiling it with SAS/C 6.58 for the Amiga.  This archive
+represents my results after about 30 evenings and 6 days.  I used
+source code sent to me by Aki Laukkanen, Arto Huusko, Joseph Fenton,
+Cyril Deble and others.  I am now back to my full time job and only
+have time to work on ADoom in spare evenings and weekends.
+
+You can get the original ID Software Linux DOOM source from:
+
+   ftp://ftp.cdrom.com/pub/idgames/idstuff/source/doomsrc.zip
+
+Source code of ADoom, which includes all my changes, is in a separate
+archive on Aminet.  (This source code can also be compiled for Linux.)
+
+ADoom is OS-friendly and multitasks.
+
+ADoom puts up an ASL requester for the ScreenMode.
+
+The -directcgx option causes scene rendering directly to the gfx-card
+(instead of using a chunky buffer in fastmem).  This can provide a
+significant speed-up with a fast gfx-card.
+
+For those without gfx-cards, ECS support and 68040-optimised C2P are
+included.  68020/30-optimised C2P is blitter-assisted and uses
+double-buffering.
+
+You can run ADoom in higher display resolutions than 320x200.  For
+examples, 320x256, 640x480 and 1024x768 all work.  This is an
+enhancement which is not available in the original PC DOOM.  Low
+detail mode (2x1), which can provide a significant speedup on 68030,
+is also available.
+
+Sound effects and music is implemented using Joe Fenton's 16-channel
+doomsound.library.
+
+ADoom supports many features of DeHackEd, a PC utility which can patch
+many of DOOM's internal tables according to a .DEH format
+configuration file.  ADoom can read .DEH format files and patch the
+same internal tables.
+
+You can use a joystick in the 2nd gameport.
+
+Networking support is available for TCP/IP (which works with Linux
+DOOM), IPX (which works with DosDOOM) and serial cable (which only
+works with other Amigas running ADoom).  Unfortunately networking is
+so far is rather unstable and slow, even with a direct ethernet
+connection between 2 fast Amigas.
+
+ADoom can use shareware or commercial WAD files from DOOM, Ultimate
+DOOM, DOOM II and Final DOOM, including TNT and PLUTONIA.
+
+Thanks to several people who sent me icons for ADoom.  I put them in
+the more_icons subdirectory in this archive.
+
+
+
+REQUIREMENTS:
+-------------
+
+A 68020+ Amiga running at least OS 3.0, with at least about 4 Mb of
+fastmem.
+
+ADoom works with gfx-cards, or with AGA or ECS (EHB) using C2P.
+
+Unless you have 68040+, you should have an ECS or AGA Agnus chip or a
+gfx-card.  Theoretically the combination of 68020 or 68030 with OCS
+won't work because OCS Agnus can't do long blits used by the 020/030
+C2P routine.  On the other hand, two different people wrote to me that
+ADoom worked just fine for them with 68020/30 + OCS --- weird.
+
+A Zorro3 (or faster) graphics card, CyberGraphics, at least 8 Mb
+fastmem and a 68040+ are recommended.
+
+A 68040+ and ethernet are recommended for networking.
+
+I use a stack size of 150000 bytes, but that's probably overkill.  I
+don't know what the stack requirements really are yet.  It's almost
+certainly less than 4096 bytes (because it worked OK from the icon
+when I forgot to set the stacksize).
+
+An FPU is neither required nor used (except on 68060).  ADoom should
+also work on FPU-less 68060s (untested).
+
+An MMU is neither required nor used (except -mmu option on 68040/68060).
+
+--------------------------------------------------------------------
+| YOU NEED TO GET A MAIN WAD FILE THAT WORKS WITH LINUX DOOM AND   |
+| PUT IT IN THE SAME DIRECTORY AS ADOOM.                           |
+--------------------------------------------------------------------
+
+Otherwise you get the message:  "Error: W_InitFiles: no files found"
+
+
+
+THE MAIN WAD FILE:
+------------------
+
+The main WAD file contains all the episode and level maps, graphics,
+sound effects and music for a version of DOOM.  ADoom by itself is
+just a file parser and 3D texture-mapping engine.  A main WAD file has
+one of the following names:
+
+        DOOM2.WAD
+        DOOMU.WAD
+        DOOM.WAD
+        DOOM1.WAD
+        PLUTONIA.WAD
+        TNT.WAD
+        DOOM2F.WAD
+
+ADoom loads the first one it finds in the program directory from the
+above list.
+
+If your main WAD file is in a different directory to ADoom, you can
+set the DOOMWADDIR environment variable to the directory containing
+your main WAD file.  E.g,
+
+        setenv DOOMWADDIR work:games/adoom/plutonia/
+
+or use the -waddir option.  The main WAD file can be either shareware
+or registered.
+
+Not all main WAD files work.  It seems that some older WAD files are
+rejected because they leave out some information that ADoom requires.
+In particular, early registered DOOM main WADs do not work.  I think
+these same WAD files fail to work in Linux DOOM.
+
+It is possible to upgrade at least some old main WAD files using
+freely available patches from ftp://ftp.idsoftware.com/idstuff/doom/.
+You need a PC to apply the patches.  (Well it would probably work in
+PC-Task, but the upgrade procedure is slow on a Pentium.)  I'm told
+that early registered DOOM WADs can be upgraded to Ultimate DOOM,
+which works in ADoom.
+
+DOOM1.WAD from "http://surf.to/adoom/" works fine, as should the
+latest shareware WADs from ID Software's WWW site.  I was told that at
+least some Macintosh WADs work too, as does the registered DOOM II
+WAD.  Playstation WADs do not work, neither do WADs from DOOM
+derivatives such as Hexen and Heretic.
+
+Be careful if you rename your main WAD file.  DOOM behaves differently
+depending on the filename and expects the main WAD file to have
+different contents.  If DOOM can't find what it is looking for in the
+WAD file, it will fail.
+
+On the other hand, several people said they got the 4th episode of
+Ultimate DOOM to work by changing the name of the WAD file to
+DOOMU.WAD.
+
+
+
+PATCH WADS:
+-----------
+
+There are literally thousands of third-party WADs in the public
+domain.  They are mostly "patch" WADs, or PWADs, so called because
+they patch parts of a main WAD.  Patch WADs can change specific
+levels, graphics and sounds in the game.  For example, they can turn
+the rocket launcher into a chicken launcher, turn enemies into Star
+Wars storm troopers, rearrange a level to resemble a scene from
+Aliens, change the music to a xmas jingle, and so on.  Patch WADs
+require a separate *registered* main WAD to work.
+
+To use a patch WAD, you must have a *registered* main WAD in the
+program directory as well.  Then you should start ADoom with the -file
+option specifying the patch WAD, e.g:
+
+        ADoom -file Satan666.wad
+
+The -file option doesn't work if you only have a shareware main WAD.
+
+Many patch WADs are designed for use with a particular main WAD, such
+as DOOM2.WAD.  In that case they will not work with any other main
+WAD.
+
+Do not use -file for the main WAD file, only for patch WAD files.
+
+If a patch WAD is in a different directory, you can give the full
+path to the patch WAD, e.g,
+
+        ADoom -file work:games/patchwads/patch1.wad
+
+If you want to apply several patch WADs at once, put them all after a
+single -file argument, e.g,
+
+        ADoom -file patch1.wad patch2.wad patch3.wad
+
+A few third-party patch WADs don't work with -file.  Instead they are
+used with a PC utility such as DEUSF.EXE to modify a main WAD file on
+disk.  For these it is necessary to patch the main WAD file on a PC,
+then transfer the modified main WAD to the Amiga, then run ADoom
+without -file.  An example is h2h-xmas.zip.
+
+Many people have asked me which WADs work and which don't, but I'm
+afraid the above is about all I know at the moment.
+
+
+
+HELP, I'M SWAMPED WITH E-MAIL:
+------------------------------
+
+Thanks for all your e-mails about ADoom.  I enjoy reading them.
+
+However please note that I received upwards of 40 messages per day for
+several days.  Now I'm back to my full-time job, so I only get time to
+work on ADoom and catch up on e-mail on my spare evenings and
+weekends.  I apologise in advance if you don't receive a reply.
+
+Yes I know the Descent source is out.  At least 14 people told me.
+Sorry I don't have time to port it right now.  There are a couple of
+ports done by other people already...
+
+And no, ADoom wouldn't be any faster if it used the FPU, because DOOM
+doesn't do any floating-point arithmetic...
+
+
+
+SPEEDING UP DISK LOADING:
+-------------------------
+
+Several people reported ADoom taking 10 minutes or more to load the
+WAD file at the start of the game.  Really it should only take 10 or
+20 seconds or so.  If you find it's too slow, try adding more disk
+buffers with the AmigaDOS ADDBUFFERS command.  Adding 300 buffers can
+vastly increase the disk-loading speed.
+
+One person recommended DynamiCache instead, but I haven't tried that.
+
+There are more hints on this topic in the UserHints.txt file.
+
+
+
+RESOLUTION:
+-----------
+
+ADoom works by default in 320x200 resolution.  From version 1.0 you
+can select higher resolutions with the -width and -height options
+or the WIDTH and HEIGHT icon tooltypes.  For example, the
+command-line:
+
+    ADoom -width 640 -height 480
+
+runs ADoom in 640x480 resolution.  When the ScreenMode requester comes
+up, you should then select a 640x480 mode.  640x480 is highly
+detailed, but runs only slowly unless you have a 68060.
+
+You should always choose a width that is a multiple of 64 (AGA) or 32
+(ECS or gfx-card).
+
+In any resolution you can flip between high-detail (1x1) and
+low-detail (2x1) modes during play in the Options Menu or by pressing
+F5.
+
+The maximum resolution supported is 1600x1280, which shows incredible
+detail but runs like molasses even on a 68060.
+
+(In earlier versions of this document I said MacDOOM in ShapeShifter
+always uses 2x2 pixels.  In fact 1x1 is possible in MacDOOM by
+pressing F5.)
+
+
+
+MUSIC:
+------
+
+ADoom supports music based on .MUS-player source code sent to me by
+Joseph Fenton <jlfenton@ctaz.com> of MicroCode Solutions.  Music
+requires an extra file not included in the archive because of its
+size.  You should download ADoom_Instr.lha from Aminet and unpack the
+file MIDI_Instruments into your ADoom program directory.
+
+Music is disabled by default because the MIDI_Instruments file is
+distributed separately.  You must also have doomsound.library in your
+LIBS: directory.  (Note, older versions of ADoom used ADoom_SndSrvr
+instead.)  Once you have installed the MIDI_Instruments and
+doomsound.library files, enable music with the -music option or MUSIC
+tooltype.
+
+Joe greatly improved the MIDI_Instruments file over the version
+supplied with ADoom 0.5.
+
+Joe says "You might want to give my brother Michael some credit as
+well, he wrote the event handling and the Player Interface code; I did
+the PlayNote and interrupt audio engine and instruments".
+
+Enabling music adds to the atmosphere, but it also slows the game down
+and leaves only 2 channels for sound effects.  Without the music you
+get 4 channels for sound effects.
+
+You can disable all sound effects with -nosfx or the NOSFX icon
+tooltype.  That leaves audio channels free so you can use your own
+music player in the background.
+
+For version 1.2, Joe Fenton completely rewrote the music and sound
+effects code.  The new version in ADoom_SndSrvr supports up to 16
+simultaneous sounds and does proper stereo panning for both music and
+sound effects.  You must have the file ADoom_SndSrvr in your ADoom
+program directory, otherwise ADoom uses the old built-in sound effects
+code and no music.  ADoom loads ADoom_SndSrvr when it finds it.  You
+shouldn't run ADoom_SndSrvr yourself.  You still need MIDI_Instruments
+and -music for music.  ADoom_SndSrvr is designed to be replaceable
+with versions supporting AHI or real MIDI.  It is also designed to be
+used with PPC ports of ADoom.
+
+Here's what Joe Fenton says about doomsound.library:
+
+"The sound server is a bit slower, but gives you
+table looked up volume (for perfect volume control),
+full stereo panning, 16 stereo sound effects and
+16 channel stereo music.  The SoundServer is
+completely independent of the program so it
+should be easy to make different servers for 16b
+sound cards, MIDI, etc.
+
+"The initial server is Amiga audio; I will probably do an
+AHI server, a Toccata server, and a MIDI server.  If I had
+GMPlay or knew how to program it, I could do a GMPlay
+server too."
+
+
+
+KEYBOARD:
+---------
+
+Most keys are mapped the same as on a PC.  However the Amiga doesn't
+have F11, F12 and PAUSE keys.  On the Amiga, press '[' or DEL for F11,
+']' for F12 and HELP for PAUSE.
+
+Many people complained about the keyboard layout, especially CTRL for
+FIRE.  It's possible to customise the keymap in .doomrc --- see
+UserHints.txt.
+
+By default, the left and right amiga keys are intercepted by Intuition
+for screen flipping and mouse control.  You can override that
+behaviour with -inputhandler or the INPUTHANDLER tooltype.  Then the
+left and right amiga keys send the same code as CTRL (fire, by
+default).  In that case the Amiga continues to multitask, but you
+cannot flip screens until you exit ADoom.
+
+ADoom is sensitive to international keyboards.  For example, it knows
+about swapped alphabetic keys on certain keyboards when you type a
+message to another player during a network game.  I am unable to test
+this, however.
+
+You can use the numeric keypad for controlling your player by default.
+The keypad keys 4,5,6 & 8 control movement and direction.  The keypad
+keys 1,3,7 & 9 can be used for strafe.  (These controls can be
+overridden in .doomrc.)
+
+'<' and '>' can be used for strafe as well as ',' and '.'.  Hopefully
+that works around the problem with run and strafe at the same time on
+A1200 keyboards.  Also, you no longer need SHIFT-numeric to change
+weapons on French keyboards.  And DEL can now be used for F11 (gamma
+correction).
+
+So many people complained about the new keyboard setup from version
+1.0 that in version 1.2 I put in a switch to select the old way.  If
+you use -rawkey or the RAWKEY tooltype, the keyboard works the way it
+did from version 0.6 to version 0.9.
+
+
+
+MOUSE:
+------
+
+Mouse support is included, but it is disabled by default.  That's
+because it slows the game down.  To enable the mouse, start ADoom with
+the -mouse option, or use the MOUSE icon tooltype.
+
+
+
+CD32 JOYPAD:
+------------
+
+Gabry (ggreco@iol.it) emailed me some CD32 joypad handling code.  It
+is disabled by default because it requires lowlevel.library.  If you
+want to try it, use the -joypad option or JOYPAD tooltype.
+
+
+
+SEGA CONTROLLER:
+----------------
+
+ADoom uses Joe Fenton's SEGA controller code.  To enable it, use the
+-sega3 or -sega6 options or SEGA3 or SEGA6 tooltype.  I have not been
+able to test this code.  The rest of this section was written by
+Joseph Fenton <jlfenton@ctaz.com>.
+
+There are two new flags: 
+-sega3  look for a 3 button Sega controller.
+-sega6  look for a 6 button Sega controller; you MUST use this
+on a Sega 6 button controller or it won't work correctly.
+
+The button mapping is as follows:
+Start = Space (Action)
+A      = Strafe Right
+B      = Fire
+C      = Strafe Left
+On the 6 button controller you also get
+Mode = Esc (Menu)
+X      = Return (Enter/Show last message)
+Y      = Shift (Fast/Run)
+Z       = Tab (Map on/off)
+
+A Sega Genesis controller may be use on the Amiga as long
+as you swap lines 5 & 7, and put a 470 ohm resistor
+between lines 5 & 7.
+
+The controller plug pinout is:
+     1   2   3   4   5
+        6   7   8   9
+
+The best way to switch the lines is to open up the
+controller and change them on the circuit card.
+Note: doing this will make the controller incompatible
+with SEGA equipment; if you make the changes, you
+are on your own; I will not be held responsible for any
+damage incurred by performing the above procedure.
+If you aren't comfortable doing your own conversion
+and don't know anyone who can help, DON'T TRY IT!
+Get yourself a CD32 joypad.  This is ONLY for people
+who know what they are doing and want the range of
+controllers available for SEGA equipment.
+
+
+
+SAVING THE SCREENMODE:
+----------------------
+
+If you don't like the ScreenMode requester every time ADoom runs, you
+can save your favourite ScreenMode as an icon tooltype.
+
+First, watch the output of ADoom when it starts up and note the
+DisplayID of the ScreenMode you selected.  It will be something like
+$40420000.  Now click the ADoom icon once and select "Information..."
+from the Icons menu.  Click on NEW and type in:
+
+  SCREENMODE=$40420000
+
+replacing $40420000 with the DisplayID you noted.  Delete any other
+SCREENMODE tooltypes.  Finally, click SAVE, and start ADoom again.
+
+Alternatively, use -screenmode <screenmode> on the command line, e.g,
+
+  ADoom -screenmode $40420000
+
+
+
+MEMORY:
+-------
+
+ADoom has a built-in disk caching system that automatically tries to
+keep the most important game information in memory, minimising disk
+accesses.  ADoom automatically allocates a 6 Mb block of memory for
+the cache if it can, otherwise it tries to allocate the biggest block
+it can, bigger than 2 Mb, while still leaving 2 Mb of fastmem free.
+
+You can override ADoom's default cache size determination algorithm
+with "-heapsize <number>" option or "HEAPSIZE=<number>" icon tooltype,
+where <number> is in kilobytes.  If you set the heapsize to less than
+about 2000 kb, ADoom might fail to load certain WADs.  The shareware
+WAD works with "-heapsize 2000", except for the teleporter at the end
+of the last level.
+
+Setting the heapsize is useful if you only have a small amount of
+memory, or if you want to set aside memory for an enormous cache.  The
+smaller the heapsize, the more ADoom will access disk during play.
+
+If you have only 4 Mb of fastmem (or less), try "-heapsize 2000" or
+even "-heapsize 1000".
+
+
+
+FPS COUNTER:
+------------
+
+You can use the -fps option of FPS icon tooltype to put a continuously
+updated frames/second counter in the top-right corner.  Note that this
+slows down ADoom slightly.
+
+The official way to measure FPS is to use the shareware doom1.wad,
+high detail, 2 steps down from max window size, "Adoom -mmu -forcedemo
+-timedemo demo3" after a clean reboot and SetPatch, then apply the
+formula:
+
+    FPS = (gameticks / realticks) * 35
+
+By this method, speeds in excess of 40 frames per second have been
+reported for ADoom version 1.3 on 68060 Amigas with CyberGraphX.
+(Try -directcgx if you have a fast gfx-card.)
+
+See http://www.balldesi.demon.co.uk/ for the latest speed results of
+various Amiga DOOM ports.
+
+There was a bug that caused a crash on exit if you used -fps and your
+system font was bigger than topaz8.  This is fixed in version 1.2.
+
+
+
+ROTATEMAP AND MAPONHU:
+----------------------
+
+Cyril Deble <Cyril.Deble@inforoute.cgs.fr> sent me some patches to
+make the automap display on the main 3d view and rotate like in Alien
+Breed 3D.
+
+From ADoom version 0.8 you can use two command lines/icon options
+
+ -maponhu : map on headup
+
+ -rotatemap : automap rotate
+
+Cyril warns:
+
+"A small bug accurs when you use a non full screen view with the
+automap the border are not refreshed as the border is buffered...  You
+have just to change the clipping area of the automap to make it work
+ok.
+
+"I don't get too much into the code and i don t have time to do any
+further change hope it will be usefull for something...  It's rather
+nice for me to include it into ADoom and i have noticed no slowdown
+while the map is on the 3D view... My config is 060/AGA
+
+The bug which didn't rotate "markers" with the map should be fixed in
+version 0.9.
+
+From version 1.2 you can toggle through various map types by pressing
+'z' while the map is displayed.
+
+
+
+DEHACKED:
+---------
+
+DeHackEd is a PC utility which patches DOOM's internal tables
+according to a .DEH format configuration file.  It can, for examples,
+change the attributes of barrels so they float and chase you, make
+corpses explode when you shoot them, change the speed and fire-rate of
+projectiles, make all enemies look alike, and so on.
+
+Patch WADs (used with -file) differ from .DEH files, in that patch
+WADs patch a registered WAD file, whereas .DEH files patch the DOOM
+program itself.
+
+Cyril Deble <Cyril.Deble@inforoute.cgs.fr> sent me some source code
+for parsing .DEH format files which I included in ADoom.  Once you
+have a .DEH format file, usage is:
+
+    ADoom -deh <deh-format-file>
+
+.DEH patches are applied to the ADoom program in memory, not
+permanently on disk.  There are many .DEH format files in the public
+domain.  I put some samples in the deh subdirectory.
+
+Please note that not all features of DeHackEd are supported in ADoom.
+Version 1.2 implements some new features that were not in 1.1.
+(Sorry, Cyril didn't tell me what they are...)
+
+Only ASCII (i.e, human readable) .DEH files work.  It may be possible
+to convert binary .DEH files to ASCII form with DeHackEd on a PC.
+
+
+
+NETWORKING:
+-----------
+
+ADoom supports 3 different network protocols: TCP/IP, IPX and raw
+null-modem.
+
+Unfortunately ADoom generates a vast amount of network traffic and
+loads both the network and the CPU.  I recommend at least a 68040 for
+networking.  A fast connection, such as ethernet, helps a lot too.
+One slow machine in the network game slows everyone down.
+
+
+
+TCP/IP:
+-------
+
+AmiTCP networking in ADoom is based on the Linux DOOM source code.  It
+works between Amigas and also with Linux PCs using TCP/IP on a fast
+network.  You need either AmiTCP or Miami on your Amiga for it to
+work.  Make sure you are using a recent version of AmiTCP or Miami.
+Fast Amigas and a fast connection help a lot too.  It's best over
+ethernet and OK over AmigaLink.  It works over a serial line with SLIP
+or PPP too, but people with 68030s reported unplayably poor
+performance.
+
+TCP/IP does not work to PCs running MSDOS or Win95, unless perhaps you
+can find a PC version of DOOM compiled from the Linux source code
+which supports TCP/IP.  Several people told me Win95Doom TCP/IP does
+not work with ADoom.
+
+To start ADoom across 2 computers called fred and bob, say:
+
+  1:  Make certain both computers are using identical WAD files;
+
+  2:  Make certain you can PING fred from bob and vice versa;
+
+  3:  On bob, enter:    "ADoom -net 1 fred"
+
+  4:  On fred, enter:   "ADoom -net 2 bob"
+
+
+If there are 3 computers, called fred, bob and sue, say:
+
+  1:  Make certain all 3 computers are using identical WAD files;
+
+  2:  Make certain you can PING between all computers by name;
+
+  3:  On bob, enter:    "ADoom -net 1 fred sue"
+
+  4:  On fred, enter:   "ADoom -net 2 bob sue"
+
+  5:  On sue, enter:    "ADoom -net 3 fred bob"
+
+
+It's normal for screens to go blank sometimes during the startup phase.
+
+On Linux I used DOOM compiled from the source code available from:
+
+   ftp://ftp.cdrom.com/pub/idgames/idstuff/source/doomsrc.zip
+
+or you can compile ADoom on Linux from the ADoom source code.
+
+I don't know whether other Linux DOOM implementations are compatible.
+
+So far I have tested up to 3 computers.  The code is pretty untested
+and your mileage may vary.
+
+
+
+IPX:
+----
+
+IPX is the ethernet protocol used by MSDOS versions of DOOM.  ADoom
+uses G.J.Peltenburg's amipx.library version 1.1 or higher for IPX.
+You can get this library from Aminet.  After several evenings of
+struggling with the library and with checksums and
+big-endian/little-endian problems and with version number problems,
+the protocol finally seems to work, sort of...
+
+Unfortunately I did not foresee another problem.  The PC version of
+the DOOM program I've tried so far does not exactly match Linux DOOM,
+even when using exactly the same WAD file.  In my experience, the game
+often gets out of sync (consistency failure) or quits unexpectedly.
+So far I've only used DOOM2 version 1.666 on the PC.  Perhaps version
+1.9 would work better, because that's the PC version recommended for
+net-play with MacDOOM.
+
+Between 2 fast Amigas, ADoom with IPX works reasonably well using
+a2065.device.  Hopefully it also works using ariadne.device and other
+Sana2 ethernet devices.
+
+First you should install G.J.Peltenburg's amipx.library version 1.1 or
+higher (from Aminet) and configure your Network number, Node, Device
+driver, Unit number and Frame Type in amipx_prefs.  I use the Frame
+Type "Ethernet 802.2" and just set everything else to 0.
+
+Note that you need amipx.library at least version 1.1.  Version 1.0
+doesn't work.  (Well, v1.0 might work with ariadne.device...)
+
+The syntax for starting ADoom with IPX is:
+
+  ADoom -netipx <number-of-nodes>
+
+For example:
+
+  ADoom -netipx 2
+
+ADoom automatically waits until the number of nodes specified are
+found on the local ethernet, then starts the game.  You should all
+specify the same number of nodes and you should all use the same WAD
+files and other options.
+
+So far I have tested up to 2 Amigas and 1 PC all at once.  The code is
+pretty untested and your mileage may vary.
+
+If you try IPX between an Amiga and a PC, there are 2 more options you
+MUST know about.
+
+The -pcchecksum option tells ADoom to calculate net packet checksums
+the same way the PC version does.  By default, ADoom calculates net
+packet checksums the same way Linux DOOM does, which is different.
+(Linux DOOM just sets the net packet checksum to 0.)  If you don't use
+-pcchecksum, the PC will reject and ignore (nearly) all game packets.
+
+The -forceversion <number> option fools a PC into thinking you are
+running a particular version of DOOM.  I use -forceversion 106 with
+DOOM2 version 1.666, for example.  The default is -forceversion 110
+for version 1.10.  PC DOOM rejects any DOOM program that identifies
+itself as a different version number.  Sorry I don't know an easy way
+of working out what number you need after -forceversion to impersonate
+a particular version of PC DOOM.  Try -forceversion 109 with DOOM2
+version 1.9, perhaps.
+
+Here is an IPX example between ADoom on an Amiga and DOOM19S on a PC.
+Get DOOM19S from ftp://ftp.idsoftware.com/idstuff/doom/doom19s.zip and
+install it on the PC.  The IPX network protocol must also be installed
+on the PC (comes with Windows).  Also make sure you are using exactly
+the same WAD files and other options, then:
+
+  On PC:    IPXSETUP -nodes 2
+
+  On Amiga: ADoom -netipx 2 -pcchecksum -forceversion 109
+
+I'm very interested to know your experiences with ADoom between PCs
+and Amigas using IPX.
+
+I'm told ADoom works with MacDOOM over IPX too, by the way.
+
+Thanks to G.J.Peltenburg for sending me the freely available IPX
+support source code from ID Software's ftp site, after modifying it
+for his amipx.library.
+
+
+
+DIRECT NULL-MODEM:
+------------------
+
+So many people requested a raw null-modem protocol that I sat down and
+implemented it for version 0.9.  Well it was mainly an exercise to
+prepare myself for IPX.
+
+It only works between 2 Amigas with the serial ports connected by a
+null-modem cable.  It uses 7-wire CTS/RTS handshaking, so a simple
+3-conductor cable won't work.  I'm pretty sure null-modem won't work
+between an Amiga and a PC, because I made no attempt to match the
+protocol.  In other words, it requires 2 Amigas.
+
+I suppose it would work between 2 Amigas over a telephone line with
+modems.  You would need to manually dial and make the connection
+first.  Then you would need to shutdown the connection program before
+starting ADoom.  The Hayes modem command at&d0 might be useful for
+leaving the modem on-line between shutting down the connection program
+and starting ADoom.
+
+The ADoom syntax is:
+
+  ADoom -netserial <node-number> <serialdevice> <unit> <speed>
+
+For example, you could enter:
+
+  ADoom -netserial 1 serial.device 0 38400
+
+on one Amiga and
+
+  ADoom -netserial 2 serial.device 0 38400
+
+on the other.  One of the Amigas is always node 1 and the other one
+is always node 2.
+
+It is not necessary to use serial.device.  In fact artser.device or
+8n1.device, if you have them, probably work more reliably or at higher
+speeds than serial.device.
+
+I think you should use the highest speed that both Amigas cope with.
+My experience is that 38400 is about the limit for 68030 Amigas.  My
+68040 WarpEngine works OK with artser.device at 57600.  If you set the
+speed too high, ADoom will probably behave erratically or lock-up
+after a while.  If you set the speed too low, I suspect the game will
+run only very slowly.
+
+The game tends to slow right down when there are lots of active
+monsters anyway.  Try -deathmatch -nomonsters perhaps.
+
+I recommend you start ADoom on node 2 first.  That's because node 2 is
+the "listener" during the setup phase.  If you start ADoom on node 1
+first, ADoom on node 2 is likely to open serial.device while node 1 is
+part way through sending a setup packet.  That could lead to
+synchronisation problems and possible lockups.
+
+
+
+CONSISTENCY FAILURE:
+--------------------
+
+Several people reported their net games ended unexpectedly with a
+message like: "Error: consistency failure (24805 should be 24806)"
+
+What's going on is that DOOM calculates a kind of checksum of the
+game's status --- player and monster positions and that kind of thing
+--- and sends it to all the other players in every net packet.  If all
+the programs and WADs are identical, then they all calculate exactly
+the same checksum.  However, if someone is using a slightly different
+WAD version or an incompatible version of DOOM, then a monster might
+be one more pixel to the left, say, and the result is "consistency
+failure".
+
+The test is very precise.  All net nodes must run compatible versions
+of DOOM and all must use exactly the same WAD file and game options.
+To be compatible, 2 versions of DOOM must provide exactly the same
+features.  Furthermore, they must use exactly the same random number
+generator and they must round arithmetic calculations exactly the same
+way.
+
+I have to be careful adding new features to ADoom.  For example, I
+can't use the random number generator for anything new, nor can I add
+any new features that might change player and monster positions.  If I
+optimise anything, I can't make any approximations.  Otherwise ADoom
+definitely won't work with PC DOOM any more.  Please keep this in mind
+if you send me source code for inclusion in ADoom.
+
+(The ideal solution would be to compile DOOM for all different
+platforms, MSDOS, Win95, Mac, Linux, Amiga, PSX,... from a single
+source.  Then new features can be added simultaneously on all
+platforms.  Now there's a job for someone...)
+
+I suspect "consistency failure" might also happen if you get network
+errors, such as serial line overruns.  Try lowering your serial line
+speed, and make sure hardware handshaking is working properly.  Also,
+if you all specify -pcchecksum things might be more reliable.  That's
+because the default Linux net packet checksum isn't really a checksum
+at all.  It's always 0.  So any errors in the net packet are not
+detected unless you all use -pcchecksum.  (The net packet checksum is
+different to the consistency checksum.)
+
+
+
+MISCELLANEOUS NEW OPTIONS:
+--------------------------
+
+Several new options were added in version 0.9.  Each has a
+corresponding tooltype.
+
+  -cpu <cpu-type>         force use of routines optimised for, e.g, 68060
+
+  -rtg                    forces single-buffering and WritePixelArray8()
+
+  -native                 forces use of C2P routine (crashes if not planar)
+
+  -ehb                    forces use of 6-bitplane extra-half-brite code
+
+  -mousepointer           leaves the mouse pointer on
+
+  -forceversion <number>  send different version number to other net node(s)
+
+  -pcchecksum             calculate net packet checksums the PC way (not Linux)
+
+Note: Don't use these options unless you know what you're doing.  For
+example, several people reported slow performance on their 68060
+Amigas.  It turned out they had specified -cpu 68040, so ADoom used
+the 68040-optimised renderer instead of the 68060 one.  The 68040
+renderer runs much, much slower on a 68060 because of emulated
+instructions.  If you don't use -cpu, ADoom autodetects your CPU and
+automatically uses the fastest routines.
+
+
+
+CHUNKY TO PLANAR:
+-----------------
+
+For native screenmodes on 68040+, ADoom uses a CPU-only C2P routine.
+For EHB on 68040+ it also uses a comparison buffer.  I timed it on my
+WarpEngine as being faster on average than a routine without a
+comparison buffer.  The comparison buffer method is temporary until I
+can figure out some sort of list of dirty-bounding-boxes thingy.
+
+From version 0.4, ADoom in native Amiga modes (AGA and ECS)
+double-buffers.
+
+From version 0.4, ADoom uses a blitter-assisted C2P routine on
+68020/30.  The blitter does the latter half of the C2P conversion in
+chipmem while the 3D engine renders the next frame to fastmem.  It
+also double-buffers --- a necessity for this approach.  On a 50MHz
+68030, C2P CPU-time is 3 times less than in version 0.3.
+Unfortunately it looks as if C2P is only a small fraction of total
+time anyway, maybe 10..15%.  In version 0.6 I replaced the AGA 68030
+C2P that did 2 CPU merges and 2 blitter passes with one based on
+Mikael Kalms' routine that does 3 cpu merges and 1 blitter pass.
+
+C2P for ECS (EHB) modes takes longer because there is an extra table
+lookup for each pixel.  It converts 8-bit -> 6-bit.
+
+ADoom renders to fastmem and uses WriteChunkyPixels() or
+WritePixelArray8() on gfx-cards.
+
+
+
+DIRECTCGX:
+----------
+
+If you have a gfx-card and specify -directcgx (or use the DIRECTCGX
+tooltype), ADoom renders each frame directly into gfx-card memory.
+The default is to render each frame into a chunky buffer in fastmem,
+then copy it with WritePixelArray8() or WriteChunkyPixels().
+
+-directcgx can lead to a speedup, or maybe not.  It is important to
+realise that gfx-card memory is not cached, and most of each frame is
+rendered by pixels (bytes).  So rendering to fastmem, which is cached,
+then copying to gfx-card memory by longwords, can be faster,
+especially if you have an older gfx-card.
+
+On the other hand, if you have a fast gfx-card, such as a CVisionPPC,
+and slower main memory, -directcgx can lead to a 50% speedup, or more.
+
+-directcgx only works if your gfx-card memory is arranged in a
+contiguous, non-interleaved rectangle.  Some graphics cards do not do
+this in 320-pixel wide low-resolution modes.  If gfx appear totally
+corrupt, perhaps like several tiled windows, try using a 640-pixel
+wide mode instead.
+
+ADoom keeps the display locked most of the time when -directcgx is
+used.
+
+
+
+RENDERING:
+----------
+
+ADoom uses fast column and span renderers by Aki Laukkanen.  Aki
+supplied seperate 68060-optimised routines.  These are selected if you
+have a 68060, provided you have SetPatch and 68060.library correctly
+installed, and you do not override with -cpu 68040, for example.
+
+
+
+PICASSO96:
+----------
+
+I developed ADoom using CyberGraphX and I have not tested ADoom with
+Picasso96 graphics libraries.  On the other hand, many users reported
+ADoom works just fine with Picasso96.  A couple of people reported
+problems with the P96 1.34a update.  See UserHints.txt.
+
+
+
+ZORRO-2 GFX-CARDS:
+------------------
+
+ADoom works with Zorro-2 graphics cards, but you will likely find that
+performance is slightly worse than in AGA modes.  That's because the
+memory transfer speed of Zorro-2 is slower than 32-bit chipmem ---
+believe it or not.
+
+With a fast-enough CPU, ADoom uses the all the memory transfer
+bandwidth in both cases.  That's in spite of converting chunky to
+planar at the same time in the case of AGA.  That's also in spite of
+FAQs still arguing that planar is 8 times slower than chunky for
+texture-mapping.  So choose an AGA mode for better performance.  Or,
+better still, get a Zorro-3 (or faster) gfx-card, and the right buster
+chip for it.
+
+
+
+GRAFFITI:
+---------
+
+In version 1.2 I added some code to support Graffiti adaptors using
+graffiti.library, but it probably doesn't work  :(
+
+If you want to try it anyway, use -graffiti for 320x256, or -graffiti2
+for 640x256 (AGA only).
+
+It would be nice if someone could look at amiga_video.c in the source
+code archive and tell me why it doesn't work.  Perhaps the Window
+ADoom opens for IDCMP screws it up?
+
+Why is graffiti.library so slow, anyway?  C2P in the same resolution
+is nearly 3 times faster on my WarpEngine.
+
+I used Graffiti programming information downloaded from:
+
+    http://www.fh-zwickau.de/~jod/graffiti.html
+
+
+
+68060:
+------
+
+Several people reported extremely poor performance on their 68060
+systems, although that was mostly with ADoom versions before 0.5.  If
+that happens to you, try using the FastExec (whatever that is) "SSP to
+FastMem" option.  Several 68060 users told me that made a huge speed
+difference.  Shaun Falkenberg (shaunf@box.net.au) suggests the
+equivalent option in MCP might be better because it saves a reboot on
+cold startup.  OxyPatcher is yet another alternative.  Also make sure
+that if you use the -cpu option, you have -cpu 68060, not -cpu 68040.
+
+ADoom uses 68060-specific fixed-point routines which don't use 64-bit
+MULS & DIVS on 68060.  You must have SetPatch and 68060.library
+correctly installed for these faster routines to be selected.  On a
+68060 with an FPU, ADoom uses the FPU for both fixed-point multiplies
+and divides.
+
+The -mmu option and MMU icon tooltype mark the chunky buffer and chip
+raster as "imprecise" using the MMU.  I used Aki Laukkanen's MMU code
+for this.  This may speed up ADoom on 68040+MMU and 68060+MMU systems
+slightly, by better scheduling memory accesses.
+
+
+
+LIMITATIONS:
+------------
+
+Play-tested for a few hours on an A3000 + WarpEngine + GVP Spectrum +
+Cybergraphics running OS3.1 and Enforcer, on which it seems to run
+very smoothly.  Many people reported success with earlier versions of
+ADoom.  I think I finally fixed all the crash on exit bugs.  I think
+the teleport bug is fixed.
+
+Outstanding bugs possibly include problems with -record and -playdemo,
+problem using -timedemo without also -forcedemo, network problems and
+problems loading the original registered doom.wad.  A couple of people
+reported crashes on exit with the -fps option in version 0.9.  However
+bugs are becoming rarer these days.  Hopefully I didn't introduce too
+many new ones in the latest version...
+
+Someone told me the mysterious "PNAMES not found" bug, reported by
+about half a dozen people, is still present in version 0.9, so it's
+probably still there in version 1.2 too.  On the other hand, I can't
+reproduce this problem.  I wonder if it might be a symptom of a
+corrupt WAD file.  More likely, it is a problem with MAXTRANSFER in
+the way the hard disk is mounted.
+
+
+
+WORLD WIDE WEB SITES:
+---------------------
+
+There is no official ADoom Web page.  Sorry, but I just haven't got
+time to support one.  However I'm quite happy for anyone to make ADoom
+available from their page.
+
+There are several web pages specialising in DOOM for the Amiga.  Some
+good ones are:  (sorry, this list is getting out of date)
+
+    http://adoom.ml.org/     has about 6 other Amiga DOOM ports
+
+    http://surf.to/adoom/    fast mirror of http://adoom.ml.org/
+
+    http://homepages.which.net/~bartlett/    the Amiga DOOM Bible
+
+    http://hem2.passagen.se/sids/adoom/    an ADoom-only page
+
+    http://www.balldesi.demon.co.uk/    for the latest speed benchmarks
+
+    http://www.boehme.demon.co.uk/aliens.html    some tested 3rd party WADs
+
+    http://fiction.pb.owl.de/~frank/    for a PPC port of ADoom
+
+and Aminet, of course.
+
+
+
+BUGS FIXED:
+-----------
+
+1.3
+
+Fixed some severe problems with -directcgx.
+
+Added -inputhandler and corresponding INPUTHANDLER tooltype.
+
+Fixed crash on exit with -fps when default font is bigger than topaz8.
+
+Fixed bug that caused other players to be rendered in the wrong
+colours in network play.
+
+Added -waddir option.
+
+Fixed bug in PCX snapshot code.
+
+Tidied up "[.......]" display in initialisation.
+
+Added -no7wire option for 3-wire null-modem cables.
+
+Fixed sky tiling bug.
+
+Use doomsound.library instead of adoom_sndserver.
+
+Fixed bug that caused crash on FPU-less 68060 (still untested).
+
+Fixed TCP/IP error checking bug.
+
+Made source code compilable on Linux again.
+
+1.2
+
+ADoom 1.0 and 1.1 crashed displaying the Hell Knight in the DOOM2
+finale.  Fixed.
+
+Applied bug fixes from Cyril Deble for various bugs in rotatemap,
+maponhu and dehacked.
+
+DIRECTCGX and DEH weren't recognised as tooltypes.  Fixed.
+
+First sky column was often corrupt.  Fixed.
+
+Explicitly set topaz8 font.  The -fps option crashed before if a
+larger font was used and text overflowed the bitmap.
+
+Translate keys '<' to ',' and '>' to '.' so SHIFT and strafe work at
+the same time.  Numeric keys '1'..'9' and '0' are translated directly
+from the raw keycode instead of using MapRawKey() so you don't need
+SHIFT to change weapons on French keyboards.  The DEL key is now the
+same as F11 (change gamma) instead of KEY_BACKSPACE.
+
+Fixed problem with cooperative network games beyond the first level.
+
+Messages sent in network play with 't' were always translated using a
+French keymap.  Fixed.
+
+IDCLEVnn cheat didn't work with commercial WADs.  Fixed.
+
+1.1
+
+ADoom couldn't open keymap.library on OS3.0 Amigas.  Fixed.
+
+Restored MAXVISSPRITES, MAXDRAWSEGS and MAXVISPLANES to their original
+values.  They took up too much memory and often caused structures to be
+allocated in chipmem, slowing the game down.
+
+1.0
+
+ADoom should now be sensitive to international keyboards.
+
+Bug with palette colour index 0 not being set in v0.9 fixed.
+
+EHB modes on 68020/68030 flickered badly when the display flashed in
+v0.9.  Fixed.
+
+ADoom now precalculates all 14 possible EHB palettes for the gamma
+level whenever the gamma level changes, so there is no stall when the
+palette changes in the game (except when you change the gamma level).
+
+ScreenModeRequester defaults to a more intelligent ScreenMode.
+
+0.9
+
+Made it possible to CTRL/C out of network synchronisation wait loop.
+
+Applied patches to am_map.c supplied by Cyril Deble to fix bugs map
+markers and boundaries with -rotatemap and -maponhu.
+
+Fixed some serious memory allocation/deallocation bugs in w_wad.c.
+See amiga_notes.txt.
+
+The TURBO tooltype corresponding to the -turbo option (whatever that
+is) isn't a flag, it takes an argument.  ADoom was treating it as a
+flag.  Fixed.
+
+0.8
+
+Got rid of the warning message for every sound effect when -nosfx is
+used.
+
+Lowered the volume of music and sound effects.  That eliminated the
+clicks and pops in music and enabled the full range of the sound
+effect volume slider to have effect.
+
+Fixed (harmless) missing #endif in d_main.c.
+
+Fixed bug in r_things.c, info.c and info.h.  I wonder if this fixed
+the "PNAMES not found" bug.  See amiga_notes.txt.
+
+Applied patch supplied by Aki to DrawColumn_060() in amiga_draw.s to
+fix problem with red stairs and random pixels on 68060.
+
+0.7
+
+In 0.6 I accidently introduced a serious bug into the C2P routine used
+for 68040+AGA and 68060+AGA.  Fixed this for version 0.7.
+
+In 0.6 I accidently introduced a serious bug in the MMU cleanup
+routine when -mmu is used or the MMU icon tooltype is used.  Fixed for
+version 0.7.
+
+0.6
+
+Fixed bug in low detail mode and re-enabled it, thanks to a note from
+Georg Steger <steger@pass.dnet.it>, the author of DoomAttack, and some
+assembly code from Aki Laukkanen.
+
+The monster-counting bug (also the problem with "Dead Simple") was
+caused by SAS/C generating unexpected code for function pointer
+comparisons in "if" statements with CODE=NEAR.  See amiga_notes.txt in
+the source archive.
+
+Version 0.5 had a bug in the DrawSpan() routines which left bright
+dots scattered around the floors and ceilings and red stairs at the
+start.  Applied patch supplied by Aki Laukkanen.
+
+Music tones are now PAL/NTSC sensitive.
+
+Fixed the bug which sometimes caused crash on exit when music is
+enabled.
+
+0.5
+
+The call to BestModeID() in amiga_video.c had an unterminated taglist.
+Fixed.
+
+Whoops it never worked under OS2.1 after all.  For now I've changed it
+so ADoom refuses to start on less than OS3.0.  Currently I think
+LoadRGB32() is the only V39 function used.  ADoom 0.4 was also calling
+BestModeID() and failing to autoopen lowlevel.library.
+
+0.4
+
+Gamma correction tables weren't being used in ECS modes.  Fixed.
+
+Set default task priority to -5 because ADoom is unfriendly to other
+tasks otherwise.  Added -taskpriority commandline option and
+TASKPRIORITY icon tooltype, so you can set whatever priority you like.
+
+I think I finally fixed the crash on exit bug.  Two commas were
+missing in dstrings.c.  I haven't had a crash for a long time now.
+
+0.3
+
+In ADoom versions up to 0.2, setting graphics detail LOW and then
+resizing the display resulted in corrupt graphics.  Crashes were
+possible.  Indeed, LOW detail didn't work at all.  This appears to be
+a bug in the original Linux source.  I can't see how LOW detail is
+supposed to work, so for now I've disabled LOW detail in ADoom 0.3.
+
+ADoom exclusively allocates the 2nd gameport for the joystick.  It
+seems that many people have something in their startup which
+exclusively allocates the gameport, in which case ADoom v0.2 refuses
+to run.  BlitzBlanker is one such culprit.  ADoom 0.3 runs with the
+joystick disabled if it can't exclusively allocate the gameport.
+
+Added -forcedemo option in v0.3 to override the version check when
+playing demos.  The FORCEDEMO icon tooltype does the same thing.
+There is a risk something might go wrong if the versions don't match,
+but I haven't observed any problems so far.
+
+Early versions of DOOM had a sound pitch change feature.  That is, the
+same sound sounds effect could be played at different notes.  I
+reproduced this feature in ADoom 0.1 and ADoom 0.2.  However more than
+one user told me this feature was removed from recent versions of DOOM
+and some effects sound wrong in ADoom.  Therefore I disabled the pitch
+change feature in ADoom v0.3.  It is still there and can be enabled
+with the -changepitch option or CHANGEPITCH icon tooltype.
+
+0.2
+
+Early versions of ADoom required the HOME environment variable to be
+set.  This confused a lot of people.  Since version 0.2, ADoom saves
+its prefs file (.doomrc) in the current directory if HOME is not set.
+
+Early versions of ADoom crashed if there wasn't enough memory
+available.  Since version 0.2, ADoom checks the result of the main (up
+to 6 Mb) memory allocation.  There are still a few places where small
+memory allocations are not checked.
+
+
+
+THANKS:
+-------
+
+Thanks to John Carmack and ID Software for one of the best games ever!
+
+
+
+Peter McGavin.  (p.mcgavin@irl.cri.nz)

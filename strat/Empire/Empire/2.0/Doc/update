@@ -1,0 +1,230 @@
+		Amiga Empire by Chris Gray - Updating
+
+This section is quite detailed. The details are provided so that those who
+want to run their country optimally can see what they need to see. Others
+(especially beginners) should just ignore this section until they have
+played for a while, at which point they should scan it to get a feel for
+how things happen.
+
+The sector update algorithm is central to Empire. It is based on steady
+change over Empire Time Units. It can be summarized as follows (values are
+either for the sector being updated or for the owner country of the sector;
+all calculations are integral):
+
+NOTE: A deity can change most of the magic numbers.
+
+    proc makeProduction():
+	q := min(work * efficiency / 100, ore);
+	if <sector not contracted> then
+	    if money > 0 then
+		q := min(q, 127 - production);
+		production := production + q;
+	    fi;
+	else
+	    q2 := q * priceInNickels / 20;
+	    money := money + q2;
+	fi;
+	ore := ore - q;
+    corp;
+
+    /* in an urban center, people are lazy, so every 10 counts as 1 here */
+    workForce := civilians + military / 5;
+    if lastUpdate = 0 or lastUpdate > CurrentTime then
+	lastUpdate := CurrentTime;
+    fi;
+    deltaTime := CurrentTime - lastUpdate;
+    if deltaTime > 256 then
+	deltaTime := 256;
+    fi;
+    work := deltaTime * workForce;
+    if work >= 100 and (<I own this sector> or work > 48 * 2 * 100) then
+	if weather <= -9 then
+	    /* hurricane */
+	    damageSector(random(21) + 70);
+	elif weather <= -8 then
+	    /* no construction happens */
+	else
+	    q := 0;
+	    if weather <= -7 then
+		if money > 0 then
+		    q := min(work / 200, 100 - efficiency);
+		fi;
+		mobility := min(127, mobility + deltaTime / 2);
+	    else
+		if money > 0 then
+		    q := min(work / 100, 100 - efficiency);
+		fi;
+		mobility := min(127, mobility + deltaTime);
+	    fi;
+	    efficiency := efficiency + q;
+	    money := money - q;
+	fi;
+	/* civilian growth */
+	q := deltaTime * civilians;
+	if designation = <urban area> then
+	    q := min(127, civilians + min(q / 100, ore)) - civilians;
+	    civilians := civilians + q;
+	    ore := ore - q;
+	elif designation = <bridge span> then
+	    civilians := civilians - q / 400;
+	elif civilians > 31 and civilians < 97 then
+	    civilians := min(127, civilians + q / 200);
+	else
+	    civilians := min(127, civilians + q / 400);
+	fi;
+	/* mobility increase */
+	mobility := min(127, mobility + deltaTime);
+	lastUpdate := lastUpdate + deltaTime;	/* NOTE THIS!!! */
+	/* military supplies */
+	q := military / 32 * deltaTime / 8;
+	money := money - q;
+	if <this is owner's active capital> then
+	    BTUs :=
+		min(96, BTUs + deltaTime * civilians * efficiency / 5000);
+	    researchLevel :=
+		researchLevel - researchLevel * deltaTime / 4800;
+	    techLevel := techLevel - techLevel * deltaTime / 4800;
+	fi;
+	case plague_stage:
+	incase 3:
+	    /* terminal plague stage */
+	    <kill some people off>;
+	    <send telegram, make news>;
+	    if plague_time <= deltaTime then
+		plague_stage := 0;
+	    else
+		plague_time := plague_time - deltaTime;
+	    fi;
+	incase 2:
+	    /* infectious stage */
+	    if plague_time <= deltaTime then
+		plague_stage := 3;
+		plague_time := random(33) + 32;
+	    else
+		plague_time := plague_time - deltaTime;
+	    fi;
+	incase 1:
+	    /* gestatory stage */
+	    if plague_time <= deltaTime then
+		plague_stage := 2;
+		plague_time := random(33) + 32;
+		<send telegram, create news>;
+	    else
+		plague_time := plague_time - deltaTime;
+	    fi;
+	incase 0:
+	    /* not infected - see if it should become so */
+	    plagueFactor :=
+		    ((civilians + military) / 254) *
+		    ((techLevel + ore + 100) /
+		     (researchLevel + efficiency + mobility + 100));
+	    if random(100) < plagueFactor then
+		plague_stage := 1;
+		plague_time := random(33) + 32;
+	    fi;
+	esac;
+	/* note that 'move', and deliveries will pass the plague when it is
+	   in the infectious stage */
+	<do any deliveries out of this sector - special handling is done
+	 when delivering civilians or military into a sector that hasn't
+	 been updated for a long time>
+	if efficiency >= 60 then		/* NOTE THIS!!! */
+	    case designation
+	    incase <bank>:
+		/* interest */
+		money := money + deltaTime * goldBars / 2;
+	    incase <capital>:
+	    incase <radar station>:
+	    incase <weather station>:
+		/* utilities */
+		money := money - deltaTime;
+	    incase <technology center>:
+	    incase <research institute>:
+		/* utilities */
+		money := money - deltaTime;
+		if money > 0 then
+		    q := production / 25;
+		    production := production - q * 25;
+		    if designation = <technology center> then
+			techLevel := techLevel + q;
+		    else
+			researchLevel := researchLevel + q;
+		    fi;
+		fi;
+		makeProduction();
+	    incase <defense plant>:
+		if money > 0 then
+		    q := min(production / 10, 127 - guns);
+		    production := production - q * 10;
+		    guns := guns + q;
+		fi;
+		makeProduction();
+	    incase <shell industry>:
+		if money > 0 then
+		    q := min(production / 2, 127 - shells);
+		    production := production - q * 2;
+		    shells := shells + q;
+		fi;
+		makeProduction();
+	    incase <airfield>:
+		if money > 0 then
+		    q := min(production / 25, 127 - planes);
+		    production := production - q * 25;
+		    planes := planes + q;
+		fi;
+		makeProduction();
+	    incase <harbour>:
+	    incase <bridge head>:
+		makeProduction();
+	    incase <gold mine>:
+		q := min(production / 5, 127 - goldBars);
+		production := production - q * 5;
+		goldBars := goldBars + q;
+		q := min(goldSample * work * effic / 1000000, goldSample);
+		if <sector not contracted> then
+		    if money > 0 then
+			q := min(q, (127 - production) / 2);
+			production := production + q * 2;
+		    fi;
+		else
+		    q2 := q * 2 * priceInNickels / 20;
+		    money := money + q2;
+		fi;
+		goldSample := goldSample - q;
+	    incase <mine>:
+		q := mineralSample * efficiency * work / 10000;
+		if <sector not contracted> then
+		    if money > 0 then
+			ore := min(127, ore + q);
+		    fi;
+		else
+		    q2 := q * priceInNickels / 20;
+		    money := money + q2;
+		fi;
+	    esac;
+	fi;
+    fi;
+
+Ship updates are much simpler:
+
+    if lastUpdate = 0 or lastUpdate > CurrentTime then
+	lastUpdate := CurrentTime;
+    fi;
+    deltaTime := CurrentTime - lastUpdate;
+    if deltaTime >= 3 then
+	lastUpdate := lastUpdate + deltaTime;
+	if weather <= -9 and shipType ~= 's' then
+	    damageShip((random(21) + 10) * shipDamageFactor(shipType));
+	elif weather <= -8 and shipType ~= 's' then
+	    /* bad weather halts construction */
+	else
+	    if weather <= -7 and shipType ~= 's' then
+		/* bad weather delays construction */
+		deltaTime := deltaTime / 2;
+	    fi;
+	    mobility := min(127, mobility + deltaTime);
+	    efficiency := min(100, efficiency + deltaTime);
+	    techLevel :=
+		techLevel - techLevel * dt * shipTechDecreaser / 480000;
+	fi;
+    fi;

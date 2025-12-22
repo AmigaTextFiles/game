@@ -1,0 +1,201 @@
+		MISCANELLOUS MORTAR IMPLEMENTATION NOTES
+
+
+PORTABILITY
+
+	Porting MORTAR for other platforms should be straightforward and
+	simple as long as you have GNU Make and GCC, the GNU C compiler
+	(DJGPP on DOS).  Regardless of screen depth, internally MORTAR
+	will treat images as 8-bit (thus avoiding bytesex issues).  On
+	larger resolutions this will take quite a bit of memory, but
+	IMHO it's worth it.
+
+	You can do also without GNU Make (by doing compilation yourself)
+	and GCC, if your compiler is supports ANSI-C.  Only places for
+	platform specific stuff is in win-*.c (gfx) and snd-*.c (sound)
+	files, mortar.h (includes) and in frame.c (fine grain timing).
+
+	Game doesn't work with short ints because fixed point
+	co-ordinates are declared as ints and they need at least
+	32-bits.  If this annoys you, change them to longs and
+	mail me a patch.  'char' type is expected to be unsigned,
+	but game might work with signed ones too (haven't tested
+	it yet).
+
+
+GAME STARTUP
+
+	1. read configuration file
+	3. initialize window / graphics mode
+	3. read and scale images
+	4. set palette for these
+	5. map image data if needed
+	6. initialize game item types
+	6. open window / set real palette
+
+
+BITMAPS
+
+	Mortar keeps several bitmaps in the memory, these are sized or
+	created to the actual screen size at loading:
+		- sky		(image.c: Image[HIT_BG])
+		- ground	(image.c: Image[HIT_GROUND])
+		- mask		(image.c: Image[HIT_MASK])
+		- output	(Screen)
+
+	And these have whatever size they were created/read in:
+		- font image
+		- cannon frames
+		- shot image
+
+	Output is the bitmap that user sees on screen.  Mask isn't
+	actually a bitmap, but a thing keeping indeces for objects with
+	which game object can interact (chrash) with like sky, ground
+	and player cannons.
+
+	When an object is drawn, it's drawn to output bitmap.  If it's
+	something shot can chrash with, it's draw also to mask.  Only
+	set pixels (value != 0) will be drawn.  Drawing routine counts
+	by how many pixel the drawn object overlaps with the objects
+	in the mask.
+
+	When object is cleared (for example every time it moves), mask
+	indeces tell from which (screen sized) bitmap the pixels (set in
+	objec image) should be copied.  If object is chrashable, mask is
+	cleared to indicate background (=sky) where it was.
+
+
+COLLISIONS
+
+	After shot is drawn, shot.c:shot_hit() routine checks what the
+	drawn image chrashed with.  If it hit into a player,
+	game.c:game_hit() function is called to handle that, if into
+	ground, the shot explodes.
+
+	game_hit() checks first the effect of the player's shield and
+	then whether the hit proved fatal.  If yes, player explodes,
+	otherwise calling function is just told that the shot exploded
+	(unless shield prevented this).
+
+	The explosion is drawn and it's again checked whether it hit the
+	player. If yes, above process is repeated (both shot hit and
+	it's explosion have an effect on player).
+
+	After explosion has gone through color cycling, it is cleared
+	according to mask.
+
+
+PROBLEMS
+
+	Static, 'fly-through' bitmaps which aren't screen sized (like
+	sky) are a bit of a problem as they can't be just indexed from
+	the mask.  By static I mean images that don't move while shots
+	are flying and by 'fly-through' ones that aren't in the mask
+	(not chrashable).
+
+	User input interface isn't a problem as speed isn't such an
+	issue with it and it's output are in fixed position and can be
+	redrawn at every frame[1] because input frames are longer than
+	game frames.
+
+	[1] Frame refers here to a *time* 'frame', a certain interval
+	    between game events/actions.
+
+
+MEMORY USAGE
+
+	All memory is allocated when the game initializes itself.  90%
+	of it is for images which have to be in memory all the time.
+
+	With 320x200 resolution, MORTAR should get by with a little over
+	1/2MB of free memory.  With 640x480 you will need several
+	megabytes (>2MB DPMI memory on DOS).
+
+
+DRAWING
+
+	Explosions lag on slow systems (say Intel 286 or Motorola 68000)
+	because they do the following (and because we buffer everything
+	in 8-bits):
+		+ draw explosion and clear mask for it
+		+ check player hits and if there are any:
+			- check for player dropping
+			- re-set player mask
+			- redraw player
+
+
+SCREEN PALETTE
+
+	First entries are grayscale, reserved for common use by cannon
+	and shot colors.  Next few entries are for highlighting them
+	with the player's color.
+
+	Rest of the palette will be used for font, sky and ground image
+	palettes.   Colors are allocated dynamically according to how
+	many of them the loaded images will use.
+
+	Last color index is reserved for color cycling etc. effects
+	in explosions and other things.
+
+
+IMAGE PALETTES
+
+	Palette / color index 0 is reserved on *all* images for
+	transparency.  Other colors are dynamically remapped if
+	needed when the image is loaded.
+
+	Cannon, shot and utility images should all have the same / same
+	number of colors because they use the same palette entries
+	inside the game.
+
+
+IMAGE FORMAT
+
+	'P8' followed with white space separated image width, height
+	and color number values in ASCII.  This is followed with palette
+	composed of 8-bit RGB triplets and the actual 8-bit image data
+	(indeces to the palette).
+
+
+FUNCTION NOTES
+
+	Game relies as little as possible to extra libraries for
+	portability.  This should also garantee with network version
+	that binaries of same version work identically on different
+	platforms.
+
+	win_getkey():
+
+	This should wait the given time, return the last input key and
+	discard rest of them.  The intention was to enforce a certain
+	key repeat rate[1] ('input_time' variable in configuration file)
+	and to discard key buffering so that current player can't so
+	easily 'accidentally accept'[2] values for the next player...
+
+	[1] On systems which already enforce certain key repeat, this
+	isn't an issue.  If you use a select() style function for
+	checking both the keys and timeout, which can return before
+	timeout, you can query the time still left by calling
+	frame_end() function (on linux select() modifies the timeval
+	struct for this, but this isn't 'standard').
+
+	[2] If the other player is annoyingly better/luckier, this could
+	happen *really* easily <subconcious wink>.
+
+
+INSTALLING
+
+	Edit the configuration file in the MORTAR data directory.
+	Create a script that runs MORTAR executable giving it the
+	location of the data directory with the -p option.  Move script
+	to a directory in your path (for example /usr/local/bin on unix
+	or c:\dos on DOS).
+
+	If you have only MORTAR sources, you'll have to compile it too,
+	but then you have also the option to re-generate the sky and
+	ground images for the resolution(s) that you mostly use.  Bitmap
+	scaling used in Mortar doesn't do antialiasing so images will
+	look their best when they're used in their original size.
+
+
+	- Eero

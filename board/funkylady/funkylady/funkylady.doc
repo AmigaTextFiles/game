@@ -1,0 +1,362 @@
+		Funkylady, the Othello contestor
+		Copyright © 1993 Ola Liljedahl, all rights reserved
+		Freely distributable
+
+		Contents:
+		1. Introduction
+		2. Usage
+		3. Configuration
+		4. Position files
+		5. Othello goals and tactics
+		6. Implementation
+		7. Background
+		8. Thanks
+		9. Author
+	
+1. Introduction
+
+   Funkylady is a highly optimized Othello program with a simple text user
+   interface.
+
+   I think Funkylady is very good, in autumn 1993 it probably ranked among
+   the 10 best Othello programs in the world.
+
+2. Usage
+
+   Funkylady must be started from the command line. Make sure the stack is
+   large enough, 16K is ok. The font in the console window ought to be of
+   fixed width and support bold characters nicely.
+
+   Command line options:
+      ?        Display the command line options.
+
+      -ccolor <color>
+               Specify the computer's disc color, must be one of 'black'
+               or 'white'. Default is white, i.e. human player (who is black)
+               starts.
+
+      -ttime <time>
+               Specify target time, the total time for the computer to
+               spend during the game, specified in minutes. It is possible
+               that the computer will exceed this time limit, game tree
+               traversal time is not easily predicted.
+
+      -load <filename>
+               Load a saved position, start playing where saved. Can be
+               combined/enhanced with the -from option.
+
+      -from <move number>
+               Specify from which move to start the game when restarting
+               from a loaded position. Moves are numbered from 1 till 64
+               (or even larger than 64, since passes count as moves).
+
+      -cachesize <number of elements>
+               Specify size (number of elements) of the evaluation cache.
+               The use of a (large) evaluation cache may speed up the
+               evaluation of positions and therefor speed up the search.
+               Should be a large value, probably also a prime number is
+               better.
+
+      -deterministic <boolean>
+               Specify that Funkylady play deterministically. Normally
+               Funkylady tries to vary the (within limits) the playing even
+               when starting from identical positions. However when evaluating
+               newly implemented optimizations in the game tree traversal
+               algorithm determinism is absolutely necessary. Valid values
+               are 'true' and 'false'.
+
+      -opponent <name>
+               Specify the name of Funkylady's oppponent, usually the human
+               player (you).
+
+      -nodump  Normally Funkylady dumps the resulting position in a file
+               named dump.<big number> when the game is over. When this
+               option is specified no position is dumped at the end of the
+               game.
+
+      -pipe <inpipename> <outpipename>
+               Specify two filenames (names pipes) that Funkylady shall use
+               for reading the human's move and writing it's own move. Two
+               instances of Funkylady should be started, each in a separate
+               window and with the pipe names swapped.
+               Window 1 : 'funkylady -ccolor black -pipe pipe:x pipe:y'
+               Window 2 : 'funkylady -ccolor white -pipe pipe:y pipe:x'
+	       Now these two instances play against each other. Can be used
+	       to automate the process of evaluating two (different) versions
+	       of Funkylady (or another Othello program).
+	       Note that I had problems with named pipes, I had to open and
+	       close the pipe before/after each read or write to make it work.
+	       probably to overcome some buffering in AmigaDOS.
+
+   Commands (at the 'Enter your move:' prompt):
+
+      ?        Display available commands.
+
+      quit     Quit Funkylady.
+
+      undo [numofmoves]
+               Undo specified number of moves, one move if none specified.
+               'undo 2' is required to correct a stupid move.
+
+      save [filename]
+               Save the current position to specified file. If none specified
+               a filename is prompted.
+
+      load [filename [frommove]]
+               Load a position from the specified file. If none specified a
+               filename is prompted. Optionally the move from which the saved
+               position should be played can be specified. This way a lost
+               game can be replayed from a selected position.
+
+      help [targettime]
+               Ask the computer to think for you and suggest a good move.
+               Optionally a search target time (in seconds) can be specified.
+
+   Moves are entered column first (a letter in the range 'a'..'h' or 'A'..'H')
+   followed by the row (a digit in the range '1'..'8'). If no move is possible
+   one has to pass and enters 'ps'. Pressing enter without any value prints
+   one's possible moves. However if only one or less moves are possible this
+   move or pass is automatically entered.
+
+3. Configuration
+
+   At startup Funkylady initializes game parameters to builtin defaults. If
+   the file funky.param exists (in the current directory) it is read and game
+   parameters are adjusted accordingly. Last but not least options on the
+   command line affect the game parameters.
+   
+   This is an example funky.param file:
+
+      #this is Funkylady's parameter file
+      computercolor white
+      computername Funkylady
+      targettime 1200
+      cachesize 0
+      deterministic false
+      potmobility 1
+      winloss 45
+      discdiff 49
+
+   The hash character '#' signifies that this line shall be ignored (is a
+      comment).
+   'computercolor' is the disc color of the computer, valid values are 'black'
+      and 'white'.
+   'computername' is the name of the computer (Funkylady).
+   'targettime' is the total time the computer shall spend during the game.
+      This value is specified in seconds (and not in minutes as on the command
+      line, a small piece of inconsistency).
+   'cachesize' is the size (number of elements) of the evaluation cache. If
+      specified it should be a large (>50000?) value and probably a prime
+      number. Use 0 for no cache.
+   'deterministic' specifies that Funkylady play deterministically. Valid
+      values are 'true' and 'false'.
+
+   'potmobility', 'winloss' and 'discdiff' are different evaluation funtions
+      used by the game tree traversal.
+   'potmobility 1' specifies that the potmobility evaluation should be used
+      from move 1. 'winloss 45' specifies that winloss evaluation should be
+      used from move 45. 'discdiff 49' specifies that discdiff evaluation
+      should be used from move 49 till the end. These values are suitable for 
+      a 20 minute game (per player) on a 25 MHz 68030. For a slower computer
+      the following values could be used:
+         potmobility 1
+         winloss 51
+         discdiff 55
+      If the computer continuously violates the time target these values
+      should be increased.
+
+4. Position files
+
+   The position file contains a snapshot of a position in the game or after
+   the games was ended. It can be used to start playing from the saved position
+   or (with the -from option) to restart the game at an earlier stage. A
+   position file is automatically written to the current directory when the
+   game has ended, this behaviour can be disabled with the -nodump option.
+
+   The position file contain the same fields as the parameter file (funky.param)
+   and additionally:
+
+      board
+      ........
+      ........
+      ...xo...
+      ..ooo...
+      ..xxo...
+      .x.x....
+      ........
+      ........
+      timestamp 798000556
+      humantime 32
+      computertime 17
+      turntomove black
+      passes 0
+      moves d3 c5 b6 e3 d6 c4 
+      times 19 0 4 0 9 17 
+
+   'board' obviously describes the board at the time the position was saved.
+   'timestamp' is a time stamp from the moment the game was started. Used to
+      enforce determinism (I think).
+   'humantime' is the number of seconds the human has spent thinking
+      (computing?).
+   'computertime' is number of seconds the computer has spent computing
+      (thinking?).
+   'turntomove' is the color of the player to move.
+   'passes' is the number of passes in this position.
+   'moves' is followed by a list of the played moves. Passes are included.
+   'times' is followed by a list of the number of seconds the player spent
+      contemplating the position.
+
+5. Othello goals and tactics
+
+   The goal of Othello is to have the most discs when the game is OVER. The
+   game is over when all discs have been placed on the board or no player 
+   can place any disc. A move is legal if it (together with another of the
+   player's discs) encloses one or more of the opponent's discs. These discs
+   are then turned into the color of the player's disc.
+
+   Tactics:
+   During most of the game it is much more important for the player to have
+   the possiblity to place as many discs as possible (in as good positions
+   as possible of course, some positions are very bad). A good player has many
+   (good) moves in the end of the game whilst his opponent only has a few (bad)
+   moves or no moves at all. In reality this contradicts the ultimate goal (of
+   having the largets number of discs) during most part of the game.
+   
+   Algorithm:
+   Few discs during the game, ALL discs when the game is over, a transitional
+   period in the end where all discs are turned to your color.
+
+   Implementation:
+   Only heuristics that approximate the wanted result are known. Many exists,
+   few are good. One of the best is "potential mobility" as defined by the
+   British matematician/Othello player Joel F. Feinstein and is used in his
+   program 'Modot'. Modot has been used as a sparring partner to Funkylady
+   whose heuristics had to evolve to win against Modot. Differences in speed
+   mattered less.
+   
+   Potential mobility is the quantity of opponent discs facing empty squares.
+   Subtract the quantity of own discs that face empty squares and use this
+   value as a measure of the goodness of the position. Simple.
+
+6. Implementation
+
+   Algorithms + Data Structures = Programs (Wirth)
+   Algorithms + Data Structures + Heuristics = A.I. Programs
+   (Somewhere we forgot the user interface, another important part these days)
+
+   Three design decisions are important for game playing programs:
+   1: datatype (for board)
+   2: game tree traversal algorithm
+   3: heuristics (board evaluation functions)
+   (in a probable, increasing order of importance)
+
+   Funkylady uses bitboards, i.e. boards are described by bit vectors, in
+   Funkylady's case 64 bit integers (long long). Bitboards are compact and
+   can be manipulated with bit operations. Whole boards are operated on at
+   once, for instance computing all legal moves with a few (?) bit operations.
+   Many ideas came from Desdemona's (rather simple) board operations which were
+   implemented in hardware.
+
+   To traverse the game tree efficiently Funkylady uses the alfabeta pruning
+   version of minimax with minimal window/scout presearch. These are standard
+   techniques, find a standard artificial intelligence text book.
+
+   The heuristics used are an evolution of Joel F. Feinsteins potential
+   mobility which could be called inverse combined potential mobility (???).
+   This heuristic is used for evaluation until the end game search starts.
+   Close to the end of the game Funkylady searches to the (bitter) end but
+   only evaluates the final position as a win, a loss or a draw. This makes
+   for faster searching since more possibilites can be pruned from the search.
+   Real close to the end Funkylady evaluates the disc difference at the end of
+   the game computing the exact utcome.
+
+   The code is written with GCC in mind, especially the use of long long and
+   of inlining of functions and even some inline assembly on 68K machines. It
+   is possible to compile it with other compilers supporting 64 bit integers
+   such as SunSofts SPARCCompiler. A native 64 bit CPU would be perfect.
+
+7. Background
+
+   In the spring of 1993 I particiated in two seven week courses at the
+   Department of Computer Engineering headed by Prof. Lars Philipsson (at Lund
+   University), Design Methods for Computer Systems (KDS) and Computer Systems
+   Design (DSK).
+
+   The goals were:
+   KDS: create a project plan and a prototype of an Othello playing machine
+   DSK: build the Othello playing machine according to the plan
+
+   During KDS I worked with the prototype, designing the hardware that would
+   perform Othello operations. Our design - called Desdemona - (pipelined
+   design with 5 Actel-2 FPGA's and a commercial telephone switching circuit
+   from LSI Logic for move ordering) won (there were two teams competing).
+
+   During DSK I worked with the functional model that was to be the reference
+   for the actual hardware. It was also used in place of the hardware to test
+   the software of Desdemona before the hardware was finished.
+
+   We made it! (However not on time, who does?)
+
+   The full Desdemona machine consists of a 286 PC with 2 Megs of RAM, a VGA
+   graphics card and a not too big hard drive. In an extension slot sits our
+   custom designed 8 bit ISA board with the FPGA's (among other circuits). The
+   hardware runs at ~3.5 MHz and evaluates ~150,000 Othello positions per
+   second. That is enough for a 20 level end game search.
+
+   Desdemona participated in 1993's Othello Championship held in Paderborn
+   Germany and reached a joint 6:th position (of 12 participants) together
+   with Joel Feinstein's Modot. After the competition it was clear that
+   Desdemona used the brute force method (fast hardware, simple heuristics)
+   whilst the winner used advanced pattern evaluation techniques (complex
+   software and 60M (!) of precomputed evaluation tables). The future lies in
+   software running on a general purpose computer.
+
+   As a spinoff to the Desdemona project I had a fully functional prototype to
+   an Othello program. I spent several months optimizing the code and the
+   heuristics (position evaluation functions) and wrote my own user interface.
+   Result: Funkylady.
+
+8. Thanks
+
+   Thanks go to:
+
+   Joel F. Feinstein for the source of Modot and many valuable insights into
+   Othello game playing.
+
+   Nils Berner, the Swedish Othello champion, for help with Desdemona's/
+   Funkylady's (rather simple) opening book and Desdemona sparring.
+
+   Ingvar Lindgren for being the prime Funkylady sparring partner (besides
+   Modot...). Those days were fun.
+
+   And some prominent members of the Desdemona project:
+
+   Lars Johansson, project head KDS
+
+   Torbjörn Andersson, prototype codesigner (KDS), project head DSK
+   
+   Johannes Elg, chief silicon implementor (DSK)
+
+   If you ever meet them, they're bright, dedicated and hard working.
+
+9. Author
+
+   My name is Ola Liljedahl. I have owned and used Amigas since 1987, coded
+   some demos (mostly unreleased vector graphics) and programmed a lot in C
+   and 68K. I (almost) hold a Computer Science/Engineering Master's exam from
+   Lund University Sweden. There still some minor things to finish...
+
+   Currently I am employed by Enea Data, a company that specializes in 
+   consulting in the areas of real time systems, OO methods and quality
+   assurance (boring but necessary, I assure you). Enea also develops and
+   sells a family of real time operating systems, OSE. That is my job, OSE
+   development.
+   
+   My current computer system is an Amiga 3000 25 MHz, 4M fast and 2M chip RAM,
+   50M + 520M harddisk, Picasso II graphics board (excellent) and KS/WB 3.1.
+   I desperately need more RAM, but ZIP's are hard to find these days.
+
+   I am reachable with Internet mail at the address olli@enea.se. Feel free
+   to mail if you are having problems with Funkylady, have interesting views on
+   artifical intelligence, (computer) game playing etc. or if you can tell me
+   where to buy another 4M of static column ZIP RAM.

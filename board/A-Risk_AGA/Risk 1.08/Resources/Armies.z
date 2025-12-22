@@ -1,0 +1,769 @@
+Deck "Armies"
+	Routine "Quit"
+		Quit
+	EndScript
+	Routine "Attributes"
+		Let FNT=Arg1,SZ=Arg2,P1=Arg3,P2=Arg4
+		SetDrawMode JAM2 
+		SetPrintFont FNT,SZ
+	EndScript
+	Routine "Travel"
+		GetTextExtent Arg1,W,H
+		Let W=W+8,H=H+8,WX=WindowX,WY=WindowY
+		ResizeWindow 1,1
+		While WindowWidth#1
+			Delay 0,0,1
+		EndLoop
+		MoveWindow Limit(-WX+10,-WX+630-W,-WX+G[Arg2,3]-(W%2)),Limit(-WY+10,-WY+502-H,-WY+G[Arg2,4]-H-15)
+		Delay 0,0,20
+		ResizeWindow W,H
+		While WindowWidth#W
+			Delay 0,0,1
+		EndLoop
+		SetPen P2
+		AreaRectangle 0,0,W,H
+		DrawBorder 0,0,W,H,BEVEL ,18,19
+		SetPen P1,P2
+		PrintText Arg1,5,5
+		Delay 0,1,0
+	EndScript
+	Routine "Move"
+		If ColorOfPixel(MouseX,MouseY)=AP&MV|Arg2
+			Let F[AP,2]=F[AP,2]+Min(Arg1,F[AG,2]-1),F[AG,2]=F[AG,2]-Min(Arg1,F[AG,2]-1)
+			SendToParentDeck "Clip"
+			If Arg2
+				Quit;SendToParentDeck "Amiga"
+			ElseIf F[AG,2]=1
+				Quit
+			EndIf
+		EndIf
+	EndScript
+	Routine "Print"
+		GetTextExtent Arg1,W,H
+		Let W=W+8,H=H+8
+		ResizeWindow W,H
+		Loop
+		Until WindowWidth=W
+		SetPen P2
+		AreaRectangle 0,0,W,H
+		DrawBorder 0,0,W,H,BEVEL ,18,19
+		SetPen P1,P2
+		PrintText Arg1,5,5
+	EndScript
+	Routine "Roll_1"
+		ShowBrush "Br1",20,315
+		Loop CT,3
+			MoveObject "B_"||CT,0,370
+		EndLoop
+		MoveObject "B_7",0,370
+		Loop CT,Random(5,15)
+			Let X=50-(Limit(1,3,Arg1)*25)
+			Delay 0,0,CT
+			If F[-F[AG,1],13]="G"
+				ShowBrush "Br1",20,315
+				Transparent ON
+			EndIf
+			Loop R,Limit(1,3,Arg1)
+				Let A=Alias("A"||R),A=Random(1,6),X=X+50
+				ShowBrush "Resources/"||F[-F[AG,1],13]||A||".bsh",X,315
+			EndLoop
+			Transparent OFF
+		EndLoop
+		MakeDocument "F"
+		Loop CT,R-1
+			Let A=Alias("A"||CT)
+			Type A,NEWLINE 
+		EndLoop
+		Delete CHARACTER ,-1
+		SortDocument DESCENDING 
+		Let F1=LinesInDocument
+		MoveCursorTo STARTOF DOCUMENT 
+		Loop CT,F1
+			Let A=Alias("A"||CT),A=Integer(TheLine)
+			MoveCursor DOWN 
+		EndLoop
+		If F[AP,2]=1|F[-F[AP,1],6]="AMIGA";|F[-F[AP,1],13]
+			Do "Roll_2",F[AP,2]
+		Else
+			Let X=280-(Limit(1,2,F[AP,2])*25)
+			Loop R,Limit(1,2,F[AP,2])
+				Let X=X+50
+				MoveObject "B_"||R+3,X,315
+			EndLoop
+		EndIf
+	EndScript
+	Routine "Show"
+		Arguments SPD=0.200
+		ShowBrushEfx "T:RiskArea.bsh",2,1,"Random",SPD,400,360
+		ClipBrush 20,315,250,41,"Br1"
+		ClipBrush 280,315,100,41,"Br2"
+		Flush "T:RiskArea.bsh"
+	EndScript
+	Routine "Roll_2"
+		MoveObject "B_4",0,370
+		MoveObject "B_5",0,370
+		ShowBrush "Br2",280,315
+		MakeDocument "F"
+		Loop CT,Random(5,15)
+			Let X=280-(Limit(1,2,Arg1)*25)
+			Delay 0,0,CT
+			Loop R,Limit(1,2,Arg1)
+				Let D=Alias("D"||R),D=Random(1,6),X=X+50
+				ShowBrush "Resources/B"||D||".bsh",X,315
+			EndLoop
+		EndLoop
+		Loop CT,R-1
+			Let D=Alias("D"||CT)
+			Type D,NEWLINE 
+		EndLoop
+		Delete CHARACTER ,-1
+		SortDocument DESCENDING 
+		Let F2=LinesInDocument,MV=0
+		MoveCursorTo STARTOF DOCUMENT 
+		Loop CT,F2
+			Let D=Alias("D"||CT),D=Integer(TheLine)
+			MoveCursor DOWN 
+		EndLoop
+		Loop CT,Min(F1,F2)
+			Let A=Alias("A"||CT),D=Alias("D"||CT)
+			If A>D
+				Let F[AP,2]=F[AP,2]-1,F[-F[AP,1],10]=F[-F[AP,1],10]-1
+				If F[AP,2]=0
+					Let F[AP,1]=F[AG,1],F[AP,2]=F1,F[AG,2]=F[AG,2]-F1,MV=1,KI=1
+					ExitLoop
+				EndIf
+			Else
+				Let F[AG,2]=F[AG,2]-1,F[-F[AG,1],10]=F[-F[AG,1],10]-1
+				If F[AG,2]=1
+					ExitLoop
+				EndIf
+			EndIf
+		EndLoop
+		SendToParentDeck "Clip"
+		If F[AG,2]>1
+			If MV
+				If F[-F[AG,1],6]="AMIGA"
+					Do "Move",Random(IfThen(MA,MA%2,0),MA),1
+				Else
+					ReattachObject "B_6"
+					SetPen 0
+					AreaRectangle 182,316,86,39
+					ReattachObject "B_7"
+					MoveObject "B_7",180,315
+					InstallClipRegion 180,315,90,41,NOT 
+				EndIf
+			ElseIf F[-F[AG,1],6]="AMIGA"&(F[AG,2]>F[AP,2]|Random(0,1))
+				Do "Roll_1",F[AG,2]-1
+			ElseIf F[-F[AG,1],6]="AMIGA"
+				Quit;SendToParentDeck "Amiga"
+			Else
+				Let X=50-(Limit(1,3,F[AG,2]-1)*25)
+				Loop CT,Limit(1,3,F[AG,2]-1)
+					Let X=X+50
+					MoveObject "B_"||CT,X,315
+					ShowBrush "Resources/"||F[-F[AG,1],13]||CT||".bsh",X,315
+				EndLoop
+				SetPen 0
+				AreaRectangle 182,316,86,39
+				ReattachObject "B_7"
+				MoveObject "B_7",180,315
+			EndIf
+		Else
+			Quit
+		EndIf
+	EndScript
+	Routine "aatester"
+		Let G[-1,5]=47
+		Dispose G[-1,1]
+		;||||
+		;WorkWithDocument "B"
+		;Let aa=GetWord(TheLine,1)
+	EndScript
+	Routine "ToggleB"
+		Transparent ON
+		Let DX=4,DY=6
+		If G[-P,11]
+			Let DY=Arg1*88-84,CS="Sm",BC="SB"
+		Else
+			Let DX=Arg1*120-114,CS="Bg",BC="BB"
+		EndIf
+		If ObjectState("B_"||Arg2)
+			ShowBrush "Resources/"||CS||"Frm.bsh",DX,DY
+		Else
+			ShowBrush "Resources/"||BC||"Frm.bsh",DX,DY
+		EndIf
+	EndScript
+	Routine "ToggleC"
+		Transparent ON
+		Let DX=4,DY=6
+		Loop CT,5
+			SetObjectState "B_"||CT,OFF
+		EndLoop
+		Loop CT,Crds
+			If G[-P,11]
+				Let DY=CT*88-84
+				ShowBrush "Resources/SBFrm.bsh",DX,DY
+			Else
+				Let DX=CT*120-114
+				ShowBrush "Resources/BBFrm.bsh",DX,DY
+			EndIf
+		EndLoop
+		WorkWithDocument "B"
+		Loop CT,3
+			SetObjectState "B_"||GetWord(TheLine,CT),ON
+			If G[-P,11]
+				Let DY=Integer(GetWord(TheLine,CT)-FCP+1)*88-84
+				ShowBrush "Resources/SmFrm.bsh",DX,DY
+			Else
+				Let DX=Integer(GetWord(TheLine,CT)-FCP+1)*120-114
+				ShowBrush "Resources/BgFrm.bsh",DX,DY
+			EndIf
+			;ShowBrushEfx "Resources/"||G[G[-P,GetWord(TheLine,CT)],5]||".bsh",DX,DY,"Show",0,DW,DH
+		EndLoop
+	EndScript
+	Card "Amount"
+		AfterAttachment
+			Do "Attributes","sapphire",19,19,0
+			Do "Print",Arg1
+		EndScript
+		MessageFromParentDeck
+			Do Arg1,Arg2
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 300,200
+				Size 1,1
+				WindowFlags BORDERLESS 
+				VisualEffects NONE ,NONE 
+			EndScript
+		EndObj
+		ErrorTrap "UserError_1"
+			Occurred
+				Nop
+			EndScript
+		EndObj
+		IntervalTimer "T_1"
+			Definition
+				Duration 0,0,5
+			EndScript
+			Occurred
+				MoveWindow Limit(-WindowX+10,-WindowX+630-W,MouseX-(W%2)),Limit(-WindowY+10,-WindowY+502-H,MouseY-H-15)
+			EndScript
+		EndObj
+	EndObj
+	Card "Dice"
+		NoAttach
+		BeforeAttachment
+			Let F=Alias("Arg1"),AG=Arg2,AP=Arg3,KI=Alias("Arg4")
+			Loop EN,7,NumberOfArrayEntries(F[AG])
+				If F[F[AG,EN],1]#F[AP,1]&F[AG,EN]#AP&MA<F[F[AG,EN],2]*1.5
+					Let MA=F[F[AG,EN],2]*1.5
+				EndIf
+			EndLoop
+			Let MA=IfThen(F[AG,2]>MA,F[AG,2]-MA,0)
+		EndScript
+		AfterAttachment
+			DetachObject "B_6"
+			Transparent OFF
+			Do "Show",1.000
+			ShowPalette "Resources/Board.Pic"
+			Delay 0,0,20
+			If F[-F[AG,1],6]="AMIGA"|F[AG,2]=2
+				Do "Roll_1",F[AG,2]-1
+			Else
+				Let X=50-(Limit(1,3,F[AG,2]-1)*25)
+				Loop CT,Limit(1,3,F[AG,2]-1)
+					Let X=X+50
+					MoveObject "B_"||CT,X,315
+					ShowBrush "Resources/"||F[-F[AG,1],13]||CT||".bsh",X,315
+				EndLoop
+			EndIf
+		EndScript
+		MessageFromParentDeck
+			Do Arg1
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 118,75
+				Size 404,362
+				WindowFlags ACTIVATE BORDERLESS 
+				VisualEffects NONE ,NONE 
+			EndScript
+		EndObj
+		AreaButton "B_1"
+			Definition
+				Origin 0,370
+				Highlight NONE 
+				Size 41,41
+			EndScript
+			OnClick
+				Do "Roll_1",1
+			EndScript
+		EndObj
+		AreaButton "B_2"
+			Definition
+				Origin 0,370
+				Highlight NONE 
+				Size 41,41
+			EndScript
+			OnClick
+				Do "Roll_1",2
+			EndScript
+		EndObj
+		AreaButton "B_3"
+			Definition
+				Origin 0,370
+				Highlight NONE 
+				Size 41,41
+			EndScript
+			OnClick
+				Do "Roll_1",3
+			EndScript
+		EndObj
+		AreaButton "B_4"
+			Definition
+				Origin 0,370
+				Image "Resources/B1.bsh"
+				Highlight NONE 
+			EndScript
+			OnClick
+				Do "Roll_2",1
+			EndScript
+		EndObj
+		AreaButton "B_5"
+			Definition
+				Origin 0,370
+				Image "Resources/B2.bsh"
+				Highlight NONE 
+			EndScript
+			OnClick
+				Do "Roll_2",2
+			EndScript
+		EndObj
+		AreaButton "B_6"
+			Definition
+				Origin 0,0
+				Border BEVEL ,18,19
+				Highlight NONE 
+				Size 404,362
+			EndScript
+			OnClick
+				Do "Move",1
+			EndScript
+		EndObj
+		AreaButton "B_7"
+			Definition
+				Origin 0,370
+				Border BEVEL ,18,19
+				Label "FINI",INSIDE 
+				Highlight OUTLINE 
+				Size 90,41
+			EndScript
+			OnClick
+				Quit
+			EndScript
+		EndObj
+		ErrorTrap "UserError_1"
+			Occurred
+				PrintText ErrorCode|||ErrorText,10,10
+			EndScript
+		EndObj
+		RightMouseButton "UserRMB_1"
+			OnClick
+				Do "Move",10
+			EndScript
+		EndObj
+	EndObj
+	Card "Cards"
+		NoAttach
+		AfterAttachment
+			;SetCurrentDirectory "CanDo:MyWork/Risk/"
+			;Let G=LoadVariable("CanDo:MyWork/Test.Dat"),P=1,BL=0
+			;Do "aatester"
+			Let G=Alias("Arg1"),P=Arg2,Trd=Arg3
+			MakeDocument "B"
+			MakeDocument "S"
+			Loop M1,3
+				Loop M2,M1+1,4
+					Loop M3,M2+1,5
+						If G[-P,M1]&G[-P,M2]&G[-P,M3]
+							Let M=G[G[-P,M1],6]+G[G[-P,M2],6]+G[G[-P,M3],6],EX=0,Crds=Crds+1
+							If ~FCP
+								Let FCP=M1
+							EndIf
+							If Match(M,3,6,9)|M>11
+								Let Trd=1
+								Loop CT,3
+									Let A=Alias("M"||CT)
+									If G[G[-P,A],1]=P
+										Let EX=EX+1
+										If BL<EX
+											Let BL=EX
+										EndIf
+									EndIf
+								EndLoop
+								Type G[G[-P,M1],6]|||G[G[-P,M2],6]|||G[G[-P,M3],6]|||EX,NEWLINE 
+								WorkWithDocument "B"
+								Type M1|||M2|||M3|||EX,NEWLINE 
+								WorkWithDocument "S"
+							EndIf
+						EndIf
+					EndLoop
+				EndLoop
+			EndLoop
+			MoveCursorTo ENDOF DOCUMENT 
+			Delete CHARACTER ,-1
+			;SaveDocument "S","CanDo:MyWork/SDoc"
+			WorkWithDocument "B"
+			Delete CHARACTER ,-1
+			;SaveDocument "B","CanDo:MyWork/BDoc"
+			;ExitScript
+			If G[-P,11]
+				Let WX=550,WY=243,WW=66,WH=26,DX=5,DY=5,DW=55,DH=83
+				Loop CT,5
+					If G[-P,CT]#""
+						Let WY=WY-44,WH=WH+88
+					EndIf
+				EndLoop
+				If SizeOfDocument#0
+					Let WY=WY-21,WH=WH+42
+				EndIf
+			Else
+				Let WX=315,WY=160,WW=10,WH=215,DX=10,DY=10,DW=109,DH=165
+				Loop CT,5
+					If G[-P,CT]#""
+						Let WX=WX-60,WW=WW+120
+					EndIf
+				EndLoop
+			EndIf
+			;		>>>>> Before Attachment for Window.z Var until here! <<<<<
+			If (SizeOfDocument=0&G[-P,6]="AMIGA")|WX=315|WY=243
+				Quit
+			Else
+				Transparent OFF
+				MoveWindow WX,WY
+				Delay 0,0,20
+				ResizeWindow WW,WH
+				Delay 0,0,20
+				DrawBorder 0,0,WW,WH,BEVEL ,18,19
+				Loop CT,5
+					If G[-P,CT]#""
+						MoveObject "B_"||CT,DX,DY
+						ShowBrushEfx "Resources/"||G[G[-P,CT],5]||".bsh",DX,DY,"Random",0.5,DW,DH
+						Let Cnt=Cnt+1,Crd=Alias("Crd"||CT),Crd=Cnt
+						If G[-P,11]
+							Let DY=DY+88
+						Else
+							Let DX=DX+120
+						EndIf
+					EndIf
+				EndLoop
+				If SizeOfDocument#0
+					If G[-P,11]
+						Let BX=8,BY=WH-65
+					Else
+						Let BX=WW%2-95,BY=184
+					EndIf
+					Loop CT,6,8
+						MoveObject "B_"||CT,BX,BY
+						If G[-P,11]
+							Let BY=BY+21
+						Else
+							Let BX=BX+70
+						EndIf
+					EndLoop
+					If Arg3
+						DisableObject "B_8"
+					EndIf
+				Else
+					If G[-P,11]
+						Let BX=8,BY=WH-23
+					Else
+						Let BX=WW%2-25,BY=184
+					EndIf
+					MoveObject "B_8",BX,BY
+					Loop CT,5
+						DetachObject "B_"||CT
+					EndLoop
+				EndIf
+				If G[-P,6]="AMIGA"
+					DoObjectScript "B_6",ONCLICK 
+					Delay 0,0,25
+					DoObjectScript "B_7",ONCLICK 
+					Quit
+				EndIf
+			EndIf
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 0,0
+				Size 1,1
+				WindowFlags ACTIVATE BORDERLESS 
+				VisualEffects NONE ,NONE 
+			EndScript
+		EndObj
+		AreaButton "B_1"
+			Definition
+				Origin -110,0
+				ButtonFlags BUTTONTOGGLES 
+				Highlight NONE 
+				Size 109,165
+			EndScript
+			OnRelease
+				Do "ToggleB",Crd1,1
+				
+			EndScript
+		EndObj
+		AreaButton "B_2"
+			Definition
+				Origin -110,0
+				ButtonFlags BUTTONTOGGLES 
+				Highlight NONE 
+				Size 109,165
+			EndScript
+			OnRelease
+				Do "ToggleB",Crd2,2
+				
+			EndScript
+		EndObj
+		AreaButton "B_3"
+			Definition
+				Origin -110,0
+				ButtonFlags BUTTONTOGGLES 
+				Highlight NONE 
+				Size 109,165
+			EndScript
+			OnRelease
+				Do "ToggleB",Crd3,3
+				
+			EndScript
+		EndObj
+		AreaButton "B_4"
+			Definition
+				Origin -110,0
+				ButtonFlags BUTTONTOGGLES 
+				Highlight NONE 
+				Size 109,165
+			EndScript
+			OnRelease
+				Do "ToggleB",Crd4,4
+				
+			EndScript
+		EndObj
+		AreaButton "B_5"
+			Definition
+				Origin -110,0
+				ButtonFlags BUTTONTOGGLES 
+				Highlight NONE 
+				Size 109,165
+			EndScript
+			OnRelease
+				Do "ToggleB",Crd5,5
+				
+			EndScript
+		EndObj
+		AreaButton "B_6"
+			Definition
+				Origin -50,0
+				Border BEVEL ,19,18
+				Label "Help",INSIDE 
+				Size 50,20
+			EndScript
+			OnClick
+				WorkWithDocument "S"
+				If SizeOfDocument>6
+					Loop
+						If TheLineNumber=LinesInDocument
+							MoveCursorTo STARTOF DOCUMENT 
+							WorkWithDocument "B"
+							MoveCursorTo STARTOF DOCUMENT 
+						Else
+							MoveCursor DOWN 
+							WorkWithDocument "B"
+							MoveCursor DOWN 
+						EndIf
+						WorkWithDocument "S"
+						If (G[-P,12]|G[-P,6]="AMIGA")&BL>0
+							If BL=Integer(GetWord(TheLine,4))
+								ExitLoop
+							EndIf
+						Else
+							ExitLoop
+						EndIf
+					EndLoop
+					Do "ToggleC"
+				EndIf
+				
+			EndScript
+		EndObj
+		AreaButton "B_7"
+			Definition
+				Origin -50,0
+				Border BEVEL ,19,18
+				Label "Trade",INSIDE 
+				Size 50,20
+			EndScript
+			OnClick
+				If Trd
+					Dispose B
+					Loop CT,5
+						If ObjectState("B_"||CT)
+							Let B=B+1,A=Alias("M"||B),A=CT
+						EndIf
+					EndLoop
+					If B=3
+						MoveCursorTo STARTOF DOCUMENT 
+						Loop CT,LinesInDocument
+							If String(M1|||M2|||M3)=GetChars(TheLine,1,5)
+								Loop CNT,3
+									InsertArrayEntry G[0],1
+									Let A=Alias("M"||CNT),G[0,1]=G[-P,A]
+									If G[G[-P,A],1]=P
+										Let G[0,-11-G[-P,A]]=G[-P,A]
+									EndIf
+									Dispose G[-P,A]
+								EndLoop
+								If G[0,-4]>14
+									Let G[0,-4]=G[0,-4]+5
+								ElseIf G[0,-4]=12
+									Let G[0,-4]=G[0,-4]+3
+								Else
+									Let G[0,-4]=G[0,-4]+2
+								EndIf
+								Let G[0,-5]=G[0,-5]+G[0,-4],QT=1
+								ExitLoop
+							Else
+								MoveCursor DOWN 
+							EndIf
+						EndLoop
+						If QT
+							Quit
+						EndIf
+					EndIf
+				EndIf
+				
+			EndScript
+		EndObj
+		AreaButton "B_8"
+			Definition
+				Origin -50,0
+				Border BEVEL ,19,18
+				Label "Exit",INSIDE 
+				Size 50,20
+			EndScript
+			OnClick
+				Quit
+			EndScript
+		EndObj
+	EndObj
+	Card "Amiga"
+		NoAttach
+		BeforeAttachment
+			Let G=Alias("Arg1")
+		EndScript
+		AfterAttachment
+			Do "Attributes","sapphire",19,19,0
+		EndScript
+		MessageFromParentDeck
+			Do Arg1,Arg2,Arg3
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 0,0
+				Size 1,1
+				WindowFlags BORDERLESS 
+				VisualEffects NONE ,NONE 
+			EndScript
+		EndObj
+	EndObj
+	Card "Statistic"
+		NoAttach
+		AfterAttachment
+			DrawBorder 0,0,WindowWidth,WindowHeight,BEVEL ,18,19
+			GetFontInfo SCREEN ,FNT,SZ
+			SetPrintFont FNT,SZ
+			SetPen 19
+			SetDrawMode JAM1 
+			DrawLine 36,14,36,120
+			DrawLine 276,14,276,120
+			DrawLine 36,120,235,120
+			DrawLine 276,120,475,120
+			GetTextDimensions "Countries",W,H,B
+			PrintText "Countries",140-(W/2),5
+			GetTextExtent "Armies",W,H
+			PrintText "Armies",385-(W/2),5
+			Let G=Arg1,S=Arg2,M2=1000,M3=1000
+			;Let G=LoadVariable("Values"),S=LoadVariable("SubArray.Test")
+			;Let M2=1000,M3=1000,G[0,0]=2,G[-1,7]=1,G[-2,7]=2
+			Loop P,LastArrayIndex(S)
+				If M<LastArrayIndex(S[P])
+					Let M=LastArrayIndex(S[P])
+				EndIf
+			EndLoop
+			Let M1=200/M
+			Loop CT,M
+				Loop P,G[0,0]
+					If M2>100/S[P,CT,1]
+						IfError
+						Else
+							Let M2=100/S[P,CT,1]
+						EndIf
+					EndIf
+					If M3>100/S[P,CT,2]
+						IfError
+						Else
+							Let M3=100/S[P,CT,2]
+						EndIf
+					EndIf
+				EndLoop
+			EndLoop
+			Loop CT,0,10
+				Let YC=120-(B%2)-(M2*CT*5)
+				If YC>2
+					SetPen 19
+					PrintText CT*5,10,YC
+					If YC+(B%2)>SZ+7&YC+(B%2)<120
+						SetPen 60
+						DrawLine 37,YC+(B%2),236,YC+(B%2)
+					EndIf
+				EndIf
+			EndLoop
+			Let LY=150
+			Loop CT,0,40
+				Let YA=120-(B%2)-(M3*CT*5)
+				If YA>2&LY-YA>B
+					SetPen 19
+					PrintText CT*5,250,YA
+					If YA+(B%2)>SZ+7&YA+(B%2)<120
+						SetPen 60
+						DrawLine 277,YA+(B%2),476,YA+(B%2)
+					EndIf
+					Let LY=YA
+				EndIf
+			EndLoop
+			Loop CT,M
+				SetPen 19
+				DrawLine CT*M1+36,117,CT*M1+36,123
+				DrawLine CT*M1+276,117,CT*M1+276,123
+				Loop P,G[0,0]
+					SetPen G[-P,7]
+					If S[P,CT-1,1]
+						DrawLine (CT-1)*M1+36,120-(S[P,CT-1,1]*M2),CT*M1+36,120-(S[P,CT,1]*M2)
+						DrawLine (CT-1)*M1+276,120-(S[P,CT-1,2]*M3),CT*M1+276,120-(S[P,CT,2]*M3)
+					EndIf
+				EndLoop
+			EndLoop
+		EndScript
+		Window "UserWindow"
+			Definition
+				Origin 72,100
+				Size 495,138
+				WindowFlags ACTIVATE BORDERLESS 
+				VisualEffects NONE ,NONE 
+			EndScript
+			OnClick
+				Quit
+			EndScript
+		EndObj
+	EndObj
+EndObj

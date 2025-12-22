@@ -1,0 +1,98 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.51
+     from ahidev.texinfo on 31 October 1997 -->
+
+<TITLE>Ahi Developers's Guide - Opening And Closing ahi.device For Low-level Access</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="ahidev_1.html">first</A>, <A HREF="ahidev_6.html">previous</A>, <A HREF="ahidev_8.html">next</A>, <A HREF="ahidev_21.html">last</A> section, <A HREF="ahidev_toc.html">table of contents</A>.
+<P><HR><P>
+
+
+<H2><A NAME="SEC13" HREF="ahidev_toc.html#TOC13">Opening And Closing <CODE>ahi.device</CODE> For Low-level Access</A></H2>
+
+<P>
+ Not too hard.  Just open <CODE>ahi.device</CODE> unit <CODE>AHI_NO_UNIT</CODE> and
+initialize <CODE>AHIBase</CODE>.  After that you can access all the functions of
+the device just as if you had opened a standard shared library.
+
+</P>
+
+
+
+<H3><A NAME="SEC14" HREF="ahidev_toc.html#TOC14"><CODE>Assembler</CODE></A></H3>
+
+<P>
+ For the assembler programmer there are two handy macros: <CODE>OPENAHI</CODE>
+and <CODE>CLOSEAHI</CODE>.  Here is a small example how to use them:
+
+</P>
+
+<PRE>
+        OPENAHI 4                  ;Open at least version 4.
+        lea     _AHIBase(pc),a0
+        move.l  d0,(a0)
+        beq     error
+
+; AHI's functions can now be called as normal library functions:
+        move.l  _AHIBase(pc),a6
+        moveq   #AHI_INVALID_ID,d0
+        jsr     _LVOAHI_NextAudioID(a6)
+
+error:
+        CLOSEAHI
+        rts
+</PRE>
+
+<P>
+ Note that you <STRONG>have</STRONG> to execute the <CODE>CLOSEAHI</CODE> macro even if
+<CODE>OPENAHI</CODE> failed!
+
+</P>
+
+
+
+<H3><A NAME="SEC15" HREF="ahidev_toc.html#TOC15"><CODE>C</CODE></A></H3>
+
+<P>
+ For the C programmer, here is how it should be done:
+
+</P>
+<P>
+
+<PRE>
+struct Library    *AHIBase;
+struct MsgPort    *AHImp=NULL;
+struct AHIRequest *AHIio=NULL;
+BYTE               AHIDevice=-1;
+
+if(AHImp = CreateMsgPort())
+{
+  if(AHIio = (struct AHIRequest *) CreateIORequest(
+      AHImp, sizeof(struct AHIRequest)))
+  {
+    AHIio-&#62;ahir_Version = 4;  /* Open at least version 4. */
+    if(!(AHIDevice = OpenDevice(AHINAME, AHI_NO_UNIT,
+        (struct IORequest *) AHIio, NULL)))
+    {
+      AHIBase = (struct Library *) AHIio-&#62;ahir_Std.io_Device;
+
+// AHI's functions can now be called as normal library functions:
+      AHI_NextAudioID(AHI_INVALID_ID);
+
+      CloseDevice((struct IORequest *) AHIio);
+      AHIDevice = -1;
+    }
+    DeleteIORequest((struct IORequest *) AHIio);
+    AHIio = NULL;
+  }
+  DeleteMsgPort(AHImp);
+  AHImp = NULL;
+}
+</PRE>
+
+<P><HR><P>
+Go to the <A HREF="ahidev_1.html">first</A>, <A HREF="ahidev_6.html">previous</A>, <A HREF="ahidev_8.html">next</A>, <A HREF="ahidev_21.html">last</A> section, <A HREF="ahidev_toc.html">table of contents</A>.
+</BODY>
+</HTML>

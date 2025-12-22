@@ -1,0 +1,3353 @@
+11: HARDWARE SPRITES
+One of the biggest attractions of the Commodore Amiga is its ability to
+produce high quality games which rivial those found on genuine arcade
+machines. This can be amply demonstrated by terrific programs such as
+Battle Squadron and Eliminator.
+
+  Now, for the first time, all these amazing features are at your
+fingertips! AMOS Basic provides you with complete control over the
+Amiga's hardware and software sprites. These sprites can be
+effortlessly manoeuvred with the built-in AMAL animation language, so
+you don't have to be a machine code wizard in order to create your own
+stunning arcade games.
+
+  Hardware sprites are searate images which can be automatically
+overlayed on the Amiga's screen. The classic example of a hardware
+sprite is the mouse pointer. This is completely independent of the
+screen, and works equally well in all the Amiga's graphics modes.
+
+  Since sprites don't interfere with the screen background, they are
+perfect for the moving objects required by an arcade game. Not only are
+they blindingly fast, but they also take up very little memory. So when
+you're writing an arcade game, hardware sprites should always be at the
+top of your list.
+
+  Each sprite is 16 pixews wise and up to 255 pixels high. The Amiga's
+hardware supports a maximum of eight three-colour sprites or four
+fifteen-colour sprites. Colour number zero is transparent - that's the
+reason for the odd colour ranges.
+
+  At first glance, these features don't seem particulary impressive.
+But there are a couple of useful tricks which can increase both the
+numbers and sizes of these sprites beyond recognition.
+
+  One solution is to take each hardware sprite and split it into a
+number of horizontal segments. These segments can be independently
+positioned, allowing you to apparently display dozens of sprites on the
+screen at once. Similarly, the width restriction can be exceeded by
+building an object out of several individual sprites. Using this
+technique it's easy to generate objects up to 128 pixels wide.
+
+  Until recently the only way to exploit these techniques was to delve
+into the mysterious wolrd of 68000 assembler language. So you'll be
+delighted to discover that AMOS Basic manages the entire process
+automatically! Once you've designed your sprites with the AMOS sprite
+editor, you can effortlessly manipulate them with just a single Basic
+instruction.
+
+The sprite commands
+===================
+Remember to have a sprite bank loaded into memory when trying out the
+various commands in this chapter. We advise you use the file
+SPRITES.ABK from the AMOS data disc.
+
+
+
+           SPRITE (display a hardware sprite on the screen)
+
+SPRITE n,x,y,i
+
+The SPRITE command displays a hardware sprite on the screen at
+coordinates x,y using image number i.
+
+  n is the identification number of the sprite and can range from 0 to
+63. Each sprite can be associated with a separate image from the sprite
+bank, so the same image can be used for several sprites.
+
+  x and y hold the position of the sprite using special hardware           146
+coordinates. All measurements are taken from the *hot spot* of your
+images. This serves as a sort of 'handle' on the sprite and is used as
+a reference point for the coordinates. Normally the hot spot is set to
+the top left hand corner of an image. However it can be changed within
+your program using the HOT SPOT command.
+
+  Hardware coordinates are independent of the screen mode and
+effectively start from (-129,-45) on the default screen. AMOS provides
+you with several built-in functions for conversions between hardware
+coordinates and the easier to use screen coordinates. See the X HARD,
+Y HARD, X SCREEN and Y SCREEN functions for more details.
+
+  i is the number of a particular image stored in the sprite bank. This
+bank can be created using the AMOS sprite editor, and is automatically
+saved along with your Basic program. It can also be loaded directly
+with the LOAD instruction. In addition you can use the GET SPRITE
+command to grab an image straight off the current screen.
+
+  Any of these parameters x,y and i may be optionally omitted, but the
+appropriate commas must be included. For example:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk"
+        Sprite 8,200,100,1
+        Sprite 8,,150,1
+        Sprite 8,300,,
+
+For a demonstration of sprites in action, load EXAMPLE 11.1 from the
+MANUAL folder on the AMOS data disc.
+
+
+Computed sprites
+================
+Although the Amiga only provides you with eight actual sprites, it's
+possible to use them to display up to 64 different objects on the
+screen at once. These objects are known as -computed sprites- and are
+managed antirely by AMOS Basic. Computed sprites can be assigned by
+calling the SPRITE command with a number greater than 7. For example,
+
+        Load "AMOS_DATA:Sprites/Octopus.abk"
+        Sprite 8,200,100,1
+
+The size of a computed sprite is taken directly from the image data,
+and can vary between 16 and 128 pixels wide, and from 1 to 255 pixels
+high.
+
+  Before you can make full use of these sprites you need to understand
+some of the principles behind them. Each hardware sprite consists of a
+thin narrow strip 16 pixels wide and 256 pixels deep. Depending on the
+number of colours, you can have either eight or four of these strips on
+the screen at a time.
+
+  It should be obvious that most of the area inside these sprites is       147
+effectively wasted. That's because few programs need sprites which are
+taller than about 40 or 64 pixels. However there is a simple trick
+which enables us to borrow this space to generate dozens of extra
+objects on the screen. Look at the picture AMOS1.PIC (included in this
+manual file packet) which contains the letters A,M,O and S.
+
+           < picture   AMOS1.PIC >
+
+This sprite can be split into four horizontal segments each enclosing a
+single letter. The Amiga's hardware allows each section to be freely
+positioned anywhere on the current line, making a total of four
+computed sprites. Here's a diagram which illustrates this process.
+
+           < picture   AMOS2.PIC >                                         148
+
+As you can see, a computed sprite is really just a small part of a
+hardware sprite displayed at a different horizontal screen position.
+Notice the line between each object. This is an unavoidable side effect
+of the repositioning process, and is generated by the Amiga's hardware.
+
+  Due to the way computed sprites are produced, there are a couple of
+restrictions to their use. Firstly, you can't have more than 8 computed
+sprites on a single line. In practice the system is complicated by the
+need to produce sprites which are larger than the 16 pixel maximum.
+AMOS generates these objects by automatically positioning several
+computed sprites side by side. This can be seen from the diagram below:
+
+           < picture   AMOS3.PIC >
+
+The maximum of eight hardware sprites therefore imposes a strict limit
+to the number of such objects you can display on a horizontal line. The
+total width of the objects must not exceed:
+
+        16*8=128 pixels for three-colour sprites                           149
+        16*4=64  pixels for fifteen-colour sprites
+
+If you attempt to ignore limitation, you won't get an error message,
+but your computer sprite will not be displayed on the screen. So it's
+vital to ensure that the above restriction is never broken. This can be
+achieved using the following procedure:
+
+  Add together the widths of all your computed sprites, multiplying the
+dimensios of any fifteen-colour sprites by two. If the total is
+greater than 128, you'll need to space your sprites on the screen so
+that their combined width lies below this value. Take particular care
+if you are animating your sprites with AMAL as certain combinations
+will only come to light after you've experimented with the sequence for
+some time. These problems will be manifested by the random
+disappearance of one or more sprites on the screen.
+
+  If the worst comes to the worst, you'll need to substitute some of
+your larger sprites with Blitter Objects. This will increase the
+overall size of your program significantly, but it should have a
+negligible effect on the final quality of your game.
+
+  These restrictions are not confined to AMOS Basic of course. They
+apply equally well to all games on the Amiga, even if they're written
+entirely in machine code! So there's nothing stopping you from
+producing your own Xenon II clone using exactly the same tehcniques.
+
+  Note that, normally, hardware sprite number zero is allocated to the
+mouse cursor. You can release this sprite with a simple call to the
+HIDE command. See EXAMPLE 11.2.
+
+
+Creating an individual hardware sprite
+======================================
+The only real problem with computed sprites is that you never know
+precisely which hardware sprite is going to be used in a particular
+object. Normally the hardware sprites used in an object will change
+whenever the object is moved. Occasionally this can be inconvenient,
+especially when you are animating objects such as missiles which need
+to remain visible in a wide range of possible sprite combinations.
+
+  In these circumstances it's useful to be able to allocate a hardware
+sprite directly. Individual hardware sprites can be assigned using the
+SPRITE instruction with an identification number between 0 and 7.
+Example:
+
+        Sprite 1,100,100,2
+
+This loads a hardware sprite number 1 with image number 2. N now
+corresponds to the number of a single hardware sprite, and can range
+between 0 and 7. If your image is larger than sixteen pixels wide, AMOS
+will automatically grab the required sprites in consecutive order
+starting from the sprite you have chosen. For example:
+
+        Sprite 2,200,100,1
+
+Supposing image number 1 contained a 32-bit image with three colours.
+This command would allocate hardware spries 2 and 3 to the image.
+Nothing would happen if you were now to attempt to display hardware
+sprite 3 with a command like SPRITE 3,150,100,1  because this sprite
+has already been used. You would only have access to sprites 0,1,4,5,6
+and 7, and the maximum numbers and sizes of your computed sprites would
+be reduced accordingly.
+
+  Each 15-colour sprite is implemented using a pair of two three-colour    150
+sprites. However, it's not possible to combinea ny two sprites in this
+way. Only the combinations 0/1,2/3,4/5,6/7 are allowed. One side effect
+of this, is that you should always assign your hardware sprites using
+even sprite numbers. Otherwise, AMOS will start your sprite from the
+next group of two, effectively wasting the first sprite.
+
+  Also note that if you try to create a large fifteen-colour sprite
+with this system, you could easily use up all the available sprites in
+a single object.
+
+  WARNING! If you are writing a screen scrolling game, you may
+encounter problems using sprites in conjunction with the SCREEN OFFSET
+and SCREEN DISPLAY commands. These generate a DMA clash between the
+sprite system and the screen bit-maps, and can occasionally lead to
+unwanted screen effects.
+
+  This problem is only relevant if you are using hardware sprites 6/7.
+When the screen is shifted to the left with SCREEN OFFSET, the amount
+of time for your sprite updates is reduced, as the screen DMA has
+priority over the sprite system. Unfortunately, there isn't enough
+processing time to draw sprites 6/7, and they will therefore be
+corrupted on your display.
+
+  To clear up this problem, create sprites 6/7 as individual hardware
+sprites and position them off the screen using negative coordinates.
+This will stop AMOS Basic from using them in your computed sprites.
+Providing sprites 6/7 are never displayed on the screen during your
+scrolling operations, all will be well.
+
+
+The sprite palette
+==================
+The colours required by a hardware sprite are stored in the colour
+registers 16 to 31. Providing your current screen mode doesn't make use
+of these registers, the sprite colours will be completely separate from
+your screen colours. Interestingly enough, this is also the case for
+the 4096-colour Ham mode. So there's nothing stopping you from
+producing some mind-blowing Ham games with this system!
+
+  However you will encounter real problems when using 32 or 64 colour
+screen in conjunction with three colour sprites. This is because the
+colours used by these sprites are grouped together in the following
+way:
+           Hardware sprites  Colour registers
+           ----------------  ----------------
+                 0 / 1         17 / 18 / 19
+                 2 / 3         21 / 22 / 23
+                 4 / 5         25 / 26 / 27
+                 6 / 7         29 / 30 / 31
+
+   Colour registers 16,20,24 and 28 are treated as transparent.
+
+The difficulty arises due to the way AMOS generates computed sprites.
+The hardware sprites used to produce these objects vary during the
+course of a game, so it's vital to ensure that the three colours used
+by each individual sprite are set to exactly the same values, otherwise
+the colours of your computed sprites will change unpredictably. Here's
+a small AMOS procedure which will perform the entire process for you       151
+automatically.
+
+        Procedure INIT_SPRITES
+          Get Sprite Palette
+          For S=0 To 3
+            For C=0 To 2
+              Colour S*4+C+17,Colour(C)
+            Next C
+          Next S
+        Endproc
+
+The above restriction does not, of course, apply to fifteen-colour
+sprites. If you want to make the most of the Extra Half Bright or
+32-colour modes, you may find it easier to avoid using four-colour
+sprites altogether.
+
+
+
+                    GET SPRITE PALETTE (grab sprite
+                         colours into screen)
+
+GET SPRITE PALETTE [mask]
+
+This loads the entire colour palette used for your sprite images into
+the current screen. The optional "mask" allows you to load just a
+selection of the colours from the sprite palette. Each of the 32
+colours is represented by a single bit in the mask, numbered from right
+to left. The rightmost bit represents the status of colour zero, the
+next vit colour 1, and so on. To load a colour simply set the
+appropriate bit to 1. If, for instance, you wanted to copy just the
+first four colours, you would set the bit pattern to:
+
+        Get Sprite Palette %0000000000001111
+
+Identically, since bobs use the same sprite bank as sprites, this
+command can also be used to load the colours of a bob.
+
+
+Controlling sprites
+===================
+
+
+                 SET SPRITE BUFFER (set height of the
+                           hardware sprites)
+
+SET SPRITE BUFFER n
+
+This sets the work area in which AMOS creates the images of the
+hardware sprits. Acceptable values for n range from 16 to 256. TO set
+the correct value for n, simply examine the sprites in the sprite
+editor and work out which is the largest sprite length wise. ANy sprite
+that is larger than "n" will simply be truncated at the appropriate cut
+off point.
+
+  SET SPRITE BUFFER is supplied for your use so that you can claim back
+any redundant memory our game or application simply doesn't use.
+
+  The amount of memory consumed by the sprite buffer can be calculated
+using the formula:
+
+        Memory = N*4*8*3 = N*96
+
+  So the minimum buffer size is 1536 bytes and the maximum is 24k.
+Note: This command erases all current sprite assignments and resets the
+mouse cursor to its original state.
+
+
+
+                    SPRITE OFF (remove one or more                         152
+                       sprites from the screen)
+SPRITE OFF [n]
+
+The SPRITE OFF command removes one or more sprites from the screen. All
+current sprite movements are aborted. In order to restart them, you'll
+need to completely reinitialize your movement pattern.
+
+SPRITE OFF    Removes all the sprites from display
+
+SPRITE OFF n  Only deactivates sprite number n
+
+Note that your sprites are automatically deactivated whenever you call
+up the AMOS Basic editor. They will be automatically returned to their
+original positions the next time you enter direct mode.
+
+
+
+               SPRITE UPDATE (control sprite movements)
+
+SPRITE UPDATE [ON/OFF]
+
+The SPRITE UPDATE command provides you with total control of the
+movements of your sprites. Normally, whenever you move a sprite, its
+position is updated automatically during the next vertical blank period
+(see WAIT VBL). But if you are moving a lot of sprites using the SPRITE
+command, the updates will occur before all the sprites have been moved.
+This may result in a noticeable jump in yur movement patterns. In these
+circumstances, you can turn off the automatic updating system with the
+SPRITE UPDATE OFF command.
+
+  Once your sprites have been succesfully moved, you can then slide
+them smoothly into place with a call to SPRITE UPDATE. This will
+reposition any sprites which have moved since your last update.
+
+
+
+               =X SPRITE (get x coordinate of a sprite)
+
+x=X SPRITE(n)
+
+Returns the current x coordinate of sprite n, measured the hardware
+system. This command allows you to quickly check whether a sprite has
+passed of the edge of the Amiga's screen.
+
+
+
+               =Y SPRITE (get y coordinate of a sprite)                    153
+
+y=Y SPRITE(n)
+
+Y SPRITE returns a sprite's vertical position. As usual, n refers to
+the number of the sprite and can range from 0 to 63. Remember, all
+sprite positions are measured in hardware coordinates. See EXAMPLE 11.3
+
+
+
+               GET SPRITE (load a section of the screen
+                         into the sprite bank)
+
+GET SPRITE [s,] i,x1,y1 TO x2,y2
+
+This instruction enables you to grab images directly off the screen and
+turn them into sprites. The coordinates x1,y1 and x2,y2 define a
+rectangular area to be captured into the sprite bank. Normally all
+images are taken from the current screen. However it's also possible to
+grab the image from a specific screen using the optional screen number
+"s".
+
+  Note: There are no limitations to the region that may be grabbed in
+this way. Providing your coordinates lie inside the existing screen
+borders, everything will be fine.
+
+  i denotes the number of the new image. If there is no existing sprite
+with this number, a new image will be created automatically. AMOS wlil
+also take the trouble of reserving the sprite bank if it hasn't been
+previously defined. See EXAMPLE 11.4
+
+  There's also an equivalent GET BOB instruction which is identical to
+GET SPRITE in every respect. Since the sprite bank is shared by both
+bobs and sprites, the images are in exactly the same format. So it's
+perfectly acceptable to use both instructions in conjunction with
+either bobs or sprites. Try changing the sprite instruction in the
+previous example to something like:
+
+        Bob 1,0,0,1
+
+
+Conversion functions
+====================
+
+
+                 =X SCREEN (convert hardware coordinates
+                 =Y SCREEN  into screen coordinates)
+
+x=X SCREEN([n,] xcoord)
+y=Y SCREEN([n,] ycoord)
+
+Transforms a hardware coordinate into a screen cordinate relative to
+the current screen. If the hardware coordinates lie outside the screen
+then both functions will return relative offsets from the screens
+boundaries. Type the following from direct mode:
+
+        Print X Screen(130)
+
+The result will be -2. This is because the x screen coordinate 0 is
+equal to hardware coordinate 128 and thus the conversion of 130 to a
+screen coordinate results in a position two pixels to the left of the
+screen.
+
+  If the optional screen number is included then the coordinates will
+be returned relative to screen # n.
+
+
+
+                  =X HARD (convert screen coordinates                      154
+                  =Y HARD  into hardware coordinates)
+
+X=X HARD ([n,] xcoord)
+
+These functions convert a screen coordinate into a hardware coordinate.
+There are four separate conversion functions, the above syntaz converts
+xcoord from a coordinate relative to the current screen to a hardware
+coordinate.
+
+Y=Y HARD ([n,] ycoord)
+
+Transforms a Y coordinate relative to the current screen into hardware
+coordinate. As before, n specififes a screen number for use with the
+functions. All coordinates will now be returned relative to this
+screen.
+
+
+
+             =I SPRITE (return current image of a sprite)
+
+Image=I SPRITE(n)
+
+This function returns the current image number being used by sprite n.
+A value of zero will be reported if the sprite is not displayed.
+
+
+
+
+
+
+
+
+                      12: BLITTER OBJECTS (BOBS)                           155
+                     ----------------------------
+While hardware sprites are certainly powerful, they do suffer from a
+couple of annoying restrictions. The solution is to make use of the
+Amiga's infamous Blitter chip. This is capable of copying images to
+the screen at rates approaching a million pixels per second! With the
+help of the blitter it's possible to create what are known as bobs.
+
+  Bobs, like sprites, can be moved around completely independently of
+the screen without destorying any existing graphics. But unlike
+sprites, bobs are sroted as part of the current screen, so you can
+create them in any graphics mode you wish. This allows you to generate
+bobs with up to 64 colours. Furthermore the only limit to the number
+of bobs you can display is dictated by the available memory.
+
+  Bobs are slightly slower than sprites and they consume considerably
+more memory. Therefore there's a trade-off between the speed of sprites,
+and the flexibility of bobs. Fortunately there's nothing stopping you
+from using both bobs and sprites in the same program.
+
+
+
+                BOB (draw a bob on the current screen)
+
+BOB n,x,y,i
+
+The BOB command creates bob n at coordinates x,y using the image # i.
+
+  n is the identification number of the bob. Permissible values
+normally range from 0 to 63, but the number of bobs may be increased
+using an option from the AMOS configuration program. Providing you've
+enough memory, you can set this limit to any number you wish.
+
+  x and y specify the position of the bob using standard screen
+coordinates. These coordinates are not the same as the hardware
+coordinates used by the equivalent SPRITE command. Like sprites, each
+bob is controlled through a *hot spot*. This may be changed at any time
+with the HOT SPOT command.
+
+  i refers to an image which is to be assigned to the bob from the
+sprite bank. The format of this image is identical to that used by the
+sprites, so you can use the same images for either sprites or bobs.
+
+  After you've created a bob, you can independently change either its
+position or its appearance by omitting one or more parameters from this
+instruction. Any of the numbers x,y or "image" may be left out, with
+the missing parameters retaining their original values. This is
+particularly useful if you are animating your bob with AMAL, as it
+allows you to move your object anywhere you like, without disturbing
+your existing animation sequence. However you must always include the
+commas in their original order. Example:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk"
+        Flash Off : Get Sprite Palette
+        Channel 1 To Bob 1
+        Bob 1,0,100,1
+        Amal 1,"Anim 0,(1,4)(2,4)(3,4)(4,4)"                               156
+        Amal On
+        For X=1 To 320
+          Bob 1,X,,
+          Wait Vbl
+        Next x
+
+Whenever a bob is moved, the area underneath is replaced in its
+original position, producing an identical effect to the equivalent
+SPRITE command. Unlike STOS on the ST, each object is allocated its own
+individual storage area. This reduces the amount of memory used by
+bobs, and improves the overall performance dramatically. Due to the
+Blitter, of course, therse's no real comparison between STOS sprites
+and AMOS bobs.
+
+  Although the BOB command works fine for small number of bobs, there's
+an annoying flicker when you try to use more than three or four objects
+on the screen at once. This happens because the bobs are updated at the
+same time as the screen. You can therefore see the bobs while they are
+being drawn which results in an unpleasant shimmering effect.
+
+  One alternative for improving the quality of your animations is to
+just limit your bobs to the bottom quarter of the screen. Since bobs
+are redrawn extremely quickly, the updates can often be completed
+before the lower part of the screen has been displayed. This provides
+you with acceptably smooth movements while consuming very little
+memory, so it's a useful trick if you're running short of space. See
+EXAMPLE 12.1
+
+  Obviously this cannot be seen as a serious solution to such a glaring
+problem. So before you throw away your copy of AMOS Basic in disgust,
+you'll be relieved to hear that there's a simple way of eliminating
+this flicker completely, even when you're using dozens of bobs anywhere
+on the screen:
+
+
+
+             DOUBLE BUFFER (create a double screen buffer)
+
+DOUBLE BUFFER
+
+Creates a second invisible copy of the current screen. All graphics
+operations, including bob movements, are now performed directly in this
+*logical screen*, without disturbing your TV picture in the slightest.
+Once the image has been redrawn, the logical screen is displayed, and
+the original *physical* screen becomes the new logical screen. The
+entire process now cycles continuously, producing a rock solid display
+even when you're moving hundreds of bobs around the screen at once.
+
+  The entire procedure is performed automatically by AMOS Basic, so
+after you've executed this instruction you can forget about it
+completely. Note that since the hardware sprites are always displayed
+using the current physical screen, this system will have absolutely no
+effect on any existing sprite animations.
+
+  Double buffering works equally well in all of the AMIGA's graphics
+modes. It can even be used in conjuction with dual playfields. But be
+warned: Double buffering doubles the amount of memory used by your
+screens. If you attempt to double buffer too many screens, you'll
+quickly run out of memory. See EXAMPLE 12.2
+
+  In practice, double buffering is an incredibly useful technique,
+which can be readily exploited for most types of games. It has seen
+service in the vast majority of commercial games, including Starglider
+- that's why it's such an integral part of AMOS Basic. A detailed
+explanation of this process can be found in the SCREENS chapter. ALso
+see the SCREEN SWAP and AUTOBACK commands.
+
+
+
+                   SET BOB (set drawing mode of bob)                       157
+
+SET BOB n,back,planes,minterms
+
+The SET BOB command changes the drawing mode used to display a bob on
+the screen. n is the number of the bob you wish to affect.
+
+  "back" chooses the way the background underneath your bob will be
+redrawn. There are three possibilities:
+
+ - A value of 0 indicates that the area underneath your bob should be
+   saved in memory. The old image data is automatically replaced when
+   the bob is moved, resulting a smooth movement effect.
+
+ - if the "back" parameter is positive then the original background
+   will be discarded altogether, and the area behind the bob will be
+   filled with colour "back"-1. This is ideal for moving bobs over a
+   solid block of colour such as a clear blue sky, as it's much faster
+   than the standard drawing system.
+
+ - Turn of the redrawing process completely by loading "back" with a
+   negative value such as -1. You can now deactivate the automatic
+   updating process using BOB UPDATE, and manually move your bobs with
+   a call to BOB DRAW. This allows you to regenerate the screen
+   background using your own customised drawing routines.
+
+  "planes" is a bit map which tells AMOS which screen planes your bob
+will be drawn in. As you may know, the Amiga's screen is divided up
+into a number of separate bit-planes. Each plane sets a single bit in
+the final colour which is displayed on the screen.
+
+  The first plane is represnted by bit one, the second by bit two and
+so on. Normally the bob is drawn in all the bit-planes in the current
+screen mode. This corresponds to a bitpattern of %111111.
+
+  By changing some of these bits to zero, you can omit selected colours
+from your bobs when they are drawn. This can be used to generate a
+number of intriguing screen effects.
+
+  "minterms" selects the blitter mode used to draw your bobs on the
+screen. A full description of the available modes can be found in the
+section on SCREEN COPY. "minterm" is usually set to one of two values:
+
+        %11100010   If the bob is used with a mask
+        %11001010   if NO MASK has been set
+
+Feel free to experiment with the various combinations. There's no
+danger of crashing your Amiga if you make a mistake. Advanced Amiga
+users find the following information useful.
+
+        Blitter source  Purpose                                            158
+        --------------  ------------------
+              A         Blitter mask
+              B         Blitter object
+              C         Destination screen
+
+Note that you are recommended to use SET BOB *before* displaying your
+bobs on the screen. If you don't, the Amiga won't crahsh, and you won't
+get an error message, but your screen display may be corrputed.
+
+
+
+                     NO MASK (remove blitter mask)
+
+NO MASK [n]
+
+As a default, a blitter mask is automatically created for every bob you
+display on the screen. This mask is combined with the screen background
+to make colour zero transparent. It's also used by the various
+collision detection commands.
+
+  The NO MASK command removes this mask, and forces the entire image to
+be drawn on the screen. Any parts of the image in colour zero will now
+be displayed directly over the existing background.
+
+  n is the image number whose mask is to be removed. This mask should
+never be erased if the image is active on the screen, otherwise the
+sasociated bob will be corrupted. If you must remove the mask in this
+way, it's important to deactivate the relevant bobs with BOB OFF first.
+Here's an example:
+
+        Centre "Click mouse button to remove mask"
+        Double buffer : Load "AMOS_DATA:Sprites/Octopus.abk"
+        Get Sprite Palette
+        Do
+          Bob 1,X Screen(X Mouse),Y Screen(Y Mouse),1
+          If Mouse Click Then Bob Off : No Mask 1
+        Loop
+
+See MAKE MASK
+
+
+                        AUTOBACK (set automatic
+                         screen copying mode)
+
+AUTOBACK n
+
+When you are using a double bufferend screen, it's essential to
+synchronize your drawing operations with the movements of your blitter
+objects. Remember that each double buffered screen consists of two
+separate displays. There's one screen for the current picture, and
+another for the image whilst it's being constructed. If the background
+underneath a bob changes while it's being redrawn, the contents of
+these screens will be different, and you'll get an intense and annoying
+flickering efect.
+
+  The unique AMOS AUTOBACK system provides you with a perfect solution
+to this problem. It allows you to generate your graphics in any one of
+three graphics modes, depending on the precise requirements of your
+program. Just for a change, we'll list tese options in reverse order.
+
+
+AUTOBACK 2 (automatic mode - default)                                      159
+
+  In this mode, all drawing operations are automatically combined with
+  the bob updates. So anything you draw on the screen will be displayed
+  directly underneath your bobs, as if by magic. The principles behing
+  this system can be demonstrated by the following code:
+
+        Bob Clear : Rem    Draw on first screen ... Remove Bobs
+        Plot 150,100 : Rem This can be anything you wish
+        Bob Draw : Rem     Redraw bobs
+        Screen Swap : Rem  Next Screen
+        Wait Vbl
+        Bob Clear
+        Plot 150,100 : Rem Perform your operation a second time
+        Bob Draw
+        Screen Swap : Rem  Get back to first screen
+        Wait Vbl
+
+  As you can see, all screen updates are performed exactly twice.
+  There's one operation for both the logical and the physical screen.
+  See EXAMPLE 12.3 for a demonstration.
+
+    One obvious side effect, is that your graphics now take twice as
+  long to be drawn. Furthermore, the program will be halted by at least
+  2 vertical blanks, every time you output something to the screen.
+  This may cause annoying delays in the execution of critical
+  activities such as collision detection.
+
+
+AUTOBACK 1 (half-automatic mode)
+
+  Performs each graphical operation in both the physical and logical
+  screens. Absolutely no account is taken of your bobs, so you should
+  only use this system for drawing outside the current playing area.
+
+    Unlike the standard mode, there's no need to halt your program
+  until the next vertical blank. Mode 1 is therefore ideal for objects
+  such as control panels or hi-score tables, which need to be updated
+  continually during the game.
+
+
+AUTOBACK 0 (manual mode)
+
+  Stops the AUTOBACK system in it's tracks. All graphics are now output
+  straight to the logical screen at the maximum possible speed. You
+  should use this option if you need to repeatedly redraw large
+  sections of your background screen during the course of a game.
+  This will allow you to safely perform your collision detection
+  routines at regural intervals, without destroying the overall quality
+  of the animation effects. Here's a typical program loop for you to
+  examine.
+
+        Bob Update Off
+        Repeat
+        Screen Swap
+        Wait Vbl
+        Bob Clear
+        Rem Now redraw any of your gfxs which have changed                 160
+        Rem Perform your game routines (Collision detection etc...)
+        Bob draw
+        Until WIN
+
+Note that this procedure will ONLY work if there's a smooth progression
+from screen to screen. It's entirely up to you to keep the contents of
+physical and logical screen in step with each other. An example of this
+technique can be found in EXAMPLE 12.4
+
+  Supposing for instance, you wanted to display a bob over a series of
+random blocks. You might try to use a routine like:
+
+        Load "AMOS_DATA:Sprites/Sprites.abk" : Flash Off
+        Get Sprite Palette : Double Buffer : Cls 0 : Autoback 0
+        Update Off : Bob 1,160,100,1
+        Do
+          Bob Clear
+          X=Rnd(320)+1 : Y=Rnd(200)+1 : W=Rnd(80)+1
+          H=Rnd(50)+1 : I=Rnd(15)
+          Ink I : Bar X,Y To X+W,Y+H
+          Rem <this would normally call your collision detection routine>
+          Bob Draw
+          Screen swap : Wait Vbl
+        Loop
+
+But since there's no relationship between the physical and logical
+screens, the display will now flick continuously from screen to screen.
+To overcome this problem, you'll need to mimic the original AUTOBACK
+system. Replace the lines in the previous example between the lines
+Do and Loop  as follows:
+
+          Rem Update first screen
+          Screen Swap : Wait Vbl
+          Bob Clear
+          X=Rnd(320)+1 : Y=Rnd(200)+1 : W=Rnd(80)+1
+          H=Rnd(50)+1 : I=Rnd(15)
+          Ink I : Bar X,Y To X+W,Y+H
+          Bob Draw
+          Rem Update second screen
+          Screen Swap : Wait Vbl
+          Bob Clear
+          Ink I : Bar X,Y To X+W,Y+H
+          Bob Draw
+
+The two screens are now updated with exactly the same information, and     161
+the display remains as steady as a rock, even though there's a great
+deal of activity going on in the background.
+
+  Autoback can be safely used at any point in your program. So it's
+perfectly possible to use separate drawing methods for the different
+parts of your screen. It's also totally compatible with all graphics
+operations including Blocks, Icons, and Windowing.
+
+
+Bob Control commands
+====================
+
+
+                   BOB UPDATE (control bob movements
+
+BOB UPDATE [ON/OFF]
+
+Normally all bobs are updated once every 50th of a second using a
+built-int interrupt routine. Alhouth this is convenient for most
+programs, there are some applications which require much finer control
+over the redrawing process.
+
+  BOB UPDATE OFF turns off the bob updates and deactivates all
+automatic screen switching operations if they've been selected. You may
+now redraw your bobs at the most appropriate point in your program
+using the BOB UPDATE command. This is ideal when you are animating a
+large number of objects as it enables you to move your bobs into
+position before drawing them on the screen. Inevitably this results in
+far smoother movements in your game.
+
+  One word of warning: The bob updates will only occur at the NEXT
+vertical blank. Also note that BOB UPDATE will always redraw the bobs
+on the current logical screen, so if you forget to use the SCREEN SWAP
+command, nothing will apparently happen.
+
+
+
+            BOB CLEAR (remove all the bobs from the screen)
+
+BOB CLEAR
+
+Removes all active bobs from the screen, and redraws the background
+regions underneath. It's inteded for use with BOB DRAW to provide an
+alternative to the standard BOB UPDATE command
+
+
+
+                        BOB DRAW (redraw bobs)
+
+BOB DRAW
+
+Whenever the bobs are redrawn on the screen, the following steps are
+automatically performed:
+
+ 1. All active bobs are removed from the LOGICAL screen and the
+    background regions are replaced. This step is performed by BOB
+    CLEAR.
+ 2. A list is made of all bobs which have moved since the previous
+    update.
+ 3. The background regions under the new screen coordinates are saved
+    in memory.
+ 4. All active bobs are redrawn at their new positions on the logical      162
+    screen
+ 5. If the DOUBLE BUFFER feature has been activated, the physical
+    and logical screens are now swapped
+
+The BOB DRAW command performs steps 2 to 4 of this process directly.
+Supposing you wished to create a screen scrolling arcade game. In this
+situation, it would be absolutely vital for your scrolling operations
+to be perfectly synchronized with movement effects. If the aliens were
+to move while the scrolling was taking place, their background areas
+would be redrawn at the wrong place. This would totally corrupt your
+display, and would result in a hopeless jumble on the screen. Load
+EXAMPLE 12.5 for a demonstration of this process.
+
+
+
+                   =X BOB (get X coordinate of bob)
+
+x1=X BOB(n)
+
+Returns the current X coordinate of bob number n. This coordinate is
+measured relative to the current screen. See also Y SPRITE, X MOUSE and
+Y MOUSE.
+
+
+
+                   =Y BOB (get Y coordinate of bob)
+
+y1=Y BOB(n)
+
+Y BOB complements the X BOB command by returning the Y coordinate of
+bob number n. This value will be returned using normal screen
+coordinates.
+
+
+
+                 =I BOB (return current image of bob)
+
+Image=U BOB(n)
+
+This function returns the current image number being used by bob n. A
+value of zero will be reported if the bob isn't displayed.
+
+
+
+                LIMIT BOB (limit a bob to a rectangular
+                         region of the screen)
+
+LIMIT BOB [n,] x1,y1 TO x2,y2
+
+This command restricts the visibility of your bobs to a rectangular
+screen area enclosed by the coordinates x1,y1 to x2,y2. The x
+coordinates are rounded up to the nearest 16-pixel boundary. Note that
+the width of this region must always be greater than the width of your
+bobs, otherwise you'll get an "illegal function call" error.
+
+  If it's included, n specifies the number of a single bob which is to
+be affected by this instruction, otherwise *all* bobs will be
+restricted. You can restore the visibility limit to the entire entire
+screen by typing:
+
+        LIMIT BOB
+
+
+
+                 GET BOB (load a section of the screen                     163
+                         into the sprite bank)
+
+GET BOB [s,] i,x1,y1 TO x2,y2
+
+This instruction is identical to the GET SPRITE command. It grabs an
+image into the sprite bank from the current screen.
+
+  x1,y1 to x2,y2 are the coordinates of the top and bottom corners of
+the rectangular area to be grabbed.
+
+  i specifies the image number which is to be loaded with this area. s
+selects an optional screen number from which the image is to be taken.
+See GET SPRITE for more details. See also EXAMPLE 12.6.
+
+
+
+             PUT BOB (fix a xopy of a bob onto the screen)
+
+PUT BOB n
+
+This is the exact opposite of the previous GET BOB command. The action
+of PUT BOB is to place a copy of bob number n at its present position
+on the screen. It works by preventing the background underneath the bob
+from being redrawn during the next vertical blank period. In order to
+synchronise the bob updates with the screen display, you should always
+follow this command with a WAIT VBL instruction.
+
+  Note that after this instruction has been performed, the original bob
+may be moved or animated with no ill efects.
+
+
+
+               PASTE BOB (draw an image from the sprite
+                          bank on the screen)
+
+PASTE BOB x,y,i
+
+The PASTE BOB command draws a copy of image number i at *screen*
+coordinates x,y. Unlike PUT BOB this image is drawn on the screen
+immediately, and all the normal clipping rules are obeyed. See PASTE
+ICON.
+
+
+                BOB OFF (remove a bob from the display)
+
+BOB OFF [n]
+
+Occasinoally, you may wish to remove certain bobs from the screen
+altogether. The BOB OFF command erases bob number n from the screen and
+terminates any associated animations. If n is omitted, all bobs will be    164
+removed by this instruction.
+
+
+
+
+
+                          13: OBJECT CONTROL                               165
+                      ---------------------------
+In this section you will find out how the various objects generated
+using the sprite and bob commands can be controlled from within an AMOS
+Basic program. The topics under discussion include collision detection,
+using the mouse cursor and reading the joystick.
+
+
+The mouse pointer
+=================
+The mouse cursor provides the games programmer with a valuable
+alternative to the standard joystick. With the CHANGE MOUSE command you
+can replace the mouse with an image in the current sprite bank. There's
+also a group of instructions which allow you to determine both the
+position and status of this mouse at any time. These include the
+X MOUSE, Y MOUSE and MOUSE KEY instructions.
+
+
+
+              HIDE (remove mouse pointer from the screen)
+
+HIDE [ON]
+
+This command removes the mouse pointer from the screen completely. A
+count of the number of occasions you have called this function is kept
+internally by the system. This needs to be matched by an equal number
+of SHOW instructions before the pointer will be returned on the screen.
+
+  There's also another version of this instruction which can be
+accessed with HIDE ON. This ignores the count and *always* hides the
+mouse, no matter how many times you've called the SHOW command.
+
+  Note that HIDE only makes the mouse pointer invisible. It has no
+effect on any other AMOS commands, so you can still use X MOUSE and
+Y MOUSE functions to read the coordinates of the mouse as normal.
+
+
+
+                   SHOW (activate the mouse pointer)
+
+SHOW [ON]
+
+This returns the mouse pointer to the screen after a HIDE instruction.
+Works the same way that HIDE does.
+
+
+
+                   CHANGE MOUSE (change the shape of
+                          the mouse pointer)
+
+CHANGE MOUSE m
+
+This allows you to change the shape of the mouse at any time. Three
+mouse patterns are provided as standard. These can be assigned using
+the numbers 1-3.
+
+If you specify a value m greater than 3, this is assumed to refer to an    166
+image stored in the sprite bank. The number of this image is determined
+using the expression I=m-3. So image number 1 would be installed by a
+value of 4.
+
+  In order to use this option, your sprite image must be exactly 16
+pixels wide and have no more than four colours. However there's no such
+limit to the height of your image.
+
+
+
+               =MOUSE KEY (read status of mouse buttons)
+
+k=MOUSE KEY
+
+Enables you to quickly check whether one or more of the mouse keys have
+been pressed. It returns a bit-pattern which holds the current status
+of the mouse buttons.
+
+        Bit 0   Set to 1 if the LEFT   button pressed, otherwise zero.
+        Bit 1   Set to 1 if the RIGHT  button pressed, otherwise zero.
+        Bit 2   Set to 1 if the MIDDLE button pressed (if available).
+
+
+
+                =MOUSE CLICK (check for a mouse click)
+
+c=MOUSE CLICK
+
+Checks wheter the user has "clicked" on a mouse button. Uses the same
+bit pattern indication as =MOUSE KEY.
+
+One shot tests are only set to 1 when the mouse key has just been
+pressed. These bits are automatically reset to zero after they've been
+tested once. So they will only check for a single key press at a time.
+
+
+
+       =XMOUSE= (get/set the X coordinate of the mouse pointer)            167
+
+x1=X MOUSE
+
+X MOUSE returns the current X coordinate of the mouse pointer in
+hardware notation. You can also use this function to move the mouse on
+to a specific screen position. This can be achieved by assigning X
+MOUSE with a value, just like a Basic variable, for example:
+
+        X MOUSE=150
+
+
+
+       =YMOUSE= (get/set the Y coordinate of the mouse pointer)
+
+y1=Y MOUSE
+
+Returns the Y coordinate of the mouse pointer. This can also be used to
+set the Y position of the mouse pointer the same way as using X MOUSE.
+See EXAMPLE 13.1 for an example of the X MOUSE and Y MOUSE.
+
+
+
+                 LIMIT MOUSE (limit mouse to a section
+                            of the screen)
+
+LIMIT MOUSE x1,y1 TO x2,y2
+
+Restricts mouse movements to the rectangular area defined by the
+hardware coordinates (x1,y1) and (x2,y2). Note that unlike LIMIT BOB,
+the mouse is completely trapped inside this zone and cannot be moved
+beyond it. Simply use this instruction with no parameters to restore
+the mouse to the full screen area.
+
+        LIMIT MOUSE
+
+See also EXAMPLE 13.2 from the manual folder for a demonstration.
+
+
+Reading the joystick
+====================
+AMOS Basic includes six functions which allow you to immediately check
+the movements of a joystick insterted in either of the available
+sockets.
+
+
+
+                         =JOY (read joystick)                              168
+
+d=JOY(j)
+
+This function returns a binary number which represnts the current
+status of a joystick in port number j. Normally your joystick will be
+placed in the left socket (number 1). However you can remove the mouse
+from the right-hand socket and replace it with a joystick. This can be
+accessed using port # 0.
+
+  The state of the joystick can be read by inspecting the pattern of
+binary bits in the result. Each bit indicates whether a specific action
+has been performed by the user. If a bit is set to one then the test
+has proved positive and the joystick has been moved in the appropriate
+direction. Here's a list of the various bits and their meanings:
+
+        Bit Number   Significance
+        ----------   ------------
+            0        Joy moved up
+            1            "     down
+            2            "     left
+            3            "     right
+            4        Fire button pressed
+
+See EXAMPLE 13.3
+
+You can also use the following commands, if you are not familiar with
+this binary notation:
+
+
+
+                =JLEFT(j) (test joystick movement left)
+               =JRIGHT(j) (test joystick movement right)
+                  =JUP(j) (test joystick movement up)
+                =JDOWN(j) (test joystick movement down)                    169
+
+x=JLEFT(j)
+x=JRIGHT(j)    These functions return a value of -1(true) if the
+x=JUP(j)       joystick in port j has been pulled to the associated
+x=JDOWN(j)     direction. Value 0 is reported, if the condition is
+               false (joystick hasn't been moved to the asked
+               direction).
+
+
+Detecting collisions
+====================
+If you're writing an arcade game it's vital to be able to accurately
+check for collisions between the various objects on the screen. AMOS
+Basic includes five powerful functions which allow you to perform these
+tests quickly and easily.
+
+
+Detecting collisions with a sprite
+----------------------------------
+
+
+                 SPRITE COL (detect collisions between
+                         two hardware sprites)
+
+c=SPRITE COL (n [,s TO e])
+
+This provides you with a simple way of testing to see whether two or
+more sprites have collided on the screen. The number n refers to an
+active hardware sprite which is to be clicked for a collision. If a
+collision has occurred a value of -1(true) will be returned, otherwise
+the result will be set to 0 (false).
+
+  The standard from of this function checks for all collisions. But you
+can also test a whole group of sprites using an extended version of the
+command:
+
+        c=SPRITE COL n,s TO e
+
+The above instruction checks for collisions between sprite n and
+sprites s to e (inclusive). Once you've detected a collision, you can
+then get the individual sprite numbers which have vollided using the
+COL function.
+
+  NOTE that in order to use this function, you'll need to create a
+sprite mask with the MASK command first, otherwise your collisions will
+not be detected. A detailed example of this command can be found in
+EXAMPLE 13.4.
+
+
+Detecting collisions with a bob                                            170
+-------------------------------
+
+
+                  BOB COL (detect collisions between
+                         two blitter objects)
+
+c=BOB(n, [,s TO e])
+
+The BOB COL function checks bob number n for a collision with another
+bob. If a collision has been detected, the value returned in c will be
+set to -1 (true), otherwise it will be 0.
+
+  Normally the command will check for all collisions, but you can
+specify a collection of bobs to be tested using the optional range
+parameters s to e. The status of these bobs can be individually
+examined with the COL command. See EXAMPLE 13.5.
+
+
+Collisions between bobs and sprites
+-----------------------------------
+
+
+              SPRITEBOB COL (test for a collision between
+                           sprites and bobs)
+
+c=SPRITEBOB COL(n [,s TO e])
+
+This function checks for a collision between SPRITE n ane one or more
+BOBS. The value of c will be either -1 if a collision has been
+discovered, or 0 if there have been no collisions. The starting and
+ending points specify that collisions will only be detected between the
+bobs s to e. If they are not included then all active bobs will be
+tested by this instruction.
+
+  WARNING! Collision detection between a sprite and a bob is only
+possible on a low resolution screen. In HiRes mode, the pixel sizes
+used for bobs and sprites are totally different, and the results from
+this function will be unreliable.
+
+
+
+              BOBSPRITE COL (test for a collision between
+                           bobs and sprites)
+
+c=BOBSPRITE COL(n, [,s TO e])
+
+The BOB SPRITE COL function checks for collisions between a single bob
+and several sprites. The results and usage of this instruction are
+same as in the SPRITEBOB COL. See EXAMPLE 13.6.
+
+
+
+                 =COL (test the status of a sprite or
+              bob after a collision detection intruction)
+
+c=COL(n)
+
+The COL array holds the status of all the objects which have been
+previously tested by the collision detection functions.
+
+  Each object you have checked is associated with one element in this
+array. This element will be loaded with -1 if a collision has been
+detected with object number n, or 0 if it has not. The numbering system
+is simple: The first element in the array holds the status of object
+number 1, the second represents object number 2, and so on. See EXAMPLE
+13.7.
+
+  If you are using the SPRITE COL or BOBSPRITE COL instructions then
+the objects will be hardware sprites, otherwise they will be bobs. In
+order to avoid confusion, it's sensible to call this instructoin
+immediatly after the relevant detection command.
+
+
+
+                HOT SPOT (set the hot spot for an image                    171
+                          in the sprite bank)
+
+HOT SPOT image,x,y
+HOT SPOT image,p
+
+This command sets the hot spot of an image stored in the current sprite
+bank. The hot spot of the object is used as a reference point for all
+coordinate calculations. There are two versions of this instruction.
+
+        HOT SPOT image,x,y
+
+x and y coordinates measured from the top left corner of the image.
+These coordinates will be added to the sprite bank or bob coordinate to
+position an object precisely on the screen.
+
+              Sprite image
+              +----------+        Note that it's perfectly
+              :          :        lefal for the hot spot
+              : x        :        to lie outside the
+              :<-->*     :        actual image.
+              :  hot spot:
+              +----------+
+
+        HOT SPOT image,p
+
+This is a short form of the instruction which moves the hot spot to one
+of nine predefined positions. The positions are shown in the diagram
+below where the centre point of the image is represent by a value of       172
+$11.
+
+        $00     $10     $20
+        $01     $11     $21        See EXAMPLE 13.8.
+        $02     $12     $22
+
+
+
+                        MAKE MASK (make a mask
+               around an image for collision detection)
+
+MAKE MASK [n]
+
+Defines a mask around image number n in the sprite bank. This is used
+by all the AMOS Basic collision detection commands. You should
+therefore create a mask for every object you wish to check. If you omit
+the image number n, then a mask will be generated for each image in the
+sprite bank. This may take a little time.
+
+  It's important to note that masks are generated automatically when a
+bob is first drawn on the screen. This might cause a significant delay
+in the running of your program, so it's worthwhile placing an explicit
+call to MAKE MASK during your initialisation procedure.
+
+
+Collisions with rectangular blocks
+----------------------------------
+AMOS Basic includes a number of functions which allow you to quickly
+check whether a sprite or bob has entered a rectangular region of the
+screen.
+
+  These screen zones are especially useful for collision detection in
+rebound games such as Arkanoid as each block can be assignet its own
+individual screen zone. You can also use zones to construct the buttons
+and switches needed for control panels and dialogue boxes.
+
+
+
+           RESERVE ZONE (reserve space for a detection zone)
+
+RESERVE ZONE [n]
+
+RESERVE ZONE allocates enough memory for exactly n detection zones.
+This command should always be used before defining a zone with SET
+ZONE.
+
+  The only limit to the number of zones is the amount of available
+memory, so it's perfectly feasible to define hundreds or even thousands
+of zones in one of your programs. To erase the current zone definitions
+and restore the memory back to the main program, simply type
+
+        RESERVE ZONE    with no parameters.
+
+
+
+                   SET ZONE (set a zone for testing)
+
+SET ZONE z,x1,y1 TO x2,y2
+
+Defines a rectangular zone which can be subsequently tested using the
+various ZONE commands. z specifies the number of the zone to be created
+and x1,y1 and x2,y2 input the coordinates of the top left and bottom
+right hand corners of the rectangle.
+
+  Before using this instruction you'll need to reserve some space for
+your zones with RESERVE ZONE.
+
+
+
+                   =ZONE (return the zone under the                        173
+                   the requested screen coordinates)
+
+t=ZONE([s],x,y)
+
+ZONE returns the number of the screen zone at the graphic coordinates
+x,y. Normally the coordinates are relative to the current screen - you
+can also include an optional screen number s in this function.
+
+  After ZONE has been called, t will hold either the number of the zone
+at the specified coordinates or a value of 0 (false).
+
+  Note that ZONE only returns the first zone at these coordinates - it
+won't detect any other zones which lie inside this region.
+
+  It is possible to use this function in conjunction with X BOB and
+Y BOB functions to detect whether a bob has entered a specific screen
+zone. This can be accomplished using the following code:
+
+        X=Zone(X bob(n),Y Bob(n))
+
+See Examples 13.9 and 13.10.
+
+
+
+                   =HZONE (return the zone under the
+                    requested hardware coordinates)
+
+t=HZONE([s],x,y)
+
+HZONE is almost identical to ZONE except that the screen position is
+now measured in hardware coordinates. You can therefore use this
+function to detect when a hardware sprite enters one of your screen
+zones. For example:
+
+        X=Hzone(X Sprite(n),Y Sprite(n))
+
+See also EXAMPLE 13.11, and ZONE, MOUSE ZONE, SET ZONE and ZONE$
+
+
+
+              =MOUSE ZONE (check wheter the mouse pointer
+                          has entered a zone)
+
+x=MOUSE ZONE
+
+The MOUSE ZONE function returns the number of the screen zone currently
+occupied by the mouse pointer. It's equibalent to the line:
+
+        X=Hzone(X mouse,Y mouse)
+
+
+
+                       RESET ZONE (erase a zone)                           174
+
+RESET ZONE [z]
+
+This command permanently deactivats any of the zones created by SET
+ZONE. If the optional zone number z is included then only this zone
+will be reset, otherwise all the zones will be affected. Note that
+RESET ZONE only erases the zone definitions, it does not return the
+memory allocated by RESERVE ZONE.
+
+
+Bob priority
+============
+
+
+            PRIORITY ON/OFF (change between priority modes)
+
+PRIORITY ON/OFF
+
+Each bob is assigned a priority value ranging from 0-63. Amos basic
+uses this number to decide which order the objects should be displayed
+on the screen. As a rule, any bob with the highest priority will always
+be displayed in front if any objects with a lower priority. The
+priority value is taken directly from the number of a Bob.
+
+  You should remember this fact when assigning numbers to your bobs.
+The choise of number can have wide ranging effects on the appearance of
+your objects on the screen.
+
+  In addition to the standard system, it's also possible to arrange the
+bobs according to their position on the screen. PRIORITY ON assigns the
+greatest priority values to the bobs with the highest Y coordinates.
+This allows you to create a useful illusion of perspective in your
+games. Look at the example below:
+
+        Load "AMOS_DATA/Sprites/Monkey_right.abk" : Cls : Flash Off
+        Get Sprite Palette
+        Priority Off : Rem Set normal mode
+        Bob 1,160,100,2 : Bob 2,0,72,2 : Bob 3,320,128,2
+        Channel 2 To Bob 2 : Channel 3 to Bob 3
+        Amal 2," Loop: M 320,0,320 ; M -320,0,320 ; Jump Loop"
+        Amal 3," Loop: M -320,0,320 ; M 320,0,320 ; Jump Loop"
+        Amal On
+        Wait Key
+        Priority On : Rem Set Y mode
+        Wait Key
+
+Normally, both moving bobs pass below the object in the centre. When
+you change the priority system with a call to PRIORITY ON, the bobs are
+now ranked in order of their increasing Y coordinates. So bob three
+moves aboce bob one while at the same time, bob two passes smoothly
+behind it.
+
+  HINT: It's usually best to position the Hot Spot of the sprite at its
+base. This is because the Y coordinates used by this command relate to
+the position of the Hot Spot on the screen. Also notice that the
+PRIORITY OFF instruction can be utilised to reset the priority back to
+normal.
+
+
+Miscellaneous commands                                                     175
+======================
+
+
+             UPDATE (change automatic sprite/bob updates)
+
+UPDATE [ON/OFF]
+
+Normally any objects you draw on the screen will be automatically
+redisplayed whenever they are animated or moved. This feature can be
+temporarily halted using the UPDATE OFF command. When the updates are
+not active the SPRITE, BOB and AMAL commands apparently have no effect.
+Actually, all your animations are working correctly - it's just that
+the results are not being displayed on the screen. You can force this
+redrawing operation at any time using the UPDATE command. Here are the
+three different forms of the UPDATE instruction.
+
+        UPDATE OFF
+
+Turns of the automatic updating.
+
+        UPDATE
+
+Redraws any sprites which have changed their original positions
+
+        UPDATE ON
+
+Returns the sprite updating to normal. See EXAMPLE 13.12.
+
+14: AMAL                                    1
+If you wish to generate the smooth movement required in an arcade game,
+it's necessary to move each object on the screen dozens of times a
+second. This is a real struggle even in machine code and it's way
+beyond the abilities of the fastest version of Basic.
+
+  AMOS sidesteps this problem by incorporating a powerful animation
+language which is executed independently of your Basic programs. This
+is capable of generating high speed animation effects which would be
+impossible in standard Basic.
+
+  The (AM)os (A)nimation (L)anguage (AMAL) is unique to AMOS Basic. In
+can be used to animate anything from a sprite to an entire scren at
+incredible speed. Up to 16 AMAL programs can be executed simultaneously
+using interrupts.
+
+  Each program controls the movements of a single object on the screen.
+Objects may be moved in complex predefined attack patterns, created
+from a separate editor accessory. You can also control your objects
+directly from the mouse or joystick if required.
+
+  The sheer versatility of the AMAL system has to be seen to be
+believed.
+
+
+AMAL principles
+===============
+AMAL is effectively just a simple version of Basic which has been
+carefully optimised for the maximum possible speed. As with Basic,
+there are instructions for program control (Jump), making decisions
+(If) and repeating sections of code in loops (For...Next). The real
+punch comes when AMAL program is run. Not only are the commands
+lightning fast but all AMAL programs are *compiled* before run-time.
+
+  AMAL commands are entered using short keywords consisting of one or
+more capital letters. Anything in lowercase is ignored completely. This
+allows you to pad out your AMAL instructions into something more
+readable. So the M command might be entered as Move or the L
+instruction as Let.
+
+  AMAL instructions can be separated by parctically any unused
+characters including spaces. You can't however, use the colon ":" for
+this purpose, as it's needed to define a label. We advise you to use a
+semi-colon ";" to separate commands to avoid possible AMAL headaches.
+
+  There are two ways of creating your AMAL programs. The first is to
+produce your animation sequences with the AMAL accessory program and
+save them into a memory bank or you can define your animations inside
+AMOS Basic using the AMAL command. The general format of this function
+is:
+
+        AMAL n,a$
+
+"n" is the identification number of your new AMAL program. As a default
+all programs are assigned to the relevant hardware sprite. So the first
+AMAL program controls sprite number one, the second sprite number two,
+and so on. You can change this selection at any time using a separate
+CHANNEL command. a$ is a string containing a list of AMAL instructions
+to be performed in your program. Here's a simple example:
+
+        Load "AMOS_DATA:Sprites/Monkey_right.abk"
+        Get Sprite Palette
+        Sprite 8,130,50,1                                                  177
+        Amal 8,"S: M 300,200,100 ; M -300,200,100 J S"
+        Amal On 8 : Rem Activate AMAL program number eight
+        Direct
+
+The program returns you straight back to direct mode with the DIRECT
+command. Try typing a few Basic commands at this point. You can see the
+movement pattern continues regardless, without interfering with the
+rest of the AMOS system. Also note we have used sprite 8 to force the
+use of a computed sprite. All computed sprites from 8 to 15 are
+automatically assigned to the equivalent channel number by the AMAL
+system. So there's no need for any special initialisation procedures.
+Unless you wish to restrict the amount of hardware sprites it's safest
+to stick to just computed sprites in your programs. Notice how we've
+activated the AMAL program using the AMAL ON command. This has the
+format:
+
+        AMAL ON [prog]
+
+"prog" is the number of a single AMAL program. If it's omitted, then
+*all* your AMAL programs will be executed at once!
+
+
+AMAL tutorial
+=============
+We'll now provide you with a guided tour of the AMAL system. This
+allows you to slowly familiarise yourself with the mechanics of AMAL
+programs, without having to worry about too many technical details.
+
+  For the time being we'll be concentrating on sprite movements, but
+the same principles can also be applied to bob or screen animations.
+
+  Start off by loading some examples into memory. These can be found in
+in the SPRITES folder on the AMOS data disc. To get a directory of
+Sprite files type the following from the direct windows:
+
+        Dir "AMOS_DATA:"
+
+To load a sprite file, type a line like:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk"
+
+
+Moving an object
+----------------
+As you would expect from a dedicated animation language, AMAL allows
+you to move your objects in a variety of different ways. The simplest
+of these involves the use of the Move command.
+
+
+
+                          Move (move object)
+                          -
+M w,h,n
+
+The M command moves an object  w units to the right and h units down in
+exactly n movement steps. If the coordinates of your subject were
+(X,Y), then the object would progressively move to X+W,Y+H.
+
+  Supposing you have a sprite at coordinates 100,100. The instruction
+M 100,100,100  would move it to 200,200. The speed of this motion          178
+depends on the number of movement steps. If n is large then each
+individual sprite movement will be small and the sprite will move very
+slowly. Conversely, a small value for n results in a large movement
+steps which jerk the sprite across the screen at high speed. Here are
+some examples of the Move command.
+
+        Rem This moves an octopus down the screen using AMAL
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Sprite 8,300,0,1
+        Amal 8,"M 0,250,50" : Amal On 8 : Wait Key
+
+        Rem Moves octopus down and across the screen
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Sprite 10,150,150,1
+        Amal 10,"M 300,-100,50" : Amal On 10 : Wait Key
+
+        Rem Demonstrates multiple Move commands.
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        M$="Move 300,0,50 ; Move -300,0,50"
+        Sprite 11,150,150,1
+        Amal 11,M$ : Amal On 11 : Wait Key
+
+Notice how we've expanded M to Move in above program. Since the letters
+"ove" are in lower case, they will be ignored by the AMAL system.
+
+  At first glance, Move is a powerful but unexciting little
+instruction. It's ideal for moving objects such as missiles, but
+otherwise it's pretty uninspiring.
+
+  Actually nothing could be further from the truth. That's because the
+parameters in the move instruction are not limited to simple numbers.
+You can also use complex arithmetical expressions incorporating one of
+a variety of useful AMAL functions. Example:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Sprite 12,150,150,1 : Amal 12,"Move XM-X,YM-Y,32"
+        Amal On 12 : Wait Key
+
+This smoothly moves computed sprite 12 to the current mouse position. X
+and Y hold the coordinates of your sprite, and XM and YM are functions
+returning the current coordinates of the mouse.
+
+        It's possible to exploit this effect in games like Pac-Man to
+make your objects chase the player's character. Example:
+
+        Load Iff "AMOS_DATA:IFF/Frog_Screen.IFF",1
+        Channel 1 To Screen Display 1                                      179
+        Amal 1,"Move 0,-200,50 ; Move 0,200,50"
+        Amal On 1 : Direct
+
+Channel assigns an AMOS program to a particular object. We'll be
+discussing this command in detail slightly later, but the basic format
+is:
+
+        CHANNEL p TO object n
+
+"p" is the number of your AMAL program. Allowable values range from 0
+to 63, although only the first 16 of these programs can be performed
+using interrupts.
+
+  "object" specifies the type of object you with to control with your
+AMAL program. This is indicated using one of the following statements:
+
+        Sprite          (values >7 refer to computed sprites)
+        Bob             (blitter object)
+        Screen Display  (used to move the screen display)
+        Screen Offset   (Hardware scrolling)
+        Screen Size     (Changes the screen size using interrupts)
+        Rainbow         (Animates a rainbow effect)
+
+"n" is the number of the object to be animated. This object needs to be
+subsequently defined using the SPRITE, BOB or SCREEN open instructions.
+
+
+Animation
+---------
+
+
+                       Anim (animate an object)
+                       -
+A n,(image,delay)(image,delay)...
+
+The Anim instruction cycles an object through a sequence of images,
+producing a smotth animation effect. "n" is the number of times the
+animation cycle is to be repeated. A value of zero for this parameter
+will perform the animation continuously.
+
+  "image" sprcifies the number of an image to be used for each frame of
+your animation. "delay" determines the length of time this image is to
+be displayed on the screen, measured in units of a 50th of a second.
+Example:
+
+        Load "AMOS_DATA:Sprites/Monkey_right.abk" : Get Sprite Palette
+        Sprite 9,150,50,11
+        M$="Anim 12, (1,4)(2,4)(3,4)(4,4)(5,4)(6,4) ;"                     180
+        M$=M$+"Move 300,150,150 ; Move -300,-150,75"
+        Amal 9,M$
+        Amal On 9
+        Direct
+
+This program combines a sprite movement with an animation. Notice how
+we've separated the commands with a semi-colon. This ensures that the
+two operations are totally independent of each other. Once the
+animation sequence has been defined, AMAL will immediatly jump to the
+next instruction, and the animation will begin.
+
+  It's important to realize that Anim only works in conjunction with
+sprites and bobs. So it's not possible to animate entire screen with
+this command.
+
+
+Simple Loops
+------------
+
+
+                   Jump (redirects an AMAL program)
+                   -
+J label
+
+Jump provides a simple way of moving from one part of an AMAL program
+to another. "label" is the target of your jump, and must have been
+defined elsewhere in your current program. All AMAL labels are defined
+using a single uppercase followed by a colon. like instructions, you
+can pad them out with lower case to improve readability.
+
+  Remember that each label is deinfed using just a *single* letter. So
+"S:" and "Swoop:" refer to the same label! If you attempt to define two
+labels starting with an identical letter, you'll be presented with a
+"label already defined in animation string" error.
+
+        Each AMAL program can have its own unique set of labels. It's
+perfectly acceptable to use the identical labels in several different
+programs. Example:
+
+       Load "AMOS_DATA:Sprites/Octopus.abk"
+       Get Sprite Palette
+       For S=8 to 20 Step 2 : Rem Set up 7 computed sprites
+        Sprite S,200,(S-7)*13+40,1
+       Next S
+       Rem : Now let's create seven AMAL programs
+       For S=1 to 7
+        Channel S To Sprite 6+(S*2)
+        M$="Anim 0,(1,2)(2,2)(3,2)(4,2) ; Label: Move "+Str$(S*2)"+,0,7 ;"
+        Amal S,M$
+       Next S
+       Rem Okay, now animate it all!
+       Amal On : Direct
+
+Since AMAL commands are performed using interrupts, infinite lopos         181
+could be disasterous. So a special counter is automatically kept of the
+number of jumps in your program. When the counter exceeds ten, any
+further jumps will be totally ignored by the AMAL system.
+
+  NOTE: if you rely on this system, and allow your programs to loop
+continually, uou'll waste a great deal of the Amiga's computer power.
+In practice, it's much more effecient to limit yourself to just a
+single jump per VBL. This can be achieved by adding a simple PAUSE
+comand before each Jump in your program. See PAUSE for more details.
+
+
+Variables and expressions
+-------------------------
+
+
+                  Let (assigns a value to a register)
+                  -
+L register=expression
+
+The L instruction assigns a value to an AMAL register. The action is
+very similar to normal Basic, except that all expressions are evaluated
+strictly from left to right.
+
+  Registers are integer variables used to hold the intermediate values
+in your AMAL programs. Allowable numbers range between -32768 to +32768.
+There are three basic types of register:
+
+  Internal registers
+  - - - - - - - - -
+  Every AMAL program has its own set of 10 internal registers. The
+  names of these registers start with the letter R, followed by one of
+  the digits from 0 to 9 (R0-R9). Internal registers are like the local
+  variables inside an AMOS Basic procedure.
+
+  External registers
+  - - - - - - - - -
+  Ecternal registers are rather different because they retain their
+  values between separate AMAL programs. This allows you to use these
+  registers to pass information between several AMAL routines. AMAL
+  provides you with up to 26 external registers, with names ranging
+  from RA to RZ. The contents of any internal or external register can
+  be accessed directly from your Basic program using the AMREG function.
+
+  Special registers                                                        182
+  - - - - - - - - -
+  Special registers are a set of three values which determine the
+  status of your object. X,Y contain the coordinates of your object. By
+  changing these registers you can move your object around on the
+  screen. Example:
+
+        Load "AMOS_DATA:Sprites/Frog_Sprites.abk" : Channel 1 To Bob 1
+        Flash Off : Get Sprite Palette : Bob 1,0,0,1
+        Amal 1,"Loop: Let X=X+1 ; Let Y=Y+1; Pause; Jump Loop"
+        Amal On 1 : Direct
+
+"A" stores the number of the image which is displayed by a sprite or
+bob. You can alter this value to generate your own animation sequences
+like so:
+
+        Load "AMOS_DATA:Sprites/Frog_Sprites.abk" : Get Sprite Palette
+        Flash Off : Channel 2 To Bob 1 : Bob 1,300,100,1
+        M$="Loop: Let A=A+1 ; "
+        M$=M$+"For R0=1 To 5 ; Next R0 ; Jump Loop"
+        Amal 2,M$
+        Amal On 2 : Direct
+
+The For To Next lop will be explained in more detail below. It is used
+here to slow down each change to Bob 1's image. When the "Next" of the
+loop is executed, AMAL won't continue until a vertical blank has
+occurred. Also note the use of ";" to separate the AMAL instructions -
+although a space " " will serve just as well.
+
+
+Operators
+---------
+AMAL expressions can include all the normal arithmetic operations,
+except MOD. You can also use the following logical operatoins in your
+calculations:
+
+        &       Logical AND
+        |       Logical OR
+
+Note that it's not possible to change the order of evaluation using
+brackets "()" as this would slow down your calculations considerably
+and thus reduce the allowable time in the interrupt. Type the following
+example:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Hide
+        Get Sprite Palette
+        Sprite 8,X Mouse,Y Mouse,1
+        Amal 8,"Loop: Let X=XM ; Let Y=YM ; Pause ; Jump Loop"
+        Amal On 8
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Hide
+        Get Sprite Palette
+        Sprite 8,X Mouse,Y Mouse,1
+        Amal 8,"Anim 0,(1,4)(2,4)(3,4)(4,4) ; Loop: Let X=XM ; Let
+                                          Y=YM ; Pause ; Jump Loop"
+        Amal On
+
+The above examples effectively mimic the CHANGE MOUSE command. However
+this system is much more powerful as you can easily move bobs, computed
+sprites, or even screens using exactly the same technique.
+
+
+Making decisions                                                           183
+----------------
+
+
+                   If (branch within an AMAL string)
+
+If test Jump L
+
+This instruction allows you to perform simple tests in your AMAL
+programs. If the expression test is -1 (true) the program will jump to
+label L, otherwise AMAL will immediately progress to the next
+instruction. Note that unlike it's equivalent, you're limited to a
+single jump operation after the test.
+
+  It's common practice to pad out this instruction with lowercase
+commands like "then" or "else". This makes the action of the command
+rather more obvious. Here's an example:
+
+        If X>100 then Jump Label else Let X=X+1
+        -             -    -          -
+"test" can be any logical expression you like, and may include:
+
+        <>  Not equals
+        <   Less than
+        >   Greater than
+        =   Equals
+
+Example:
+
+        Load "AMOS_DATA:Sprits/Octopus.abk"
+        Get Sprite Palette
+        Sprite 8,130,50,1
+        C$="Main: If XM>100 Jump Test: "
+        C$=C$+"Let X=XM "
+        C$=C$+"Test: If YM>100 Jump Main "
+        C$=C$+"Let Y=YM Jump Main"
+        Amal 8,C$ : Amal On : Direct
+
+WARNING! Don't try to combine several tests into a single AMAL
+expression using "&" or "|". Since expressions are evaluated from left
+to right, this will generate an error. Take the expression:
+X>100|Y>100. This is intended to check whether X>100 OR Y>100. In
+practice, the expression will be evaluated in the following order:
+
+        X>100   May be TRUE or FALSE                                       184
+        |Y      OR result with Y
+        >100    Check if (Y>100|Y)>100)
+
+The result from the above expression will obviously be no relation to
+the expected value. Technically-minded users can avoid this problem by
+using boolean algebra. First assign each test to an single AMAL
+register like so:
+
+        Let R0=X>100; Let R1=Y>100
+
+Now combine these tests into a single expression using | and & and use
+it directly in your If statement.
+
+        If R0 | R1 Jump L ...
+
+This may look a little crazy, but it works beautifully in practice.
+
+
+                    For To Next (loop within AMAL)
+                    -   -  -
+For reg=start To end
+  :   :
+Next reg                      This implements a standard FOR...NEXT
+                              loop which is almost identical to its
+Basic equivalent. These loops can be exploited in your programs to move
+objects in complex visual patterns. "reg" may be any normal AMAL
+register (R0-R9 or RA-RZ). However you can't use special registers for
+this purpose.
+
+  As with Basic, the register after the Next must match with the
+counter you specified in the For, otherwise you'll get an AMAL syntax
+error. Also note that the step size is always set to one. Additionally,
+it's possible to "nest" any number of loops inside each other.
+
+  Note that each animation channel will only perform a single loop per
+VBL. This synchronizes the effects of your loops with the screen
+display, and avoids the need to add an explicit Pause command before
+each Next.
+
+
+Generating an attack wave for a game
+------------------------------------
+These lopos can be used to create some quite complex movement patterns.
+The easiest type of motion is in a straight line. This can be generated
+using a single For...Next loop like so:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Sprite 8,130,60,1
+        C$=For R0=1 To 320 ; Let X=X+1 ; Next R0" : Rem Move sprite
+        Amal 8,C$ : Amal On 8 : Direct
+
+You can now expand this program to sweep the object back and forth
+across the screen.
+
+        Load "AMOS_SATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Sprite 8,130,60,1
+        C$="Loop: For R0=1 To 320 ; Let X=X+1 ; Next R0 ;"                 185
+        C$=C$+" For R0=1 To 320 ; Let X=X-1 ; Next R0 ; Jump Loop"
+        Amal 8,C$ : Amal On 8 : Direct
+
+The first loop moves the object from left to right, and the second from
+right to left. So far the pattern has been restricted to just
+horizontal movements. In order to create a realistic attack wave, it's
+necessary to incorporate a vertical component to this motion as well.
+This can be achieved by enclosing your program with yet another loop.
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Sprite 8,130,60,1 : C$=For R1=0 To 10 ;"
+        C$=C$+"For R0=1 To 320 ; Let X=X+1 ; Next R0 ; "
+        C$=C$+"Let Y=Y+8 ; "
+        C$=C$+"For R0=1 To 320 ; Let X=X-1 ; Next R0 ; "
+        C$=C$+"Let Y=Y+8 ; Next R1"
+        Amal 8,C$ : Amal On 8
+
+The above programs generates a smooth but quite basic attack pattern. A
+further demonstration can be found in EXAMPLE 14.1 in the MANUAL
+folder.
+
+
+Recording a complex movement sequence
+-------------------------------------
+
+
+                                 PLay
+                                 --
+PLay path
+
+If you've looked at the smooth attack waves in a modern arcade game,
+and thought them forever beyond your reach, think again. The AMAL Play
+command allows you freely animate your objects through practically any
+sequence of movements you can imagine. It works by playing a previously
+defined movement pattern stored in the AMAL memory bank.
+
+  These patterns are created from the AMAL accessory on the AMOS
+program disc. This simply records a sequence of mouse movements and
+enters them directly into the amal memory bank. Once you've created
+your patterns in this way, you can effortlessly assign them to any
+object on the screen, reproducing your original patterns perfectly.
+Both the speed and direction of your movement can be changed at any
+time from your AMOS Basic program.
+
+  The first time AMAL encounters a Play command, it checks the AMAL
+bank to find the recorded movement you specified using the "path"
+parameter. "path" is simply a number ranging from one to the maximum
+number of patterns in the bank. If a problem crops up during this
+phase, AMAL will abort the play instruction completely, and will skip
+to the next instruction in your animation string.
+
+  After the pattern has been initialised, register R0 will be loaded
+with the tempo of the movement. This determines the time interval
+between each individual movement step. All timings are measured in
+units of a 50th of a second. By changing this register within your AMAL
+program, you can speed up or slow down your object movements
+accordingly.
+
+  Note that each movement step is *added* to the current coordinates of
+your object. So if an object is subsequently moved using the Sprite or
+Bob instructions, it will continue its manoeuvres unaffected, starting
+from the new screen position. It's therefore possible to animate dozens
+of different objects on the screen using a single sequence of
+movements.
+
+  Register R1 now contains the flag which sets the direction of your       186
+movements. There are three possible situations:
+
+    *  R1>0   Forward
+
+A value of one for R1 specifies that the movement pattern will be
+replayed from start to finish, in exactly the order it was created
+(this is the default).
+
+    *  R1=0   Backward
+
+Many animation sequences require your objects to move back and forth
+across the screen in a complex pattern. To change direction, simply
+load R1 with a zero. Your object will now turn around and execute your
+original movement steps in reverse.
+
+    *  R1=-1  Exit
+
+If a collision has been detected from your AMOS program, you'll need to
+stop your object completely, and generate an explosion effect. This can
+be accomplished by setting R1 to a value of minus one. AMAL will now
+abort the play instruction, and immediately jump to the next
+instruction in your animation sequence.
+
+  The clever thing about these registers is that they can be changed
+directly from AMOS Basic. This lets you control your movement patterns
+directly from within your main program. There's even a special AMPLAY
+instruction to make things easier for you.
+
+  The PLay comand is perfect for controlling the aliens in an arcade
+game. In fact, it's the single most powerful instruction in AMAL.
+
+
+
+                      AMAL (call an AMAL program)
+
+AMAL n,a$
+AMAL n,p
+AMAL n,a$ to address          The AMAL command assigns an AMAL program
+                              to an animation channel. This program can
+    be taken either from a string in a$ or directly from the AMAL bank.
+
+  The first version of the instruction loads your program from the
+string a$ and assigns it to channel n. a$ can contain any list of AMAL
+instructions. Alternatively you can load your program from a memory
+bank stored in bank number 4.
+
+  n is the number of an animation channel ranging from 0 to 63. Each
+AMOS channel can be independently assigned to either a bob, a sprite or
+a screen.
+
+  Only the first 16 AMAL programs can be performed using interrupts. In
+order to exceed this limit you need execute your programs directly from
+Basic using the SYNCHRO command.
+
+  The final version of the AMAL insturction is provided for advanced
+users. Instead of moving an actual object, this simply copies the
+contents of registers X,Y and A into a specific area of memory. You can
+now use this information directly in your own Basic routines. It's         187
+therefore possible to exploit the AMAL system to animate anything from
+a Block to a character. The format is:
+
+        AMAL n,a$ To address
+
+"address" must be EVEN and must point to safe region of memory,
+preferably in an AMOS string or a memory bank. Every time your AMAL
+program is executed (50 times per second), the following values will be
+written into this memory area:
+
+     Location     Effect
+     --------     ------
+     Address      Bit 0 is set to 1 if the X has changed
+                  Bit 1 indicates that Y has been altered
+                  Bit 2 will be set if the image (A) has changed since
+                        the last interrupt.
+     Address+2    Is a *word* containing the latest value of X
+     Address+4    Holds the current value of Y
+     Address+6    Stores the value of A
+
+These values can be accessed from your program using a simple DEEK.
+NOTE: This option totally overrides any previous CHANNEL assignments.
+
+
+AMAL commands
+=============
+Here is a full list of the available amal commands:
+
+M (Move)        Move deltaX, deltaY, steps
+A (Anim)        Anim cycles,(image,delay)(image,delay)...
+L (Let)         Let reg=exp                                                188
+J (Jump)        Jump L
+I (If)          If exp Jump L
+For To Next     For Reg=start To end ...Next Reg
+PL (PLay)       PLay path                                                  189
+P (Pause)       Pause
+
+AU (AUtotest)   AU (list of tests)             See the Autotest System     190
+
+X (eXit)        eXit          Exits from an AUtotest and re-enters the
+                              current AMAL program.
+
+W (Wait)        Wait          Freezes your AMAL program and only
+                              executes the AUtotest.
+
+O (On)          On            Activates the main program after a Wait.
+
+D (Direct)      Direct        Sets the section of the main program
+                              to be executed after an autotest.
+
+AMAL functions                                                             191
+==============
+
+=XM          Returns the X coordinate of the mouse
+=YM          Returns the Y coordinate of the mouse
+=K1          Status of left mouse key (-1, if pressed, otherwise 0)
+=K2          Status of right mouse key
+=J0          Test right joystick. Result in bit-map.
+=J1          Test left joystick. See the JOY command.
+
+=Z(n)        Random number. Returns a random number between -32767
+             to 32768. This number can be limited to a specific
+             range using the bit-mask n. A logical AND operation
+             is performed between the bit mask n and the random
+             number to generate the final result. So setting n to
+             a value of 255 will ensure that the numbers will be
+             returned in the range 0 to 255. Since this function has
+             been optimized for speed, the number returned isn't
+             totally random. If you need really random numbers, you
+             would be better to generate your values using Basic's
+             RND and then load them into an external AMAL register
+             with the AMREG function.
+
+=XH(s,x)     Converts a screen x coordinate into a hardware coordinate.    192
+=YH(s,y)     Converts a screen y coordinate into hardware format.
+=XS(s,x)     Hardware to screen conversion
+=YS(s,y)     Hardware to screen conversion
+
+=BC(n,s,e)   Check for collisions between bobs. BC is identical to the
+             equivalent AMOS Basic BOB COL instruction. It checks bob
+             number n for collisions between bobs s to e. If a
+             collision has been detected, then BC will return a value
+             of -1, otherwise 0. This instruction may NOT be performed
+             within an iterrupt. So it's only available when you are
+             executing your AMAL routines directly from Basic with the
+             SYNCHRO instruction.
+
+=SC(n,s,e)   This is equivalent to the SPRITE COL function. Like BC
+             function, it's only allows in conjuction with the SYNCHRO
+             instruction.
+
+=V(v)        VU-meter. The VU function samples one of the sound
+             channels and returns the intensity of the current voice.
+             This is a number in the range 0-255. You can use this
+             information to animate your objects in time to the music.
+             An example of this can be found in EXAMPLE 14.3. Also see
+             the VUMETER function from AMOS Basic
+
+
+Controlling AMAL from Basic                                                193
+===========================
+
+
+               AMAL ON/OFF (start/stop an AMAL program)
+
+AMAL ON [n]
+
+Once you've defined your AMAL program you need to execute it using the
+AMAL ON command. This activates the AMAL system and starts your
+programs from the first instruction.
+
+  AMAL ON activates all your programs. The optional parameter n allows
+you start just one routine at a time.
+
+        AMAL OFF [n]
+
+Stops one or all AMAL programs from executing. These programs are
+erased from meomry. They can only be restarted by redefining them again
+using the AMAL instruction.
+
+
+
+                    AMAL FREEZE (temporarily freeze
+                           an amal program)
+AMAL FREEZE [n]
+
+Stops one or more AMAL programs for running. Your programs can be
+restarted at any time using a simple call to AMAL ON. Note that this
+instruction should always be used to stop AMAL before a command such as
+DIR is executed, otherwise problems with timing can cause visual
+mishaps.
+
+
+
+                     =AMREG= (get the value of an
+                        external AMAL register)
+
+r=AMGER(n, [channel])
+AMREG(n, [channel])=expression
+
+The AMREG function allows you to access the contents of internal and
+external AMAL register directly from within your Basic program.
+
+  "n" is the number of the register. Possible values range from 0 to 25
+with zero representing register RA and twenty-five denoting RZ.
+
+  By using the optional "channel" parameter you can reference any AMAL
+internal register. In this mode "n" ranges between 0 and 9 representing
+R0 to R9.
+
+  The following examples shows how it is possible to retrieve a
+sprite's current X-position from Basic:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Channel 1 To Sprite 8 : Sprite 8,100,100,1
+        A$="Loop: Let RX=X+1; Let X=RX; Pause; Jump Loop"
+        Amal 1,A$ : Amal On : Curs Off
+        Do
+          Locate 0,0
+          Z=Asc("X")-65 : Rem Note the use of ASC to get the register #
+          Print Amreg(Asc("X")-65)
+        Loop
+
+
+
+                     AMPLAY (control an animation                          194
+                          produced with PLay)
+
+AMPLAY tempo,direction [start TO end])
+
+Any movement sequences you've produced using the AMAL PL command are
+controlled through the internal registers R0 and R1. Each object will
+be assigned it's own unique set of AMAL registers. So if you're
+animating several objects, you'll often need to load a number of these
+registers with exactly the same values.
+
+  Although this can be achieved using the standard AMREG function, it
+would obviously be much easier if there was a single instruction which
+allowed you to change R0 and R1 for a whole batch of objects at a time.
+That's the purpose of the AMPLAY command.
+
+  AMPLAY takes the "tempo" and "direction" of your movements, and loads
+them into the registers R0 and R1 in the selected channels.
+
+  "tempo" controls the speed of your object on the screen. It sets a
+delay (in 50ths of a second) between each successive movement step.
+
+  "direction" changes the direction of the motion. Here's a list of the
+various different options.:
+
+     Value Direction
+     ----- ---------
+      >0   Move the selected object in the original movement direction.
+       0   Reverses the motion and moves the object backwards
+      -1   Aborts movement pattern and jumps to the following
+           instruction in your AMAL animation sequence.
+
+As a default, this instruction will affect all current animation
+channels. This can be changed by adding some explicit "start" and "end"
+points to the command. "start" is the channel number of the first
+object to be adjusted. "end" holds the channel number assigned to the
+last object in your list. Note that either the "tempo" or the
+"direction" can be omitted as required. Examples:
+
+        Amplay ,0         : Rem reverse your objects
+        Amplay 2,         : Rem Slow down your movement patterns
+        Amplay ,-1 3 To 6 : Rem stop movements on channels 3,4,5 and 6.
+
+
+
+                     =CHANAN (test AMAL animation)                         195
+
+s=CHANAN(channel)
+
+This is a simple function which checks the status of an AMAL animation
+sequence and returns -1 (true) if it's currently active or 0 if the
+animation is complete. "channel" holds the number of the channel to be
+tested.
+
+
+
+                   =CHANMV (checks whether an object
+                           is still moving)
+s=CHANMV(channel)
+
+Returns a value of -1 if the object assigned to "channel" is currently
+moving, otherwise 0 (false).
+
+  This command can be used in conjunction with the AMAL Move
+instruction to check whether a movement sequence has "run out" of
+steps. You can now restart the sequence at the new position with an
+appropriate movement string if required. Example:
+
+        Load "AMOS_DATA:Sprites/Monkey_right.abk" : Get Sprite Palette
+        Sprite 9,150,50,11
+        M$=Move 300,150,150; Move -300,-150,75"
+        Amal 9,M$ : Amal On
+        While Chanmv(9)
+        Wend
+        Print "Movement complete"
+
+
+
+AMAL errors
+===========
+
+
+              =AMALERR (return the position of an error)
+
+p=AMALERR
+
+Returns the position in the current animation string where an error has
+occurred. Careful inspection of this string will allow you to quickly
+correct your mistakes. Example:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk"
+        Sprite 8,100,100,1
+        A$="L: IF X=300 then Jump L else X=X+1; Jump L"
+        Amal 8,A$
+
+This program will generate a syntax error because IF will be
+interpreted as the two instructions I and F. To find the position in
+the animation string of this error, type the following instruction from
+the direct window.
+
+        Print Mid$(A$,Amalerr,Amaller+5)
+
+
+Error messages                                                             196
+--------------
+If you make a mistake in one of your AMAL programs, AMOS will exit back
+to Basic with an appropriate error message. Here's a full list of the
+errors which can be generated by this system, along with an explanation
+of their most likely causes.
+
+ Bank not reserved: This error is caused if you attempt to call the
+                    PLay instruction without first loading a bank
+         containing the movement data into memory. This should be
+         created with the AMAL accessory program. If you're not using
+         PLay at all then check that you've correctly separated any
+         Pause and Let instructions.
+
+ Insturction only valid in Autotest: You've inadvertently called either
+                                     the Direct or the eXit
+         instructions from your main AMAL program.
+
+ Illegal instruction in Autotest: Autotest may only be used in
+                                  conjunction with a limited range of
+         AMAL commands. It's not possible to move or animate our
+         objects in any way inside an autotest. So check for erroneous
+         commands like Move, Anim or For...Next.
+
+ Jump To/Within Autotest in animation string: The commands inside an
+                                              autotest function are
+         completely separate from your main AMAL program. So AMAL does
+         not allow you to jump directly inside an AUtotest procedure.
+         To leave an autotest, and return to your main AMAL program you
+         must use either eXit or Direct.
+
+ Label already defined in animation string: You've attempted to define
+                                            the same label twice in
+         your AMAL program. All AMAL labels consist of just a single
+         CAPITAL letter. So "Test" and "Total" are just different
+         versions of the same label (T). This error is also generated
+         if you have accidentally separated two instructions by a ":"
+         (colon). Use a semi-colon instead.
+
+ Label not defined in animation string: This error is generated when
+                                        you try to jump to a label
+         which doesn't currently exist in your animation string.
+
+ Next without For in animation string: Like it's Basic equivalent each
+                                       For command should be matched
+         by a corresponding Next statement. Check any nested loops for
+         an spurious Next command.
+
+ Syntax error in animation string: You've made a typing mistake in one
+                                   of your animation strings. It's easy
+         to cause this error by accidentally entering an AMAL
+         instruction in full, just like its Basic equivalent.
+
+
+Animation channels                                                         197
+==================
+Amos allows you to execute up to 64 different AMAL programs
+simultaneously. Each program is assigned to a specific animation
+channel.
+
+  Only the first 16 channels can be performed using interrupts. If you
+need to animate more objects you'll have to turn off the interrupts
+using SYNCHRO OFF. You can now execute the AMAL programs step by step
+using an explicit call to the SYNCHRO command in yur main program loop.
+As a default, all interrupt channels are assigned to the relevant
+hardware sprite.
+
+
+
+             CHANNEL (assign an object to an AMAL channel)
+
+CHANNEL n TO object s
+
+The CHANNEL command assigns an animation channel to a particular screen
+related "object". In AMAL, you're not restricted to a single channel
+per object. Any single screen object can be safely animated with
+several channels if required. There are various different forms of this
+instruction.
+
+
+Animating a computed sprite
+---------------------------
+
+CHANNEL n TO SPRITE s
+
+This assigns sprite number s to channel n. As a default, channels 0-7
+are automatically allocated to the equivalent hardware sprite, and 8-15
+are reserved for the appropriate computed sprites.
+
+  In order to animate the computed sprites from 16 onwards, you'll need
+to allocate them directly to an animation channel with the CHANNEL
+command. As normal , sprite numbers from 8 to 63 specify a computed
+sprite rather than a single hardware sprite. For example;
+
+        Channel 5 To Sprite 8 : Rem Animates Computed sprite 8 using
+                                    Channel 5.
+
+The X,Y  registers in your AMAL program now refer to the hardware
+coordinates of the selected sprite. Similarly the current sprite image
+is held in register A.
+
+
+Animating a blitter object
+--------------------------
+
+CHANNEL n TO BOB b
+
+Allocates blitter object b to animation channel n. This object will be
+treated in an identical way to the equivalent hardware sprite. The only
+difference is that registers X and Y now contain the position of your
+bob in *screen* coordinates.
+
+  Note that if you've activated screen switching with the DOUBLE BUFFER
+command, this will be automatically used for all bob animations.
+
+
+Moving a screen                                                            198
+---------------
+AMOS Basic allows you to freely position the current screen anywhere on
+your TV display. Normally this is controlled with the SCREEN DISPLAY
+instruction. However, sometimes it's useful to be able to move the
+screen using interrupts.
+
+CHANNEL n TO SCREEN DISPLAY d
+
+This sets the channel n to screen number d. Screen d can be defined
+anywhere in your program. You'll only get an error if the screen hasn't
+been opened when you start your animation.
+
+  The X and Y variables in AMAL now hold the position of your screen in
+hardware coordinates. Register A is *not* used by this option and you
+can't animate screens using Anim. Otherwise all standard AMAL
+instructions can be performed as normal. So you can easily use this
+system to "bounce" the picture aroud the display. Examples:
+
+        Load Iff "AMOS_DATA:IFF/Frog_screen.IFF",1
+        Channel 0 To Screen Display 1
+        Amal 0,"Loop: Move 0,200,100 ; Move 0,-200,100 ; Jump Loop"
+        Amal On 0 : Direct
+
+        Load Iff "AMOS_DATA:IFF/Frog_screen.IFF",1
+        Channel 0 To Screen Display 1
+        Rem Screen can only be displayed at certain positions in the X
+        Amal 0,"Loop: Let X=XM; Let Y=YM; Pause; Jump Loop"
+        Amal On : Direct
+
+For a further example of this technique, load EXAMPLE 14.4. This
+demonstrates how the SCREEN DISPLAY can be used in conjunction with the
+menu commands to slide the menu screen up and down your display. It's
+similar to the display system found in Magnetic Scrolls' excellent
+series of adventures.
+
+
+Hardware scrolling
+------------------
+Although hardware scrolling can be performed using AMOS Basic's SCREEN
+OFFSET command, it's often easiest to animate your screens using AMAL
+instead as this generates a much smoother effect.
+
+CHANNEL n TO SCREEN OFFSET d
+
+This assigns AMAL program number n to a screen d, for the purpose of
+hardware scrolling. The X and Y registers now refer to the section of
+the screen which is to be displayed through your TV. Changing these
+registers will scroll the visible screen area around the display.
+Here's an example:
+
+        Screen Open 0,320,500,32,lowres : Rem Open an extra tall screen
+        Screen Display 0,,45,320,250
+        Load Iff "AMOS_DATA:IFF/Magic_screen.IFF"
+        Screen copy 0,0,0,320,250 To 0,0,251
+        Screen 0 : Flash Off : Get Palette (0)
+        Channel 0 to Screen Offset 0
+        Amal 0,"Loop: Let X=XM-128; Let Y=YM-45; Pause; Jump Loop"
+        Amal On : Wait Key
+
+This program allows you to scroll through the screen using the mouse.
+Try moving the mouse in direct mode. For a further example of hardware
+scrolling, see EXAMPLE 14.5
+
+
+Changing the screen size                                                   199
+------------------------
+
+CHANNEL n TO SCREEN SIZE s
+
+This allows you to change the size of a screen using AMAL. s is the
+number of the screen to be manipulated. Registers X and Y now control
+the width and height of your screen respectively. They're similar to
+the W and H parameters used by the SCREEN DISPLAY command. Example:
+
+        Load Iff "AMOS_DATA:IFF/Magic_screen.IFF",0
+        Channel 0 to Screen Size 0
+        Screen display 0,,,320,1 : Rem set the screen size to 1
+        A$=Loop: For R0=0 To 255 ; Let Y=R0 ; Next R0; "
+        A$=A$+"For R0=0 To 254; Let Y=255-R0; Next R0; J Loop"
+        Amal 0,A$ : Amal On : Direct
+
+
+Rainbows
+--------
+
+CHANNEL n TO RAINBOW r
+
+This option generates a rainbow effect within an AMAL program. As usual
+n is the number of an animation channel from 0 to 63. r is an
+identification number of your rainbow (0-3).
+
+  X holds the current BASE of your rainbow. This is the first colour of
+your rainbow palette to be displayed. Changing it will make the rainbow
+appear to turn. Y contains the line on the screen at which the rainbow
+effect will start. If you alter this value, the rainbow effect will
+move up or down. All coordinates are measured in *hardware* format.
+
+  Register A stores the height of your rainbow on the screen. See the
+AMOS Basic RAINBOW command fore more details.
+
+
+Advanced tehcniques
+===================
+
+The AUTOTEST system
+-------------------
+Normally all AMAL programs are performed in strict order from start to
+finish. Inevitably some commands such as Move and For...Next will take
+several seconds to complete. Although this will be fine in the vast
+majority of cases it may lead to significant delays in the running of
+certain programs. Take the following simple program:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Sprite 8,130,50,1
+        Amal 8,"Loop: Let R0=XM-X; Let R1=YM-Y; Move R0,R1,50; Jump Loop"
+        Amal On : Direct
+
+As you move the mouse, the sprite is supposed to follow it around on
+the screen. However in practice the response time is quite sluggish,
+because the new values of XM and YM are only entered after the sprite
+movement has totally finished. Try moving the mouse in a circle. The
+octopus is completely fooled!
+
+  Autotest solves this problem by performing your tests at the start of
+every VBL, before continuing with the current program. You tests now
+occur at regular 1/50 intervals, leading to a practically instantanous
+response!
+
+
+Autotest commands                                                          200
+-----------------
+The syntax of Autotest is:
+
+AUtotest (tests)
+--
+    "tests" can consist of any of the following AMAL commands.
+
+Let reg=exp
+-
+    This is the standard AMAL Let instruction. It assigns the result
+    of an expression to register "reg".
+
+Jump label
+-
+    The Jump command jumps to another part of the current autotest.
+    "label" is defined using the colon ":" and *MUST* lie inside the
+    autotest brackets.
+
+eXit
+ -
+    Leaves the autotest and re-enters the main program from the point
+    it left off.
+
+Wait
+-
+    Wait turns off the main AMAL program completely, and only executes
+    the Autotest.
+
+If
+-
+    In order to simplify the testing process inside an autotest routine
+    there's a specially extended version of the AMAL If statement. This
+    allows you to perform one of three actions depending on the result
+    of the logical expression "exp".
+
+    If exp Jump L   (Jumps to another part of the autotest)
+    If exp Direct L (Chooses part of the prog to be executed after AU)     201
+    If exp eXit     (Leaves autotest)
+
+On
+-
+    Restarts the main program after a previous Wait instruction. This
+    lets you wait for a specific event such as a mouse click without
+    wasting processor time.
+
+Direct label
+-
+    Direct changes the point at which the main program will be resumed
+    after your test. AMAL will now jump to this point automatically at
+    the next vertical blank period. Note that label *must* be defined
+    outside the Autotest brackets.
+
+
+Inside Autotest
+---------------
+Here's the previous example rewritten using the Autotest feature
+
+        Load "AMOS_DATA:Sprites/octopus.abk"
+        Sprite 8,130,50,1 : Get Sprite Palette
+        A$="AUtotest (If R0<>XM Jump Update"
+        A$=A$+"If R1<>YM Jump Update else eXit"
+        A$=A$+"Update: Let R0=XM; Let R1=YM; Direct M)" : Rem End of AU
+        A$=A$+"M: Move R0-X,R1-Y,20 Wait;" : Rem Try changing 20 to
+                                                 different values!
+        Amal 8,A$ : Amal On
+
+The sprite now smoothly follows your mouse, no matter how fast you move
+it. The action of this program is as follows:
+
+  Every 50th of a sec the mouse coordinates are tested using the XM and
+YM functions. If they are unchanged since the last test, the Autotest
+is aborted using the eXit command. The main program now resumes
+precisely where it left off.
+
+  However if the mouse has been moved, the autotest routine will
+restart the main program again from the beginning (label M) using the
+new coordinates in XM and YM respectively.
+
+
+Timing considerations
+---------------------
+
+
+                   UPDATE EVERY (save some time for
+                         your Basic programs)
+UPDATE EVERY n
+
+Although most AMAL programs are performed practically instantaneously,
+any objects they manipulate need to be explicity drawn on the Amiga's
+screen.
+
+  The amount of time required for this updating procedure is
+unpredictable and can vary during the course or your program. This can
+lead to an annoying jitter in the movement patterns of certain objects.
+
+  The UPDATE EVERY command slows down the updating process so that even
+the largest object can be redrawn during a single screen update. This
+regulates the animation system and generates delightfully smooth
+movement effects.
+
+  n is the number of vertical blank periods between each screen update.
+In practice you should start off with a value of two, and gradually
+increase it until movement is smooth.
+
+  One useful side effect of UPDATE EVERY, is to reserve more time for
+Basic to execute your programs. With a judicious use of this
+instruction, it's sometimes possible to speed up your programs by as
+much as 30%, without destroying the smoothness of your animation
+sequences.
+
+
+Beating the 16 object limit                                                202
+---------------------------
+
+
+              SYNCHRO (execute an AMAL program directly)
+
+SYNCHRO [ON/OFF]
+
+Normally AMOS Basic will allow you to execute up to 16 different AMAL
+programs at a time. This limit is determined by the overall speed of
+the Amiga's hardware. Each AMAL program takes its own slice of the
+available processor time. So if you're using the standard interrupt
+system, there's only enough time to execute around 16 separate
+programs.
+
+  The SYNCHRO command allows you to exceed this restriction by
+executing your AMAL programs directly from Basic. Instead of using
+interrupts, all AMAL programs are now run using a single call to the
+SYNCHRO command. Since AMAL programs execute far faster than the
+equivalent Basic routines, your animations will still be delightfully
+smooth. But you will now able to decide when and where yur AMAL
+routines will be performed in your program.
+
+  One additional bonus is that you can now include collision detection
+commands such as Bob Col or Sprite Col directly in your AMAL routines.
+These are not available from the interrupt system as they make use of
+the Amiga's blitter chip. This would be impossible using iterrupts.
+
+  Before calling SYNCHRO you first need to turn off the interrupts with
+SYNCHRO OFF. It's imporatnt to do this *before* defining your AMAL
+programs, otherwise you won't be allowed to use channel numbers greater
+than 15 without an error.
+
+  Due of the sheer power of the animation system, it's nearly possible
+to write entire arcade games completely in AMAL. This leaves your Basic
+program with simple jobs such as managing the hi-score table and
+loading your attack waves from the disc. The results will be
+indistinguishable from pure machine code. A good example is Cartoon
+Capers, the first commercial games release that's written entirely in
+AMOS.
+
+  A demonstration of SYNCHRO can be found in EXAMPLE 14.6.
+
+
+STOS compatible animation commands
+----------------------------------
+The original STOS Basic included a powerful animation system which
+allowed you to move your sprites in quite complex patterns using
+interrupts. At the time, these commands were hailed as a breakthrough.
+
+  Although they've now been overshadowed by the AMAL system, they do       203
+provide a simple introduction to animation on the Amiga. So AMOS
+provides you with the entire STOS animation system as an extra bonus!
+
+  If you're indenting to convert STOS programs to AMOS, you'll need to
+note the following points:
+
+  * Unlike STOS, the movement patterns in AMOS Basic can be assigned to
+    any animation channel you like. The Move commands can therefore be
+    used to move bobs, sprites or screens, using exactly the same
+    techniques.
+
+      As a default, all animation channels are assigned to the
+    equivalent hardware sprites. In practice you may find it easier to
+    substitute blitter objects as these are much close to the standard
+    STOS Basic sprites. Add a sequence of CHANNEL commands to start of
+    your program like so:
+
+        Channel 1 to bob 1
+        Channel 2 to bob 2
+          :        :
+
+    Don't forget to call DOUBLE BUFFER during your initialisation
+    procedure, otherwise your bobs will flicker annoyingly when they're
+    moved.
+
+  * The same channel can be used for both STOS animations and AMAL
+    programs. So it's easy to extend your programs once they've been
+    succesfully converted into AMOS Basic. The order of execution is:
+
+    AMAL
+    MOVE X
+    MOVE Y
+    ANIM
+
+
+                  MOVE X (move a sprite horizontally)
+
+MOVE X n,m$
+
+Defines a list of horizontal movements which will be subsequently
+performed on animation channel number n.
+
+  n can range from 0 to 15 and refers to an object you have previously
+assigned using the CHANNEL command. m$ contains a sequence of
+instructions which together determine both the speed and direction of
+your object. These commands are enclosed between brackets and are
+entered using the following format:
+
+        (speed,step,count)
+
+There's no limit to the number of commands you can include in a single
+movement string, other than the amount of available memory.
+
+  "speed" sets a delay in 50ths of a second between each successive
+movement step. The speed can vary from 1 (very fast) to 32767
+(incredibly slow).
+
+  "step" specifies the number of pixels the object will be moved during
+each operation. If the step is positive the sprite will move to the        204
+right, and if it is negative it will move left.
+
+  The apparent speed of the object depends on a combination of the
+speed and step size. Large displacements coupled with a moderate speed
+will move the object quickly but jerkily across the screen. Similarly a
+small step size combined with a high speed will also move the object
+rapidly, but the motion will be much smoother. The fastest speeds can
+be obtained with a displacements of about 10 (or -10).
+
+  "count" determines the number of times the movement will be repeated.
+Possible values range from 0 to 32767. A count of 0 performs the
+movement pattern indefinitely.
+
+  In addition to the above commands, you can also add one of the
+following directives at the end of your movement string.
+
+  The most important of these extensios is the L instruction (for
+loop), which jumps back to the start of the string and returns the
+entire sequence again from the beginning. Example:
+
+        Load "AMOS_DATA:Sprits/Octopus.abk" : Get Sprite Palette
+        Sprite 1,130,100,1 : Rem Define Sprite 5
+        Move X 1,"(1,5,60)(1,-5,60)L"
+        Move On
+
+The E option allows you to stop your object when it reaches a specific
+point on the screen. Change the second to last line in the above
+example to:
+
+        Move X 1,"(1,5,30)E100"
+
+Note that these end-points will only work if the x coordinate of the
+object exactly reaches the value you originally designated in the
+instruction. If this increment is badly chosen the object will leap
+past the end-point in a single bound, and the test will fail. Example:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Channel 1 To Sprite 8 : Channel 2 To Sprite 10
+        Print At(0,5)+"Looping OK"
+        Sprite 8,130,100,1
+        Move X 1,"(1,10,30)(1,-10,30)L"
+        Move On
+        Print At(0,10)+"Now press a key" : Wait Key
+        Sprite 10,140,150,2
+        Move X 2,"(1,15,20)L" : Move On 2
+        Print At(0,15)+"Oh dear!" : Wait Key
+
+
+
+                   MOVE Y (Move an vertical object)
+
+MOVE Y n,m$
+
+This instruction complements the MOVE X command by enabling you to move
+an object vertically along the screen. As before, n refers to the
+number of an animation sequence you've allocated using the CHANNEL
+command, and ranges between 0 and 15.
+
+  m$ holds a movement string in an identical format to MOVE X. Positive
+displacements now correspond to a downward motion, and negative values
+result in an upward movement. Examples:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette          205
+        Channel 1 to Sprite 8 : Sprite 8,130,10,1
+        Move Y 1,"10(1,1,180)L"
+        Channel 2 To Screen Display 0
+        Move Y 2,"(1,4,25)(1,-4,25)
+        Move On : Wait Key
+
+
+
+                  MOVE ON/OFF (start/stop movements)
+
+MOVE ON/OFF [n]
+
+Before your movement patterns will be executed they need to be
+activated using the MOVE ON command.
+
+  "n" refers to the animation sequence you wish to start, and can range
+from 0 to 15. If it's omitted then all your movements will be activated
+simultaneously.
+
+  MOVE OFF has exactly the opposite effect: It stops the relecant
+movement sequences in their tracks.
+
+
+
+          MOVE FREEZE (temporatily suspend sprite movements)
+
+MOVE FREEZE [n]
+
+The MOVE FREEZE command temporarily halts the movements of one or more
+objects on the screen. These objects can be restarted again using
+MOVE ON.
+
+  "n" is completely optional and specifiew the number of a single
+object to be suspended by this instruction.
+
+
+
+                    =MOVON (return movement status)
+
+x=MOVON(n)
+
+MOVON checks whether a particular object is being moved by the MOVE X
+and MOVE Y instructions. It returns -1 if object n is in motion, and 0
+if it's stationary. Do not confuse this with the MOVE ON command. Also
+note that MOVON searches for movement patterns generated using the MOVE
+commands, so it will not detect any animations generated by AMAL.
+
+
+
+                       ANIM (animate an object)
+
+ANIM n,a$
+
+Automatically flicks an object through a sequence of images creating a
+smooth animation effect on the screen. These animations are performed
+50 times a second using interrupts, so they can be executed
+simultaneously with your Basic programs.
+
+  "n" is the number of the channel which specifies a sprite or bob to
+be animated by this instruction.
+
+  "a$" contains a series of instructions which define your animation
+sequence. Each operation is split into two separate components enclosed
+between round brackets.
+
+  "image" is number of the image to be displayed during each frame of      206
+the animation. "delay" specifies the length of time this image will be
+hled on the screen (in 50ths of a sec.). Example:
+
+        Load "AMOS_DATA:Sprites/Octopus.abk" : Get Sprite Palette
+        Channel 1 to Sprite 8 : Sprite 8,200,100,1
+        Anim 1,"(1,10)(2,10)(3,10)(4,10)"
+        Anim On : Wait Key
+
+Just as with the MOVE instruction, there's also an L directive which
+enables you to repeat your animations continuously. So just change the
+ANIM command in the previous example to the following:
+
+        Anim 1,"(1,10)(2,10)(3,10)(4,10)L"
+
+
+
+                   ANIM ON/OFF (start an animation)
+
+ANIM ON/OFF [n]
+
+ANIM ON activates a series of animations which have been previously
+created using the ANIM command. n specifies the number of an individual
+animation sequence to be initialised. If it's omitted, then all current
+animation sequences will be started immediately.
+
+ANIM OFF [n]
+
+Halts one or more animation sequences started by ANIM ON.
+
+
+
+                   ANIM FREEZE (freeze an animation)
+
+ANIM FREEZE [n]
+
+Temporarily freezes the current animation sequence on the screen. n
+chooses a single animation sequence to be suspended. If it's not
+included, all current animations will be affected. They can be
+restarted at any time with a simple call to the ANIM ON instruction.
+
+
+
+
+
+
+
+
+                        15: BACKGROUND GRAPHICS                            207
+                    ------------------------------
+
+Nowadays, it's not uncommon for an arcade game to contain hunderds of
+different screens. With compaction, it's possible to crap a single 32
+colour screen into about 30k of memory. So 100 screens would be the
+equivalent of about 3 Megabytes of data. Imagine how difficult this
+would be to fit into a standard A500!
+
+  The classic way of avoiding this restriction, is to construct your
+backgrounds out of a set of simple building blocks. Once these "tiles"
+have been created, they can be placed on the screen in any order you
+like. So the same set of tiles can be reused to generate a vast number
+of potential screens. Each screen is now stored as a simple list of its
+components, and requires a tiny fraction of the original memory.
+
+  In order to exploit this system, you'll obviously need some way of
+defining your various screen maps. As you might have guessed, we've
+helpfully provided you with a powerful map definer accessory on the
+AMOS program disc. Full details can be found in the accompanying
+documentation file.
+
+  AMOS Basic also includes a number of special instructions for drawing
+your tiles on the screen. These make it easy to generate the fast
+scrolling backgrounds that are the hallmark of a modern arcade game.
+
+
+Icons
+=====
+Icons are separate images which have been especially designed for
+producing your background screens. Once you've drawn an icon, it's
+fixed permanently into place. So you can't move it to a new position
+using the AMAL animation system.
+
+  All icons are stored in their own AMOS memory bank (#2). This bank is
+created using the Sprite definer accessory (on the AMOS Program disk),
+and will be automatically saved along with your Basic programs.
+
+  Like Bobs, Icons are displayed using the Amiga's amazing Blitter
+chip. But since Icons are essentally static objects, they are usually
+drawn in REPLACE mode. Your icons will therefore totally erase any
+existing graphics at the current screen position.
+
+
+
+                       PASTE ICON (draw an icon)
+
+PASTE ICON x,y,n
+
+Draws icon number n on the screen at GRAPHIC coordinates x,y. n is the
+number of the icon which is to be displayed. This must have been
+previously stored in the ICON bank.
+
+  Icons can be freely positioned anywhere on the screen, subject to the
+normal clipping rules. Example:
+
+        Load "AMOS_DATA:Icons/Map_icons.abk"
+        Screem Open 0,320,256,32,Lowres : Cls 0 : Get Icon Palette
+        For X=1 To 11 : Paste Icon X*32,0,1 : Next X
+        For Y=1 To 6 : Paste Icon 0,Y*32+11 : Paste Icon 288,Y*32,1
+        Next Y
+        For X=1 To 11 : Paste Icon X*32,223,1 : Next X
+
+Note that if you're using double buffering, a copy of your icons will
+be drawn into both the physical and logical screens. Since this is
+rather slow, it's common practive to add a call to AUTOBACK 0 before
+drawing your icons on the screen. This restricts straight to the
+physical screen using SCREEN COPY, saving a considerable amount of
+time.
+
+  For a further example, see the MAPVIEW program on the AMOS DATA disc.
+This displays a background screen you've created using the AMOS Map
+Editor.
+
+
+
+                       GET ICON (create an icon)                           208
+
+GET ICON [s,] i,tx,ty TO bx,by
+
+Captures an image from the screen and loads it into icon "i". If this
+icon does not presently exist, it will be created for you in bank 2.
+This bank will be automatically reserved by the system if required.
+
+  i is the number of your icon, starting from 1. tx,ty to bx,by define
+the rectangular zone which encloses the selected region.
+
+  s determines the number of the screen which will be used as the
+source of your image. If it's omitted, the image will be taken from the
+current screen instead. Example:
+
+        Erase 2
+        F$=Fsel$("*.*","","Load a screen") : If F$="" Then Direct
+        If Exist(f$) Then Load Iff f$,0 Else Direct
+        SH=Screen Height : H=SH/32-1 : SW=Screen Width : W=SW/32-1
+        For Y=0 to H
+          For X=0 to W
+            Get Icon X+Y*W+1,X*32,Y*32 To X*32+31,Y*32+31
+          Next X
+        Next Y
+        Cls 0
+        Do
+          Paste Icon Rnd(Sw-1),Rnd(SH-1),Rnd/(H*W)+1
+        Loop
+
+
+
+                  GET ICON PALETTE (get icon colours)
+
+GET ICON PALETTE
+
+Grabs the colours of the icon images in bank 2, and loads them into the
+current screen palette. This command is normally used to initialize the
+screen after you'be loaded some icons from the disc. Example:
+
+        Load "AMOS_DATA:Icons/Map_icons.abk"
+        Get Icon Palette
+        Paste Icon 100,100,1
+
+
+
+                       DEL ICON (deletes icons)                            209
+
+DEL ICON n[ TO m]
+
+Deletes one or more icons from the icon bank. n is the number of the
+first icon to be removed.
+
+  m is the optional number of the last icon to be deleted in the list.
+If it's included all the icons from first to last will be erased one
+after another.
+
+  When the final icon in a bank has been deleted, the entire bank will
+be removed from memory.
+
+
+
+            MAKE ICON MASK (set colour zero to transparent)
+
+MAKE ICON MASK [n]
+
+Normally, any icons you draw on the screen will completely replace the
+existing background. The icon will seem to be displayed in a
+rectangular box filled with colour zero.
+
+  If you want to avoid this effect and overlay your icons directly over
+the current graphics, you'll need to create a *mask* for your icons.
+This informs AMOS that colour zero should be treated as transparent.
+
+  n is the number of the icon to be affected. If it's omitted, a mask
+will be defined for all icons in the bank. See EXAMPLE 15.1
+
+
+Screen blocks
+=============
+AMOS Basic supplies you with a set of powerful BLOCK commands which
+allow you to grab part of an image into memory and paste it anywhere on
+the screen.
+
+        These instructions are mainly used for holding temporary data,
+since your blocks cannot be saved along with your Basic programs.
+
+  Blocks are especially effective in the construction of dialogue
+boxes, as they can be used to save the background areas before
+displaying your new graphics.
+
+  They can also be exploited in puzzle games like Split Personalities.
+Each block can be loaded with a single section of your image. You can
+then jumble your pictures by rearranging the blocks on the screen with
+PUT BLOCK.
+
+
+
+              GET BLOCK (grab a screen block into memory)
+
+GET BLOCK n,tx,ty,w,h[,mask]
+
+GET BLOCK grabs a rectangular area in block number n, starting at
+coordinates tx,ty.
+
+  n is the number of the block ranging from 1-65535. tx, ty set the
+coordinates of the top left hand corner of your block. w,y hold the
+width and height of the block respectively.
+
+  "mask" is a flag which chooses whether a mask will be created for
+your new block.
+
+  mask=0        Replace mode. When the block is drawn on the screen,
+                it will totally destroy any graphics at that current
+                position.
+  mask=1        Calculates a mask for the block. Colour zero will now
+                be treated as if it were transparent.
+
+
+
+                PUT BLOCK (copies a previously created                     210
+                        block onto the screen)
+
+PUT BLOCK n[,x,y]
+PUT BLOCK n,x,y,planes[,minterms]
+
+PUT BLOCK copies block number n to the current screen. x,y specify the
+position of your new block on the screen. If they are omitted the block
+will be redrawn at its original screen coordinates.
+
+  Note that all drawing operations will be clipped to fit into the
+current screen, starting from the nearest 16 pixel boundary.
+
+  For a demostration of the BLOCK commands see the routine in EXAMPLE
+15.2. We've also provided experienced programmers with a couple of
+optional extras. These are not needed for the vast majority of
+applications, they're only required when you want to achieve weird
+special effects on the screen!
+
+  "planes" holds a bit-map which sets the range of colours which will
+be drawn in your block. The Amiga's screen is divided up into segments
+known as bit-planes. Each plane contains a single bit for every point
+on the Amiga's screen. When the Amiga's hardware displays this point,
+it combines the bits from each plane to calculate the required colour
+number. Each bit in "planes" represents the status of a single
+bit-plane. If it's set to one, then the selected plane will be drawn by
+the instruction, otherwise it will be completely ignored. The first
+plane is represented by bit zero, the second by bit one, etc.
+
+  Usually, the block will be displayed in all the available bit-planes.
+The corresponds to a bit-pattern of %111111
+
+  "minterm" selects the blitter mode used to copy your block on the
+screen. A full description of the possible drawing modes can be found
+in the section on SCREEN COPY. The best way to loearn about these
+options is to experiment!
+
+
+
+                   DEL BLOCK (delete a screen block)
+
+DEL BLOCK n
+
+Deletes one or more blocks and restores the memory used to AMOS Basic.
+
+DEL BLOCK       Erases *all* current blocks
+DEL BLOCK n     Deletes block number n.
+
+
+
+             GET CBLOCK (save and compact a screen image)                  211
+
+GET BLOCK n,x,y,sx,sy
+
+The GET BLOCK command saves and compacts a rectangular area of the
+screen. The compaction system used by this command has been especially
+optimized for speed. So it's nowhere near as efficient as the dedicated
+AMOS compression routines provided by the PACK or SPACK instructions.
+
+  CBLOCKS are often used to grab the area underneath your dialogue
+boxes. After the dialogue has been completed, the screen can quickly
+restored back to its original state. See EXAMPLE 15.3.
+
+  n specifies the number of your block and can range between 1-65535.
+
+  x,y are the top left coordinates. The x coordinate is rouded to the
+nearest multiple of 8.
+
+  w,h hold the dimensios of the area to be saved. The width is always
+rounded to an exact multiple of 8.
+
+                     PUT CBLOCK (displays a block
+                         created using CBLOCK)
+
+PUT CBLOCK n [,x,y]
+
+Places block n on the current screen at coordinates x,y. If the target
+coordinates are omitted, the block will be redrawn at its original
+screen position. Also note that x is automatically rounded to the
+nearest eight pixel boundary.
+
+                  DEL CBLOCK (deletes a screen block
+                       defined with GET CBLOCK)
+
+DEL CBLOCK [n]
+
+Erases all blocks from memory. If n is present only block n will be
+deleted.

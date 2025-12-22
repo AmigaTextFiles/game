@@ -1,0 +1,197 @@
+;------------------------------------------------------------
+; General installscript for DOS-GAMES with patcher, by Harry
+; Adapted from a script by Bert Jahn
+;------------------------------------------------------------
+;****************************
+
+(set #readme-file "README")		;name of readme file
+(set #CI_drive "TANGRAM:")		;default source drive
+(set #cleanup "")			;files to delete after install
+
+;****************************
+
+
+
+(if
+  (exists #readme-file)
+  (if 
+    (= 0 (run ("SYS:Utilities/Multiview %s" #readme-file)))
+    ("")
+    (run ("SYS:Utilities/More %s" #readme-file))
+  )
+)
+(set #instmode
+  (askchoice
+    (prompt "Please select installation-mode")
+    (default 0)
+    (choices "Install your original (or backup) on harddisk" "Patch a backup of your original" "Install an already patched backup to harddisk")
+    (help @askchoice-help "\n\n Installing your original on harddisk will copy your disk to hd, then patch it.\nPatching a backup of your original requires a backup (who had ever thought this?).\nWith install an already patched backup to hd you may install a former with that script patched backup to hd.")
+  )
+)
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+(if
+  (= #instmode 1)
+  (
+    (message "Please insert now a BACKUP copy of your original in any drive.")
+    (set @default-dest "Backup-Disk")
+    (run ("patcher -pparam%s" @app-name))
+  )
+)
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+(if
+  (= #instmode 0)
+  (
+    (set @default-dest
+      (askdir
+        (prompt ("Where should \"%s\" installed ?\nA drawer \"%s\" will automatically created." @app-name @app-name))
+        (help @askdir-help)
+        (default @default-dest)
+        (disk)
+      )
+    )
+
+    (set #dest (tackon @default-dest @app-name))
+
+;if anything similar exist delete it
+    (if
+      (exists #dest)
+      (if
+	(= (askbool
+	  (prompt "Destinationdrawer already exists, delete it?")
+	  (help @askbool-help)
+        ) 1)
+        (run ("Delete \"%s\" \"%s.info\" all" #dest #dest))
+      )
+    )
+
+    (makedir #dest
+      (help @makedir-help)
+      (infos)
+    )
+
+;----------------------------
+
+    (working "Please insert now your writeprotected original or backup.")
+
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("%s" #CI_drive))
+      (dest #dest)
+      (all)
+    )
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("%s.inf" @app-name ))
+      (newname ("%s.info" @app-name ))
+      (dest #dest)
+    )
+    (if
+      (exists #readme-file)
+      (copyfiles
+	(help @copyfiles-help)
+	(source #readme-file)
+	(dest #dest)
+      )
+    )
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("%s_st" @app-name ))
+      (newname ("%s" @app-name ))
+      (dest #dest)
+    )
+
+;----------------------------
+
+    (message "Please remove your original disk from the drive.")
+    (if
+      (= (exists #CI_drive (noreq)) 2)
+      (abort "Quittet due not removed disk.")
+    )
+    (run ("c:assign \"%s\" \"%s\"" #CI_drive #dest))
+
+    (run ("patcher -pparam%s" @app-name))
+
+    (run ("c:assign \"%s\" remove" #CI_drive))
+
+    (run ("Delete %s ALL QUIET FORCE" #cleanup))	;delete all temporary files
+
+    (if
+      (exists #readme-file)
+      (if 
+	(= 0 (run ("SYS:Utilities/Multiview %s" #readme-file)))
+	("")
+	(run ("SYS:Utilities/More %s" #readme-file))
+      )
+    )
+  )
+)
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+(if
+  (= #instmode 2)
+  (
+    (set @default-dest
+      (askdir
+        (prompt ("Where should \"%s\" installed ?\nA drawer \"%s\" will automatically created." @app-name @app-name))
+        (help @askdir-help)
+        (default @default-dest)
+        (disk)
+      )
+    )
+
+    (set #dest (tackon @default-dest @app-name))
+
+;if anything similar exist delete it
+    (if
+      (exists #dest)
+      (if
+	(= (askbool
+	  (prompt "Destinationdrawer already exists, delete it?")
+	  (help @askbool-help)
+        ) 1)
+        (run ("Delete \"%s\" \"%s.info\" all" #dest #dest))
+      )
+    )
+
+    (makedir #dest
+      (help @makedir-help)
+      (infos)
+    )
+
+;----------------------------
+
+    (working "Please insert now your already modified backup disk.")
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("%s" #CI_drive))
+      (dest #dest)
+      (all)
+    )
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("%s.inf" @app-name ))
+      (newname ("%s.info" @app-name ))
+      (dest #dest)
+    )
+    (if
+      (exists #readme-file)
+      (copyfiles
+	(help @copyfiles-help)
+	(source #readme-file)
+	(dest #dest)
+      )
+    )
+    (copyfiles
+      (help @copyfiles-help)
+      (source ("%s_st" @app-name ))
+      (newname ("%s" @app-name ))
+      (dest #dest)
+    )
+
+;----------------------------
+
+    (run ("Delete %s ALL QUIET FORCE" #cleanup))	;delete all temporary files
+
+  )
+)
+
+(exit)

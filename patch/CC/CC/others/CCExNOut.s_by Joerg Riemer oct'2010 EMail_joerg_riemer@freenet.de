@@ -1,0 +1,180 @@
+*****************************************************************************
+*									    *
+*	PROGRAM: CCExNOut						    *
+*	VERSION: 1.0							    *
+*   SOURCE CODE: 00 (29.10.2010)					    *
+*	   DATE: xx.xx.xxx - xx.xx.xxxx					    *
+*      LANGUAGE: Assembler (DevPac V3.14)				    *
+*	 SYSTEM: A1200	KS 40.68 WB 40.42 2MB chip 64MB fast 68030/50mhz    *
+*									    *
+*	 AUTHOR: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+*      FUNCTION: used in my test-script to get the read-speed		    *
+*									    *
+*****************************************************************************
+
+	output	ram:CCExNOut
+
+*****************************************************************************
+
+	include	/source/custom.i
+
+*****************************************************************************
+
+* exec calls
+
+_LVOAllocMem		equ -0198 -$0C6 (byteSize,requirements)(d0/d1)
+_LVOFreeMem		equ -0210 -$0D2 (memoryBlock,byteSize)(a1,d0)
+_LVOCloseLibrary	equ -0414 -$19E (library)(a1)
+_LVOOpenDevice		equ -0444 -$1BC (devName,unit,ioRequest,flags)(a0,d0/a1,d1)
+_LVOCloseDevice		equ -0450 -$1C2 (ioRequest)(a1)
+_LVODoIO		equ -0456 -$1C8 (ioRequest)(a1)
+_LVOOpenResource	equ -0498 -$1F2 (resName)(a1)
+_LVOOpenLibrary		equ -0552 -$228 (libName,version)(a1,d0)
+
+* battclock calls
+
+_LVOReadBattClock	equ -0012 -$00C ()()
+
+TR_SETSYSTIME		equ  0011
+
+* dos calls
+
+_LVOOpen		equ -0030 -$01E (name,accessMode)(d1/d2)
+_LVOClose		equ -0036 -$024 (file)(d1)
+_LVORead		equ -0042 -$02A (file,buffer,length)(d1/d2/d3)
+_LVOWrite		equ -0048 -$030 (file,buffer,length)(d1/d2/d3)
+_LVOInput		equ -0054 -$036 ()()
+_LVOOutput		equ -0060 -$03C ()()
+
+MODE_NEWFILE		equ  $3EE
+
+*****************************************************************************
+
+INTENAsave	rs.w	1
+
+	include	/source/DBStructure.i
+
+*****************************************************************************
+
+		bsr	ReadDisk
+		bsr.b	SetClock
+		moveq	#0,d0
+		rts
+
+*****************************************************************************
+
+	dc.b	"$VER: CCExNOut 1.0 (29.10.2010)",0
+
+*****************************************************************************
+
+		cnop	0,4
+
+SetClock	lea	BatResName(pc),A1	; Resource name setzen
+		movea.l	$4.w,A6			; Library Basis holen
+		jsr	_LVOOpenResource(A6)	; Resource öffnen
+		tst.l	D0			; Uhr-Chip vorhanden
+		beq.b	QuitSetClock0		; nein, weiter
+
+		movea.l	D0,A2			; Resource Basis sichern
+
+		moveq	#$28,D0			; Grösse des IORequests
+		move.l	#$10001,D1		; Speicher Typ (public,clear)
+		jsr	_LVOAllocMem(A6)	; und allokieren
+		tst.l	D0			; Speicher erhalten
+		beq.b	QuitSetClock0		; nein, weiter
+
+		move.l	D0,A3			; Basis merken
+
+		movea.l	D0,A1			; Basis setzen
+		lea	TimerName(pc),A0	; Device Name holen
+		moveq	#0,D0			; Register vorbereiten
+		move.l	D0,D1			; Register vorbereiten
+		jsr	_LVOOpenDevice(A6)	; Device öffnen
+		tst.b	D0			; offen?
+		bne.b	QuitSetClock1		; nein, weiter
+
+		movea.l	A2,A6			; Resource Basis setzen
+		jsr	_LVOReadBattClock(A6)	; Uhrzeit lesen
+
+		move.l	D0,$20(A3)		; Uhrzeit setzen
+		move.w	#TR_SETSYSTIME,$1C(A3)	; Systemzeit neu setzen
+		movea.l	A3,A1			; Basis IORequest setzen
+		movea.l	$4.w,A6			; Library Basis holen
+		jsr	_LVODoIO(A6)		; und Uhrzeit neu schreiben
+
+		movea.l	A3,A1			; Basis IORequest setzen
+		jsr	_LVOCloseDevice(A6)	; Device wieder schliessen
+
+QuitSetClock1	movea.l	A3,A1			; Basis Speicher setzen
+		moveq	#$28,D0			; Speicher grösse setzen
+		jsr	_LVOFreeMem(A6)		; Speicher wieder freigeben
+
+QuitSetClock0	rts				; und zurück
+
+*****************************************************************************
+
+BatResName	dc.b	"battclock.resource",0,0
+TimerName	dc.b	"timer.device",0,0
+
+*****************************************************************************
+
+		cnop	0,4
+
+*****************************************************************************
+
+ReadDisk	include	/source/SCode.s
+
+*****************************************************************************
+
+		moveq	#1,D0		;(load game datas) first track
+		moveq	#79,D1		;tracks to read
+		moveq	#0,D2		;diskside
+		moveq	#0,D3		;drive number
+		lea	FileData1,A0	;base of mem
+		lea	TrackBuffer,A1	;dma buffer
+		bsr.b	LoadDatas	;read tracks
+		beq.b	.1
+		rts
+
+.1		moveq	#0,D0		;(load titlesound) first track
+		moveq	#80,D1		;tracks to read
+		moveq	#1,D2		;diskside
+		moveq	#0,D3		;drive number
+		lea	FileData4,A0	;base of mem
+		lea	TrackBuffer,A1	;dma buffer
+
+*****************************************************************************
+
+		include	/source/LoadDatas.s
+
+*****************************************************************************
+
+		cnop	0,4
+
+DataBase	dcb.b	BSS_Size,0
+
+*****************************************************************************
+
+		SECTION	FileReader_02,BSS
+
+*****************************************************************************
+
+FileData1	ds.b	512*10*1			;Backup.prg
+FileSize1	equ	*-FileData1
+FileData2	ds.b	512*10*7			;Title.pic
+FileSize2	equ	*-FileData2
+FileData3	ds.b	512*10*71			;CCGame.prg
+FileSize3	equ	*-FileData3
+FileData4	ds.b	512*10*80			;Title.snd
+FileSize4	equ	*-FileData4
+
+*****************************************************************************
+
+		SECTION	FileReader_03,BSS_C
+
+*****************************************************************************
+
+TrackBuffer	ds.l	4096
+
+ end ************************************************************************

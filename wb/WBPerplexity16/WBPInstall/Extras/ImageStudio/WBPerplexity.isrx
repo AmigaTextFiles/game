@@ -1,0 +1,305 @@
+/* ImageStudio ARexx script for WBPerplexity *********************/
+
+/* Allow commands to return results */
+
+options results
+
+/* On error, goto ERROR:. Comment out this line if you wish to */
+/* perform your own error checking. */
+
+signal on error
+
+/* BEGIN PROGRAM *************************************************/
+
+/* Warn the user if they are about to overwrite their current project */
+
+IMAGEINFO_GET STEM imageinfo.
+
+if imageinfo.changed == 1 then
+    REQUEST_MESSAGE TEXT '"Project has changed, continue?"',
+        BUTTONTEXT '"OK|Cancel"' AUTOCANCEL
+
+/* Choose source files */
+
+REQUEST_MULTIFILE TITLE '"Choose source files..."' STEM srcfiles.
+
+/* Use separate destination directory ? */
+
+REQUEST_MESSAGE TEXT '"Use different destination directory?"',
+    BUTTONTEXT '"Yes|No|Cancel"' AUTOCANCEL
+
+if result == 1 then
+    REQUEST_DIR TITLE '"Choose destination directory..."' VAR destdir
+else
+    destdir = ':NONE:'
+
+REQUEST_LIST TITLE '"Choose output format..."' STRINGS,
+    '"IFF-ILBM"',
+    '"GIF"',
+    '"PNG"',
+    '"JPEG"' STEM saveformat.
+
+/* Set up a blank ARGS string, which we can add to */
+
+saveargs = 'ARGS "'
+
+/* Get any IFF-ILBM args ? */
+
+if saveformat.string == 'IFF-ILBM' then do
+    /* Get a subformat */
+
+    REQUEST_MESSAGE TEXT '"Choose ILBM format..."' BUTTONTEXT,
+        '"As buffer|HAM6|HAM8|EHB|Cancel"' AUTOCANCEL
+
+    /* Store subformat */
+
+    if result == 2 then
+        saveargs = saveargs||'SUBFORMAT HAM6'
+    else if result == 3 then
+        saveargs = saveargs||'SUBFORMAT HAM8'
+    else if result == 4 then
+        saveargs = saveargs||'SUBFORMAT EHB'
+
+    /* Get the dither if not saving as buffer */
+
+    if result ~= 1 then do
+        REQUEST_MESSAGE TEXT '"Choose ILBM dither..."' BUTTONTEXT,
+            '"None|Floyd-Steinberg|Cancel"' AUTOCANCEL
+
+        /* Store the dither */
+
+        if result == 2 then
+            saveargs = saveargs||' DITHER FS'
+
+        end
+
+    /* Ask whether should set screenmode of images */
+
+    REQUEST_MESSAGE TEXT '"Set screenmode of images?"',
+        BUTTONTEXT '"Yes|No|Cancel"' AUTOCANCEL
+
+    if result == 1 then do
+        setscreenmode = 1
+
+        REQUEST_SCREENMODE STEM screenmode.
+
+        imagescreenmode = screenmode.modeid
+
+        end
+    else
+        setscreenmode = 0
+    end
+else if saveformat.string == 'EPS' then do
+    /* Get the DPI of the image */
+
+    REQUEST_STRING TEXT1 '"Enter the DPI resolution of"',
+        TEXT2 '"the EPS files to be saved:"',
+        STRING 300 VAR dpiinfo
+
+    saveargs = saveargs||dpiinfo
+
+    /* Ask whether to save as colour or greyscale */
+
+    REQUEST_MESSAGE TEXT '"Greyscale or colour EPS?"' BUTTONTEXT,
+        '"Greyscale|Colour|Cancel"' AUTOCANCEL
+
+    if result == 2 then
+        saveargs = saveargs||' COLOUR'
+
+    end
+else if saveformat.string == 'JPEG' then do
+    /* Get the DPI of the image */
+
+    REQUEST_STRING TEXT1 '"Enter the JPEG quality setting"',
+        TEXT2 '"for the files to be saved."',
+        TEXT3 '"(Valid values 25 to 100):"',
+        STRING 75 VAR qualityinfo
+
+    saveargs = saveargs||qualityinfo
+
+    /* Ask whether to save as colour or greyscale */
+
+    REQUEST_MESSAGE TEXT '"Greyscale or colour JPEG?"' BUTTONTEXT,
+        '"Greyscale|Colour|Cancel"' AUTOCANCEL
+
+    if result == 1 then
+        saveargs = saveargs||' GREYSCALE'
+
+    end
+
+/* We may or may not have created an ARGS string. If we have, lets */
+/* finish it off, else lets delete it */
+
+if saveargs == 'ARGS "' then
+    saveargs = ''
+else
+    saveargs = saveargs||'"'
+
+/* Rename filenames ? */
+
+REQUEST_MESSAGE TEXT '"Rename filenames ?"' BUTTONTEXT,
+    '"Yes|No|Cancel"' AUTOCANCEL
+
+if result == 1 then do
+    /* Set the rename files */
+
+    renamefiles = 1
+
+    /* Get the rename pattern */
+
+    REQUEST_STRING TEXT1 '"Choose the filename extension"',
+        TEXT2 '"for example: . .ilbm"',
+        TEXT3 '"would rename all files to ILBM"',
+        STRING '". .PUZ"',
+        VAR renamestring
+    end
+else
+    renamefiles = 0
+
+/* If we're renaming, we should ask if they want the source file */
+/* deleted. If we're not renaming, we should warn the user that */
+/* the source file will be overwritten. */
+
+if renamefiles == 1 then do
+    REQUEST_MESSAGE TEXT '"Delete source files ?"',
+        BUTTONTEXT '"Yes|No|Cancel"' AUTOCANCEL
+
+    if result == 1 then
+        deletesource = 1
+    else
+        deletesource = 0
+    end
+else if renamefiles == 0 & destdir == ':NONE:' then
+    REQUEST_MESSAGE TEXT '"WARNING : Source files will\nbe overwritten."',
+        BUTTONTEXT '"OK|Cancel"' AUTOCANCEL
+
+/* Ask user for process(s) to apply to image before saving out */
+
+REQUEST_STRING TITLE '"Enter processes to apply"',
+    TEXT1 '"Enter the processes to apply before"',
+    TEXT2 '"saving out the image (use method "',
+    TEXT3 '"AVERAGE if converting from 24bit."',
+    STRING '"SCALE 153 153 METHOD FAST"' VAR process
+
+/* Loop around and convert all the files */
+
+do l = 0 to (srcfiles.files.count - 1)
+    /* Open the file */
+
+    OPEN FILE '"'srcfiles.files.l'"' FORCE
+
+    /* If you wish to customize this macro to perform any operations */
+    /* on the image before saving it out (e.g. resizing, colour */
+    /* reduction etc...), add the commands here */
+
+    interpret process
+
+    /* Set the screenmode if neccessary */
+
+    if setscreenmode == 1 then
+        IMAGEINFO_SET MODEID imagescreenmode
+
+    /* Create the output filename */
+
+    if destdir ~= ':NONE:' then do
+        /* Get the filepart of the source filename */
+
+        FILE_SPLIT FILE '"'srcfiles.files.l'"' STEM filesplit.
+
+        /* Create the destfile */
+
+        FILE_JOIN PATHPART '"'destdir'"',
+            FILEPART '"'filesplit.filepart'"' VAR 'destfile'
+
+        end
+    else
+        destfile = srcfiles.files.l
+
+    /* Rename file ? */
+
+    if renamefiles == 1 then 
+        FILE_RENAME FILE '"'destfile'"' renamestring,
+            VAR 'destfile'
+
+    /* Save the fileout in the new format */
+
+    SAVE FILE '"'destfile'"' FORMAT '"'saveformat.string'"',
+        saveargs FORCE
+
+    /* Delete source file (and icon) if required */
+
+    if renamefiles == 1 & deletesource == 1 then do
+        /* Make sure hasn't been renamed to same name */
+
+        if upper(srcfiles.files.l) == upper(destfile) then
+            break
+
+        address command 'delete <NIL: >NIL: "'||srcfiles.files.l||'"'
+
+        if exists(srcfiles.files.l||'.info') == 1 then
+            address command 'delete <NIL: >NIL: "'||,
+                srcfiles.files.l||'.info"'
+        end
+    end
+
+
+/* END PROGRAM ***************************************************/
+
+exit
+
+/* On ERROR */
+
+ERROR:
+
+/* If we get here, either an error occurred with the command's */
+/* execution or there was an error with the command itself. */
+/* In the former case, rc2 contains the error message and in */
+/* the latter, rc2 contains an error number. SIGL contains */
+/* the line number of the command which caused the jump */
+/* to ERROR: */
+
+if datatype(rc2,'NUMERIC') == 1 then do
+    /* See if we can describe the error with a string */
+
+    select
+        when rc2 == 103 then
+            err_string = "ERROR 103, "||,
+                "out of memory at line "||SIGL
+        when rc2 == 114 then
+            err_string = "ERROR 114, "||,
+                "bad command template at line "||SIGL
+        when rc2 == 115 then
+            err_string = "ERROR 115, "||,
+                "bad number for /N argument at line "||SIGL
+        when rc2 == 116 then
+            err_string = "ERROR 116, "||,
+                "required argument missing at line "||SIGL
+        when rc2 == 117 then
+            err_string = "ERROR 117, "||,
+                "value after keywork missing at line "||SIGL
+        when rc2 == 118 then
+            err_string = "ERROR 118, "||,
+                "wrong number of arguments at line "||SIGL
+        when rc2 == 119 then
+            err_string = "ERROR 119, "||,
+                "unmatched quotes at line "||SIGL
+        when rc2 == 120 then
+            err_string = "ERROR 120, "||,
+                "line too long at line "||SIGL
+        when rc2 == 236 then
+            err_string = "ERROR 236, "||,
+                "unknown command at line "||SIGL
+        otherwise
+            err_string = "ERROR "||rc2||", at line "||SIGL
+        end
+        end
+else if rc2 == 'RC2' then do
+    err_string = "ERROR in command at line "||SIGL
+    end
+else do
+        err_string = rc2||", line "||SIGL
+        end
+
+request_message TEXT '"'err_string'"'
+
+exit

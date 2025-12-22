@@ -1,0 +1,131 @@
+DEFWRD "a-z"
+> FUNCTION mid_color(c1,c2)
+LOCAL cm
+cm=SHR(ADD(c1,c2),1)+RAND(str)-str2
+IF cm<0
+  RETURN 0
+ELSE IF cm>255
+  RETURN 255
+ELSE
+  RETURN cm
+ENDIF
+ENDFUNC
+init_screen
+paint
+END
+> PROCEDURE init_screen
+SETSPEN 0,0
+OPENS 1,0,0,321,257,5,0
+OPENW #1,0,0,321,257,0,&H11900
+' WindowFlags: RMBTrap, Activate, Borderless, BackDrop
+vp%=SCREEN(1)+44
+rp%=SCREEN(1)+84
+FOR n=0 TO 15
+~SetRGB4(vp%,n,n,0,0)
+NEXT n
+FOR n=0 TO 15
+~SetRGB4(vp%,n+16,15,n,0)
+NEXT n
+bild:
+str=128       ! Farb-Streuungsfaktor
+str2=str/2    ! Damit die Zufallsberechnung nachher schneller geht
+width=320
+height=256
+xa=10         ! Anzahl vorgegebene X-Farbwerte
+ya=16
+xs=width/xa   ! Breite eines vorgegebenen Rechtecks
+ys=height/ya
+cy=256/height ! 1 Punkt in y-Richtung entspricht cy Farben
+cr=height\4   ! maximale Farbverzerrung in der ersten Phase
+DIM c|(width,height)
+himmel2
+RETURN
+> PROCEDURE himmel1
+FOR y=0 TO height STEP ys
+FOR x=0 TO width STEP xs
+col=y*cy+RAND(cr)-cr/2
+IF col>255
+  c|(x,y)=255
+ELSE IF col<0
+  c|(x,y)=0
+ELSE
+  c|(x,y)=col
+ENDIF
+IF x<=320 AND y<=256
+  ~SetAPen(rp%,SHR(c|(x,y),3))
+  ~WritePixel(rp%,x,y)
+ENDIF
+NEXT x
+NEXT y
+RETURN
+> PROCEDURE himmel2
+by=-ya\2
+FOR y=0 TO height STEP ys
+bx=-xa\2
+FOR x=0 TO width STEP xs
+col=255-50*SQR(by*by+bx*bx)
+IF col>255
+c|(x,y)=255
+ELSE IF col<0
+c|(x,y)=0
+ELSE
+c|(x,y)=col
+ENDIF
+IF x<=320 AND y<=256
+~SetAPen(rp%,SHR(c|(x,y),3))
+~WritePixel(rp%,x,y)
+ENDIF
+INC bx
+NEXT x
+INC by
+NEXT y
+RETURN
+> PROCEDURE himmel3
+by=-ya
+FOR y=0 TO height STEP ys
+bx=-xa\2
+FOR x=0 TO width STEP xs
+col=255-19*SQR(by*by+bx*bx)
+IF col>255
+c|(x,y)=255
+ELSE IF col<0
+c|(x,y)=0
+ELSE
+c|(x,y)=col
+ENDIF
+IF x<=320 AND y<=256
+~SetAPen(rp%,SHR(c|(x,y),3))
+~WritePixel(rp%,x,y)
+ENDIF
+INC bx
+NEXT x
+INC by
+NEXT y
+RETURN
+> PROCEDURE paint
+' Zeichnen
+xh=xs\2
+REPEAT
+FOR y=0 TO height STEP ys
+FOR x=0 TO width-1 STEP xs
+c|(x+xh,y)=@mid_color(c|(x,y),c|(x+xs,y))
+~SetAPen(rp%,SHR(c|(x+xh,y),3))
+~WritePixel(rp%,x+xh,y)
+NEXT x
+NEXT y
+xs=xh
+yh=ys\2
+EXIT IF xs<=1 AND ys<=1
+FOR x=0 TO width STEP xs
+FOR y=0 TO height-1 STEP ys
+c|(x,y+yh)=@mid_color(c|(x,y),c|(x,y+ys))
+~SetAPen(rp%,SHR(c|(x,y+yh),3))
+~WritePixel(rp%,x,y+yh)
+NEXT y
+NEXT x
+ys=yh
+xh=xs\2
+DIV str,2
+str2=str/2
+UNTIL xs<=1 AND ys<=1
+RETURN

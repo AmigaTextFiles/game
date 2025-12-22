@@ -1,0 +1,3 @@
+#define REGISTERED TRUE
+#define COLOR FALSE
+#define VERSION "0.92"

@@ -1,0 +1,75 @@
+/*
+ * long_nav_handler.empfe - This function is to be called when you
+ * want to have all queued long navigations executed.
+ *
+ * All ships named 'nav R,C' will be properly long navigated to coordinate
+ * R,C. Please note that there must be the string 'nav ' before the
+ * coordinate, as long_nav.empfe sets it.
+ * NOTE: The string 'nav ' will be converted to 'na ' by this macro and
+ * the coordinate will be changed to internal coordinates. 
+ * Internal coordinates is centered around your original capital.
+ *
+ * If the given ship belong to a fleet, the entire fleet will be navigated.
+ * This macro NEEDS more work, at the moment we assumes the the named ship
+ * is the one which will stop first. If this isn't the case, ships will end
+ * up on different sectors, probably not what one wants..
+ *
+ * Written by Håkan Thörngren 1990 and placed in the Public Domain.
+ * Feel free to use, improve and earn a million from this code.
+ *
+ * Please add your notes in this header if you do changes to the code!
+ *
+ * Date		By		What
+ * ===========================================================================
+ * 27/3 1991	hth		Added in_fix_coordinate() call, this macro
+ *				will now work with a moved capital.
+ */
+
+/* trace ?r*/
+
+min_btu_left = 10
+ship = 0
+
+do while ship ~= -1
+    if btu_left() < min_btu_left then exit(0)
+    dest = get_ship('name',ship)
+    if left(dest, 4) = 'nav ' then do
+	/* This macro has just been set up, now convert to internal coordinate. */
+	parse var dest 'nav 'row','col  
+	if col ~= '' then do
+	    name = 'na 'in_fix_coordinate(row, col)
+	    put_ship('name', ship, name)
+	    end
+	end
+    dest = get_ship('name', ship)
+    parse var dest 'na 'row','col
+    if col ~= '' then do
+	/* This ship is under long navigation. */
+	do_command('ship 'ship,0)
+	if get_ship('mobility',ship) > 30 & get_ship('efficiency',ship) > 90 then do
+	    if out_fix_coordinate(row,col) ~= out_fix_coordinate(get_ship('row',ship), get_ship('column',ship)) then do
+		path = find_path(get_ship('row',ship),get_ship('column',ship),10000,1,row,col)
+		if length(path) > 0 then do
+		    sh = get_ship('fleet',ship)
+		    if sh = '*' then sh = ship
+		    do_command('navigate 'sh' 'path'e',0)
+		    do_command('sh 'sh,0)
+		    end
+		end
+	    if out_fix_coordinate(row,col) = out_fix_coordinate(get_ship('row',ship), get_ship('column',ship)) then do
+		/* We are at the destination!! */
+		if get_ship('fleet',ship) = '*' then
+		    string = 'Ship 'ship' ended long navigation at 'out_fix_coordinate(row,col)
+		else
+		    string = 'Fleet 'get_ship('fleet',ship)' ended long navigation at 'out_fix_coordinate(row,col)
+		write_empfe_screen(string||'0a'x,5)
+		put_ship('name',ship,'')
+		Empfe_log(string);  /* Write to log. */
+		end
+	    end
+	end
+    ship = my_next_ship(ship)
+    end
+
+exit(0)
+

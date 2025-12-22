@@ -1,0 +1,175 @@
+(Codename Porrog)
+
+(after the character "Porrig" from Apocalypso, although this game
+shall have nothing to do with that story. Probably.)
+
+The roguelike I always wanted to make.
+
+Will use ansi/ascii graphics just like a proper roguelike
+
+Will have a (mostly) persistant, yet very very very very big world
+
+Will have an outside world, like something between Adom, CthAngband,
+Omega, and CF. It will work much like the countryside in CthAngband,
+as it is at the same scale. However, it should suck a lot less than
+that countryside.
+
+PERSISTENCE
+===========
+
+Where Nethack has slightly over 50 single-screen levels, that it
+keeps, so things are pretty much as you left them when you return
+to a level, and Angband has lots of very big levels, but it generates
+them anew each time, *we* have the mostly persistant world, where
+generally if you return somewhere, it is either exactly as you left
+it, or as it started off, or more or less *similar* to how it was
+left.
+
+Huh? Well...
+The (outside at least) world is composed of lots of 1/4 screen (20X10???)
+blocks, which are kept in memory when you are in or in sight of them,
+and it remembers places you've been to recently (like a cache), so those
+places are likely to stay in memory too. But if you've not been somewhere
+for a fair while, the detailed data is thrown away- but a generalised
+form of the block is remembered.
+ For a start, the blocks are *initially* generated from a low-res
+environment map OR a fractal type formula OR a structured description
+(eg for a town), or perhaps some combination.  Either way, some low-data
+form that allows either the exact block, or something indistinguishable,
+to be generated each time. That data is stored in the block *from the
+very beginning*. So, that high-detail block can be easily created from
+that when the player moves to (or within sight of) the block.
+
+ So, if the player does little (or better still nothing) to alter what
+is in that block, then when the block is later swapped out, we can
+remember that when we recreate the block, we do so is if it were new.
+
+ And what if the player alters the area drastically? What if he blows
+a vast hole in a wall, or dams a river, or hacks down a large area of
+trees? Well, again, we remember something that approximates pretty
+closely. In the case of the blown up buildings, we can have something
+like another fractal-formula to approximate either what is left of
+the buildings, or the damage done, or both (by doing equivalent of
+CSG?!?) that can be stored in the block. Now, this will tend to be
+recognisably different, eg there may be bits of holes missing, or
+extra holes in new places, or even new bits of wall where there weren't
+any before?!?! But this is OK! It will represent a combination/subset
+of the rebuilding process, further structural collapse, rubble/debris,
+and general chaos that ensued from your handywork. In other words,
+things would be unlikely to remain *exactly* as you left them, due
+to other people and general entropy.
+ On the issue of seriously reworking countryside, pretty much all we
+do is alter the low-res map of the block, or perhaps find a new
+fractal formula that accomodates it well. Again, it would end up
+a bit different to how you left it, but it would be relatively close,
+and it would be a bit much to expect the countryside to remain static.
+
+
+Not sure actually whether we can deal with that damming rivers bit,
+as that would presumably propagate to many other blocks. I suppose
+perhaps we could deal with it with "proto-rivers", that could have
+source and destination nodes specified within the block, and be
+switched off and on, or reduced/raised. Kind of thing.
+
+Ooo, I like that. Now, how about a little chaos butterfly...:)
+
+RNG
+===
+
+Is now described in IDEA_RNG
+
+
+MAIN WORLD
+==========
+
+ As specified earlier, most/all of the map should be initialised with
+a minor level of detail when the game starts, before the player even
+gets near most of the areas. When the game requires those areas to be
+loaded into memory (rather than stored on disk, etc), the full detail
+gets filled in as explained.
+
+ Now, how do we get the overall structure for the initialisation so
+described? I fancy doing some basic terraforming, using a fairly
+simplified model of earth's climatic and geological processes, or
+at least, those I can think of ;)
+
+ Of course to start, we ought to have a *shape* for our little planet
+type thing. A plain flat plane world would be hard to terraform, as we
+can't make it rotate very well. 1D wraparound on that to make a cylinder
+would be a bit more amenable to that. However, the differential in wind
+speed between the equator and poles (due to circumference) would not
+be properly modelled by such a thing. A sphere of sorts would manage
+that better, but we can't really model that. The mapping around the
+poles gets messy and a big headache. Er. Isn't it?
+
+ Well, there are 2 (that I can think of) alternatives for this mapping:
+either the geographical features around the poles get stretched out
+horizontally as you see them (which I don't quite fancy) and it takes
+the same time for a player to walk around a line of latitude near the
+poles as it would to walk around the equator (which would be quite
+disappointing).
+ The alternitive, which sounds difficult and ugly, but which I
+rather favour, is that each line of latitude the player traverses
+is proportional in length to that of a real sphere. This throws up
+2 problems: One is the issue of storage and internal representation,
+the other, that the user would likely notice, is that at various
+latitudes, walking along the line of latitude (IE- east or west), the
+player would notice they were going past features to the north at
+a different speed to features to the south. This would look damn weird.
+
+ However, as long as no structures (eg buildings) straddle those lines
+where the anomaly occurs, that differential should be the only visual
+problem. Is there anything that can be done about it? I think yes!
+Disguise it with smoke and mirrors. There can be many aspects to this:
+If the jump (ie the point where one line moves and one next to it stays
+still type-of-thing) occurs in an area that is featureless- such as
+sea or desert, there is no indication that it has occurred. If it
+occurs somewhere where the player cannot move east or west, it will not
+happen within sight of the player. The jump could be aligned with
+areas that are obscured from sight. Some features such as this could be
+integrated with the code for generating high-detail from low-detail
+blocks.
+
+Whoa- also should bear in mind the effects of nearby NPCs around the
+jumps. Their movement would look pretty weird.
+
+ Also, there is the anomaly of the wrap around at the poles, which is
+a bit horrible to map. I feel the player should be unable to go
+further than 75 or 80 degrees north or south. This should give plenty
+of distance from the poles, and has the advantage of reducing the degree
+of the aforementioned latitude anomaly. Frankly, it's bad enough at
+those latitudes, where the circumference is around a quarter of that
+of the equator. I reckon that on earth, the point where you get things
+like midnight sun (or sunless days) starts *around* 60 degrees, although
+it's prolly more. Either way, I'd like to have some amount of such areas,
+to increase true regional variations. So, I would prefer the player to
+be able to at least go further than 60 degrees.
+
+ Now, if we say that we want that mapping to be used, then how to we
+map perlin noise (to get the initial geography) onto our spherical
+world? Ouch. Needs thought.
+
+[-TRY Geodesics, such as football shapes. The pentagons and hexagons
+ can then be subdivided into triangles, and we have the nodes with the
+ random heights at the vertices of those triangles. The football is
+ used for the coarsest granularity. We then use more detailed geodesics
+ for the higher octave noise. Where the 1d perlin functions use 1d
+ interpolation, and 2d perlin functions use 2d interpolation, our
+ geodesic perlin map uses triangular interpolation. Hurrah!]
+
+ After getting the initial geography, we create water at some height,
+and apply the effects of climate, seasons, and such to give rain and
+wind and various temperatures, to move water around and create erosion
+and different vegetative environments and you know, that sort of thing.
+The effects of the original geography create new conditions and further
+the terraforming effects. After some cycles of doing this, our world
+should start shaping a bit.
+
+ When we think it should be working out, we introduce some people here
+and there on the globe, and give them goals to fullfill. They can create
+settlements and such, in which they create a certain number of various
+buildings to live in and work towards their goals. The people should end
+up affecting their environment by doing things like chopping down trees
+and maybe damming rivers and things.
+
+

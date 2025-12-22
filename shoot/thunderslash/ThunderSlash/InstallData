@@ -1,0 +1,70 @@
+.KEY QUIET/S
+.BRA {
+.KET }
+
+failat 21
+
+if not "{QUIET}" eq "QUIET"
+  requestchoice >env:lschoice "MorphOS Thunder Slash Installer" "Would you like to install Thunder Slash data from the internet? 50MB free space is required." "Yes|No"
+  if val "$lschoice" eq "0"
+    unsetenv lschoice
+    quit 5
+  endif
+  unsetenv lschoice
+endif
+
+set URL1  "http://jahjah.free.fr/morphos/unrar30.lha"
+set URL2  "http://jeanpidom.free.fr/Thunder.rar"
+set SIZE1 103395
+set SIZE2 28672479
+
+makedir >NIL: tmp
+
+bin/wget --passive-ftp --continue --tries 1 --waitretry 10 -T 5 -O tmp/unrar.tmp "$URL1"
+set RES "$RC"
+
+if val "$RES" eq "0"
+  bin/wget --passive-ftp --continue --tries 10 --waitretry 10 -O tmp/tsdata.tmp "$URL2"
+  set RES "$RC"
+endif
+
+if val "$RES" eq "0"
+  list "tmp/unrar.tmp" lformat "%l" >env:unrarlen
+  list "tmp/tsdata.tmp" lformat "%l" >env:tsdatalen
+  if val "$unrarlen" eq "$SIZE1"
+    if val "$tsdatalen" eq "$SIZE2"
+      echo "*NProcessing file..."
+      cd "tmp"
+      lha >NIL: -I x "unrar.tmp"
+      echo "Decompressing Thunder Slash data files..."
+      unrar >NIL: x tsdata.tmp
+      if val "$RC" eq "0"
+        rename "Thunder/THUNDER_SLASH/Images" "/Images"
+        rename "Thunder/THUNDER_SLASH/Sound" "/Sound"
+        cd "/"
+        echo "Thunder Slash data installed OK."
+        delete >nil: all force bin tmp InstallData InstallData.info COPYING
+      else
+        echo "Error extracting files from the data archive, giving up."
+      endif
+    else
+      echo "Data file size is wrong, giving up."
+    endif
+  else
+    echo "Unrar file size is wrong, giving up."
+  endif
+  unsetenv tsdatalen
+  unsetenv unrarlen
+else
+  echo "Failed to fetch files unrar-mos-bin.lha and Thunder.rar, giving up"
+endif
+
+unset RES
+unset SIZE2
+unset SIZE1
+unset URL2
+unset URL1
+
+echo "*NAll done. Thank you for using the automatic Thunder Slash data installer."
+wait 3
+

@@ -1,0 +1,1252 @@
+;******************************
+; Makros
+text__:		set 0
+text2__:	set 0
+zahl__:		set 0
+zahl2__:	set 0
+input__:	set 0
+blitter__:	set 0
+filer__:	set 0
+auto__:		set 0
+string__:	set 0
+
+cpu:		MACRO
+		moveq #0,d0
+		move.l 4.w,a6
+		move.b $129(a6),d0
+		and.b #$13,d0		;0=68000 1=68010 2=68020
+		ENDM			;3=680ec20 usw. + $10=68881/2
+lower:		MACRO
+string__:	set 1
+		move.l \1,a0
+		jsr _lower_str
+		ENDM
+_upper:		MACRO
+string__:	set 1
+		move.l #klein,a0
+		jsr _upper_str
+		ENDM
+_left:		MACRO
+string__:	set 1
+		move.l \1,a0
+		move.l \2,a1
+		move.l \3,d0
+		sub.l #1,d0
+		jsr _left_str
+		ENDM
+_right:		MACRO
+string__:	set 1
+		move.l \1,a0
+		move.l \2,a1
+		move.l \3,d0
+		sub.l #1,d0
+		jsr _right_str
+		ENDM
+len:		MACRO
+string__:	set 1
+		move.l \1,a0
+		jsr _len
+		ENDM
+instr:		MACRO
+string__:	set 1
+		move.l \1,a0
+		move.l \2,a1
+		jsr _instr
+		ENDM
+_mid:		MACRO
+string__:	set 1
+		move.l \1,a0
+		move.l \2,a1
+		move.l \3,d0
+		sub.l #1,d0
+		jsr _cut_str
+		ENDM
+Auto_request:	MACRO
+auto__:		set 1
+		move.l \1,_ts1+12
+		move.l \2,_ts2+12
+		move.l \3,_ts3+12
+		moveq \4,d0
+		moveq \5,d1
+		move.l \6,d2			;Breite
+		move.l \7,d3			;Höhe
+		move.l _windowhd,a0
+		lea _ts1,a1
+		lea _ts2,a2
+		lea _ts3,a3
+		move.l _intbase,a6
+		jsr -348(a6)
+		ENDM
+
+file_req:	MACRO
+filer__:	set 1
+		IFNE NARG-2
+		lea _rname\@(pc),a0
+		bra _filera\@
+_rname\@:	dc.b \1,0
+		even
+_filera\@:
+		bsr _file_req
+		ENDC
+		IFEQ NARG-2
+		lea _rnameb\@(pc),a0
+		bra _filerb\@
+_rnameb\@:	dc.b \1,0
+		even
+_filerb\@:
+		lea _rdir\@(pc),a1
+		bra _filerc\@
+_rdir\@:	dc.b \2,0
+		even
+_filerc\@:
+		lea _dir,a2
+_filerd\@:
+		move.b (a1)+,d0
+		beq.s _filer2\@
+		move.b d0,(a2)+
+		bra.s _filerd\@
+_filer2\@:
+		move.b #0,(a2)
+		bsr _file_req
+		ENDC
+		ENDM
+
+sort_b:		MACRO
+		move.l \1,d0
+		move.l \2,a0
+		jsr _sort_b
+		ENDM
+
+sort_w:		MACRO
+		move.l \1,d0
+		move.l \2,a0
+		jsr _sort_w
+		ENDM
+
+sort_l:		MACRO
+		move.l \1,d0
+		move.l \2,a0
+		jsr _sort_l
+		ENDM
+
+set_int:	MACRO
+		move.l \1,a0
+		jsr _set_int
+		ENDM
+
+kill_int:	MACRO
+		jsr _kill_int
+		ENDM
+
+joy0:		MACRO
+		move.l #$dff00a,a0
+		move.b #0,d1
+		jsr _get_joy
+		ENDM
+
+joy1:		MACRO
+		move.l #$dff00c,a0
+		move.b #1,d1
+		jsr _get_joy
+		ENDM
+
+fire0:		MACRO
+		move.b #0,d1
+		jsr _joy_fire
+		ENDM
+
+fire1:		MACRO
+		move.b #1,d1
+		jsr _joy_fire
+		ENDM
+
+wait_fire1:	MACRO
+wait_fire2\@:
+		move.b #1,d1
+		jsr _joy_fire
+		cmp.l #1,d1
+		bne.s wait_fire2\@
+		ENDM
+
+wait_fire0:	MACRO
+wait_fire02\@:
+		move.b #0,d1
+		jsr _joy_fire
+		cmp.l #1,d1
+		bne.s wait_fire02\@
+		ENDM
+
+load_font:	MACRO
+		move.l \2,_anfang_load
+		move.l \3,_lang_load
+		lea load2_font\@(pc),a5
+		move.l a5,_name_load
+		bra load3_font\@
+
+load2_font\@:	dc.b "\1",0
+		even
+load3_font\@:		
+		jsr _bload
+		move.l \2,d0
+		add.l #100,d0
+		move.l d0,_char		
+		ENDM
+
+
+open_buffer:	MACRO
+blitter__:	set 1
+		move.l \1,_size0
+		get_mem \1,#Chip_Ram
+		move.l d0,_save_puffer
+		move.l d0,_shadow_mask
+		move.l d0,_coll_mask
+		ENDM
+close_buffer:	MACRO
+		fre_mem _size0,_save_puffer
+		ENDM
+
+set_block:	MACRO
+blitter__:	set 1
+		jsr _set_planes
+		lea _objekt,a0
+		move.b \1,4(a0)		;Modus
+		move.w \2,8(a0)		;x
+		move.w \3,6(a0)		;y
+		move.w \4,12(a0)	;Breite in worten
+		move.w \5,10(a0)	;hoehe
+		move.l \6,16(a0)	;Bilddaten
+		moveq #0,d0
+		jsr InitMask
+		lea _objekt,a0
+		jsr PrintObjekt
+		ENDM
+
+set_block_2:	MACRO
+blitter__:	set 1
+		jsr _set_planes
+		lea _objekt,a0
+		move.b #2,4(a0)		;Modus (setzen)
+		move.w \1,8(a0)		;x nur 16 X 16 Sprites
+		move.w \2,6(a0)		;y
+		move.w #2,12(a0)	;Breite in worten
+		move.w #16,10(a0)	;hoehe
+		move.l \3,d1		;Bilddaten
+		move.l \4,d0		;Sprite Nummer
+		mulu #448,d0
+		add.l d0,d1
+		move.l d1,16(a0)
+		add.l #384,d1		;4 Bytes *16 Reihen *6 planes
+		move.l d1,_shadow_mask
+		lea _objekt,a0
+		jsr PrintObjekt
+		ENDM
+
+sprite:		MACRO
+blitter__:	set 1
+		jsr _set_planes
+		lea _objekt,a0
+		move.b \5,4(a0)		;Modus (setzen)
+		move.w \1,8(a0)		;x nur 16 X 16 Sprites
+		move.w \2,6(a0)		;y
+		move.w #2,12(a0)	;Breite in worten
+		move.w #16,10(a0)	;hoehe
+		move.l \3,d1		;Bilddaten
+		move.l \4,d0		;Sprite Nummer
+		mulu #448,d0
+		add.l d0,d1
+		move.l d1,16(a0)
+		add.l #384,d1		;4 Bytes *16 Reihen *6 planes
+		move.l d1,_shadow_mask
+		lea _objekt,a0
+		jsr PrintObjekt
+		ENDM
+
+c_color:	MACRO
+		move.w \1,d0		;Farbnummer
+		move.w \2,d1		;Farbe
+		jsr _copper_farben
+		ENDM
+
+set_pal:	MACRO
+		move.l \1,a0
+		jsr _copper_pallette
+		ENDM
+
+set_charset:	MACRO
+		move.l \1,d0
+		add.l #100,d0
+		move.l d0,_grafset
+		ENDM
+
+set_char0:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,d0		;X_Pos
+		move.l \2,d1		;Y_Pos
+		move.l \3,d2		;Element Nr.
+		move.l \4,a6		;Zeichensatz
+		add.l #100,a6
+		jsr _set_ein_kasten
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+set_char:	MACRO
+		move.l \1,d0		;Xcoor
+		move.l \2,d1		;Ycoor
+		move.l \3,_x_aus	;x-1
+		move.l \4,_y_aus	;y-1
+		move.l \5,a5
+		jsr _set_kasten
+		ENDM
+
+set_charb:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,d0		;Xcoor
+		move.l \2,d1		;Ycoor
+		move.l \3,a5
+		move.l 4(a5),_x_aus	;x-1
+		move.l 8(a5),_y_aus	;y-1
+		add.l #12,a5
+		jsr _set_kasten
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+screen_front:	MACRO
+		move.l _intbase,a6
+		move.l _screenhd,a0
+		jsr -252(a6)
+		ENDM
+
+screen_back:	MACRO
+		move.l _intbase,a6
+		move.l _screenhd,a0
+		jsr -246(a6)
+		ENDM
+
+;-----------------------------------------
+; ** text #farbe,#x,#y,#string **
+;-----------------------------------------
+ptext:		MACRO
+text__:		set 1
+		movem.l d0-d7/a0-a6,-(a7)
+		move.w \1,d0
+		move.w \2,d2
+		move.w \3,d3
+		move.l \4,a5
+		jsr _scan_text
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+print:		MACRO
+text__:		set 1
+		movem.l d0-d7/a0-a6,-(a7)
+		move.w \1,d0		;Farbe
+		move.w \2,d2		;X Koordinate
+		move.w \3,d3		;Y Koordinate
+		lea pri\@(pc),a5
+		bra prin\@
+
+pri\@:		dc.b \4,0
+
+		even
+
+prin\@:		jsr _to_space
+		jsr _scan_text
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;------------------------------------------
+; text2 #farbe,#x,#y,#string
+;------------------------------------------
+text2:		MACRO
+text2__:	set 1
+		movem.l d0-d7/a0-a6,-(a7)
+		move.w \1,_color
+		move.w \2,_x
+		move.w \3,_y
+		move.l \4,_str
+		jsr _text2_prg
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;-----------------------------------------
+; input #farbe,#x,#y,string,#laenge
+;-----------------------------------------
+
+input:		MACRO
+input__:	set 1
+text__:		set 1
+		movem.l d0-d7/a0-a6,-(a7)
+		lea _tasten_tab,a0
+		move.l a0,_codes
+		move.w \1,_farbe2
+		move.w \2,d3		;X Koordinate
+		move.w \3,d4		;Y  "      "
+		lea \4,a0		;Adresse des Strings
+		move.b \5,_entlong	;max Laenge
+		move.l a0,_anfang
+		jsr _entername
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;-----------------------------------------
+; zinput #farbe,#x,#y,string,#laenge
+;-----------------------------------------
+
+zinput:		MACRO
+input__:	set 1
+text__:		set 1
+		movem.l d0-d7/a0-a6,-(a7)
+		lea _tasten_tab2,a0
+		move.l a0,_codes
+		move.w \1,_farbe2
+		move.w \2,d3		;X Koordinate
+		move.w \3,d4		;Y  "      "
+		lea \4,a0		;Adresse des Strings
+		move.b \5,_entlong	;max Laenge
+		move.l a0,_anfang
+		jsr _entername
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;-----------------------------------------
+cls:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		jsr _cls0
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+wait_mouse:	MACRO
+wait_mouse1\@:	btst #6,$bfe001
+		bne.s wait_mouse1\@
+		ENDM
+
+wait_mouser:	MACRO
+wait_mouser1\@:	btst #10,$dff016
+		bne.s wait_mouser1\@
+		ENDM
+
+led_on:		MACRO
+		and.b #253,$bfe001
+		ENDM
+
+led_off:	MACRO
+		or.b #2,$bfe001
+		ENDM
+
+;------------------------------------------
+; get_fre #Chip_Ram
+; get_fre #Fast_Ram
+;------------------------------------------
+get_fre:	MACRO
+		movem.l d1-d7/a0-a6,-(a7)
+		move.l \1,d1
+		move.l ExecBase,a6
+		jsr AvailMem(a6)
+		movem.l (a7)+,d1-d7/a0-a6
+		ENDM
+
+rnd:		MACRO
+		jsr _fallzu	;Zufalls Zahl in D0.b und zuzahl(1-16)
+		ENDM
+
+rnd16:		MACRO
+		jsr _fallzu16	;Zufalls Zahl in D0.w und zuzahl16(16 Bit)
+		ENDM
+
+wait_key:	MACRO
+wait_key\@:	moveq #0,d0 		
+		jsr _syskey
+		beq.s wait_key\@
+		ENDM
+
+wait_km:	MACRO		;wartet ouf Maus oder Tasten Druck
+		jsr _bf_2b
+		ENDM
+
+get_xy:		MACRO
+		moveq #0,d0
+		moveq #0,d1
+		move.l _screenhd,a0
+		move.w $12(a0),d0	;X Koord hohlen
+		move.w $10(a0),d1	;Y Koord hohlen
+		ENDM
+
+mouse_x:	MACRO
+		moveq #0,d0
+		move.l _screenhd,a0
+		move.w $12(a0),d0	;X Koord hohlen
+		ENDM
+
+
+mouse_y:	MACRO
+		moveq #0,d0
+		move.l _screenhd,a0
+		move.w $10(a0),d0	;Y Koord hohlen
+		ENDM
+
+
+sys_init:	MACRO
+		move.b #0,_bv
+		jsr _init
+		ENDM
+
+sys_exit:	MACRO
+		jsr _exit
+		ENDM
+
+getch:		MACRO			;solange bis Taste gedrueckt
+		movem.l d1-d7/a0-a6,-(a7)
+		jsr _getch		;D0.b = Tasten Wert
+		movem.l (a7)+,d1-d7/a0-a6
+		ENDM
+
+key:		MACRO
+		movem.l d1-d7/a0-a6,-(a7)
+		jsr _getch2		;D0.b = Tasten Wert
+		movem.l (a7)+,d1-d7/a0-a6
+		ENDM
+
+delay:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,_wait
+		jsr _warte
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;-----------------------------------------
+; ** zahl #farbe,#x,#y,#zahl **
+;-----------------------------------------
+zahl:		MACRO
+zahl__:		set 1
+		movem.l d0-d7/a0-a6,-(a7)
+		move.w \1,_farbe
+		move.w \2,_xcoord
+		move.w \3,_ycoord
+		move.l \4,d0
+		jsr _zstring
+		ptext _farbe,_xcoord,_ycoord,#_z
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;-----------------------------------------
+; ** zahlr #farbe,#x,#y,#zahl **
+;-----------------------------------------
+zahlr:		MACRO
+zahl__:		set 1
+		movem.l d0-d7/a0-a6,-(a7)
+		move.w \1,_farbe
+		move.w \2,_xcoord
+		move.w \3,_ycoord
+		move.l \4,d0
+		jsr _rbuendig
+		jsr _zstring
+		ptext _farbe,_xcoord,_ycoord,#_z
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;------------------------------------------
+; load #fileneame,#anfang des Speichers,#laenge
+;------------------------------------------
+load:		MACRO
+		move.l \1,_name_load
+		move.l \2,_anfang_load
+		move.l \3,_lang_load
+		jsr _bload
+		ENDM
+
+loadb:		MACRO
+		move.l \2,_anfang_load
+		move.l \3,_lang_load
+		lea load2b\@(pc),a5
+		move.l a5,_name_load
+		bra load3b\@
+
+load2b\@:	dc.b \1,0
+		even
+load3b\@:		
+		jsr _bload
+		ENDM
+
+;------------------------------------------
+; save #fileneame,#anfang der Daten,#laenge
+;------------------------------------------
+save:		MACRO
+		move.l \1,_name_save
+		move.l \2,_anfang_save
+		move.l \3,_lang_save
+		move.l #1006,_modus
+		jsr _bsave
+		ENDM
+
+saveb:		MACRO
+		move.l \2,_anfang_save
+		move.l \3,_lang_save
+		lea save2b\@(pc),a5
+		move.l a5,_name_save
+		bra save3b\@
+
+save2b\@:	dc.b \1,0
+		even
+save3b\@:		
+		move.l #1006,_modus
+		jsr _bsave
+		ENDM
+
+;------------------------------------------
+; delete #filename
+;------------------------------------------
+delete_b:	MACRO
+		jsr _dosopen
+		move.l \1,d1
+		move.l _dosbase,a6
+		jsr DeleteFile(a6)
+		jsr _dosclose
+		ENDM
+
+delete:		MACRO
+		jsr _dosopen
+		lea deleteb\@(pc),a5
+		move.l a5,d1
+		bra deleteb2\@
+
+deleteb\@:	dc.b \1,0
+		even
+deleteb2\@:
+		move.l _dosbase,a6
+		jsr DeleteFile(a6)
+		jsr _dosclose
+		ENDM
+
+
+wait_vbl:	MACRO
+wait_vbl2\@:
+		move.l $dff004,d0
+		lsr.l #8,d0
+		cmp.w #254,d0			;207
+		blt.s wait_vbl2\@
+		ENDM
+
+wait_vblb:	MACRO
+wait_vbl2b\@:
+		move.l _vp,a0
+		move.l _graphbase,a6
+		jsr -402(a6)
+		ENDM
+
+flip_page:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		jsr _flip
+		jsr _neue_adr
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+equ_screen:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		jsr _equ
+		jsr _neue_adr
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+back:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.b #1,_bv
+		jsr _back_plane
+		jsr _neue_adr
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+front:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.b #0,_bv
+		jsr _front_plane
+		jsr _neue_adr
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+get_number:	MACRO
+zahl2__:	set 1
+		movem.l d1-d7/a0-a6,-(a7)
+		lea \1,a0		;Adresse des Strings
+		jsr _stzahl
+		move.l d0,_number	;Zahl sichern
+		movem.l (a7)+,d1-d7/a0-a6
+		ENDM
+
+
+;------------------------------------------
+; get_mem #groesse,#Chip_Ram
+; get_mem #groesse,#Fast_Ram
+;------------------------------------------
+get_mem:	MACRO
+		movem.l d1-d7/a0-a6,-(a7)
+		move.l \1,d0		;Speichergroesse
+		move.l \2,d1		;Bedingungen
+		move.l ExecBase,a6
+		jsr AllocMem(a6)	;D0 = Anfangsadresse des Speichers
+		movem.l (a7)+,d1-d7/a0-a6
+		ENDM			;D0 = 0 dann Fehler
+
+;------------------------------------------
+; fre_mem #groesse,Anfang
+;------------------------------------------
+fre_mem:	MACRO			;Freedom for Random Acces Memory
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,d0		;Speichergroesse
+		move.l \2,a1		;Anfang des Speicherblocks
+		move.l ExecBase,a6
+		jsr FreeMem(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;------------------------------------------
+; color #farbnummer,#rot,#gelb,#blau
+;------------------------------------------
+color:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _vp,a0		;Viewport
+		move.l \1,d0		;Farbregister 0
+		move.w \2,d1		;rot
+		move.w \3,d2		;gelb
+		move.w \4,d3		;blau
+		move.l _graphbase,a6
+		jsr -288(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;------------------------------------------
+; compare string1,string2
+;------------------------------------------
+compare:	MACRO
+		movem.l d1-d7/a0-a6,-(a7)
+		lea \1(pc),a0
+		lea \2(pc),a1
+		jsr _compare		;d0=1 ungleich
+		movem.l (a7)+,d1-d7/a0-a6
+		ENDM
+;------------------------------------------
+; set_pointer #wert
+;------------------------------------------
+set_pointer:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		moveq \1,d5
+		jsr _set_pointer
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+clr_pointer:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		jsr _clr_pointer
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+alert:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		jsr _alert
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+copy_mem:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,a0
+		move.l \2,a1
+		move.l \3,d0
+		move.l ExecBase,a6
+		jsr -624(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+copy_mem2:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,a0
+		move.l \2,a1
+		move.l \3,d0
+		move.l ExecBase,a6
+		jsr -630(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+
+;------------------------------------------
+; pen #farbnummer
+;------------------------------------------
+pen:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;Color
+		move.l _graphbase,a6
+		jsr -342(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; paper #farbnummer
+;------------------------------------------
+paper:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;Color
+		move.l _graphbase,a6
+		jsr -348(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; setrast #farbnummer	;Rastport einfärben
+;------------------------------------------
+setrast:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;Color
+		move.l _graphbase,a6
+		jsr -234(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; draw #farbstift,#xcor,#ycor
+;------------------------------------------
+draw:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		pen \1
+		move.l _rp,a1		;Rastport
+		move.l \2,d0		;Xcor
+		move.l \3,d1		;Ycor
+		move.l _graphbase,a6
+		jsr -246(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; point #farbe,#xcor,#ycor
+;------------------------------------------
+point:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		pen \1
+		move.l _rp,a1		;Rastport
+		move.l \2,d0		;Xcor
+		move.l \3,d1		;Ycor
+		move.l _graphbase,a6
+		jsr -324(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; plot #farbe,#xcor,#ycor
+;------------------------------------------
+plot:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.w \1,d2
+		move.w \2,d0		;Xcor
+		move.w \3,d1		;Ycor
+		jsr _set0
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; elipsee #farbe,#xcor,#ycor,#xradius,#yradius
+;------------------------------------------
+elipse:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		pen \1
+		move.l _rp,a1		;Rastport
+		move.l \2,d0		;Xcor
+		move.l \3,d1		;Ycor
+		move.l \4,d2		;Xcor
+		move.l \5,d3		;Ycor
+		move.l _graphbase,a6
+		jsr -180(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; circle #farbe,#xcor,#ycor,#radius
+;------------------------------------------
+circle:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		pen \1
+		move.l _rp,a1		;Rastport
+		move.l \2,d0		;Xcor
+		move.l \3,d1		;Ycor
+		move.l \4,d2		;Xcor
+		move.l d2,d3		;Ycor
+		move.l _graphbase,a6
+		jsr -180(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; polydraw #anzahl,#pointarrray
+;------------------------------------------
+polydraw:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;Anzahl
+		move.l \2,a0		;Zeiger auf Liste
+		move.l _graphbase,a6
+		jsr -336(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; readpixel #xcor,#ycor
+;------------------------------------------
+readpixel:	MACRO
+		movem.l d1-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;x
+		move.l \2,d1		;y
+		move.l _graphbase,a6	;in d0 color
+		jsr -318(a6)
+		movem.l (a7)+,d1-d7/a0-a6
+		ENDM
+;------------------------------------------
+; flood #modus,#xcor,#ycor
+;------------------------------------------
+flood:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d2		;modus
+		move.l \2,d0		;Xcor
+		move.l \3,d1		;Ycor
+		move.l _graphbase,a6
+		jsr -330(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; rectfill #farbe,#x1,#y1,#x2,#y2
+;------------------------------------------
+rectfill:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		pen \1
+		move.l _rp,a1		;Rastport
+		move.l \2,d0		;Xcor
+		move.l \3,d1		;Ycor
+		move.l \4,d2		;Xcor
+		move.l \5,d3		;Ycor
+		move.l _graphbase,a6
+		jsr -306(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;-----------------------------------------
+;waittof
+;-----------------------------------------
+waittof:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _graphbase,a6
+		jsr -270(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;-----------------------------------------
+;vbeampos
+;-----------------------------------------
+vbeampos:	MACRO
+		move.l _graphbase,a6
+		jsr -384(a6)
+		ENDM
+;-----------------------------------------
+;waitbovp
+;-----------------------------------------
+waitbovp:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _vp,a0
+		move.l _graphbase,a6
+		jsr -402(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;-----------------------------------------
+;ownblitter
+;-----------------------------------------
+ownblitter:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _graphbase,a6
+		jsr -456(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;-----------------------------------------
+;disownblitter
+;-----------------------------------------
+disownblitter:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _graphbase,a6
+		jsr -462(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;-----------------------------------------
+;waitblit
+;-----------------------------------------
+waitblit:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _graphbase,a6
+		jsr -228(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;-----------------------------------------
+;bltclear
+;-----------------------------------------
+bltclear:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,a1		;Speicher
+		move.l \2,d0		;Anzahl der Bytes
+		move.l \3,d1		;Flags
+		move.l _graphbase,a6
+		jsr -300(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;-----------------------------------------
+;setdrmd	;Zeichenmodus festlegen
+;-----------------------------------------
+setdrmd:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;
+		move.l \1,d0		;Zeichenmodus
+		move.l _graphbase,a6
+		jsr -354(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;-----------------------------------------
+;cleareol	;ab Zeile löschen
+;-----------------------------------------
+cleareol:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1
+		move.l _graphbase,a6
+		jsr -42(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;-----------------------------------------
+;clearscreen	;cls ab
+;-----------------------------------------
+clearscreen:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1
+		move.l _graphbase,a6
+		jsr -48(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; scrollraster #delta_X,#delta_Y,#x1,#y1,#x2,#y2
+;------------------------------------------
+scrollraster:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;delta_x
+		move.l \2,d1		;delta_y
+		move.l \3,d2		;x1
+		move.l \4,d3		;y1
+		move.l \5,d4		;X2
+		move.l \6,d5		;Y2
+		move.l _graphbase,a6
+		jsr -396(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; int_text #string,#anzahl
+;------------------------------------------
+int_text:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,a0		;Adresse string
+		move.l \2,d0		;Anzahl
+		move.l _graphbase,a6
+		jsr -60(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; text_length #string,#anzahl
+;------------------------------------------
+text_length:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,a0		;Adresse string
+		move.l \2,d0		;Anzahl
+		move.l _graphbase,a6
+		jsr -54(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; area_draw #x,#y
+;------------------------------------------
+area_draw:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;x
+		move.l \2,d1		;y
+		move.l _graphbase,a6
+		jsr -258(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; area_elipsee #xcor,#ycor,#xradius,#yradius
+;------------------------------------------
+area_elipse:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;Xcor
+		move.l \2,d1		;Ycor
+		move.l \3,d2		;Xcor
+		move.l \4,d3		;Ycor
+		move.l _graphbase,a6
+		jsr -186(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; area_circle #xcor,#ycor,#radius
+;------------------------------------------
+area_circle:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;Xcor
+		move.l \2,d1		;Ycor
+		move.l \3,d2		;Xcor
+		move.l d2,d3		;Ycor
+		move.l _graphbase,a6
+		jsr -186(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; area_end
+;------------------------------------------
+area_end:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l _graphbase,a6
+		jsr -264(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; area_move #xcor,#ycor
+;------------------------------------------
+area_move:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;Xcor
+		move.l \2,d1		;Ycor
+		move.l _graphbase,a6
+		jsr -252(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; init_area #area_info,#buffer,#Anzahl Punkte
+;------------------------------------------
+init_area:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,a0		;
+		move.l \2,a1		;
+		move.l \3,d0		;
+		move.l _graphbase,a6
+		jsr -282(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; init_tmpras #tmpras,#buffer,#größe
+;------------------------------------------
+init_tmpras:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,a0
+		move.l \2,a1
+		move.l \3,d0
+		move.l _graphbase,a6
+		jsr -468(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; freecolormap
+;------------------------------------------
+freecolormap:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,a0		;Adresse der ColorMap
+		move.l _graphbase,a6
+		jsr -576(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; getcolormap
+;------------------------------------------
+getcolormap:	MACRO
+		movem.l d1-d7/a0-a6,-(a7)
+		move.l \1,d0		;Anzahl der Farben
+		move.l _graphbase,a6
+		jsr -570(a6)
+		movem.l (a7)+,d1-d7/a0-a6
+		ENDM			;d0 = Adresse der ColorMap
+;------------------------------------------
+; getrgb4
+;------------------------------------------
+getrgb4:	MACRO
+		movem.l d1-d7/a0-a6,-(a7)
+		move.l \1,a0		;colormap
+		move.l \2,d0		;Farbnummer
+		move.l _graphbase,a6
+		jsr -582(a6)
+		movem.l (a7)+,d1-d7/a0-a6
+		ENDM			;d0 = Farbe
+;------------------------------------------
+; loadrgb4
+;------------------------------------------
+loadrgb4:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _vp,a0
+		move.l \1,a1		;Farb Palette
+		move.l \2,d0		;Farb Einträge
+		move.l _graphbase,a6
+		jsr -192(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; setrgb4cm
+;------------------------------------------
+setrgb4cm:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l \1,a0		;Colormap
+		move.l \2,d0		;Farbregister
+		move.l \3,d1		;rot
+		move.l \4,d2		;grün
+		move.l \5,d3		;blau
+		move.l _graphbase,a6
+		jsr -630(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM			;d0 = Adresse der ColorMap
+;------------------------------------------
+; setrgb4 #farbnummer,#rot,#gelb,#blau
+;------------------------------------------
+setrgb4:	MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _vp,a0		;Viewport
+		move.l \1,d0		;Farbregister 0
+		move.l \2,d1		;rot
+		move.l \3,d2		;gelb
+		move.l \4,d3		;blau
+		move.l _graphbase,a6
+		jsr -288(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+;------------------------------------------
+; gotoxy #Xcoord,#Ycoord
+;------------------------------------------
+gotoxy:		MACRO
+		movem.l d0-d7/a0-a6,-(a7)
+		move.l _rp,a1		;Rastport
+		move.l \1,d0		;Xcoord
+		move.l \2,d1		;Ycoord
+		move.l _graphbase,a6
+		jsr -240(a6)
+		movem.l (a7)+,d0-d7/a0-a6
+		ENDM
+
+;********************************
+;Betriebssystem Funktionen
+
+Chip_Ram	=$30003
+Fast_Ram	=$30005
+
+;Exec und Intuition (fehlt einiges(fast alles))
+OpenLib		=-408
+ExecBase	= 4
+CloseLibrary	=-414
+OpenScreen	=-198
+CloseScreen	=-66
+AllocMem	=-198
+FreeMem		=-210
+AvailMem	=-216
+setpointer	=-$10e
+
+;Dos Library
+open		=-30
+close		=-36
+read		=-42
+write		=-48
+DeleteFile	=-72
+Rename		=-78
+mode_old	= 1005
+mode_new	= 1006
+

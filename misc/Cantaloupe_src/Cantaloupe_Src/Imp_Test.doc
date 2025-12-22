@@ -1,0 +1,283 @@
+
+       Implementation Notes
+
+
+
+Overview
+
+     In this section, I will be looking at some of the problems that came
+up during the implementation of the system which were not (or unable to
+be) considered fully in the design section.
+
+
+Tile Animation
+
+     In the game, when the user destroys a destructible tile, I wanted
+there to be an animation of the tile disappearing.  I decided that the
+tile should "flip" away (rotate 90O towards the player, until it was side
+on, and then simply disappear).  I designed the animation for this, used
+it in the game, and it looked good.  The animation was shown as a sprite,
+to ensure that there was no flicker.  However, a problem occurred in
+certain circumstances while I was testing the animation: it was too long.
+
+     It takes the player 16 fiftieths of a second to move from one tile to
+the next (1 pixel per screen update), but the tile animation was longer
+than this.  To illustrate what happened, imagine the player moving across
+a row of destructible tiles.  It would take the player 16 frames to move
+to the next tile.  The tile animation would be started as soon as the
+player left the tile.  This would result in a new tile flipping animation
+being triggered every 16 frames, which would not give each animation the
+chance to finish.
+
+     The problem was that I was using the same sprite for all the
+animations.  There are four sprites available on the game screen.  One of
+them is for the player's on-screen craft.  Three other sprites were
+available to show the animation.  I used the idea of a circular queue to
+let all of them be used.
+
+     The available sprites are numbered 1 to 3.  The sprite number that
+would be used for the next animation would be stored in a variable (say,
+SPR).  Every time an animation was triggered, SPR would be updated thus:
+
+     Add SPR,1,1 to 3
+
+     This is an Amos-specific command that basically does this adds 1 to
+SPR, and if SPR is bigger than 3, then SPR is set to 1.  In this way, all
+three sprites would be used, in turn, to display the animations.  The only
+proviso would be that the animation was less than 48 (3*16) frames long. 
+This is about a second long, and should be more than enough.
+
+     This technique would make it harder to check if animations had
+finished, and if so then to remove the sprite images from the screen.  I
+got round this problem by making sure that the last image in the animation
+was always a blank image.  This way, when the animation had finished, it
+looked as though the sprite had disappeared, even though it was still
+technically there.  When the sprite was needed again, it was simply moved,
+invisibly, to the new location, and the animation was started again.
+
+
+Screen Making
+
+     Due to my inability to draw, I created a lot of the presentation
+screens using separate Amos programs.  These are included with the main
+program, but here is a brief outline of how I achieved the effects:
+
+- The High Score table.  The background to this looks quite like a surface
+of a rock.  It is very detailed, and looks quite effective on screen.  The
+program to do this creates semi-random numbers, and simply plots these
+onto a screen in a grey-scale.
+
+     To create the semi-random numbers, the program looks at the colours
+above and to the left of the pixel it is considering, and bases it's
+calculations on this:  the end result will be a random colour that is
+close to it's surrounding colours.  The program takes quite a while to
+execute, but when it has, the screen can be saved as a picture and used in
+the the final game without any delays needed.
+
+-The Get Ready screen.  This was quite an easy screen to produce. 
+Firstly, the screen was filled with horizontal lines of colours ranging
+from index numbers 1-30.  When colour cycling is now turned on, the screen
+appears to be moving upwards.  Not all that impressive, so the screen is
+then altered by applying vertical and horizontal sine waves, with randomly
+varying amplitudes.  This creates a nice wavy kind of effect, which looks
+especially good when colour cycling is turned on again.  Colour indices 0
+and 31 are used to write the words "Get Ready" in large, friendly letters
+over the screen.
+
+-The Title Screen tunnel.  This was a significantly more complicated
+program than the previous two were.  After several tries at writing the
+program, I found a solution that was time consuming, but effective.
+
+     What the program does is draw a series of two-tone colour discs.  A
+colour disc will be made from 8 triangular sections (4 of each colour,
+alternating), producing an octagon with each of the corner nodes connected
+to a centre point.  A series of these would be drawn, with each one
+decreasing in radius (so only the outer rim of the previous disc shows
+through), rotated slightly more than the previous one, and a different
+combination of colours used.  The rate at which the radius decreases, and
+how much the rotation is increased are not uniform, and are worked out
+using formulae that were arrived at through a trial and error approach (I
+didn't have the time or ability to go into the mathematics of the three
+dimensional problem, and simply twiddled with the formulae until the end
+result looked right).  The end result, with colour cycling turned on, is
+of moving and rotating through a chequered tunnel, and looks very
+effective when it is moving.
+
+
+Silliness
+
+     In the later stages of the implementation, I looked at the game and
+decided it wasn't silly enough.  To try to rectify this a little, I
+decided that if the joystick wasn't moved for 20 seconds, the sphere that
+the player controls should grow a face and stick it's tongue out at the
+player.  Implementing this change, from the idea of it to it fully working
+took about half an hour, and, in my opinion, enhances the game a little.
+
+
+            >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+
+           Testing Notes
+
+
+
+Overview
+
+     Due to the type of problem I have decided to solve, very little
+evidence of testing can be offered for most of the program.  For instance,
+I can't really offer any evidence that the game itself works without
+including either a disk of the game or a video of it.
+
+     However, some parts can be shown: file manipulation, for instance. 
+Also, screenshots of various parts of the game can be easily printed out
+to prove that the screens are set up properly and so they can be compared
+to those in the Design section.
+
+     To preserve the neatness and clarity of the section, I will first
+describe the main tests performed and their outcome, followed by the
+evidence for the tests.  Most of the screenshots of the game will follow
+these.  However, the screenshots of the level editor menus are included in
+the User guide (Section 4).
+
+
+Bitmap Test
+
+     The first test will be to make sure that bitmaps are created and
+updated correctly.  There are two types of bitmaps: game bitmaps and stage
+bitmaps.
+
+     Firstly, I will force a stage bitmap to be created.  This will be
+achieved by creating a game and a number of stages as normal, and then
+delete the stage bitmap.  I will then validate the game, and the program
+should realise there is no stage bitmap and create one.  The stages
+present are 0, 1, 5, 10, 40, 81, and 99  (This includes the minimum and
+maximum stage numbers, as well as a spread between them).  The game number
+is 898.  The output of the bitmap file is shown as figure 1.
+
+     I will then force the game bitmap to be created in much the same way.
+ Games and stages will be created, and then the whole set of games will be
+validated, and the game bitmap should be created.  The data used was:
+(Game:Number of stages) 0:1, 2:2, 123:1, 124:2, 125:3, 400:1, 519:2,
+898:7, 999:12.  The output is shown as figure 2.
+
+     Three stages were then added to game 898 (2, 39, and 53).  The
+updated stage and game bitmap files are shown as figures 3 and 4
+respectively.  As the file dumps show, the bitmap creation and updating
+routines work without fault.
+
+
+Passwords
+
+     To prove that the passwords, when stored in their files, are
+unreadable, two examples are provided (examples of updating are
+unnecessary as the file is recreated each time a new set of passwords is
+saved).
+
+     The first example, figure 5, shows the following password data: 
+(Stage:Password) 0:Hello, 1:There, 5:UPPERCASE, 10:lowercase, 99:Never odd
+or even.  This data loads and saves into and out of the system without
+corruption.  Figure 6 shows a file without any password data in it.
+
+
+High Scores
+
+     Figure 7 simply shows an example high score file.  All the data is
+validated as it is created or entered.  Again, updating the file is not
+applicable in this case: the entire file is re-written.
+
+Stage File
+
+     Figure 8 is an example of a stage file.  Again, all the data is
+validated as it is either created or entered.  The file is completely
+re-written each time it is changed.
+
+
+Validation Test
+
+     To test whether the validation checks work, I made the following
+changes to the directory structure of the disk:
+- Deleted a password file from a game directory
+- Deleted a stage bitmap from a game directory
+- Deleted the game bitmap
+
+     When "Validate All" was selected, all these changes were rectified,
+and all the files were re-created.
+
+
+Startup Test
+
+     I tested the system out without any "Games" directory at all.  There
+were no other data files on the disk.  It created the Games directory and
+a blank game bitmap as soon as the level editor was loaded.
+
+
+Screenshots
+
+     After the example file dumps, there is a set of screenshots from
+every point of the game.  There are notes with each, describing from which
+part of the game each comes from, and any other relevant information.  For
+the screenshots of the level editor, please see the end of the User Guide
+documentation.
+
+
+Error Trapping and Recovery
+
+     Even though I feel that I have tested the system thoroughly, I can't
+take it for granted that it will work in absolutely every situation.
+
+     In the game program, there is a specially written error routine that
+will occur if there is an error any where in the program.  So that it will
+work over any screen, it opens a screen of it's own, and the error message
+is written on this.  The screen is then moved to the centre of the
+display, and a press of the fire button is awaited.  When fire is pressed,
+the screen disappears and the program continues.
+
+     The routine was very easy to create, as a line such as:
+
+     On Error Proc _ERROR
+
+     would immediately call the procedure _ERROR when an error occurs. 
+The name of the error (e.g. "Disk write protected") would be stored in the
+system variable Error$, making it easy to display it, and when the
+procedure ended, control would be passed back to the program just after
+the erroneous instruction.
+
+     The main causes of errors in the game would be from disk access (for
+instance, saving to a write-protected disk, reading from a corrupted one,
+and so on).  If this happened, the error would let the user know that the
+operation hadn't been executed, and that he should try again.  All
+possible errors would be caught by this system.
+
+     Certain errors, however, are always checked for and sorted out
+anyway.  For instance, if a stage bitmap is not found, the program will
+automatically create another one when it tries to load it in.
+
+     The level editor error trapping procedures differ slightly.  As it is
+an application, the user has more control over what happens when an error
+occurs.  For most of the application, I have turned on the default Amos
+requesters.  When something subsequently goes wrong with a disk operation,
+Amos will open up a requester letting the user know what the error is, and
+let him choose whether to "Retry" the operation or "Cancel" it.  "Retry"
+will then retry the operation that caused the error, and "Cancel" will
+simply leave it and go on to the next instruction.
+
+     The system also has additional error messages built in.  For example,
+when the user tries to load in a new stage over an unsaved stage in
+memory, or when the saving of a stage will delete another file, the system
+will bring up a requester asking for confirmation of the action.  This
+will also happen when the user tries to delete a stage or game, and when
+the "Quit Program" button has been pressed.
+
+     Together, these two error trapping systems should be able to catch
+any sort of error that occurs in the running of the system.  Also, all of
+the data that is entered into the system is validated on entry, so there
+should be no problems with illegal data.
+
+
+Untestable Parts
+
+     For most of the program, the results of the tests cannot be shown. 
+So instead, I brought an Amiga into college and showed the entire system
+to my supervisor, Mr. Serednycky, who then proceeded to check that it all
+of the program functions worked correctly.

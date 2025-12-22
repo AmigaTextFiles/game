@@ -1,0 +1,593 @@
+;;; -*- Lisp-Interaction -*-      ;;;  Version: 14-Aug-95                ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  GNU Chess Installation script
+;;;  Copyright (C)  1995,   Jochen Wiedmann
+;;;
+;;;  This program is free software; you can redistribute it and/or modify
+;;;  it under the terms of the GNU General Public License as published by
+;;;  the Free Software Foundation; either version 2 of the License, or
+;;;  (at your option) any later version.
+;;;
+;;;  This program is distributed in the hope that it will be useful,
+;;;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;  GNU General Public License for more details.
+;;;
+;;;  You should have received a copy of the GNU General Public License
+;;;  along with this program; if not, write to the Free Software
+;;;  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;;;
+;;;
+;;;  Author:   Jochen Wiedmann
+;;;            Am Eisteich 9
+;;;            72555 Metzingen
+;;;            Germany
+;;;
+;;;            Phone: (0049) +7123 / 14881
+;;;            Internet: jochen.wiedmann@zdv.uni-tuebingen.de
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  Variable settings
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(set installVersion "4.0.pl75")
+(set installName "GNU Chess")
+;(set installSubDir (cat installName "-" installVersion))
+(set installSubDir "GNU Chess")
+(set minOsVersion 37)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  SelectInstallDir procedure
+;;;
+;;;  Allows the user to select an installation directory (full path),
+;;;  which will be stored in the installDir variable.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure SelectInstallDir
+    (set installDir-Parent (expandpath (askdir
+	(prompt "Please select the installation directory. "
+		"A drawer " installSubDir " will be created."
+	)
+	(help installName " is installed in a separate directory. "
+	      "A typical place is something like `Work:" installSubDir
+	      "' or something similar. In this example you should select "
+	      "the directory `Work:'.\n\n"
+	      @askdir-help)
+	(default @default-dest)
+	(newpath)
+    )))
+
+    (set installDir (tackon installDir-Parent installSubDir))
+    (set @default-dest installDir)
+    (message "Installing in " installDir)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  SelectBinaries procedure
+;;;
+;;;  Allows the user to select the binaries that should be installed.
+;;;
+;;;  Sets: installGnuChessBinary
+;;;        installGnuChessXBinary
+;;;        installGnuChessNBinary
+;;;        installGnuChessRBinary
+;;;        installGnuAnBinary
+;;;        installEcoBinaries
+;;;        installPostScriptBinaries
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure SelectBinaries
+
+    (set selectedBinaries (askoptions
+	(prompt "Select the binaries to install.")
+	(help "gnuchessx is an AmyBoard client. By using AmyBoard "
+	      "you will get a mouse driven GUI. Typical users "
+	      "won't be interested in other versions than "
+	      "gnuchessx.\n\n"
+	      "gnuchess and gnuchessn have curses based displays: "
+	      "The program will use Ascii characters to draw a "
+	      "chessboard. gnuchessn is somewhat more fancy than "
+	      "gnuchess: It uses inverse characters to separate "
+	      "white and black squares and pieces.\n\n"
+	      "gnuchessr is the least comfortable version of GNU "
+	      "Chess: You won't use it for anything else than "
+	      "batch jobs.\n\n"
+	      "gnuan is a curses based tool which helps you in "
+	      "analyzing a certain game or a position.\n\n"
+	      "The ECO tools help you to build the file "
+	      "gnuchess.eco which is used by GNU Chess to "
+	      "identify the ECO number of a game.\n\n"
+	      "The PostScript tools allow to print the positions "
+	      "of a game in PostScript format.\n\n"
+	      @askoptions-help
+	)
+	(choices "gnuchessx (AmyBoard client)"
+		 "gnuchess  (Simple curses version)"
+		 "gnuchessn (Fancy curses version)"
+		 "gnuchessr (Ascii version)"
+		 "gnuan     (Analyzing tool)"
+		 "ECO tools"
+		 "PostScript tools"
+	)
+	(default 1)
+    ))
+
+    (set installGnuChessXBinary 0)
+    (if (BITAND selectedBinaries 1)
+    (   (set installGnuChessXBinary 1)
+    ))
+
+    (set installGnuChessBinary 0)
+    (if (BITAND selectedBinaries 2)
+    (   (set installGnuChessBinary 1)
+    ))
+
+    (set installGnuChessNBinary 0)
+    (if (BITAND selectedBinaries 4)
+    (   (set installGnuChessBinary 1)
+    ))
+
+    (set installGnuChessRBinary 0)
+    (if (BITAND selectedBinaries 8)
+    (   (set installGnuChessRBinary 1)
+    ))
+
+    (set installGnuAnBinary 0)
+    (if (BITAND selectedBinaries 16)
+    (   (set installGnuAnBinary 1)
+    ))
+
+    (set installEcoBinaries 0)
+    (if (BITAND selectedBinaries 32)
+    (   (set installEcoBinaries 1)
+    ))
+
+    (set installPostScriptBinaries 0)
+    (if (BITAND selectedBinaries 64)
+    (   (set installPostScriptBinaries 1)
+    ))
+
+    (set installCursesBinaries 0)
+    (if (BITAND 22 selectedBinaries)
+    (   (set installCursesBinaries 1)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CheckOsVersion procedure
+;;;
+;;;  Aborts, if OS version is lower than the variable minOsVersion.
+;;;  Sets osVersion variable.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CheckOsVersion
+    (set osVersion (/ (getversion "exec.library" (resident)) 65536))
+    (if (< osVersion minOsVersion)
+    (   (abort "Sorry, " installName
+	       " needs Kickstart/Workbench 2.04 or higher.")
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  ShowCopyrightMessage procedure
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure ShowCopyrightMessage
+    (message installName ": The GNU project's chess program\n\n"
+	"V" installVersion " © 1995 Free Software Foundation  \n\n"
+	"This program is FREE SOFTWARE; you can redistribute it and/or "
+	"modify it under the terms of the GNU General Public License as "
+	"published by the Free Software Foundation; either version 2 "
+	"or any later version.\n\n"
+	"This program is distributed in the hope that it will be useful, "
+	"but WITHOUT ANY WARRANTY! See the GNU General Public License "
+	"(in the file COPYING) for details."
+    )
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CreateDrawer procedure
+;;;
+;;;  Creates a new drawer.
+;;;
+;;;  Uses: drawerName    drawer's name
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateDrawer
+
+    (if (<> (exists drawerName) 2)
+    (   (makedir drawerName
+	    (prompt ("Creating drawer %s " drawerName))
+	    (infos)
+	)
+    ))
+)
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CreateIcon procedure
+;;;
+;;;  Creates an icon
+;;;
+;;;  Uses: iconName     path of icon to create (".info" removed)
+;;;        iconSource   path of icon to use
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateIcon
+
+    (set iconFullName (cat iconName ".info"))
+
+    (if (NOT (exists iconFullName))
+    (   (if (exists iconSource)
+	(   (transcript "Creating icon " iconFullName)
+	    (copyfiles
+		(prompt "Copying " (fileonly iconName) " icon ...")
+		(source iconSource)
+		(dest (pathonly iconName))
+		(newname (fileonly iconFullName))
+		(optional "oknodelete" "askuser")
+	    )
+	)
+	(   (transcript iconSource " not found, cannot create "
+			iconFullName
+	    )
+	))
+    )
+    (   (transcript "Using existing icon " iconFullName)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
+;;;;  CreateDocIcon procedure
+;;;;
+;;;;  Creates a docfile's icon.
+;;;;
+;;;;  Uses:  installDir   path of installation directory
+;;;;         docFile      docfile's name
+;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateDocIcon
+
+    (set iconName docFile)
+    (set iconSource "doc/doc.info")
+    (CreateIcon)
+
+    (if (< osVersion 39)
+    (   (tooltype
+	    (prompt "Changing tooltype of " iconName ...)
+	    (dest docFile)
+	    (setdefaulttool "Sys:Utilities/More")
+	    (noposition)
+	)
+    )
+    (   (tooltype
+	    (prompt "Changing tooltype of " iconName ...)
+	    (dest docFile)
+	    (setdefaulttool "Sys:Utilities/MultiView")
+	    (settooltype "FILETYPE" "TEXT|ASCII")
+	    (noposition)
+	)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CreateInstallationDrawers
+;;;
+;;;  Creates the drawers required for the installation
+;;;
+;;;  Uses: installDir   installation directory
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateInstallationDrawers
+
+    (if (<> installDir (expandPath ""))
+    (   (set n 0)
+	(while (set drawerName (select n installDir
+					 installDocDir
+					 installLibDir
+					 ""
+	       ))
+	(   (CreateDrawer)
+	    (set n (+ n 1))
+	))         
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CopyBinary
+;;;
+;;;  Copies one binary to the installation directory.
+;;;
+;;;  Uses: installDir   installation directory
+;;;        binFile      binary to copy
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CopyBinary
+
+    (if (<> installDir (expandPath ""))
+    (   (copyfiles
+	    (prompt "Copying binaries ...")
+	    (source binFile)
+	    (dest installDir)
+	    (optional "force" "askuser")
+	)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CopyBinaries
+;;;
+;;;  Copies required binaries to the installation directory.
+;;;
+;;;  Uses: installDir   installation directory
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CopyBinaries
+
+    (if installGnuChessBinary
+    (   (set binFile "gnuchess")
+	(CopyBinary)
+    ))
+
+    (if installGnuChessXBinary
+    (   (set binFile "gnuchessx")
+	(CopyBinary)
+    ))
+
+    (if installGnuChessNBinary
+    (   (set binFile "gnuchessn")
+	(CopyBinary)
+    ))
+
+    (if installGnuChessRBinary
+    (   (set binFile "gnuchessr")
+	(CopyBinary)
+    ))
+
+    (if installGnuAnBinary
+    (   (set binFile "gnuan")
+	(CopyBinary)
+    ))
+
+    (if installEcoBinaries
+    (   (set binFile "ecor")
+	(CopyBinary)
+	(set binFile "ecocvt")
+	(CopyBinary)
+	(set binFile "ecosort")
+	(CopyBinary)
+	(set binFile "binsort")
+	(CopyBinary)
+    ))
+
+    (if installPostScriptBinaries
+    (   (set binFile "game")
+	(CopyBinary)
+	(set binFile "postprint")
+	(CopyBinary)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CopyLibFiles
+;;;
+;;;  Copies required files to the lib directory.
+;;;
+;;;  Uses: installLibDir
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CopyLibFiles
+
+    (if (<> installDir (expandPath ""))
+    (   (set n 0)
+	(while (set libFile (select n "gnuchess.data"
+				      "gnuchess.eco"
+				      "gnuchess.lang"
+				      ""
+	       ))
+	(   (copyfiles
+		(prompt "Copying other needed files ...")
+		(source (tackon "lib" libFile))
+		(dest installLibDir)
+		(optional "force" "askuser")
+	    )
+	    (set n (+ n 1))
+	))
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CopyDocFile
+;;;
+;;;  Copies one doc file to the doc directory
+;;;
+;;;  Uses: installDocDir
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CopyDocFile
+
+    (if (<> installDir (expandPath ""))
+    (   (copyfiles
+	    (prompt "Copying doc files ...")
+	    (source (tackon "doc" docFile))
+	    (dest installDocDir)
+	    (optional "oknodelete" "askuser")
+	)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CopyDocFiles
+;;;
+;;;  Copies doc files to the doc directory
+;;;
+;;;  Uses: installDocDir
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CopyDocFiles
+
+    (set docFile "ARTICLE")
+    (CopyDocFile)
+    (set docFile "ARTICLE.2")
+    (CopyDocFile)
+    (set docFile "ChangeLog")
+    (CopyDocFile)
+    (set docFile "COPYING")
+    (CopyDocFile)
+    (set docFile "GENERAL")
+    (CopyDocFile)
+    (set docFile "HEURISTICS")
+    (CopyDocFile)
+    (set docFile "MOVE-GEN")
+    (CopyDocFile)
+    (set docFile "PORTING")
+    (CopyDocFile)
+    (set docFile "README.output")
+    (CopyDocFile)
+    (set docFile "TODO")
+    (CopyDocFile)
+
+    (if (OR installGnuChessBinary
+	    (OR installGnuChessXBinary
+		(OR installGnuChessNBinary installGnuChessRBinary)))
+    (   (set docFile "gnuchess.txt")
+	(CopyDocFile)
+	(set docFile "gnuchess.6")
+	(CopyDocFile)
+    ))
+    (if installGnuAnBinary
+    (   (set docFile "gnuan.6")
+	(CopyDocFile)
+	(set docFile "gnuan.hlp")
+	(CopyDocFile)
+    ))
+    (if installPostScriptBinaries
+    (   (set docFile "game.6")
+	(CopyDocFile)
+	(set docFile "postprint.6")
+	(CopyDocFile)
+	(set docFile "README.font")
+	(CopyDocFile)
+    ))
+
+    (set n 0)
+    (while (set docFile (select n "COPYING"
+				  "gnuchess.txt"
+				  ""
+	   ))
+    (   (CopyDocFile)
+	(set docFile (tackon installDir docFile))
+	(CreateDocIcon)
+	(set n (+ n 1))
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CreateEnvironmentVars procedure
+;;;
+;;;  Creates environment variable CURSESTYPE
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateEnvironmentVars
+
+    (if installCursesBinaries
+    (   (if (NOT (askbool
+		(prompt "Should the curses based binaries open an "
+			"own screen?"
+		)
+		(help "You have selected to install one or more curses "
+		      "based binaries. These may either open an own "
+		      "screen or run from the CLI. Select \"yes\", if "
+		      "you want a separate screen, \"no\" otherwise.\n\n"
+		      @askbool-help
+		)
+		(default 0)
+	    ))
+	(   (textfile
+		(prompt "Creating an environment variable CURSESTYPE.")
+		(help "An environment variable CURSESTYPE tells "
+		      "curses, that you want a separate screen. "
+		      "Select \"yes\", if you want me to create this "
+		      "variable.\n\n"
+		      @textfile-help
+		)
+		(dest "ENVARC:CURSESTYPE")
+		(append "ansi")
+		(confirm)
+	    )
+	    (copyfiles
+		(prompt "Creating an environment variable CURSESTYPE.")
+		(source "ENVARC:CURSESTYPE")
+		(dest "ENV:")
+		(optional "oknodelete" "askuser")
+	    )
+	))
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  main program
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(transcript "Installing " installName ", Version " installVersion ".")
+(CheckOsVersion)
+(ShowCopyrightMessage)
+
+(SelectInstallDir)
+(set installLibDir (tackon installDir "lib"))
+(set installDocDir (tackon installDir "doc"))
+(complete 10)
+
+(SelectBinaries)
+(complete 20)
+
+(CreateInstallationDrawers)
+(complete 30)
+
+(CopyBinaries)
+(complete 60)
+
+(CopyLibFiles)
+(complete 80)
+
+(CopyDocFiles)
+(complete 90)
+
+(CreateEnvironmentVars)
+(complete 100)

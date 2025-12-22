@@ -1,0 +1,151 @@
+assign QWBHD: ""
+assign QWBhome: ""
+
+STACK 250000
+execute gametracker.config
+run <>nil: Play16 $startupsnd
+run <>nil: pop gtstart.iff "" 100
+
+assign GameTracker: ""
+
+ makedir ram:GameTracker >nil:
+ makedir ram:GameTracker/templ >nil:
+ makedir ram:GameTracker/scripts >nil:
+ makedir ram:GameTracker/filters >nil:
+ makedir ram:GameTracker/sounds >nil:
+ makedir ram:GameTracker/cache >nil:
+ makedir ram:GameTracker/mapshots >nil:
+
+ cd GameTracker:
+ copy POP ram:GameTracker/ >nil:
+ copy REQUESTSTRING ram:GameTracker/ >nil:
+ copy c:PLAY16 ram:GameTracker/ >nil:
+ copy c:WAIT ram:GameTracker/ >nil:
+ copy c:RENAME ram:GameTracker/ >nil:
+ copy c:EXECUTE ram:GameTracker/ >nil:
+ copy c:REQUESTCHOICE ram:GameTracker/ >nil:
+ copy c:REQUESTFILE ram:GameTracker/ >nil:
+ copy scripts ram:GameTracker/scripts/ ALL >nil:
+ copy templ ram:GameTracker/templ/ ALL >nil:
+ copy filters ram:GameTracker/filters/ ALL >nil:
+ copy sounds/click.wav ram:GameTracker/sounds/ >nil:
+
+IF $runram EQ 1
+ copy sounds ram:GameTracker/sounds/ ALL >nil:
+ copy mapshots ram:GameTracker/mapshots/ ALL >nil:
+ copy cache ram:GameTracker/cache ALL >nil:
+ copy qstat ram:GameTracker/ >nil:
+ assign QWBhome: remove
+ assign QWBhome: ram:GameTracker
+ENDIF
+
+run <>nil: execute scripts/initgame.rc
+
+requestchoice TITLE "GameTracker by SuRgEoN" BODY "Where is the Battlefield today Sire?" Quake QuakeWorld HereticII Shogo Sin >env:reqgame
+
+run <>nil: Play16 $buttonsnd
+
+if $reqgame eq 0
+   setenv favorites $snsfavorites
+   setenv qwbgame $snsmonitor
+   setenv cmdline $sincmdline
+   setenv qwbpath $snsconpath
+   setenv defcachedir sin
+endif
+
+if $reqgame eq 1
+   setenv favorites $qsfavorites
+   setenv qwbgame $qsmonitor
+   setenv cmdline $qscmdline
+   setenv qwbpath $qsconpath
+   setenv defcachedir quake
+endif
+
+if $reqgame eq 2
+   setenv favorites $qwfavorites
+   setenv qwbgame $qwmonitor
+   setenv cmdline $qwcmdline
+   setenv qwbpath $qwconpath
+   setenv defcachedir quakeworld
+endif
+
+if $reqgame eq 3
+   setenv favorites $hrsfavorites
+   setenv qwbgame $hrsmonitor
+   setenv cmdline $h2cmdline
+   setenv qwbpath $hrsconpath
+   setenv defcachedir heretic2
+endif
+
+if $reqgame eq 4
+ if $qstatold eq 0
+   setenv favorites $sgsfavorites
+   setenv qwbgame $sgsmonitor
+   setenv cmdline $shogocmdline
+   setenv qwbpath $sgsconpath
+   setenv defcachedir shogo
+endif
+ if $qstatold eq 1
+   echo "Shogo is not supported by qstat v2.2"
+   execute scripts/cleanup.rc
+   cd ram:
+   delete ram:GameTracker ALL >nil:
+   endcli
+ endif
+endif
+
+assign GameTracker: remove
+assign GameTracker: ram:GameTracker
+cd GameTracker:
+
+requestchoice TITLE "GameTracker by SuRgEoN" BODY "Choose ping limitation filter:" "None" "100" "150" "200" "300" "400" "500" >env:reqfilter
+
+run <>nil: Play16 $buttonsnd
+
+IF $reqfilter EQ 1
+setenv pvalue "2000"
+setenv pingfltr "-retry 3 -maxsim 50"
+ENDIF
+IF $reqfilter EQ 2
+setenv pvalue "100"
+setenv pingfltr "-retry 1 -interval 0.101 -maxsim 50"
+ENDIF
+IF $reqfilter EQ 3
+setenv pvalue "150"
+setenv pingfltr "-retry 1 -interval 0.150 -maxsim 50"
+ENDIF
+IF $reqfilter EQ 4
+setenv pvalue "200"
+setenv pingfltr "-retry 1 -interval 0.200 -maxsim 50"
+ENDIF
+IF $reqfilter EQ 5
+setenv pvalue "300"
+setenv pingfltr "-retry 1 -interval 0.300 -maxsim 50"
+ENDIF
+IF $reqfilter EQ 6
+setenv pvalue "400"
+setenv pingfltr "-retry 1 -interval 0.400 -maxsim 50"
+ENDIF
+IF $reqfilter EQ 0
+setenv pvalue "500"
+setenv pingfltr "-retry 1 -interval 0.500 -maxsim 50"
+ENDIF
+
+
+requestchoice TITLE "GameTracker by SuRgEoN" BODY "Exclude empty servers ?" "Yes" "No" >env:reqfilter
+
+run <>nil: Play16 $buttonsnd
+
+if $reqfilter eq 0
+   setenv filters "-u"
+   setenv tsfilters "filters/s_temp_no_filter"
+   setenv qwbout "-R -Ts $tsfilters -Tp filters/player_temp -Th filters/header_temp -Tt filters/trailer_temp"
+   execute scripts/userfilter_all.rc
+endif
+
+if $reqfilter eq 1
+   setenv filters "-ne -u"
+   setenv tsfilters "filters/s_temp_not_empty"
+   setenv qwbout "-R -Ts $tsfilters -Tp filters/player_temp -Th filters/header_temp -Tt filters/trailer_temp"
+   execute scripts/userfilter_noempty.rc
+endif

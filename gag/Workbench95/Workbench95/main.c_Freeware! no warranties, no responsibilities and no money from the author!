@@ -1,0 +1,935 @@
+/*
+ *	++++++++++++++++++++++++++++++++
+ *	+++ W*ndows95 BOOPSI Gadgets +++
+ *	++++++++++++++++++++++++++++++++
+ *
+ *	Windows95 is a registered trademark of Microsoft Inc.
+ *	I don't know if the image design of the window-control
+ *	buttons is also a registered trademark of billy, please
+ *	tell me if so!
+ *
+ *	btw. visit www.micros0ft.com and all the other hate&fuck sites!
+ *
+ *	this hack was "developed" by Daniel Balster
+ */
+
+#include <exec/exec.h>
+#include <intuition/intuition.h>
+#include <intuition/classes.h>
+#include <intuition/classusr.h>
+#include <intuition/cghooks.h>
+#include <intuition/gadgetclass.h>
+#include <intuition/imageclass.h>
+#include <intuition/icclass.h>
+#include <intuition/screens.h>
+#include <graphics/text.h>
+#include <utility/tagitem.h>
+#include <clib/alib_protos.h>
+
+#include <proto/exec.h>
+#include <proto/dos.h>
+#include <proto/intuition.h>
+#include <proto/graphics.h>
+#include <proto/utility.h>
+#include <proto/diskfont.h>
+
+#include <string.h>
+
+//#define DEBUG
+
+#ifdef DEBUG
+void kprintf(UBYTE *fmt,...);
+#define bug kprintf
+#define D(X) X
+#else
+#define D(X)
+#endif
+
+#if defined(__SASC)
+#define SAVEDS		__saveds
+#define ASM		__asm
+#define REG(x)		register __ ## x
+#define REGISTER	register
+#else
+#error hehehe
+#endif
+
+typedef enum { false=0, true=~(false) } bool;
+
+#define ifn(x) if(!(x))
+
+/*******************************************************/
+
+/* OpenWindowTagList */
+#define VEC1 -0x25e
+#define LIB1 (struct Library*) IntuitionBase
+
+/* CloseWindow */
+#define VEC2 -0x48
+#define LIB2 (struct Library*) IntuitionBase
+
+extern APTR NewVector1;
+extern APTR OldVector1;
+extern APTR NewVector2;
+extern APTR OldVector2;
+
+// Feel Free To Send Me Flowers On My Birthday,
+// The Magic Cookie!
+//
+#define MAGIC_ID 0x30121971
+
+struct W95Gadgets
+{
+	struct TagItem Tags [3];
+	
+	ULONG  MagicID;
+	Object *CloseImg;
+	Object *DepthImg;
+	Object *ZoomImg;
+	Object *CloseGad;
+	Object *DepthGad;
+	Object *ZoomGad;
+	Object *DragGad;	// absolute madness... ;-)
+	Object *DragImg;
+	
+	struct Gadget *LastOne;
+	
+	STRPTR WindowTitle;
+	
+	WORD	Selected, Normal;
+
+	struct Window *win;	
+};
+
+//// P·R·O·T·O·T·Y·P·E·S
+
+SAVEDS ASM ULONG DispatchW95Img (REG(a0) Class *cl, REG(a2) Object *o, REG(a1) Msg msg);
+SAVEDS ASM ULONG DispatchW95Gad (REG(a0) Class *cl, REG(a2) Object *o, REG(a1) Msg msg);
+ULONG DrawImage95 (Class *cl, Object *o, struct impDraw *msg);
+struct W95Gadgets *InstallWindows95 (int mode);
+struct BitMap *GetDrawer(WORD openclose, ULONG *width, ULONG *height);
+VOID RemapDrawer(struct Screen *scr, struct GadgetInfo *gplinfo);
+
+//// G·L·O·B·A·L V·A·R·I·A·B·L·E·S
+
+Class *W95ImageClass;
+Class *W95GadgetClass;
+
+// the nice and small 'drawer' logo
+
+Object *Picture1, *Picture2, *Picture3, *Picture4;
+struct Screen *OldScreen = NULL;
+
+// global new font
+
+struct TextFont *tf;
+
+struct TextAttr ta =
+{
+	"Helvetica.font",13,FPF_DISKFONT,FS_NORMAL
+};
+
+STATIC UBYTE vers[] = "$VER: Workbench95 3.11 (1/31/96)";
+
+#define TEMPL "IMG1,IMG2,IMG3,IMG4,FONTNAME/K,FONTSIZE/N/K,FONTSTYLE/N/K,PATCHDOPUS/S"
+
+struct {
+	STRPTR	img1,img2,img3,img4;
+	STRPTR	fontname;
+	ULONG	*fontsize;
+	ULONG	*fontstyle;
+	ULONG	dopus;
+} args = {0};
+
+/*	NewOpenWindowTagList
+**
+**	If the calling task is "Workbench", the following gadgets
+**	will be removed from the delivered parameter-lists:
+**
+**	CLOSEGADGET, DRAGBAR, DEPTHGADGET, ZOOMGADGET.
+**
+**	After that, we will call "InstallWindows95()" ;-)
+**
+*/
+
+struct TagItem ASM *Before_OpenWindow (REG(a0) struct NewWindow *nw, REG(a1) struct TagItem *ti)
+{
+	struct Process *pr = (struct Process*) FindTask(0);
+	STRPTR tname = pr->pr_Task.tc_Node.ln_Name;
+	WORD sel=0,norm=1,patch=0;
+
+	if (!strcmp(tname,"Workbench"))
+		{ sel=0; norm=1; goto skip; }
+
+	// continue only if the user wants to have dopus patched.
+	if (!args.dopus) return ti;
+
+	if (!strncmp(tname,"dopus_",6))
+		{ sel=2; norm=2; patch=1; goto skip; }
+	if (!strncmp(tname,"config_",6))
+		{ sel=3; norm=3; patch=1; goto skip; }
+	if (!strncmp(tname,"button_",6))
+		{ sel=2; norm=2; patch=1; goto skip; }
+	if (!strncmp(tname,"function_",8))
+		{ sel=3; norm=3; patch=1; goto skip; }
+	if (!strncmp(tname,"class_",5))
+		{ sel=3; norm=3; patch=1; goto skip; }
+	if (!strncmp(tname,"filetype_",9))
+		{ sel=3; norm=3; patch=1; goto skip; }
+
+	return ti;
+skip:
+	{
+		struct W95Gadgets *W95;
+		int mode = 0;
+
+		// now we will scan the taglists.
+		// don't try to understand why I do all these checks.
+		
+
+		if (ti)
+		{
+			struct TagItem *tags, *HH=0;
+			struct Gadget *where=0;
+
+			mode = 0;
+			
+			for (tags=ti;tags->ti_Tag;tags++)
+			{
+				switch (tags->ti_Tag)
+				{
+					case WA_DragBar:
+						tags->ti_Data = FALSE;
+						mode |= 1;
+						break;
+					case WA_DepthGadget:
+						tags->ti_Data = FALSE;
+						mode |= 1;
+						break;
+					case WA_CloseGadget:
+						tags->ti_Data = FALSE;
+						mode |= 1;
+						break;
+					case WA_Zoom:
+						tags->ti_Tag = TAG_IGNORE;
+					case WA_SizeGadget:
+						mode |= 2;
+						break;
+					case WA_Flags:
+						tags->ti_Data &=~ (WFLG_CLOSEGADGET|WFLG_DEPTHGADGET|WFLG_DRAGBAR);
+						mode |= 1;
+						break;
+					case WA_Gadgets:
+						tags->ti_Tag = TAG_IGNORE;
+						where = tags->ti_Data;
+						mode |= 1;
+						break;
+					case WA_Height:
+						HH = tags;
+						break;
+					case WA_Borderless:
+						if (tags->ti_Data) mode |= 0x80;
+						break;
+				}
+			}
+
+			if ( !(mode & 0x80) && (mode) )
+			if (W95 = InstallWindows95(mode-1))
+			{
+				struct Gadget *g = W95->CloseGad, *gg;
+			
+				W95->Normal	= norm;
+				W95->Selected	= sel;
+			
+				if (patch)
+				if (HH) HH->ti_Data += 4;
+
+				W95->LastOne->NextGadget = where;
+
+				if (gg = where)
+				{
+					while (gg->NextGadget)
+					{
+						if (gg->GadgetType == GTYP_PROPGADGET)
+						{
+							if (gg->Activation & GACT_RIGHTBORDER)
+							{
+								gg->Height  -= -g->TopEdge+tf->tf_YSize+8;
+								gg->TopEdge = tf->tf_YSize+8;
+							}
+						}
+						gg = gg->NextGadget;
+					}
+				}
+
+
+				W95->Tags[0].ti_Tag		= WA_Gadgets;
+				W95->Tags[0].ti_Data	= g;
+				W95->Tags[1].ti_Tag		= TAG_MORE;
+				W95->Tags[1].ti_Data	= ti;
+
+				// make sure nw doesn't contain any flags
+				if (nw) nw->Flags &= ~(WFLG_CLOSEGADGET|WFLG_DEPTHGADGET|WFLG_DRAGBAR);
+
+				// ..BIT OR "1" ??
+				// tricky: I need a bit returned to the asm-stub
+				// telling it that the result is modified.
+				// well, you cannot allocate any ODD structures.
+				// that's it!
+				return (struct TagItem*) (((int)W95) | 1);
+			}
+		}
+
+		if (nw)
+		{
+			if (nw->Flags & WFLG_CLOSEGADGET)	mode |= 1;
+			if (nw->Flags & WFLG_DEPTHGADGET)	mode |= 1;
+			if (nw->Flags & WFLG_DRAGBAR)		mode |= 1;
+			if (nw->Flags & WFLG_SIZEGADGET)	mode |= 2;
+			if (nw->Flags & WFLG_BORDERLESS)	mode = 0;
+
+			if (nw->Title && mode)
+			{
+				if (W95 = InstallWindows95(mode-1))
+				{
+					struct Gadget *g;
+
+					W95->Normal	= norm;
+					W95->Selected	= sel;
+
+					W95->Tags[0].ti_Tag		= TAG_MORE;
+					W95->Tags[0].ti_Data	= ti;
+
+					nw->Flags &= ~(WFLG_CLOSEGADGET|WFLG_DEPTHGADGET|WFLG_DRAGBAR);
+
+					W95->WindowTitle = nw->Title;
+				
+					// parse through the list and 'patch'
+					// badly programmed rightborders.
+					// i.e. Workbench ;-)
+					
+					if (g = nw->FirstGadget)
+					{
+						while (g->NextGadget)
+						{
+							if (g->GadgetType == GTYP_PROPGADGET)
+							{
+								if (g->Activation & GACT_RIGHTBORDER)
+								{
+									g->Height  -= -g->TopEdge+tf->tf_YSize+8;
+									g->TopEdge = tf->tf_YSize+8;
+								}
+							}
+							g = g->NextGadget;
+						}
+					}
+					
+				
+					if (patch)	
+					nw->Height += 4;
+					
+					W95->LastOne->NextGadget = nw->FirstGadget;
+					nw->FirstGadget = W95->CloseGad;
+
+					return (struct TagItem*) (((int)W95) | 1);
+				}
+			}
+		}
+
+	}
+	
+	return ti;
+}
+
+VOID ASM After_OpenWindow (REG(a0) struct Window *win, REG(a1) struct W95Gadgets *W95)
+{
+	win->ExtData = W95;
+
+//	if (W95) if (W95->MagicID == MAGIC_ID) ??
+}
+
+
+struct W95Gadgets* ASM Before_CloseWindow (REG(a0) struct Window *win)
+{
+	if (win->ExtData)
+	{
+		if (((struct W95Gadgets*)win->ExtData)->MagicID == MAGIC_ID)
+		{
+			struct W95Gadgets* W95 = win->ExtData;
+			win->ExtData = NULL;
+			
+			return W95;
+		}
+		else return 0;
+	}
+}
+
+VOID ASM After_CloseWindow (REG(a0) struct W95Gadgets *W95)
+{
+	if (((int)W95) &~1l )
+	{
+		if (W95->MagicID == MAGIC_ID)
+		{
+
+		// DisposeObject(obj) causes a GURU here, why ??
+
+			DoMethod(W95->DragGad,OM_DISPOSE,0,0,0);
+			DoMethod(W95->DepthGad,OM_DISPOSE,0,0,0);
+			DoMethod(W95->ZoomGad,OM_DISPOSE,0,0,0);
+			DoMethod(W95->CloseGad,OM_DISPOSE,0,0,0);
+			DoMethod(W95->CloseImg,OM_DISPOSE,0,0,0);
+			DoMethod(W95->ZoomImg,OM_DISPOSE,0,0,0);
+			DoMethod(W95->DepthImg,OM_DISPOSE,0,0,0);
+			DoMethod(W95->DragImg,OM_DISPOSE,0,0,0);
+		}
+	}
+}
+
+SAVEDS ASM ULONG DispatchW95Img (REG(a0) Class *cl, REG(a2) Object *o, REG(a1) Msg msg)
+{
+	switch (msg->MethodID)
+	{
+		case IM_DRAW:
+			return DrawImage95(cl,o,msg);
+			break;
+		case OM_DISPOSE:
+			return DoSuperMethodA(cl,o,msg);
+			break;
+		default:
+			return DoSuperMethodA(cl,o,msg);
+			break;
+	}
+}
+
+SAVEDS ASM ULONG DispatchW95Gad (REG(a0) Class *cl, REG(a2) Object *o, REG(a1) Msg msg)
+{
+	switch (msg->MethodID)
+	{
+		case OM_DISPOSE:
+			return DoSuperMethodA(cl,o,msg);
+			break;
+		case GM_LAYOUT:
+		case GM_RENDER:
+		case GM_HITTEST:
+		case GM_GOACTIVE:
+		case GM_GOINACTIVE:
+			{	struct gpLayout *gpl = (struct gpLayout*) msg;
+				struct Gadget *g = (struct Gadget *) o;
+				struct W95Gadgets *W95;
+
+				if (gpl->gpl_GInfo->gi_Window)
+				{
+					g->Width = gpl->gpl_GInfo->gi_Window->Width-(int)g->UserData;
+				
+					SetAttrs(g->GadgetRender,IA_Width,g->Width,TAG_DONE);
+					GetAttr(IA_Data,g->GadgetRender,&W95);
+					if (gpl->gpl_GInfo->gi_Window->Title) W95->WindowTitle = gpl->gpl_GInfo->gi_Window->Title;
+					gpl->gpl_GInfo->gi_Window->Title = NULL;
+				
+					W95->win = gpl->gpl_GInfo->gi_Window;
+				
+					RemapDrawer(gpl->gpl_GInfo->gi_Window->WScreen,gpl->gpl_GInfo);
+				}
+			}
+		default:
+			return DoSuperMethodA(cl,o,msg);
+			break;
+	}
+}
+
+ULONG DrawImage95 (Class *cl, Object *o, struct impDraw *msg)
+{
+	struct Image *IMG = (struct Image*) o;
+
+	WORD X,Y,W,H,TT,openclose;
+
+	BYTE white=2,black=1,dark=4,fill=5;
+	BYTE nrmbar,nrmtxt,selbar,seltxt;
+	BYTE barpen, textpen;
+
+	struct RastPort *RP = msg->imp_RPort;
+	struct W95Gadgets *W95 = IMG->ImageData;
+
+	if (msg->imp_DrInfo)
+	{
+		white = msg->imp_DrInfo->dri_Pens[HIGHLIGHTTEXTPEN];
+		fill	 = msg->imp_DrInfo->dri_Pens[SHINEPEN];
+		black = msg->imp_DrInfo->dri_Pens[TEXTPEN];
+		dark  = msg->imp_DrInfo->dri_Pens[SHADOWPEN];
+
+		selbar = msg->imp_DrInfo->dri_Pens[FILLPEN];
+		seltxt = msg->imp_DrInfo->dri_Pens[FILLTEXTPEN];
+		nrmbar = msg->imp_DrInfo->dri_Pens[SHADOWPEN];
+		nrmtxt = msg->imp_DrInfo->dri_Pens[SHINEPEN];
+	}
+
+	X = IMG->LeftEdge + msg->imp_Offset.X;
+	Y = IMG->TopEdge + msg->imp_Offset.Y;
+	W = IMG->Width-1 - (2*IMG->LeftEdge);
+	H = IMG->Height-1 - (2*IMG->TopEdge);
+
+	if (IM_FGPEN(IMG)==8)
+	{
+		struct BitMap *bmp;
+
+		switch (msg->imp_State)
+		{
+			case IDS_INACTIVENORMAL:
+				barpen	= nrmbar;
+				textpen	= nrmtxt;
+				openclose = W95->Selected;
+				break;
+			case IDS_NORMAL:
+				barpen	= selbar;
+				textpen	= seltxt;
+				openclose = W95->Normal;
+				break;
+		}
+		
+		SetAPen(RP,barpen);
+		RectFill(RP,X+1,Y+1,X+W-1,Y+H-1);
+
+		SetAPen(RP,black);
+		Move(RP,X+1,Y+H);
+		Draw(RP,X+16,Y+H);
+		Move(RP,X+W+1,Y+H);
+		Draw(RP,X+W+100,Y+H);
+	
+		{
+			ULONG w=0,h=0;
+			if (bmp = GetDrawer(openclose,&w,&h))
+			{
+				BltBitMapRastPort(bmp,0,0,RP,3,3,w,h,0xC0);
+			}
+
+			if (W95->WindowTitle)
+			{
+				struct TextExtent te1;
+			
+				SetABPenDrMd(RP,textpen,barpen,JAM2);
+				SetFont(RP,tf);
+				SetSoftStyle(RP,ta.ta_Style,ta.ta_Style);
+				Move (RP,X+1+w+6,Y+RP->TxBaseline+1+((IMG->Height-RP->TxHeight)>>1));
+				Text (RP,W95->WindowTitle,TextFit(RP,W95->WindowTitle,strlen(W95->WindowTitle),&te1,0,1,X+W-1-8-w,1000));
+			}
+		}
+
+		return 1;
+	}
+
+	switch (msg->imp_State)
+	{
+		case IDS_INACTIVENORMAL:
+			barpen = nrmbar;
+			goto skip1;
+		case IDS_NORMAL:
+			barpen = selbar;
+	skip1:	SetAPen(RP,white);
+			Move(RP,X,Y+H-1);
+			Draw(RP,X,Y);
+			Draw(RP,X+W-1,Y);
+			SetAPen(RP,black);
+			Move(RP,X+W,Y);
+			Draw(RP,X+W,Y+H);
+			Draw(RP,X,Y+H);
+			SetAPen(RP,dark);
+			Move(RP,X+W-1,Y+1);
+			Draw(RP,X+W-1,Y+H-1);
+			Draw(RP,X+1,Y+H-1);
+			SetAPen(RP,fill);
+			RectFill(RP,X+1,Y+1,X+W-2,Y+H-2);
+			TT=0;
+			break;
+		case IDS_INACTIVESELECTED:
+			barpen = nrmbar;
+			goto skip2;
+		case IDS_SELECTED:
+			barpen = selbar;
+	skip2:	SetAPen(RP,black);
+			Move(RP,X,Y+H);
+			Draw(RP,X,Y);
+			Draw(RP,X+W,Y);
+			SetAPen(RP,white);
+			Move(RP,X+W,Y+1);
+			Draw(RP,X+W,Y+H);
+			Draw(RP,X+1,Y+H);
+			SetAPen(RP,dark);
+			Move(RP,X+1,Y+H-1);
+			Draw(RP,X+1,Y+1);
+			Draw(RP,X+W-1,Y+1);
+			SetAPen(RP,fill);
+			RectFill(RP,X+2,Y+2,X+W-1,Y+H-1);
+			TT=1;
+			break;
+	}
+	
+	SetAPen(RP,barpen);
+	RectFill(RP,X,Y-IMG->TopEdge,X+W,Y-1);
+	RectFill(RP,X,Y+H+1,X+W,Y+H+IMG->TopEdge);
+	
+	// Pass IA_Data with the desired image number.
+	// No defines yet, sorry
+	switch (IM_FGPEN(IMG))
+	{
+		case 1:	// CLOSE, this draws a X
+			SetAPen(RP,black);
+			Move(RP,X+4+TT,Y+3+TT);
+			Draw(RP,X+W-5+TT,Y+H-4+TT);
+			Move(RP,X+5+TT,Y+3+TT);
+			Draw(RP,X+W-4+TT,Y+H-4+TT);
+			Move(RP,X+4+TT,Y+H-4+TT);
+			Draw(RP,X+W-5+TT,Y+3+TT);
+			Move(RP,X+5+TT,Y+H-4+TT);
+			Draw(RP,X+W-4+TT,Y+3+TT);
+			SetAPen(RP,barpen);
+			RectFill(RP,X-IMG->LeftEdge,Y-IMG->TopEdge,X-1,Y+H+IMG->TopEdge);
+			RectFill(RP,X+W+1,Y-IMG->TopEdge,X+W+IMG->LeftEdge,Y+H+IMG->TopEdge);
+			break;
+		case 3:	// ZOOM, this draws a entitled box
+			{
+				// Shit! this is delayed! dont know how to fix it.
+			
+				if (W95->win->Flags & WFLG_ZOOMED)
+				{
+					// Zoomed-State Image
+				
+					SetAPen(RP,black);
+					RectFill(RP,X+3+TT,Y+2+3+TT,X+W-4-2+TT,Y+3+3+TT);
+					RectFill(RP,X+3+2+TT,Y+2+TT,X+W-4+TT,Y+3+TT);
+					Move(RP,X+3+TT,Y+4+3+TT);
+					Draw(RP,X+3+TT,Y+H-3+TT);
+					Draw(RP,X+W-4-2+TT,Y+H-3+TT);
+					Draw(RP,X+W-4-2+TT,Y+4+3+TT);
+					Move(RP,X+3+2+TT,Y+4+TT);
+					Draw(RP,X+3+2+TT,Y+4+2+TT);
+					Move(RP,X+W-4+TT,Y+4+TT);
+					Draw(RP,X+W-4+TT,Y+H-3-3+TT);
+					Draw(RP,X+W-4-2+TT,Y+H-3-3+TT);
+				}
+				else
+				{
+					// Unzoomed-State Image
+			
+					SetAPen(RP,black);
+					RectFill(RP,X+3+TT,Y+2+TT,X+W-4+TT,Y+3+TT);
+					Move(RP,X+3+TT,Y+4+TT);
+					Draw(RP,X+3+TT,Y+H-3+TT);
+					Draw(RP,X+W-4+TT,Y+H-3+TT);
+					Draw(RP,X+W-4+TT,Y+4+TT);
+				}
+			}
+			break;
+		case 2:	// ICONIFY, this draws an underscore
+			SetAPen(RP,black);
+			RectFill(RP,X+4+TT,Y+H+TT-4,X+W-6+TT,Y+H+TT-3);
+			break;
+		default:
+			break;
+	}
+
+	return 1;
+}
+
+
+SAVEDS struct W95Gadgets *InstallWindows95 (int mode)
+{
+	struct W95Gadgets *W95;
+	WORD width, height;
+
+	if (W95 = AllocVec(sizeof(*W95),MEMF_PUBLIC|MEMF_CLEAR))
+	{
+		struct Gadget *last;
+	
+		W95->MagicID = MAGIC_ID;
+
+		height	= tf->tf_YSize+1;
+		width	= height+2;
+
+		W95->DragImg = NewObject(W95ImageClass,NULL,
+			IA_Data		, W95,
+			IA_FGPen		, 8,
+			IA_Height		, height+6,
+			TAG_DONE);
+		W95->CloseImg = NewObject(W95ImageClass,NULL,
+			IA_Left		, 2,
+			IA_Top		, 2,
+			IA_Width		, width+4,
+			IA_Height		, height+4,
+			IA_Data		, W95,
+			IA_FGPen		, 1,
+			TAG_DONE);
+	if (mode)
+	{
+		W95->DepthImg = NewObject(W95ImageClass,NULL,
+			IA_Left		, 0,
+			IA_Top		, 2,
+			IA_Width		, width,
+			IA_Height		, height+4,
+			IA_Data		, W95,
+			IA_FGPen		, 2,
+			TAG_DONE);
+	}
+	if (mode)
+	{
+		W95->ZoomImg = NewObject(W95ImageClass,NULL,
+			IA_Left		, 0,
+			IA_Top		, 2,
+			IA_Width		, width,
+			IA_Height		, height+4,
+			IA_Data		, W95,
+			IA_FGPen		, 3,
+			TAG_DONE);
+	}
+
+		W95->CloseGad = NewObject(NULL,"buttongclass",
+			GA_RelRight	, -width-4,
+			GA_ID		, MAGIC_ID,
+			GA_Top		, 1,
+			GA_Width		, width+4,
+			GA_Height		, height+4,
+			GA_Image		, W95->CloseImg,
+			GA_RelVerify	, TRUE,
+			GA_EndGadget	, TRUE,
+			GA_TopBorder	, TRUE,
+			GA_SysGType	, GTYP_CLOSE,
+			TAG_DONE); last = W95->CloseGad;
+	if (mode)
+	{
+		W95->ZoomGad = NewObject(NULL,"buttongclass",
+			GA_RelRight	, -2*(width)-4,
+			GA_ID		, MAGIC_ID+1,
+			GA_Top		, 1,
+			GA_Width		, width,
+			GA_Height		, height+4,
+			GA_Image		, W95->ZoomImg,
+			GA_RelVerify	, TRUE,
+			GA_TopBorder	, TRUE,
+			GA_SysGType	, GTYP_WZOOM,
+			GA_Previous	, last,
+			TAG_DONE); last = W95->ZoomGad;
+	}
+	if (mode)
+	{
+		W95->DepthGad = NewObject(NULL,"buttongclass",
+			GA_RelRight	, -3*(width)-4,
+			GA_ID		, MAGIC_ID+2,
+			GA_Top		, 1,
+			GA_Width		, width,
+			GA_Height		, height+4,
+			GA_Image		, W95->DepthImg,
+			GA_RelVerify	, TRUE,
+			GA_TopBorder	, TRUE,
+			GA_SysGType	, GTYP_WDEPTH,
+			GA_Previous	, last,
+			TAG_DONE); last = W95->DepthGad;
+	}
+		W95->DragGad = NewObject(W95GadgetClass,NULL,
+			GA_TopBorder	, TRUE,
+			GA_ID		, MAGIC_ID+3,
+			GA_SysGType	, GTYP_WDRAGGING,
+			GA_RelWidth	, TRUE,
+			GA_UserData	, (ULONG) mode ? (3*(width)+4) : (width+4),
+			GA_Image		, W95->DragImg,
+			GA_Previous	, last,
+			TAG_DONE); last = W95->DragGad;
+
+		W95->LastOne = W95->DragGad;
+
+		if (mode)
+		{
+			if (W95->CloseImg && W95->ZoomImg && W95->DepthImg && W95->CloseGad && W95->ZoomGad && W95->DepthGad && W95->DragGad && W95->DragImg) return W95;
+		}
+		else
+		{
+			if (W95->CloseImg && W95->CloseGad && W95->DragGad && W95->DragImg) return W95;
+		}
+
+		// whoops, at this point something went wrong.
+		// kill and destroy all!
+
+		DisposeObject(W95->CloseGad);
+		DisposeObject(W95->ZoomGad);
+		DisposeObject(W95->DepthGad);
+		DisposeObject(W95->DragGad);
+
+		DisposeObject(W95->CloseImg);
+		DisposeObject(W95->ZoomImg);
+		DisposeObject(W95->DepthImg);
+		DisposeObject(W95->DragImg);
+		FreeVec (W95);
+	}
+	return NULL;
+}
+
+int LoadDrawer(VOID)
+{
+	Picture1 = NewDTObject(args.img1,
+		DTA_SourceType		, DTST_FILE,
+		DTA_GroupID		, GID_PICTURE,
+		PDTA_Remap		, TRUE,
+		OBP_Precision		, PRECISION_IMAGE,
+		TAG_DONE);
+	Picture2 = NewDTObject(args.img2,
+		DTA_SourceType		, DTST_FILE,
+		DTA_GroupID		, GID_PICTURE,
+		PDTA_Remap		, TRUE,
+		OBP_Precision		, PRECISION_IMAGE,
+		TAG_DONE);
+	Picture3 = NewDTObject(args.img3,
+		DTA_SourceType		, DTST_FILE,
+		DTA_GroupID		, GID_PICTURE,
+		PDTA_Remap		, TRUE,
+		OBP_Precision		, PRECISION_IMAGE,
+		TAG_DONE);
+	Picture4 = NewDTObject(args.img4,
+		DTA_SourceType		, DTST_FILE,
+		DTA_GroupID		, GID_PICTURE,
+		PDTA_Remap		, TRUE,
+		OBP_Precision		, PRECISION_IMAGE,
+		TAG_DONE);
+
+	// it is now no more required to specify any image
+	// that will lead into image-less window titles.
+	return (int) 1;
+
+//	return (int) (Picture1 && Picture2 && Picture3 && Picture4);
+
+}
+
+VOID UnloadDrawer(VOID)
+{
+	DisposeDTObject(Picture1);
+	DisposeDTObject(Picture2);
+	DisposeDTObject(Picture3);
+	DisposeDTObject(Picture4);
+	
+	Picture1 = Picture2 = Picture3 = Picture4 = 0;
+}
+
+/*
+**	This is the function that makes me mad.
+**	I'm not sure about the PROCLAYOUT msg to send,
+**	because sometimes dt.lib freezes the system.
+**	If I send a gplinfo instead of NULL, remapping
+**	is done without freeze but in the wrong pens.
+**
+**	why ? please tell me, I have not enough informations
+**	about that!
+*/
+
+VOID RemapDrawer(struct Screen *scr, struct GadgetInfo *gplinfo)
+{
+	struct BitMap *bmp;
+
+	if (scr == OldScreen) return;
+
+	OldScreen = scr;
+
+	if (OldScreen)
+	{
+		if (Picture1)
+		{
+			SetDTAttrs(Picture1,PDTA_Remap,TRUE,PDTA_Screen,OldScreen,TAG_DONE);
+			DoMethod(Picture1,DTM_PROCLAYOUT,gplinfo,1);
+		//	DoMethod(Picture1,DTM_PROCLAYOUT,NULL,1);
+		}
+		if (Picture2)
+		{
+			SetDTAttrs(Picture2,PDTA_Remap,TRUE,PDTA_Screen,OldScreen,TAG_DONE);
+			DoMethod(Picture2,DTM_PROCLAYOUT,gplinfo,1);
+		//	DoMethod(Picture2,DTM_PROCLAYOUT,NULL,1);
+		}
+		if (Picture3)
+		{
+			SetDTAttrs(Picture3,PDTA_Remap,TRUE,PDTA_Screen,OldScreen,TAG_DONE);
+			DoMethod(Picture3,DTM_PROCLAYOUT,gplinfo,1);
+		//	DoMethod(Picture3,DTM_PROCLAYOUT,NULL,1);
+		}
+		if (Picture4)
+		{
+			SetDTAttrs(Picture4,PDTA_Remap,TRUE,PDTA_Screen,OldScreen,TAG_DONE);
+			DoMethod(Picture4,DTM_PROCLAYOUT,gplinfo,1);
+		//	DoMethod(Picture4,DTM_PROCLAYOUT,NULL,1);
+		}
+	}
+}
+
+struct BitMap *GetDrawer(WORD openclose, ULONG *width, ULONG *height)
+{
+	struct BitMap *bmp=NULL;
+	Object *o;
+
+	switch (openclose)
+	{
+		case 0: o = Picture2; break;
+		case 1: o = Picture1; break;
+		case 2: o = Picture3; break;
+		case 3: o = Picture4; break;
+	}
+
+	if (o)
+	{
+		GetDTAttrs(o,PDTA_DestBitMap,&(bmp),TAG_DONE);
+	//	if (!bmp) GetDTAttrs(o,PDTA_DestBitMap,&(bmp),TAG_DONE);
+
+		if (bmp)
+		{
+			*width	= GetBitMapAttr(bmp,BMA_WIDTH);
+			*height	= GetBitMapAttr(bmp,BMA_HEIGHT);
+		}
+	}
+
+	return bmp;
+}
+
+int main ()
+{
+	struct RDArgs *rda;
+	
+	ifn (rda=ReadArgs(TEMPL,(long*)&args,NULL)) return 20;
+
+	if (args.fontname)	ta.ta_Name = args.fontname;
+	if (args.fontsize)	ta.ta_YSize = *args.fontsize;
+	if (args.fontstyle)	ta.ta_Style = *args.fontstyle;
+
+	if (tf = OpenDiskFont (&ta))
+	{
+	if (W95ImageClass = MakeClass (NULL,"imageclass",0,0,0))
+	{	W95ImageClass->cl_Dispatcher.h_Entry = DispatchW95Img;
+	if (W95GadgetClass = MakeClass (NULL,"buttongclass",0,0,0))
+	{	W95GadgetClass->cl_Dispatcher.h_Entry = DispatchW95Gad;
+
+		if (LoadDrawer())
+		{
+			Disable();
+			OldVector1 = SetFunction (LIB1,VEC1,(ULONG(*)())&(NewVector1));
+			OldVector2 = SetFunction (LIB2,VEC2,(ULONG(*)())&(NewVector2));
+			CacheClearU();
+			Enable();
+
+			Wait (SIGBREAKF_CTRL_C);
+		
+			if (FindPort("SetMan"))
+			{
+				Disable();
+				SetFunction (LIB1,VEC1,(ULONG(*)())(OldVector1));
+				SetFunction (LIB2,VEC2,(ULONG(*)())(OldVector2));
+				CacheClearU();
+				Enable();
+			}
+			else Wait(0);	/* DO NOT SIGNAL THIS !! */
+
+			UnloadDrawer();
+		}
+
+		FreeClass(W95GadgetClass);
+	}
+		FreeClass(W95ImageClass);
+	}
+		CloseFont(&ta);
+	}
+
+	FreeArgs(rda);
+
+	return 0;
+}

@@ -1,0 +1,478 @@
+#
+# Makefile for GNU Chess on the Amiga
+#
+# Copyright (c) 1992, 1995 Free Software Foundation
+#
+# This file is part of GNU CHESS.
+#
+# GNU Chess is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+#
+# GNU Chess is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GNU Chess; see the file COPYING.  If not, write to
+# the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+
+#############################################################
+#
+#   Adjustable settings:
+#
+#   The language file describes capabilities of the program.
+#   Perhaps it is useful for non-English speaking countries
+#   and customizing for their convenience and chess
+#   happiness.
+#
+#       LANGF= -DLANGFILE=\"$(LIBDIR)/gnuchess.lang\"
+#
+#   The hashfile is a record of positions seen. It is used
+#   by GNU Chess to avoid making the same mistakes, a form
+#   of learning.
+#
+#       HASH=   -DHASHFILE="$(LIBDIR)/gnuchess.hash"
+#
+#   The "book" is a record of the first few moves, for
+#   playing good moves easily and quickly, saving time, and
+#   irritating the human opponent.
+#
+#       BINBOOK = -DBINBOOK="$(LIBDIR)/gnuchess.data"
+#       BINECO = -DBINECO="$(LIBDIR)/gnuchess.eco"
+#       PGNECO = -DPGNECO="$(LIBDIR)/eco.pgn"
+#
+#   The following detemines the books size.
+#
+#       BOOKOPTS = -S 188000 -P 26     # huge 1450K
+#       BOOKOPTS = -S 45000 -P 16      # big 540K
+#       BOOKOPTS = -S 20000 -P 12      # medium 240K
+#       BOOKOPTS = -S 12000 -P 10      # small 144K
+#       BOOKOPTS = -S 9000 -P 8        # tiny 78K
+#
+#############################################################
+
+
+#############################################################
+#
+#   Use this to compile with GNU C and GNU make
+#
+#############################################################
+
+#CC      = gcc -noixemul
+#CCFLAGS = -DHAVE_SYS_TIME_H=1 -DHAVE_GETTIMEOFDAY=1 \
+#          -DHAVE_STRTOUL=1 -DHAVE_MEMSET=1 -DHAVE_TIME_H=1 \
+#          -D_amigados -s -O -IWork:curses210
+#LDFLAGS = -s
+#LIBS    = -lm
+#LCURSES = -LWork:curses210 -lcurses
+#
+#LIBDIR  = PROGDIR:lib
+#BOOK    = ../book/gnuchess.bk3.gz
+#LANGF   = -DLANGFILE=\"$(LIBDIR)/gnuchess.lang\"
+#HASH    = -DHASHFILE=\"$(LIBDIR)/gnuchess.hash\"
+#BINBOOK = -DBINBOOK=\"$(LIBDIR)/gnuchess.data\"
+#BINECO  = -DBINECO=\"$(LIBDIR)/gnuchess.eco\"
+#PGNECO  = -DPGNECO=\"$(LIBDIR)/gnuchess.pgn\"
+
+
+#############################################################
+#
+#   Use this to compile with Dice and dmake
+#
+#############################################################
+
+CC      = dcc
+CCFLAGS = -mD -IWork:curses210 -DHAVE_SYS_TIME_H=1 -Dinline \
+	  -DHAVE_GETTIMEOFDAY=1 -DHAVE_STRTOUL=1 -DHAVE_MEMSET=1 \
+	  -DHAVE_TIME_H=1 -D_amigados
+LDFLAGS = -mD
+LIBS    = -lm
+LCURSES = -LWork:curses210/dlib -lcurses
+
+LIBDIR  = PROGDIR:lib
+BOOK    = /book/gnuchess.bk3.gz
+LANGF   = -DLANGFILE="$(LIBDIR)/gnuchess.lang"
+HASH    = -DHASHFILE="$(LIBDIR)/gnuchess.hash"
+BINBOOK = -DBINBOOK="$(LIBDIR)/gnuchess.data"
+BINECO  = -DBINECO="$(LIBDIR)/gnuchess.eco"
+PGNECO  = -DPGNECO="$(LIBDIR)/gnuchess.pgn"
+
+
+#############################################################
+#
+#   Use this to compile with SAS/C and smake; assumes
+#   Unix compatible frontend, for example dev/c/cc.lha
+#   from Aminet.
+#
+#############################################################
+
+#CC      = cc -sas
+#CCFLAGS = WITH Amiga/SCOptions
+#LDFLAGS = WITH Amiga/SCOptions
+#LIBS    =
+#LCURSES = LIBRARY Work:curses210/cursesmnb.lib
+#
+#LIBDIR  = PROGDIR:lib
+#BOOK    = ../book/gnuchess.bk3.gz
+#LANGF   = -DLANGFILE="$(LIBDIR)/gnuchess.lang"
+#HASH    = -DHASHFILE="$(LIBDIR)/gnuchess.hash"
+#BINBOOK = -DBINBOOK="$(LIBDIR)/gnuchess.data"
+#BINECO  = -DBINECO="$(LIBDIR)/gnuchess.eco"
+#PGNECO  = -DPGNECO="$(LIBDIR)/gnuchess.pgn"
+
+
+#############################################################
+#
+#   You should not need to change anything below.
+#
+#############################################################
+
+#compile options for gnuchess
+#    Search options
+# -DHISTORY use history heuristic 
+# -DKILLT use killt killer heuristic 
+# -DNULLMOVE include null move heuristic
+# -DDEEPNULL include deepnull move heuristic
+# -DUNLIMITEDCAPS allow unlimited depth captures
+# -DPRUNE enable marginal forward pruning
+# -DNOMATERIAL don't call it a draw when no pawns and both sides < rook
+# -DNODYNALPHA don't dynamically adjust alpha
+# -DOLDTIME use old ply time estimating function
+# -DCACHE  Cache static evaluations 
+# -DNODITHER no random element to evaluations
+#
+#    Verbosity options
+# -DBAREBONES compile for max speed no statistics etc kept
+# -DQUIETBACKGROUND don't print post information in background ( easy OFF)
+# -DHASHSTATS keep hash table statistics
+# -DMORESTATS print more hash table stats
+# -DQUIETBOOKGEN Don't print errors while loading a book or generating a binbook
+# -DSEMIQUIETBOOKGEN Print less verbose errors while reading book or generating binbook
+#
+#    Miscellaneous options
+# -DECO if you want support for eco database
+# -DCLIENT create client version for use with ICS
+# -DLONG64 if you have 64bit longs
+# -DSYSV   if you are using SYSV
+#
+#    Some debug options
+# -DDEBUG8 dump board,movelist,input move to /tmp/DEBUG if illegal move
+# -DDEBUG9 dump move list from test command
+# -DDEBUG10 dump board and move after search before !easy begins
+# -DDEBUG11 dump board when the move is output
+# -DDEBUG12 dump boards between moves
+# -DDEBUG13 dump search control information for each move to /tmp/DEBUG
+# -DDEBUG33 dump book moves as read from book
+# -DDEBUG40 include extra values of variables for debugging  in game list
+# -DDEBUG41 dump post output to /tmp/DEBUG
+# the rest of the debug options are tied to the debuglevel command
+# -DDEBUG sets up code for debuglevel command
+#          debuglevel
+#               1 always force evaluation in evaluate
+#               4 print move list after search
+#               8 print move list after book before search
+#              16 print move list after each ply of search
+#              32 print adds to transposition table
+#              64 print returns from transposition table lookups
+#             128 print evals
+#             256 print search tree as it is generated
+#             512 debug trace of search tree
+#            1024 interactive tree print
+#
+
+###############  End of Gnuchess definitions ######################
+
+DEFINES = -DUSEINT -DCACHE -DGDX -DNULLMOVE -DWAY4PL64 -DHISTORY \
+	  -DAGING -DKILLT -DUNLIMITEDCAPS -DPRUNE -DOLDTIME -DECO \
+	  -DHASHSTATS
+CFLAGS  = $(CCFLAGS) $(DEFINES)
+ALL_LDFLAGS = $(LDFLAGS)
+
+
+BINARIES= gnuchess gnuchessr gnuchessn gnuchessx postprint \
+	  gnuan game ecor ecosort ecocvt binsort
+LIBRARIES=gnuchess.data gnuchess.eco
+
+DISTDIR = gnuchess-4.0.pl75
+AMIGABIN= Amiga/Install Amiga/Install.info
+
+DISTBIN = $(BINARIES) $(AMIGABIN)
+DISTLIB = $(LIBRARIES) /misc/gnuchess.lang
+DISTDOC=/doc/ARTICLE /doc/ARTICLE.2 /doc/ChangeLog \
+	/doc/CHANGES /doc/COPYING /doc/GENERAL /doc/gnuan.6 \
+	/doc/gnuan.hlp /doc/gnuchess.6 /doc/gnuchess.txt \
+	/doc/HEURISTICS /doc/MOVE-GEN /doc/PORTING \
+	/doc/postprint.6 /doc/README.font /doc/README.output \
+	/doc/TODO /doc/game.6 Amiga/doc.info
+DISTSRC = $(AMIGABIN) Amiga/gettimeofday.c Amiga/kbhit.c \
+	  $(DISTDIR).patch Amiga/makedata Amiga/doc.info \
+	  Amiga/makeeco Amiga/Makefile.amiga Amiga/SCOptions
+
+
+all: $(BINARIES) $(LIBRARIES)
+
+clean:
+	rm -f $(BINARIES)
+	rm *.o #*# *~ CL* PATCH* %*% *orig
+
+distclean: clean tidy
+	rm -f config.cache config.log config.status Makefile
+
+mostlyclean: clean
+
+realclean: distclean
+
+gnuchess: mainN.o bookN.o genmovesN.o ataks.o utilN.o evalN.o init.o searchN.o dspcomN.o uxdsp.o gettimeofday.o kbhit.o
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -o gnuchess mainN.o bookN.o genmovesN.o ataks.o utilN.o evalN.o init.o searchN.o dspcomN.o uxdsp.o gettimeofday.o kbhit.o $(LCURSES) $(LIBS)
+
+gnuan: mainN.o bookG.o genmovesN.o ataks.o utilN.o evalN.o init.o searchG.o gnuan.o gettimeofday.o kbhit.o
+	$(CC) $(CFLAGS) $(HASH) $(LANGF) -DIGNUAN  -o gnuan mainN.o bookG.o genmovesN.o ataks.o utilN.o evalN.o init.o searchG.o gnuan.o gettimeofday.o kbhit.o $(LIBS)
+
+gnuchessc: mainC.o bookC.o genmovesC.o ataks.o utilC.o evalC.o init.o searchC.o dspcomC.o nondspC.o gettimeofday.o kbhit.o
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -o gnuchessc mainC.o bookC.o genmovesC.o ataks.o utilC.o evalC.o init.o searchC.o dspcomC.o nondspC.o gettimeofday.o kbhit.o $(LIBS)
+
+Dgnuchessr: mainDR.o bookN.o genmovesN.o ataks.o utilDR.o evalDR.o init.o searchDR.o dspcomDR.o nondspDR.o gettimeofday.o kbhit.o
+	$(CC)  -DDEBUG  -DDEBUG4 $(CFLAGS) $(HASH) $(LANGF)  -o gnuchessr mainDR.o bookN.o genmovesN.o ataks.o utilDR.o evalDR.o init.o searchDR.o dspcomDR.o nondspDR.o gettimeofday.o kbhit.o $(LIBS) $(LIBS)
+
+gnuchessx: mainX.o bookX.o genmovesX.o ataks.o utilX.o evalX.o init.o searchX.o dspcomX.o nondspX.o gettimeofday.o
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -o gnuchessx mainX.o bookX.o genmovesX.o ataks.o utilX.o evalX.o init.o searchX.o dspcomX.o nondspX.o gettimeofday.o $(LIBS)
+
+ecor: mainN.o eco.o genmovesN.o ataks.o utilN.o evalN.o init.o searchN.o dspcomR.o nondspR.o gettimeofday.o kbhit.o
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -o ecor mainN.o eco.o genmovesN.o ataks.o utilN.o evalN.o init.o searchN.o dspcomR.o nondspR.o gettimeofday.o kbhit.o $(LIBS)
+
+gnuchessr: mainN.o bookN.o genmovesN.o ataks.o utilN.o evalN.o init.o searchN.o dspcomR.o nondspR.o gettimeofday.o kbhit.o
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -o gnuchessr mainN.o bookN.o genmovesN.o ataks.o utilN.o evalN.o init.o searchN.o dspcomR.o nondspR.o gettimeofday.o kbhit.o $(LIBS)
+
+gnuchessn: mainN.o bookN.o genmovesN.o ataks.o utilN.o evalN.o init.o searchN.o dspcomN.o nuxdsp.o gettimeofday.o kbhit.o
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -o gnuchessn mainN.o bookN.o genmovesN.o ataks.o utilN.o evalN.o init.o searchN.o dspcomN.o nuxdsp.o gettimeofday.o kbhit.o $(LCURSES) $(LIBS)
+
+game: game.c gnuchess.h
+	$(CC) $(CFLAGS) -o game game.c
+	
+postprint: postprint.o
+	$(CC) $(CFLAGS) $(HASH) -o postprint postprint.o
+	
+gnuan.o: gnuan.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF) -DIGNUAN $(BINBOOK) -c gnuan.c
+
+mainN.o: main.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  $(BINBOOK) -c main.c
+	mv main.o mainN.o
+
+mainC.o: main.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  $(BINBOOK) -DNONDSP -DCHESSTOOL \
+		-c main.c
+	mv main.o mainC.o
+
+mainX.o: main.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  $(BINBOOK) -DXBOARD  -c main.c
+	mv main.o mainX.o
+
+mainDR.o: main.c gnuchess.h version.h ttable.h
+	$(CC)  -DDEBUG -DDEBUG4 $(CFLAGS) $(HASH) $(LANGF)  $(BINBOOK) \
+		-c main.c
+	mv main.o mainDR.o
+
+genmovesN.o: genmoves.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -c genmoves.c
+	mv genmoves.o genmovesN.o
+
+genmovesC.o: genmoves.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP -DCHESSTOOL \
+		-c genmoves.c 
+	mv genmoves.o genmovesC.o
+
+genmovesX.o: genmoves.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DXBOARD \
+		-c genmoves.c
+	mv genmoves.o  genmovesX.o
+
+eco.o: eco.c gnuchess.h version.h ataks.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  $(BINBOOK) $(BINECO)  $(PGNECO) -c eco.c 
+
+bookN.o: book.c gnuchess.h version.h ataks.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  $(BINBOOK) $(PGNECO) $(BINECO) -c book.c 
+	mv book.o bookN.o
+
+bookG.o: book.c gnuchess.h version.h ataks.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  $(BINBOOK) $(PGNECO) $(BINECO) -DIGNUAN  -c book.c 
+	mv book.o bookG.o
+
+bookC.o: book.c gnuchess.h version.h ataks.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP -DCHESSTOOL \
+	      $(BINBOOK) \
+		$(PGNECO) $(BINECO) -c book.c 
+	mv book.o bookC.o
+
+bookX.o: book.c gnuchess.h version.h ataks.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DXBOARD  $(BINBOOK) \
+		$(PGNECO) $(BINECO) -c book.c
+	mv book.o  bookX.o
+
+ataks.o: ataks.h ataks.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -c ataks.c
+
+utilN.o: util.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -c util.c
+	mv util.o utilN.o
+
+utilX.o: util.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)   \
+		 -c util.c
+	mv util.o  utilX.o
+
+utilC.o: util.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)   \
+		 -c util.c
+	mv util.o  utilC.o
+
+evalC.o: eval.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)   -c eval.c
+	mv eval.o evalC.o
+
+evalX.o: eval.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)   -c eval.c
+	mv eval.o evalX.o
+
+evalN.o: eval.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -c eval.c
+	mv eval.o evalN.o
+
+evalDR.o: eval.c gnuchess.h version.h ttable.h
+	$(CC)  -DDEBUG4 -DDEBUG $(CFLAGS) $(HASH) $(LANGF)  \
+		-c eval.c 
+	mv eval.o evalDR.o
+
+utilDR.o: util.c gnuchess.h version.h
+	$(CC)  -DDEBUG4 -DDEBUG $(CFLAGS) $(HASH) $(LANGF)  \
+		-c util.c 
+	mv util.o utilDR.o
+
+init.o: init.c gnuchess.h version.h ttable.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -c init.c
+
+searchN.o: search.c gnuchess.h version.h debug512.h debug10.h debug13.h debug16.h debug256.h debug4.h debug40.h debug41.h debug64.h debug8.h ttable.h ttable.c
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -c search.c
+	mv search.o searchN.o
+
+searchG.o: search.c gnuchess.h version.h debug512.h debug10.h debug13.h debug16.h debug256.h debug4.h debug40.h debug41.h debug64.h debug8.h ttable.h ttable.c
+	$(CC) $(CFLAGS) $(HASH) $(LANGF) -DIGNUAN  -c search.c
+	mv search.o searchG.o
+
+searchC.o: search.c gnuchess.h version.h debug512.h debug10.h debug13.h debug16.h debug256.h debug4.h debug40.h debug41.h debug64.h debug8.h ttable.h ttable.c
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP -DCHESSTOOL \
+		-c search.c 
+	mv search.o searchC.o
+
+searchX.o: search.c gnuchess.h version.h debug512.h debug10.h debug13.h debug16.h debug256.h debug4.h debug40.h debug41.h debug64.h debug8.h ttable.h ttable.c
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DXBOARD \
+		-c search.c 
+	mv search.o searchX.o
+
+searchDR.o: search.c gnuchess.h version.h debug512.h debug10.h debug13.h debug16.h debug256.h debug4.h debug40.h debug41.h debug64.h debug8.h ttable.h ttable.c
+	$(CC)  -DDEBUG4 -DDEBUG $(CFLAGS) $(HASH) $(LANGF)  \
+		-c search.c 
+	mv search.o searchDR.o
+
+uxdsp.o: uxdsp.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -c uxdsp.c
+
+nuxdsp.o: nuxdsp.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -c nuxdsp.c
+
+nondspC.o: nondsp.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP -DCHESSTOOL \
+		-c nondsp.c 
+	mv nondsp.o nondspC.o
+
+nondspX.o: nondsp.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP -DXBOARD \
+		-c nondsp.c 
+	mv nondsp.o nondspX.o
+
+nondspR.o: nondsp.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP \
+		-c nondsp.c 
+	mv nondsp.o nondspR.o
+
+nondspDR.o: nondsp.c gnuchess.h version.h
+	$(CC)  -DDEBUG4 -DDEBUG $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP \
+		 -c nondsp.c 
+	mv nondsp.o nondspDR.o
+
+dspcomN.o: dspcom.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -c dspcom.c
+	mv dspcom.o dspcomN.o
+
+dspcomC.o: dspcom.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP -DCHESSTOOL \
+		-c dspcom.c 
+	mv dspcom.o dspcomC.o
+
+dspcomX.o: dspcom.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP -DXBOARD \
+		-c dspcom.c 
+	mv dspcom.o dspcomX.o
+
+dspcomR.o: dspcom.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP \
+		-c dspcom.c 
+	mv dspcom.o dspcomR.o
+
+dspcomDR.o: dspcom.c gnuchess.h version.h
+	$(CC)  -DDEBUG -DDEBUG4 $(CFLAGS) $(HASH) $(LANGF)  -DNONDSP \
+		-c dspcom.c 
+	mv dspcom.o dspcomDR.o
+
+postprint.o: postprint.c gnuchess.h version.h
+	$(CC) $(CFLAGS) $(HASH) -c postprint.c
+
+binsort: binsort.c binsort.h
+	$(CC) $(CFLAGS) -o binsort binsort.c
+
+ecosort: ecosort.c gnuchess.h
+	$(CC) $(CFLAGS) -o ecosort ecosort.c
+
+ecocvt: ecocvt.c
+	$(CC) $(CFLAGS) -o ecocvt ecocvt.c
+
+gettimeofday.o: Amiga/gettimeofday.c
+	$(CC) $(CFLAGS) -c -o gettimeofday.o Amiga/gettimeofday.c
+
+kbhit.o: Amiga/kbhit.c
+	$(CC) $(CFLAGS) -c -o kbhit.o Amiga/kbhit.c
+
+gnuchess.data: $(BOOK)
+	Amiga/makedata "$(BOOKOPTS)" "$(BOOK)"
+
+gnuchess.eco: ecor binsort ecocvt ecosort
+	Amiga/makeeco
+
+dist: distsrc distbin
+
+distbin: all
+	C:Delete t:$(DISTDIR) t:$(DISTDIR).info t:$(DISTDIR)bin.lha ALL QUIET
+	C:MakeDir t:$(DISTDIR)
+	C:MakeDir t:$(DISTDIR)/lib
+	C:MakeDir t:$(DISTDIR)/doc
+	C:Copy $(DISTBIN) t:$(DISTDIR)
+	C:Copy $(DISTDOC) t:$(DISTDIR)/doc
+	C:Copy $(DISTLIB) t:$(DISTDIR)/lib
+	C:Copy //$(DISTDIR).info t:
+	LhA a -r t:$(DISTDIR)bin.lha t:$(DISTDIR) t:$(DISTDIR).info
+	C:Protect t:$(DISTDIR) +wd ALL
+	C:Delete t:$(DISTDIR) t:$(DISTDIR).info ALL QUIET
+
+distsrc:
+	C:Delete t:$(DISTDIR) t:$(DISTDIR)diffs.lha ALL QUIET
+	C:MakeDir t:$(DISTDIR)
+	C:MakeDir t:$(DISTDIR)/src
+	C:Copy $(DISTSRC) t:$(DISTDIR)/src
+	LhA a -r t:$(DISTDIR)diffs.lha t:$(DISTDIR)
+	C:Protect t:$(DISTDIR) +wd ALL QUIET
+	C:Delete t:$(DISTDIR) ALL QUIET

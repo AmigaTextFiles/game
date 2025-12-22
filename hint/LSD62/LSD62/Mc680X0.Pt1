@@ -1,0 +1,4075 @@
+
+
+                          MC 680x0 Reference 1.0
+                          ~~~~~~~~~~~~~~~~~~~~~~
+                    ©April/May 1995 by Flint/DARKNESS.
+
+          GENERIC ASM DOC          MC680X0 OPTIMIZATIONS
+          ~~~~~~~~~~~~~~~           ~~~~~~~~~~~~~~~~~~~~~
+                                 PART ONE
+
+                        MC680x0 Instruction types:
+                         ~~~~~~~~~~~~~~~~~~~~~~~~~
+                    ARITHMETICS INSTRUCTIONS           
+                    LOGIC INSTRUCTIONS                 
+                    SHIFT AND ROTATE INSTRUCTIONS      
+                    BIT MANIPULATION INSTRUCTIONS      
+                    BIT FIELD MANIPULATION INSTRUCTIONS
+                    BCD INSTRUCTIONS                   
+                    DATAS TRANSFERT INSTRUCTIONS       
+                    FLOW CONTROL INSTRUCTIONS          
+                    PRIVILEGED INSTRUCTIONS            
+                    'EXCEPTIONS' INSTRUCTIONS          
+                    CCR RELATED INSTRUCTIONS           
+                    PMMU CONTROL INSTRUCTIONS          
+                    MULTIPROCESSOR INSTRUCTIONS        
+                    COPROCESSOR INSTRUCTIONS           
+
+                    ALPHABETICAL INDEX                 
+
+     MC68000 INSTRUCTIONS TIMING           MC68030 INSTRUCTIONS TIMING
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+         COPYRIGHT AND DISTRIBUTION          CONTACTING THE AUTHOR
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~           ~~~~~~~~~~~~~~~~~~~~
+
+
+Copyright and Distribution
+
+This documentation is Copyright ©1995 Flint/DKS. All Rights reserved.
+MC680x0 Reference is freely redistributable. You're permitted  to  modify it
+for personal use, but any modifications made must NOT  be distributed.
+If you have made changes you think others would like, send them to me and
+I'll include them in future versions.
+This doc comes with NO WARRANTIES. The author is NOT responsible for any
+mistakes, or wrong information; the user takes all such responsibility.
+
+No charges may be made for MC680x0 Reference, other than a nominal copy fee.
+It may NOT be  distributed with a commercial product without the author prior
+consent.
+Although MC680x0 Reference is freeware, DONATIONS WOULD BE GLADLY ACCEPTED,
+either money or stuff you've written yourself. See CONTACTING THE AUTHOR.
+
+
+Contacting the author
+
+I can be reached for comments, suggestions, bug reports, money etc.
+at the following address:
+
+		Flint/DKS
+		Bruno COSTE
+		80, av. de la Lanterne
+		Le Castiglione B
+		06200 NICE
+                FRANCE
+
+Or By E-Mail (it's the account of a friend so specify for Flint/DKS):
+pintaric@amoa.unice.fr
+
+
+To calculate the timings of most 68000 instructions, you will need to first
+find the number of cycles used by the addressing mode in the table below
+('Effective Address Operand Calculation Timing') and then the timing for
+the actual instruction in the appropriate table.
+
+MOVE INSTRUCTION EXECUTION TIMES
+STANDARD INSTRUCTION EXECUTION TIMES
+IMMEDIATE INSTRUCTION EXECUTION TIMES
+SINGLE OPERAND INSTRUCTION EXECUTION TIMES
+ROTATE INSTRUCTION EXECUTION TIMES
+BIT MANIPULATION INSTRUCTION EXECUTION TIMES
+SPECIFICATIONAL INSTRUCTION EXECUTION TIMES
+JMP, JSR, LEA, PEA AND MOVEM INSTRUCTION EXECUTION TIMES
+MULTI-PRECISION INSTRUCTION EXECUTION TIMES
+MISCELLANEOUS INSTRUCTION EXECUTION TIMES
+MOVE PERIPHERAL INSTRUCTION EXECUTION TIMES
+EXCEPTION PROCESSING EXECUTION TIMES
+
+Effective Address Operand Calculation Timing
+
+This table lists the number of clock periods required to compute an
+instruction's effective address. It includes fetching of any extension
+words, the address computation , and fetching of the memory operand.
+The number of bus read and write cycles is shown in parenthesis as (r/w).
+Note there are no write cycles involved in processing the effective address.
+
+
+		Effective Address Calculation Times
+
+		register			Byte,Word	Long
+
+Dn	 data register direct			 0(0/0)		 0(0/0)
+An	 address register direct		 0(0/0)		 0(0/0)
+								
+		memory						
+
+(An)	 address register indirect		 4(1/0)		 8(2/0)
+(An)+	 address register indirect with post-	 4(1/0)		 8(2/0)
+	 increment						
+-(An)	 address register indirect with predec.	 6(1/0)		10(2/0)
+d(An)	 address register indirect with dis-	 8(2/0)		12(3/0)
+	 placement						
+d(An,ix) address register indirect with index	10(2/0)		14(3/0)
+xxx.W	 absolute short				 8(2/0)		12(3/0)
+xxx.L	 absolute long				12(3/0)		16(4/0)
+d(PC)	 program counter with displacement	 8(2/0)		12(3/0)
+d(PC,ix) program counter with index		10(2/0)		14(3/0)
+#xxx	 immediate				 4(1/0)		 8(2/0)
+
+The size of the index register (ix) does not affect execution time
+
+
+
+
+68030 INSTRUCTION TIMES
+CALCULATE EFFECTIVE ADDRESS (CEA)
+CALCULATE IMMEDIATE EFFECTIVE ADDRESS (CIEA)
+FETCH EFFECTIVE ADDRESS (FEA)
+FETCH IMMEDIATE EFFECTIVE ADDRESS (FIEA)
+JUMP EFFECTIVE ADDRESS (JEA)
+SOME NOTES ABOUT 020+
+
+
+
+
+ # - Add Calculate Effective Address time (CEA)
+ % - Add Calculate Immediate Effective Address time (CIEA)
+ * - Add Fetch Effective Address time (FEA)
+ ! - Add Fetch Immediate Effective Address time (FIEA)
+ J - Add Jump Effective Address Time (JEA)
+
+ (r/p/w)  r - Read Cycles
+          p - Prefetch Cycles
+          w - Write Cycles
+
+			       Head    Tail	 I-Cache	 No-Cache
+ move	Rn,Dn			2	0	 2(0/0/0)	 2(0/1/0)
+ move	Rn,An			2	0	 2(0/0/0)	 2(0/1/0)
+*move	EA,An			0	0	 2(0/0/0)	 2(0/1/0)
+*move	EA,Dn			0	0	 2(0/0/0)	 2(0/1/0)
+ move	Rn,(An)			0	1	 3(0/0/1)	 4(0/1/1)
+*move	SOURCE,(An)		2	0	 4(0/0/1)	 5(0/1/1)
+ move	Rn,(An)+		0	1	 3(0/0/1)	 4(0/1/1)
+*move	SOURCE,(An)+		2	0	 4(0/0/1)	 5(0/1/1)
+ move	Rn,-(An)		0	2	 4(0/0/1)	 4(0/1/1)
+*move	SOURCE,-(An)		2	0	 4(0/0/1)	 5(0/1/1)
+*move	EA,(d16,An)		2	0	 4(0/0/1)	 5(0/1/1)
+*move	EA,xxx.W		2	0	 4(0/0/1)	 5(0/1/1)
+*move	EA,xxx.L		0	0	 6(0/0/1)	 7(0/2/1)
+*move	EA,(d8,An,Xn)		4	0	 6(0/0/1)	 7(0/1/1)
+*move	EA,(d16,An)		2	0	 8(0/0/1)	 9(0/2/1)
+*move	EA,(d16,PC)		2	0	 8(0/0/1)	 9(0/2/1)
+*move	EA,(d16,An,Xn)		2	0	 8(0/0/1)	 9(0/2/1)
+*move	EA,(d16,PC,Xn)		2	0	 8(0/0/1)	 9(0/2/1)
+*move	EA,([d16,An],Xn)	2	0	10(1/0/1)	11(1/2/1)
+*move	EA,([d16,PC],Xn)	2	0	10(1/0/1)	11(1/2/1)
+*move	EA,([d16,An],d16)	2	0	12(1/0/1)	14(1/2/1)
+*move	EA,([d16,PC],d16)	2	0	12(1/0/1)	14(1/2/1)
+*move	EA,([d16,An],d32)	2	0	14(1/0/1)	16(1/3/1)
+*move	EA,([d16,PC],d32)	2	0	14(1/0/1)	16(1/3/1)
+*move	EA,([d16,An],Xn,d32)	2	0	14(1/0/1)	16(1/3/1)
+*move	EA,([d16,PC],Xn,d32)	2	0	14(1/0/1)	16(1/3/1)
+*move	EA,(B)			4	0	 8(0/0/1)	 9(0/1/1)
+*move	EA,(d16,B)		4	0	10(0/0/1)	12(0/2/1)
+*move	EA,(d32,B)		4	0	14(0/0/1)	16(0/2/1)
+*move	EA,([B])		4	0	10(1/0/1)	11(1/1/1)
+*move	EA,([B].l)		4	0	10(1/0/1)	11(1/1/1)
+*move	EA,([B],d16)		4	0	12(1/0/1)	14(1/2/1)
+*move	EA,([B].l,d16)		4	0	12(1/0/1)	14(1/2/1)
+*move	EA,([B],d32)		4	0	14(1/0/1)	16(1/2/1)
+*move	EA,([B].l,d32)		4	0	14(1/0/1)	16(1/2/1)
+*move	EA,([d16,B])		4	0	12(1/0/1)	14(1/2/1)
+*move	EA,([d16,B].l)		4	0	12(1/0/1)	14(1/2/1)
+*move	EA,([d16,B],d16)	4	0	14(1/0/1)	17(1/2/1)
+*move	EA,([d16,B].l,d16)	4	0	14(1/0/1)	17(1/2/1)
+*move	EA,([d16,B],d32)	4	0	16(1/0/1)	19(1/3/1)
+*move	EA,([d16,B].l,d32)	4	0	16(1/0/1)	19(1/3/1)
+*move	EA,([d32,B])		4	0	16(1/0/1)	18(1/2/1)
+*move	EA,([d32,B].l)		4	0	16(1/0/1)	18(1/2/1)
+*move	EA,([d32,B],d16)	4	0	18(1/0/1)	21(1/3/1)
+*move	EA,([d32,B].l,d16)	4	0	18(1/0/1)	21(1/3/1)
+*move	EA,([d32,B],d32)	4	0	18(1/0/1)	23(1/3/1)
+*move	EA,([d32,B].l,d32)	4	0	18(1/0/1)	23(1/3/1)
+ exg	Ry,Rx			4	0	 4(0/0/0)	 4(0/1/0)
+ movec	Cr,Rn			6	0	 6(0/0/0)	 6(0/1/0)
+ movec	Rn,usp vbr caar msp isp 6	0	 6(0/0/0)	 6(0/1/0)
+ movec	Rn,sfc dfc cacr		4	0	12(0/0/0)	12(0/1/0)
+ move	ccr,Dn			2	0	 4(0/0/0)	 4(0/1/0)
+#move	ccr,mem			2	0	 4(0/0/1)	 5(0/1/1)
+ move	Dn,ccr			4	0	 4(0/0/1)	 4(0/1/1)
+#move	EA,ccr			0	0	 4(0/0/1)	 4(0/1/1)
+ move	sr,Dn			2	0	 4(0/0/1)	 4(0/1/1)
+#move	sr,mem			2	0	 4(0/0/1)	 4(0/1/1)
+*move	EA,sr			0	0	 8(0/0/0)	10(0/1/0)
+%movem	EA,rl (+)		2	0	8+4n(n/0/0)	8+4n(n/1/0)
+%movem	rl,EA (+)		2	0	4+2n(0/0/n)	4+2n(0/1/n)
+ movep.w Dn,(d16,An)		4	0	10(0/0/2)	10(0/1/2)
+ movep.w (d16,An),Dn		2	0	10(2/0/0)	10(2/1/0)
+ movep.l Dn,(d16,An)		4	0	14(0/0/4)	14(0/1/4)
+ movep.l (d16,An),Dn		2	0	14(4/0/0)	14(4/1/0)
+%moves	EA,Rn			3	0	 7(1/0/0)	 7(1/1/0)
+%moves	Rn,EA			2	1	 5(0/0/1)	 6(0/1/1)
+ move	usp,An			4	0	 4(0/0/0)	 4(0/1/1)
+ move	An,usp			4	0	 4(0/0/0)	 4(0/1/0)
+ swap	Dn			4	0	 4(0/0/0)	 4(0/1/0)
+ add	Rn,Dn			2	0	 2(0/0/0)	 2(0/1/0)
+ adda.w	Rn,An			4	0	 4(0/0/0)	 4(0/1/0)
+ adda.l	Rn,An			2	0	 2(0/0/0)	 2(0/1/0)
+*add	EA,Dn			0	0	 2(0/0/0)	 2(0/1/0)
+*adda.w	EA,An			0	0	 4(0/0/0)	 4(0/1/0)
+*adda.l	EA,An			0	0	 2(0/0/0)	 2(0/1/0)
+*add	Dn,EA			0	1	 3(0/0/1)	 4(0/1/1)
+ and	Dn,Dn			2	0	 2(0/0/0)	 2(0/1/0)
+*and	EA,Dn			0	0	 2(0/0/0)	 2(0/1/0)
+*and	Dn,EA			0	1	 3(0/0/1)	 4(0/1/1)
+ eor	Dn,Dn			2	0	 2(0/0/0)	 2(0/1/0)
+*eor	Dn,EA			0	1	 3(0/0/1)	 4(0/1/1)
+ or	Dn,Dn			2	0	 2(0/0/0)	 2(0/1/0)
+ or	EA,Dn			0	0	 2(0/0/0)	 2(0/1/0)
+ or	Dn,EA			0	1	 3(0/0/1)	 4(0/1/1)
+ sub	Rn,Dn			2	0	 2(0/0/0)	 2(0/1/0)
+*sub	EA,Dn			0	0	 2(0/0/0)	 2(0/1/0)
+*sub	Dn,EA			0	1	 3(0/0/1)	 4(0/1/1)
+ suba.w	Rn,An			4	0	 4(0/0/0)	 4(0/1/0)
+ suba.l	Rn,An			2	0	 2(0/0/0)	 2(0/1/0)
+*suba.w	EA,An			0	0	 4(0/0/0)	 4(0/1/0)
+*suba.l	EA,An			0	0	 2(0/0/0)	 2(0/1/0)
+ cmp	Rn,Dn			2	0	 2(0/0/0)	 2(0/1/0)
+*cmp	EA,Dn			0	0	 2(0/0/0)	 2(0/1/0)
+ cmpa	Rn,An			4	0	 4(0/0/0)	 4(0/1/0)
+*cmpa	EA,An			0	0	 4(0/0/0)	 4(0/1/0)
+!cmp2	EA,Rn (max)		2	0	20(1/0/0)	20(1/1/0)
+*muls.w	EA,Dn (max)		2	0	28(0/0/0)	28(0/1/0)
+!muls.l	EA,Dn (max)		2	0	44(0/0/0)	44(0/1/0)
+*mulu.w	EA,Dn (max)		2	0	28(0/0/0)	28(0/1/0)
+!mulu.l	EA,Dn (max)		2	0	44(0/0/0)	44(0/1/0)
+ divs.w	Dn,Dn (max)		2	0	56(0/0/0)	56(0/1/0)
+*divs.w	EA,Dn (max)		0	0	56(0/0/0)	56(0/1/0)
+!divs.l	Dn,Dn (max)		6	0	90(0/0/0)	90(0/1/0)
+!divs.l	EA,Dn (max)		0	0	90(0/0/0)	90(0/1/0)
+ divu.w	Dn,Dn (max)		2	0	44(0/0/0)	44(0/1/0)
+*divu.w	EA,Dn (max)		0	0	44(0/0/0)	44(0/1/0)
+!divu.l	Dn,Dn (max)		6	0	78(0/0/0)	78(0/1/0)
+!divu.l	EA,Dn (max)		0	0	78(0/0/0)	78(0/1/0)
+ moveq	#(data),Dn		2	0	 2(0/0/0)	 2(0/1/0)
+ addq	#(data),Rn		2	0	 2(0/0/0)	 2(0/1/0)
+*addq	#(data),Mem		0	1	 3(0/0/1)	 4(0/1/1)
+ subq	#(data),Rn		2	0	 2(0/0/0)	 2(0/1/0)
+*subq	#(data),Mem		0	1	 3(0/0/1)	 4(0/1/1)
+!addi	#(data),Dn		2	0	 2(0/0/0)	 2(0/1/0)
+!addi	#(data),Mem		0	1	 3(0/0/1)	 4(0/1/1)
+!andi	#(data),Dn		2	0	 2(0/0/0)	 2(0/1/0)
+!andi	#(data),Mem		0	1	 3(0/0/1)	 4(0/1/1)
+!eori	#(data),Dn		2	0	 2(0/0/0)	 2(0/1/0)
+!eori	#(data),Mem		0	1	 3(0/0/1)	 4(0/1/1)
+!ori	#(data),Dn		2	0	 2(0/0/0)	 2(0/1/0)
+!ori	#(data),Mem		0	1	 3(0/0/1)	 4(0/1/1)
+!subi	#(data),Dn		2	0	 2(0/0/0)	 2(0/1/0)
+!subi	#(data),Mem		0	1	 3(0/0/1)	 4(0/1/1)
+!cmpi	#(data),Dn		2	0	 2(0/0/0)	 2(0/1/0)
+!cmpi	#(data),Mem		0	0	 3(0/0/1)	 2(0/1/0)
+ abcd	Dn,Dn			0	0	 4(0/0/0)	 4(0/1/0)
+ abcd	-(An),-(An)		2	1	13(2/0/1)	14(2/1/1)
+ sbcd	Dn,Dn			0	0	 4(0/0/0)	 4(0/1/0)
+ sbcd	-(An),-(An)		2	1	13(2/0/1)	14(2/1/1)
+ addx	Dn,Dn			2	0	 2(0/0/0)	 2(0/1/0)
+ addx	-(An),-(An)		2	1	 9(2/0/1)	10(2/1/1)
+ subx	Dn,Dn			2	0	 2(0/0/0)	 2(0/1/0)
+ subx	-(An),-(An)		2	1	 9(2/0/1)	10(2/1/1)
+ cmpm	(An)+,(An)+		0	0	 8(2/0/0)	 8(2/1/0)
+ pack	Dn,Dn,#(data)		6	0	 6(0/0/0)	 6(0/1/0)
+ pack	-(An),-(An),#(data)	2	1	11(1/0/1)	11(1/1/1)
+ unpk	Dn,Dn,#(data)		8	0	 8(0/0/0)	 8(0/1/0)
+ unpk	-(An),-(An),#(data)	2	1	11(1/0/1)	11(1/1/1)
+ clr	Dn			2	0	 2(0/0/0)	 2(0/1/0)
+#clr	Mem			0	1	 3(0/0/1)	 4(0/1/1)
+ neg	Dn			2	0	 2(0/0/0)	 2(0/1/0)
+*neg	Mem			0	1	 3(0/0/1)	 4(0/1/1)
+ negx	Dn			2	0	 2(0/0/0)	 2(0/1/0)
+*negx	Mem			0	1	 3(0/0/1)	 4(0/1/1)
+ not	Dn			2	0	 2(0/0/0)	 2(0/1/0)
+*not	Mem			0	1	 3(0/0/1)	 4(0/1/1)
+ ext	Dn			4	0	 4(0/0/0)	 4(0/1/0)
+ nbcd	Dn			0	0	 6(0/0/0)	 6(0/1/0)
+ scc	Dn			4	0	 4(0/0/0)	 4(0/1/0)
+#scc	Mem			0	1	 5(0/0/1)	 5(0/1/1)
+ tas	Dn			4	0	 4(0/0/0)	 4(0/1/0)
+#tas	Mem			3	0	12(1/0/1)	12(1/1/1)
+ tst	Dn			0	0	 2(0/0/0)	 2(0/1/0)
+*tst	Mem			0	0	 2(0/0/0)	 2(0/1/0)
+ ls?	#(data),Dy		4	0	 4(0/0/0)	 4(0/1/0)
+ ls?	Dx,Dy (shift << size)	6	0	 6(0/0/0)	 6(0/1/0)
+ ls?	Dx,Dy (shift >> size)	8	0	 8(0/0/0)	 8(0/1/0)
+*ls?	Mem (by one)		0	0	 4(0/0/1)	 4(0/1/1)
+ asl	#(data),Dy		2	0	 6(0/0/0)	 6(0/1/0)
+ asl	Dx,Dy			4	0	 8(0/0/0)	 8(0/1/0)
+ asl	Mem (by one)		0	0	 6(0/0/0)	 6(0/1/0)
+ asr	#(data),Dy		4	0	 4(0/0/0)	 4(0/1/0)
+ asr	Dx,Dy (shift << size)	6	0	 6(0/0/0)	 6(0/1/0)
+ asr	Dx,Dy (shift >> size)	10	0	10(0/0/0)	10(0/1/0)
+*asr	Mem (by one)		0	0	 4(0/0/0)	 4(0/1/0)
+ ro?	#(data),Dy		4	0	 6(0/0/0)	 6(0/1/0)
+ ro?	Dx,Dy			6	0	 8(0/0/0)	 8(0/1/0)
+*ro?	Mem (by one)		0	0	 6(0/0/1)	 6(0/1/1)
+ rox?	Dn			10	0	12(0/0/0)	12(0/1/0)
+*rox?	Mem (by one)		0	0	 4(0/0/0)	 4(0/1/0)
+ btst	#(data),Dn		4	0	 4(0/0/0)	 4(0/1/0)
+ btst	Dn,Dn			4	0	 4(0/0/0)	 4(0/1/0)
+!btst	#(data),Mem		0	0	 4(0/0/0)	 4(0/1/0)
+*btst	Dn,Mem			0	0	 4(0/0/0)	 4(0/1/0)
+ bchg	#(data),Dn		6	0	 6(0/0/0)	 6(0/1/0)
+ bchg	Dn,Dn			6	0	 6(0/0/0)	 6(0/1/0)
+!bchg	#(data),Mem		0	0	 6(0/0/1)	 6(0/1/1)
+*bchg	Dn,Mem			0	0	 6(0/0/1)	 6(0/1/1)
+ bclr	#(data),Dn		6	0	 6(0/0/0)	 6(0/1/0)
+ bclr	Dn,Dn			6	0	 6(0/0/0)	 6(0/1/0)
+!bclr	#(data),Mem		0	0	 6(0/0/1)	 6(0/1/1)
+*bclr	Dn,Mem			0	0	 6(0/0/1)	 6(0/1/1)
+ bset	#(data),Dn		6	0	 6(0/0/0)	 6(0/1/0)
+ bset	Dn,Dn			6	0	 6(0/0/0)	 6(0/1/0)
+!bset	#(data),Mem		0	0	 6(0/0/1)	 6(0/1/1)
+%bset	Dn,Mem			0	0	 6(0/0/1)	 6(0/1/1)
+ bftst	Dn			8	0	 8(0/0/0)	 8(0/1/0)
+%bftst	Mem (< 5 bytes)		6	0	10(1/0/0)	10(1/1/0)
+%bftst	Mem (> 5 bytes)		6	0	14(2/0/0)	14(2/1/0)
+ bfchg	Dn			14	0	14(0/0/0)	14(0/1/0)
+%bfchg	Mem (< 5 bytes)		6	0	14(1/0/1)	14(1/1/1)
+%bfchg	Mem (> 5 bytes)		6	0	22(2/0/2)	22(2/1/2)
+ bfclr	Dn			14	0	14(0/0/0)	14(0/1/0)
+%bfclr	Mem (< 5 bytes)		6	0	14(1/0/1)	14(1/1/1)
+%bfclr	Mem (> 5 bytes)		6	0	22(2/0/2)	22(2/1/2)
+ bfset	Dn			14	0	14(0/0/0)	14(0/1/0)
+%bfset	Mem (< 5 bytes)		6	0	14(1/0/1)	14(1/1/1)
+%bfset	Mem (> 5 bytes)		6	0	22(2/0/2)	22(2/1/2)
+ bfexts	Dn			10	0	10(0/0/0)	10(0/1/0)
+%bfexts Mem (< 5 bytes)		6	0	12(1/0/0)	12(1/1/0)
+%bfexts	Mem (> 5 bytes)		6	0	18(2/0/0)	18(2/1/0)
+ bfextu	Dn			10	0	10(0/0/0)	10(0/1/0)
+%bfextu Mem (< 5 bytes)		6	0	12(1/0/0)	12(1/1/0)
+%bfextu	Mem (> 5 bytes)		6	0	18(2/0/0)	18(2/1/0)
+ bfins	Dn			12	0	12(0/0/0)	12(0/1/0)
+%bfins	Mem (< 5 bytes)		6	0	12(1/0/1)	12(1/1/1)
+%bfins	Mem (> 5 bytes)		6	0	18(2/0/2)	18(2/1/2)
+ bfffo	Dn			20	0	20(0/0/0)	20(0/1/0)
+%bfffo	Mem (< 5 bytes)		6	0	22(1/0/0)	22(1/1/0)
+%bfffo	Mem (> 5 bytes)		6	0	28(2/0/0)	28(2/1/0)
+ bcc	(taken)			6	0	 6(0/0/0)	 8(0/2/0)
+ bcc.b	(not taken)		4	0	 4(0/0/0)	 4(0/1/0)
+ bcc.w	(not taken)		6	0	 6(0/0/0)	 6(0/1/0)
+ bcc.l	(not taken)		6	0	 6(0/0/0)	 8(0/2/0)
+ dbcc	(false,cnt not expired)	6	0	 6(0/0/0)	 8(0/2/0)
+ dbcc	(false,but cnt expired)	10	0	10(0/0/0)	13(0/3/0)
+ dbcc	(true)			6	0	 6(0/0/0)	 8(0/1/0)
+ andi to sr			4	0	12(0/0/0)	14(0/2/0)
+ eori to sr			4	0	12(0/0/0)	14(0/2/0)
+ ori to sr			4	0	12(0/0/0)	14(0/2/0)
+ andi to ccr			4	0	12(0/0/0)	14(0/2/0)
+ eori to ccr			4	0	12(0/0/0)	14(0/2/0)
+ ori to ccr			4	0	12(0/0/0)	14(0/2/0)
+ bsr				2	0	 6(0/0/1)	 9(0/2/1)
+%cas (succesful compare)	1	0	13(1/0/1)	13(1/1/1)
+%cas (unsuccesful compare)	1	0	11(1/0/0)	11(1/1/0)
+ cas2 (succesful compare) (max)	2	0	24(2/0/2)	26(2/2/2)
+ cas2 (unsuccesful compare)(max)2	0	24(2/0/0)	24(2/2/0)
+ chk Dn,Dn (no Exception)	8	0	 8(0/0/0)	 8(0/1/0)
+ chk Dn,Dn (Exception taken)	4	0	28(1/0/4)	30(1/3/4)
+ chk EA,Dn (no Exception)	0	0	 8(0/0/0)	 8(0/1/0)
+ chk EA,Dn (Exception taken)max	0	0	28(1/0/4)	30(1/3/4)
+!chk2 Mem,Rn (no Exception)max	2	0	18(1/0/0)	18(1/1/0)
+!chk2 Mem,Rn (Exception taken)mx2	0	40(2/0/4)	42(2/3/4)
+Jjmp				4	0	 4(0/0/0)	 6(0/2/0)
+Jjsr				0	0	 4(0/0/1)	 7(0/2/1)
+#lea				2	0	 2(0/0/0)	 2(0/1/0)
+ link.w				0	0	 4(0/0/1)	 5(0/1/1)
+ link.l				2	0	 6(0/0/1)	 7(0/2/1)
+ nop				0	0	 2(0/0/0)	 2(0/1/0)
+#pea				0	2	 4(0/0/1)	 4(0/1/1)
+ rtd				2	0	10(1/0/0)	12(1/2/0)
+ rtr				1	0	12(2/0/0)	14(2/2/0)
+ rts				1	0	 9(1/0/0)	11(1/2/0)
+ unlk				0	0	 5(1/0/0)	 5(1/1/0)
+ bkpt				1	0	 9(1/0/0)	 9(1/0/0)
+ Interrupt (I-Stack)		0	0	23(2/0/4)	24(2/2/4)
+ Interrupt (M-Stack)		0	0	33(2/0/8)	34(2/2/8)
+ reset				0	0      518(0/0/0)      518(0/1/0)
+ stop				0	0	 8(0/0/0)	 8(0/2/0)
+ trace				0	0	22(1/0/5)	24(1/2/5)
+ trap #n			0	0	18(1/0/5)	20(1/2/4)
+ Illegal Instruction		0	0	18(1/0/5)	20(1/2/4)
+ A-Line trap			0	0	18(1/0/5)	20(1/2/4)
+ F-Line trap			0	0	18(1/0/5)	20(1/2/4)
+ Priviledge Violation		0	0	18(1/0/5)	20(1/2/4)
+ trapcc (Trap)			2	0	22(1/0/5)	24(1/2/5)
+ trapcc (No trap)		4	0	 4(0/0/0)	 4(0/1/0)
+ trapcc.w (Trap)		5	0	24(1/0/5)	26(1/3/5)
+ trapcc.w (No trap)		6	0	 6(0/0/0)	 6(0/1/0)
+ trapcc.l (Trap)		6	0	26(1/0/5)	28(1/3/5)
+ trapcc.l (No trap)		8	0	 8(0/0/0)	 8(0/2/0)
+ trapv (Trap)			2	0	22(1/0/5)	24(1/2/5)
+ trapv (No trap)		4	0	 4(0/0/0)	 4(0/1/0)
+
+ Bus Cycle Fault (Short)	0	0	36(1/0/10)	38(1/2/10)
+ Bus Cycle Fault (Long) 	0	0	62(1/0/24)	64(1/2/24)
+ RTE (Normal Four Word)		1	0	18(4/0/0)	20(4/2/0)
+ RTE (Six Word)			1	0	18(4/0/0)	20(4/2/0)
+ RTE (Throwaway)		1	0	12(4/0/0)	12(4/0/0)
+ RTE (Coprocessor)		1	0	26(7/0/0)	26(7/2/0)
+ RTE (Short Fault)          	1	0	36(10/0/0)	26(10/2/0)
+ RTE (Long Fault)       	1	0	76(25/0/0)	76(25/2/0)
+
+
+			       Head    Tail	 I-Cache	 No-Cache
+ Dn				-	-	 0(0/0/0)	 0(0/0/0)
+ An				-	-	 0(0/0/0)	 0(0/0/0)
+ (An)				1	1	 3(1/0/0)	 3(1/0/0)
+ (An)+				0	1	 3(1/0/0)	 3(1/0/0)
+ -(An)				2	2	 4(1/0/0)	 4(1/0/0)
+ (d16,An)			2	2	 4(1/0/0)	 4(1/1/0)
+ (d16,PC)			2	2	 4(1/0/0)	 4(1/1/0)
+ (xxx).w			2	2	 4(1/0/0)	 4(1/1/0)
+ (xxx).l			1	0	 4(1/0/0)	 5(1/1/0)
+ #(data).b			2	0	 2(0/0/0)	 2(0/1/0)
+ #(data).w			2	0	 2(0/0/0)	 2(0/1/0)
+ #(data).l			4	0	 4(0/0/0)	 4(0/1/0)
+ (d16,An)			2	0	 6(1/0/0)	 7(1/1/0)
+ (d16,PC)			2	0	 6(1/0/0)	 7(1/1/0)
+ (d16,An,Xn)			4	0	 6(1/0/0)	 7(1/1/0)
+ (d16,PC,Xn)			4	0	 6(1/0/0)	 7(1/1/0)
+ ([d16,An])			2	0	10(2/0/0)	10(2/1/0)
+ ([d16,PC])			2	0	10(2/0/0)	10(2/1/0)
+ ([d16,An],Xn)			2	0	10(2/0/0)	10(2/1/0)
+ ([d16,PC],Xn)			2	0	10(2/0/0)	10(2/1/0)
+ ([d16,An],d16)			2	0	12(2/0/0)	13(2/2/0)
+ ([d16,PC],d16)			2	0	12(2/0/0)	13(2/2/0)
+ ([d16,An],Xn,d16)		2	0	12(2/0/0)	13(2/2/0)
+ ([d16,PC],Xn,d16)		2	0	12(2/0/0)	13(2/2/0)
+ ([d16,An],d32)			2	0	12(2/0/0)	14(2/2/0)
+ ([d16,PC],d32)			2	0	12(2/0/0)	14(2/2/0)
+ ([d16,An],Xn,d32)		2	0	12(2/0/0)	14(2/2/0)
+ ([d16,PC],Xn,d32)		2	0	12(2/0/0)	14(2/2/0)
+ (B)				4	0	 6(1/0/0)	 7(1/1/0)
+ (d16,B)			4	0	 8(1/0/0)	10(1/1/0)
+ (d32,B)			4	0	12(1/0/0)	13(1/2/0)
+ ([B])				4	0	10(2/0/0)	10(2/1/0)
+ ([B].l)			4	0	10(2/0/0)	10(2/1/0)
+ ([B],d16)			4	0	12(2/0/0)	13(2/1/0)
+ ([B].l,d16)			4	0	12(2/0/0)	13(2/1/0)
+ ([B],d32)			4	0	12(2/0/0)	14(2/2/0)
+ ([B].l,d32)			4	0	12(2/0/0)	14(2/2/0)
+ ([d16,B])			4	0	12(2/0/0)	13(2/1/0)
+ ([d16,B].l)			4	0	12(2/0/0)	13(2/1/0)
+ ([d16,B],d16)			4	0	14(2/0/0)	16(2/2/0)
+ ([d16,B].l,d16)		4	0	14(2/0/0)	16(2/2/0)
+ ([d16,B],d32)			4	0	14(2/0/0)	17(2/2/0)
+ ([d16,B].l,d32)		4	0	14(2/0/0)	17(2/2/0)
+ ([d32,B])			4	0	16(2/0/0)	17(2/2/0)
+ ([d32,B].l)			4	0	16(2/0/0)	17(2/2/0)
+ ([d32,B],d16)			4	0	18(2/0/0)	20(2/2/0)
+ ([d32,B].l,d16)		4	0	18(2/0/0)	20(2/2/0)
+ ([d32,B],d32)			4	0	18(2/0/0)	21(2/3/0)
+ ([d32,B].l,d32)		4	0	18(2/0/0)	21(2/3/0)
+
+
+			       Head    Tail	 I-Cache	 No-Cache
+ #(data).w,Dn			2+op 	0	 2(0/0/0)	 2(0/1/0)
+ #(data).l,Dn			4+op	0	 4(0/0/0)	 4(0/1/0)
+ #(data).w,(An)			1	1	 3(1/0/0)	 4(1/1/0)
+ #(data).l,(An)			1	0	 4(1/0/0)	 5(1/1/0)
+ #(data).w,(An)+		2	1	 5(1/0/0)	 5(1/1/0)
+ #(data).l,(An)+		4	1	 7(1/0/0)	 7(1/1/0)
+ #(data).w,-(An)		2	2	 4(1/0/0)	 4(1/1/0)
+ #(data).l,-(An)		2	0	 4(1/0/0)	 5(1/1/0)
+ #(data).w,(d16,An)		2	0	 4(1/0/0)	 5(1/1/0)
+ #(data).l,(d16,An)		4	0	 6(1/0/0)	 8(1/2/0)
+ #(data).w,(xxx).w		4	2	 6(1/0/0)	 6(1/1/0)
+ #(data).l,(xxx).w		6	2	 8(1/0/0)	 8(1/2/0)
+ #(data).w,(xxx).l		3	0	 6(1/0/0)	 7(1/2/0)
+ #(data).l,(xxx).l		5	0	 8(1/0/0)	 9(1/2/0)
+ #(data).w,#(data).l		6+op	0	 6(0/0/0)	 6(0/2/0)
+ #(data).w,(d8,An,Xn)		6	2	 8(1/0/0)	 8(1/2/0)
+ #(data).w,(d8,PC,Xn)		6	2	 8(1/0/0)	 8(1/2/0)
+ #(data).l,(d8,An,Xn)		8	2	10(1/0/0)	10(1/2/0)
+ #(data).l,(d8,PC,Xn)		8	2	10(1/0/0)	10(1/2/0)
+ #(data).w,(d16,An)		4	0	 8(1/0/0)	 9(1/2/0)
+ #(data).w,(d16,PC)		4	0	 8(1/0/0)	 9(1/2/0)
+ #(data).l,(d16,An)		6	0	10(1/0/0)	11(1/2/0)
+ #(data).l,(d16,PC)		6	0	10(1/0/0)	11(1/2/0)
+ #(data).w,(d16,An,Xn)		6	0	 8(1/0/0)	 9(1/2/0)
+ #(data).w,(d16,PC,Xn)		6	0	 8(1/0/0)	 9(1/2/0)
+ #(data).l,(d16,An,Xn)		8	0	10(1/0/0)	11(1/2/0)
+ #(data).l,(d16,PC,Xn)		8	0	10(1/0/0)	11(1/2/0)
+ #(data).w,([d16,An])		4	0	12(2/0/0)	14(2/2/0)
+ #(data).w,([d16,PC])		4	0	12(2/0/0)	14(2/2/0)
+ #(data).l,([d16,An])		6	0	14(2/0/0)	14(2/2/0)
+ #(data).l,([d16,PC])		6	0	14(2/0/0)	14(2/2/0)
+ #(data).w,([d16,An],Xn)	4	0	12(2/0/0)	12(2/2/0)
+ #(data).w,([d16,PC],Xn)	4	0	12(2/0/0)	12(2/2/0)
+ #(data).l,([d16,An],Xn)	6	0	14(2/0/0)	14(2/2/0)
+ #(data).l,([d16,PC],Xn)	6	0	14(2/0/0)	14(2/2/0)
+ #(data).w,([d16,An],d16)	4	0	14(2/0/0)	15(2/2/0)
+ #(data).w,([d16,PC],d16)	4	0	14(2/0/0)	15(2/2/0)
+ #(data).l,([d16,An],d16)	6	0	16(2/0/0)	17(2/3/0)
+ #(data).l,([d16,PC],d16)	6	0	16(2/0/0)	17(2/3/0)
+ #(data).w,([d16,An],Xn,d16)	4	0	14(2/0/0)	15(2/2/0)
+ #(data).w,([d16,PC],Xn,d16)	4	0	14(2/0/0)	15(2/2/0)
+ #(data).l,([d16,An],Xn,d16)	6	0	16(2/0/0)	17(2/3/0)
+ #(data).l,([d16,PC],Xn,d16)	6	0	16(2/0/0)	17(2/3/0)
+ #(data).w,([d16,An],d32)	4	0	14(2/0/0)	16(2/3/0)
+ #(data).w,([d16,PC],d32)	4	0	14(2/0/0)	16(2/3/0)
+ #(data).l,([d16,An],d32)	6	0	16(2/0/0)	18(2/3/0)
+ #(data).l,([d16,PC],d32)	6	0	16(2/0/0)	18(2/3/0)
+ #(data).w,([d16,An],Xn,d32)	4	0	14(2/0/0)	16(2/3/0)
+ #(data).w,([d16,PC],Xn,d32)	4	0	14(2/0/0)	16(2/3/0)
+ #(data).l,([d16,An],Xn,d32)	6	0	16(2/0/0)	18(2/3/0)
+ #(data).l,([d16,PC],Xn,d32)	6	0	16(2/0/0)	18(2/3/0)
+ #(data).w,(B)			6	0	 8(1/0/0)	 9(1/1/0)
+ #(data).l,(B)			8	0	10(1/0/0)	11(1/2/0)
+ #(data).w,(d16,B)		6	0	10(1/0/0)	12(1/2/0)
+ #(data).l,(d16,B)		8	0	12(1/0/0)	14(1/2/0)
+ #(data).w,(d32,B)		10	0	14(1/0/0)	16(1/2/0)
+ #(data).l,(d32,B)		12	0	16(1/0/0)	18(1/3/0)
+ #(data).w,([B])		6	0	12(2/0/0)	12(2/1/0)
+ #(data).l,([B])		8	0	14(2/0/0)	14(2/2/0)
+ #(data).w,([B].l)		6	0	12(2/0/0)	12(2/1/0)
+ #(data).l,([B].l)		8	0	14(2/0/0)	14(2/2/0)
+ #(data).w,([B],d16)		6	0	14(2/0/0)	15(2/2/0)
+ #(data).l,([B],d16)		8	0	16(2/0/0)	17(2/2/0)
+ #(data).w,([B].l,d16)		6	0	14(2/0/0)	15(2/2/0)
+ #(data).l,([B].l,d16)		8	0	16(2/0/0)	17(2/2/0)
+ #(data).w,([B],d32)		6	0	14(2/0/0)	16(2/2/0)
+ #(data).l,([B],d32)		8	0	16(2/0/0)	18(2/3/0)
+ #(data).w,([B].l,d32)		6	0	14(2/0/0)	16(2/2/0)
+ #(data).l,([B].l,d32)		8	0	16(2/0/0)	18(2/3/0)
+ #(data).w,([d16,B])		6	0	14(2/0/0)	15(2/2/0)
+ #(data).l,([d16,B])		8	0	16(2/0/0)	17(2/2/0)
+ #(data).w,([d16,B].l)		6	0	14(2/0/0)	15(2/2/0)
+ #(data).l,([d16,B].l)		8	0	16(2/0/0)	17(2/2/0)
+ #(data).w,([d16,B],d16)	6	0	16(2/0/0)	18(2/2/0)
+ #(data).l,([d16,B],d16)	8	0	18(2/0/0)	20(2/3/0)
+ #(data).w,([d16,B].l,d16)	6	0	16(2/0/0)	18(2/2/0)
+ #(data).l,([d16,B].l,d16)	8	0	18(2/0/0)	20(2/3/0)
+ #(data).w,([d16,B],d32)	6	0	16(2/0/0)	19(2/3/0)
+ #(data).l,([d16,B],d32)	8	0	18(2/0/0)	21(2/3/0)
+ #(data).w,([d16,B].l,d32)	6	0	16(2/0/0)	19(2/3/0)
+ #(data).l,([d16,B].l,d32)	8	0	18(2/0/0)	21(2/3/0)
+ #(data).w,([d32,B])		6	0	18(2/0/0)	19(2/2/0)
+ #(data).l,([d32,B])		8	0	20(2/0/0)	21(2/3/0)
+ #(data).w,([d32,B].l)		6	0	18(2/0/0)	19(2/2/0)
+ #(data).l,([d32,B].l)		8	0	20(2/0/0)	21(2/3/0)
+ #(data).w,([d32,B],d16)	6	0	20(2/0/0)	22(2/3/0)
+ #(data).l,([d32,B],d16)	8	0	22(2/0/0)	24(2/3/0)
+ #(data).w,([d32,B].l,d16)	6	0	20(2/0/0)	22(2/3/0)
+ #(data).l,([d32,B].l,d16)	8	0	22(2/0/0)	24(2/3/0)
+ #(data).w,([d32,B],d32)	6	0	20(2/0/0)	23(2/3/0)
+ #(data).l,([d32,B],d32)	8	0	22(2/0/0)	25(2/4/0)
+ #(data).w,([d32,B].l,d32)	6	0	20(2/0/0)	23(2/3/0)
+ #(data).l,([d32,B].l,d32)	8	0	22(2/0/0)	25(2/4/0)
+
+
+			       Head    Tail	 I-Cache	 No-Cache
+ Dn				-	-	 0(0/0/0)	 0(0/0/0)
+ An				-	-	 0(0/0/0)	 0(0/0/0)
+ (An)				2+op	0	 2(0/0/0)	 2(0/0/0)
+ (An)+				0	0	 2(0/0/0)	 2(0/0/0)
+ -(An)				2+op	0	 2(0/0/0)	 2(0/0/0)
+ (d16,An)			2+op	0	 2(0/0/0)	 2(0/0/0)
+ (d16,PC)			2+op	0	 2(0/0/0)	 2(0/1/0)
+ (xxx).w			2+op	0	 2(0/0/0)	 2(0/1/0)
+ (xxx).l			4+op	0	 4(0/0/0)	 4(0/1/0)
+ (d8,An,Xn)			4+op	0	 4(0/0/0)	 4(0/1/0)
+ (d8,PC,Xn)			4+op	0	 4(0/0/0)	 4(0/1/0)
+ (d16,An)			2	0	 6(0/0/0)	 6(0/1/0)
+ (d16,PC)			2	0	 6(0/0/0)	 6(0/1/0)
+ (d16,An,Xn)			6+op	0	 6(0/0/0)	 6(0/1/0)
+ (d16,PC,Xn)			6+op	0	 6(0/0/0)	 6(0/1/0)
+ ([d16,An])			2	0	10(1/0/0)	10(1/1/0)
+ ([d16,PC])			2	0	10(1/0/0)	10(1/1/0)
+ ([d16,An],Xn)			2	0	10(1/0/0)	10(1/1/0)
+ ([d16,PC],Xn)			2	0	10(1/0/0)	10(1/1/0)
+ ([d16,An],d16)			2	0	12(1/0/0)	13(1/2/0)
+ ([d16,PC],d16)			2	0	12(1/0/0)	13(1/2/0)
+ ([d16,An],Xn,d16)		2	0	12(1/0/0)	13(1/2/0)
+ ([d16,PC],Xn,d16)		2	0	12(1/0/0)	13(1/2/0)
+ ([d16,An],d32)			2	0	12(1/0/0)	13(1/2/0)
+ ([d16,PC],d32)			2	0	12(1/0/0)	13(1/2/0)
+ ([d16,An],Xn,d32)		2	0	12(1/0/0)	11(1/2/0)
+ ([d16,PC],Xn,d32)		2	0	12(1/0/0)	13(1/2/0)
+ (B)				6+op	0	 6(0/0/0)	 6(0/1/0)
+ (d16,B)			4	0	 8(0/0/0)	 9(0/1/0)
+ (d32,B)			4	0	12(0/0/0)	12(0/2/0)
+ ([B])				4	0	10(1/0/0)	10(1/1/0)
+ ([B].l)			4	0	10(1/0/0)	10(1/1/0)
+ ([B],d16)			4	0	12(1/0/0)	13(1/1/0)
+ ([B].l,d16)			4	0	12(1/0/0)	13(1/1/0)
+ ([B],d32)			4	0	12(1/0/0)	13(1/2/0)
+ ([B].l,d32)			4	0	12(2/0/0)	13(1/2/0)
+ ([d16,B])			4	0	12(1/0/0)	13(1/1/0)
+ ([d16,B].l)			4	0	12(1/0/0)	13(1/1/0)
+ ([d16,B],d16)			4	0	14(1/0/0)	16(1/2/0)
+ ([d16,B].l,d16)		4	0	14(1/0/0)	16(1/2/0)
+ ([d16,B],d32)			4	0	14(1/0/0)	16(1/2/0)
+ ([d16,B].l,d32)		4	0	14(1/0/0)	16(1/2/0)
+ ([d32,B])			4	0	16(1/0/0)	17(1/2/0)
+ ([d32,B].l)			4	0	16(1/0/0)	17(1/2/0)
+ ([d32,B],d16)			4	0	18(1/0/0)	20(1/2/0)
+ ([d32,B].l,d16)		4	0	18(1/0/0)	20(1/2/0)
+ ([d32,B],d32)			4	0	18(1/0/0)	20(1/3/0)
+ ([d32,B].l,d32)		4	0	18(1/0/0)	20(1/3/0)
+
+
+Calculate Immediate Effective Address (CIEA) for WORDS
+ (for LONGS add 2 for head and cycle count)
+
+			       Head    Tail	 I-Cache	 No-Cache
+ Dn				2+op	0	 2(0/0/0)	 0(0/0/0)
+ (An)				2	0	 2(0/0/0)	 2(0/0/0)
+ (An)+				2+op	0	 4(0/0/0)	 2(0/0/0)
+ -(An)				2+op	0	 2(0/0/0)	 2(0/0/0)
+ (d16,An)			4+op	0	 4(0/0/0)	 2(0/0/0)
+ (d16,PC)			4+op	0	 4(0/0/0)	 2(0/1/0)
+ (xxx).w			4+op	0	 4(0/0/0)	 2(0/1/0)
+ (xxx).l			6+op	0	 6(0/0/0)	 4(0/1/0)
+ (d8,An,Xn)			6+op	0	 6(0/0/0)	 4(0/1/0)
+ (d8,PC,Xn)			6+op	0	 6(0/0/0)	 4(0/1/0)
+ (d16,An)			4	0	 8(0/0/0)	 6(0/1/0)
+ (d16,PC)			4	0	 8(0/0/0)	 6(0/1/0)
+ (d16,An,Xn)			4+op	0	 8(0/0/0)	 6(0/1/0)
+ (d16,PC,Xn)			4+op	0	 8(0/0/0)	 6(0/1/0)
+ ([d16,An])			4	0	12(1/0/0)	 6(1/1/0)
+ ([d16,PC])			4	0	12(1/0/0)	 6(1/1/0)
+ ([d16,An],Xn)			8+op	0	10(2/0/0)	10(2/1/0)
+ ([d16,PC],Xn)			8+op	0	10(2/0/0)	10(2/1/0)
+ ([d16,An],d16)			4	0	12(2/0/0)	13(2/2/0)
+ ([d16,PC],d16)			4	0	12(2/0/0)	13(2/2/0)
+ ([d16,An],Xn,d16)		4	0	12(2/0/0)	13(2/2/0)
+ ([d16,PC],Xn,d16)		4	0	12(2/0/0)	13(2/2/0)
+ ([d16,An],d32)			4	0	12(2/0/0)	14(2/2/0)
+ ([d16,PC],d32)			4	0	12(2/0/0)	14(2/2/0)
+ ([d16,An],Xn,d32)		4	0	12(2/0/0)	14(2/2/0)
+ ([d16,PC],Xn,d32)		4	0	12(2/0/0)	14(2/2/0)
+ (B)				8+op	0	 6(1/0/0)	 7(1/1/0)
+ (d16,B)			6	0	 8(1/0/0)	10(1/1/0)
+ (d32,B)			6	0	12(1/0/0)	13(1/2/0)
+ ([B])				6	0	12(1/0/0)	12(1/1/0)
+ ([B].l)			6	0	12(1/0/0)	12(1/1/0)
+ ([B],d16)			6	0	14(1/0/0)	15(1/2/0)
+ ([B].l,d16)			6	0	14(1/0/0)	15(1/2/0)
+ ([B],d32)			6	0	14(1/0/0)	15(1/2/0)
+ ([B].l,d32)			6	0	14(1/0/0)	15(1/2/0)
+ ([d16,B])			6	0	14(1/0/0)	15(1/2/0)
+ ([d16,B].l)			6	0	14(1/0/0)	15(1/2/0)
+ ([d16,B],d16)			6	0	16(1/0/0)	18(1/2/0)
+ ([d16,B].l,d16)		6	0	16(1/0/0)	18(1/2/0)
+ ([d16,B],d32)			6	0	16(1/0/0)	18(1/2/0)
+ ([d16,B].l,d32)		6	0	16(1/0/0)	18(1/2/0)
+ ([d32,B])			6	0	18(1/0/0)	19(1/2/0)
+ ([d32,B].l)			6	0	18(2/0/0)	19(2/2/0)
+ ([d32,B],d16)			6	0	20(1/0/0)	22(1/3/0)
+ ([d32,B].l,d16)		6	0	20(1/0/0)	22(1/3/0)
+ ([d32,B],d32)			6	0	22(1/0/0)	24(1/3/0)
+ ([d32,B].l,d32)		6	0	22(1/0/0)	24(1/3/0)
+
+
+			       Head    Tail	 I-Cache	 No-Cache
+ (An)				2+op	0	 2(0/0/0)	 2(0/0/0)
+ (d16,An)			4+op	0	 4(0/0/0)	 4(0/0/0)
+ $00.w				2+op	0	 2(0/0/0)	 2(0/0/0)
+ $00.l				2+op	0	 2(0/0/0)	 2(0/0/0)
+ (d8,An,Xn)			6+op	0	 6(0/0/0)	 6(0/0/0)
+ (d8,An,PC)			6+op	0	 6(0/0/0)	 6(0/0/0)
+ (d16,An)			2	0	 6(0/0/0)	 6(0/0/0)
+ (d16,PC)			2	0	 6(0/0/0)	 6(0/0/0)
+ (d16,An,Xn)			6+op	0	 6(0/0/0)	 6(0/0/0)
+ (d16,PC,Xn)			6+op	0	 6(0/0/0)	 6(0/0/0)
+ ([d16,An])			2	0	10(1/0/0)	10(1/1/0)
+ ([d16,PC])			2	0	10(1/0/0)	10(1/1/0)
+ ([d16,An],Xn)			2	0	10(1/0/0)	10(1/1/0)
+ ([d16,PC],Xn)			2	0	10(1/0/0)	10(1/1/0)
+ ([d16,An],d16)			2	0	12(1/0/0)	12(1/2/0)
+ ([d16,PC],d16)			2	0	12(1/0/0)	12(1/2/0)
+ ([d16,An],Xn,d16)		2	0	12(1/0/0)	12(1/2/0)
+ ([d16,PC],Xn,d16)		2	0	12(1/0/0)	12(1/2/0)
+ ([d16,An],d32)			2	0	12(1/0/0)	12(1/2/0)
+ ([d16,PC],d32)			2	0	12(1/0/0)	12(1/2/0)
+ ([d16,An],Xn,d32)		2	0	12(1/0/0)	12(1/2/0)
+ ([d16,PC],Xn,d32)		2	0	12(1/0/0)	12(1/2/0)
+ (B)				6+op	0	 6(0/0/0)	 6(0/0/0)
+ (d16,B)			4	0	 8(0/0/0)	 9(0/1/0)
+ (d32,B)			4	0	12(0/0/0)	13(0/1/0)
+ ([B])				4	0	10(1/0/0)	10(1/1/0)
+ ([B].l)			4	0	10(1/0/0)	10(1/1/0)
+ ([B],d16)			4	0	12(1/0/0)	12(1/1/0)
+ ([B].l,d16)			4	0	12(1/0/0)	12(1/1/0)
+ ([B],d32)			4	0	12(1/0/0)	12(1/1/0)
+ ([B].l,d32)			4	0	12(1/0/0)	12(1/1/0)
+ ([d16,B])			4	0	12(1/0/0)	13(1/1/0)
+ ([d16,B].l)			4	0	12(1/0/0)	13(1/1/0)
+ ([d16,B],d16)			4	0	14(1/0/0)	15(1/1/0)
+ ([d16,B].l,d16)		4	0	14(1/0/0)	15(1/1/0)
+ ([d16,B],d32)			4	0	14(1/0/0)	15(1/1/0)
+ ([d16,B].l,d32)		4	0	14(1/0/0)	15(1/1/0)
+ ([d32,B])			4	0	16(1/0/0)	17(1/2/0)
+ ([d32,B].l)			4	0	16(1/0/0)	17(1/2/0)
+ ([d32,B],d16)			4	0	18(1/0/0)	19(1/2/0)
+ ([d32,B].l,d16)		4	0	18(1/0/0)	19(1/2/0)
+ ([d32,B],d32)			4	0	18(1/0/0)	19(1/2/0)
+ ([d32,B].l,d32)		4	0	18(1/0/0)	19(1/2/0)
+
+
+
+ Most of 020 cycletimes are same than on 030; haven't found any differenties.
+
+;-------------------------
+ ...
+ clr.l -(a0)
+ clr.l -(a0)
+ ...
+ is 25% faster than
+ ...
+ clr.l (a0)+
+ clr.l (a0)+
+ ... 
+;-------------------------
+ move.l (a0,d0.l)  is faster than
+ move.l (a0,d0.w)
+ same with adda.w <-> adda.l etc.
+;-------------------------
+ move.b d0,-(a7) will decrease a7 with 2!
+;-------------------------
+
+     Never use those silly #xx,([a0]) new modes, they are slower than
+ move.l (a0),a0
+ move.l #xx,(a0)
+     ...case you have no extra spare registers, but... that's rare.
+
+;-------------------------
+
+ Time-optimizing on A1200 is more sparing BUS than CPU; the CHIP RAM
+is just too slow.. Remember to adjust your WRITES to CHIP; Adjusting
+memory READS wont do you no good. (Naturally, how could computer keep
+going on without knowing have we read something we're using?)
+
+;--------------------
+
+ Interrupts are deadly slow, try to figure out something better.. like
+Copper ;-) Just plain movem*2, Trap and RTE will take HUGE amount of
+cycles.
+
+ movem.l all,-(sp)
+ movem.l (sp)+,all
+ rte
+
+ will take about 80 Cycles... okey, why use all regs ;-)
+
+***********************************************************
+
+
+	ADD 
+	ADDA
+	ADDI
+	ADDQ
+	ADDX
+	SUB 
+	SUBA
+	SUBI
+	SUBQ
+	SUBX
+	DIVS
+	DIVU
+	MULS
+	MULU
+	CLR 
+	CMP 
+	CMPA
+	CMPI
+	CMPM
+	CMP2
+	EXT 
+	NEG 
+	NEGX
+	NOP 
+
+***********************************************************
+
+
+	AND 
+	ANDI
+	EOR 
+	EORI
+	OR  
+	ORI 
+	NOT 
+	TST 
+	SCC 
+
+***********************************************************
+
+
+	ASL 
+	ASR 
+	LSL 
+	LSR 
+	ROL 
+	ROR 
+	ROXL
+	ROXR
+	SWAP
+
+***********************************************************
+
+
+	BCHG
+	BCLR
+	BSET
+	BTST
+
+***********************************************************
+
+
+	BFCHG 
+	BFCLR 
+	BFSET 
+	BFTST 
+	BFEXTS
+	BFEXTU
+	BFFFO 
+	BFINS 
+
+***********************************************************
+
+
+	ABCD
+	NBCD
+	SBCD
+	PACK
+	UNPK
+
+***********************************************************
+
+
+	EXG  
+	LEA  
+	LINK 
+	MOVE 
+	MOVEA
+	MOVEM
+	MOVEQ
+	MOVEP
+	PEA  
+	UNLK 
+
+***********************************************************
+
+
+	BCC 
+	DBCC
+	BRA 
+	BSR 
+	JMP 
+	JSR 
+	RTD 
+	RTR 
+	RTS 
+
+***********************************************************
+
+
+	ANDI SR     
+	EORI SR     
+	ORI SR      
+	MOVE TO SR  
+	MOVE FROM SR
+	MOVE USP    
+	MOVEC       
+	MOVES       
+	RESET       
+	RTE         
+	STOP        
+
+***********************************************************
+
+
+	BKPT   
+	CHK    
+	CHK2   
+	ILLEGAL
+	TRAP   
+	TRAPCC 
+	TRAPV  
+
+***********************************************************
+
+
+	ANDI CCR     
+	EORI CCR     
+	ORI CCR      
+	MOVE FROM CCR
+	MOVE TO CCR  
+
+***********************************************************
+
+
+	PFLUSH 
+	PFLUSHA
+	PLOADR 
+	PLOADW 
+	PMOVE  
+	PTESTR 
+	PTESTW 
+	CALLM  
+	RTM    
+
+***********************************************************
+
+
+	TAS 
+	CAS 
+	CAS2
+
+***********************************************************
+
+
+	CPBCC    
+	CPDBCC   
+	CPGEN    
+	CPRESTORE
+	CPSAVE   
+	CPSCC    
+	CPTRAPCC 
+	 
+***********************************************************
+
+
+ABCD            
+ADD             
+ADDA            
+ADDI            
+ADDQ            
+ADDX            
+AND             
+ANDI            
+ANDI CCR        
+ANDI SR         
+ASL             
+ASR             
+BCC             
+BCHG            
+BCLR            
+BFCHG           
+BFCLR           
+BFEXTS          
+BFEXTU          
+BFFFO           
+BFINS           
+BFSET           
+BFTST           
+BKPT            
+BRA             
+BSET            
+BSR             
+BTST            
+CALLM           
+CAS             
+CAS2            
+CHK             
+CHK2            
+CLR             
+CMP             
+CMP2            
+CMPA            
+CMPI            
+CMPM            
+CPBCC           
+CPDBCC          
+CPGEN           
+CPRESTORE       
+CPSAVE          
+CPSCC           
+CPTRAPCC        
+DBCC            
+DIVS            
+DIVU            
+EOR             
+EORI            
+EORI CCR        
+EORI SR         
+EXG             
+EXT             
+ILLEGAL         
+JMP             
+JSR             
+LEA             
+LINK            
+LSL             
+LSR             
+MOVE            
+MOVEA           
+MOVE FROM CCR   
+MOVE TO CCR     
+MOVE FROM SR    
+MOVE TO SR      
+MOVE FROM/TO USP
+MOVEC           
+MOVEM           
+MOVEP           
+MOVEQ           
+MOVES           
+MUL             
+NBCD            
+NEG             
+NEGX            
+NOP             
+NOT             
+OR              
+ORI             
+ORI CCR         
+ORI SR          
+PACK            
+PEA             
+PFLUSH          
+PFLUSHA         
+PLOADR          
+PLOADW          
+PMOVE           
+PTESTR          
+PTESTW          
+RESET           
+ROL             
+ROR             
+ROXL            
+ROXR            
+RTD             
+RTE             
+RTM             
+RTR             
+RTS             
+SBCD            
+SCC             
+STOP            
+SUB             
+SUBA            
+SUBI            
+SUBQ            
+SUBX            
+SWAP            
+TAS             
+TRAP            
+TRAPCC          
+TRAPV           
+TST             
+UNLK            
+UNPK            
+***********************************************************
+***********************************************************
+
+
+NAME
+	ABCD -- Add binary coded decimal
+
+SYNOPSIS
+	ABCD	Dy,Dx
+	ABCD	-(Ay),-(Ax)
+
+	Size = (Byte)
+
+FUNCTION
+	Adds the source operand to the destination operand along with
+	the extend bit, and stores the result in the destination location.
+	The addition is performed using binary coded decimal arithmetic.
+	The operands, which are packed BCD numbers, can be addressed in
+	two different ways:
+
+	1. Data register to data register: The operands are contained in the
+	   data registers specified in the instruction.
+
+	2. Memory to memory: The operands are addressed with the predecrement
+	   addressing mode using the address registers specified in the
+	   instruction.
+
+	This operation is a byte operation only.
+
+	Normally the Z condition code bit is set via programming before the
+	start of an operation. That allows successful tests for zero results
+	upon completion of multiple-precision operations.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|---|---|---|-----------|
+	| 1 | 1 | 0 | 0 |    Rx     | 1 | 0 | 0 | 0 | 0 |R/M|    Ry     |
+	-----------------------------------------------------------------
+
+	R/M = 0 -> data register
+	R/M = 1 -> address register
+	Rx:   destination register
+	Ry:   source register
+
+RESULT
+	X - Set the same as the carry bit.
+	N - Undefined
+	Z - Cleared if the result is non-zero. Unchanged otherwise.
+	V - Undefined
+	C - Set if a decimal carry was generated. Cleared otherwise.
+
+SEE ALSO
+	ADD  ADDI ADDQ
+	ADDX
+	SUB  SUBI SUBQ
+	SBCD SUBX
+
+***********************************************************
+
+
+NAME
+	ADD -- Add integer
+
+SYNOPSIS
+	ADD	<ea>,Dn
+	ADD	Dn,<ea>
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Adds the source operand to the destination operand using
+	binary addition, and stores the result in the destination location.
+	The size of the operation may be specified as byte, word, or long.
+	The mode of the instruction indicates which operand is the source and
+	which is the destination as well as the operand size.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|-----------|-----------|-----------|
+	| 1 | 1 | 0 | 1 |  REGISTER |  OP-MODE  |    MODE   |  REGISTER |
+	----------------------------------------=========================
+                                                          <ea>
+
+OP-MODE
+	Byte	Word	Long
+	~~~~	~~~~	~~~~
+	000	001	010	(Dn) + (<ea>) -> Dn
+	100	101	110	(<ea>) + (Dn) -> <ea>
+
+REGISTER
+	One of the 8 datas registers
+
+	If <ea> is source, allowed addressing modes are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An *     |001 |N° reg. An| |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d16,An)    |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      |111 |  100   |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+	 * Word or Long only
+
+	If <ea> is destination, allowed addressing modes are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       | -  |     -    | |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+	When destination is an Address Register, ADDA instruction is used.
+
+RESULT
+	X - Set the same as the carry bit.
+	N - Set if the result is negative. Cleared otherwise.
+	Z - Set if the result is zero. Cleared otherwise.
+	V - Set if an overflow is generated. Cleared otherwise.
+	C - Set if a carry is generated. Cleared otherwise.
+
+SEE ALSO
+	ADDI ADDQ ADDX
+	SUB  SUBI SUBQ
+	SUBX
+
+***********************************************************
+
+
+NAME
+	ADDA -- Add address
+
+SYNOPSIS
+	ADDA	<ea>,An
+
+	Size = (Word, Long)
+
+FUNCTION
+	Adds the source operand to the destination address register,
+	and stores the result in the destination address register. The size
+	of the operation may be specified as word or long. The entire
+	destination operand is used regardless of the operation size.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|-----------|-----------|-----------|
+	| 1 | 1 | 0 | 1 |  REGISTER |  OP-MODE  |    MODE   |  REGISTER |
+	----------------------------------------=========================
+                                                          <ea>
+OP-MODE
+	Indicates operation lenght:
+	011->one Word operation: source operand is extended to 32 bits
+	111->one Long operation
+
+REGISTER
+	One of the 8 address registers.
+	<ea> is always source, all addressing modes are allowed.
+
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       |001 |N° reg. An| |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d16,An)    |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      |111 |  100   |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	None.
+
+SEE ALSO
+	ADDQ SUBQ SUBA
+
+***********************************************************
+
+
+NAME
+	ADDI -- Add immediate
+
+SYNOPSIS
+	ADDI	#<data>,<ea>
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Adds the immediate data to the destination operand, and
+	stores the result in the destination location. The size of the
+	operation may be specified as byte, word, or long. The size of the
+	immediate data matches the operation size.
+
+FORMAT
+                                                          <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|-------|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 0 | 1 | 1 | 0 | SIZE  |   MODE    |  REGISTER |
+	|---------------------------------------------------------------|
+	| 16 BITS DATA (with last Byte) |          8 BITS DATA          |
+	|---------------------------------------------------------------|
+	|             32 BITS DATA (included last Word)                 |
+	-----------------------------------------------------------------
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - Set the same as the carry bit.
+	N - Set if the result is negative. Cleared otherwise.
+	Z - Set if the result is zero. Cleared otherwise.
+	V - Set if an overflow is generated. Cleared otherwise.
+	C - Set if a carry is generated. Cleared otherwise.
+
+SEE ALSO
+	ADD  ADDQ ADDX
+	SUB  SUBI SUBQ
+	SUBX
+
+***********************************************************
+
+
+NAME
+	ADDQ -- Add 3-bit immediate quick
+
+SYNOPSIS
+	ADDQ	#<data>,<ea>
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Adds the immediate value of 1 to 8 to the operand at the
+	destination location. The size of the operation may be specified as
+	byte, word, or long. When adding to address registers, the condition
+	codes are not altered, and the entire destination address register is
+	used regardless of the operation size.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|-------|-----------|-----------|
+	| 0 | 1 | 0 | 1 |    DATA   | 0 | SIZE  |    MODE   |  REGISTER |
+	----------------------------------------=========================
+                                                          <ea>
+
+DATA
+	000        ->represent value 8
+	001 to 111 ->immediate data from 1 to 7
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An *     |001 |N° reg. An| |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+	 * Word or Long only.
+
+RESULT
+	X - Set the same as the carry bit.
+	N - Set if the result is negative. Cleared otherwise.
+	Z - Set if the result is zero. Cleared otherwise.
+	V - Set if an overflow is generated. Cleared otherwise.
+	C - Set if a carry is generated. Cleared otherwise.
+
+SEE ALSO
+	ADD  ADDI
+	SUB  SUBI SUBQ
+
+***********************************************************
+
+
+NAME
+	ADDX -- Add integer with extend
+
+SYNOPSIS
+	ADDX	Dy,Dx
+	ADDX	-(Ay),-(Ax)
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Adds the source operand to the destination operand along with
+	the extend bit, and stores the result in the destination location.
+	The addition is performed using binary coded decimal arithmetic.
+	The operands, which are packed BCD numbers, can be addressed in
+	two different ways:
+
+	1. Data register to data register: The operands are contained in the
+	   data registers specified in the instruction.
+
+	2. Memory to memory: The operands are addressed with the predecrement
+	   addressing mode using the address registers specified in the
+	   instruction.
+
+	The size of operation can be specified as byte, word, or long.
+
+	Normally the Z condition code bit is set via programming before the
+	start of an operation. That allows successful tests for zero results
+	upon completion of multiple-precision operations.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|-------|---|---|---|-----------|
+	| 1 | 1 | 0 | 1 |    Rx     | 1 | SIZE  | 0 | 0 |R/M|    Ry     |
+	-----------------------------------------------------------------
+
+	R/M = 0 -> data register
+	R/M = 1 -> address register
+	Rx:   destination register
+	Ry:   source register
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+RESULT
+	X - Set the same as the carry bit.
+	N - Set if the result is negative. Cleared otherwise.
+	Z - Cleared if the result is non-zero. Unchanged otherwise.
+	V - Set if an overflow is generated. Cleared otherwise.
+	C - Set if a carry is generated. Cleared otherwise.
+
+SEE ALSO
+	ADD ADDI
+	SUB SUBI SUBX
+
+***********************************************************
+
+
+NAME
+	AND -- Logical AND
+
+SYNOPSIS
+	AND	<ea>,Dn
+	AND	Dn,<ea>
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Performs a bit-wise AND operation with the source operand and
+	the destination operand and stores the result in the destination.
+	The size of ther operation can be specified as byte, word, or long.
+	The contents of an address register may not be used as an operand.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|-----------|-----------|-----------|
+	| 1 | 1 | 0 | 0 |  REGISTER |  OP-MODE  |    MODE   |  REGISTER |
+	----------------------------------------=========================
+                                                          <ea>
+
+OP-MODE
+	Byte	Word	Long
+	000	001	010	(Dn)AND(<ea>)-> Dn
+	100	101	110	(<ea>)AND(Dn)-> <ea>
+
+
+REGISTER
+	One of the 8 datas registers
+	If <ea> is source, allowed addressing modes are:
+
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d16,An)    |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      |111 |  100   |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+	If <ea> is destination, allowed addressing modes are:
+
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       | -  |     -    | |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+	AND between two datas registers is allowed if you consider the
+	syntax where Dn is at destination's place.
+
+	If you use this instruction with an immediate data, it does the
+	same as instruction ANDI.
+	
+
+RESULT
+	X - Not affected
+	N - Set if the most-significant bit of the result was set. Cleared
+	    otherwise.
+	Z - Set if the result was zero. Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	ANDI
+
+***********************************************************
+
+
+NAME
+	ANDI -- Logical AND immediate
+
+SYNOPSIS
+	ANDI	#<data>,<ea>
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Performs a bit-wise AND operation with the immediate data and
+	the destination operand and stores the result in the destination. The
+	size of ther operation can be specified as byte, word, or long. The
+	size of the immediate data matches the operation size.
+
+FORMAT
+                                                          <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|-------|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | SIZE  |   MODE    |  REGISTER |
+	|---------------------------------------------------------------|
+	| 16 BITS DATA (with last Byte) |          8 BITS DATA          |
+	|---------------------------------------------------------------|
+	|             32 BITS DATA (included last Word)                 |
+	-----------------------------------------------------------------
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - Not affected
+	N - Set if the most-significant bit of the result was set. Cleared
+	    otherwise.
+	Z - Set if the result was zero. Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	AND  ANDI TO CCR ANDI TO SR
+
+***********************************************************
+
+
+NAME
+	ANDI to CCR -- Logical AND immediate to condition code register
+
+SYNOPSIS
+	ANDI	#<data>,CCR
+
+	Size = (Byte)
+
+FUNCTION
+	Performs a bit-wise AND operation with the immediate data and
+	the lower byte of the status register.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 1 | 1 | 1 | 0 | 0 |
+	|---|---|---|---|---|---|---|---|-------------------------------|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |     8 BITS IMMEDIATE DATA     |
+	-----------------------------------------------------------------
+
+RESULT
+	X - Cleared if bit 4 of immed. operand is zero. Unchanged otherwise.
+	N - Cleared if bit 3 of immed. operand is zero. Unchanged otherwise.
+	Z - Cleared if bit 2 of immed. operand is zero. Unchanged otherwise.
+	V - Cleared if bit 1 of immed. operand is zero. Unchanged otherwise.
+	C - Cleared if bit 0 of immed. operand is zero. Unchanged otherwise.
+
+SEE ALSO
+	AND  ANDI ANDI TO SR
+
+***********************************************************
+
+
+NAME
+	ANDI to SR -- Logical AND immediate to status register (privileged)
+
+SYNOPSIS
+	ANDI	#<data>,SR
+
+	Size = (Word)
+
+FUNCTION
+	Performs a bit-wise AND operation with the immediate data and
+	the status register. All implemented bits of the status register are
+	affected.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 1 | 1 | 1 | 1 | 0 | 0 |
+	|---------------------------------------------------------------|
+	|                     16 BITS IMMEDIATE DATA                    |
+	-----------------------------------------------------------------
+
+RESULT
+	X - Cleared if bit 4 of immed. operand is zero. Unchanged otherwise.
+	N - Cleared if bit 3 of immed. operand is zero. Unchanged otherwise.
+	Z - Cleared if bit 2 of immed. operand is zero. Unchanged otherwise.
+	V - Cleared if bit 1 of immed. operand is zero. Unchanged otherwise.
+	C - Cleared if bit 0 of immed. operand is zero. Unchanged otherwise.
+
+SEE ALSO
+	AND  ANDI ANDI TO CCR
+
+***********************************************************
+
+
+NAME
+	ASL, ASR -- Arithmetic shift left and arithmetic shift right
+
+SYNOPSIS
+	ASd	Dx,Dy
+	ASd	#<data>,Dy
+	ASd	<ea>
+	where d is direction, L or R
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Performs an arithmetic shifting bit operation in the indicated
+        direction, with an immediate data, or with a data register.
+        If you shift address contents, you only can do ONE shift, and
+        your operand is ONE word exclusively.
+
+	ASL:              <--  
+	      C <------ OPERAND <--- 0
+	            |
+	            |
+	      X <---'
+	       
+
+	ASR:      -->
+	  .---> OPERAND ------> C
+          |    T          |
+	  |    |          |
+	  `----'          `---> X
+
+FORMAT
+	In the case of the shifting of a register:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|-------|---|---|---|-----------|
+	| 1 | 1 | 1 | 0 |  NUMBER/  |dr |  SIZE |i/r| 0 | 0 | REGISTER  |
+	|   |   |   |   |  REGISTER |   |       |   |   |   |           |
+	-----------------------------------------------------------------
+
+	In the case of the shifting of a memory area:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 0 | 0 | 0 | 0 |dr | 1 | 1 |    MODE   | REGISTER  |
+	----------------------------------------=========================
+	                                                  <ea>
+
+
+NUMBER/REGISTER
+	Specifies number of shifting or number of register which contents
+	the number of shifting.
+	If i/r = 0, number of shifting is specified in the instruction as
+	immediate data
+	If i/r = 1, it's specified in the data register.
+	If dr = 0, right shifting
+	If dr = 1, left shifting
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+REGISTER
+	For a register shifting:
+	Indicates the number of data register on which shifting is applied.
+
+	For a memory shifting:
+	<ea> indicates operand which should be shifted.
+	Only addressing modes relatives to memory are allowed:
+
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       | -  |     -    | |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - Set according to the list bit shifted out of the operand.
+	    Unaffected for a shift count of zero.
+	N - Set if the most-significant bit of the result is set. Cleared
+	    otherwise.
+	Z - Set if the result is zero. Cleared otherwise.
+	V - Set if the most significant bit is changed at any time during
+	    the shift operation. Cleared otherwise.
+	C - Set according to the list bit shifted out of the operand.
+	    Cleared for a shift count of zero.
+
+SEE ALSO
+	ROD  ROXD
+
+***********************************************************
+
+
+NAME
+	Bcc -- Conditional branch
+
+SYNOPSIS
+	Bcc	<label>
+
+	Size = (Byte, Word, Long*)
+
+	* 68020+ only
+
+FUNCTION
+	If condition true then program execution continues at:
+	(PC) + offset.
+	PC value is instruction address more two.
+	Offset is the relative value in bytes which separate Bcc instruction
+	of mentioned label.
+ 
+	Condition code 'cc' specifies one of the following:
+0000 F  False            Z = 1      1000 VC oVerflow Clear   V = 0
+0001 T  True             Z = 0      1001 VS oVerflow Set     V = 1
+0010 HI HIgh             C + Z = 0  1010 PL PLus             N = 0
+0011 LS Low or Same      C + Z = 1  1011 MI MInus            N = 1
+0100 CC Carry Clear      C = 0      1100 GE Greater or Equal N (+) V = 0
+0101 CS Carry Set        C = 1      1101 LT Less Than        N (+) V = 1
+0110 NE Not Equal        Z = 0      1110 GT Greater Than     Z + (N (+) V) = 0
+0111 EQ EQual            Z = 1      1111 LE Less or Equal    Z + (N (+) V) = 1
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---------------|-------------------------------|
+	| 0 | 1 | 1 | 0 |   CONDITION   |         8 BITS OFFSET         |
+	|---------------------------------------------------------------|
+	|            16 BITS OFFSET, IF 8 BITS OFFSET = $00             |
+	|---------------------------------------------------------------|
+	|            32 BITS OFFSET, IF 8 BITS OFFSET = $FF             |
+	-----------------------------------------------------------------
+
+RESULT
+	None.
+
+SEE ALSO
+	BRA  DBCC SCC 
+
+***********************************************************
+
+
+NAME
+	BCHG -- Bit change
+
+SYNOPSIS
+	BCHG	Dn,<ea>
+	BCHG	#<data>,<ea>
+
+	Size = (Byte, Long)
+
+FUNCTION
+	Tests a bit in the destination operand and sets the Z condition
+	code appropriately, then inverts the bit in the destination.
+	If the destination is a data register, any of the 32 bits can be
+	specified by the modulo 32 number. When the destination is a memory
+	location, the operation must be a byte operation, and therefore the
+	bit number is modulo 8. In all cases, bit zero is the least
+	significant bit. The bit number for this operation may be specified
+	in either of two ways:
+
+	1. Immediate -- The bit number is specified as immediate data.
+	2. Register  -- The specified data register contains the bit number.
+
+FORMAT
+	In the case of BCHG Dn,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 |  REGISTER | 1 | 0 | 1 |    MODE   | REGISTER  |
+	----------------------------------------=========================
+	                                                  <ea>
+
+	In the case of BCHG #<data,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 1 |    MODE   | REGISTER  |
+	|---|---|---|---|---|---|---|---|-------------------------------|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |       NUMBER OF THE BIT       |
+	-----------------------------------------------------------------
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn *     |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+	 * Long only; for others modes: Byte only.
+
+RESULT
+	X - not affected
+	N - not affected
+	Z - Set if the bit tested is zero. Cleared otherwise.
+	V - not affected
+	C - not affected
+
+SEE ALSO
+	BCLR  BSET  BTST 
+	EOR   BFCHG
+
+***********************************************************
+
+
+NAME
+	BCLR -- Bit clear
+
+SYNOPSIS
+	BCLR	Dn,<ea>
+	BCLR	#<data>,<ea>
+
+	Size = (Byte, Long)
+
+FUNCTION
+	Tests a bit in the destination operand and sets the Z
+	condition code appropriately, then clears the bit in the destination.
+	If the destination is a data register, any of the 32 bits can be
+	specifice by the modulo 32 number. When the distination is a memory
+	location, the operation must be a byte operation, and therefore the
+	bit number is modulo 8. In all cases, bit zero is the least
+	significant bit. The bit number for this operation may be specified
+	in either of two ways:
+
+	1. Immediate -- The bit number is specified as immediate data.
+	2. Register  -- The specified data register contains the bit number.
+
+FORMAT
+	In the case of BCLR Dn,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 |  REGISTER | 1 | 1 | 0 |    MODE   | REGISTER  |
+	----------------------------------------=========================
+	                                                  <ea>
+
+	In the case of BCLR #<data,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 0 |    MODE   | REGISTER  |
+	|---|---|---|---|---|---|---|---|-------------------------------|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |       NUMBER OF THE BIT       |
+	-----------------------------------------------------------------
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn *     |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+	 * Long only; for others modes: Byte only.
+
+RESULT
+	X - not affected
+	N - not affected
+	Z - Set if the bit tested is zero. Cleared otherwise.
+	V - not affected
+	C - not affected
+
+SEE ALSO
+	BCHG  BSET  BTST 
+	AND   BFCLR
+
+***********************************************************
+
+NAME
+	BFCHG -- Bit field change
+
+SYNOPSIS
+	BFCHG	<ea>{OFFSET:WIDTH}	(68020+)
+
+	No size specs.
+
+FUNCTION
+	<ea> indicates destination operand which a part of bits have to be
+	inverted. Offset enables to locate first bit of field; width specifies
+	number of bits of this field. Field is tested, flags are set, and bits
+	of field are inverted.
+	Be careful, this instruction operates from MSB to LSB!!
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 0 | 1 | 0 | 1 | 0 | 1 | 1 |    MODE   | REGISTER  |
+	|---|---|---|---|---|-------------------|-----------------------|
+	| 0 | 0 | 0 | 0 |Do |       OFFSET      |Dw |      WIDTH        |
+	-----------------------------------------------------------------
+
+	If Do = 0->Field "OFFSET" contains an immediate value which represents
+	effective offset, value from 0 to 31.
+	If Do = 1->Field "OFFSET" indicates number of a data register (bits 9
+	and 10 of field cleared) which contains effective offset. Signed value
+	is represented on 32 bits., so it's extended from -2 EXP 31 to
+	(+2 EXP 31) -1.
+
+	If Dw = 0->field "WIDTH" contains an immediate value between 1 and 31
+	which indicates a width from 1 to 31 bits. A value of 0 indicates a
+	width of 32 bits.
+	If Dw = 1->field "WIDTH" indicates number of a data register (bits 3
+	and 4 of field cleared) which contains width of bit field. The value
+	modulo 32 can go from 1 to 31, indicating a width from 1 to 31 bits.
+	A value 0 indicates a width of 32 bits.
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - Set if MSB of field is set. Cleared otherwise.
+	Z - Set if all the bits of the field tested are zero.
+	    Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	BFCLR	BFSET
+
+***********************************************************
+
+
+NAME
+	BFCLR -- Bit field clear
+
+SYNOPSIS
+	BFCLR	<ea>{OFFSET:WIDTH}	(68020+)
+
+	No size specs.
+
+FUNCTION
+	<ea> indicates destination operand which a part of bits have to be
+	cleared. Offset enables to locate first bit of field; width specifies
+	number of bits of this field. Field is tested, flags are set, and bits
+	of field are cleared.
+	Be careful, this instruction operates from MSB to LSB!!
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 0 | 1 | 1 | 0 | 0 | 1 | 1 |    MODE   | REGISTER  |
+	|---|---|---|---|---|-------------------|-----------------------|
+	| 0 | 0 | 0 | 0 |Do |       OFFSET      |Dw |      WIDTH        |
+	-----------------------------------------------------------------
+
+	If Do = 0->Field "OFFSET" contains an immediate value which represents
+	effective offset, value from 0 to 31.
+	If Do = 1->Field "OFFSET" indicates number of a data register (bits 9
+	and 10 of field cleared) which contains effective offset. Signed value
+	is represented on 32 bits., so it's extended from -2 EXP 31 to
+	(+2 EXP 31) -1.
+
+	If Dw = 0->field "WIDTH" contains an immediate value between 1 and 31
+	which indicates a width from 1 to 31 bits. A value of 0 indicates a
+	width of 32 bits.
+	If Dw = 1->field "WIDTH" indicates number of a data register (bits 3
+	and 4 of field cleared) which contains width of bit field. The value
+	modulo 32 can go from 1 to 31, indicating a width from 1 to 31 bits.
+	A value 0 indicates a width of 32 bits.
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - Set if MSB of field is set. Cleared otherwise.
+	Z - Set if all the bits of the field tested are zero.
+	    Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	BFCHG	BFSET
+
+***********************************************************
+
+
+NAME
+	BFEXTS -- Bit field signed extract
+
+SYNOPSIS
+	BFEXTS	<ea>{OFFSET:WIDTH},Dn	(68020+)
+
+	No size specs.
+
+FUNCTION
+	<ea> indicates source operand which a part of bits have to be
+	extracted and extended. Offset enables to locate first bit of field;
+	width specifies	number of bits of this field. Field is extracted,
+	and extended to 32 bits by the MSB of the field. Result is stored
+	in the data register Dn.
+	Be careful, this instruction operates from MSB to LSB!!
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 0 | 1 | 0 | 1 | 1 | 1 | 1 |    MODE   | REGISTER  |
+	|---|-----------|---|-------------------|-----------------------|
+	| 0 |  REGISTER |Do |       OFFSET      |Dw |      WIDTH        |
+	-----------------------------------------------------------------
+
+	If Do = 0->Field "OFFSET" contains an immediate value which represents
+	effective offset, value from 0 to 31.
+	If Do = 1->Field "OFFSET" indicates number of a data register (bits 9
+	and 10 of field cleared) which contains effective offset. Signed value
+	is represented on 32 bits., so it's extended from -2 EXP 31 to
+	(+2 EXP 31) -1.
+
+	If Dw = 0->field "WIDTH" contains an immediate value between 1 and 31
+	which indicates a width from 1 to 31 bits. A value of 0 indicates a
+	width of 32 bits.
+	If Dw = 1->field "WIDTH" indicates number of a data register (bits 3
+	and 4 of field cleared) which contains width of bit field. The value
+	modulo 32 can go from 1 to 31, indicating a width from 1 to 31 bits.
+	A value 0 indicates a width of 32 bits.
+
+REGISTER
+	<ea> specifies destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - Set if MSB of field is set. Cleared otherwise.
+	Z - Set if all the bits of the field tested are zero.
+	    Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	BFEXTU
+
+***********************************************************
+
+
+NAME
+	BFEXTU -- Bit field unsigned extract"
+
+SYNOPSIS
+	BFEXTU	<ea>{OFFSET:WIDTH},Dn	(68020+)
+
+	No size specs.
+
+FUNCTION
+	<ea> indicates source operand which a part of bits have to be
+	extracted and extended. Offset enables to locate first bit of field;
+	width specifies	number of bits of this field. Field is extracted,
+	and extended to 32 bits by zero. Result is stored in the data
+	register Dn.
+	Be careful, this instruction operates from MSB to LSB!!
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 0 | 1 | 0 | 0 | 1 | 1 | 1 |    MODE   | REGISTER  |
+	|---|-----------|---|-------------------|-----------------------|
+	| 0 |  REGISTER |Do |       OFFSET      |Dw |      WIDTH        |
+	-----------------------------------------------------------------
+
+	If Do = 0->Field "OFFSET" contains an immediate value which represents
+	effective offset, value from 0 to 31.
+	If Do = 1->Field "OFFSET" indicates number of a data register (bits 9
+	and 10 of field cleared) which contains effective offset. Signed value
+	is represented on 32 bits., so it's extended from -2 EXP 31 to
+	(+2 EXP 31) -1.
+
+	If Dw = 0->field "WIDTH" contains an immediate value between 1 and 31
+	which indicates a width from 1 to 31 bits. A value of 0 indicates a
+	width of 32 bits.
+	If Dw = 1->field "WIDTH" indicates number of a data register (bits 3
+	and 4 of field cleared) which contains width of bit field. The value
+	modulo 32 can go from 1 to 31, indicating a width from 1 to 31 bits.
+	A value 0 indicates a width of 32 bits.
+
+REGISTER
+	<ea> specifies destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - Set if MSB of field is set. Cleared otherwise.
+	Z - Set if all the bits of the field tested are zero.
+	    Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	BFEXTS
+
+***********************************************************
+
+
+NAME
+	BFFFO -- Bit field find first one set
+
+SYNOPSIS
+	BFFFO	<ea>{OFFSET:WIDTH},Dn	(68020+)
+
+	No size specs.
+
+FUNCTION
+	<ea> indicates source operand which a part of bits have to be
+	examined. Offset enables to locate first bit of field; width
+	specifies number of bits of this field. Field is examined,
+	offset of first bit set is encountred, the MSB is stored in
+	the data register Dn.
+	Offset is equal to base offset more offset of bit into examined
+	field.
+	If no bits set are found, data register Dn contains a value which
+	follows to initial offset more width of bit field. 
+	Be careful, this instruction operates from MSB to LSB!!
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 0 | 1 | 1 | 0 | 1 | 1 | 1 |    MODE   | REGISTER  |
+	|---|-----------|---|-------------------|-----------------------|
+	| 0 |  REGISTER |Do |       OFFSET      |Dw |      WIDTH        |
+	-----------------------------------------------------------------
+
+	If Do = 0->Field "OFFSET" contains an immediate value which represents
+	effective offset, value from 0 to 31.
+	If Do = 1->Field "OFFSET" indicates number of a data register (bits 9
+	and 10 of field cleared) which contains effective offset. Signed value
+	is represented on 32 bits., so it's extended from -2 EXP 31 to
+	(+2 EXP 31) -1.
+
+	If Dw = 0->field "WIDTH" contains an immediate value between 1 and 31
+	which indicates a width from 1 to 31 bits. A value of 0 indicates a
+	width of 32 bits.
+	If Dw = 1->field "WIDTH" indicates number of a data register (bits 3
+	and 4 of field cleared) which contains width of bit field. The value
+	modulo 32 can go from 1 to 31, indicating a width from 1 to 31 bits.
+	A value 0 indicates a width of 32 bits.
+
+REGISTER
+	<ea> specifies destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - Set if MSB of field is set. Cleared otherwise.
+	Z - Set if all the bits of the field tested are zero.
+	    Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	BFEXTS	BFEXTU
+
+***********************************************************
+
+
+NAME
+	BFINS -- Bit field insert
+
+SYNOPSIS
+	BFINS	Dn,<ea>{OFFSET:WIDTH}	(68020+)
+
+	No size specs.
+
+FUNCTION
+	<ea> indicates destination operand which field of bits have to be
+	inserted. Offset enables to locate first bit of field;
+	width specifies	number of bits of this field.
+	Bit field from Dn, which must be inserted in destination operand,
+	is located in relation to bit zero. This bit zero, after insert,
+	will have for offset: base offset more (width - 1).
+	Be careful, this instruction operates from MSB to LSB!!
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 0 | 1 | 1 | 1 | 1 | 1 | 1 |    MODE   | REGISTER  |
+	|---|-----------|---|-------------------|-----------------------|
+	| 0 |  REGISTER |Do |       OFFSET      |Dw |      WIDTH        |
+	-----------------------------------------------------------------
+
+	If Do = 0->Field "OFFSET" contains an immediate value which represents
+	effective offset, value from 0 to 31.
+	If Do = 1->Field "OFFSET" indicates number of a data register (bits 9
+	and 10 of field cleared) which contains effective offset. Signed value
+	is represented on 32 bits., so it's extended from -2 EXP 31 to
+	(+2 EXP 31) -1.
+
+	If Dw = 0->field "WIDTH" contains an immediate value between 1 and 31
+	which indicates a width from 1 to 31 bits. A value of 0 indicates a
+	width of 32 bits.
+	If Dw = 1->field "WIDTH" indicates number of a data register (bits 3
+	and 4 of field cleared) which contains width of bit field. The value
+	modulo 32 can go from 1 to 31, indicating a width from 1 to 31 bits.
+	A value 0 indicates a width of 32 bits.
+
+REGISTER
+	<ea> specifies destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - Set if MSB of field is set. Cleared otherwise.
+	Z - Set if all the bits of the field tested are zero.
+	    Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	BFEXTS	BFEXTU
+
+***********************************************************
+
+
+NAME
+	BFSET -- Bit field set 
+
+SYNOPSIS
+	BFSET	<ea>{OFFSET:WIDTH}	(68020+)
+
+	No size specs.
+
+FUNCTION
+	<ea> indicates destination operand which a part of bits have to be
+	set. Offset enables to locate first bit of field; width specifies
+	number of bits of this field. Field is tested, flags are set, and bits
+	of field are set.
+	Be careful, this instruction operates from MSB to LSB!!
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 0 | 1 | 1 | 1 | 0 | 1 | 1 |    MODE   | REGISTER  |
+	|---|---|---|---|---|-------------------|-----------------------|
+	| 0 | 0 | 0 | 0 |Do |       OFFSET      |Dw |      WIDTH        |
+	-----------------------------------------------------------------
+
+	If Do = 0->Field "OFFSET" contains an immediate value which represents
+	effective offset, value from 0 to 31.
+	If Do = 1->Field "OFFSET" indicates number of a data register (bits 9
+	and 10 of field cleared) which contains effective offset. Signed value
+	is represented on 32 bits., so it's extended from -2 EXP 31 to
+	(+2 EXP 31) -1.
+
+	If Dw = 0->field "WIDTH" contains an immediate value between 1 and 31
+	which indicates a width from 1 to 31 bits. A value of 0 indicates a
+	width of 32 bits.
+	If Dw = 1->field "WIDTH" indicates number of a data register (bits 3
+	and 4 of field cleared) which contains width of bit field. The value
+	modulo 32 can go from 1 to 31, indicating a width from 1 to 31 bits.
+	A value 0 indicates a width of 32 bits.
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - Set if MSB of field is set. Cleared otherwise.
+	Z - Set if all the bits of the field tested are zero.
+	    Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	BFCHG	BFCLR
+
+***********************************************************
+
+
+NAME
+	BFTST -- Bit field test
+
+SYNOPSIS
+	BFTST	<ea>{OFFSET:WIDTH}	(68020+)
+
+	No size specs.
+
+FUNCTION
+	<ea> indicates destination operand which a part of bits have to be
+	tested. Offset enables to locate first bit of field; width specifies
+	number of bits of this field. Field is tested, flags are set.
+	Be careful, this instruction operates from MSB to LSB!!
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 0 | 1 | 0 | 0 | 0 | 1 | 1 |    MODE   | REGISTER  |
+	|---|---|---|---|---|-------------------|-----------------------|
+	| 0 | 0 | 0 | 0 |Do |       OFFSET      |Dw |      WIDTH        |
+	-----------------------------------------------------------------
+
+	If Do = 0->Field "OFFSET" contains an immediate value which represents
+	effective offset, value from 0 to 31.
+	If Do = 1->Field "OFFSET" indicates number of a data register (bits 9
+	and 10 of field cleared) which contains effective offset. Signed value
+	is represented on 32 bits., so it's extended from -2 EXP 31 to
+	(+2 EXP 31) -1.
+
+	If Dw = 0->field "WIDTH" contains an immediate value between 1 and 31
+	which indicates a width from 1 to 31 bits. A value of 0 indicates a
+	width of 32 bits.
+	If Dw = 1->field "WIDTH" indicates number of a data register (bits 3
+	and 4 of field cleared) which contains width of bit field. The value
+	modulo 32 can go from 1 to 31, indicating a width from 1 to 31 bits.
+	A value 0 indicates a width of 32 bits.
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - Set if MSB of field is set. Cleared otherwise.
+	Z - Set if all the bits of the field tested are zero.
+	    Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	BFCHG	BFCLR	BFSET
+
+
+***********************************************************
+
+
+NAME
+	BKPT -- Break-point
+
+SYNOPSIS
+	BKPT	#<data>
+
+FUNCTION
+	This instruction is used to support the program breakpoint
+	function for debug monitors and real-time hardware emulators, and
+	the operation will be dependent on the implementation. Execution of
+	this instruction will cause the MC68010 to run a breakpoint
+	acknowledge bus cycle and zeros on all address lines, but an
+	MC68020 will place the immediate data on lines A2, A3, and A4, and
+	zeros on lines A0 and A1.
+
+	Whether the breakpoint acknowledge cycle is terminaled with
+	 _____    ____       ___  
+	(DTACK), (BERR), or (VPA) the processor always takes an illegal
+	instruction exception. During exception processing, a debug monitor
+	can distinguish eight different software breakpoints by decoding the
+	field in the BKPT instruction.
+
+	For the MC68000 and the MC68HC000, this instruction causes an illegal
+	instruction exception, but does not run the breakpoint acknowledge
+	bus cycle.
+
+	There are two possible responses on an MC68020: normal and exception.
+	The normal response is an operation word (typically the instruction
+                                                                  ______
+	the BKPT originally replaced) on the data lines with the (DSACKx)
+	signal asserted. The operation word is the executed in place of the
+	breakpoint instruction.
+
+	For the exception response, a bus error signal will cause the MC68020
+	to take an illegal instruction exception, just as an MC68010 or
+	MC68000 would do.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|---|---|---|-----------|
+	| 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 1 |N° BREAKPT.|
+	-----------------------------------------------------------------
+
+	Number of break-point: Value between 0 and 7.
+
+RESULT
+	None.
+
+SEE ALSO
+	ILLEGAL   
+
+***********************************************************
+
+
+NAME
+	BRA -- Unconditional branch
+
+SYNOPSIS
+	BRA	<label>
+
+	Size = (Byte, Word)
+	Size = (Byte, Word, Long)	(68020+)
+
+FUNCTION
+	Program execution continues at location (PC) + offset.
+	Offset is the relative gap between PC value at BRA ((PC) + 2)
+	instruction execution time and mentioned label. 
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|-------------------------------|
+	| 0 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |         8 BITS OFFSET         |
+	|---------------------------------------------------------------|
+	|            16 BITS OFFSET, IF 8 BITS OFFSET = $00             |
+	|---------------------------------------------------------------|
+	|            32 BITS OFFSET, IF 8 BITS OFFSET = $FF             |
+	-----------------------------------------------------------------
+
+RESULT
+	None.
+
+SEE ALSO
+	JMP BCC
+
+***********************************************************
+
+
+NAME
+	BSET -- Bit set
+
+SYNOPSIS
+	BSET	Dn,<ea>
+	BSET	#<data>,<ea>
+
+	Size = (Byte, Long)
+
+FUNCTION
+	Tests a bit in the destination operand and sets the Z condition code
+	appropriately, then sets the bit in the destination.
+	If the destination is a data register, any of the 32 bits can be
+	specifice by the modulo 32 number. When the distination is a memory
+	location, the operation must be a byte operation, and therefore the
+	bit number is modulo 8. In all cases, bit zero is the least
+	significant bit. The bit number for this operation may be specified
+	in either of two ways:
+
+	1. Immediate -- The bit number is specified as immediate data.
+	2. Register  -- The specified data register contains the bit number.
+
+FORMAT
+	In the case of BSET Dn,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 |  REGISTER | 1 | 1 | 1 |    MODE   | REGISTER  |
+	----------------------------------------=========================
+	                                                  <ea>
+
+	In the case of BSET #<data,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 1 |    MODE   | REGISTER  |
+	|---|---|---|---|---|---|---|---|-------------------------------|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |       NUMBER OF THE BIT       |
+	-----------------------------------------------------------------
+
+REGISTER
+	<ea> is always destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn *     |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+	 * Long only; for others modes: Byte only.
+
+RESULT
+	X - not affected
+	N - not affected
+	Z - Set if the bit tested is zero. Cleared otherwise.
+	V - not affected
+	C - not affected
+
+SEE ALSO
+	BCHG  BCLR  BTST 
+	OR    BFSET BFINS
+
+***********************************************************
+
+
+NAME
+	BSR -- Branch to subroutine
+
+SYNOPSIS
+	BSR	<label>
+
+	Size = (Byte, Word)
+	Size = (Byte, Word, Long)	(68020+)
+
+FUNCTION
+	Pushes the long word address which follows the BSR instruction to
+	stack.
+	Program	execution continues at location (PC) + offset.
+	Offset is the relative gap between PC value and label.
+	This gap is calculated by complement to two and is coded on 8 bits
+	or on 16 bits.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|-------------------------------|
+	| 0 | 1 | 1 | 0 | 0 | 0 | 0 | 1 |         8 BITS OFFSET         |
+	|---------------------------------------------------------------|
+	|            16 BITS OFFSET, IF 8 BITS OFFSET = $00             |
+	|---------------------------------------------------------------|
+	|            32 BITS OFFSET, IF 8 BITS OFFSET = $FF             |
+	-----------------------------------------------------------------
+
+RESULT
+	None.
+
+SEE ALSO
+	JSR BRA
+	RTS RTD RTR 
+
+***********************************************************
+
+
+NAME
+	BTST -- Bit test
+
+SYNOPSIS
+	BTST	Dn,<ea>
+	BTST	#<data>,<ea>
+
+	Size = (Byte, Long)
+
+FUNCTION
+	Tests a bit in the destination operand and sets the Z
+	condition code appropriately. If the destination is a data register,
+	any of the 32 bits can be specified by the modulo 32 number. When
+	the distination is a memory location, the operation must be a byte
+	operation, and therefore the bit number is modulo 8. In all cases,
+	bit zero is the least significant bit. The bit number for this
+	operation may be specified in either of two ways:
+
+	1. Immediate -- The bit number is specified as immediate data.
+	2. Register  -- The specified data register contains the bit number.
+
+FORMAT
+	In the case of BTST Dn,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 |  REGISTER | 1 | 0 | 0 |    MODE   | REGISTER  |
+	----------------------------------------=========================
+	                                                  <ea>
+
+	In the case of BTST #<data,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |    MODE   | REGISTER  |
+	|---|---|---|---|---|---|---|---|-------------------------------|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |       NUMBER OF THE BIT       |
+	-----------------------------------------------------------------
+
+REGISTER
+	In the case of BTST Dn,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	<ea> is always destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn *     |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      |111 |  100   |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+	 * Long only; for others modes: Byte only.
+
+	In the case of BTST #<data,<ea>:
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn *     |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   | 
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - not affected
+	Z - Set if the bit tested is zero. Cleared otherwise.
+	V - not affected
+	C - not affected
+
+SEE ALSO
+	BFTST BFFFO
+
+***********************************************************
+
+
+NAME
+	CALLM -- Call module	(68020 ONLY)
+
+SYNOPSIS
+
+FUNCTION
+	This instruction is 68020 ONLY and is used with, for cooperation
+	with the PMMU MC68851. Be carreful, it's not available on 68030+.
+
+RESULT
+
+SEE ALSO
+
+
+***********************************************************
+
+
+NAME
+	CAS -- Compare and swap	(68020+)
+
+SYNOPSIS
+	CAS	Dc,Du,<ea>
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	This instruction is a read-modify-write instruction and should
+	NEVER be used on Amiga because of conflicts with customs chips.
+	Destination operand, which is in memory at address specified
+	by <ea>, is compared to  data register Dc (Data Compare). This
+	register is used as reference in the principle of this instruction.
+	If there's equality (Z=1), destination operand can be updated, i.e.
+	the new operand Du (Data Update) is moved in destination.
+	If there's no equality (Z=0), it's the reference register Dc which
+	must be updated. So there's a move from destination operand to Dc.
+
+FORMAT
+                                                          <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|-------|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 1 | SIZE  | 0 | 1 | 1 |   MODE    |  REGISTER |
+	|---|---|---|---|---|-------|-----------|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 0 |Du REGISTER| 0 | 0 | 0 |Dc REGISTER|
+	-----------------------------------------------------------------
+
+SIZE
+	01->one Byte operation
+	10->one Word operation
+	11->one Long operation
+
+REGISTER
+	Du register: indicates number of data register, which contains the
+	new value to update in destination operand.
+
+	Dc register: indicates number of data register, which contains the
+	reference value to compare to destination operand.
+
+	<ea> is always destination, addressing modes are the followings:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       | -  |     -    | |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - not affected
+	N - Set if the result of comparison is negative. Cleared otherwise.
+	Z - Set if the result of comparison is zero. Cleared otherwise.
+	V - Set if overflow. Cleared otherwise.
+	C - Set if carry. Cleared otherwise.
+
+SEE ALSO
+	CAS2
+
+***********************************************************
+
+
+NAME
+	CAS2 --Compare and swap (two-operand)	(68020+)
+
+SYNOPSIS
+	CAS2	Dc1:Dc2,Du1:Du2,(Rn1):(Rn2)
+
+	Size = (Word, Long)
+
+FUNCTION
+	This instruction is a read-modify-write instruction and should
+	NEVER be used on Amiga because of conflicts with customs chips
+	Destination operand 1, which is in memory to specified address by
+	(Rn1), is compared to data register Dc1. If there's equality (Z=1),
+	destination operand 2, which is in memory to specified address by
+	(Rn2), is compared to data register Dc2.
+
+	If there's equality (Z=1), destination operand 1 can be updated, i.e.
+	new operand Du1 (Data Update) is moved in destination (Rn1).
+
+	And also, destination operand 2 can be updated, i.e. new operand Du2
+	(Data Update) is moved in destination (Rn2).
+
+	If there's no equality (Z=0), reference registers Dc1 and Dc2 have to
+	be updated. So there's move from destination operand (Rn1) in Dc1, and
+	from (Rn2) in Dc2.
+
+FORMAT
+	------------------------------------------------------------------
+	| 15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|----|---|---|---|---|-------|---|---|---|---|---|---|---|---|---|
+	| 0  | 0 | 0 | 0 | 1 | SIZE  | 0 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 |
+	|----|-----------|---|-------|-----------|---|---|---|-----------|
+	|D/A1|  Rn1 REG. | 0 | 0 | 0 |  Du1 REG. | 0 | 0 | 0 |  Dc1 REG. |
+	|----|-----------|---|---|---|-----------|---|---|---|-----------|
+	|D/A2|  Rn2 REG. | 0 | 0 | 0 |  Du2 REG. | 0 | 0 | 0 |  Dc2 REG. |
+	------------------------------------------------------------------
+
+SIZE
+	10->one Word operation
+	11->one Long operation
+
+REGISTER
+	D/A1 = 0: Rn1=Dn
+	D/A1 = 1: Rn1=An
+	D/A2 = 0: Rn2=Dn
+	D/A2 = 1: Rn2=An
+
+	Du1, Du2 registers: indicates number of data register, which contains
+	the new value to update in destination operand.
+
+	Dc1, Dc2 registers: indicates number of data register, which contains
+	the reference value to compare to destination operand.
+
+	Rn1, Rn2 registers: indicates number of destination registers.
+
+RESULT
+	X - not affected
+	N - Set following to comparisons results.
+	Z - Set if the result of comparisons is zero. Cleared otherwise.
+	V - Set if overflow. Cleared otherwise.
+	C - Set if carry. Cleared otherwise.
+
+SEE ALSO
+	CAS
+
+***********************************************************
+
+
+NAME
+	CHK -- Check bounds
+
+SYNOPSIS
+	CHK	<ea>,Dn
+
+	Size = (Word)
+	Size = (Word, Long)	(68020+)
+
+FUNCTION
+	Compares the value in the data register specified to zero and to the
+	upper bound. The upper bound is a twos complement integer. If the
+	register value is less than zero or greater than the upper bound,
+	a CHK instruction, vector number 6, occurs.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|-------|---|-----------|-----------|
+	| 0 | 1 | 0 | 0 |  REGISTER |  SIZE | 0 |    MODE   | REGISTER  |
+	----------------------------------------=========================
+	                                                  <ea>
+
+
+REGISTER
+	<ea> specifies upper bound, addressing modes allowed are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      |111 |  100   |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+SIZE
+	11->one Word operation
+	10->one Long operation
+
+RESULT
+	X - Not affected
+	N - Set if Dn < 0; cleared if Dn > <ea>. Undefined otherwise.
+	Z - Undefined.
+	V - Undefined.
+	C - Undefined.
+
+SEE ALSO
+	CMP  CMPI CMPA
+	CHK2
+
+***********************************************************
+
+
+NAME
+	CHK2 -- Check register against upper and lower bounds	(68020+)
+
+SYNOPSIS
+	CHK2	<ea>,Rn
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	<ea> indicates memory area of two bounds: in 1st memory position,
+	lower bound, in 2nd memory position, upper bound. Those two values
+	are adjacent in memory.
+	For signed comparisons, the lowest arithmetic value, expressed as a
+	two complement integer, have to be the lower bound.
+
+	If Rn is a data register Dn and if size of operation is 8 or 16 bits,
+	only the 8 or 16 bits of low weight of Dn and bounds are taken in
+	count.
+	In opposite, if Rn is an address register An, it must be extension
+	of bounds sign and 32 bits of An are taken care.
+
+	If Rn is located out of 2 bounds, a CHK instruction, vector number 6,
+	occurs. 
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|-------|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 0 | SIZE  | 0 | 1 | 1 |   MODE    | REGISTER  |
+	|---|-----------|---|-------|---|---|---|-----------|-----------|
+	|D/A| REGISTER  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 
+	-----------------------------------------------------------------
+
+REGISTER
+	Register specifies the register Rn which contains the value to test.
+	If D/A = 0: Rn = Dn
+	If D/A = 1: Rn = An
+	<ea> specifies bounds, addressing modes allowed are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       | -  |     -    | |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+RESULT
+	X - Not affected
+	N - Undefined.
+	Z - Set if Rn is equal to one of the two bounds. Cleared otherwise.
+	V - Undefined.
+	C - Set if Rn is out of bounds. Cleared otherwise.
+
+SEE ALSO
+	CMP  CMPI CMPA
+	CHK
+
+***********************************************************
+
+
+NAME
+	CLR -- Clear
+
+SYNOPSIS
+	CLR	<ea>
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Clears the destination operand to zero.
+
+	On an MC68000 and MC68HC000, a CLR instruction does both a
+	read and a write to the destination. Because of this, this
+	instruction should never be used on custom chip registers.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|-------|-----------|-----------|
+	| 0 | 1 | 0 | 0 | 0 | 0 | 1 | 0 |  SIZE |    MODE   | REGISTER  |
+	----------------------------------------=========================
+	                                                  <ea>
+
+REGISTER
+	<ea> specifies destination operand, addressing modes allowed are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+RESULT
+	X - Not affected
+	N - Always cleared
+	Z - Always set
+	V - Always cleared
+	C - Always cleared
+
+SEE ALSO
+	MOVE  MOVEQ
+	BCLR  BFCLR
+
+***********************************************************
+
+
+NAME
+	CMP -- Compare
+
+SYNOPSIS
+	CMP	<ea>,Dn
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Subtracts the source operand from the destination data register and
+	sets the condition codes according to the result. The data register
+	is NOT changed.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|-----------|-----------|-----------|
+	| 1 | 0 | 1 | 1 |  REGISTER |  OP-MODE  |    MODE   | REGISTER  |
+	----------------------------------------=========================
+	                                                  <ea>
+
+OP-MODE
+	000	8 bits operation.
+	001	16 bits operation.
+	010	32 bits operation.
+
+REGISTER
+	The data register specifies destination Dn.
+	<ea> specifies source operand, addressing modes allowed are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An *     |001 |N° reg. An| |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      |111 |  100   |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+	 * Word and Long only.
+
+RESULT
+	X - Not affected
+	N - Set if the result is negative. Cleared otherwise.
+	Z - Set if the result is zero. Cleared otherwise.
+	V - Set if an overflow occours. Cleared otherwise.
+	C - Set if a borrow occours. Cleared otherwise.
+
+SEE ALSO
+	CMPI CMPA CMPM CMP2
+	TST  CHK  CHK2
+
+***********************************************************
+
+
+NAME
+	Cmp2 -- Compare register against upper and lower bounds	(68020+)
+
+SYNOPSIS
+	CMP2	<ea>,Rn
+
+FUNCTION
+	Used to compare value of Rn (Dn or An) with two lower and upper
+	bounds, which are stored in memory, at address given by <ea> (in
+	two adjacent areas).
+	Lower bound have to be stored before upper bound. Flags are set
+	following to the result of comparison.
+
+	If Rn is a data register Dn, and if operation is made on 8 or
+	16 bits, only the 8 or 16 bits of Dn are taken in count.
+	In opposite, in the case of Rn as an address register and if a 16
+	bits operation is granted, the 32 bits of An are compared to bounds
+	which are, them, extended on 32 bits by their signs.
+
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|-------|---|---|---|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 0 | SIZE  | 0 | 1 | 1 |   MODE    | REGISTER  |
+	|---|-----------|---|-------|---|---|---|-----------|-----------|
+	|D/A| REGISTER  | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 
+	-----------------------------------------------------------------
+
+REGISTER
+	Register specifies the register Rn which contains the value to test.
+	If D/A = 0: Rn = Dn
+	If D/A = 1: Rn = An
+	<ea> specifies bounds, addressing modes allowed are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       | -  |     -    | |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |     -    | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     | -  |     -    | |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |     -    | |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+RESULT
+	X - Not affected
+	N - Undefined.
+	Z - Set if Rn is equal to one of the two bounds. Cleared otherwise.
+	V - Undefined.
+	C - Set if Rn is out of bounds. Cleared otherwise.
+
+SEE ALSO
+	CMP  CMPI CMPA
+	CHK2
+
+***********************************************************
+
+
+NAME
+	CMPA -- Compare address
+
+SYNOPSIS
+	CMPA	<ea>,An
+
+	Size = (Word, Long)
+
+FUNCTION
+	Subtracts the source operand from the destination address
+	register and sets the condition codes according to the result. The
+	address register is NOT changed. Word sized source operands are
+	sign extended to long for comparison.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|-----------|-----------|-----------|
+	| 1 | 0 | 1 | 1 |  REGISTER |  OP-MODE  |    MODE   | REGISTER  |
+	----------------------------------------=========================
+	                                                  <ea>
+
+OP-MODE
+	011	16 bits operation.
+	111	32 bits operation.
+
+REGISTER
+	The address register specifies destination An.
+	<ea> specifies source operand, addressing modes allowed are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       |001 |N° reg. An| |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      |111 |  100   |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - Not affected
+	N - Set if the result is negative. Cleared otherwise.
+	Z - Set if the result is zero. Cleared otherwise.
+	V - Set if an overflow occours. Cleared otherwise.
+	C - Set if a borrow occours. Cleared otherwise.
+
+SEE ALSO
+	CMP  CMPI CMP2
+
+***********************************************************
+
+
+NAME
+	CMPI -- Compare immediate
+
+SYNOPSIS
+	CMP	#<data>,<ea>
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Subtracts the source operand from the destination operand and sets
+	the condition codes according to the result. The destination is
+	NOT changed. The size of the immediate data matches the operation
+	size.
+
+FORMAT
+	                                                  <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|-------|-----------|-----------|
+	| 0 | 0 | 0 | 0 | 1 | 1 | 0 | 0 | SIZE  |    MODE   | REGISTER  |
+	|-------------------------------|-------------------------------|
+	|         16 BITS DATA          |         8 BITS DATA           |
+	|---------------------------------------------------------------|
+	|                          32 BITS DATA                         |
+	-----------------------------------------------------------------
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+REGISTER
+	<ea> specifies destination operand, addressing modes allowed are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |    -     | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - Not affected
+	N - Set if the result is negative. Cleared otherwise.
+	Z - Set if the result is zero. Cleared otherwise.
+	V - Set if an overflow occours. Cleared otherwise.
+	C - Set if a borrow occours. Cleared otherwise.
+
+SEE ALSO
+	CMP  CMPA CMPM CMP2
+	TST  CHK  CHK2
+
+***********************************************************
+
+
+NAME
+	CMPM -- Compare memory
+
+SYNOPSIS
+	CMPM	(Ay)+,(Ax)+
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Subtracts the source operand from the destination operand
+	and sets the condition codes according to the result. The destination
+	operand is NOT changed. Operands are always addressed with the
+	postincrement mode.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|-------|---|---|---|-----------|
+	| 1 | 0 | 1 | 1 |Ax REGISTER| 1 | SIZE  | 0 | 0 | 1 |Ay REGISTER|
+	----------------------------------------=========================
+	                                                  <ea>
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+REGISTER
+	Ax register specifies destination operand (for post-incrementation).
+	Ay register specifies source operand.
+
+RESULT
+	X - Not affected
+	N - Set if the result is negative. Cleared otherwise.
+	Z - Set if the result is zero. Cleared otherwise.
+	V - Set if an overflow occours. Cleared otherwise.
+	C - Set if a borrow occours. Cleared otherwise.
+
+SEE ALSO
+	CMP  CMPI CMPA CMP2
+	TST  CHK  CHK2
+
+***********************************************************
+
+
+NAME
+	cpBcc -- Branch on coprocessor condition
+
+SYNOPSIS
+	cpBcc	<label>
+
+	Offset size = (Word, Long)
+
+FUNCTION
+	If specified coprocessor condition is true, program execution
+	continues to address pointed by searching PC more offset.
+	Searching PC contains address of first word of offset. Offset is
+	a signed value of 16 or 32 bits, which represents the relative gap
+	in bytes between the searching PC and destination address.
+
+FORMAT
+	------------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6  | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|----|-----------------------|
+	| 1 | 1 | 1 | 1 | CP-ID =! 0| 0 | 1 |SIZE|COPROSSESSOR CONDITION |
+	|----------------------------------------------------------------|
+	|              OPTIONAL COPROCESSOR EXTENSION WORD               |
+	|----------------------------------------------------------------|
+	|                            16 BITS OFFSET                      |
+	|----------------------------------------------------------------|
+	|	        32 BITS OFFSET (LOW WEIGHT PART)                 |
+	------------------------------------------------------------------
+
+SIZE
+	0->one Word operation
+	1->one Long operation
+
+	CP-ID field identify coprocessor (1 to 7). If CP-ID=0,
+	"line emulation F" exception is generated.
+
+	"COPROSSESSOR CONDITION" field, specifies condition to test.
+	This condition is addressed to coprocessor which, after examining
+	this one, address directives to processor in order to execute
+	the instruction.
+
+RESULT
+	Not affected.
+
+SEE ALSO
+	CPDBCC
+
+***********************************************************
+
+
+NAME
+	cpDBcc -- Decrement and branch on coprocessor condition
+
+SYNOPSIS
+	cpDBcc	Dn,<label>
+
+	Offset size = (Word)
+
+FUNCTION
+	If specified coprocessor condition is true, program execution
+	continues with next instruction. Else 16 bits of data register which
+	are used as a counter, are decremented of one.
+	If Dn = -1, execution continues with next instruction.
+	If Dn =! -1, execution continues to address pointed by searching PC
+	more offset; searching PC containing address of first word of offset.
+	Offset is a signed value of 16 bits, which represents the relative gap
+	in bytes between the searching PC and destination address.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|---|---|---|-----------|
+	| 1 | 1 | 1 | 1 | CP-ID =! 0| 0 | 0 | 1 | 0 | 0 | 1 | REGISTER  |
+	|---|---|---|---|-----------|---|---|---|-----------------------|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | COPROCESSOR CONDITION |
+	|---------------------------------------------------------------|
+	|              OPTIONAL COPROCESSOR EXTENSION WORD              |
+	|---------------------------------------------------------------|
+	|                            16 BITS OFFSET                     |
+	-----------------------------------------------------------------
+
+	CP-ID field identify coprocessor (1 to 7). If CP-ID=0,
+	"line emulation F" exception is generated.
+
+	"COPROSSESSOR CONDITION" field, specifies condition to test.
+	This condition is addressed to coprocessor which, after examining
+	this one, address directives to processor in order to execute
+	the instruction.
+
+	Register field indicates the number of data register used as counter.
+
+RESULT
+	Not affected.
+
+SEE ALSO
+	CPBCC
+
+***********************************************************
+
+
+NAME
+	cpGEN -- General coprocessor intruction
+
+SYNOPSIS
+	cpGEN	<coprocessor defined parameters>
+
+	No size specs.
+
+FUNCTION
+	Command word specified is addressed to selected coprocessor.
+	This one decode the command and address requests services to processor
+	in order to execute services asked by the coprocessor.
+
+FORMAT
+                                                           <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 1 | CP-ID =! 0| 0 | 0 | 0 |    MODE   | REGISTER  |
+	|---------------------------------------------------------------|
+	|                  COPROCESSOR COMMAND WORD                     |
+	|---------------------------------------------------------------|
+	|     OPTIONAL COPROCESSOR EXTENSION WORD or OPTIONAL <ea>      |
+	-----------------------------------------------------------------
+
+	CP-ID field identify coprocessor (1 to 7). If CP-ID=0,
+	"line emulation F" exception is generated.
+
+	<ea> field specifies place of operand not resident in the coprocessor.
+	Allowed addressing modes are driven by the type of operation made.
+
+	"COPROCESSOR COMMAND" field specifies operation to do.
+	This word is transmit to coprocessor which, after analyse of this
+	word, send directives to coprocessor in order to execute instruction.
+	
+RESULT
+	Not affected or modified by the coprocessor.
+
+SEE ALSO
+	CPBCC
+
+***********************************************************
+
+
+NAME
+	cpRESTORE -- Restore coprocessor instruction (PRIVILEGED)
+
+SYNOPSIS
+	cpRESTORE	<ea>
+
+	No size specs.
+
+FUNCTION
+	Restore internal state of coprocessor after it has been generally
+	saved by cpSAVE.
+
+FORMAT
+                                                           <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 1 | CP-ID =! 0| 1 | 0 | 1 |    MODE   | REGISTER  |
+	-----------------------------------------------------------------
+
+	CP-ID field identify coprocessor (1 to 7). If CP-ID=0,
+	"line emulation F" exception is generated.
+
+REGISTER
+	<ea> field specifies place where is stored coprocessor context in
+	memory.
+	Allowed addressing modes are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       | -  |    -     | |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |    -     | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |    -     | |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	Not affected.
+
+SEE ALSO
+	CPSAVE
+
+***********************************************************
+
+
+NAME
+	cpSAVE -- Save coprocessor instruction	(PRIVILEGED)
+
+SYNOPSIS
+	cpSAVE	<ea>
+
+	No size specs.
+
+FUNCTION
+	Save internal state of coprocessor.
+
+FORMAT
+                                                           <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 1 | CP-ID =! 0| 1 | 0 | 0 |    MODE   | REGISTER  |
+	-----------------------------------------------------------------
+
+	CP-ID field identify coprocessor (1 to 7). If CP-ID=0,
+	"line emulation F" exception is generated.
+
+REGISTER
+	<ea> field specifies place where is stored coprocessor context in
+	memory.
+	Allowed addressing modes are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       | -  |    -     | |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |    -     | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      | -  |    -     | |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	Not affected.
+
+SEE ALSO
+	CPRESTORE
+
+***********************************************************
+
+
+NAME
+	cpScc -- Set one byte on coprocessor condition
+
+SYNOPSIS
+	cpScc	<ea>
+
+	Size = (Byte)
+
+FUNCTION
+	If given condition is true, byte specified by <ea> is loaded with $FF.
+	Else it is loaded with $00.
+
+FORMAT
+                                                           <ea>
+	----------------------------------------=========================
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|-----------|-----------|
+	| 1 | 1 | 1 | 1 | CP-ID =! 0| 0 | 0 | 1 |    MODE   | REGISTER  |
+	|---|---|---|---|-----------|---|---|---|-----------------------|
+	| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | COPROCESSOR CONDITION |
+	|---------------------------------------------------------------|
+	|    OPTIONAL COPROCESSOR EXTENSION WORD or OPTIONAL <ea>       |
+	-----------------------------------------------------------------
+
+	CP-ID field identify coprocessor (1 to 7). If CP-ID=0,
+	"line emulation F" exception is generated.
+
+	"COPROSSESSOR CONDITION" field, specifies condition to test.
+	This condition is addressed to coprocessor which, after examining
+	this one, address directives to processor in order to execute
+	the instruction.
+
+REGISTER
+	<ea> field specifies place of destination byte.
+	Allowed addressing modes are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |    -     | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  | -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)| -  |   -    |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	Not affected.
+
+SEE ALSO
+	CPBCC
+
+***********************************************************
+
+                              END OF PART ONE
+
+

@@ -1,0 +1,643 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "AmigaOS:8080s_Games/TheTunnel"
+; ExeFile         = "The Tunnel"
+; CreateIcon      = 0
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 1
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 545
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 8191
+; RuntimeDebug    = 0
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 504
+; CursorColumn    = 6
+; LabelSearch     = "dbl_flip"
+; LabelRemark     = 140
+; LabelAll        = 5
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Queue       = 10
+; Max Screen      = 5
+; Max Shape       = 100
+; Max CopList     = 10
+; Max Sprite      = 20
+; Max Stencil     = 5
+; Max Module      = 5
+; Max Window      = 20
+; Max Anim        = 10
+; Max Sound       = 10
+; Max Bank        = 5
+; Max Buffer      = 10
+; Max Slice       = 10
+; Max Page        = 4
+; Max Tape        = 5
+; Max IntuiFont   = 5
+; Max MedModule   = 8
+; Max Palette     = 4
+; Max MenuList    = 5
+; Max BlitzFont   = 4
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max IconInfo    = 1
+; Max NChunky     = 50
+; Max MUIObject   = 50
+; Max PTModule    = 5
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max XBSound     = 10
+; Max Chunky      = 20
+; /XTRA
+
+  ;                                                      ;
+  ; The Tunnel                                           ;
+  ; Copyright 2021-2025 Sami Vehmaa, v1.04  2021.06.01   ;
+  ;                                                      ;
+  ; You are granted to change code & make your own game! ;
+  ; Do not sell or spread this source code               ;
+  ; This apply only to this source code                  ;
+  ; Any questions? contact me at itch.io                 ;
+  ;                                                      ;
+                                                                                                                                                                                                                                                        
+  optimize 5
+  Syntax 6
+
+  WBStartup
+
+  MsgPort.s = "The Tunnel"
+  If FindPort_(GetGlobalStrAddr(MsgPort)) Then End   ; if already running then quit
+  *Port.MsgPort = CreateMsgPort(MsgPort)
+                                                                                                                                                                                                                                                        
+  XINCLUDE "dbl_display.include.ab3"
+  XINCLUDE "ahi.include.ab3"
+  XINCLUDE "intuition.include.ab3"
+
+  !version {"v1.04 The Tunnel ©2021-2025 Sami Vehmaa"}
+  a.s ="v1.04  "
+  ok.l = dbl_Init {"The Tunnel",#dbl_scr_Window,140,50,24} ;Loading window
+  dbl_QPrint{"    Loading...",0,20,1}
+  dbl_Flip{}
+  dbl_Unqueue{}
+
+  rx.l = 1280
+  ry.l = 720
+
+  gfxpath.s = "TheTunnel2021/"
+  sfxpath.s = "TheTunnel2021/"
+
+
+  ; load images
+  succ.l = image_LoadViaPNG {0,gfxpath.s+"end.png"}  : image_MidHandle {0}  ;game over good
+  If succ = 0 Then End
+  succ   & image_LoadViaPNG {1,gfxpath.s+"title.png"} : image_MidHandle {1}       ;title screen
+  succ   & image_LoadViaPNG {2,gfxpath.s+"black.png"}                             ;black screen
+  succ   & image_LoadViaPNG {3,gfxpath.s+"dark.png"}  : image_MidHandle {3}       ;dark
+  succ   & image_LoadViaPNG {4,gfxpath.s+"eyes.png"}  : image_MidHandle {4}       ;flash eyes
+  succ   & image_LoadViaPNG {5,gfxpath.s+"flash.png"}  : image_MidHandle {5}      ;flash seilinglight
+  succ   & image_LoadViaPNG {6,gfxpath.s+"blood.png"}  : image_MidHandle {6}      ;game over blood
+  succ   & image_LoadViaPNG {7,gfxpath.s+"scaryman.png"}  : image_MidHandle {7}   ;scary man
+  succ   & image_LoadViaPNG {8,gfxpath.s+"logo.png"}  : image_MidHandle {8}       ;title logo
+  succ   & image_LoadViaPNG {9,gfxpath.s+"tunnel_end.png"}  : image_MidHandle {9} ;ending
+
+  succ   & image_LoadViaPNG {10,gfxpath.s+"L.png"}  : image_MidHandle {10}   ;dark tunnel 1
+  succ   & image_LoadViaPNG {11,gfxpath.s+"M.png"}  : image_MidHandle {11}   ;dark tunnel 1
+  succ   & image_LoadViaPNG {12,gfxpath.s+"R.png"}  : image_MidHandle {12}   ;dark tunnel 1
+  ; open the ahi.device
+  #max_ahisounds = 2
+  #max_ahichannels = 2
+
+  succ   & ahi_OpenDevice {0}
+  ; load audio
+  succ   & ahi_LoadSound {0,sfxpath.s+"Walk_08.wav"}
+  succ   & ahi_LoadSound {1,sfxpath.s+"Laugh.wav"}
+  succ   & ahi_LoadSound {2,sfxpath.s+"electric.wav"}
+  succ   & ahi_LoadSound {3,sfxpath.s+"jumpscare.wav"}
+  succ   & ahi_LoadSound {4,sfxpath.s+"Game_Over.wav"}
+  succ   & ahi_LoadSound {5,sfxpath.s+"Walk_09.wav"}
+  succ   & ahi_LoadSound {6,sfxpath.s+"Hit_stress.wav"}
+  succ   & ahi_LoadSound {7,sfxpath.s+"rise9.wav"}
+  succ   & ahi_LoadSound {8,sfxpath.s+"noise25.wav"}
+  succ   & ahi_LoadSound {9,sfxpath.s+"Shh.wav"}
+  succ   & ahi_LoadSound {10,sfxpath.s+"H_Ahhh.wav"}
+
+  dbl_Free{} ; close loading window
+  succ   & dbl_Init {"The Tunnel",#dbl_scr_BestModeID,rx,ry,16} ; Init screen
+
+
+
+  If succ
+
+    dbl_SetFPS{50}
+
+
+  .menu:      ; Main menu
+
+    dbl_BGBlitPattern{1,0,0,!dbl_GetWidth,!dbl_GetHeight}
+    pen.l = dbl_GetPen{255,255,255}                       ; text pen
+    v.f = 1
+    ahi_OpenStream{sfxpath.s+"SR_Strange_Room.wav",1000,0,0,1}
+    intui_FlushEvents{}
+    breakme.l = True;
+    tx.l = 0
+    ty.l = 0
+    tz.l = 1
+
+
+       ;MainMenu loop
+       Repeat
+        ahi_DoStream{}
+        dbl_Flip{}
+        dbl_Unqueue{}
+
+        Repeat
+          ev.l = intui_GetEvent{}
+          Select ev
+
+            Case #IDCMP_RAWKEY
+              If !event_keydown
+                Select !event_vanillakey
+                  Case 27
+                    ahi_CloseAllStreams{}
+                    ahi_CloseDevice{}
+                    ahi_FreeAllSounds{}
+                    ahi_Free{}
+                    png_Close{}
+                    End
+                  Case @"y"
+                    ahi_StopSound{0}
+                    breakme = False
+                End Select
+              End If
+          End Select
+        Until ev=0
+        Gosub titlescroll
+       Until breakme = False
+
+
+  dbl_Flip{}
+  dbl_Unqueue{}
+
+  breakme = True
+
+      ahi_OpenStream{sfxpath.s+"Amb_Burn.wav",1000,0,0,1}   ; opening & playing a audiostream buffer is 1000
+
+
+      dbl_BGBlitPattern{2,0,0,!dbl_GetWidth,!dbl_GetHeight} ; background
+      pen = dbl_GetPen{255,255,255}                         ; text pen
+
+      ;InGame init
+       forward.l = 0      ; moving forward value
+       forwarda.l = 0     ; tunnel gfx zooming
+       sideway.l = 2      ; sideway moving value
+       texts.l = 0        ; text
+       scarymanposx.l = 0 ; posistion of scary man
+       t.l = 0
+       trigg.l = 0 : fpos.l = 0 ; this tracks where you are in lane when scary man has been triggered
+       dist.l = 0
+       walk.l = 0
+       fia.l = 255    ;tunnel fading
+       ws.l = 0       ;walk sound LR
+       tt.l = 0       ;text timer
+       sct.l = 0      ;audio bg timer
+       kt.l = 0       ;key input timer
+       ww.l = 64      ;walk audio volyme
+       dead.l = 0     ;player dead ? by a run 3 escapes allowed
+       ndead.l = 0    ;player faces possible death
+       doupdate.l = 0 ;update screen
+       gameti.l = 0   ;game timer
+
+      ;Main game loop
+       dbl_Flip{}
+       dbl_Unqueue{}
+
+       Gosub jump
+       Repeat
+        VWait 2
+        gameti +1
+        ahi_DoStream{} ; stream background audio, need to repeate
+
+        If gameti > 10 ;key, text & audio timer
+          tt = tt + 1
+          sct = sct + 1
+          kt = kt + 1
+
+          gameti = 0
+          If tt = 15
+            texts = 0
+            doupdate = 1
+          End If
+
+        End If
+
+
+
+        Repeat
+
+          Select ev
+           ev.l = intui_GetEvent{}
+
+
+               Case #IDCMP_RAWKEY
+
+                 If !event_keydown
+
+                   Select !event_vanillakey
+
+                    Case 27
+                      breakme = False
+
+                   End Select
+
+                 End If
+
+              End Select
+
+        Until ev=0
+
+       If kt > 1
+          If !intui_rawstatus{$11} ; w
+             If kt = 2 ;check if player try to run
+               ww = 255
+               dead = dead + 1
+               ndead = 1
+               tt = 0
+               texts = 3
+             End If
+
+             forward = forward + 1
+             forwarda = forwarda + 1
+             If trigg <> 0 Then fpos = fpos + 1
+             If trigg <> 0
+                If fpos = dist AND trigg = sideway + 1 Then Goto dead
+                If fpos > dist Then trigg = 0
+             End If
+             ws = 1
+             kt = 0
+             Gosub jump
+          End If
+          If !intui_rawstatus{$20} ; a
+             If sideway < 4
+                 sideway = sideway + 1
+                 ahi_PlaySound {0,ww}
+             End If
+             kt = 0
+             Gosub jump
+          End If
+          If !intui_rawstatus{$22} ; d
+             If sideway > 0
+                 sideway = sideway - 1
+                 ahi_PlaySound {0,ww}
+             End If
+             kt = 0
+             Gosub jump
+          End If
+          If !intui_rawstatus{$21} ; s
+             tt = 0
+             texts = 1
+             kt = 0
+             Gosub jump
+          End If
+       End If
+
+          If doupdate = 1
+            doupdate = 0
+            Gosub jump
+          End If
+
+
+Until breakme = False
+       ahi_StopSound{1}
+       Goto menu
+
+jump:
+         ;tunnel gfx
+
+          If forward <1
+             dbl_QBlit {3,(!dbl_GetWidth/2)+(sideway * 15),!dbl_GetHeight/2,2,2,#image_blitmode_alpha,64}
+          End If
+
+
+          If forwarda < 11
+            fia = 31 + (forwarda*8)
+          Else
+            fia = 111 - ((forwarda-10)*8)
+          End If
+          If forward < 500
+            If forwarda > -1
+              If sideway < 1
+                dbl_QBlit {12,(!dbl_GetWidth/2)+(sideway * 50)-150,(!dbl_GetHeight/2)+(forwarda*4),1.3+(forwarda/10),1.35+(forwarda/10),#image_blitmode_trans,fia} ; L
+              End If
+              If sideway > 0 AND sideway < 4
+                dbl_QBlit {11,(!dbl_GetWidth/2)+(sideway * 50)-50,(!dbl_GetHeight/2)+(forwarda*4),1.3+(forwarda/10),1.3+(forwarda/10),#image_blitmode_trans,fia}   ; M
+              End If
+              If sideway > 3
+                dbl_QBlit {10,(!dbl_GetWidth/2)+(sideway * 50)+50,(!dbl_GetHeight/2)+(forwarda*4),1.3+(forwarda/10),1.35+(forwarda/10),#image_blitmode_trans,fia}  ; tunnel R
+              End If
+            End If
+            If forwarda = 19 Then forwarda = -2 + Int (Rnd * -4)
+          End If
+
+
+
+          If ws = 1 ; diff walk sound
+             If walk = 0
+                ahi_PlaySound {0,ww}
+                walk = 1
+             Else
+                ahi_PlaySound {5,ww}
+                walk = 0
+             End If
+             ws = 0
+             ww = 64
+          End If
+
+         ;keep playing bg sound
+         If sct > 600
+            ahi_OpenStream{sfxpath.s+"Amb_Burn.wav",1000,0,0,1}   ; opening & playing a audiostream buffer is 1000
+            sct = 0
+         End If
+         ; some scary events
+
+
+         If forward = 13 OR forward = 160 OR forward = 320 OR forward = 415                    ;Laugh
+            forward = forward + 1
+            ahi_PlaySound{1,255}
+            tt = 0
+            texts = 2
+         End If
+         If forward = 21  OR forward = 50 OR forward = 85 OR forward = 250 OR forward = 300 OR forward = 425                                   ;tunnel 1 flash
+            forward = forward + 1
+            dbl_QBlit {5,!dbl_GetWidth/2 + (sideway * 50),!dbl_GetHeight/2,1}
+            ahi_PlaySound{2,255}
+            doupdate = 1
+         End If
+         If forward = 30 OR forward = 45 OR forward = 77 OR forward = 133 OR forward = 210 OR forward = 325 OR forward = 493 OR forward = 505  ;noise
+            forward = forward + 1
+            ahi_PlaySound{8,255}
+         End If
+
+         If forward = 100 OR forward = 445                                                     ;Shhhhh
+            forward = forward + 1
+            ahi_PlaySound{9,255}
+         End If
+         If forward = 180 OR forward = 350 OR forward = 491                                    ;Ahhhhh
+            forward = forward + 1
+            ahi_PlaySound{10,255}
+         End If
+         If forward = 60 OR forward = 200 OR forward = 380 OR forward = 400 OR forward = 495   ;Stress
+            forward = forward + 1
+            ahi_PlaySound{6,255}
+         End If
+         If forward = 215 OR forward = 305 OR forward = 469 OR forward = 485 OR forward = 510  ;Stress2
+            forward = forward + 1
+            ahi_PlaySound{7,255}
+         End If
+         If forward = 220 OR forward = 470 OR forward = 496                                    ;Red eyes flash
+            forward = forward + 1
+            dbl_QBlit {4,!dbl_GetWidth/2,!dbl_GetHeight/2,1.5,1.5,#image_blitmode_alpha}
+            ahi_PlaySound{3,255}
+            doupdate = 1
+         End If
+
+         If forward = 67 OR forward = 307 OR forward = 401 OR forward = 490                    ;tunnel 1 flash + scary man small
+            t = Int (Rnd *3) + 1
+
+            If t > sideway + 1 Then scarymanposx = (sideway * 50) - (t * 25) : trigg = t
+            If t = sideway + 1 Then scarymanposx = 0 : trigg = sideway + 1
+            If t < sideway + 1 Then scarymanposx = (sideway * 50) + (t * 25) : trigg = t
+
+
+            dist = 3 : fpos = 0
+            Gosub flashscare
+            forward = forward + 1
+         End If
+         If forward = 120 OR forward = 352 OR forward = 480 OR forward = 492                   ;tunnel 1 flash + scary man mid
+            t = Int (Rnd *3) + 1
+
+            If t > sideway + 1 Then scarymanposx = (sideway * 50) - (t * 50) : trigg = t
+            If t = sideway + 1 Then scarymanposx = 0 : trigg = sideway + 1
+            If t < sideway + 1 Then scarymanposx = (sideway * 50) + (t * 50) : trigg = t
+
+            dist = 2 : fpos = 0
+            Gosub flashscare2
+            forward = forward + 1
+         End If
+         If ndead = 1 OR forward = 494                                                         ;tunnel 1 flash + scary man big
+            dist = 1 : fpos = 0 : ndead = 0
+            t = Int (Rnd *5) + 1
+
+            If t > sideway + 1 Then scarymanposx = (sideway * 50) - (t * 100) : trigg = t
+            If t = sideway + 1 Then scarymanposx = 0 : trigg = sideway + 1
+            If t < sideway + 1 Then scarymanposx = (sideway * 50) + (t * 100) : trigg = t
+
+            Gosub flashscare3
+            forward = forward + 1
+         End If
+         If forward > 500         ;game ending done!
+            dbl_QBlit {9,(!dbl_GetWidth/2)+(sideway * 50),!dbl_GetHeight/2,0.01+(forward-500)/30}
+            If forward > 525 Then Goto ending
+         End If
+
+         If texts = 1   ; no backing in tunnel :-)
+            dbl_QPrint{"No no, forward!",!dbl_GetWidth/2,!dbl_GetHeight-60,pen,-1,0}
+         End If
+         If texts = 2
+            dbl_QPrint{"Where is she?",!dbl_GetWidth/2,!dbl_GetHeight-60,pen,-1,0}
+         End If
+         If texts = 3
+            dbl_QPrint{"You make too much noise!",!dbl_GetWidth/2,!dbl_GetHeight-60,pen,-1,0}
+         End If
+         ;a = Str$(sideway+1)+" "+Str$(trigg)+" "+Str$(scarymanposx) ; debug
+         ;dbl_QPrint{a,!dbl_GetWidth/2,!dbl_GetHeight-60,pen,-1,0}   ; debug
+
+  dbl_Flip{}
+  dbl_Unqueue{}
+
+  Return
+  End If
+
+
+
+  flashscare:  ; far away
+
+          dbl_QBlit {5,!dbl_GetWidth/2 + (sideway * 50),!dbl_GetHeight/2,0.5}
+          ahi_PlaySound{2,255}
+
+          dbl_Flip{}
+          dbl_Unqueue{}
+          VWait
+          dbl_Flip{}
+          dbl_Unqueue{}
+          VWait
+
+          dbl_QBlit {5,!dbl_GetWidth/2 + (sideway * 50),!dbl_GetHeight/2,0.5}
+          ahi_PlaySound{2,255}
+          dbl_QBlit {7,(!dbl_GetWidth/2)+scarymanposx,!dbl_GetHeight/2,0.25,0.25,#image_blitmode_alpha} ; scary man
+          ahi_PlaySound{3,255}
+          doupdate = 1
+
+  Return
+
+  flashscare2: ; middle
+
+          dbl_QBlit {5,!dbl_GetWidth/2 + (sideway * 50),(!dbl_GetHeight/2)+(forwarda*4),1}
+          ahi_PlaySound{2,255}
+
+          dbl_Flip{}
+          dbl_Unqueue{}
+          VWait
+          dbl_Flip{}
+          dbl_Unqueue{}
+          VWait
+
+          dbl_QBlit {5,!dbl_GetWidth/2 + (sideway * 50),(!dbl_GetHeight/2)+(forwarda*4),1}
+          ahi_PlaySound{2,255}
+          dbl_QBlit {7,(!dbl_GetWidth/2)+scarymanposx,(!dbl_GetHeight/2)+(forwarda*4),0.5,0.5,#image_blitmode_alpha} ; scary man
+          ahi_PlaySound{3,255}
+          doupdate = 1
+
+  Return
+
+  flashscare3: ; close
+
+          dbl_QBlit {5,!dbl_GetWidth/2 + (sideway * 50),(!dbl_GetHeight/2)+(forwarda*4),1.5}
+          ahi_PlaySound{2,255}
+
+          dbl_Flip{}
+          dbl_Unqueue{}
+          VWait
+          dbl_Flip{}
+          dbl_Unqueue{}
+          VWait
+
+          dbl_QBlit {5,!dbl_GetWidth/2 + (sideway * 50),(!dbl_GetHeight/2)+(forwarda*4),1.5}
+          ahi_PlaySound{2,255}
+          dbl_QBlit {7,(!dbl_GetWidth/2)+scarymanposx,!dbl_GetHeight*0.69,1.2,1.2,#image_blitmode_alpha} ; scary man
+          ahi_PlaySound{3,255}
+          doupdate = 1
+
+  Return
+
+  titlescroll:
+
+          dbl_QBlit {8,(!dbl_GetWidth/2)+tx,(!dbl_GetHeight/2)+ty,tz,tz,#image_blitmode_alpha}
+          If ty < -15 Then dbl_QPrint{"  You had a argument with your girlfriend  ",!dbl_GetWidth*0.37,(!dbl_GetHeight*0.58)+ty,pen}
+          If ty < -30 Then dbl_QPrint{"         She ran into The Tunnel           ",!dbl_GetWidth*0.37,(!dbl_GetHeight*0.60)+ty,pen}
+          If ty < -45 Then dbl_QPrint{"           Do you follow her ?             ",!dbl_GetWidth*0.37,(!dbl_GetHeight*0.62)+ty,pen}
+          If ty < -59 Then dbl_QPrint{"  y - YES........................esc - NO  ",!dbl_GetWidth*0.37,(!dbl_GetHeight*0.64)+ty,pen}
+          If ty < -80 Then dbl_QPrint{"Hint: Read from end, do try the game first!",!dbl_GetWidth*0.37,(!dbl_GetHeight*0.69)+ty,pen}
+          If ty < -90 Then dbl_QPrint{"    !rellik sa enal emas klaw ton oD       ",!dbl_GetWidth*0.37,(!dbl_GetHeight*0.71)+ty,pen}
+          If ty < -95 Then dbl_QPrint{"  They say people disapear in the tunnel   ",!dbl_GetWidth*0.37,(!dbl_GetHeight*0.76)+ty,pen}
+          If ty < -95 Then dbl_QPrint{"         Make noise and you die!           ",!dbl_GetWidth*0.37,(!dbl_GetHeight*0.78)+ty,pen}
+          If ty > -100 Then ty = ty - 1
+
+          dbl_QPrint{a+"Controls: WASD keys movement, esc - end game",20,!dbl_GetHeight-20,pen}
+
+  Return
+
+  ending:
+
+        breakme = True
+        ty = 0
+        Repeat
+
+          dbl_Flip{}
+          dbl_Unqueue{}
+
+          dbl_QBlit {0,!dbl_GetWidth/2,400,1,1,#image_blitmode_alpha}
+          If ty < -15 Then dbl_QPrint{"You made it & found your girlfriend",!dbl_GetWidth*0.38,(!dbl_GetHeight*0.58)+ty,pen}
+          dbl_QPrint{"esc - menu",20,!dbl_GetHeight-20,pen}
+          If ty > -65
+            ty = ty - 1
+          End If
+
+          Repeat
+           ev.l = intui_GetEvent{}
+           Select ev
+
+             Case #IDCMP_RAWKEY
+               If !event_keydown
+               If Timer > 25 ; keep key input to 1 per 1/2sec
+                 Select !event_vanillakey
+                 TimerReset
+                   Case 27
+                     breakme = False
+                 End Select
+               End If
+               End If
+           End Select
+          Until ev=0
+        Until breakme = False
+
+  Goto menu
+
+  dead:
+
+        breakme = True
+        ty = 0
+        ahi_PlaySound{4,255}
+        Repeat
+
+          dbl_Flip{}
+          dbl_Unqueue{}
+
+          dbl_QBlit {7,!dbl_GetWidth/2,!dbl_GetHeight*0.69,1.2,1.2,#image_blitmode_alpha}
+          dbl_QBlit {6,!dbl_GetWidth/2,(!dbl_GetHeight/2),1.3,1.3,#image_blitmode_alpha}
+          If ty < -15 Then dbl_QPrint{"        Yeah, you are done !!",!dbl_GetWidth*0.38,(!dbl_GetHeight*0.58)+ty,pen}
+          dbl_QPrint{"esc - menu",20,!dbl_GetHeight-20,pen}
+          If ty > -65
+              ty = ty - 1
+          Else
+              Goto menu
+          End If
+
+          Repeat
+           ev.l = intui_GetEvent{}
+           Select ev
+
+             Case #IDCMP_RAWKEY
+               If !event_keydown
+               If Timer > 25 ; keep key input to 1 per 1/2sec
+                 Select !event_vanillakey
+                 TimerReset
+                   Case 27
+                     breakme = False
+                 End Select
+               End If
+               End If
+           End Select
+          Until ev=0
+        Until breakme = False
+
+  Goto menu
+
+  End
+
+

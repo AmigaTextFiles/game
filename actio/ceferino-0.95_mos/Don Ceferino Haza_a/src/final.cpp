@@ -1,0 +1,282 @@
+/*
+ * Don Ceferino Hazaña - video game similary to Super Pang!
+ * Copyright (c) 2004, 2005 Hugo Ruscitti
+ * web site: http://www.loosersjuegos.com.ar
+ * 
+ * This file is part of Don Ceferino Hazaña (ceferino).
+ * Written by Hugo Ruscitti <hugoruscitti@yahoo.com.ar>
+ *
+ * Don Ceferino Hazaña is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Don Ceferino Hazaña is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * 
+ */
+
+
+#include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
+#include <string.h>
+#include "final.h"
+#include "mundo.h"
+#include "grafico.h"
+#include "utils.h"
+#include "int.h"
+
+final :: final(void)
+{
+	paso=0;
+	cambiar_etapa(F1);
+}
+
+final :: ~final(void)
+{
+	for (int i=0; i<7; i++)
+		SDL_FreeSurface(imas[i]);
+
+	SDL_FreeSurface(fondo);
+	imprimir_ok();
+}
+
+
+/*!
+ * \brief carga todas las imagenes de la final
+ *
+ * return 1 en caso de error
+ */
+int final :: iniciar(class mundo *_pmundo, int _modo_video, SDL_Surface *_screen)
+{
+	char base[200];
+	char tmp[200];
+	char nombres[8][200] = {{"final_1.jpg"},{"final_2.jpg"},{"final_3.jpg"},{"final_4.jpg"},{"final_5.jpg"},{"final_6.jpg"},{"final_7.jpg"}};
+
+	
+	strcpy(base, SRC_DIR "/ima/");
+	
+	modo_video = _modo_video;
+	
+	printf(_("+ Loading final: "));
+
+	
+	// carga todas las imagenes
+	for (int i=0; i<7; i++)
+	{
+		printf(".");
+		fflush(stdout);
+
+		strcpy(tmp, base);
+		strcat(tmp, nombres[i]);
+		imas[i] = IMG_Load(tmp);
+		
+		if (imas[i] == NULL)
+		{
+			imprimir_error();
+			printf(_("\t Can't load '%s' : '%s'\n"), tmp, SDL_GetError());
+			return 1;
+		}
+
+		if (modo_video)
+		{
+			imas[i] = reescalar_mitad(imas[i]);
+
+			if (imas[i] == NULL)
+			{
+				exit(1);
+			}
+		}
+
+	}
+	imprimir_ok();
+	
+	pmundo = _pmundo;
+	screen = _screen;
+
+	imprimir_etapa(etapa);
+
+	fondo = SDL_DisplayFormat(screen);
+	return 0;
+}
+
+
+/*!
+ * \brief actualiza los textos que se muestran en pantalla
+ */
+void final :: actualizar(void)
+{
+	Uint8 *tecla;
+
+	tecla = SDL_GetKeyState(NULL);
+
+
+	if (paso>5)
+	{
+		if (mensaje[pos] != '\0')
+		{
+			if (mensaje[pos] != '#')
+			{
+				imprimir_caracter(mensaje[pos], 10+posx_letra*26,\
+						200+posy_letra*33, 0);
+				posx_letra++;
+			}
+			else
+			{
+				posx_letra=0;
+				posy_letra++;
+			}
+			
+			pos++;
+			paso=0;
+		}
+		else
+		{
+			if (paso > 350)
+			{
+				etapa++;
+
+				if (etapa > F7)
+				{
+					pmundo->cambiar_escena(MENU);
+					paso=0;
+					return;
+				}
+				else
+				{
+					cambiar_etapa(etapa);
+					imprimir_etapa(etapa);
+				}
+			
+			}
+		}
+	}
+	
+	paso++;
+
+	if (tecla[SDLK_SPACE] || tecla[SDLK_ESCAPE] || etapa > F7)
+		pmundo->cambiar_escena(MENU);
+}
+
+
+/*!
+ * \brief impresion programada desde mundo
+ */
+void final :: imprimir(void)
+{
+}
+
+/*!
+ * \brief imprime una imagen de fondo
+ */
+void final :: imprimir_etapa(int etapa)
+{
+	SDL_BlitSurface(imas[etapa], NULL, screen, NULL);
+	SDL_Flip(screen);
+}
+
+/*!
+ * \brief altera las etapas de la final asignando nuevo fondo y textos
+ */
+void final :: cambiar_etapa(int etapa)
+{
+	pos=0;
+	posx_letra=0;
+	posy_letra=0;
+	
+	switch (etapa)
+	{
+		case F1:
+		strcpy(mensaje,_("#######good job..."));
+		break;
+
+		case F2:
+		strcpy(mensaje,_("######don ceferino arribe to#spaceship...#"));
+		break;
+
+		case F3:
+		strcpy(mensaje,_("#####uses a mate#loaded with powder."));
+		break;
+
+		case F4:
+		strcpy(mensaje,_("######he escape with the spaceship#"\
+					"rescuing the cow.#"));
+		break;
+
+		case F5:
+		strcpy(mensaje,_("######it seems like all is #"\
+					"getting back to normal.#"));
+		break;
+
+		case F6:
+		strcpy(mensaje,_("####though it seems like#don ceferino is#"\
+					"very hungry after#"\
+					"all this action..."));
+		break;
+
+		case F7:
+		strcpy(mensaje,_("######at the end. thanks for#"\
+					"playing this game."));
+		break;
+
+			
+	}
+
+	this->etapa = etapa;
+}
+
+/*!
+ * \brief imprime un caracter en pantalla
+ */
+void final :: imprimir_caracter(char letra, int x, int y, int resaltar)
+{
+	SDL_Rect rect;
+	
+	switch (letra)
+	{
+		case ' ':
+			rect.x=0;
+			rect.y=0;
+			rect.w=1;
+			rect.h=1;
+			break;
+			
+		case '.':
+			pmundo->libgrafico.ima_fuente_2->imprimir(\
+					36+resaltar*40,screen, &rect, x, y, 1);
+			break;
+
+		case ':':
+			pmundo->libgrafico.ima_fuente_2->imprimir(\
+					37+resaltar*40,screen, &rect, x, y, 1);
+			break;
+			
+		case '(':
+			pmundo->libgrafico.ima_fuente_2->imprimir(\
+					38+resaltar*40,screen, &rect, x, y, 1);
+			break;
+				
+		case ')':
+			pmundo->libgrafico.ima_fuente_2->imprimir(\
+					39+resaltar*40, screen, &rect, x, y, 1);
+			break;
+
+		default:
+			pmundo->libgrafico.ima_fuente_2->imprimir(\
+					letra - 'a'+resaltar*40, screen,\
+					&rect, x, y, 1);
+			break;
+	}
+
+	SDL_UpdateRect(screen, rect.x, rect.y, rect.w, rect.h);
+}
+
+void final :: pausar(void)
+{
+}

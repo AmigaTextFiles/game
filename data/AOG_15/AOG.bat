@@ -1,0 +1,1 @@
+heretic2.exe +set game golgotha +map golgotha/golgotha

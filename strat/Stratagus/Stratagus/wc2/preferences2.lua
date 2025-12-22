@@ -1,0 +1,16 @@
+--- -----------------------------------------
+--- $Id: script.c,v 1.191 2004/06/26 19:33:11 jsalmon3 Exp $
+SetVideoFullScreen(true)
+SetLocalPlayerName("Anonymous")
+SetShowTips(true)
+SetCurrentTip(6)
+SetFogOfWar(true)
+SetShowCommandKey(true)
+SetGroupKeys("0123456789`")
+SetVideoSyncSpeed(250)
+SetMouseScrollSpeed(1)
+SetKeyScrollSpeed(1)
+SoundOn()
+SetSoundVolume(128)
+MusicOn()
+SetMusicVolume(128)

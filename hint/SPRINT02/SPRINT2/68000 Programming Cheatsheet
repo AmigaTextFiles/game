@@ -1,0 +1,389 @@
+                     68000 PROGRAMMING CHEATSHEET
+
+Typed in by Parasite, with help from CTHULHU. 
+
+
+WAYS OF ADdRESSING THE PROCESSOR
+
+          The following abbreviations are used.
+
+          An      Address registers A0-A7.
+          Dn      Data registers D0-D7.
+          d16     16 bit value.
+          d8      8 bit value.
+          Rn      Register D0-D7, A0-A7.
+          'data'  Up to 32 bit value, (Either .B .W .L)
+
+
+          Data register direct                                    Dn
+          Address register direct                                 An
+          Address register indirect                               (An)
+          Address register indirect with post-increment           (An)+
+          Address rgiister indirect with pre-decrement            -(An)
+          Address register indirect with 16 bit displacement      d16(An)
+          Address register indirect with 8 bit index value        8(An,Rn)
+          Absolute short                                          xxxx.W
+          Absolute long                                           xxxxxxxx.L
+          Direct                                                  #'data'
+          Program counter indirect with 16 bit displacement       d16(PC)
+          Program counter indirect with 8 bit index value         d8(PC,Rn)
+
+
+MEMORY MAP
+
+          This is an overview of the Amiga's memory
+
+          $000000 - $07FFFF       Chip RAM.
+          $080000 - $1FFFFF       Reserved.
+          $200000 - $9FFFFF       Potential Fast RAM.
+          $A00000 - $BEFFFF       Reserved.
+          $EFD000 - $BFDF00       PIA B (Even addresses).
+          $BFE001 - $BFEF00       PIA C (Odd addresses).
+          $C00000 - $DFEFFF       Reserved for expansion.
+          $DFF000 - $DFFFFF       Custom chip registers.
+          $E00000 - $E7FFFF       Reserved.
+          $E80000 - $EFFFFF       Expansion ports.
+          $F00000 - $F7FFFF       Reserved.
+          $F80000 - $FFFFFF       System ROM.
+
+
+STATUS REGISTER
+
+	User byte flags.
+
+          Bit 0 (C, Carry) Carry bit, modified by math calculations, and
+          shift instructions.
+          Bit 1 (V, Overflow) Similar to carry, indicates a change of
+          sign (a carry from bit 6 to bit 7).
+          Bit 2 (Z, Zero) Bit is set when the result of an operation is
+          Zero.
+          Bit 3 (N, Negative) is set when the result of the operation is
+          negative.
+          Bit 4 (X, Extended) Like carry, is set for arithmetic
+          operations.
+          Bit 5 - 7 Not used.
+
+	System byte flags.
+
+          Bit 8 (I0) Interupt mask. Activates interupt levels.
+          Bit 9 (I1) 0 to 7, where 0 is the lowest and 7 is the highest.
+          Bit 10 (I2) Priority.
+          Bit 11 - 12 Not used.
+          Bit 13 (S, Supervisor) This bit indicates the actual processor
+          mode (0=user, 1=supervisor mode).
+          Bit 14 Not used.
+          Bit 15 (T, Trace) If this bit is set, the processor is in
+          single step mode.
+
+
+STATUS REGISTER OVERVIEW
+
+          BIT :  15 14 13 12 11 10  9  8  7  6  5  4  3  2  1  0
+          NAME:   T  -  S  -  - I2 I1 I0  -  -  -  X  N  Z  V  C
+
+
+ADDRESSES OF INTERNAL ROUTINES
+ 
+           0        $000                RESET: Starting SSP.
+           1        $004                RESET: Starting PC.
+           2        $008                Bus error.
+           3        $00C                Address Error.
+           4        $010                Illegal instruction.
+           5        $014                Division by zero.
+           6        $018                CHK instruction.
+           7        $01C                TRAPV instruction.
+           8        $020                Privilage violation.
+           9        $024                Trace.
+          10        $028                Axxx-instruction emulation.
+          11        $02C                Fxxx-instruction emulation.
+                    $030-$038           Reserved.
+          15        $03C                Uninitialised interupt.
+                    $040-$05F           Reserved.
+          24        $060                Unjustified interupt.
+          25-31     $064-$083           Level 1-7 interupt.
+          32-47     $080-$0BF           TRAP instructions.
+                    $0C0-$0FF           Reserved.
+          64-255    $100-$3FF           User interupt vectors.
+    
+
+CONDITION CODES
+
+          The following abbreviations are used:
+
+	* = Logic AND	+ = Logic OR	' = Logic NOT
+
+
+          This is a list of all condition codes, which allow you to form
+          conditional branches using Bcc (cc=condition code) format:
+
+	T	True, corresponds to BRA
+	F	False, never branches
+	HI	Higher than		C' * Z'
+	LS	Lower or same		C + Z
+	CC, HS    Carry clear, higher or same	C'
+	CS, LO	Carry set, lower		C
+          NE	Not equal			Z'
+	EQ	Equal			Z
+	VC	Overflow clear		V'
+	VS	Overflow set		V
+	PL	Plus, positive		
+	MI	Minus, negative		
+	GE	Greater or equal		N*V + N'*V'
+	LT	Less than			N*V' + N'*V
+	GT	Greater than                  N*V*Z'+N'*V'*Z'
+	LE	Less or equal		Z + N*V' + N'*V
+
+
+EXCEPTION CODES
+
+	This is a list of vectors used to jump to the exception routines.
+
+           2        $008                Bus error.
+           3        $00C                Address Error.
+           4        $010                Illegal command.
+           5        $014                Division by zero.
+           6        $018                CHK command.
+           7        $01C                TRAPV commmand.
+           8        $020                Privilage violation.
+           9        $024                Trace.
+          10        $028                Axxx-command emulation.
+          11        $02C                Fxxx-command emulation.
+                    $030-$038           Reserved.
+          15        $03C                Uninitialised interupt.
+                    $040-$05F           Reserved.
+          24        $060                Unauthorised interupt.
+          25-31     $064-$083           Level 1-7 interupt.
+          32-47     $080-$0BF           TRAP instructions.
+                    $0C0-$0FF           Reserved.
+          64-255    $100-$3FF           User interupt vectors.
+ 
+
+MNEMONIC INSTRUCTION CODE
+
+	The following abbreviations are used:
+
+          label     A label or address
+          reg       Register
+          an        Address register n
+          dn        Data register n
+          source    source operand
+          dest      destination operand
+          <ea>      address of register
+          #n        direct value
+
+
+GENERAL INSTRUCTIONS
+
+          BCC   label         Conditional branch, depends on condition.
+          BRA   label         Unconditional branch (Similar to JMP).
+          BSR   label         Branch to subprogram. Return address is
+                              deposited on the stack, RTS causes return to
+                              that address.
+          CHK   <ea>,dx       Check data register for limits, activate the
+                              CHK instruction exception.
+          DBCC  reg,label     Check condition, decrement on branch.
+          JMP   label         Jump to address (Similar to BRA).
+          JSR   label         Jump to a subroutine. Return address is deposited
+                              on stack, RTS causes return to that address.
+          NOP                 No operation.
+          RESET               Reset peripherals (Caution!).
+          RTE                 Return from exception.
+          RTR                 Return with loading of flags.
+          RTS                 Return from subroutine (After BSR or JSR).
+          SCC   <ea>          Set a byte to -1 when condition is met.
+          STOP                Stop processing (Caution!).
+          TRAP  #n            Jump to an exception.
+          TRAPV               Check overflow flag, then TRAPV exception.
+
+
+ARITHMETIC OPERATIONS WITH WHOLE NUMBERS
+
+          ADD   source,dest   Binary addition.
+          ADDA  source,an     Binary addition to an address register.
+          ADDI  #n,<ea>       Addition with a constant.
+          ADDQ  #n,<ea>       Fast addition of a constant which can be only
+                              from 1 to 8.
+          ADDX  source,dest   Addition with transfer in X flag.
+          CLR   <ea>          Clear an operand.
+          CMP   source,dest   Comparison of two operands.
+          CMPA  <ea>,an       Comparison with an address register.
+          CMPI  #n,<ea>       Comparison with a constant.
+          CMPM  source,dest   Comparison of two memory operands.
+          DIVS  source,dest   Sign-true division of a 32 bit destination by
+                              a 16 bit source operand. The result of the
+                              division is stored in the LO word of the
+                              destination, the remainder in the HI word.
+          DIVU  source,dest   Division without regard to sign, similar to DIVS.
+          EXT   dn            Sign-true expansion to twice original size
+                              (width) data unit.
+          MULS  source,dest   Sign-true multiplication of two words into one
+                              word.
+          MULU  source,dest   Multiplication without regard to sign, similar
+                              to MULS.
+          NEG   <ea>          Negation of an operand (twos complement).
+          SUB   source,dest   Binary subtraction.
+          SUBA  <ea>,an       Binary subtraction from an address register.
+          SUBI  #n,<ea>       Subtraction of a constant.
+          SUBQ  #n,<ea>       Fast subtraction of a three bit constant.
+          SUBX  source,dest   Subtraction with transfer in X flag.
+          TST   <ea>          Test operand and set N and Z flag.
+
+
+BINARY CODED DECIMAL NUMBERS
+
+          ABCD  source,dest   Addition of two binary coded decimal numbers.
+          NBCD  source,dest   Negation of a binary coded decimal number
+                              (nine complement).
+          SBCD  source,dest   Subtraction of two binary coded decimal numbers.
+
+
+LOGICAL OPERATIONS
+
+          AND   source,dest   Logic AND.
+          ANDI  #n,<ea>       Logic AND with a constant.
+          EOR   source,dest   Exclusive OR.
+          EORI  #n,<ea>       Exclusive OR with a constant.
+          NOT   <ea>          Inversion of an operand.
+          OR    source,dest   Logic OR.
+          ORI   #n,<ea>       Logic OR with a constant.
+          TAS   <ea>          Check a byte and set bit 7.
+
+
+SINGLE BIT MANIPULATION
+
+          BCHG  #n,<ea>       Change bit n(0 is changed to 1 and vice versa).
+          BCLR  #n,<ea>       Clear bit n.
+          BSET  #n,<ea>       Set bit n.
+          BTST  #n,<ea>       Test bit n, result is desplayed in Z flag.
+
+
+SHIFT AND ROTATE OPERANDS
+
+          NOTE: n indicates a register, # indicates a direct value which
+                specifies the number of shiftings.
+
+          AS    n,<ea>        Arithmetic shift to the left (*2^n)
+          ASR   n,<ea>        Arithmetic shift to the right (/2^n)
+          LSL   n,<ea>        Logic shift to the left.
+          LSR   n,<ea>        Logic shift to the right.
+          ROL   n,<ea>        Rotation left.
+          ROR   n,<ea>        Rotation right.
+          ROXL  n,<ea>        Rotation left with transfer in X flag.
+          ROXR  n,<ea>        Rotation right with transfer in X flag.
+
+
+MOVE DATA INSTRUCTIONS
+
+          EXG   rn,rn         Exchange two register contents (don't confuse
+                              with swap!).
+          LEA   <ea>,an       Load an effective address in address register an.
+          LINK  an,#n         Build stack range.
+          MOVE  source,dest   Carry value over from source to destination.
+          MOVE  SR,<ea>       Transfer the status register contents.
+          MOVE  <ea>,SR       Transfer the status register contents.
+          MOVE  USP,<ea>      Transfer the user stack pointer.
+          MOVE  <ea>,USP      Transfer the user stack pointer.
+          MOVEA <ea>,an       Transfer a value to the address register an.
+          MOVEM regs,<ea>     Transfer several registers at once.
+          MOVEM <ea>,regs     Transfer several registers at once.
+          MOVEP source,dest   Transfer data to peripherals.
+          MOVEQ #n,dn         Quickly transfer an eight bit constant to the
+                              data register dn.
+          PEA   <ea>          Deposit an address on the stack.
+          SWAP  dn            Swap the halves of the register (the upper 16 bit
+                              with the lower).
+          UNLK  an            Unlink the stack.
+
+
+68000 INSTRUCTION OVERVIEW
+
+          The following table is an overview of all 68000 instructions along
+          with their possable addressing types and the influence of flags.
+
+          Abbreviations:
+
+          x = legal          s = source only            d = destination only
+          - = not affected   0 = cleared                1 = set
+          u = undetermined   * = modified accordingly   P = privileged
+
+
+          MNEMONIC     1  2  3  4  5  6  7  8  9 10 11 12  XNZVC  P
+
+          ABCD         x           x
+          ADD          s  s  x  x  x  x  x  x  x  s  s  s  *****
+          ADDA         x  x  x  x  x  x  x  x  x  x  x  x  -----
+          ADDI         x     x  x  x  x  x  x  x           *****
+          ADDQ         x  x  x  x  x  x  x  x  x           *****
+          ADDX         x           x                       *****
+          AND          s     x  x  x  x  x  x  x  s  s  s  -**00
+          ANDI         x     x  x  x  x  x  x  x           -**00
+          ASL, ASR     x     x  x  x  x  x  x  x           *****
+          Bcc                                              -----
+          BCHG         x     x  x  x  x  x  x  x           --*--
+          BCLR         x     x  x  x  x  x  x  x           --*--
+          BRA                                              -----
+          BSET         x     x  x  x  x  x  x  x           --*--
+          BSR                                              -----
+          BTST         x     x  x  x  x  x  x  x  z  x  x  --*--
+          CHK          x     x  x  x  x  x  x  x  x  x  x  -*uuu
+          CLR          x     x  x  x  x  x  x  x           -0100
+          CMP          x  x  x  x  x  x  x  x  x  x  x  x  -****
+          CMPA         x  x  x  x  x  x  x  x  x  x  x  x  -****
+          CMPI         x     x  x  x  x  x  x  x           -****
+          CMPM               x        x  x  x  x     x  x  -***
+          cpGEN                                            -----
+          DBcc                                             -----
+          DIVS         x     x  x  x  x  x  x  x  x  x  x  -***0
+          DIVU         x     x  x  x  x  x  x  x  x  x  x  -***0
+          EOR          x     x  x  x  x  x  x  x           -**00
+          EORI         x     x  x  x  x  x  x  x           -**00
+          EORI CCR                                         *****
+          EORI SR                                          *****
+          EXG                                              -----
+          EXT                                              -**00
+          EXTB                                             -**00
+          ILLEGAL                                          -----
+          JMP                x        x  x  x  x     x  x  -----
+          JSR                x        x  x  x  x     x  x  -----
+          LEA                x        x  x  x  x     x  x  -----
+          LINK            x                                -----
+          LSL, LSR           x  x  x  x  x  x  x           ***0*
+          MOVE         x  s  x  x  x  x  x  x  x  s  s  s  -**00
+          MOVEA        x  x  x  x  x  x  x  x  x  x  x  x  -----
+          MOVE to CCR  x     x  x  x  x  x  x  x  x  x  x  *****
+          MOVE from SR x     x  x  x  x  x  x  x           -----  P
+          MOVE to SR   x     x  x  x  x  x  x  x  x  x  x  *****  P
+          MOVE USP        x                                -----  P
+          MOVEM              x  s  d  x  x  x  x     s  s  -----
+          MOVEP        s  d                                -----
+          MOVEQ        d                                   -**00
+          MULS         x     x  x  x  x  x  x  x  x  x  x  -**00
+          MULU         x     x  x  x  x  x  x  x  x  x  x  -**00
+          NBCD         x     x  x  x  x  x  x  x           *u*u*
+          NEG          x     x  x  x  x  x  x  x           *****
+          NEGX         x     x  x  x  x  x  x  x           *****
+          NOP                                              -----
+          NOT          x     x  x  x  x  x  x  x           -**00
+          OR           s     x  x  x  x  x  x  x  s  s  s  -**00
+          ORI          x     x  x  x  x  x  x  x           -**00
+          PEA                x        x  x  x  x     x  x  -----
+          RESET                                            -----  P
+          ROL, ROR           x  x  x  x  x  x  x           -**0*
+          ROXL, ROXR         x  x  x  x  x  x  x           -**0*
+          RTE                                              -----  P
+          RTR                                              *****
+          RTS                                              -----
+          SBCD         x           x                       *u*u*
+          Scc          x     x  x  x  x  x  x  x           -----
+          STOP                                    x        -----
+          SUB          s  s  x  x  x  x  x  x  x  s  s  s  *****
+          SUBA         x  x  x  x  x  x  x  x  x  x  x  x  -----
+          SUBI         x     x  x  x  x  x  x  x           *****
+          SUBQ         x  x  x  x  x  x  x  x  x           *****
+          SUBX         x           x                       *****
+          SWAP         x                                   -**00
+          TAS          x     x  x  x  x  x  x  x           -**00
+          TRAP                                    x        -----
+          TRAPV                                            -----
+          TST          x     x  x  x  x  x  x  x           -**00
+          UNLK            x                                -----

@@ -1,0 +1,489 @@
+/*    Govern ancient Sumeria.    Heavily modified by Mike Arnautov 1975.
+ *    Converted from Basic to PR1ME Fortran (mode 32R) MLA 1979.
+ *    Rev.19.1, GGR version 14 Oct 83. MLA
+ *    Converted to ANSI C December 2001. MLA
+ *    Rev.19.2, AMiGA version by Eugene aGGreSSor Sobolev, 31 Jul 2020
+ *    Rev.19.3, Bugfix and some new features, 03 Oct 2020
+ */
+
+const char version[] = "$VER: Sumeria 19.3 by aGGreSSor/CPU (03 Oct 2020)";
+const char stack[] = "$STACK: 81920";
+
+#include <stdio.h>
+#include <time.h>    // _gettimeofday
+#include <math.h>    // log10
+#include "context.h"
+
+int second_term;
+int dead_total;
+int year_term;
+int year_abs;
+int percent_starved;
+int dead_total;
+int starved;
+int population;
+int immigration;
+int acreage;
+int yield;
+int rat_food;
+int stores;
+int harvest;
+int transaction;
+int rats;
+
+float acres_per_head;
+float acres_per_init;
+float stores_per_head;
+float tmp_float;
+float rats_ate;
+float rat_log;
+float price;
+float breadline;
+float provisions;
+float plague;
+//float percent_starved; // ???
+
+typedef enum {false, true} bool;
+bool init_vars;
+
+char reply [160];
+
+void reset_vars(void)
+{
+   second_term = 0;
+   acres_per_init = 10;
+   year_term = 9;
+   year_abs = 1794;
+   percent_starved = 0;
+   dead_total = 0;
+   starved = 0;
+   population = 100;
+   immigration = 5;
+   acreage = 1000;
+   yield = 3;
+   rat_food = 200;
+   stores = 2800;  
+   harvest = 3000;
+   transaction = 0;
+   rats = 1000;
+   rat_log = 3;
+
+//   printf("reset!");
+   init_vars = false;
+}
+
+void cls(void)
+{
+#ifdef __AROS__
+   printf("\033[0;0H\033[J"); /* Clear the AROS console */
+#else
+   printf("\033[2J");         /* Clear the POSIX console */
+   printf("\033[0;0f");       /* Move cursor to the top left hand corner */
+#endif
+}
+
+void try_again (int reason)
+{
+   cls ();
+   if (reason == 1)
+      puts (GetLocaleString (TX_TRY_AGAIN_1));
+   if (reason)
+   {
+      printf (GetLocaleString (TX_TRY_AGAIN_C), reason == 3 ? 'C' : 'c');
+      puts (GetLocaleString (TX_TRY_AGAIN_2));
+   }
+   else
+   {
+      puts (GetLocaleString (TX_LUCKY_BASTARD));
+   }
+   if (init_vars == false)
+   {
+     year_term = 0;
+     year_abs++;
+     percent_starved = starved * 100.0 / population;
+     dead_total = starved;
+   }
+}
+
+float rnd (void)
+{
+   return ((rand () % 1000) / 1000.0);
+}
+
+int iabs (int value)
+{
+   return ((value >= 0) ? value : -value);
+}
+
+void think_again (char *what, int quantity)
+{  
+   char *gptr;
+   char *lptr;
+
+   gptr = GetLocaleString (TX_GRAIN);
+   lptr = GetLocaleString (TX_LAND);
+   
+   if (*what == *lptr || *what == *gptr)
+      printf (GetLocaleString (TX_THINK_AGAIN));
+   if (*what == *lptr)
+      printf (GetLocaleString (TX_LAND_QUANTITY), quantity);
+   else if (*what == *gptr)
+      printf (GetLocaleString (TX_GRAIN_QUANTITY), quantity);
+   else
+      printf (GetLocaleString (TX_PEOPLE_POPULATION), population);
+   puts (GetLocaleString (TX_NOW_THEN));
+}
+int query (char *prompt)
+{
+   while (1)
+   {
+      int sign;
+      int value;
+      char * cptr;
+      
+      printf (prompt);
+      fgets (reply, sizeof (reply) - 1, stdin);
+      value = 0;
+      sign = 1;
+      cptr = reply;
+      while (*cptr == ' ' || *cptr == '\t') cptr++;
+      if (*cptr == '-')
+      {
+         cptr++;
+         sign = -1;
+      }
+      if (*cptr == 'q' || *cptr == 'Q')
+         terminate (1);
+      while (*cptr && *cptr != '\n')
+      {
+         if (*cptr >= '0' && *cptr <= '9')
+            value = 10 * value + *cptr - '0';
+         else if (*cptr == '.')
+            break;
+         else if (*cptr != '.')
+         {
+            sign = 0;
+            break;
+         }
+         cptr++;
+      }
+      if (sign)
+         return (sign * value);
+      puts (GetLocaleString (TX_UNCLEAR_COMMAND));
+   }   
+}
+
+void terminate (int abort)
+{
+   if (abort == 2)
+   {
+      puts (GetLocaleString (TX_BEHEADED));
+   }
+   else if (abort == 1)
+   {
+      puts (GetLocaleString (TX_QUIT));
+   }
+   if (abort != 2)
+   {
+      puts (GetLocaleString (TX_BYE));
+   }
+   if (abort == 0)
+   {
+   puts (GetLocaleString (TX_SURVIVED));
+   }
+   else
+   {
+   puts (GetLocaleString (TX_GAME_OVER));
+   }
+   puts (GetLocaleString (TX_TRY_AGAIN));
+   while (1)
+   {
+      fgets (reply, sizeof(reply) - 1, stdin);
+	  if (*reply == '\n') continue;
+	  if (*reply == 'n' || *reply == 'N' || *reply == 'q')
+	  {
+        CloseContext ();
+        exit (0);
+      }
+      if (*reply == 'y' || *reply == 'Y')
+	  { 
+		init_vars = true;
+		try_again(1);
+		break; 
+	  }
+	  continue;
+   }
+}
+
+int main ()
+{
+
+   int rounded_price;
+   int sell;
+   int buy;
+   int plant;
+   int food;
+   int plague_deaths;
+   int survived;
+   int dead_rats;
+   int tmp_int;
+
+   OpenContext ();
+
+   printf (GetLocaleString (TX_ABOUT));
+
+   while (1)
+   {
+      printf (GetLocaleString (TX_HOWTO_PLAY));
+      fgets (reply, sizeof(reply) - 1, stdin);
+      if (*reply == '\n') break;
+      *reply += (*reply < 'a') ? 'a' - 'A' : 0;
+      if (*reply == 'y' || *reply == 'Y') break;
+      if (*reply != 'n' && *reply != 'q') continue;
+      puts (GetLocaleString (TX_TOO_BAD));
+      break;
+   }
+  
+   srand (time (NULL));
+   *(reply + sizeof (reply) - 1) = '\0';
+   
+   puts (GetLocaleString (TX_DESCRIPTION));
+
+   price = 18 + 6 * rnd ();
+   breadline = 19 + 4 * rnd ();
+   provisions = breadline;
+   plague = rnd () / 2;
+   reset_vars ();
+   while (1)
+   {
+      while (1)
+      {
+		 if (init_vars == true) { reset_vars(); }
+         year_term++;
+         year_abs--;
+         putchar ('\n');
+         acres_per_head = ((float) acreage) / population;
+         stores_per_head = ((float) stores) /population;
+         puts (GetLocaleString (TX_REPORT));
+         printf (GetLocaleString (TX_IN_YEAR), year_abs);
+         if (starved > 0)
+            printf ("%ld", starved);
+         else
+            printf (GetLocaleString (TX_NO));
+         printf (GetLocaleString (TX_DEAD_AND_NEW), 
+            starved <= 1 ? GetLocaleString (TX_PERSON) : GetLocaleString (TX_PEOPLE), immigration);
+
+         if (plague >= 0.85)
+            printf (GetLocaleString (TX_PEOPLE_DIED), 
+               plague_deaths);
+         printf (GetLocaleString (TX_PEOPLE_NOW), population);
+         printf (GetLocaleString (TX_LAND_NOW), acreage);
+         printf (GetLocaleString (TX_GRAIN_GIVE), yield);
+         printf (GetLocaleString (TX_GRAIN_LOST), rat_food);
+         printf (GetLocaleString (TX_GRAIN_NOW), stores);
+			
+         if (year_term == 11) 
+            break;
+         rounded_price = price + 0.5;
+         printf (GetLocaleString (TX_LAND_PRICE), rounded_price);
+
+         while (1)
+         {
+            buy = query (GetLocaleString (TX_HOW_LAND_BUY));
+            if (rounded_price * buy <= stores)
+               break;
+            think_again (GetLocaleString (TX_GRAIN), stores);
+         }
+         if (buy > 0)
+         {
+            acreage += + buy;
+            stores -= rounded_price * buy;
+            transaction = buy;
+         }
+         else
+         {
+            while (1)
+            {
+               sell = query (GetLocaleString (TX_HOW_LAND_SELL));
+               if (sell <= acreage)
+                  break;
+               think_again (GetLocaleString (TX_LAND), acreage);
+            }
+            acreage -= sell;
+            stores += rounded_price * sell;
+            transaction = -sell;
+         }
+      
+         putchar ('\n');
+         while (1)
+         {
+            food = query (GetLocaleString (TX_HOW_GRAIN_LOST));
+            if (food <= stores)
+               break;
+            think_again (GetLocaleString (TX_GRAIN), stores);
+         }
+         stores -= food;
+         putchar ('\n');
+         while (1)
+         {
+            plant = query (GetLocaleString (TX_HOW_LAND_CULTIVATE));
+            if (plant <= acreage && plant <= 2 * stores && 
+                plant <= 10 * population)
+               break;
+            if (plant > acreage)
+               think_again (GetLocaleString (TX_LAND), acreage);
+            else if (plant > 2 * stores)
+               think_again (GetLocaleString (TX_GRAIN), stores);
+            else
+               think_again (GetLocaleString (TX_PEOPLE), population);
+         }
+
+         cls ();   
+         stores -= plant / 2;
+         yield = 4 * rnd() + 1.65;
+         harvest = plant * yield;
+         rat_food = 0;
+         rats_ate = stores * (rat_log - 2.2) / 3.6;
+         dead_rats = rats - 4 * rats_ate;
+         rats = 3 * rats;
+         if (dead_rats > 0) rats = rats - dead_rats;
+   
+         if (plague >= 0.3) 
+         {
+            if (plague >= 0.85)
+            {
+               if (plague > 1) plague = 1;
+               rats = 500 + 5000 * (plague - 0.7);
+            }
+            else
+               rats *= 1.225 - 0.75 * plague;
+         }
+   
+         if (rats < 500)
+            rats = 500;
+         rat_food = rats / 4;
+         if (rats_ate < rat_food)
+            rat_food = rats_ate;
+         rat_food *= 7;
+         if (rat_food <= 20) 
+            rat_food = 20 + 30 * rnd();
+         stores += harvest - rat_food;
+         rat_log = log10 (1.0 * rats);
+         if (stores + stores <= harvest)
+         {
+            rat_food = harvest * (1 + rnd()) / 4.0;
+            stores = harvest - rat_food;
+         }
+   
+         tmp_int = 100 + iabs (100 - population);
+         immigration = tmp_int * ((acres_per_head + 
+            stores_per_head - 36) / 250.0 + 
+               (provisions - breadline + 2.5) / 40) + .5;
+         if (immigration <= 0) 
+            immigration = 5 * rnd() + 1;
+         survived = food / breadline;
+         provisions = (1.0 * food) / population;
+         plague = (2 * rnd() + rat_log - 3) / 3.0;
+         if (population < survived) 
+            survived = population;
+         else
+         {
+            starved = population - survived;
+            if (starved >= 0.45 * population)
+            {
+               printf (GetLocaleString (TX_PEOPLE_DIED_IN_1_YEAR), starved);
+               terminate (2);
+            }
+            percent_starved = ((year_term - 1) * percent_starved + 
+               100.0 * starved / population) / year_term;
+            population = survived;
+            dead_total += starved;
+         }
+         population += immigration;
+         price = (price + 15 + (stores_per_head - acres_per_head) / 3) / 2 + 
+            transaction / 50 + 3 * rnd() - 2;
+         if (price <1.0) price = 1.0;
+         if (plague >= 0.85)
+         {
+            plague_deaths = population * (0.429 * plague - 0.164);
+            population -= plague_deaths;
+         }
+      }
+   
+      printf (GetLocaleString (TX_PEOPLE_DIED_IN_10_YEAR), dead_total);
+      printf (GetLocaleString(TX_STARTED_WITH), (int) acres_per_init);
+      acres_per_head = (1.0 * acreage) / population;
+      acres_per_init = acres_per_head;
+      printf (GetLocaleString (TX_LAND_PER_PERSON), (int) acres_per_head);
+   
+      tmp_float = 10 * acres_per_head / 3;
+      if (percent_starved > 25)
+         terminate (2);
+      if (percent_starved <= 7)
+      {
+         try_again (1);
+         continue;
+      }
+      if (tmp_float < 7) 
+         terminate (2);
+      if (tmp_float > 10)
+      {
+         puts (GetLocaleString (TX_FINAL_HIGH));
+         terminate (0);
+      }
+      puts (GetLocaleString (TX_FINAL_BAD));
+      tmp_int = 3 * rnd();
+      if (tmp_int == 0)
+         puts (GetLocaleString (TX_FINAL_BAD_VARIANT_1));
+      if (tmp_int == 1)
+         puts (GetLocaleString (TX_FINAL_BAD_VARIANT_2));
+      if (tmp_int == 2)
+      {
+         puts (GetLocaleString (TX_FINAL_BAD_VARIANT_3));
+      }
+      terminate (0);
+      
+      if (acres_per_head < 7)
+      {
+         try_again (1);
+         continue;
+      }
+      if (acres_per_head < 9)
+      {
+         puts (GetLocaleString (TX_FINAL_GOOD));
+         if (rnd() >= 0.5) 
+         {
+            puts (GetLocaleString (TX_FINAL_GOOD_VARIANT_1));
+         }
+         else
+         {
+            puts (GetLocaleString (TX_FINAL_GOOD_VARIANT_2));
+         }
+      }
+      else if (second_term == 0)
+
+      if (second_term == 0)
+      {
+         if (stores <= 10 * population)
+         {
+            try_again (3);
+            continue;
+         }
+         second_term = 1;
+         try_again (0);
+         continue;
+      }
+      else
+      {
+         puts (GetLocaleString (TX_FINAL_BEST));
+      }
+      if (stores > 10 * population)
+         terminate (0);
+      puts (GetLocaleString (TX_HOWEVER));
+      second_term = 0;
+      try_again (2);
+      continue;
+   }
+   CloseContext ();
+   exit (0);
+}

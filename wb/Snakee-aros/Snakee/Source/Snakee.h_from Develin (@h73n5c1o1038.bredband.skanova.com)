@@ -1,0 +1,253 @@
+/*
+->===========================================================<-
+->= Snakee - © Copyright 2003,2009 OnyxSoft                 =<-
+->===========================================================<-
+->= Version  : 0.2 - Public MUI-version                     =<-
+->= Author   : Stefan Blixth                                =<-
+->= Compiled : 2009-01-24                                   =<-
+->= Info     : A small MUI-based wormgame                   =<-
+->===========================================================<-
+*/
+
+/* Standard... */
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <time.h>
+
+
+/* System... */
+#if !defined (__amigaos4__) || !defined(__AROS__)
+  #include <clib/alib_protos.h>
+#endif
+
+#include <proto/dos.h>
+#include <proto/intuition.h>
+#include <proto/muimaster.h>
+#include <proto/exec.h>
+#include <proto/asl.h>
+#include <proto/utility.h>
+#include <proto/gadtools.h>
+#include <proto/graphics.h>
+#include <proto/icon.h>
+#include <libraries/mui.h>
+#include <libraries/iffparse.h> /* for MAKE_ID */
+
+#ifdef __MORPHOS
+#include <mui/Aboutbox_mcc.h>
+#endif
+
+/* Application specific includes...*/
+#include "Snakee_rev.h"
+#include "SDI_hook.h"
+#include "SDI_stdarg.h"
+
+/* IO macros */
+#define IO_SIGBIT(req)  ((LONG)(((struct IORequest *)req)->io_Message.mn_ReplyPort->mp_SigBit))
+#define IO_SIGMASK(req) ((LONG)(1L<<IO_SIGBIT(req)))
+
+#ifndef MAKE_ID
+#define MAKE_ID(a,b,c,d) ((ULONG) (a)<<24 | (ULONG) (b)<<16 | (ULONG) (c)<<8 | (ULONG) (d))
+#endif
+
+#if defined(__VBCC__)
+#define UTILITYBASE_TYPE   struct UtilityBase
+#elif defined(__MORPHOS__) || defined(__SASC)
+#define UTILITYBASE_TYPE   struct Library
+#else
+#define UTILITYBASE_TYPE   struct UtilityBase
+#endif
+
+#ifdef __amigaos4__
+struct Library          *IntuitionBase = NULL;
+struct Library          *GfxBase       = NULL;
+#else
+struct DosLibrary       *DOSBase       = NULL;
+struct GfxBase          *GfxBase       = NULL;
+#endif
+struct Library          *IconBase      = NULL;
+struct Library          *MUIMasterBase = NULL;
+
+#ifdef __amigaos4__
+   struct GraphicsIFace    *IGraphics;
+   struct DosIFace         *IDos;
+   struct IntuitionIFace   *IIntuition;
+   struct IconIFace        *IIcon;
+   struct MUIMasterIFace   *IMUIMaster;
+#define doMethod      IDoMethod
+#define doSuperMethod IDoSuperMethod
+
+#else
+
+#define doMethod      DoSuperMethod
+#define doSuperMethod IDoSuperMethod
+UTILITYBASE_TYPE     *UtilityBase   = NULL;
+struct IntuitionBase *IntuitionBase = NULL;
+#endif
+
+
+LONG __stack = 16384;
+
+#define DIRECTION_NONE  0
+#define DIRECTION_UP    1
+#define DIRECTION_DOWN  2
+#define DIRECTION_RIGHT 3
+#define DIRECTION_LEFT  4
+
+#define GAME_WIDTH   300
+#define GAME_HEIGHT  250
+#define GAME_DELAY   20000
+#define GAME_FOODS   10
+#define GAME_WLENMAX 200
+#define GAME_WGROW   GAME_WLENMAX/GAME_FOODS   /* 200/10 = 20 */
+
+typedef struct
+{
+   int x;
+   int y;
+} coords;
+
+
+struct snakee_data
+{
+   UWORD xpos;
+   UWORD ypos;
+   UWORD cntr;
+   UWORD food;
+   UWORD level;
+   ULONG points;
+   UWORD bestlevel;
+   ULONG bestpoints;
+   UWORD delay;
+   UWORD seedx;
+   UWORD seedy;
+   UWORD wormlen;
+   UWORD len;
+   BOOL  sleep;
+   coords pos[GAME_WLENMAX];
+   int   way;
+   int   waytemp;
+   int   mccx;
+   int   mccy;
+   int   mccw;
+   int   mcch;
+
+   struct RastPort *mccrp;
+
+   /* Timer */
+   struct MsgPort       *port;
+   struct timerequest   *req;
+   struct MUI_InputHandlerNode ihnode;
+
+   /* Events */
+   struct MUI_EventHandlerNode ehnode;
+};
+
+
+
+/* Global variables... Hated by some, loved by others =) */
+APTR app, win_main, mstrip, temp;
+APTR butt_start;//, butt_about;
+APTR str_status, str_level, str_blevel, str_points, str_bpoint;
+
+BOOL going = TRUE;
+ULONG muisig = 0;
+
+char txt_point[20];
+char txt_bpoint[20];
+char txt_level[10];
+char txt_blevel[!0];
+
+static Object *snakee_obj  = NULL;
+struct MUI_CustomClass  *snakee_mcc = NULL;
+struct DiskObject *snakee_icon      = NULL;
+
+
+// Defines - Menu, objects
+enum
+{
+   ID_MENU_ABOUT = 1,
+   ID_MENU_ABOUTMUI,
+   ID_MENU_ICONIFY,
+   ID_MENU_QUIT,
+   ID_MENU_SNAPSHOT,
+   ID_MENU_UNSNAPSHOT,
+   ID_MENU_MUIPREFS,
+   ID_OBJ_LEVEL,
+   ID_OBJ_SCORE,
+   ID_BUTTON_START,
+   ID_BUTTON_ABOUT
+};
+
+
+#define SERIALNUMBER       (1)
+#define TAGBASE_DEVELIN    (TAG_USER | (SERIALNUMBER<<16))
+#define MUIM_TriggerRedraw (TAGBASE_DEVELIN | 0x0001)
+#define INITTAGS           msg->ops_AttrList
+
+
+static struct NewMenu MenuData[] =
+{
+   { NM_TITLE, "Snakee",               0, 0, 0, 0                        },
+   { NM_ITEM,  "About...",             "?", 0, 0, (APTR)ID_MENU_ABOUT    },
+   { NM_ITEM,  "About MUI...",         "M", 0, 0, (APTR)ID_MENU_ABOUTMUI },
+   { NM_ITEM,  NM_BARLABEL,            0, 0, 0, (APTR)0                  },
+   { NM_ITEM,  "Iconify",              "I", 0, 0, (APTR)ID_MENU_ICONIFY  },
+   { NM_ITEM,  NM_BARLABEL,            0, 0, 0, (APTR)0                  },
+   { NM_ITEM,  "Quit",                 "Q", 0, 0, (APTR)ID_MENU_QUIT     },
+
+   { NM_TITLE, "Settings",             0, 0, 0, 0                        },
+   { NM_ITEM , "Snapshot",             0, 0, 0, (APTR)ID_MENU_SNAPSHOT   },
+   { NM_ITEM , "UnSnapshot",           0, 0, 0, (APTR)ID_MENU_UNSNAPSHOT },
+   { NM_ITEM ,  NM_BARLABEL,           0, 0, 0, (APTR)0                  },
+   { NM_ITEM,  "MUI...",               "S", 0, 0, (APTR)ID_MENU_MUIPREFS },
+   { NM_END,   NULL,                   0, 0, 0, 0                        },
+};
+
+#ifdef __MORPHOS__	// Nifty new aboutbox for MorphOS...
+
+const STRPTR UsedClasses[] =
+{
+   "Aboutbox.mcc",
+    NULL
+};
+
+static STRPTR credits =
+   "\33b%p\33n\n"           /* programming:  */
+   "\tStefan Blixth\n"
+   "\n"
+   "\33b%W\33n\n"           /* web support: */
+   "\twww.onyxsoft.se";
+
+APTR aboutbox;
+
+#endif
+
+
+/* Prototypes... */
+void cleanupstuff(void);
+void openstuff(void);
+void opengui(void);
+void handleaction(void);
+void parsestrings(void);
+
+void seedfood(struct snakee_data *);
+void checkwalls(struct snakee_data *);
+void checksnake(struct snakee_data *);
+void checkfood(struct snakee_data *);
+
+void pausestart(struct snakee_data *);
+void collide(struct snakee_data *);
+void nextlevel(struct snakee_data *);
+void updatescore(struct snakee_data *);
+void initgame(struct snakee_data *);
+void createframe(struct snakee_data *);
+void gethighscore(struct snakee_data *);
+
+void setstatus(char *);
+void setpoints(ULONG);
+void setlevel(UWORD);
+void setbpoints(ULONG);
+void setblevel(UWORD);
+
+

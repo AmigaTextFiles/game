@@ -1,0 +1,85 @@
+/**************************\
+** 91 v1.0 for Solitarexx **
+**  by Michal Szafranski  **
+\**************************/
+OPTIONS RESULTS
+
+tex = '"Ninety One v1.0"'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 13 16 '""' 6
+ADDTEXT 14 26 tex 6
+SELECTGUI 1
+SCREENSIZE 3 0 5 0
+DO i = 0 TO 12
+	NEWSTACK i 0 0 (i//5) (i%5)
+	stack.i = RESULT
+END
+NEWSTACK 20 2 0 4 2
+deck = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	SELECTGUI 4
+	sel = 0
+	DO UNTIL cont = 1
+		CLEANUP deck
+		count. = 0
+		DO i = 0 TO 12
+			CARDSELECT deck 4
+			PARSE VAR RESULT xx war xx
+			count.war = count.war +1
+			MOVECARDS deck stack.i REVERSE
+		END
+		CALL RECOUNT
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sid = 20 | cont = 0 THEN ERRBEEP
+			WHEN sel = 0 THEN sel=stack
+			WHEN sel > 0 THEN CALL DOSTACKS
+		END
+		IF act = 3 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+	END
+RETURN
+DOSTACKS:
+	WHICHCARD sel
+	IF RESULT = 1 THEN RETURN
+	CARDSELECT stack 1
+	PARSE VAR RESULT xx war xx
+	count.war = count.war -1
+	MOVECARDS sel stack
+	CARDSELECT sel 1
+	PARSE VAR RESULT xx war xx
+	count.war = count.war +1
+	CALL RECOUNT
+	sel = 0
+RETURN
+RECOUNT:
+	sum = 13
+	cont = 0
+	DO i = 1 TO 12
+		sum = sum+(i * count.i)
+	END
+	SETGADGET 13 STR '"Sum:' sum||'"'
+	SELECT
+		WHEN sum = 91 THEN SETGADGET 13 STR '"Ninety One!"'
+		WHEN count.0 >2 THEN SETGADGET 13 STR '"Aces Fault"'
+		WHEN count.12 >2 THEN SETGADGET 13 STR '"Kings Fault"'
+		OTHERWISE cont = 1
+	END
+RETURN

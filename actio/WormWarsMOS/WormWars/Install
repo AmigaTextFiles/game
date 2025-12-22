@@ -1,0 +1,267 @@
+; $VER: Worm Wars 9.36 (13.2.2024)
+; Installer script for Worm Wars for Amiga
+; © Copyright 2004-2024 Amigan Software
+; Required: Installer 42.9+. Recommended: Installer 44+.
+
+(set @app-name ("Worm Wars 9"))
+(welcome "Welcome to the " @app-name " installer.")
+(set #majorversion (/ @installer-version 65536))
+(if (>= #majorversion 44)
+(   (if (<= #majorversion 45)
+    (   (effect "center" "radial" $FFFF00 $0000FF)
+        (showmedia 'logo' 'gfx/logo' 'upper_center' 'none' 0)
+))  ))
+
+(complete 0)
+
+(if (= @user-level 0)
+(   (user 1)
+))
+
+(set #new_dir
+    (askdir
+        (prompt "Where do you want to install " @app-name "?\n"
+        "A drawer called \"WormWars\" will be created.\n")
+        (default "Work:")
+        (help @askdir-help)
+    )
+)
+(set @default-dest (tackon #new_dir "WormWars"))
+(makedir @default-dest (infos))
+(complete 5)
+(set #dest-parent (tackon "/" #new_dir))
+(copyfiles
+    (source "/WormWars.info")
+    (dest #dest-parent)
+)
+
+(complete 10)
+(set #music 1)
+(set #not-aros (run "getenv ABI" (safe))) ;;0=AROS, 5=not AROS
+(if (= #not-aros 0)) ;if AROS
+(   (set #music 0)
+)
+;else
+(   (set #moschoice
+        (askchoice
+            (prompt "Are you running MorphOS?")
+            (choices "Yes" "No")
+            (default 1)
+            (help @askchoice-help)
+    )   )
+    (if (= #moschoice 0)) ;MorphOS
+    (   (set #music 0)
+)   )
+
+;PROGRAM------------------------------------------------------------------
+
+(complete 15)
+(copyfiles
+    (source "WormWars")
+    (dest @default-dest)
+    (infos)
+)
+
+;DOCUMENTATION------------------------------------------------------------
+
+(complete 25)
+(copyfiles
+    (source "WormWars.guide")
+    (dest @default-dest)
+    (infos)
+)
+
+;SOUND EFFECTS------------------------------------------------------------
+
+(complete 30)
+(set #dir-fx (tackon @default-dest "fx"))
+(makedir #dir-fx)
+(copyfiles
+    (source "fx")
+    (pattern "#?")
+    (dest #dir-fx)
+)
+
+;MUSIC--------------------------------------------------------------------
+
+(complete 35)
+(if (= #music 1)
+(   (set #dir-music (tackon @default-dest "music"))
+    (makedir #dir-music)
+    (copyfiles
+        (source "music")
+        (pattern "#?")
+        (dest #dir-music)
+))  )
+
+;LEVELSETS----------------------------------------------------------------
+
+(complete 40)
+(copyfiles
+    (source "")
+    (pattern "#?.lset")
+    (dest @default-dest)
+    (infos)
+)
+
+;CATALOGS-----------------------------------------------------------------
+
+(complete 45)
+(set #lang
+ (askoptions
+  (prompt "Which languages should be installed?")
+  (choices "Deutsch (German)"
+           "Ãåñìáíüò (Greek)"
+           "Italiano (Italian)"
+           "Polski (Polish)"
+           "Russian"
+           "Español (Spanish)"
+  )
+  (help @askchoice-help)
+  (default 0)
+))
+
+(complete 48)
+(if
+ (<> #lang 0) ;condition
+ ( ;then
+  (if
+  (<> (exists "LOCALE:Catalogs" (noreq)) 2) ;condition
+  ( ;then
+   (makedir "LOCALE:Catalogs")
+))))
+
+(if (>= #majorversion 51)
+ ((set #dest-ger "LOCALE:Catalogs/German")
+  (set #dest-gre "LOCALE:Catalogs/Greek")
+  (set #dest-ita "LOCALE:Catalogs/Italian")
+  (set #dest-pol "LOCALE:Catalogs/Polish")
+  (set #dest-rus "LOCALE:Catalogs/Russian")
+  (set #dest-spa "LOCALE:Catalogs/Spanish")
+ )
+ ;else
+ ((set #dest-ger "LOCALE:Catalogs/deutsch")
+  (set #dest-gre "LOCALE:Catalogs/greek")
+  (set #dest-ita "LOCALE:Catalogs/italiano")
+  (set #dest-pol "LOCALE:Catalogs/polski")
+  (set #dest-rus "LOCALE:Catalogs/russian")
+  (set #dest-spa "LOCALE:Catalogs/español")
+))
+
+(complete 50)
+(if (bitand #lang 1)
+ ((copyfiles
+  (source "Catalogs/deutsch")
+  (dest #dest-ger)
+  (all)
+  (optional "nofail" "force" "askuser")
+)))
+
+(complete 52)
+(if (bitand #lang 2)
+ ((copyfiles
+  (source "Catalogs/greek")
+  (dest #dest-gre)
+  (all)
+  (optional "nofail" "force" "askuser")
+)))
+
+(complete 53)
+(if (bitand #lang 4)
+ ((copyfiles
+  (source "Catalogs/italiano")
+  (dest #dest-ita)
+  (all)
+  (optional "nofail" "force" "askuser")
+)))
+
+(complete 55)
+(if (bitand #lang 8)
+ ((copyfiles
+  (source "Catalogs/polski")
+  (dest #dest-pol)
+  (all)
+  (optional "nofail" "force" "askuser")
+)))
+
+(complete 56)
+(if (bitand #lang 16)
+ ((copyfiles
+  (source "Catalogs/russian")
+  (dest #dest-rus)
+  (all)
+  (optional "nofail" "force" "askuser")
+)))
+
+(complete 58)
+(if (bitand #lang 16)
+ ((copyfiles
+  (source "Catalogs/español")
+  (dest #dest-spa)
+  (all)
+  (optional "nofail" "force" "askuser")
+)))
+
+;LIBRARIES----------------------------------------------------------------
+
+(complete 60)
+(if (= #music 1)
+(   (copylib
+        (prompt "Installing MEDPlayer.library to LIBS:")
+        (help "Worm Wars can use this to play MED songs.");
+        (source "MEDPlayer.library")
+        (dest "LIBS:")
+        (confirm)
+    )
+
+    (if (>= #majorversion 51)
+    (   (complete 70)
+        (copylib
+            (prompt "Installing Mem-Handler to L:")
+            (help "The OS4 MEDplayer.library requires Mem-Handler.")
+            (source "Mem-Handler/Mem-Handler")
+            (dest "L:")
+            (confirm)
+        )
+
+        (complete 75)
+        (copyfiles
+            (prompt "Installing MEM to DEVS:DosDrivers/")
+            (help "The OS4 MEDplayer.library requires Mem-Handler.")
+            (source "Mem-Handler/MEM")
+            (dest "DEVS:DosDrivers")
+            (infos)
+            (confirm)
+))  ))  )
+
+;SOURCE CODE--------------------------------------------------------------
+
+(complete 80)
+(set #guruchoice
+    (askchoice
+        (prompt "Are you interested in the source code?")
+        (choices "Yes" "No")
+        (default 1)
+        (help @askchoice-help)
+)   )
+(if (= #guruchoice 0)
+(   (set #dir-source (tackon @default-dest "Source"))
+    (makedir #dir-source)
+    (complete 85)
+    (copyfiles
+        (prompt "Copying source code...")
+        (source "Source")
+        (help @copyfiles-help)
+        (dest #dir-source)
+        (all)
+        (infos)
+))  )
+
+(complete 100)
+
+(if (>= #majorversion 44)
+(   (if (<= #majorversion 45)
+    (   (closemedia logo)
+))  ))
+
+(exit bye)

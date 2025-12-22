@@ -1,0 +1,163 @@
+//////////////////////////////////////////////////////////////////////
+// XLogical - A puzzle game
+//
+// Copyright (C) 2000 Neil Brown, Tom Warkentin
+//
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation; either version 2
+// of the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// or at the website: http://www.gnu.org
+//
+////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef GRAPH_IMAGES_H
+#define GRAPH_IMAGES_H
+
+typedef enum defaultIcons {
+	BMP_ARROW_D = 0,
+	BMP_ARROW_L,
+	BMP_ARROW_R,
+	BMP_ARROW_U,
+	BMP_BACK_COMPLETE,
+	BMP_BACK_GAME,
+	BMP_BACK_GAMEOVER,
+	BMP_BACK_HISCORE,
+	BMP_BACK_START,
+	BMP_BACK_TIME,
+	BMP_BACK_WON,
+	BMP_BALL_C1,
+	BMP_BALL_C2,
+	BMP_BALL_C3,
+	BMP_BALL_C4,
+	BMP_BALLMOVE3_0,
+	BMP_BALLMOVE3_1,
+	BMP_BALLMOVE3_2,
+	BMP_BALLMOVE3_3,
+	BMP_BALLMOVE4_0,
+	BMP_BALLMOVE4_1,
+	BMP_BALLMOVE4_2,
+	BMP_BALLMOVE4_3,
+	BMP_BALLMOVE4_4,
+	BMP_BALLMOVE5_0,
+	BMP_BALLMOVE5_1,
+	BMP_BALLMOVE5_2,
+	BMP_BALLMOVE5_3,
+	BMP_BALLMOVE5_4,
+	BMP_BALLMOVE5_5,
+	BMP_BLOCK_BASE,
+	BMP_COVERED_CENTER,
+	BMP_COVERED_DOWN,
+	BMP_COVERED_LEFT,
+	BMP_COVERED_RIGHT,
+	BMP_COVERED_UP,
+	BMP_FINISH_1,
+	BMP_FINISH_2,
+	BMP_FINISH_3,
+	BMP_FINISH_4,
+	BMP_FONT_1,
+	BMP_FONT_2,
+	BMP_FONT_3,
+	BMP_FONT_4,
+	BMP_GEM_C1,
+	BMP_GEM_C2,
+	BMP_GEM_C3,
+	BMP_GEM_C4,
+	BMP_NEXT_BASE,
+	BMP_NUMBERS,
+	BMP_ORDER,
+	BMP_PAINT_BASE,
+	BMP_PATTERN,
+	BMP_SCROLL_BLOCK,
+	BMP_SEL_1,
+	BMP_SEL_2,
+	BMP_SEL_3,
+	BMP_SEL_4,
+	BMP_SLIDER,
+	BMP_SLIDER_THUMB,
+	BMP_SPIN_0,
+	BMP_SPIN_1,
+	BMP_SPIN_2,
+	BMP_SPINCOVER_0,
+	BMP_SPINCOVER_1,
+	BMP_SPINCOVER_2,
+	BMP_SPINCOVERRED_0,
+	BMP_SPINCOVERRED_1,
+	BMP_SPINCOVERRED_2,
+	BMP_SPINDARK,
+	BMP_SPINRED_0,
+	BMP_SPINRED_1,
+	BMP_SPINRED_2,
+	BMP_SPINRING,
+	BMP_SPINRING_D,
+	BMP_SPINRING_L,
+	BMP_SPINRING_R,
+	BMP_SPINRING_U,
+	BMP_SPINTOPOFF,
+	BMP_SPINTOPON,
+	BMP_START_C,
+	BMP_START_D,
+	BMP_START_L,
+	BMP_START_R,
+	BMP_STARTTIMER_00,
+	BMP_STARTTIMER_01,
+	BMP_STARTTIMER_02,
+	BMP_STARTTIMER_03,
+	BMP_STARTTIMER_04,
+	BMP_STARTTIMER_05,
+	BMP_STARTTIMER_06,
+	BMP_STARTTIMER_07,
+	BMP_STARTTIMER_08,
+	BMP_STARTTIMER_09,
+	BMP_STARTTIMER_10,
+	BMP_STARTTIMER_11,
+	BMP_STARTTIMER_12,
+	BMP_STARTTIMER_13,
+	BMP_STARTTIMER_14,
+	BMP_STARTTIMER_15,
+	BMP_STARTTIMER_16,
+	BMP_STARTTIMER_17,
+	BMP_STARTTIMER_18,
+	BMP_STARTTIMER_19,
+	BMP_STARTTIMER_20,
+	BMP_START_U,
+	BMP_TELEPORT_BASE,
+	BMP_TELEPORT_LR,
+	BMP_TELEPORT_UD,
+	BMP_TIMER,
+	BMP_TITLE_TEXT_1,
+	BMP_TITLE_TEXT_2,
+	BMP_TITLE_TEXT_3,
+	BMP_TITLE_TEXT_4,
+	BMP_TRACK_D,
+	BMP_TRACK_DL,
+	BMP_TRACK_DLR,
+	BMP_TRACK_DR,
+	BMP_TRACK_L,
+	BMP_TRACK_LR,
+	BMP_TRACK_R,
+	BMP_TRACK_U,
+	BMP_TRACK_UD,
+	BMP_TRACK_UDL,
+	BMP_TRACK_UDLR,
+	BMP_TRACK_UDR,
+	BMP_TRACK_UL,
+	BMP_TRACK_ULR,
+	BMP_TRACK_UR,
+	NUM_DEFAULT_ICONS	// MUST BE LAST ITEM IN LIST!!!
+} DefaultIcon;
+
+extern char *imageFiles[];
+
+#endif

@@ -1,0 +1,179 @@
+; $VER InstallPrefs 1.4l (28.04.96)
+
+(if (> (exists ("env:Language")) 0) (set lanfound (getenv "Language")) )
+(set lan 0)
+(set #lanQuestion "Please select language:")
+(set #nohelp "Sorry, no help-text.")
+(if (= "deutsch" lanfound)
+    (
+        (set lan 1)
+        (set #lanQuestion "Bitte Sprache auswählen:")
+        (set #nohelp "Sorry, kein help-text.")
+    )
+)
+
+(set Update 0)
+(set version 0)
+(set DrawerName "DC:")
+
+(complete 0)
+(set lan  (askchoice (choices "English" "Deutsch"
+                         (prompt #lanQuestion)
+                         (help #nohelp)
+                         (default lan)
+                     )
+          )
+)
+
+(set #normal "normal")
+(set #mwb1 "MagicWB (1)")
+(set #mwb2 "MagicWB (2)")
+(set #rare "RareDiamond")
+
+(if (= lan 0)
+    (
+        (set #alreadyinstalled "You have already installed a version greater or equal 1.4!\n")
+        (set #oldversion "You have already installed an older version of Diamond Prefs.\nDo you want to update or install completely new?")
+        (set #installnew "Install new")
+        (set #update "Update")
+        (set #copy "Copying..." )
+        (set #guidesource "english/DiamondPrefs.guide")
+        (set #whaticons "What kind of Icons do you want?")
+        (set #noicons "none")
+        (set #nodc "Directory DC: not found!\nYou need an installed Version of Diamond Caves to run Diamond Prefs.")
+        (set #end "\nDiamond Prefs V1.4 installation/update complete.\n\nHave fun!")
+    )
+    (
+        (set #alreadyinstalled "Es ist schon eine Version größer oder gleich V1.4 installiert!")
+        (set #oldversion "Es ist schon eine ältere Version von Diamond Prefs installiert.\nWollen Sie dieVersion erneuern oder alles komplett neu installieren?")
+        (set #installnew "neu installieren")
+        (set #update "erneuern")
+        (set #copy "Kopiere..." )
+        (set #guidesource "deutsch/DiamondPrefs.guide")
+        (set #whaticons "Was für Icons möchten Sie?")
+        (set #noicons "keine")
+        (set #nodc "Konnte Directory DC: nicht finden!\nEs muß eine installierte Version von Diamond Caves vorhanden sein!")
+        (set #end "\nDiamond Prefs V1.4 fertig installiert/erneuert.\n\nViel Spaß!")
+    )
+)
+
+
+(if (exists "DC:" (NOREQ))
+    (
+
+        (if (exists "DC:DiamondPrefs" (NOREQ))
+            (
+                (set vernum (getversion "DC:DiamondPrefs"))
+
+                (set ver (/ vernum 65536))
+                (set rev (- vernum (* ver 65536)))
+
+                (set version (+ (* 100 ver) rev))
+
+                (if (> version 102)
+                    (
+                        (message #alreadyinstalled)
+                        (exit (quiet))
+                    )
+                )
+
+                (set Update
+                    (askchoice
+                        (prompt #oldversion)
+                        (choices #installnew #update)
+                        (help "Sorry, no help-file.")
+                        (default 0)
+                    )
+                )
+            )
+        )
+    )
+    (
+        (message #nodc)
+        (exit (quiet))
+    )
+)
+
+(if (= Update 1)                  ; only Update according to present Version
+    (
+        (complete 30)
+        (copyfiles
+            (prompt #copy)
+            (help #nohelp)
+            (source "new")
+            (dest DrawerName)
+            (all)
+            (infos)
+        )
+    )
+
+    (                             ; new install: copy everything to "DrawerName" (should be "DC:" !)
+        (complete 10)
+        (set icons
+            (askchoice
+                (prompt #whaticons)
+                (choices #normal #mwb1 #mwb2 #rare #noicons)
+                (help #nohelp)
+                (default 0)
+            )
+        )
+
+        (if (= icons 0)
+            (set IconName "Icons/normal")
+        )
+        (if (= icons 1)
+            (set IconName "Icons/MagicWB1")
+        )
+        (if (= icons 2)
+            (set IconName "Icons/MagicWB2")
+        )
+        (if (= icons 3)
+            (set IconName "Icons/RareDiamond")
+        )
+
+        (if (<> icons 4)
+            (
+                (copyfiles
+                    (prompt #copy)
+                    (help #nohelp)
+                    (source IconName)
+                    (dest DrawerName)
+                    (pattern "DiamondPref#?")
+                    (infos)
+                )
+            )
+        )
+
+        (complete 30)
+        (copyfiles
+            (prompt #copy)
+            (help #nohelp)
+            (source "new")
+            (dest DrawerName)
+            (pattern "DiamondPrefs#?")
+            (infos)
+        )
+    )
+)
+
+(complete 70)
+(copyfiles                  ; new guide
+    (prompt #copy)
+    (help #nohelp)
+    (source #guidesource)
+    (dest DrawerName)
+)
+
+(complete 80)
+(copyfiles                  ; Catalogs
+    (prompt #copy)
+    (help #nohelp)
+    (source "locale")
+    (dest DrawerName)
+    (all)
+)
+
+(complete 100)
+(message #end)
+
+(exit (quiet))

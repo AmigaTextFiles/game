@@ -1,0 +1,223 @@
+; Formula One Grand Prix / World Circuit replacement installer
+; $VER: Install_F1GP 2.0 (22.5.97)
+;
+; Copyright © 1995-1997 Oliver Roberts
+;
+; French translation by Daniel Grenson
+
+(if (= (exists "Env:Language") 1)
+	(set @language (getenv "Language"))
+)
+
+;*****************
+; English strings
+;
+(set #str-info (cat
+	"This Installer script will attempt to install MicroProse's "
+	"Formula One Grand Prix (or World Circuit) game to your hard "
+	"drive in a friendly manner (unlike the official installer "
+	"supplied with the game itself!).  If you already have the "
+	"game installed on your hard drive you shouldn't need to use "
+	"this script!\n\n"
+	"Make sure you have booted from your hard drive, before "
+	"continuing with this installation!\n\nDo you want to continue?"
+))
+(set #str-askver "Which version of the game you have?")
+(set #str-numdisks "%ld disk version")
+(set #str-clickicon "What would you you like to happen when you click on the game icon?")
+(set #str-runintro "Run the intro (as if booting from disk 1)")
+(set #str-skipintro "Skip the intro (as if booting from disk 2)")
+(set #str-selectdrawer "Select a drawer in which to install the game (no separate drawer will be created)")
+(set #str-addassigns "Adding F1GP disk assigns to user-startup")
+(set #str-reboot "You must now reboot your Amiga before attempting to load the game.")
+(set #str-diskinsert "\n\nPlease insert\n\n%s disk %ld")
+
+;****************
+; French strings
+;
+(if (= @language "français") (
+ (set #str-info (cat
+	"Ce script d'installation essayera d'installer le jeu MicroProse's "
+	"Formula One Grand Prix (ou World Circuit) sur votre disque dur "
+	"d'une manière conviviale (à la différence de l'installeur officiel "
+	"fourni avec le jeu lui-même!).  Si vous avez déja installé le jeu "
+	"sur votre disque dur, vous ne devriez pas avoir besoin d'utilisergame "
+	"ce script!\n\n"
+	"Assurez-vous d'avoir lancé votre machine au départ de votre disque "
+	"dur avant de continuer installation!\n\nVoulez-vous continuer?"
+ ))
+ (set #str-askver "Quelle version du jeu possédez-vous?")
+ (set #str-numdisks "version %ld disquettes")
+ (set #str-clickicon "Que souhaitez-vous qu'il se passe lorsque vous cliquez sur l'icone de jeu?")
+ (set #str-runintro "Voir l'intro du jeu (comme si vous le lanciez de la disquette 1)")
+ (set #str-skipintro "Faire l'impasse sur l'intro (comme si vous le lanciez de la disquette 2)")
+ (set #str-selectdrawer "Sélectionnez le tiroir dans lequel vous voulez installer le jeu (aucun tiroir séparé ne sera créé)")
+ (set #str-addassigns "Ajout des assigns de disquette F1GP sur votre user-startup")
+ (set #str-reboot "Vous devez relancer votre Amiga avant d'essayer de charger le jeu.")
+))
+
+;*************
+; Here we go!
+;
+(if (NOT (askbool
+		(prompt	#str-info)
+		(default 0)
+		(help "")
+	))
+	(exit (quiet))
+)
+      
+(welcome "")
+
+(set #f1gpver
+	(askchoice
+		(prompt #str-askver)
+		(help @askchoice-help)
+		(choices ("(A) Formula One Grand Prix (%s)" (#str-numdisks 4))
+			"(B) World Circuit"
+			("(C) Formula One Grand Prix (%s)" (#str-numdisks 3))
+		)
+	)
+)
+
+(set #disk1pat "~(system#?|.info|Disk#?)")
+(set #disk2pat "~(system#?|.info|remove#?|Disk#?)")
+(set #disk2patintroA "~(system#?|.info|remove#?|Disk#?|formula#?)")
+(set #disk2patintroB "~(system#?|.info|remove#?|Disk#?|world#?)")
+(set #disk3pat "#?")
+(set #disk4pat "~(read#?|install#?|Disk#?|more)")
+(set #gamename "Formula One Grand Prix")
+
+(if (= #f1gpver 0)
+	(set #disk2patintro #disk2patintroA)
+)
+
+(if (= #f1gpver 1)
+	(
+		(set #gamename "World Circuit")
+		(set #disk2patintro #disk2patintroB)
+	)
+)
+
+(if (= #f1gpver 2)
+	(
+		(set #numdisks 3)
+		(set #disk1pat #disk2pat)
+		(set #disk2pat #disk3pat)
+		(set #disk3pat #disk4pat)
+	)
+	(
+		(set #numdisks 4)
+		(if (= 0 (askchoice
+			(prompt #str-clickicon)
+			(help @askchoice-help)
+			(default 1)
+			(choices #str-runintro #str-skipintro)))
+			(set #disk2pat #disk2patintro)
+		)
+	)
+)
+
+(set #destdir
+	(askdir
+		(prompt #str-selectdrawer)
+		(help @askdir-help)
+		(default @default-dest)
+	)
+)
+
+(set @default-dest #destdir)
+
+(complete 0)
+
+(askdisk
+	(prompt (#str-diskinsert #gamename 1))
+	(dest "f1gp_disk_#1")
+	(help @askdisk-help)
+)
+
+(copyfiles
+	(source "f1gp_disk_#1:")
+	(dest @default-dest)
+	(pattern #disk1pat)
+	(files)
+	(infos)
+	(optional "oknodelete" "force")
+	(help @copyfiles-help)
+)
+
+(complete 20)
+
+(askdisk
+	(prompt (#str-diskinsert #gamename 2))
+	(dest "f1gp_disk_#2")
+	(help @askdisk-help)
+)
+
+(copyfiles
+	(source "f1gp_disk_#2:")
+	(dest @default-dest)
+	(pattern #disk2pat)
+	(files)
+	(infos)
+	(optional "oknodelete" "force")
+	(help @copyfiles-help)
+)
+
+(complete 60)
+
+(askdisk
+	(prompt (#str-diskinsert #gamename 3))
+	(dest "f1gp_disk_#3")
+	(help @askdisk-help)
+)
+
+(copyfiles
+	(source "f1gp_disk_#3:")
+	(dest @default-dest)
+	(pattern #disk3pat)
+	(files)
+	(infos)
+	(optional "oknodelete" "force")
+	(help @copyfiles-help)
+)
+
+(complete 80)
+
+(if (= #numdisks 4)
+	(
+		(askdisk
+			(prompt (#str-diskinsert #gamename 4))
+			(dest "f1gp_disk_#4")
+			(help @askdisk-help)
+		)
+		(copyfiles
+			(source "f1gp_disk_#4:")
+			(dest @default-dest)
+			(pattern #disk4pat)
+			(files)
+			(infos)
+			(optional "oknodelete" "force")
+			(help @copyfiles-help)
+		)
+	)
+)
+
+(complete 95)
+
+(startup "Formula One Grand Prix"
+	(prompt #str-addassigns)
+	(command 
+		("Assign f1gp_disk_#1: %s\n" @default-dest)
+		("Assign f1gp_disk_#2: %s\n" @default-dest)
+		("Assign f1gp_disk_#3: %s\n" @default-dest)
+		(if (= #numdisks 4) ("Assign f1gp_disk_#4: %s\n" @default-dest))
+	)
+	(help @startup-help)
+)
+
+(complete 100)
+
+(exit
+	(cat #str-reboot "\n\nOliver Roberts (oliver.roberts@iname.com)\nhttp://www.nanunanu.org/~oliver/")
+)

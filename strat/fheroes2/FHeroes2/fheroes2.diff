@@ -1,0 +1,159 @@
+Index: Makefile.amigaos4
+===================================================================
+--- Makefile.amigaos4	(revision 0)
++++ Makefile.amigaos4	(revision 0)
+@@ -0,0 +1,39 @@
++CROSS := ppc-amigaos
++CC := $(CROSS)-gcc
++CXX := $(CROSS)-g++
++AR := $(CROSS)-ar
++STRIP := $(CROSS)-strip
++RM := rm -f
++
++SRCDIRLIST := $(addprefix src/fheroes2/,$(shell ls src/fheroes2))
++DEFS := -DWITH_MIXER -DWITH_IMAGE -DWITH_TTF -DWITH_XML -DWITH_ZLIB -DBUILD_RELEASE
++INCDIRS := -Isrc/engine -Isrc/xmlccwrap $(addprefix -I,$(SRCDIRLIST)) -I/SDK/local/common/include/SDL
++
++CFLAGS := -O2 -g -Wall $(INCDIRS) $(DEFS)
++CXXFLAGS := $(CFLAGS)
++LDFLAGS := -static
++LIBS := -lSDL_mixer -lmikmod -lmodplug -lsmpeg -lFLAC -lvorbisfile -lvorbis -logg -lSDL_image -ltiff -ljpeg -lpng -lz -lSDL_ttf -lfreetype -lSDL -lintl -liconv -lpthread -lunix
++
++GAME_OBJS := $(patsubst %.cpp,%.o,$(wildcard src/fheroes2/*/*.cpp) $(wildcard src/fheroes2/ai/simple/*.cpp))
++XMLCCWRAP_OBJS := $(patsubst %.cpp,%.o,$(wildcard src/xmlccwrap/*.cpp))
++ENGINE_OBJS := $(patsubst %.cpp,%.o,$(wildcard src/engine/*.cpp))
++
++.PHONY: all
++all: fheroes2
++
++fheroes2: fheroes2.debug
++	$(STRIP) -R.comment -o $@ $<
++
++fheroes2.debug: $(GAME_OBJS) libengine.a libxmlccwrap.a
++	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
++
++libxmlccwrap.a: $(XMLCCWRAP_OBJS)
++	$(AR) -crv $@ $^
++
++libengine.a: $(ENGINE_OBJS)
++	$(AR) -crv $@ $^
++
++.PHONY: clean
++clean:
++	$(RM) *.debug src/fheroes2/*/*.o src/fheroes2/ai/simple/*.o lib*.a src/engine/*.o src/xmlccwrap/*.o
++
+Index: src/fheroes2/game/game_io.cpp
+===================================================================
+--- src/fheroes2/game/game_io.cpp	(revision 3037)
++++ src/fheroes2/game/game_io.cpp	(working copy)
+@@ -293,7 +293,7 @@
+ 
+ #ifndef WITH_ZLIB
+ 	    // check: compress game data
+-	    if(header.status & IS_COMPRESS)
++	    if(header.status & HeaderSAV::IS_COMPRESS)
+ 	    {
+ 		DEBUG(DBG_GAME, DBG_INFO, fn << ", zlib: unsupported");
+ 		return false;
+Index: src/fheroes2/game/fheroes2.cpp
+===================================================================
+--- src/fheroes2/game/fheroes2.cpp	(revision 3037)
++++ src/fheroes2/game/fheroes2.cpp	(working copy)
+@@ -20,6 +20,10 @@
+  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
+  ***************************************************************************/
+ 
++#ifdef __amigaos4__
++static const char __attribute__((used)) min_stack[] = "$STACK:102400";
++#endif
++
+ #include <iostream>
+ #include <string>
+ #include <cstdlib>
+Index: src/fheroes2/image/images_pack.h
+===================================================================
+--- src/fheroes2/image/images_pack.h	(revision 3037)
++++ src/fheroes2/image/images_pack.h	(working copy)
+@@ -38,7 +38,8 @@
+   unsigned int  amask;
+   unsigned char zdata[560];
+ } _ptr_08067830 =
+- { 32, 32, 16, 64, 0x0000000F, 0x000000F0, 0x00000F00, 0x0000F000,
++ { 32, 32, 16, 64,
++   SDL_SwapLE16(0x000F), SDL_SwapLE16(0x00F0), SDL_SwapLE16(0x0F00), SDL_SwapLE16(0xF000),
+  {
+  0x78, 0x9c, 0xcd, 0x94, 0x8d, 0x69, 0xeb, 0x30, 0x14, 0x85, 0x1b, 0x6f, 0x10, 0xdc, 0x09, 0x1e,
+  0xe9, 0x04, 0x59, 0xc1, 0xd0, 0x09, 0x0c, 0x9d, 0xc0, 0x90, 0x09, 0x0c, 0x9a, 0xc0, 0xe0, 0x09,
+@@ -91,7 +92,8 @@
+   unsigned int  amask;
+   unsigned char zdata[13195];
+ } _ptr_080721d0 =
+- { 287, 204, 16, 576, 0x0000000F, 0x000000F0, 0x00000F00, 0x00000000,
++ { 287, 204, 16, 576,
++   SDL_SwapLE16(0x000F), SDL_SwapLE16(0x00F0), SDL_SwapLE16(0x0F00), SDL_SwapLE16(0x0000),
+  {
+  0x78, 0x9C, 0xED, 0x5D, 0x8B, 0x71, 0x14, 0x49, 0xD3, 0x14, 0x01, 0x12, 0x6F, 0x11, 0x67, 0x03,
+  0x2E, 0xE0, 0x82, 0x22, 0x7E, 0x07, 0x70, 0x41, 0x2E, 0xE0, 0x02, 0x2E, 0xE0, 0x02, 0x2E, 0x10,
+@@ -934,7 +936,8 @@
+   unsigned int  amask;
+   unsigned char zdata[11099];
+ } _ptr_0806f690 =
+- { 640, 480, 16, 1280, 0x0000000F, 0x000000F0, 0x00000F00, 0x00000000,
++ { 640, 480, 16, 1280,
++   SDL_SwapLE16(0x000F), SDL_SwapLE16(0x00F0), SDL_SwapLE16(0x0F00), SDL_SwapLE16(0x0000),
+  {
+  0x78, 0x9C, 0xED, 0xDD, 0xEB, 0x79, 0xA2, 0xDC, 0xC2, 0x87, 0xF1, 0x0F, 0x03, 0xCA, 0x39, 0xFB,
+  0xED, 0x60, 0xD8, 0x1D, 0xC4, 0xE9, 0x60, 0x7C, 0x3A, 0xD8, 0xA6, 0x04, 0x53, 0x42, 0x2C, 0x41,
+Index: src/fheroes2/system/settings.cpp
+===================================================================
+--- src/fheroes2/system/settings.cpp	(revision 3037)
++++ src/fheroes2/system/settings.cpp	(working copy)
+@@ -654,18 +654,26 @@
+ 
+ void Settings::SetProgramPath(const char* argv0)
+ {
++#ifdef __amigaos4__
++    path_program = "/PROGDIR/fheroes2";
++#else
+     if(argv0) path_program = argv0;
++#endif
+ }
+ 
+ std::string Settings::GetHomeDir(void)
+ {
+     std::string home;
+ 
++#ifdef __amigaos4__
++    home = "/PROGDIR/userdata";
++#else
+     if(System::GetEnvironment("HOME"))
+ 	home = System::ConcatePath(System::GetEnvironment("HOME"), ".fheroes2");
+     else
+     if(System::GetEnvironment("APPDATA"))
+ 	home = System::ConcatePath(System::GetEnvironment("APPDATA"), "fheroes2");
++#endif
+ 
+     return home;
+ }
+Index: src/engine/audio_mixer.cpp
+===================================================================
+--- src/engine/audio_mixer.cpp	(revision 3037)
++++ src/engine/audio_mixer.cpp	(working copy)
+@@ -55,7 +55,7 @@
+     {
+ 	Audio::Spec & hardware = Audio::GetHardwareSpec();
+         hardware.freq = 22050;
+-        hardware.format = AUDIO_S16;
++        hardware.format = AUDIO_S16SYS;
+         hardware.channels = 2;
+         hardware.samples = 2048;
+ 
+@@ -295,7 +295,7 @@
+     {
+ 	Audio::Spec spec;
+         spec.freq = 22050;
+-        spec.format = AUDIO_S16;
++        spec.format = AUDIO_S16SYS;
+         spec.channels = 2;
+         spec.samples = 2048;
+         spec.callback = AudioCallBack;

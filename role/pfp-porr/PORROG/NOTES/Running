@@ -1,0 +1,57 @@
+ Player run command
+ ==================
+
+ Every decent roguelike allows the player to press shift+movement (or
+something else like that) to make the player run in the given direction
+until they encounter something interesting (in some such games, simple
+corners in passages don't count as interesting, as long as the passage
+isn't branching). The character keeps moving as though the player were
+repeatedly pressing movement keys so quickly that the movement practically
+can't be seen.
+
+ I've got to do this some time, as it's a PITA to go without.
+
+ Proposed implementation:
+ ========================
+
+ Like NH, etc, use shift+movement key. This should set a global flag
+"is_running", and set a movement direction. It should also set data
+such as pstype (type of tile player is on: tunnel tile, room tile, door tile)
+room number and/or tunnel pointer.
+ Actually, wait. If you try running when there's a monster visible, you
+shouldn't run, or even make a single step. Rather, nothing should happen,
+and no time should be taken. I think.
+
+ Now, if running was started (because there was no monster in sight), then
+the first step after getting the keypress should be to check is_running,
+and if it's set, call p_running_step(), which should move in the calculated
+direction towards a pre-calculated waypoint (like the monster AI...). Now,
+at any point (including within p_running_step, *after* it's moved the
+character), a function can clear the "is_running" flag.
+
+ Before getting the next key from the player, ctrl_loop() will check
+is_running, and only get a new key if it was false (meaning the player
+had stopped running for whatever reason).
+
+
+ Waypoints
+ =========
+
+ When the running is started, work out whether player is in a room. If so,
+the waypoint is next to the first wall that's hit, or inside a doorway if
+there is one. If the player is in a doorway, then the waypoint will either
+be at the end of the connected tunnel, or somewhere in the connected room
+(including another doorway), depending on which way the player wanted
+to run. If the player is in a tunnel, the waypoint will be in the same
+tunnel, at the first intersection found in the given direction.
+
+ When the player reaches the waypoint, then if the player was in a room
+or a doorway, the player will stop running. If the player was in a
+tunnel, the player will also stop running *unless* the intersection was
+a simple turning/corner *and* that option is set (I think it'll be an
+option whether to have the player stop or change direction). If the
+code allows the player to keep going, the code will pick a new direction
+and then the next waypoint for that direction. Due to the way the map
+generation code works, it should be rare or even impossible for the
+player to be able to change direction more than once.
+

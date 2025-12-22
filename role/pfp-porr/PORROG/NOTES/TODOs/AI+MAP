@@ -1,0 +1,169 @@
+A TODO for the change to the region-based map generator.
+
+Think that if an item is never going to be freed, it shouldn't be
+ mallocced by counting_malloc(). Example of this would be the
+ intersection markers (that have the single type stored in a
+ static pointer)...
+
+We need to know what region we're finding at a grid point, remembering
+that if we join to a tunnel, it isn't necessarily AT that grid point,
+it might just be BY that point. As such, we really want a function
+like get_area but for regions. Shouldn't be rocket science, as we
+already have changed find_area to find_region.
+  --DONE. Probably bad.
+Having done this, attempt_joining should set source_region and
+target_region in the places already commented as such.
+  --DONE. But wasn't sure what was an appropriate argument to "this".
+
+Change the stuff for placing entrances. Our entrances are currently
+just map tiles, there are no entrance_t structures created, and
+no entrancelists_ts.
+  --DONE? I think. Mmm. The "facing" element isn't filled in
+  though. Why did I want that info again??
+
+I think we call merge_regions in attempt_joining, AFTER calling
+merge_areas. Remember that merge_regions is only done in a few
+cases (connecting two tunnels).
+  --DONE, bugs seem fixed. Appears now as it was before.
+
+Improve this to have different levels joined by stairs, where
+returning to an old level reproduces that level as it was when
+it was left.
+  --DONE!!!!! EXCEPT status of doors is wrong.
+
+To achieve this, must have:
+ remake_dmap(levelmap_t *this)
+   --DONE! ISSUES: Can't reproduce visibility info, nor
+    open/closed status of doors.
+
+NB- Of course, we also need a make_feature() and remake_features().
+  --DONE. Need to be able to specify feature details.
+  As make_feature() returns feature's index, you can do this
+  directly instead.
+
+
+Allow map to be generated with: first room (room 216) in specified
+position, rather than just right in the middle; specified number
+of areas (so we can have 3 disconnected areas a'la Crawl, allowing
+for complex 3-dimensional mazes).
+Do we even still need room 216 to be the first room? Why did I do
+that? I'm sure there was some reason...Possibly just wooly thinking.
+
+
+Think about having attempt_joining *sometimes* build a tunnel between
+2 regions of the same area. This should wait till the rest of the code
+is seen to work properly.
+
+Place a (simple) wilderness level directly above the start; then each
+level can be given a depth number to help with monster generation.
+
+TODO:Fix+Check says to look over pick_room() and pick_room_from_area().
+Though these seem to work, they had looked odd; so if they really are
+wrong, perhaps I should put them in an #ifdef block alongside a better
+version?
+
+
+-------------------------
+For (the pathfinding part of) the AI system:
+
+
+Code to allow monster to go to a given doorway from within a room or
+tunnel region
+  --DONE, but can have monster in room choose wrong door out :P
+
+
+Code to update the times on cache entries as appropriate (that
+means reset to 0 when in a room/region or passing a door, and
+increment all other times)
+  --I think this requires all resets to door, room, and region
+  timestamps to be done whenever the monster is stood on a door.
+  If the room/region is new to the cache, set timestamps on all
+  its doors to 1 or 2, so then the door that is stood in really
+  does have the lowest timestamp when it is reset.
+  --So far, there's a routine to reset timestamps on a door,
+  and this is called in *some* situations that the monster stands
+  on a door. But not all. Doesn't yet reset timestamps for the
+  rooms/regions themselves. There's also a routine to increment
+  all the timestamps, which is vital for it to be relevant.
+
+Code for the cache to make appropriate replacements (maybe have
+different strategies?)
+  --DONE. Needs improvements to take monster intelligence
+  into account (more entries in table), and to allow rooms/regions
+  of high order to be replaced if they are sufficiently stale.
+
+Code for the monster to realise it's in a room/region directly
+connected to the one the player's in and go to the player's
+room/region
+  --DONE. Seriously. But still wonky for regions. Er, is it?
+
+Code for the monster to head straight to the player when in
+exactly the same room/region as the player. Easyish.
+  --DONE, even works in regions now, but still has the
+  going-round-corners issue in rooms.
+
+Code to pick things up (up to a weight limit), and choose what
+to discard, etc. Generally only wear/wield stuff when player
+comes into view (mob might find something much better first).
+
+Code to run away sometimes??? Maybe later.
+
+Code for monsters that block each other to choose a suitable place
+to move to where they can pass each other.In some cases this would
+include the last resort choice of going through a doorway (which
+causes the wandering code to generally not return to that region
+for a while).
+  --DONE? Seems to work often, and finally they're actually able
+  to *pass* each other at those intersections. Sometimes seems
+  to screw up though.
+
+Work out what's causing monsters stuck in doorways to get attacked
+even with -DCALM.
+
+Code for monsters stuck in doorways to backtrack into the room
+(supposing they're trying to get into the tunnel) and then
+head back for the same doorway- Simple: Don't update the target
+coords or type, but step back into the room and set a new waypoint
+within the room. On hitting the waypoint, will head back for the
+doorway, and if it succeeds, will head into the tunnel. NB- Should
+be some possibility of simply picking a new target door from the
+room. As for trying to get from the doorway into the room, that's
+a tricky one. Fairly sure the monsters in the room should end up
+stepping away some of the time, leaving space.
+
+Code for monsters that move into a room with only one entrance (the
+one they just entered through) to move a bit further into the room
+before backing out- very important if they're going there to clear
+a blockage, as monsters following behind them would want to get a
+foot in, in order to choose a new target. Apart from that, it just
+looks a bit odd for them to step in and step out again.
+One way to augment this behaviour would be for them to often head
+for items inside rooms they enter. Nonetheless, spending more than
+1 or 2 turns in an order-1 room is an important change.
+How about an Im-idling flag, that gets set when a monster sets
+foot in a room and sets a waypoint of somewhere-in-the-middle,
+and then when the monster hits a waypoint, check if that flag
+is set, and if so, unset it and head to the target proper.
+It could also be set for when a monster is moving to an intersection
+to make space, as it'd want to hang about for a turn or 2.
+
+Code for monsters to sometimes attack each other if their annoyance
+overrides their respect for each other. This wouldn't happen often,
+but would cut stalemates when they can't agree which way to go to
+break up the blockage. It'd also be relatively realistic: the queen
+of witches would be somewhat unlikely to stand about all day for
+land plankton to get out of her way (whereas the land plankton would
+not try to push its luck). The annoyance value should decrease over
+time, but slower than it increases when it increases.
+  --Sort of done, but respect levels are homogeneous
+
+Finish the stuff for room/region buffer entries (ie- cache entries
+that only last as long as the mob is in the location, purely so they
+dont pop straight out of whatever door they just came in :P)
+Still needs changes to ai_acquire_target(to make use of the fact
+the current location can always be returned) and to
+aicache_trycacheFOO() (to actually put the entry into the buffer if
+it couldn't go in the cache!)
+  --Seems done but still need to fix ai_acquire_target, etc to not
+  expect NULL responses.
+

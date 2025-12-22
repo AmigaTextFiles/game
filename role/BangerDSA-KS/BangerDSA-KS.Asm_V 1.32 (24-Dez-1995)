@@ -1,0 +1,3775 @@
+;Programm: BangerDSA-KS Suche würfelt für den Meister aus welche Kräuter der
+;          Held gefunden hat in n Stunden.
+;Autor   : Andre´ Trettin
+;Codename: Banger
+;Begin   : 18-Apr-95 18:54:06
+;$VER    : BangerDSA-KS.Asm 1.32 (24-Dez-1995)
+
+** INCLUDE Struktur Variablen
+*   21=kein Speicher
+*   22=konnte Libs nicht öffnen
+*   23=kein VisualInfo Pointer
+*   24=init Gadgedts error
+*   25=Menu error
+*   26=konnte Fenster nicht öffnen
+*   27=Menu Layouten error
+*   28=falsche Parameter angabe
+** incload equ ks-struct
+	incdir  INCLUDE:
+	include exec/exec.i
+	include dos/dos.i
+	include dos/dosextens.i
+	include intuition/intuition.i
+	include intuition/classes.i
+	include intuition/classusr.i
+	include intuition/imageclass.i
+	include intuition/gadgetclass.i
+	include graphics/displayinfo.i
+	include graphics/gfxbase.i
+	include hardware/register.i
+	include libraries/gadtools.i
+	include lvo/exec_lib.i
+	include lvo/dos_lib.i
+	include lvo/intuition_lib.i
+	include lvo/graphics_lib.i
+	include lvo/gadtools_lib.i
+
+* Gebiet Nummer für ks_Gebiet
+GE equ    $1
+MA equ    $2
+MO equ    $4
+MS equ    $8
+MW equ   $10
+NH equ   $20
+NS equ   $40
+NU equ   $80
+NW equ  $100
+SW equ  $200
+SF equ  $400
+TE equ  $800
+WU equ $1000
+WR equ $2000
+
+* Flora Nummer für ks_Flora
+BR equ        $1
+EI equ        $2
+FA equ        $4
+FU equ        $8
+GR equ       $10
+GF equ       $20
+GB equ       $40
+GH equ       $80
+GO equ      $100
+HO equ      $200
+HS equ      $400
+HM equ      $800
+HF equ     $1000
+HT equ     $2000
+KU equ     $4000
+KS equ     $8000
+OM equ    $10000
+RW equ    $20000
+SE equ    $40000
+SU equ    $80000
+ST equ   $100000
+TI equ   $200000
+WA equ   $400000
+WG equ   $800000
+WF equ  $1000000
+WL equ  $2000000
+WD equ  $4000000
+WI equ  $8000000
+WS equ $10000000
+WT equ $20000000
+
+* Kräuter Suche Structur
+	STRUCTURE KraeuterSuche,0
+	WORD    ks_Gebiet
+	LONG    ks_Flora
+	BYTE    ks_ProbePlus
+	STRUCT  ks_Vorhanden,30
+	BYTE    ks_FillByte
+	WORD    ks_Gefunden
+	APTR    ks_Name
+	APTR    ks_InfoTxt
+	LABEL   ks_SIZEOF
+
+KraeuterAnzahl  = 64
+;;
+	STRUCTURE Internal,0
+	APTR    INTUIBase
+	APTR    DOSBase
+	APTR    GFXBase
+	APTR    GADBase
+	APTR    WindowHandle
+	APTR    WBenchMsg
+	APTR    KrautWinHandle
+	APTR    SpezialWinHandle
+	APTR    ScreenHandle
+	APTR    VisualInfo
+	APTR    FontAddr
+	APTR    GadgetListe
+	APTR    SpeGadgetListe
+	APTR    KrautGadListe
+	APTR    GKL
+	APTR    GIN
+	APTR    GFF
+	APTR    GTAW
+	APTR    GStunden
+	APTR    GSpeSuc
+	APTR    GSuchen
+	APTR    GGebiet
+	APTR    GFlora
+	APTR    GKraSpe
+	APTR    GOK
+	APTR    GVerwerfen
+	APTR    GLoes
+	APTR    ListHandle
+	APTR    AnGKraut
+	APTR    MenuPtr
+	APTR    WinRPort
+	APTR    meinTask
+	APTR    alterTask
+	APTR    RDArgs
+	APTR    KLArray
+	APTR    INArray
+	APTR    FFArray
+	APTR    TAWArray
+	APTR    ZEITArray
+	STRUCT  GKraut,[KraeuterAnzahl*4]
+	STRUCT  AusgabeK,[KraeuterAnzahl*60]
+	STRUCT  geKrautTxt,[KraeuterAnzahl*it_SIZEOF]
+	STRUCT  GGebietList,[MLH_SIZE+(LN_SIZE*15)]
+	STRUCT  GFloraList,[MLH_SIZE+(LN_SIZE*31)]
+	STRUCT  GSpeSucList,[MLH_SIZE+(LN_SIZE*(KraeuterAnzahl+1))]
+	STRUCT  RawErkennung,[ie_SIZEOF]
+	LONG    AltZufall
+	LONG    KLWert
+	LONG    INWert
+	LONG    FFWert
+	LONG    TAWWert
+	LONG    StundenWert
+	LONG    FloraBitSelect
+	LONG    SpeKraeuter0
+	LONG    SpeKraeuter1
+	WORD    GebietBitWert
+	WORD    WinBorderLeft
+	WORD    WinBorderTop
+	WORD    SpeSuchVer
+	BYTE    RelativeTopC
+	BYTE    RelativeLeftC
+	BYTE    GListWahlStatus
+	BYTE    MaxListeAnz
+	BYTE    AktivListeEn
+	BYTE    FloraAktiv
+	BYTE    GebietAktiv
+	BYTE    ProbePlus
+	BYTE    StatusSpe
+	BYTE    SpeKraNummer
+	BYTE    StundenPZ
+	BYTE    SpeBonus
+	LABEL   Int_SIZEOF
+;;
+** Hauptprog
+	moveq   #0,d7
+	move.l  4.w,a6
+	move.l  #Int_SIZEOF,d0
+	move.l  #MEMF_PUBLIC!MEMF_CLEAR,d1
+	jsr     _LVOAllocMem(a6)
+	move.l  d0,a5
+	bne.s   WorkBench
+	moveq   #21,d7
+	bra.w   Ende
+WorkBench
+	suba.l  a1,a1
+	jsr     _LVOFindTask(a6)
+	move.l  d0,a4
+	tst.l   pr_CLI(a4)
+	bne.s   fromCLI
+	lea     pr_MsgPort(a4),a0
+	jsr     _LVOWaitPort(a6)
+	lea     pr_MsgPort(a4),a0
+	jsr     _LVOGetMsg(a6)
+	move.l  d0,WBenchMsg(a5)
+fromCLI
+	bsr.w   LibOeffne
+	tst.b   d7
+	bne.s   SchliesseLibrary
+	bsr.w   Parameter
+	tst.b   d7
+	bne.s   SchliesseLibrary
+	bsr.w   PubScreenOeffne
+	tst.b   d7
+	bne.s   SchliesseScreen
+	bsr.w   InitList
+	bsr.w   InitGadget
+	tst.b   d7
+	bne.s   GadgetRemove
+	bsr.w   InitMenu
+	tst.b   d7
+	bne.s   MenuRemove
+	bsr.w   FensterOeffne
+	tst.b   d7
+	bne.s   MenuRemove
+	moveq   #2,d6
+	bsr.w   DSARender
+	move.l  WindowHandle(a5),a4
+	bsr.w   RefreshWin
+	bsr.w   SetAndLayout
+	tst.b   d7
+	bne.s   SchliesseFenster
+	move.l  GGebiet(a5),ListHandle(a5)
+	move.b  #14-1,MaxListeAnz(a5)
+;    bsr.s   MausZeiger
+	bsr.w   MessageAbFragen
+;    bsr.s   LoesMausZeiger
+	bsr.w   ClearMenu
+SchliesseFenster
+	bsr.w   FensterSchliesse
+MenuRemove
+	bsr.w   RemoveMenu
+GadgetRemove
+	bsr.w   RemoveGadget
+SchliesseScreen
+	bsr.w   FreePara
+	bsr.w   ScreenSchliesse
+SchliesseLibrary
+	bsr.w   LibSchliesse
+	tst.l   WBenchMsg(a5)
+	beq.s   NOWBench
+	move.l  4.w,a6
+	jsr     _LVOForbid(a6)
+	move.l  WBenchMsg(a5),a1
+	jsr     _LVOReplyMsg(a6)
+	jsr     _LVOPermit(a6)
+NOWBench
+	move.l  a5,a1
+	move.l  #Int_SIZEOF,d0
+	jsr     _LVOFreeMem(a6)
+Ende
+	move.l  d7,d0
+	rts
+;;
+** InitList
+InitList
+	move.w  $dff006,d0       ;ZufallInitRuntine
+	mulu    $dff014,d0       ;Mit besten
+	add.w   $dff006,d0       ;Dank an
+	swap    d0               ;Stevie v. Zweidorff
+	move.w  $dff006,d0       ;für die Benutzung
+	mulu    $dff014,d0       ;dieser Zufalls
+	add.w   $dff006,d0       ;Runtine
+	move.l  d0,AltZufall(a5)
+	lea     topaz8(pc),a2
+	lea     topazFName8(pc),a1
+	move.l  a1,(a2)
+	lea     DSANewMenu0(pc),a0
+	lea     DSAMName0(pc),a1
+	move.l  a1,2(a0)
+	lea     DSAMName1(pc),a1
+	move.l  a1,22(a0)
+	lea     DSAMComm1(pc),a1
+	move.l  a1,26(a0)
+	lea     DSAMName2(pc),a1
+	move.l  a1,42(a0)
+	lea     DSAMComm2(pc),a1
+	move.l  a1,46(a0)
+	lea     DSAMComm1(pc),a1
+	move.l  a1,26(a0)
+	lea     DSATitleText(pc),a0
+	move.l  a2,it_ITextFont(a0)
+	lea     DSAIText0(pc),a1
+	move.l  a1,it_IText(a0)
+	lea     DSATitleText1(pc),a1
+	move.l  a1,it_NextText(a0)
+	move.l  a2,it_ITextFont(a1)
+	lea     DSAIText1(pc),a0
+	move.l  a0,it_IText(a1)
+	lea     DSATitleText2(pc),a0
+	move.l  a0,it_NextText(a1)
+	move.l  a2,it_ITextFont(a0)
+	lea     DSAIText2(pc),a1
+	move.l  a1,it_IText(a0)
+	lea     DSATitleText3(pc),a1
+	move.l  a1,it_NextText(a0)
+	move.l  a2,it_ITextFont(a1)
+	lea     DSAIText3(pc),a0
+	move.l  a0,it_IText(a1)
+	lea     Alraune(pc),a0
+	lea     NAlraune(pc),a1
+	lea     TAlraune(pc),a2
+	moveq   #KraeuterAnzahl-1,d0
+KSInitloop
+	lea     2(a1),a1
+	move.l  a1,ks_Name(a0)
+	move.l  a2,ks_InfoTxt(a0)
+NullNameloop
+	move.b  (a1)+,d1
+	tst.b   d1
+	bne.s   NullNameloop
+NullTextloop
+	move.b  (a2)+,d1
+	tst.b   d1
+	bne.s   NullTextloop
+	lea     ks_SIZEOF(a0),a0
+	dbra    d0,KSInitloop
+	lea     GGebietList(a5),a0
+	move.l  a0,a4
+	move.w  #14*LH_SIZE+4,d5
+	move.w  #13-1,d6
+	lea     GGebietNamen(pc),a3
+	bsr.s   InitHead
+	lea     GFloraList(a5),a0
+	move.l  a0,a4
+	move.w  #30*LH_SIZE+4,d5
+	move.w  #29-1,d6
+	lea     GFloraNamen(pc),a3
+	bsr.s   InitHead
+	lea     GSpeSucList(a5),a0
+	move.l  a0,a4
+	move.w  #KraeuterAnzahl*LH_SIZE+4,d5
+	move.w  #KraeuterAnzahl-2,d6
+	lea     NAlraune(pc),a3
+	bsr.s   InitHead
+	rts
+InitHead
+	lea     MLH_SIZE(a0),a1
+	move.l  a1,(a0)+
+	clr.l   (a0)+
+	lea     (a0,d5.w),a1
+	move.l  a1,(a0)+
+	lea     LN_SIZE(a0),a1
+	move.l  a1,(a0)+
+	move.l  a4,(a0)+
+	clr.w   (a0)+
+	move.l  a3,(a0)+
+InitNodes
+	bsr.s   FindeNull
+	lea     LN_SIZE(a0),a1
+	lea     -LN_SIZE(a0),a2
+	move.l  a1,(a0)+
+	move.l  a2,(a0)+
+	clr.w   (a0)+
+	move.l  a3,(a0)+
+	dbra    d6,InitNodes
+	bsr.s   FindeNull
+	lea     -LN_SIZE(a0),a2
+	clr.l   (a0)+
+	move.l  a2,(a0)+
+	clr.w   (a0)+
+	move.l  a3,(a0)+
+	rts
+FindeNull
+	move.b  (a3)+,d0
+	cmp.b   #0,d0
+	bne.s   FindeNull
+	rts
+;;
+** Parameter
+Parameter
+	move.l  DOSBase(a5),a6
+	lea     ParaTemplate(pc),a1
+	move.l  a1,d1
+	lea     KLArray(a5),a1
+	move.l  a1,d2
+	moveq   #0,d3
+	jsr     _LVOReadArgs(a6)
+	move.l  d0,RDArgs(a5)
+	bne.s   ParaOK
+	jsr     _LVOIoErr(a6)
+	move.l  d0,d1
+	moveq   #0,d2
+	jsr     _LVOPrintFault(a6)
+	moveq   #28,d7
+ParaOK
+	tst.l   KLArray(a5)
+	beq.s   NoWert1
+	move.l  KLArray(a5),a1
+	move.l  (a1),KLArray(a5)
+NoWert1
+	tst.l   INArray(a5)
+	beq.s   NoWert2
+	move.l  INArray(a5),a1
+	move.l  (a1),INArray(a5)
+NoWert2
+	tst.l   FFArray(a5)
+	beq.s   NoWert3
+	move.l  FFArray(a5),a1
+	move.l  (a1),FFArray(a5)
+NoWert3
+	tst.l   TAWArray(a5)
+	beq.s   NoWert4
+	move.l  TAWArray(a5),a1
+	move.l  (a1),TAWArray(a5)
+NoWert4
+	tst.l   ZEITArray(a5)
+	beq.s   NoWert5
+	move.l  ZEITArray(a5),a1
+	move.l  (a1),ZEITArray(a5)
+NoWert5
+	rts
+FreePara
+	move.l  RDArgs(a5),d1
+	move.l  DOSBase(a5),a6
+	jsr     _LVOFreeArgs(a6)
+	rts
+;;
+** KräuterSuche
+** SuchenStart
+SuchenStart
+	lea     GFloraList(a5),a4
+	moveq   #30-1,d0
+	moveq   #0,d1
+FloraAusLoop
+	move.w  d0,d5
+	bsr.w   ListeNamen
+	cmp.b   #'+',(a0)
+	bne.s   keinSternSet
+	bset    d0,d1
+keinSternSet
+	dbra    d0,FloraAusLoop
+	move.l  d1,FloraBitSelect(a5)
+	beq.w   ReqFlora
+	move.l  GKL(a5),a0
+	move.l  gg_SpecialInfo(a0),a0
+	move.l  si_LongInt(a0),KLWert(a5)
+	move.l  GIN(a5),a0
+	move.l  gg_SpecialInfo(a0),a0
+	move.l  si_LongInt(a0),INWert(a5)
+	move.l  GFF(a5),a0
+	move.l  gg_SpecialInfo(a0),a0
+	move.l  si_LongInt(a0),FFWert(a5)
+	move.l  GTAW(a5),a0
+	move.l  gg_SpecialInfo(a0),a0
+	move.l  si_LongInt(a0),TAWWert(a5)
+	move.l  GStunden(a5),a0
+	move.l  gg_SpecialInfo(a0),a0
+	move.l  si_LongInt(a0),d3
+	move.l  KLWert(a5),d7
+	move.l  INWert(a5),d6
+	move.l  FFWert(a5),d5
+	move.l  TAWWert(a5),d4
+	cmp.b   #8,d7
+	bmi.w   FalscherWert1
+	cmp.b   #8,d6
+	bmi.w   FalscherWert2
+	cmp.b   #8,d5
+	bmi.w   FalscherWert5
+	cmp.b   #22,d7
+	bpl.w   FalscherWert1
+	cmp.b   #22,d6
+	bpl.w   FalscherWert2
+	cmp.b   #22,d5
+	bpl.w   FalscherWert5
+	cmp.b   #19,d4
+	bpl.w   FalscherWert3
+	cmp.b   #1,d3
+	bmi.w   FalscherWert4
+	addq    #3,TAWWert(a5)
+	subq    #1,d3
+	move.b  d3,StundenPZ(a5)
+	lea     Alraune(pc),a4
+	moveq   #KraeuterAnzahl-1,d0
+GefundenLoeschen
+	clr.w   ks_Gefunden(a4)
+	lea     ks_SIZEOF(a4),a4
+	dbra    d0,GefundenLoeschen
+	move.l  #$ffffffff,SpeKraeuter0(a5)
+	move.l  #$ffffffff,SpeKraeuter1(a5)
+	clr.b   StatusSpe(a5)
+	clr.b   SpeKraNummer(a5)
+	clr.b   SpeBonus(a5)
+	lea     SpeSucGTag(pc),a3
+	move.w  6(a3),SpeSuchVer(a5)
+	tst.w   SpeSuchVer(a5)
+	beq.w   Suchefortf
+	bsr.s   SpezialSS
+;;
+** Kräuter suche
+Suchefortf
+	moveq   #0,d3
+	move.b  StundenPZ(a5),d3
+SuchenDauerLoop
+	subq    #3,TAWWert(a5)
+	move.l  KLWert(a5),d7
+	move.l  INWert(a5),d6
+	move.l  FFWert(a5),d5
+	move.l  TAWWert(a5),d4
+	moveq   #20,d0
+	bsr.w   Wuerfel
+	sub.b   d7,d1
+	bhi.s   daneben
+	neg.b   d1
+	move.b  d1,d2
+INProbe
+	bsr.w   Wuerfel
+	sub.b   d6,d1
+	bhi.s   daneben1
+	cmp.b   #-1,d2
+	beq.s   FFProbe
+	neg.b   d1
+	add.b   d1,d2
+FFProbe
+	bsr.w   Wuerfel
+	sub.b   d5,d1
+	bhi.s   daneben2
+	cmp.b   #-1,d2
+	beq.s   FertigProbe
+	neg.b   d1
+	add.b   d1,d2
+	add.b   d2,d4
+FertigProbe
+	cmp.b   #0,d4
+	bmi.w   missSuche
+	move.b  d4,ProbePlus(a5)
+	bra.b   normalSuche
+daneben
+	moveq   #-1,d2
+	sub.b   d1,d4
+	bmi.w   missSuche
+	bra.s   INProbe
+daneben1
+	moveq   #-1,d2
+	sub.b   d1,d4
+	bmi.w   missSuche
+	bra.s   FFProbe
+daneben2
+	moveq   #-1,d2
+	sub.b   d1,d4
+	bmi.b   missSuche
+	bra.s   FertigProbe
+ReqFlora
+	move.l  WindowHandle(a5),a0
+	lea     ErrReqTit(pc),a2
+	lea     FloReqTxt(pc),a3
+	lea     FeGadTxt(pc),a4
+	bsr.w   AllRequester
+	bra.w   nocheine
+misslungen
+	move.l  WindowHandle(a5),a0
+	lea     SchReqTit(pc),a2
+	lea     MisReqTxt(pc),a3
+	lea     FeGadTxt(pc),a4
+	bsr.w   AllRequester
+	bra.w   nocheine
+KrautAuswuerfeln
+	move.b  ks_Vorhanden(a4,d6.w),d2 ;Flora Wahrscheinlichkeit in d2
+	moveq   #20,d0                   ;W20
+	bsr.s   Wuerfel
+	cmp.b   d2,d1                    ;d1<=d2 dann Pflanze gefunden
+	bhi.s   nixgefunden
+	bsr.s   Wuerfel
+	cmp.b   d2,d1                    ;d1<=d2 dann 1W6 Pflanzen gefunden
+	bhi.s   nureineKraut
+	moveq   #6,d0                    ;W6
+	bsr.s   Wuerfel
+	add.w   d1,ks_Gefunden(a4)       ;d1=1W6 Pflanzen
+	bra.s   nixgefunden
+nureineKraut
+	add.w   #1,ks_Gefunden(a4)
+nixgefunden
+	bra.w   naechteFlora
+normalSuche
+	moveq   #0,d0
+	move.b  GebietAktiv(a5),d0
+	moveq   #0,d1
+	bset    d0,d1
+	move.w  d1,GebietBitWert(a5)
+	lea     Alraune(pc),a4
+	moveq   #KraeuterAnzahl-1,d5    ;d5 Kräuter anzahl
+naechtesKraut
+	move.w  ks_Gebiet(a4),d0        ;Wo wäschst das Kraut
+	move.w  GebietBitWert(a5),d1    ;AuswahlGebiet
+	and.w   d0,d1                   ;Vergleiche
+	beq.s   InitKraut               ;Auch Unser Kraut ?
+	move.l  ks_Flora(a4),d0         ;In welcher Flora wächst das Kraut
+	move.l  FloraBitSelect(a5),d7   ;Angewählte Flora
+	and.l   d0,d7                   ;d7 in welchen Floras das Kraut ge-
+	beq.s   InitKraut               ;sucht werden kann
+	tst.w   SpeSuchVer(a5)
+	beq.s   normalProbeP
+	move.b  ks_ProbePlus(a4),d2
+	cmp.b   #31,d5
+	bls.s   SpeKrLower
+	move.l  SpeKraeuter1(a5),d1
+	bra.s   richtigSpeKr
+SpeKrLower
+	move.l  SpeKraeuter0(a5),d1
+richtigSpeKr
+	moveq   #0,d0
+	bset    d5,d0
+	and.l   d0,d1
+	beq.s   AddProbeP
+	sub.b   SpeBonus(a5),d2
+	bra.s   keinNorPP
+AddProbeP
+	add.b   SpeBonus(a5),d2
+normalProbeP
+	move.b  ks_ProbePlus(a4),d2     ;Probe Plus für das Kraut
+keinNorPP
+	move.b  ProbePlus(a5),d1        ;welche ist geschafft ?
+	cmp.b   d1,d2                   ;d2>=d1 dann Kraut gefunden u. Identi
+	bhi.s   InitKraut
+	moveq   #30-1,d6                ;d6 = 30 Floras
+KrautinFloraloop
+	btst    d6,d7                   ;testet welches Gebiet angewählt ist
+	bne.w   KrautAuswuerfeln
+naechteFlora
+	dbra    d6,KrautinFloraloop
+InitKraut
+	lea     ks_SIZEOF(a4),a4
+	dbra    d5,naechtesKraut
+missSuche
+	dbra    d3,SuchenDauerLoop
+	lea     KrautGadListe(a5),a0
+	move.l  GADBase(a5),a6
+	jsr     _LVOCreateContext(a6)
+	move.l  d0,d4
+	beq.w   KrautErrorGadget
+	lea     Kraut2Gad(pc),a1
+	lea     KrautGad(pc),a2
+	bsr.w   InitKGadget
+	lea     KrautGad(pc),a1
+	move.b  RelativeTopC(a5),d2
+	move.b  RelativeLeftC(a5),d3
+	add.b   d2,gng_TopEdge+1(a1)
+	add.b   d3,gng_LeftEdge+1(a1)
+	move.l  VisualInfo(a5),gng_VisualInfo(a1)
+	move.l  FontAddr(a5),gng_TextAttr(a1)
+	lea     GKraut(a5),a0
+	move.l  a0,d3
+	lea     Alraune(pc),a4
+	lea     AusgabeK(a5),a3
+	moveq   #KraeuterAnzahl-1,d5
+	moveq   #0,d7
+AusgabeInitloop
+	moveq   #0,d6
+	move.w  ks_Gefunden(a4),d6
+	beq.s   nichtgefunden
+	bsr.w   WordWandler
+	move.l  #$20782000,(a3)+
+	move.l  d4,a0
+	lea     KrautGad(pc),a1
+	move.l  ks_Name(a4),gng_GadgetText(a1)
+	add.w   #10,gng_TopEdge(a1)
+	move.w  d5,d0
+	sub.w   #KraeuterAnzahl-1,d0
+	neg.w   d0
+	move.w  d0,gng_GadgetID(a1)
+	moveq   #BUTTON_KIND,d0
+	suba.l  a2,a2
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d3,a1
+	move.l  d0,(a1)+
+	beq.w   KrautErrorGadget
+	move.l  d0,d4
+	move.l  a1,d3
+	addq    #1,d7
+nichtgefunden
+	lea     ks_SIZEOF(a4),a4
+	dbra    d5,AusgabeInitloop
+	tst.b   d7
+	beq.w   misslungen
+	move.l  INTUIBase(a5),a6
+	lea     Fenster_Tags(pc),a1
+	move.l  KrautGadListe(a5),12(a1)
+	lea     KrautWinTitle(pc),a0
+	move.l  a0,4(a1)
+	move.l  a0,20(a1)
+	move.l  #355,28(a1)
+	move.l  #130,52(a1)
+	move.w  d7,d6
+	move.w  d6,d5
+	add.w   d6,d5
+	asl.w   #3,d7
+	add.w   d5,d7
+	add.w   #36,d7
+	move.l  d7,36(a1)
+	move.l  #252,d0
+	sub.w   d7,d0
+	asr.w   #1,d0
+	move.l  d0,44(a1)
+	suba.l  a0,a0
+	jsr     _LVOOpenWindowTagList(a6)
+	move.l  d0,KrautWinHandle(a5)
+	beq.w   KrautWindowError
+	sub.b   #1,d6
+	move.w  #12,d5
+	lea     geKrautTxt(a5),a4
+	move.l  FontAddr(a5),a3
+	lea     AusgabeK(a5),a2
+TxtInitLoop
+	move.l  #$02000100,(a4)+
+	move.w  #15,(a4)+
+	move.w  d5,(a4)+
+	add.w   #10,d5
+	move.l  a3,(a4)+
+	move.l  a2,(a4)+
+	lea     8(a2),a2
+	lea     4(a4),a1
+	move.l  a1,(a4)+
+	dbra    d6,TxtInitLoop
+	move.l  KrautWinHandle(a5),a4
+	move.l  wd_RPort(a4),a0
+	lea     geKrautTxt(a5),a1
+	move.w  WinBorderLeft(a5),d0
+	move.w  WinBorderTop(a5),d1
+	jsr     _LVOPrintIText(a6)
+	move.l  GKraut(a5),a4
+	moveq   #1,d7
+	bsr.w   SelGK
+	lea     GKraut(a5),a4
+	move.l  a4,AnGKraut(a5)
+	move.b  #IECLASS_RAWKEY,RawErkennung!ie_Class(a5)
+KrautMsgAbFragen
+	move.l  KrautWinHandle(a5),a0
+	move.l  wd_UserPort(a0),a0
+	move.l  4.w,a6
+	jsr     _LVOWaitPort(a6)
+nochzwei
+	move.l  GADBase(a5),a6
+	move.l  KrautWinHandle(a5),a0
+	move.l  wd_UserPort(a0),a0
+	jsr     _LVOGT_GetIMsg(a6)
+	move.l  d0,a1
+	beq.s   KrautMsgAbFragen
+	move.l  im_Class(a1),d4
+	move.w  im_Code(a1),d5
+	move.w  im_Qualifier(a1),d6
+	move.l  im_IAddress(a1),a4
+	jsr     _LVOGT_ReplyIMsg(a6)
+	cmpi.l  #IDCMP_CLOSEWINDOW,d4
+	beq.s   Krautende
+	cmpi.l  #IDCMP_GADGETUP,d4
+	beq.w   KGadAuswertung
+	cmpi.l  #IDCMP_RAWKEY,d4
+	beq.w   KTastendruck
+	cmpi.l  #IDCMP_VANILLAKEY,d4
+	beq.w   KKey
+	bra.s   nochzwei
+Krautende
+	lea     geKrautTxt(a5),a0
+	move.w  #KraeuterAnzahl*it_SIZEOF-1,d0
+InitITNullLoop
+	move.b  #0,(a0)+
+	dbra    d0,InitITNullLoop
+	move.w  #KraeuterAnzahl-1,d0
+	lea     GKraut(a5),a0
+GKrautInitLoop
+	move.l  #0,(a0)+
+	dbra    d0,GKrautInitLoop
+	move.l  INTUIBase(a5),a6
+	move.l  KrautWinHandle(a5),a0
+	jsr     _LVOCloseWindow(a6)
+KrautErrorGadget
+	move.l  GADBase(a5),a6
+	move.l  KrautGadListe(a5),a0
+	jsr     _LVOFreeGadgets(a6)
+	bra.w   nocheine
+SelGK
+	move.l  KrautWinHandle(a5),a0
+	bsr.w   KRemoveGSuche
+	tst.l   d7
+	beq.s   DisSel
+	or.w    #GFLG_SELECTED,gg_Flags(a4)
+	bra.s   NunSel
+DisSel
+	eor.w   #GFLG_SELECTED,gg_Flags(a4)
+NunSel
+	move.l  KrautWinHandle(a5),a0
+	bsr.w   KAddGSuche
+	rts
+InitKGadget
+	moveq   #7-1,d0
+GadgetCopyLoop
+	move.l  (a1)+,(a2)+
+	dbra    d0,GadgetCopyLoop
+	move.w  (a1)+,(a2)+
+	rts
+KrautWindowError
+	move.l  WindowHandle(a5),a0
+	lea     ErrReqTit(pc),a2
+	lea     WinErrReqTxt(pc),a3
+	lea     FeGadTxt(pc),a4
+	bsr.w   AllRequester
+	bra.s   KrautErrorGadget
+WordWandler
+	moveq   #0,d0
+	move.l  #1000,d1
+	bsr.s   Teilen
+	moveq   #100,d1
+	bsr.s   Teilen
+	moveq   #10,d1
+	bsr.s   Teilen
+	moveq   #1,d1
+	bsr.s   Teilen
+	rts
+Teilen
+	divu.w  d1,d6
+	tst.w   d6
+	bne.s   eineZahl
+	tst.b   d0
+	bne.s   eineZahl
+	move.b  #$20,(a3)+
+	bra.s   ZahlWeiterLeer
+eineZahl
+	moveq   #1,d0
+	add.b   #'0',d6
+	move.b  d6,(a3)+
+ZahlWeiterLeer
+	move.w  #0,d6
+	swap    d6
+	rts
+;;
+** Wuerfel FalscherWert
+Wuerfel
+	move.l  AltZufall(a5),d1
+	add.l   #$d73b5217,d1
+	rol.l   #8,d1
+	rol.l   #8,d1
+	rol.l   #3,d1
+	move.l  d1,AltZufall(a5)
+	clr.w   d1
+	swap    d1
+	divu    d0,d1
+	swap    d1
+	addq    #1,d1
+	rts
+FalscherWert4
+	lea     StundenFeReqTxt(pc),a3
+	bra.s   FalscherWert
+FalscherWert3
+	lea     TAWFeReqTxt(pc),a3
+	bra.s   FalscherWert
+FalscherWert2
+	lea     INFeReqTxt(pc),a3
+	bra.s   FalscherWert
+FalscherWert1
+	lea     KLFeReqTxt(pc),a3
+	bra.s   FalscherWert
+FalscherWert5
+	lea     FFFeReqTxt(pc),a3
+FalscherWert
+	move.l  WindowHandle(a5),a0
+	lea     ErrReqTit(pc),a2
+	lea     FeGadTxt(pc),a4
+	bsr.w   AllRequester
+	bra.w   nocheine
+;;
+** KräuterWin Auswertung
+UpTaste
+	move.l  AnGKraut(a5),a4
+	lea     GKraut(a5),a3
+	cmp.l   a3,a4
+	beq.s   DownTEnde
+	and.b   #IEQUALIFIER_LSHIFT!IEQUALIFIER_RSHIFT,d6
+	bne.s   GadAnwaehlen
+	lea     -4(a4),a3
+	bra.s   GadAnwaehlen
+DownTaste
+	move.l  AnGKraut(a5),a4
+	lea     4(a4),a3
+	tst.l   (a3)
+	beq.s   DownTEnde
+	and.b   #IEQUALIFIER_LSHIFT!IEQUALIFIER_RSHIFT,d6
+	beq.s   GadAnwaehlen
+nocheinGadget
+	lea     4(a3),a3
+	tst.l   (a3)
+	bne.s   nocheinGadget
+	lea     -4(a3),a3
+GadAnwaehlen
+	move.l  (a4),a4
+	moveq   #0,d7
+	bsr.w   SelGK
+	moveq   #1,d7
+	move.l  (a3),a4
+	bsr.w   SelGK
+	move.l  (a3),a3
+	bsr.s   GAddrKraut
+DownTEnde
+	bra.w   nochzwei
+KTastendruck
+	cmp.b   #$4e,d5
+	beq.s   InfoFensterReq
+	cmp.b   #$4d,d5         ;Down
+	beq.s   DownTaste
+	cmp.b   #$4c,d5         ;Up
+	beq.s   UpTaste
+	bra.w   nochzwei
+KKey
+	cmp.b   #$0d,d5
+	beq.s   InfoFensterReq
+	cmp.b   #$1b,d5
+	beq.w   Krautende
+	bclr    #5,d5
+	cmp.b   #'Q',d5
+	beq.w   Krautende
+	bra.w   nochzwei
+GAddrKraut
+	lea     GKraut(a5),a4
+FindeGAdd
+	cmp.l   (a4)+,a3
+	beq.s   RichtGAdd
+	bra.s   FindeGAdd
+RichtGAdd
+	lea     -4(a4),a4
+	move.l  a4,AnGKraut(a5)
+	rts
+InfoFensterReq
+	move.l  AnGKraut(a5),a4
+	move.l  (a4),a4
+KGadAuswertung
+	moveq.l #0,d6
+	move.w  gg_GadgetID(a4),d6
+	cmp.b   #KraeuterAnzahl,d6
+	bhi.s   keinKrautGad
+	move.l  a4,a3
+	moveq   #0,d7
+	move.l  AnGKraut(a5),a4
+	move.l  (a4),a4
+	bsr.w   SelGK
+	moveq   #1,d7
+	move.l  a3,a4
+	bsr.w   SelGK
+	bsr.s   GAddrKraut
+	move.b  #ks_SIZEOF,d1
+	mulu    d1,d6
+	lea     Alraune(pc),a4
+	lea     (a4,d6.w),a4
+	move.l  WindowHandle(a5),a0
+	move.l  ks_Name(a4),a2
+	move.l  ks_InfoTxt(a4),a3
+	lea     AbGadTxt(pc),a4
+	bsr.w   AllRequester
+keinKrautGad
+	bra.w   nochzwei
+;;
+** ProbeGG SpeFenster init öffnen usw
+SpezialSS
+	move.l  GADBase(a5),a6
+	lea     SpeGadgetListe(a5),a0
+	jsr     _LVOCreateContext(a6)
+	move.l  d0,a0
+	beq.w   SpeErrorGadget
+	moveq   #LISTVIEW_KIND,d0
+	lea     KrautListeGad(pc),a1
+	move.l  VisualInfo(a5),gng_VisualInfo(a1)
+	move.l  FontAddr(a5),gng_TextAttr(a1)
+	lea     KraSpeGText(pc),a2
+	move.l  a2,gng_GadgetText(a1)
+	lea     GebietTag(pc),a2
+	lea     GSpeSucList(a5),a3
+	move.l  a3,4(a2)
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d0,GKraSpe(a5)
+	beq.w   SpeErrorGadget
+	move.l  d0,a0
+	moveq   #BUTTON_KIND,d0
+	lea     OKGad(pc),a1
+	move.l  VisualInfo(a5),gng_VisualInfo(a1)
+	move.l  FontAddr(a5),gng_TextAttr(a1)
+	move.w  #17,gng_LeftEdge(a1)
+	lea     OKGText(pc),a2
+	move.l  a2,gng_GadgetText(a1)
+	lea     SBGTag(pc),a2
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d0,GOK(a5)
+	beq.w   SpeErrorGadget
+	move.l  d0,a0
+	moveq   #BUTTON_KIND,d0
+	lea     OKGad(pc),a1
+	add.w   #90,gng_LeftEdge(a1)
+	lea     LoesGText(pc),a2
+	move.l  a2,gng_GadgetText(a1)
+	lea     SBGTag(pc),a2
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d0,GLoes(a5)
+	beq.w   SpeErrorGadget
+	move.l  d0,a0
+	moveq   #BUTTON_KIND,d0
+	lea     OKGad(pc),a1
+	add.w   #90,gng_LeftEdge(a1)
+	lea     VerwerfenGText(pc),a2
+	move.l  a2,gng_GadgetText(a1)
+	lea     SBGTag(pc),a2
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d0,GVerwerfen(a5)
+	beq.w   SpeErrorGadget
+	move.l  INTUIBase(a5),a6
+	lea     KraWinTags(pc),a1
+	move.l  SpeGadgetListe(a5),12(a1)
+	lea     KraWinTitle(pc),a0
+	move.l  a0,4(a1)
+	move.l  a0,20(a1)
+	suba.l  a0,a0
+	jsr     _LVOOpenWindowTagList(a6)
+	move.l  d0,SpezialWinHandle(a5)
+	beq.w   SpeErrorGadget
+	move.l  SpezialWinHandle(a5),a4
+	bsr.w   RefreshWin
+SpeMessage
+	move.l  SpezialWinHandle(a5),a0
+	move.l  wd_UserPort(a0),a0
+	move.l  4.w,a6
+	jsr     _LVOWaitPort(a6)
+nochdrei
+	move.l  GADBase(a5),a6
+	move.l  SpezialWinHandle(a5),a0
+	move.l  wd_UserPort(a0),a0
+	jsr     _LVOGT_GetIMsg(a6)
+	move.l  d0,a1
+	beq.s   SpeMessage
+	move.l  im_Class(a1),d4
+	move.w  im_Code(a1),d5
+	move.w  im_Qualifier(a1),d6
+	move.l  im_IAddress(a1),a4
+	jsr     _LVOGT_ReplyIMsg(a6)
+	cmpi.l  #IDCMP_CLOSEWINDOW,d4
+	beq.w   SpeEnde
+	cmpi.l  #IDCMP_REFRESHWINDOW,d4
+	beq.b   SpeRefreWin
+	cmpi.l  #IDCMP_GADGETUP,d4
+	beq.b   SpeGadAuswertung
+	cmpi.l  #IDCMP_VANILLAKEY,d4
+	beq.w   SpeTastendruck
+	cmpi.l  #IDCMP_RAWKEY,d4
+	beq.s   SpeKeydruck
+	bra.s   nochdrei
+SpeRefreWin
+	move.l  SpezialWinHandle(a5),a4
+	bsr.w   RefreshWin
+	bra.b   nochdrei
+SpeGadAuswertung
+	cmp.l   GKraSpe(a5),a4
+	beq.s   SpeListe
+	cmp.l   GOK(a5),a4
+	beq.w   SpeEnde
+	cmp.l   GVerwerfen(a5),a4
+	beq.s   SpeVorEnde
+	cmp.l   GLoes(a5),a4
+	beq.w   SpeLoeschen
+	bra.s   nochdrei
+SpeVorEnde
+	move.b  #1,StatusSpe(a5)
+	bra.w   SpeEnde
+SpeLoeschen
+	move.w  #KraeuterAnzahl-1,d6
+	lea     GSpeSucList(a5),a4
+LoescheSpeList
+	move.w  d6,d5
+	bsr.w   ListeNamen
+	move.b  #' ',(a0)
+	dbra    d6,LoescheSpeList
+	bra.s   SpeRefreWin
+SpeListe
+	move.b  d5,SpeKraNummer(a5)
+SpeListe2
+	move.l  SpezialWinHandle(a5),a3
+	lea     GSpeSucList(a5),a4
+	bsr.w   ListAktive
+	bra.w   nochdrei
+SpeKeydruck
+	cmp.b   #$4f,d5
+	beq.s   SpeListeSel
+	cmp.b   #$4e,d5
+	beq.s   SpeListeSel
+	cmp.b   #$4d,d5         ;Down
+	beq.s   SpeDownTaste
+	cmp.b   #$4c,d5         ;Up
+	beq.s   SpeUpTaste
+	bra.w   nochdrei
+SpeUpTaste
+	tst.b   SpeKraNummer(a5)
+	beq.w   nochdrei
+	and.b   #IEQUALIFIER_LSHIFT!IEQUALIFIER_RSHIFT,d6
+	beq.s   keineUpShift
+	move.b  #1,SpeKraNummer(a5)
+keineUpShift
+	sub.b   #1,SpeKraNummer(a5)
+	bra.s   TasSteuerLis
+SpeDownTaste
+	cmp.b   #KraeuterAnzahl-1,SpeKraNummer(a5)
+	beq.w   nochdrei
+	and.b   #IEQUALIFIER_LSHIFT!IEQUALIFIER_RSHIFT,d6
+	beq.s   keineDownShift
+	move.b  #KraeuterAnzahl-2,SpeKraNummer(a5)
+keineDownShift
+	add.b   #1,SpeKraNummer(a5)
+TasSteuerLis
+	move.l  GKraSpe(a5),a0
+	move.l  SpezialWinHandle(a5),a1
+	suba.l  a2,a2
+	lea     GKraSpeTags(pc),a3
+	move.b  SpeKraNummer(a5),7(a3)
+	move.b  SpeKraNummer(a5),15(a3)
+	move.l  GADBase(a5),a6
+	jsr     _LVOGT_SetGadgetAttrsA(a6)
+	bra.w   nochdrei
+SpeListeSel
+	move.b  SpeKraNummer(a5),d5
+	bra.s   SpeListe2
+SpeTastendruck
+	cmp.b   #$0d,d5
+	beq.b   SpeListeSel
+	cmp.b   #$1b,d5
+	beq.b   SpeEnde
+	bclr    #5,d5
+	cmp.b   #'Q',d5
+	beq.b   SpeEnde
+	cmp.b   #'V',d5
+	beq.w   SpeVorEnde
+	cmp.b   #'O',d5
+	beq.w   SpeEnde
+	cmp.b   #'L',d5
+	beq.w   SpeLoeschen
+	bra.w   nochdrei
+SpeEnde
+	move.l  INTUIBase(a5),a6
+	move.l  SpezialWinHandle(a5),a0
+	jsr     _LVOCloseWindow(a6)
+SpeErrorGadget
+	move.l  GADBase(a5),a6
+	move.l  SpeGadgetListe(a5),a0
+	jsr     _LVOFreeGadgets(a6)
+	tst.b   StatusSpe(a5)
+	bne.s   SpeError
+;;
+** SpeSucList auswerten und nullinit
+	moveq   #0,d0
+	moveq   #0,d1
+	moveq   #0,d2
+	move.w  #KraeuterAnzahl-1,d6
+	lea     GSpeSucList(a5),a4
+SpeSucListNull
+	move.w  d6,d5
+	bsr.w   ListeNamen
+	cmp.b   #'+',(a0)
+	bne.s   NichtSuc
+	cmp.b   #31,d6
+	bls.s   NochDNull
+	move.b  d6,d4
+	sub.b   #32,d4
+	bset    d4,d1
+	bra.s   AddSuc
+NochDNull
+	bset    d6,d0
+AddSuc
+	addq    #1,d2
+NichtSuc
+	dbra    d6,SpeSucListNull
+	move.l  d0,SpeKraeuter0(a5)
+	move.l  d1,SpeKraeuter1(a5)
+	cmp.b   #1,d2
+	bne.s   DreiBoni
+	move.b  #4,SpeBonus(a5)
+	rts
+DreiBoni
+	cmp.b   #2,d2
+	bne.s   ZweiBoni
+	move.b  #3,SpeBonus(a5)
+	rts
+ZweiBoni
+	cmp.b   #3,d2
+	bne.s   EinsBoni
+	move.b  #2,SpeBonus(a5)
+	rts
+EinsBoni
+	cmp.b   #4,d2
+	bne.s   SpeError
+	move.b  #1,SpeBonus(a5)
+SpeError
+	rts
+;;
+;;
+** Window Abfrage Gadget/Menu/Tastatur Auswertung
+** MessageAbFragen
+MessageAbFragen
+	move.l  WindowHandle(a5),a0
+	move.l  wd_UserPort(a0),a0
+	move.l  4.w,a6
+	jsr     _LVOWaitPort(a6)
+nocheine
+	move.l  GADBase(a5),a6
+	move.l  WindowHandle(a5),a0
+	move.l  wd_UserPort(a0),a0
+	jsr     _LVOGT_GetIMsg(a6)
+	move.l  d0,a1
+	beq.s   MessageAbFragen
+	move.l  im_Class(a1),d4
+	move.w  im_Code(a1),d5
+	move.w  im_Qualifier(a1),d6
+	move.l  im_IAddress(a1),a4
+	jsr     _LVOGT_ReplyIMsg(a6)
+	cmp.l   #IDCMP_CLOSEWINDOW,d4
+	beq.s   ende
+	cmp.l   #IDCMP_REFRESHWINDOW,d4
+	beq.s   RefreWin
+	cmp.l   #IDCMP_GADGETUP,d4
+	beq.w   GadAuswertung
+	cmp.l   #IDCMP_MENUPICK,d4
+	beq.w   MenuAuswertung
+	cmp.l   #IDCMP_VANILLAKEY,d4
+	beq.w   Tastendruck
+	cmp.l   #IDCMP_RAWKEY,d4
+	beq.w   Keydruck
+	cmp.l   #IDCMP_MOUSEMOVE,d4
+	beq.w   MouseBeweg
+	bra.s   nocheine
+;;
+** RefreWin
+RefreWin
+	move.l  WindowHandle(a5),a4
+	bsr.w   RefreshWin
+	bra.s   nocheine
+;;
+** ende
+ende
+	move.l  WindowHandle(a5),a0
+	lea     EnReqTitle(pc),a2
+	lea     EnReqTxt(pc),a3
+	lea     EnGadTxt(pc),a4
+	bsr.w   AllRequester
+	tst.l   d0
+	beq.w   nocheine
+	rts
+;;
+** Keydruck
+Keydruck
+	cmp.b   #$4e,d5
+	beq.s   ChangeGadListe
+	cmp.b   #$4f,d5
+	beq.s   ChangeGadListe
+	cmp.b   #$4d,d5
+	beq.s   RunterTaste
+	cmp.b   #$4c,d5
+	beq.s   HochTaste
+	bra.w   nocheine
+ChangeGadListe
+	tst.b   GListWahlStatus(a5)
+	beq.s   FloraWahl
+	moveq   #2,d6
+	bsr.w   DSARender
+	move.b  #0,GListWahlStatus(a5)
+	move.b  #14-1,MaxListeAnz(a5)
+	move.b  AktivListeEn(a5),FloraAktiv(a5)
+	move.b  GebietAktiv(a5),AktivListeEn(a5)
+	move.l  GGebiet(a5),ListHandle(a5)
+	bra.w   nocheine
+FloraWahl
+	moveq   #1,d6
+	bsr.w   DSARender
+	move.b  #1,GListWahlStatus(a5)
+	move.b  #30-1,MaxListeAnz(a5)
+	move.b  AktivListeEn(a5),GebietAktiv(a5)
+	move.b  FloraAktiv(a5),AktivListeEn(a5)
+	move.l  GFlora(a5),ListHandle(a5)
+	bra.w   nocheine
+HochTaste
+	tst.b   AktivListeEn(a5)
+	beq.w   nocheine
+	and.b   #IEQUALIFIER_LSHIFT!IEQUALIFIER_RSHIFT,d6
+	beq.s   NoUpShift
+	move.b  #1,AktivListeEn(a5)
+NoUpShift
+	sub.b   #1,AktivListeEn(a5)
+	bra.s   HTasSteuerLis
+RunterTaste
+	move.b  MaxListeAnz(a5),d0
+	cmp.b   AktivListeEn(a5),d0
+	beq.w   nocheine
+	and.b   #IEQUALIFIER_LSHIFT!IEQUALIFIER_RSHIFT,d6
+	beq.s   NoDownShift
+	subq    #1,d0
+	move.b  d0,AktivListeEn(a5)
+NoDownShift
+	add.b   #1,AktivListeEn(a5)
+HTasSteuerLis
+	move.l  ListHandle(a5),a0
+	move.l  WindowHandle(a5),a1
+	suba.l  a2,a2
+	lea     GKraSpeTags(pc),a3
+	move.b  AktivListeEn(a5),7(a3)
+	move.b  AktivListeEn(a5),15(a3)
+	move.l  GADBase(a5),a6
+	jsr     _LVOGT_SetGadgetAttrsA(a6)
+	bra.w   nocheine
+;;
+** Tastendruck
+Tastendruck
+	cmp.b   #$1b,d5
+	beq.w   ende
+	cmp.b   #13,d5
+	beq.s   Return
+	bclr    #5,d5
+	cmp.b   #'Q',d5
+	beq.w   ende
+	bclr    #5,d5
+	cmp.b   #'K',d5
+	beq.s   KlugGSec
+	cmp.b   #'I',d5
+	beq.s   IntuiGSec
+	cmp.b   #'F',d5
+	beq.s   FingerGSec
+	cmp.b   #'T',d5
+	beq.s   TalentGSec
+	cmp.b   #'U',d5
+	beq.w   StundenGSec
+	cmp.b   #'S',d5
+	beq.s   SucheGSec
+	cmp.b   #'P',d5
+	beq.s   SpeSucGSec
+	bra.w   nocheine
+Return
+	tst.b   GListWahlStatus(a5)
+	beq.w   nocheine
+	moveq   #0,d5
+	move.b  AktivListeEn(a5),d5
+	bra.w   ListeAktive
+SpeSucGSec
+	move.l  GADBase(a5),a6
+	move.l  GSpeSuc(a5),a0
+	move.l  WindowHandle(a5),a1
+	suba.l  a2,a2
+	lea     SpeSucGTag(pc),a3
+	eor.w   #1,6(a3)
+	jsr     _LVOGT_SetGadgetAttrsA(a6)
+	bra.w   nocheine
+KlugGSec
+	move.l  GKL(a5),a0
+	bra.w   AKtiviertGad
+IntuiGSec
+	move.l  GIN(a5),a0
+	bra.s   AKtiviertGad
+FingerGSec
+	move.l  GFF(a5),a0
+	bra.s   AKtiviertGad
+TalentGSec
+	move.l  GTAW(a5),a0
+	bra.s   AKtiviertGad
+StundenGSec
+	move.l  GStunden(a5),a0
+AKtiviertGad
+	move.l  WindowHandle(a5),a1
+	suba.l  a2,a2
+	move.l  INTUIBase(a5),a6
+	jsr     _LVOActivateGadget(a6)
+	bra.w   nocheine
+SucheGSec
+	move.l  GSuchen(a5),a4
+	bsr.s   RemoveGSuche
+	or.w    #GFLG_SELECTED,gg_Flags(a4)
+	bsr.s   AddGSuche
+	moveq   #5,d1
+	move.l  DOSBase(a5),a6
+	jsr     _LVODelay(a6)
+	bsr.s   RemoveGSuche
+	eor.w   #GFLG_SELECTED,gg_Flags(a4)
+	bsr.s   AddGSuche
+	bra.w   SuchenStart
+RemoveGSuche
+	move.l  WindowHandle(a5),a0
+KRemoveGSuche
+	move.l  a4,a1
+	move.l  INTUIBase(a5),a6
+	jsr     _LVORemoveGadget(a6)
+	rts
+KAddGSuche
+	move.l  KrautWinHandle(a5),a0
+	move.l  a4,a1
+	moveq   #-1,d0
+	jsr     _LVOAddGadget(a6)
+	move.l  a4,a0
+	move.l  KrautWinHandle(a5),a1
+	suba.l  a2,a2
+	jsr     _LVORefreshGadgets(a6)
+	rts
+AddGSuche
+	move.l  WindowHandle(a5),a0
+	move.l  a4,a1
+	moveq   #-1,d0
+	jsr     _LVOAddGadget(a6)
+	move.l  a4,a0
+	move.l  WindowHandle(a5),a1
+	suba.l  a2,a2
+	jsr     _LVORefreshGadgets(a6)
+	rts
+;;
+** MouseBeweg
+MouseBeweg
+	bra.s   ListeAktive
+;;
+** GadAuswertung
+GadAuswertung
+	cmp.l   GFlora(a5),a4
+	beq.b   ListeAktive
+	cmp.l   GSuchen(a5),a4
+	beq.w   SuchenStart
+	cmp.l   GGebiet(a5),a4
+	beq.s   WelchesGebiet
+	cmp.l   GSpeSuc(a5),a4
+	beq.s   CheckTagEOR
+	bra.w   nocheine
+CheckTagEOR
+	lea     SpeSucGTag(pc),a3
+	eor.w   #1,6(a3)
+	bra.w   nocheine
+WelchesGebiet
+	move.b  d5,GebietAktiv(a5)
+	tst.b   GListWahlStatus(a5)
+	bne.w   FloraWahl
+	move.b  d5,AktivListeEn(a5)
+keinAktkoor
+	bra.w   nocheine
+ListeAktive
+	move.l  WindowHandle(a5),a3
+	lea     GFloraList(a5),a4
+	move.b  d5,FloraAktiv(a5)
+	tst.b   GListWahlStatus(a5)
+	beq.s   keinAkt2koor
+	move.b  d5,AktivListeEn(a5)
+keinAkt2koor
+	bsr.w   ListAktive
+	bra.w   nocheine
+ListAktive
+	bsr.s   ListeNamen
+	cmp.b   #'+',(a0)
+	beq.s   SternLoeschen
+	move.b  #'+',(a0)
+	bra.s   SternZeigen
+SternLoeschen
+	move.b  #' ',(a0)
+SternZeigen
+	move.l  a3,a4
+	bsr.w   RefreshWin
+	rts
+ListeNamen
+	move.l  a4,a0
+	subq    #1,d5
+	move.l  LH_HEAD(a0),a0
+	cmp.b   #0,d5
+	bmi.b   LiAuEnde
+ListAuswertung
+	move.l  LN_SUCC(a0),a0
+	dbra    d5,ListAuswertung
+LiAuEnde
+	move.l  LN_NAME(a0),a0
+	rts
+;;
+** MenuAuswertung
+MenuAuswertung
+	move.l  INTUIBase(a5),a6
+	cmpi.w  #MENUNULL,d5
+	beq.w   nocheine
+	cmp.w   #$F800,d5
+	beq.b   About
+	cmp.w   #$F820,d5
+	beq.w   ende
+	bra.w   nocheine
+About
+	move.l  WindowHandle(a5),a0
+	lea     AbReqTi(pc),a2
+	lea     AbReqTxt(pc),a3
+	lea     AbGadTxt(pc),a4
+	bsr.s   AllRequester
+	bra.w   nocheine
+;;
+;;
+** AllRequester
+*   a0=Windowptr
+*   a2=ReqTitle
+*   a3=ReqText
+*   a4=ReqGadget
+*       d0= 0:Nein 1:Ja
+AllRequester
+	lea     EndeReq(pc),a1
+	move.l  a2,8(a1)
+	move.l  a3,12(a1)
+	move.l  a4,16(a1)
+	suba.l  a2,a2
+	suba.l  a3,a3
+	move.l  INTUIBase(a5),a6
+	jsr     _LVOEasyRequestArgs(a6)
+	rts
+;;
+** DSARender Layout Setmenu
+DSARender
+	move.w  WinBorderLeft(a5),d4
+	move.w  WinBorderTop(a5),d5
+	move.l  GADBase(a5),a6
+	move.l  WinRPort(a5),a0
+	lea     DrawBoxTag1(pc),a1
+	move.l  VisualInfo(a5),4(a1)
+	move.w  #14,d0
+	add.w   d4,d0
+	move.w  #5,d1
+	add.w   d5,d1
+	move.w  #552,d2
+	move.w  #37,d3
+	jsr     _LVODrawBevelBoxA(a6)
+	move.l  WinRPort(a5),a0
+	lea     DrawBoxTag1(pc),a1
+	move.w  #14,d0
+	add.w   d4,d0
+	move.w  #42,d1
+	add.w   d5,d1
+	move.w  #552,d2
+	move.w  #146,d3
+	jsr     _LVODrawBevelBoxA(a6)
+	move.l  WinRPort(a5),a0
+	lea     DrawBoxTag2(pc),a1
+	move.l  VisualInfo(a5),4(a1)
+	move.w  #18,d0
+	add.w   d4,d0
+	move.w  #44,d1
+	add.w   d5,d1
+	move.w  #544,d2
+	move.w  #142,d3
+	jsr     _LVODrawBevelBoxA(a6)
+	move.l  INTUIBase(a5),a6
+	move.l  WinRPort(a5),a0
+	lea     DSATitleText2(pc),a1
+	lea     DSATitleText3(pc),a2
+	move.b  d6,(a1)
+	cmp.b   #1,d6
+	beq.s   FloraTextHigh
+	move.b  #1,(a2)
+	bra.s   TextIAus
+FloraTextHigh
+	move.b  #2,(a2)
+TextIAus
+	lea     DSATitleText(pc),a1
+	move.l  d4,d0
+	move.l  d5,d1
+	jsr     _LVOPrintIText(a6)
+	rts
+SetAndLayout
+	move.l  INTUIBase(a5),a6
+	move.l  WindowHandle(a5),a0
+	move.l  MenuPtr(a5),a1
+	jsr     _LVOSetMenuStrip(a6)
+	move.l  d0,d1
+	bne.s   SetLayOK
+	moveq   #27,d7
+SetLayOK
+	rts
+ClearMenu
+	move.l  INTUIBase(a5),a6
+	move.l  WindowHandle(a5),a0
+	jsr     _LVOClearMenuStrip(a6)
+	rts
+RefreshWin
+	move.l  GADBase(a5),a6
+	move.l  a4,a0
+	suba.l  a1,a1
+	jsr     _LVOGT_RefreshWindow(a6)
+	move.l  a4,a0
+	jsr     _LVOGT_BeginRefresh(a6)
+	move.l  a4,a0
+	moveq   #DOSTRUE,d0
+	jsr     _LVOGT_EndRefresh(a6)
+	rts
+;;
+** MausZeiger
+;MausZeiger
+;   move.l  WindowHandle(a5),a0
+;   lea     MausData(pc),a1
+;   moveq   #14,d0
+;   moveq   #10,d1
+;   moveq   #6,d2
+;   moveq   #3,d3
+;   move.l  INTUIBase(a5),a6
+;   jsr     _LVOSetPointer(a6)
+;   rts
+;LoesMausZeiger
+;   move.l  WindowHandle(a5),a0
+;   move.l  INTUIBase(a5),a6
+;   jsr     _LVOClearPointer(a6)
+;   rts
+;;
+** FensterOeffne
+FensterOeffne
+	move.l  INTUIBase(a5),a6
+	lea     Fenster_Tags(pc),a1
+	move.l  GadgetListe(a5),12(a1)
+	lea     WinTitle(pc),a0
+	move.l  a0,4(a1)
+	move.l  a0,20(a1)
+	suba.l  a0,a0
+	jsr     _LVOOpenWindowTagList(a6)
+	move.l  d0,WindowHandle(a5)
+	beq.s   ErrorWindow
+	move.l  d0,a0
+	move.l  wd_RPort(a0),WinRPort(a5)
+	move.b  wd_BorderLeft(a0),d0
+	ext.w   d0
+	move.w  d0,WinBorderLeft(a5)
+	move.b  wd_BorderTop(a0),d0
+	ext.w   d0
+	move.w  d0,WinBorderTop(a5)
+	move.l  4.w,a6
+	suba.l  a1,a1
+	jsr     _LVOFindTask(a6)
+	move.l  d0,meinTask(a5)
+	beq.s   ErrorTask
+	move.l  d0,a0
+	move.l  pr_WindowPtr(a0),alterTask(a5)
+	move.l  WindowHandle(a5),pr_WindowPtr(a0)
+	rts
+ErrorTask
+	bsr.s   keinTask
+ErrorWindow
+	moveq   #26,d7
+	rts
+FensterSchliesse
+	move.l  meinTask(a5),a0
+	move.l  alterTask(a5),pr_WindowPtr(a0)
+keinTask
+	move.l  INTUIBase(a5),a6
+	move.l  WindowHandle(a5),a0
+	jsr     _LVOCloseWindow(a6)
+	rts
+;;
+** InitMenu
+InitMenu
+	move.l  GADBase(a5),a6
+	lea     DSANewMenu0(pc),a0
+	lea     DSAKMenuTags(pc),a1
+	jsr     _LVOCreateMenusA(a6)
+	move.l  d0,MenuPtr(a5)
+	beq.s   MenuError
+	move.l  d0,a0
+	move.l  VisualInfo(a5),a1
+	suba.l  a2,a2
+	jsr     _LVOLayoutMenusA(a6)
+	move.l  d0,d1
+	bne.s   MenuOK
+MenuError
+	moveq   #25,d7
+MenuOK
+	rts
+RemoveMenu
+	move.l  GADBase(a5),a6
+	move.l  MenuPtr(a5),a0
+	jsr     _LVOFreeMenus(a6)
+	rts
+;;
+** InitGadget
+InitGadget
+	move.l  ScreenHandle(a5),a0
+	lea     topaz8(pc),a2
+	move.l  a2,FontAddr(a5)
+	move.l  sc_Font(a0),a1
+	move.w  ta_YSize(a1),d2
+	add.b   sc_WBorTop(a0),d2
+	addq    #1,d2
+	move.b  d2,RelativeTopC(a5)
+	move.b  sc_WBorTop(a0),RelativeLeftC(a5)
+	lea     GadgetListe(a5),a0
+	jsr     _LVOCreateContext(a6)
+	move.l  d0,a0
+	beq.w   ErrorGadget
+;4*INTEGER-Gadget
+	lea     UniIntGad(pc),a1
+	move.l  VisualInfo(a5),gng_VisualInfo(a1)
+	move.l  FontAddr(a5),gng_TextAttr(a1)
+	lea     UniGadText(pc),a4
+	lea     KLArray(a5),a3
+	move.l  a3,d3
+	lea     UniGadCoordi(pc),a3
+	lea     UniIntTag(pc),a2
+	lea     GKL(a5),a1
+	move.l  a1,d4
+	moveq   #5-1,d6
+	moveq   #0,d5
+INT4Loop
+	move.l  d0,a0
+	moveq   #INTEGER_KIND,d0
+	lea     UniIntGad(pc),a1
+	addq.w  #1,gng_GadgetID(a1)
+	add.w   d5,a4
+	move.b  (a4)+,d1
+	move.b  d1,d5
+	move.l  a4,gng_GadgetText(a1)
+	move.w  (a3)+,d2
+	add.b   RelativeLeftC(a5),d2
+	move.w   d2,gng_LeftEdge(a1)
+	move.w  (a3)+,d2
+	add.b   RelativeTopC(a5),d2
+	move.w   d2,gng_TopEdge(a1)
+	exg     a3,d3
+	move.l  (a3)+,4(a2)
+	exg     d3,a3
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d4,a1
+	move.l  d0,(a1)+
+	beq.w   ErrorGadget
+	move.l  a1,d4
+	dbra    d6,INT4Loop
+	move.l  d0,a0
+	moveq   #BUTTON_KIND,d0
+	lea     SuchenGad(pc),a1
+	move.b  RelativeTopC(a5),d2
+	move.b  RelativeLeftC(a5),d3
+	add.b   d2,gng_TopEdge+1(a1)
+	add.b   d3,gng_LeftEdge+1(a1)
+	move.l  VisualInfo(a5),gng_VisualInfo(a1)
+	move.l  FontAddr(a5),gng_TextAttr(a1)
+	lea     SuchenGText(pc),a2
+	move.l  a2,gng_GadgetText(a1)
+	lea     SBGTag(pc),a2
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d0,GSuchen(a5)
+	beq.w   ErrorGadget
+	move.l  d0,a0
+	moveq   #CHECKBOX_KIND,d0
+	lea     SpeSucGad(pc),a1
+	move.b  RelativeTopC(a5),d2
+	move.b  RelativeLeftC(a5),d3
+	add.b   d2,gng_TopEdge+1(a1)
+	add.b   d3,gng_LeftEdge+1(a1)
+	move.l  VisualInfo(a5),gng_VisualInfo(a1)
+	move.l  FontAddr(a5),gng_TextAttr(a1)
+	lea     SpeSucGText(pc),a2
+	move.l  a2,gng_GadgetText(a1)
+	lea     SBGTag(pc),a2
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d0,GSpeSuc(a5)
+	beq.b   ErrorGadget
+	move.l  d0,a0
+	moveq   #LISTVIEW_KIND,d0
+	lea     GebietGad(pc),a1
+	move.b  RelativeTopC(a5),d2
+	move.b  RelativeLeftC(a5),d3
+	add.b   d2,gng_TopEdge+1(a1)
+	add.b   d3,gng_LeftEdge+1(a1)
+	move.l  VisualInfo(a5),gng_VisualInfo(a1)
+	move.l  FontAddr(a5),gng_TextAttr(a1)
+	lea     GebietTag(pc),a2
+	lea     GGebietList(a5),a3
+	move.l  a3,4(a2)
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d0,GGebiet(a5)
+	beq.s   ErrorGadget
+	move.l  d0,a0
+	moveq   #LISTVIEW_KIND,d0
+	lea     GebietGad(pc),a1
+	add.w   #184,gng_LeftEdge(a1)
+	addq.w  #1,gng_GadgetID(a1)
+	lea     GebietTag(pc),a2
+	lea     GFloraList(a5),a3
+	move.l  a3,4(a2)
+	jsr     _LVOCreateGadgetA(a6)
+	move.l  d0,GFlora(a5)
+	bne.s   GadgetsOK
+ErrorGadget
+	moveq   #24,d7
+GadgetsOK
+	rts
+RemoveGadget
+	move.l  GADBase(a5),a6
+	move.l  GadgetListe(a5),a0
+	jsr     _LVOFreeGadgets(a6)
+	rts
+;;
+** PubScreenOeffne
+PubScreenOeffne
+	move.l  INTUIBase(a5),a6
+	suba.l  a0,a0
+	jsr     _LVOLockPubScreen(a6)
+	move.l  d0,ScreenHandle(a5)
+	move.l  d0,a0
+	suba.l  a1,a1
+	move.l  GADBase(a5),a6
+	jsr     _LVOGetVisualInfoA(a6)
+	move.l  d0,VisualInfo(a5)
+	bne.s   VisualOK
+	moveq   #23,d7
+VisualOK
+	rts
+ScreenSchliesse
+	move.l  GADBase(a5),a6
+	move.l  VisualInfo(a5),a0
+	jsr     _LVOFreeVisualInfo(a6)
+	move.l  INTUIBase(a5),a6
+	suba.l  a0,a0
+	move.l  ScreenHandle(a5),a1
+	jsr     _LVOUnlockPubScreen(a6)
+	rts
+;;
+** LibOeffne
+LibOeffne
+	move.l  a5,a4
+	lea     intname(pc),a1
+	bsr.s   OeffneLib
+	lea     dosname(pc),a1
+	bsr.s   OeffneLib
+	lea     gfxname(pc),a1
+	bsr.s   OeffneLib
+	lea     gadname(pc),a1
+	bsr.s   OeffneLib
+	rts
+OeffneLib
+	moveq   #37,d0
+	jsr     _LVOOpenLibrary(a6)
+	move.l  d0,(a4)+
+	beq.s   LibError
+	rts
+LibError
+	moveq   #22,d7
+	rts
+LibSchliesse
+	move.l  4.w,a6
+	moveq   #4-1,d2
+	lea     WindowHandle(a5),a4
+SchliesseLib
+	move.l  -(a4),a1
+	cmp.l   #0,a1
+	beq.s   notOpened
+	jsr     _LVOCloseLibrary(a6)
+notOpened
+	dbra    d2,SchliesseLib
+	rts
+;;
+** LONG Daten
+Fenster_Tags
+		dc.l    WA_Title,0
+		dc.l    WA_Gadgets,0
+		dc.l    WA_ScreenTitle,0
+		dc.l    WA_Width,588
+		dc.l    WA_Height,210
+		dc.l    WA_Top,11
+		dc.l    WA_Left,0
+		dc.l    WA_IDCMP,IDCMP_CLOSEWINDOW!IDCMP_VANILLAKEY!IDCMP_REFRESHWINDOW!LISTVIEWIDCMP!IDCMP_MENUPICK!IDCMP_RAWKEY!IDCMP_MOUSEMOVE
+		dc.l    WA_Flags,WFLG_ACTIVATE!WFLG_SMART_REFRESH!WFLG_DRAGBAR!WFLG_DEPTHGADGET!WFLG_CLOSEGADGET
+		dc.l    WA_NewLookMenus,-1
+		dc.l    WA_AutoAdjust,-1
+		dc.l    TAG_DONE
+KraWinTags
+		dc.l    WA_Title,0
+		dc.l    WA_Gadgets,0
+		dc.l    WA_ScreenTitle,0
+		dc.l    WA_Width,302
+		dc.l    WA_Height,255
+		dc.l    WA_Top,0
+		dc.l    WA_Left,120
+		dc.l    WA_IDCMP,IDCMP_CLOSEWINDOW!IDCMP_VANILLAKEY!IDCMP_REFRESHWINDOW!LISTVIEWIDCMP!IDCMP_RAWKEY
+		dc.l    WA_Flags,WFLG_ACTIVATE!WFLG_SMART_REFRESH!WFLG_DRAGBAR!WFLG_DEPTHGADGET!WFLG_CLOSEGADGET
+		dc.l    WA_NewLookMenus,-1
+		dc.l    WA_AutoAdjust,-1
+		dc.l    TAG_DONE
+GebietGad
+		dc.w    30,63,165,120
+		dc.l    0,0
+		dc.w    7
+		dc.l    PLACETEXT_ABOVE!NG_HIGHLABEL,0,0
+SuchenGad
+		dc.w    425,147,108,23
+		dc.l    0,0
+		dc.w    6
+		dc.l    PLACETEXT_IN,0,0
+KrautListeGad
+		dc.w    16,30,270,188
+		dc.l    0,0
+		dc.w    0
+		dc.l    PLACETEXT_ABOVE!NG_HIGHLABEL,0,0
+OKGad
+		dc.w    17,220,88,25
+		dc.l    0,0
+		dc.w    1
+		dc.l    PLACETEXT_IN,0,0
+SpeSucGad
+		dc.w    505,124,29,13
+		dc.l    0,0
+		dc.w    8
+		dc.l    PLACETEXT_LEFT!NG_HIGHLABEL,0,0
+UniIntGad
+		dc.w    0,0,39,13
+		dc.l    0,0
+		dc.w    0
+		dc.l    PLACETEXT_LEFT!NG_HIGHLABEL,0,0
+KrautGad
+		dc.w    80,0,247,10
+		dc.l    0,0
+		dc.w    0
+		dc.l    PLACETEXT_IN,0,0
+Kraut2Gad
+		dc.w    80,0,247,10
+		dc.l    0,0
+		dc.w    0
+		dc.l    PLACETEXT_IN,0,0
+UniIntTag
+		dc.l    GTIN_Number,0
+		dc.l    GTIN_MaxChars,2
+SBGTag
+		dc.l    GT_Underscore,'_'
+		dc.l    TAG_DONE
+SpeSucGTag
+		dc.l    GTCB_Checked,0
+		dc.l    TAG_END
+GebietTag
+		dc.l    GTLV_Labels,0
+		dc.l    GTLV_ShowSelected,0
+		dc.l    GTLV_MakeVisible,0
+GKraSpeTags
+		dc.l    GTLV_Selected,0
+		dc.l    GTLV_Top,0
+		dc.l    TAG_DONE
+topaz8
+		dc.l    0
+		dc.w    8
+		dc.b    $00,$01
+DSANewMenu0
+		dc.b    NM_TITLE,0
+		dc.l    0
+		dc.l    0
+		dc.w    0
+		dc.l    0,0
+		dc.b    NM_ITEM,0
+		dc.l    0
+		dc.l    0
+		dc.w    0
+		dc.l    0,0
+		dc.b    NM_ITEM,0
+		dc.l    0
+		dc.l    0
+		dc.w    0
+		dc.l    0,0
+		dc.b    NM_END,0
+		dc.l    0,0
+		dc.w    0
+		dc.l    0,0
+DrawBoxTag1
+		dc.l    GT_VisualInfo,0,TAG_DONE
+DrawBoxTag2
+		dc.l    GT_VisualInfo,0
+		dc.l    GTBB_Recessed,1
+		dc.l    TAG_DONE
+DSATitleText
+		dc.b    2,0
+		dc.b    RP_JAM1
+		dc.b    0
+		dc.w    226,14
+		dc.l    0,0,0
+DSATitleText1
+		dc.b    3,0
+		dc.b    RP_JAM1
+		dc.b    0
+		dc.w    226,27
+		dc.l    0,0,0
+DSATitleText2
+		dc.b    2,0
+		dc.b    RP_JAM1
+		dc.b    0
+		dc.w    76,50
+		dc.l    0,0,0
+DSATitleText3
+		dc.b    1,0
+		dc.b    RP_JAM1
+		dc.b    0
+		dc.w    256,50
+		dc.l    0,0,0
+DSAKMenuTags
+		dc.l    GTMN_NewLookMenus,1
+		dc.l    TAG_END
+UniGadCoordi
+		dc.w    431,63,512,63,431,80,512,80,476,100
+EndeReq
+		dc.l    EasyStruct_SIZEOF
+		dc.l    0,0,0,0
+;MausData
+;       dc.w  $0000,$0780,$1860,$2790,$5FC8,$1FC0,$0780,$0000
+;       dc.w  $0000,$0000
+;       dc.w  $0780,$1860,$2790,$5868,$A034,$E03C,$F87C,$FFFC
+;       dc.w  $7FF8,$3FF0
+;       dc.w  $0000,$0000,$0000,$0000,$1040,$18C0,$0780,$0000
+;       dc.w  $0000,$0000
+;       dc.w  $0780,$1FE0,$3FF0,$7FF8,$EFBC,$E73C,$F87C,$FFFC
+;       dc.w  $7FF8,$3FF0
+;       dc.w  $0780,$1FE0,$3FF0,$7FF8,$FFFC,$FFFC,$FFFC,$FFFC
+;       dc.w  $7FF8,$3FF0
+;       dc.w  $0780,$1FE0,$3FF0,$7FF8,$FFFC,$FFFC,$FFFC,$FFFC
+;       dc.w  $7FF8,$3FF0
+;       dc.w  $0780,$1FE0,$3FF0,$7FF8,$EFBC,$E73C,$F87C,$FFFC
+;       dc.w  $7FF8,$3FF0
+;       dc.w  $0780,$1FE0,$3FF0,$7FF8,$FFFC,$FFFC,$FFFC,$FFFC
+;       dc.w  $7FF8,$3FF0
+Alraune
+		dc.w    NS!NW!NH!NU!MS!MW!MO!MA
+		dc.l    WG!GF
+		dc.b    15
+		dc.b    0,0,0,0,0
+		dc.b    1,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,2,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Arganwurzel
+		dc.w    SW!SF
+		dc.l    RW!SU!WF
+		dc.b    12
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,5,0,4
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Atanax
+		dc.w    GE
+		dc.l    GO
+		dc.b    10
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,4,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Atmon
+		dc.w    GE!WR!MO
+		dc.l    ST!HO!SU!FA
+		dc.b    6
+		dc.b    0,0,1,0,0
+		dc.b    0,0,0,0,3
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,1
+		dc.b    5,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Basilamine
+		dc.w    NH
+		dc.l    WA!WD
+		dc.b    15
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,6,0,0
+		dc.b    0,4,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Belmart
+		dc.w    NW!MW
+		dc.l    WA!WD
+		dc.b    8
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,4,0,0
+		dc.b    0,2,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Carlog
+		dc.w    NU!SF
+		dc.l    BR!KS!SE!FA
+		dc.b    5
+		dc.b    6,0,2,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    6,0,0,4,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Chonchinis
+		dc.w    MS!MW!MO!WR
+		dc.l    ST!HO!WD
+		dc.b    6
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    8,0,0,0,0
+		dc.b    0,4,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Disdychonda
+		dc.w    MA!SW!SF
+		dc.l    RW!WA
+		dc.b    5
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,2,0,0
+		dc.b    0,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Donf
+		dc.w    NU!SF
+		dc.l    SU!FA
+		dc.b    9
+		dc.b    0,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,3
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Egelschreck
+		dc.w    SF!MW!NU
+		dc.l    SU!WS!FA!WD
+		dc.b    7
+		dc.b    0,0,6,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,12
+		dc.b    0,0,0,0,0
+		dc.b    0,4,0,8,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Eitriger
+		dc.w    GE!SF!SW!WR!MA!MO!MW!MS!NH!NS!NW!NU!TE
+		dc.l    SU!WG!FA
+		dc.b    4
+		dc.b    0,0,4,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,5
+		dc.b    0,0,0,4,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Finage
+		dc.w    SW
+		dc.l    WA!RW!GR
+		dc.b    5
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,3,0,0
+		dc.b    0,0,4,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Gruene
+		dc.w    NH!NU
+		dc.l    SU!FA
+		dc.b    6
+		dc.b    0,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,8
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Gulmond
+		dc.w    MW!MS!NH!NW!NS
+		dc.l    ST!WA!HO
+		dc.b    8
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,1
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    4,0,3,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Hesindigo
+		dc.w    SW
+		dc.l    RW!KS
+		dc.b    7
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    3,0,5,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Hiradwurz
+		dc.w    WR!MO!MS
+		dc.l    ST
+		dc.b    12
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    3,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Hoellenkraut
+		dc.w    SW
+		dc.l    RW!WA!WD
+		dc.b    10
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,6,0,0
+		dc.b    0,0,4,0,0
+		dc.b    0,0,1,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Horusche
+		dc.w    MA
+		dc.l    WF
+		dc.b    18
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Ilmenblatt
+		dc.w    MS!MW!SW
+		dc.l    WL!WI!GH
+		dc.b    5
+		dc.b    0,0,0,0,0
+		dc.b    0,0,2,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    7,0,4,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Joruga
+		dc.w    GE!MW!MS!NW!NS
+		dc.l    WA!WI!GB
+		dc.b    10
+		dc.b    0,0,0,0,0
+		dc.b    0,1,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,5,0,0
+		dc.b    0,0,3,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Kairan
+		dc.w    MS
+		dc.l    SE
+		dc.b    18
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,1,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Kajubo
+		dc.w    SW
+		dc.l    WD!KU
+		dc.b    21
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,1
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,1,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Kukris
+		dc.w    SW!SF
+		dc.l    RW!GH!FU
+		dc.b    12
+		dc.b    0,0,0,1,0
+		dc.b    0,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,3,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Lotos
+		dc.w    SF!SW
+		dc.l    TI!SE
+		dc.b    5
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,1,0
+		dc.b    0,2,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Lulanie
+		dc.w    MW
+		dc.l    WA!WD
+		dc.b    18
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,4,0,0
+		dc.b    0,2,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Menchal
+		dc.w    WR!WU!MO
+		dc.l    WT
+		dc.b    10
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,2
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Messergras
+		dc.w    WR!MO!NH!NS!MS
+		dc.l    ST!HO!WT
+		dc.b    6
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    3,0,0,0,0
+		dc.b    0,0,0,0,1
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Mibelrohr
+		dc.w    NU
+		dc.l    SE!FA!SU
+		dc.b    10
+		dc.b    0,0,5,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,6,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Mirbelstein
+		dc.w    MW!MS
+		dc.l    WA!GR!HO
+		dc.b    7
+		dc.b    0,0,0,0,4
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,5,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Naftanstaude
+		dc.w    NS!NH!MS!MO!WR
+		dc.l    GR!ST!WD
+		dc.b    8
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    1,0,0,0,0
+		dc.b    0,1,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Nothilf
+		dc.w    GE!NW
+		dc.l    WA!GB
+		dc.b    18
+		dc.b    0,0,0,0,0
+		dc.b    0,1,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,2,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Olginwurz
+		dc.w    MO!GE
+		dc.l    HO!GB!WA
+		dc.b    25
+		dc.b    0,0,0,0,0
+		dc.b    0,1,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Orazal
+		dc.w    SW
+		dc.l    RW!WA
+		dc.b    12
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,3,0,0
+		dc.b    0,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Orkland
+		dc.w    NS!NW!NH
+		dc.l    HS!WA!ST
+		dc.b    6
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    3,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    1,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Pestsporenpilz
+		dc.w    NW!NU
+		dc.l    SU!WA!WS
+		dc.b    18
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,3
+		dc.b    0,0,2,0,0
+		dc.b    0,0,0,2,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Pfeifenkraut
+		dc.w    GE!SW!WR!MA!SF!MO!MW!MS
+		dc.l    GH!WL!ST
+		dc.b    5
+		dc.b    0,0,0,0,0
+		dc.b    0,0,6,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    1,0,0,0,0
+		dc.b    4,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Phosphorpilz
+		dc.w    GE
+		dc.l    HF!HT
+		dc.b    18
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,3,1,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Quinja
+		dc.w    SW
+		dc.l    RW!WA!WD
+		dc.b    10
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,8,0,0
+		dc.b    0,0,5,0,0
+		dc.b    0,4,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Rauschgurke
+		dc.w    MA
+		dc.l    WA!WD
+		dc.b    7
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,3,0,0
+		dc.b    0,2,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Roter
+		dc.w    MW!NW
+		dc.l    WD!FU
+		dc.b    25
+		dc.b    0,0,0,1,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,1,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Rote
+		dc.w    SF!SW
+		dc.l    KS!WA!SU
+		dc.b    10
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    4,0,0,0,1
+		dc.b    0,0,2,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Sansaro
+		dc.w    SF
+		dc.l    KU!OM
+		dc.b    15
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,10
+		dc.b    0,2,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Schleichender
+		dc.w    SF
+		dc.l    RW!WA!SU
+		dc.b    18
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,5,0,2
+		dc.b    0,0,2,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Schleimiger
+		dc.w    NW!MW
+		dc.l    WA!WD
+		dc.b    12
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,3,0,0
+		dc.b    0,1,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Schlinggras
+		dc.w    NU
+		dc.l    SU!HM
+		dc.b    12
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,1,0,0,0
+		dc.b    0,0,0,0,4
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Shurinknolle
+		dc.w    NS!NW!NH!MS!MW!MO!MA!WR!SW
+		dc.l    ST!GR!WA
+		dc.b    8
+		dc.b    0,0,0,0,3
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    4,0,2,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Suesser
+		dc.w    SW!WR!MO
+		dc.l    RW!WA
+		dc.b    4
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,3,0,0
+		dc.b    0,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Talaschin
+		dc.w    TE!WU!GE
+		dc.l    GB!EI!WT
+		dc.b    15
+		dc.b    0,4,0,0,0
+		dc.b    0,6,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,1
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Tarnele
+		dc.w    GE!WR!MA!MO!MS!NU!NH!NW!NS
+		dc.l    WI!FA!WA!SU!HO
+		dc.b    4
+		dc.b    0,0,8,0,0
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,6
+		dc.b    0,0,6,0,0
+		dc.b    0,0,12,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Tee
+		dc.w    MA!WR!SW
+		dc.l    HO!ST
+		dc.b    7
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,8
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    2,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Thonnys
+		dc.w    NW!NS
+		dc.l    ST!WA
+		dc.b    18
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    2,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Traschbart
+		dc.w    NW!NU!MW
+		dc.l    WA!SU
+		dc.b    8
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,3
+		dc.b    0,0,8,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Ulmenwuerger
+		dc.w    MW!NW
+		dc.l    WA!WD
+		dc.b    5
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,5,0,0
+		dc.b    0,3,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Vierblatt
+		dc.w    GE!MS!NU!NS!NH!NW!TE!MW
+		dc.l    BR!EI!FA!FU!GR!GF!GB!GH!GO!HO!HS!HM!HF!KU!KS!OM!RW!SE!SU!ST!TI!WA!WG!WF!WL!WD!WI!WS
+		dc.b    8
+		dc.b    1,1,1,1,6
+		dc.b    1,1,1,1,1
+		dc.b    1,1,1,1,1
+		dc.b    1,1,1,1,1
+		dc.b    1,1,10,1,1
+		dc.b    1,12,1,1,1
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Vragieswurzel
+		dc.w    SW
+		dc.l    RW!GH!WA!HO
+		dc.b    21
+		dc.b    0,0,0,0,0
+		dc.b    0,0,4,0,1
+		dc.b    0,0,0,0,0
+		dc.b    0,0,5,0,0
+		dc.b    0,0,4,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Wasserrausch
+		dc.w    NW!NU
+		dc.l    SE!TI
+		dc.b    3
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,3,0
+		dc.b    0,2,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Winselgras
+		dc.w    MO
+		dc.l    ST!GR
+		dc.b    12
+		dc.b    0,0,0,0,6
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    8,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Wirselkraut
+		dc.w    TE!NS!NW!NH!NU!MS!MW!MO!MA!SW!SF!GE!WR
+		dc.l    ST!WI!GR
+		dc.b    4
+		dc.b    0,0,0,0,7
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    8,0,0,0,0
+		dc.b    0,0,0,5,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Wuergedattel
+		dc.w    SW
+		dc.l    RW!WD
+		dc.b    15
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,2,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,1,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Xordai
+		dc.w    MA
+		dc.l    RW
+		dc.b    21
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,1,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Yagan
+		dc.w    MA
+		dc.l    WA!HO
+		dc.b    6
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,6,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Zunderschwamm
+		dc.w    SW!MW!NW
+		dc.l    WA!RW
+		dc.b    4
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0,0,6,0,0
+		dc.b    0,0,8,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+Zwoelfblatt
+		dc.w    NS!NH!NW!NU!MS!MW!MO!SW!GE!SF
+		dc.l    WA!ST!GR!HO
+		dc.b    5
+		dc.b    0,0,0,0,4
+		dc.b    0,0,0,0,2
+		dc.b    0,0,0,0,0
+		dc.b    0,0,0,0,0
+		dc.b    5,0,7,0,0
+		dc.b    0,0,0,0,0
+		dc.b    0
+		dc.w    0
+		dc.l    0
+		dc.l    0
+intname         INTUITIONNAME
+dosname         DOSNAME
+gfxname         GRAPHICSNAME
+gadname         GADTOOLSNAME
+;;
+** BYTE Daten
+ParaTemplate    dc.b    'KL/N/K,IN/N/K,FF/N/K,TAW/N/K,ZEIT/N/K',0
+EnReqTitle      dc.b    'Beenden ?',0
+EnReqTxt        dc.b    'Wollen Sie das Programm wirklich beenden ?',0
+EnGadTxt        dc.b    'Ja|Nein',0
+ErrReqTit       dc.b    'Fehler !',0
+FFFeReqTxt      dc.b    'Falscher Wert für : Fingerfertigkeit',10
+				dc.b    '         Bitte nur 8 bis 21',0
+KLFeReqTxt      dc.b    'Falscher Wert für : Klugheit',10
+				dc.b    '     Bitte nur 8 bis 21',0
+INFeReqTxt      dc.b    'Falscher Wert für : Intuition',10
+				dc.b    '     Bitte nur 8 bis 21',0
+TAWFeReqTxt     dc.b    'Falscher Wert für : Talent Wert',10
+				dc.b    '      Bitte nur -9 bis 18',0
+StundenFeReqTxt dc.b    'Falscher Wert für : Stunden',10
+				dc.b    '     Bitte nur 1 bis 8',0
+FeGadTxt        dc.b    'Ok',0
+MisReqTxt       dc.b    'Keine Kräuter gefunden',0
+FloReqTxt       dc.b    'Bitte mind. eine Flora aktivieren',0
+WinErrReqTxt    dc.b    'Konnte Kräuter Window nicht öffnen',0
+SchReqTit       dc.b    'Schade',0
+UniGadText      dc.b    4,'_KL',0,4,'_IN',0,4,'_FF',0,5,'_TAW',0,0,'St_unden',0
+SuchenGText     dc.b    '_Suchen',0
+SpeSucGText     dc.b    'S_pezial Suche',0
+KraSpeGText     dc.b    'Wähle Kräuter',0
+OKGText         dc.b    '_OK',0
+VerwerfenGText  dc.b    '_Verwerfen',0
+LoesGText       dc.b    '_Löschen',0
+KraWinTitle     dc.b    'Wähle bestimmte Kräuter aus',0
+topazFName8     dc.b    'topaz.font',0
+GGebietNamen
+		dc.b    'Gebirge',0
+		dc.b    'Maraskan',0
+		dc.b    'Mittell. Hochland',0
+		dc.b    'Mittell. Steppen',0
+		dc.b    'Mittell. Wälder',0
+		dc.b    'Nördl. Hochland',0
+		dc.b    'Nördl. Steppen',0
+		dc.b    'Nördl. Sümpfe',0
+		dc.b    'Nördl. Wälder',0
+		dc.b    'Südl. Regenwälder',0
+		dc.b    'Südl. Sümpfe',0
+		dc.b    'Tundra & Eisgeb.',0
+		dc.b    'Wüste',0
+		dc.b    'Wüstenrandgebiete',0
+GFloraNamen
+		dc.b    '  Brackwassers.',0
+		dc.b    '  Eisgebiete',0
+		dc.b    '  Flußauen',0
+		dc.b    '  Flußufer',0
+		dc.b    '  Grasland',0
+		dc.b    '  Grasland feucht',0
+		dc.b    '  Gebirge',0
+		dc.b    '  Gebirgshänge',0
+		dc.b    '  Gebirgshöhen',0
+		dc.b    '  Hochland',0
+		dc.b    '  Hochland schat.',0
+		dc.b    '  Hochmoore',0
+		dc.b    '  Höhlen feucht',0
+		dc.b    '  Höhlen trocken',0
+		dc.b    '  Küste',0
+		dc.b    '  Küstensümpfe',0
+		dc.b    '  Offenes Meer',0
+		dc.b    '  Regenwald',0
+		dc.b    '  Seeufer',0
+		dc.b    '  Sumpf',0
+		dc.b    '  Steppe',0
+		dc.b    '  Teiche',0
+		dc.b    '  Wald',0
+		dc.b    '  Waldgebiete',0
+		dc.b    '  Waldgebiete f.',0
+		dc.b    '  Waldlichtungen',0
+		dc.b    '  Waldränder',0
+		dc.b    '  Wiesen',0
+		dc.b    '  Wiesen feucht',0
+		dc.b    '  Wüste',0
+DSAMName0       dc.b    'Projekt',0
+DSAMName1       dc.b    'Über',0
+DSAMComm1       dc.b    'A',0
+DSAMName2       dc.b    'Beenden',0
+DSAMComm2       dc.b    'Q',0
+WinTitle        dc.b    'BangerDSA-KS 24-Dez-95 © by Andre´ Trettin',0
+KrautWinTitle   dc.b    'Gefundene Kräuter',0
+DSAIText0       dc.b    'DSA Kräuter Suche',0
+DSAIText1       dc.b    'by Andre´ Trettin',0
+DSAIText2       dc.b    'Gebiet',0
+DSAIText3       dc.b    'Flora',0
+AbReqTi         dc.b    'Über das Programm',0
+				dc.b    'SVER: '
+AbReqTxt        dc.b    'BangerDSA-KS 1.32 (24-Dez-95)',10
+				dc.b    '     Autor: Andre´ Trettin',10
+				dc.b    '       Texte: © 1989 by',10
+				dc.b    'Schmidt Spiel & Freizeit GmbH. Eching',10
+				dc.b    'Mit besten Dank an:',10
+				dc.b    '  Michael Belter   : Für seine Ideen',10
+				dc.b    '  Sir Dazed        : Fürs Testen und Prüfen',10
+				dc.b    '  Alan Wendland    : Tips zur Oberfläche',10,0
+AbGadTxt        dc.b    'Alles klar',0
+;;
+** Kräuter Namen Info
+NAlraune        dc.b    '  Alraune',0
+NArganwurzel    dc.b    '  Arganwurzel',0
+NAtanax         dc.b    '  Atanax',0
+NAtmon          dc.b    '  Atmon',0
+NBasilamine     dc.b    '  Basilamine',0
+NBelmart        dc.b    '  Belmart',0
+NCarlog         dc.b    '  Carlog',0
+NChonchinis     dc.b    '  Chonchinis',0
+NDisdychonda    dc.b    '  Disdychonda',0
+NDonf           dc.b    '  Donf',0
+NEgelschreck    dc.b    '  Egelschreck',0
+NEitriger       dc.b    '  Eitriger Krötenschemel',0
+NFinage         dc.b    '  Finage',0
+NGruene         dc.b    '  Grüne Schleimschlange',0
+NGulmond        dc.b    '  Gulmond',0
+NHesindigo      dc.b    '  Hesindigo',0
+NHiradwurz      dc.b    '  Hiradwurz',0
+NHoellenkraut   dc.b    '  Höllenkraut',0
+NHorusche       dc.b    '  Horusche',0
+NIlmenblatt     dc.b    '  Ilmenblatt',0
+NJoruga         dc.b    '  Joruga',0
+NKairan         dc.b    '  Kairan',0
+NKajubo         dc.b    '  Kajubo',0
+NKukris         dc.b    '  Kukris',0
+NLotos          dc.b    '  Lotos',0
+NLulanie        dc.b    '  Lulanie',0
+NMenchal        dc.b    '  Menchal',0
+NMessergras     dc.b    '  Messergras',0
+NMibelrohr      dc.b    '  Mibelrohr',0
+NMirbelstein    dc.b    '  Mirbelstein',0
+NNaftanstaude   dc.b    '  Naftanstaude',0
+NNothilf        dc.b    '  Nothilf',0
+NOlginwurz      dc.b    '  Olginwurz',0
+NOrazal         dc.b    '  Orazal',0
+NOrkland        dc.b    '  Orkland-Bovist',0
+NPestsporenpilz dc.b    '  Pestsporenpilz',0
+NPfeifenkraut   dc.b    '  Pfeifenkraut',0
+NPhosphorpilz   dc.b    '  Phosphorpilz',0
+NQuinja         dc.b    '  Quinja',0
+NRauschgurke    dc.b    '  Rauschgurke',0
+NRoter          dc.b    '  Roter Drachenschlund',0
+NRote           dc.b    '  Rote Pfeilblüte',0
+NSansaro        dc.b    '  Sansaro',0
+NSchleichender  dc.b    '  Schleichender Tod',0
+NSchleimiger    dc.b    '  Schleimiger Sumpfknöterich',0
+NSchlinggras    dc.b    '  Schlinggras',0
+NShurinknolle   dc.b    '  Shurinknolle',0
+NSuesser        dc.b    '  Süßer Tod',0
+NTalaschin      dc.b    '  Talaschin',0
+NTarnele        dc.b    '  Tarnele',0
+NTee            dc.b    '  Tee',0
+NThonnys        dc.b    '  Thonnys',0
+NTraschbart     dc.b    '  Traschbart',0
+NUlmenwuerger   dc.b    '  Ulmenwürger',0
+NVierblatt      dc.b    '  Vierblatt',0
+NVragieswurzel  dc.b    '  Vragieswurzel',0
+NWasserrausch   dc.b    '  Wasserrausch',0
+NWinselgras     dc.b    '  Winselgras',0
+NWirselkraut    dc.b    '  Wirselkraut',0
+NWuergedattel   dc.b    '  Würgedattel',0
+NXordai         dc.b    '  Xordai',0
+NYagan          dc.b    '  Yagan',0
+NZunderschwamm  dc.b    '  Zunderschwamm',0
+NZwoelfblatt    dc.b    '  Zwölfblatt',0
+TAlraune        dc.b 'Die Alraune oder Mandragora ist eine kleine unscheinbare',10
+		dc.b 'Pflanze, deren Blätter am Rande gezackt und sehr schmal sind.',10
+		dc.b 'Doch nicht die tiefgrünen Blätter sind der interessante Teil',10
+		dc.b 'der Pflanze, sondern die bleiche Wurzel, deren Form oft an die',10
+		dc.b 'eines Menschen erinnert. Wegen dieser Ähnlichkeit werden der',10
+		dc.b 'Alraune viele Zauberfähigkeiten, ja sogar eine eigene Seele zu-',10
+		dc.b 'gesprochen. In der Tat lassen sich aus der Alraune viele Wunder-',10
+		dc.b 'mittel gewinnen. Der Saft alleine ist leicht giftig und führt',10
+		dc.b 'zu heftigen Erbrechen. Wird die Alraune jedoch anderen Mixturen',10
+		dc.b 'beigemengt, so steigert sich oft deren Wirkung oder läßt sie',10
+		dc.b 'überhaupt erst zum Tagen kommen. Die Wurzel kann zu jeder Zeit',10
+		dc.b 'des Jahres gesammelt werden.',10
+		dc.b 'Preis: 1S / 8S (für eine eingelegte Alraune)',0
+TArganwurzel    dc.b 'Die gedrungene Arganstrauch mit seinen kleinen, länglichen und',10
+		dc.b 'auffälligen blaustichigen Blättern wächst gerne an schattigen',10
+		dc.b 'und feuchten Standorten. Je frischer die Wurzel ist, desto stär-',10
+		dc.b 'ker sind die lebensfördernden Wirkungen der Pflanze, die als Heil-',10
+		dc.b 'mittel gegen jedes Übel eingesetzt werden kann. Am besten wird die',10
+		dc.b 'Wurzel roh verzehrt, jedoch ist es auch möglich, eine Absud zuzu-',10
+		dc.b 'bereiten, der sich etwa zwei Wochen lang hält, jedoch eine ge-',10
+		dc.b 'ringere Heilwirkung aufweist.',10
+		dc.b 'Wirkung: frische Arganwurzel gibt W20+10 LP zurück, der Absud',10
+		dc.b '2W6+3 LP.',10
+		dc.b 'Preis: 4S / 20D',0
+TAtanax         dc.b 'Atanax nennt man das Gebräu, das aus der Rinde der Atan-Kiefer,',10
+		dc.b 'einer Krüppelkiefer, die nur im Ehernen Schwert in den Höhen',10
+		dc.b 'von mehr als 2000 Schritt vorkommt, gewonnen wird. Der Baum er-',10
+		dc.b 'reicht selten einmal eine Höhe von mehr als anderthalb Schritt,',10
+		dc.b 'ist meist vom Wind gebeugt und schwer von anderen Krüppelkiefern',10
+		dc.b 'zu unterscheiden. Die Rinde läßt zu jeder Jahreszeit gewinnen,',10
+		dc.b 'jedoch sollte man darauf achten, den Baum seines ganzen Schutzes',10
+		dc.b 'zu berauben, da er sonst eingeht. Die Rinde muß drei Tage in klarem',10
+		dc.b 'Wasser eingekocht werden, wobei die Zugabe ein wenig Salz den',10
+		dc.b 'Lösungsprozeß beschleunigt. Aus der Rinde einer Atan-Kiefer lassen',10
+		dc.b 'sich so fünf Portionen Atanax, ein bräunlicher, sehr bitter schmek-',10
+		dc.b 'kender Sud, gewinnen. Das Gebräu hält sich im dunklen Gefäßen bis',10
+		dc.b 'zu einem Jahr lang.',10
+		dc.b 'Wirkung: Atanax wirkt fiebersenkend und fördert den Gesundungs-',10
+		dc.b 'prozeß bei vielen Krankheiten. Der entsprechende Schadenswurf wird',10
+		dc.b 'um 2 Punkte vermindert.',10
+		dc.b 'Preis: 12S pro Stein Rinde / 10D pro Portion Atanax',0
+TAtmon          dc.b 'Atmon ist der Name eines zähen Grasgewächses, das am besten auf',10
+		dc.b 'trockenem Boden gedeiht. Die ledrigen Blätter und die zarten',10
+		dc.b 'Blütenrispen der hellgrünen Pflanze (die gemeinhin im Peraine',10
+		dc.b 'gesammelt wird) werden zerstampft und während fünf Stunden zu',10
+		dc.b 'einem dicken Brei gekocht. Diser Brei wirkt sich föderlich auf',10
+		dc.b 'die Durchblutung der Muskeln und die Empfindlichkeit der Nerven',10
+		dc.b 'aus. Jedoch sollte man mit Überdosierungen vorsichtig sein, da',10
+		dc.b 'sich die stimmulierende Wirkung in ihr Gegenteil verkehrt, wenn',10
+		dc.b 'der Brei während zweier Tage mehrmals aufgetragen wird. Eine Atmon-',10
+		dc.b 'Pflanze reicht, um eine Portion des Breis herzustellen. Der Brei',10
+		dc.b 'verliert binnen eines Monats die Hälfte seiner Wirkungskraft, nach',10
+		dc.b 'einem halben Jahr ist sie ganz verflogen.',10
+		dc.b 'Wirkung: Für alle Proben auf Talente der Körperbeherrschung, die',10
+		dc.b 'der Anwender in den fünf Stunden nach Auftragen des Breis ablegen',10
+		dc.b 'muß, hat er einen Bonus von 2 Punkten.',10
+		dc.b 'Preis: 2D / 30D',0
+TBasilamine     dc.b 'Die Basilamine - auch Chamaeleon-Springkraut genannt - ist eine',10
+		dc.b 'Waldpflanze mit leuchtend roten Blüten. Während der Reife-',10
+		dc.b 'zeit ihrer Früchte bildet sie Schoten aus, die schließlich auf-',10
+		dc.b 'platzen und ihren Inhalt - von einem Säuremantel umgebene, lin-',10
+		dc.b 'sengroße Früchte - bis zu fünf Schritt weit in die Umgebung ver-',10
+		dc.b 'schießen. Die Säure ist zwar nicht sehr aggressiv, kann jedoch',10
+		dc.b 'Kleidung und Ausrüstung ruinieren und unangenehme Brandflecken',10
+		dc.b 'auf der Haut erzeugen. Im Spiel heißt dies, daß jeder Basilamin-',10
+		dc.b 'en-Treffer auf ungeschützte Stellen 1/10 SP hervorruft und auf',10
+		dc.b 'organischen Materialen 1/100 Punkt des Rüstungsschutzes raubt.',10
+		dc.b 'Basilaminen stehen meist in kleineren Gruppen zusammen und ähneln',10
+		dc.b 'in Form und Farbe ihren jeweiligen Nachbarpflanzen, daher ihr',10
+		dc.b 'zweiter Name. Direkt erkenntlich sind sie nur zur Blütezeit (ING).',0
+TBelmart        dc.b 'Belmart nennt man die vielfach gerippten, dunkelgrünen Blätter',10
+		dc.b 'eines kugeligen Busches, der am häufigsten im Schatten der nord-',10
+		dc.b 'aventurischen Wälder zu finden ist. Das frische Blatt (das von',10
+		dc.b 'Peraine bis Boron zu finden ist) bewirkt eine enorme Steigerung',10
+		dc.b 'der Abwehrkräfte des Körpers. Leider wurde noche keine Methode',10
+		dc.b 'gefunden, diese Wirkung über längere Zeit zu bewahren. Einzig das',10
+		dc.b 'Trocknen der Blätter ermöglicht eine längere Lagerung von etwa',10
+		dc.b 'vier Monaten.',10
+		dc.b 'Wirkung: Die Wirkung von Krankheiten wird einen Tag neutralisiert,',10
+		dc.b 'es ist kein Schadenwurf nötig. Bei Giften wird eine Stufenprobe',10
+		dc.b 'für das Gift abgelegt, ob es seine Wirkung entfalten kann. Getrock-',10
+		dc.b 'netes Belmart verhindert den täglichen Schadenswurf bei Krankheiten',10
+		dc.b 'um 3 Punkte und stoppt die Wirkung von Giften bis zur fünften Stufe.',10
+		dc.b 'Preis: 9S / 12D',0
+TCarlog         dc.b 'Diese binsenähnliche Gewächs besitzt lange, dünne Halme und blaß-',10
+		dc.b 'gelbe Blüten: Die Stempel dieser Blüten ermöglichen eine gute',10
+		dc.b 'Nachtsicht, wenn sie roh eingenommen werden. Da sie jedoch nach',10
+		dc.b 'zwei Tagen ungenießbar werden, empfiehlt es sich, die Stempel in',10
+		dc.b 'Alkohol einzulegen (1 Schank Alc. für 5 Stempel), da sie sich dann',10
+		dc.b 'bis zu einem halben Jahr lang halten. Carlog blüht im Periane und',10
+		dc.b 'Efferd. Die Blütenstempel sollten nicht tagsüber eingenommen wer-',10
+		dc.b 'den, da dies zu heftigen Kopfschmerzen, schlimmstenfalls gar zu',10
+		dc.b 'einer zeitweiligen Erblindung führt.',10
+		dc.b 'Wirkung: Carlog erweitert die Pupillen und erhöht die Empfindlich-',10
+		dc.b 'keit der Netzhaut. Dadurch kann man nachts so gut sehen wie etwa',10
+		dc.b 'in der frühen Dämmerung.',10
+		dc.b 'Preis: 5S / 18D',0
+TChonchinis     dc.b 'Unter dem Namen Chonchinis kennen wir eine Pflanze mit ledrigen,',10
+		dc.b 'fast auf dem Boden liegenden, dunkelgrünen Blättern, in deren Mitte',10
+		dc.b 'eine blaßrosa Blütendolde entspringt. Die ledrigen Blätter werden',10
+		dc.b 'leicht angeritzt und auf Brand- oder Ätzwunden gelegt, wo sie deut-',10
+		dc.b 'liche Schmerzlinderung bringen. Will man Chonchinis weiterverarbei-',10
+		dc.b 'ten, empfiehlt es sich, die Blätter im Efferd zu ernten, weil sie dann',10
+		dc.b 'die größte Menge der heilkräftigen Milch enthalten. Diese läßt man',10
+		dc.b 'aus den angeritzten Blättern tropfen, mischt sie mit einer Salben-',10
+		dc.b 'grundlage (und vielleicht etwas Wirselkraut), und enthält so eine',10
+		dc.b 'Brandsalbe, die sie etwa zwei Jahre lang hält, wenn man sie in',10
+		dc.b 'einem geschlossenen Tiegel aufbewarht.',10
+		dc.b 'Wirkung: Auf Brand- oder Ätzwunden aufgelegt bringt Chonchinis 5 LP',10
+		dc.b 'zurück. Der Saft ist Grundlage für Brandsalben.',10
+		dc.b 'Preis: 4S pro Pflanze / 7D für zwei Anwendungen Salbe',0
+TDisdychonda    dc.b 'Die Disdychonda ist eine große, fleischfressende Pflanze,',10
+		dc.b 'die in den Dschungeln Südaventuriens vorkommt. Um einen',10
+		dc.b 'grünbraunen, vier Spann hohen und sehr dicken Stamm mit',10
+		dc.b 'violetter, glockenförmiger Blüte liegen gewöhnlich vier',10
+		dc.b 'großflächige, fleischige Blätter von tiefgrüner Farbe. Wann',10
+		dc.b 'immer ein Opfer eines der Blätter betritt, rollt sich dieses',10
+		dc.b 'blitzartig zusammen und versucht, die Beute zu fassen. Ge-',10
+		dc.b 'lingt dies, so wird die Beute zum Stamm befördert, der ein',10
+		dc.b 'Verwesungssekret absondert. Die Blätter sind mit kleinen Nes-',10
+		dc.b 'seln bedeckt, die ein sehr schnell wirkendes Lähnungsgift ab-',10
+		dc.b 'geben. Wegen dieses Giftes, das zu Kelmon weiterverarbeitet',10
+		dc.b 'werden kann, ist die Pflanze auch bei Alchemisten begehrt.',10
+		dc.b 'Jedes Blatt besitzt normalserweise 10 LP, der Stamm 20 LP.',10
+		dc.b 'Um ein Opfer mit dem Blatt einzufangen, führt die Disdy-',10
+		dc.b 'chonda eine Attacke mit dem Wert 8 durch. Der Rüstungs-',10
+		dc.b 'schutz der Pflanze beträgt vier Punkte. Jeder Held, der',10
+		dc.b 'in ein Disdychondablatt eingerollt ist, erleidet pro KR',10
+		dc.b '1W6 SP. Er kann befreit werden, indem man dem Blatt 10 SP',10
+		dc.b 'zugefügt. Die Monsterklasse der Pflanze beträgt 20.',10
+		dc.b 'Preis: 3D pro Disdychondablatt / 25D für eine Anwendung',10
+		dc.b 'Kelmon',0
+TDonf           dc.b 'Diese Sumpfpflanze besteht fast mur aus einem einen Schritt langen,',10
+		dc.b 'finger dicken Stengel und einer einzigen, violetten Blüte. Der',10
+		dc.b 'Stengel der Donfpflanze enthält viele heilkräftige Stoffe und sollte',10
+		dc.b 'am Besten unverarbeitet gegessen werden. Da dies meist nicht möglich',10
+		dc.b 'ist, findet man in Apotheken häufig Donfstengel, die in Alkohol ein-',10
+		dc.b 'gelegt und in einem licht- und luftdichtem Gefäß verpackt sind. Bei',10
+		dc.b 'dieser Aufbewahrungsart hält sich Donf etwa ein Jahr lang.',10
+		dc.b 'Wirkung: Wirkt gegen verschiedene Krankheiten, besonders Paralyse',10
+		dc.b 'und Sumpffieber (s.d.)',10
+		dc.b 'Preis: 3S / 20D',0
+TEgelschreck    dc.b 'Der Egelschreck ähnelt dem Fetten Wegerich und kann sogar leicht mit',10
+		dc.b 'ihm verwechselt werden. Man findet diese feuchtigkeitsliebende Pflanze',10
+		dc.b 'fast in ganz Mittelaventurien. Die dunkelgrünen, aromatisch riechenden',10
+		dc.b 'Blätter werden verrieben und zu einer Salbe verarbeitet. Eine Paste aus',10
+		dc.b 'Kalk und zerstoßenen Egelschreckblättern stoppt Blutungen und vertriebt,',10
+		dc.b 'wenn sie auf den Körper aufgetragen wird, verschiedene Parasiten. Die',10
+		dc.b 'Paste ist gut 8 Monate haltbar. Egelschreck wird am Besten im Spätsommer',10
+		dc.b 'geerntet.',10
+		dc.b 'Wirkung: stoppt Blutungen, vertriebt einen Tag lang Wanzen und andere',10
+		dc.b 'blutsaugende Parasiten.',10
+		dc.b 'Preis: 8H / 2D',0
+TEitriger       dc.b 'Wohlbekannt ist der Eitrige Krötenschemel vorallem dadurch, daß er die',10
+		dc.b 'Lieblingsspeise der gefährlichen Maraskan-Taranteln darstellt. Der gelbrot',10
+		dc.b 'gesprenkelte, etwa doppelt faust- bis kürbisgroße Pilz liebt feuchte Böden',10
+		dc.b 'kommt aber bisweilen auch in Gärten oder gar städtischen Hinterhöfen vor.',10
+		dc.b 'Aus seiner Haut kann ein mittelschweres Gift gewonnen werden.',10
+		dc.b 'Preis: 7S / 15D',0
+TFinage         dc.b 'Die jungen Triebe des Finage-Bäumenchens, das im Peraine ausschlägt,',10
+		dc.b 'werden in vielen Tränken verwendet. Das Bäumchen erreicht eine Höhe von',10
+		dc.b 'maximal 3 Schritt und ist an seinen leicht rötlichen Blättern zu erkennen.',10
+		dc.b 'Ein Gebräu aus den jungen Trieben hält sich 4 Monate lang, wenn es mit',10
+		dc.b 'Orazal versetzt wird, auch 8 Monate.',10
+		dc.b 'Wirkung: Der Finage-Sud hebt eine beliebige Eigenschaft wieder auf den Ur-',10
+		dc.b 'sprungsstand, falls diese durch Gift, Zauberei, Erschöpfung o.ä. abgesunken ist',10
+		dc.b 'Preis: 6S / 8D',0
+TGruene         dc.b 'Die Grüne Schleimschlange ist ein Sumpfgewächs, das den Boden mit seinen',10
+		dc.b 'fingerdicken Wurzelarmen überzieht und häufig verwesende Kadaver mit seinen',10
+		dc.b 'Schlingen eingespinnt. Die Pflanze ist dunkelgrün und häufig von Verwesungs-',10
+		dc.b 'geruch umgehen. Um lebende Wesen zu umschlingen, ist sie viel zu langsam,',10
+		dc.b 'doch erregt ein im Sumpf liegendes, von der Schleimschlange überwuchertes',10
+		dc.b 'Gerippe oft diesen Eindruck.',0
+TGulmond        dc.b 'Das Blatt des Gulmondstrauches ist für seine kraft- und aus-',10
+		dc.b 'dauersteigernde Wirkung bekannt. Aus den etwa handtellergroßen,',10
+		dc.b 'fleischigen Blättern wird meistens ein Tee bereitet, jedoch',10
+		dc.b 'kommt es auch vor, daß die frischen Blätter mit ein wenig Kreide',10
+		dc.b 'zusammen gekaut werden. Dies ist vor allem bei den Hirten im',10
+		dc.b 'Sevelltal und bei den Orks beliebt. Die Blätter bleiben etwa',10
+		dc.b 'zwei Tage frisch - getrocknet können sie bis zu 18 Monaten lang',10
+		dc.b 'aufbewahrt werden.',10
+		dc.b 'Wirkung: 3 frische Gulmond-Blätter bringen zerkaut für 12 Stunden',10
+		dc.b 'KK+1, AU+5 und 1 LP; Tee aus drei frischen Blättern bringt für',10
+		dc.b '8 Stunden KK+2, AU+10 und 2 LP; Tee aus 5 getrockneten Blättern',10
+		dc.b 'bringt 8 Stunden lang KK+1, AU+5 und 1 LP; "Doppelter Gulmond"',10
+		dc.b '(Tee aus 6 frischen Blättern, der auch Minze enthält) schließ-',10
+		dc.b 'lich bringt für 4 Stunden KK+3, AU+15 und 2 LP, allerdings muß',10
+		dc.b 'am nächsten Tag mit einem schweren Kater (KK und GE für 1 Tag je',10
+		dc.b '-1) gerechnet werden.',10
+		dc.b 'Preis: 8S für einen Strauch / 6D für 1 Anwendung Gulmondtee,',10
+		dc.b '"Doppelter Gulmondtee" kostet 8D',0
+THesindigo      dc.b 'Die von den Ureinwohnern der Waldinseln Guraan genannte Pflanze,',10
+		dc.b 'die den hochwertigen blauen Farbstoff Hesindigo liefert, ist ein',10
+		dc.b 'Strauch mit dukatengroßen, blauen, fleischigen Blüten. Wenn diese',10
+		dc.b 'ausgespreßt und mit verschiedenen alchemistischen Stoffen behandelt',10
+		dc.b 'werden, entsteht ein teifblauer Pflanzensaft, der in dunkelen Ge-',10
+		dc.b 'fäßen mehr als 3 Jahre haltbar ist. Hesindigo-Farbe bleicht auch',10
+		dc.b 'unter stärkster Sonnenbestrahlung kaum aus.',10
+		dc.b 'Preis: 1H / 5S pro Unze',0
+THiradwurz      dc.b 'Der oberirdische Teil von Hiradwurz ist ein unscheinbares, hell-',10
+		dc.b 'grünes Kraut, die etwa anderthalb Spann lange, möhrenähnliche,',10
+		dc.b 'weiße Wurzel ist jedoch als Gegenmittel gegen Schlangengift be-',10
+		dc.b 'kannt. Sie kann entweder roh verzehrt werden oder als alkoholischer',10
+		dc.b 'Auszug, der sich etwa ein Jahr lang hält.',10
+		dc.b 'Wirkung: Hebt die Giftwirkung aller Schlangengifte auf und bringt',10
+		dc.b 'bis zu 15 LP, die durch Schlangengift verloren gingen, wieder zurück.',10
+		dc.b 'Preis: 8S 12D',0
+THoellenkraut   dc.b 'Das Höllenkraut ist eine Schlingpflanze mit gelben, kleinen Blüten,',10
+		dc.b 'das sich nur in warmem Klima findet. Wenn die inneren Fäden der Ranke',10
+		dc.b 'zerkaut werden, bildet sich im Speichel das leichte Gift Wurara, das',10
+		dc.b 'dann eingekocht und auf Pfeilspitzen geschmiert wird. Die Mohas',10
+		dc.b 'scheinen gegen dieses Gift vollständig immun zu sein.',10
+		dc.b 'Preis: 10S / 15D',0
+THorusche       dc.b 'Die Horusche ist ein südaventurisches Rankgewächs,das sich vor allem',10
+		dc.b 'an den großen Mammutbäumen findet. In den dickfleischigen Schoten',10
+		dc.b 'ihrer Früchte stecken jeweils ein bis zwei haselnußgroße Kerne, deren',10
+		dc.b 'Verzehr sehr kräftigend wirkt. Leider enthält die Frucht auch ein',10
+		dc.b 'Gift, das in höheren Dosierungen äußert schädlich ist. Die Horuschen-',10
+		dc.b 'kerne können während des ganzen Jahres gesammelt werden, ihre Lager-',10
+		dc.b 'fähigkeit ist jedoch begrenzt: In der Schote halten sie sich zwei,',10
+		dc.b 'Wochen, ansonsten höchstens 5 Tage',10
+		dc.b 'Wirkung: Pro Kern gewinnt der Anwender für 20 Stunden einen KK-Punkt',10
+		dc.b 'hinzu. Werden während der Wirkungsdauer des ersten Kernes weitere ge-',10
+		dc.b 'gessen, so verursacht jeder Kern 1W+4 SP. Der KK-Zuschlag gilt jedoch',10
+		dc.b 'trotzdem.',10
+		dc.b 'Preis: 1S / 5D (jeweils pro Kern)',0
+TIlmenblatt     dc.b 'Ilmenblatt ist eine bis zu einem  Schritt hohe Strauchpflanze',10
+		dc.b 'mit hellgrünen, siebenfingrigen, leicht gezahnten Blättern,',10
+		dc.b 'die in Südaventurien zweimal im Jahr blüht. Die Blüten und',10
+		dc.b 'Blattspitzen werden verwendet, um ein leichtes, die Stim-',10
+		dc.b 'mung hebendes Rauschmittel herzustellen. Das getrocknete',10
+		dc.b 'Kraut oder das gewonnene Harz sind praktisch unbegrenzt',10
+		dc.b 'haltbar und werden entweder zusammen mit Pfeifenkraut ge-',10
+		dc.b 'raucht oder auf heißen Steinen oder in Pfannen erhitzt.',10
+		dc.b 'Viele Lebewesen werden von den Dämpfen beruhigt und fried-',10
+		dc.b 'lich gestimmt, weswegen Ilmenblatt auch in Friedenswasser',10
+		dc.b 'verwendet wird.',10
+		dc.b 'Wirkung: Leichtes Rauschmittel, Dämpfe beruhigen auch Ber-',10
+		dc.b 'serker und Amoklaufende.',10
+		dc.b 'Preis: 2S / 11D (jeweils pro Unze)',0
+TJoruga         dc.b 'Joruga ist eine fingerlange, fahlgelbe Wurzel, deren über-',10
+		dc.b 'irdischer Teil stark an Selleriekraut erinnert. Die Pflanze',10
+		dc.b 'liebt schattige Plätze. Aus der Wurzel kann durch einfaches',10
+		dc.b 'Kocken ein Sud gewonnen werden, der etwa einen Monat lang',10
+		dc.b 'genießbar bleibt. Die Wurzel selbst beginnt etwa drei Tage',10
+		dc.b 'nach dem Ernten zu faulen.',10
+		dc.b 'Wirkung: Joruga-Absud verhindert eine Woche lang Tollwut-',10
+		dc.b 'Ansteckung.',10
+		dc.b 'Preis: 3S / 18D',0
+TKairan         dc.b 'Der Kairan ähnelt dem Schachtelhalm, wächst aber nur unter',10
+		dc.b 'der Wasseroberfläche. Man zerreibt die dunkelgrünen Halme,',10
+		dc.b 'gib zur Wirkungsförderung etwas Mibelrohr hinzu und legt',10
+		dc.b 'das ganze Gemisch in Alkohol ein. Solange der Kairan in',10
+		dc.b 'Wasser aus dem Neuaugensee aufbewahrt wird, hält er sich',10
+		dc.b 'etwa vier Wochen. Die aus Mibelrohr gewonnene Essenz ist',10
+		dc.b 'bis zu einem halben Jahr lang haltbar.',10
+		dc.b 'Wirkung: Jedes magiebegabte Wesen, das von der Essenz',10
+		dc.b 'trinkt, gewinnt 7 ASP zum derzeitigen Stand hinzu. Werden',10
+		dc.b 'diese nicht binnen 14 Stunden verbraucht, so verschwinden',10
+		dc.b 'sie wieder.Während der Wirkungsdauer eingenommene Essenz',10
+		dc.b 'hat keinen zusätzlichen Effekt. Häufiger genuß kann zu',10
+		dc.b 'Mibelsucht führen',10
+		dc.b 'Preis: 15S / 40D',0
+TKajubo         dc.b 'Die Knospen des dornigrn Kajubostrauches, einer altoumischen',10
+		dc.b 'Waldpflanze mit großen gelben Blüten haben auf den Organis-',10
+		dc.b 'mus von Menschen, Elfen und Zwerge eine ganz besondere',10
+		dc.b 'Wirkung: Sie ermöglichen es, daß der Anwender ohne Luft',10
+		dc.b 'auskommt. Die Knospen müssen allerdings frisch (Phex bis',10
+		dc.b 'Travia) sein, damit sich die volle Wirkung entfalten kann.',10 
+		dc.b 'In Öl eingelegte Knospen besitzen nur ein Drittel der Wir-',10
+		dc.b 'kungsdauer.',10
+		dc.b 'Wirkung: 5 Knospen ermöglichen es, für 3 Spielrunden gänz-',10
+		dc.b 'lich ohne Luft auszukommen.',10
+		dc.b 'Preis: 2S /10D (5 Knospen)',0
+TKukris         dc.b 'Wir haben die Mirhamer Seidenliane unter diesen Namen auf-',10
+		dc.b 'geführt, da sie kaum jemand noch mit Namen kennt, wenn',10
+		dc.b 'aus ihr Seile gedreht worden sind. Wenn man bestimmte',10
+		dc.b 'Teile der Liane jedoch faulen läßt und mit einigen ein-',10
+		dc.b 'fachen Zutaten behandelt (das genaue Rezept dürfen wir',10
+		dc.b 'hier jedoch mit verraten), entsteht daraus "Königsmacher",',10
+		dc.b 'das beliebteste Gift der Meuchler.',10
+		dc.b 'Preis: 6D / 90D',0
+TLotos          dc.b 'Die verschiedenen Lotosarten (schwimmende Pflanzen mit',10
+		dc.b 'großen Blütenkelchen) werden fast ausschließlich nach',10
+		dc.b 'der Farbe ihrer Blüten benannt. Gelber, Roter, Blauer',10
+		dc.b 'und Rosa Lotos finden in der Färberei Verwendung, ebenso',10
+		dc.b 'der Purpurne Lotos, der jedoch auch in verschiedenen',10
+		dc.b 'alchimistischen Rezepten erscheint. Berühmt sind auch',10
+		dc.b 'der Weiße Lotos - eine mannigfaltig verwendbare Pflanze,',10
+		dc.b 'die auch das traditionelle maraskanische Königswappen',10
+		dc.b 'ziert - und der Schwarze Lotos, der wegen seines hoch-',10
+		dc.b 'giftigen Blütenstaubes gefürchtet wird.',10
+		dc.b 'Preis: 1D / 30D pro Skrupel Blütenstaub des Schwarzen Lotos',0
+TLulanie        dc.b 'Die Lulanie ist eine Blume, die der irdischen Mohnblume',10
+		dc.b 'ähnelt, jedoch mit Vorliebe in Wäldern wächst und einen',10
+		dc.b 'feinen Blütenstaub besitzt, welcher bei bestimmten Krank-',10
+		dc.b 'heiten eingenommen werden muß. Der Staub ist mehrere Monate',10
+		dc.b 'ohne Wirkungsverlust haltbar.',10
+		dc.b 'Wirkung: Der Blütenstaub wirkt förderlich auf die Heilung',10
+		dc.b 'der Krankheiten Lutanas und Rascher Wahn.',10
+		dc.b 'Preis: 10S / 13D',0
+TMenchal        dc.b 'Sowohl am Rande als auch im Herzen der Khmowüste findet',10
+		dc.b 'sich der Menchal-Kaktus, eine etwa zwei Spann durchmes-',10
+		dc.b 'sende Kugel,deren Haut so zäh ist wie eine gute Leder-',10
+		dc.b 'rüstung. Das Fruchtfleisch des Katus speichert nicht nur',10
+		dc.b 'Wasser, nein, es kann auch ausgepreßt werden und liefert',10
+		dc.b 'so einen drei Monate lang haltbaren Saft, der gegen vie-',10
+		dc.b 'lerlei Gifte wirkt. Der Katus kann auch als Ganzes trans-',10
+		dc.b 'portiert werden. In diesem Fall beginnt er allerdings',10
+		dc.b 'nach zwei Monaten zu verfaulen.',10
+		dc.b 'Wirkung: Menchal-Saft halbiert die Wirkung von Giften',10
+		dc.b 'aller Art.',10
+		dc.b 'Preis: 2D / 20D',0
+TMessergras     dc.b 'Das Messergras ist eine besonders widerstandsfähige Gras-',10
+		dc.b 'art, die bei Reisenden wegen ihrer scharfen, langen Blät-',10
+		dc.b 'ter gefrüchtet ist. Wo es vorkommt, wächst es im großen',10
+		dc.b 'Gebieten, deren Durchquerung fast immer Schaden nach sich',10
+		dc.b 'zieht. Pro Meile durchwanderter Messergrassteppe muß man',10
+		dc.b 'mit 1W+2 SP rechnen. Die größte Messergrassteppe (die',10
+		dc.b 'auch den Namen trägt), liegt südöstlich des andergastischen',10
+		dc.b 'Grenzortes Teschkal. Aus dem Gras lassen sich recht wider',10
+		dc.b 'standsfähige Matten flechten, die im Orkland zu Behau-',10
+		dc.b 'sungen zusammengestellt werden.',0
+TMibelrohr      dc.b 'Das Mibelrohr ähnelt dem gewöhnlich Schlif. Es besitz einen',10
+		dc.b 'langen Stengel, schmale, rapierähnliche Blätter und eine',10
+		dc.b 'kolbenförmige Blüte. Dieser Kolben wird bei der Verarbei-',10
+		dc.b 'tung am Stengel belassen, zerstampft und mit kochendem',10
+		dc.b 'Wasser übergossen, so daß eine Art Tee entsteht, der das',10
+		dc.b 'Reaktions- und Konzentrationsvermögen steigert. Dieses',10
+		dc.b 'Gebräu ist in geschlossenen Gefäßen bis zu sechs Monaten',10
+		dc.b 'lang haltbar.',10
+		dc.b 'Wirkung: KL und GE des Anwenders steigen für eine Stunde',10
+		dc.b 'um je 2 Punkte. Zu häufiger Genuß - mehr als einmal pro',10
+		dc.b 'Monat - führen zur Mibelsucht, einer Krankheit der 8. Stufe.',10
+		dc.b 'Der Tee hat zwar beim Süchtigen weder positive noch negative',10
+		dc.b 'Wirkung, ein Entzug führt jedoch zu völliger Apathie.',10
+		dc.b 'Preis: 2S / 18D',0
+TMirbelstein    dc.b 'Der oberirdische Teil dieser Pflanze besteht aus einem ein-',10
+		dc.b 'zigen, etwas handtellergroßen Blatt, das einem bewachsenen',10
+		dc.b 'Stein ähnelt und daher nicht leicht zu finden ist. Die Wur-',10
+		dc.b 'zelknolle der Pflanze wird zerrieben und in einem Beutel am',10
+		dc.b 'Gürtel getragen, wodurch ein Geruch entsteht, der sowohl für',10
+		dc.b 'Parasiten als auch für menschliche (und erst recht elfische)',10
+		dc.b 'Nasen schwer zu ertragen ist. Der Geruch hält sich etwa drei',10
+		dc.b 'Wochen, haftet jedoch nicht an Haut oder Kleidern.',10
+		dc.b 'Wirkung: Der Geruch vertreibt Flöhe, Läuse und Wanzen in bis',10
+		dc.b 'zu 2 Schritt Entfernung. Wirkt auch gegen die meisten Fliegen',10
+		dc.b 'und Bremsen, nicht jedoch gegen Borbarad-Moskitos und die Mir-',10
+		dc.b 'belfliege, deren Larven auf den Blättern der Pflanze schma-',10
+		dc.b 'rotzen und deren Stich eine schmerzhafte Entzündung (3W+5 SP)',10
+		dc.b 'hervorruft. Das Charisma des Anwenders sinkt um 4 Punkte, so-',10
+		dc.b 'lange er den Beutel am Gürtel trägt.',10
+		dc.b 'Preis: 1S / 6S',0
+TNaftanstaude   dc.b 'Die gut zweischritthoche Naftanstaude mit ihren gelben Blüten-',10
+		dc.b 'dolchen enthält in Stengeln Blättern eine honigartige Flüssig-',10
+		dc.b 'keit, die außer dem Gewebe der Naftanstaude alle organischen',10
+		dc.b 'Materialien binnen kürzester Zeit zerfrißt und die als Goldleim',10
+		dc.b 'berühmt-berüchtigt ist. Es ist ausgesprochen schwierig, diese',10
+		dc.b 'Pflanze zu ernten, aber es lohnt sich, da sie bei Alchemisten',10
+		dc.b 'einen hohen Preis einbringt.',10
+		dc.b 'Preis: 8D pro Staude / 30D pro Anwendung Goldleim',0
+TNothilf        dc.b 'Nothilf ist eine Rankpflanze, die fast ausschließlich an Eichen',10
+		dc.b 'schmarotzt. Die Ranken werden fast 10 Schritt lang, sind hellgrün',10
+		dc.b 'und im Praios mit blaßrosa Blüten müssen Öl eingelegt werden,',10
+		dc.b 'damit sie ihre volle Wirkung entfalten können.',10
+		dc.b 'Wirkung: Nothilf stoppt augenblick die Wirkung von Tulmadron.',10
+		dc.b 'Preis: 12D / 80D (jeweils 1 Anwendung, entsprechend 5 Blüten)',0
+TOlginwurz      dc.b 'Olginwurz gehört zu den seltensten Pflanzen Aventuriens. Der',10
+		dc.b 'oberirdische Teil besteht aus einem kleinen dunkelgrünen Moos-',10
+		dc.b 'ballen, der sich unterirdisch in einem weiten Wurzelgeflecht ver-',10
+		dc.b 'zweigt. Diese Wurzeln sind es auch, die mehrere Stunden lang ge-',10
+		dc.b 'kocht werden und deren Absud schließlich eines der kräftigsten',10
+		dc.b 'bekannten Heilmittel ergibt. Olginwurz-Absud ist in dunklen Flaschen',10
+		dc.b 'etwa ein Jahr lang haltbar und in einer Apotheke ausgesprochen teuer.',10
+		dc.b 'Wirkung: Olginwurz bildet Abwehrkräfte. Gifte und Krankheiten können',10
+		dc.b 'der Person, die Olginwurz eingenommen hat, eine Woche lang nichts',10
+		dc.b 'anhaben.',10
+		dc.b 'Preis: 2D / 50D pro Anwendung',0
+TOrazal         dc.b 'Diese sehr zähe Lianenart bietet dem kundigen Alchemisten eine wahre',10
+		dc.b 'Fundgrube an Möglichkeiten zur Weiterverarbeitung. Sie ist zu dem so',10
+		dc.b 'widerstandfähig, daß sie auch in Nordaventurien (etwa bis Salza) ge-',10
+		dc.b 'zogen werden kann. Lange gekochter Absud eignet sich als zähes Klebe-',10
+		dc.b 'mittel, das an der Luft binnen einer Stunde trocknet (Haltbarkeit',10
+		dc.b 'etwa zwei Jahre, wenn es richtig aufbewahrt wird), während eine Lö-',10
+		dc.b 'sung mit Schwefel und Weinstein als Konservierungsmittel benutzt wer-',10
+		dc.b 'den kann.',10
+		dc.b 'Wirkung: entweder als Klebstoff (1 Rechtspann hält etwa 100 Stein Ge-',10
+		dc.b 'wicht an einer senkrechten Wand oder 5 Stein an der Decke fest) oder',10
+		dc.b 'als Konservierungsmittel (verdoppelt bei vielen Produkten die Haltbar-',10
+		dc.b 'keit).',10
+		dc.b 'Preis: 12S pro 10 Stein Liane / 15D für eine Unze Klebstoff (reicht für',10
+		dc.b '1 Rechtschritt) oder 20D für eine Unze "Schwefliger Orazal',0
+TOrkland        dc.b 'Diese fast einen Schritt hohen, kartoffelähnlichen Riesenpilze',10
+		dc.b 'stehen meist an schattigen Abhängen in kleineren Gruppen bei-',10
+		dc.b 'sammen. Sie sind üblicherweise ungefährlich, doch im Hochsom-',10
+		dc.b 'mer werden sie reif und verschießen ihre Sporen bei jeder grö-',10
+		dc.b 'ßerer Erschütterung (wie sie z.B. durch ein vorbeilaufendes,',10
+		dc.b 'größeres Tier ausgelöst wird). Die so befallenen Opfer bilden',10
+		dc.b 'einen idealen Nährboden für die Pilze und tragen außerdem zu',10
+		dc.b 'deren Verbreitung bei. Um nicht von den Sporen befallen zuwer-',10
+		dc.b 'den, muß ein Held eine KK-Probe ablegen, die abhängig davon ist,',10
+		dc.b 'wie weit entfernt er von einem platzenden Bovist steht. Ein Pilz-',10
+		dc.b 'befall äußert sich entweder dadurch, daß sich auf der Haut ein',10
+		dc.b 'grünliches Geflecht bildet (Schaden: 1W/Woche; Stufe 7) oder',10
+		dc.b 'durch den Lungenpilz, der die Atmung stark behindert (Schaden:',10
+		dc.b 'LE bis zur Heilung permanent um 2W6 LP vermindert, MU, KK, AT,',10
+		dc.b 'PA sinken um 2 Punkte; Stufe 5).',0
+TPestsporenpilz dc.b 'Der Pestporenpilz ist ein Bovist-ähnlicher Bodenpilz von der',10
+		dc.b 'Größe einer Kokosnuß mit rissiger, hellbrauner Haut. Die Haut',10
+		dc.b 'des reifen Pilzes wird eine Woche lang in Alkohol eingelegt,',10
+		dc.b 'frischen Carlog-Blütenstempeln vermahlen und zu einer Salbe',10
+		dc.b 'verarbeitet. Wird beim Ernten des Pilzes die Haut nicht vor-',10
+		dc.b 'sichtig abgelößt (GE +2), so platzt der Pilz und setzt eine',10
+		dc.b 'Wolke von Sporen frei, die beim Einatmen 3W+4 SP verursacht.',10
+		dc.b 'Pestporenpilz-Salbe ist gut anderthalb Jahre haltbar.',10
+		dc.b 'Wirkung: Wird die Salbe auf die Augenlider und die Schläfen',10
+		dc.b 'gestrichen, so ermöglicht sie eine fast vollständige Nacht-',10
+		dc.b 'sicht. Selbst bei mattern Sternenlicht kann der Anwender',10
+		dc.b 'sehen wie am hellichten Tag. In völliger Finsternis ver-',10
+		dc.b 'sagt allerdings auch dieses Mittel.',10
+		dc.b 'Preis: 2S pro Pilzhaut / 40D für 3 Anwendungen Salbe',0
+TPfeifenkraut   dc.b 'In letzter Zeit ist es in Aventurien Mode geworden, sich',10
+		dc.b 'ein bestimmtes, getrocknetes Kraut in ein Ton- oder Holz-',10 
+		dc.b 'röhrchen zu stecken und den enstehenden Rauch einzusaugen.',10
+		dc.b 'Dieses Pfeifenkraut wächst ursprünglich wild an den Abhän-',10
+		dc.b 'gen des Regengebirges und der Eternen, wird aber mittler-',10 
+		dc.b 'weile auf großen Plantagen gezogen. Die Mohas rauchen das',10
+		dc.b 'Kraut auch noch auf eine andere Weise, indem sie nämlich',10 
+		dc.b 'zerschnittene Blätter und Stengel in ein Deckblatt einrol-',10
+		dc.b 'len und gleich diese Rolle anzünden. Bekannte Pfeifenkraut-',10
+		dc.b 'Sorten sind der leichte Methumis-Tabak aus dem Lieblichen',10 
+		dc.b 'Feld, das würzige, marakanische Sinoda-Pfeifenkraut, Moha-',10
+		dc.b 'cca, ein schwarzes, starkes Kraut und Warunker Knaster, eine',10 
+		dc.b 'Mischung verschiedener Sorten aus Mittelaventurien.',10 
+		dc.b 'Preis: - / 1H bis 4S pro Unze',0
+TPhosphorpilz   dc.b 'Dieser findet sich nur in Höhlen und unterirdischen Gängen.',10
+		dc.b 'Er benötigt Feuchtigkeit, um sich auszubreiten, stellt an-',10
+		dc.b 'sonsten jedoch keine Ansprüche an Böden oder Klima. Der',10 
+		dc.b 'Pilz bildet auf Höhlenwänden eine fingerdicke Schicht,',10
+		dc.b 'die von sich aus grünlich leuchtet. Bei genügender Feuch-',10 
+		dc.b 'tigkeit kann der Pilz so hell sein, daß er eine große Höhle',10
+		dc.b 'oder ein Gangsystem mit grünlichem Licht erfüllt.',10 
+		dc.b 'Preis: 4H pro Stein / 1S pro Unze',0
+TQuinja         dc.b 'Diese knallrote Beere wächst bevorzugt an warmen, schat-',10 
+		dc.b 'tigen Orten. Die frischen Beeren (Ingerimm bis Travia)',10 
+		dc.b 'wirken durchblutungsfördernd und stärkend, die getrock-',10
+		dc.b 'neten sind eine der Grundlagen des Kraftelixiers. Die',10
+		dc.b 'Beere ist auch ein beliebtes Aufputschmittel der Echsen-',10 
+		dc.b 'menschen, die aus ihr einen ungemein dreinschlagenden',10
+		dc.b 'Schnaps destillieren.',10 
+		dc.b 'Wirkung: KK+1 für 2 Stunden, die Einnahme mehrerer Beeren',10 
+		dc.b 'gleichzeitig bringt keine weitere Wirkung.',10 
+		dc.b 'Preis: 12S / 25D (jeweils für 3 Beeren)',0
+TRauschgurke    dc.b 'Diese hellgrünen, birnenförmigen Früchte finden sich an',10
+		dc.b 'einer großen maraskanischen Baumart. Ihr Genuß bewirkt',10 
+		dc.b 'beim Menschen eine kurzzeitige Kräftesteigerung, die je-',10
+		dc.b 'doch von einer deutlichen Bewußtseinstrübung begleitet ist.',10 
+		dc.b 'Preis: 5H / 7S',0
+TRoter          dc.b 'Die rote Blüte der ansonsten unscheinbaren, breitblättrigen',10 
+		dc.b 'Pflanze errinnert vage an den aufgesperrten Rachen eines',10 
+		dc.b 'Lindwurmes - daher der Name. Das Gewächs kann bei den Opfern',10
+		dc.b 'von Lykanthropie den Ausbruch der Krankheit verhindern. Dazu',10
+		dc.b 'muß den Opfern ein Druckverband aus frischen Drachenschlund-',10 
+		dc.b 'Blättern auf die Bißwunde gelegt werden. Die Blätter dürfen',10
+		dc.b 'höchstens eine Woche alt sein. Ein Behandlung mit dieser Pfla-',10
+		dc.b 'nze wirkt bei einem Werwolfsopfer nur ein einziges Mal.',10 
+		dc.b 'Wirkung: Verhindert den Ausbruch von Lykanthropie.',10 
+		dc.b 'Preis: 20D',0
+TRote           dc.b 'Dieses Schlingkraut, das sich häufig an tropischen Bäumen',10
+		dc.b 'findet, wird wegen seiner starken, heilkräftigen Wirkung ge-',10
+		dc.b 'schätzt. Die roten, lanzettförmigen Blüten sind der einzige',10
+		dc.b 'Teil der Pflanze, der zu Heilzwecken verwendet wird. Die',10
+		dc.b 'Blüten können sowohl frisch als auch getrocknet zu einem',10
+		dc.b 'Aufguß mit Orazal und Alkohol versetzt, so kann er zwei Jahre',10
+		dc.b 'lang aufbewahrt werden.',10
+		dc.b 'Wirkung: Ein Tee aus drei Blüten (soviel hat eine einzelne',10
+		dc.b 'Pflanze normalerweise) bringt 3W+2 LP.',10
+		dc.b 'Preis: 1S / 15D',0
+TSansaro        dc.b 'Sansaro ist eine übelriechende, grünbraune Tangart, die auf',10
+		dc.b 'dem Meer oder an Küstestreifen praktisch "abgemäht" wer-',10
+		dc.b 'den kann. Wenn man den Tang einkocht (vorzugsweise mit etwas',10
+		dc.b 'Tran und Kalk), entstehen zwei wirksame Mittel: ein Absud, der',10
+		dc.b 'gegen Krankheiten wirkt, und eine Paste, die Ungeziefer von Mensch',10
+		dc.b 'und Tier fernhält. Die Paste hält sich etwa zwei Monate lang, der',10
+		dc.b 'Absud gut ein Jahr, wenn er richtig aufbewahrt wird. Roher Sansaro',10
+		dc.b 'ist völlig geschmackslos, hilft aber gegen die Kerkersieche.',10
+		dc.b 'Wirkung: Der Absud unterbindet einen Tag lang jegliche Ansteckung,',10
+		dc.b 'die Paste hält zwei Tage lang Parasiten und Ungeziefer fern.',10
+		dc.b 'Preis: 1S pro Stein / 5D pro 10 Unzen Paste oder pro Flux Absud',0
+TSchleichender  dc.b 'Über diese Orchideenart ist nur wenig bekannt. Sie wächst im Süden',10
+		dc.b 'Aventuriens, trägt blaßgelbe bis weiße Blüten, riecht wider-',10
+		dc.b 'lich süßlich, und ihre Blütenpollen erzeugen rauschhafte Träume',10
+		dc.b 'und schwere Vergiftungen. Diese Pollen sind auch als Samthauch',10
+		dc.b 'verbreitet und werden vor allem von den Boroni des Al´Anfan-',10
+		dc.b 'ischen Ritus gerne verwendet.',10
+		dc.b 'Preis: 2D / 20D (jeweils pro 5 Skrupel)',0
+TSchleimiger    dc.b 'Dieser etwa faustgroße Pilz, der eine grünliche Haut und gleich-',10
+		dc.b 'farbige Lamellen besitzt, wird von allen Tieren wegen seiner',10
+		dc.b 'brennenden Berührung gemieden. Wie fast alle Pilze liebt dieser',10
+		dc.b 'Holzschmarotzer schattige Plätze. Oft findet man ihn in soge-',10
+		dc.b 'nannten Hexenkreisen um einen absterbenden Baum gruppiert. Aus',10
+		dc.b 'dem Pilz läßt sich ein schweres Gift herstellen.',10
+		dc.b 'Preis: 6D (3 Pilze) / 50D (fertiges Gift)',0
+TSchlinggras    dc.b 'Diese Graspflanze findet sich in vielen nordaventurischen Mooren',10
+		dc.b 'und Sümpfen. Sie lebt von verfaulendem Holz, das es dort zur',10
+		dc.b 'Genüge gibt. Schlinggras kann Mensch und Tier durch seine un-',10
+		dc.b 'angenehme Eigenart gefährlich werden, sich um die Beine eines',10
+		dc.b 'Opfers zu ringeln - und ein Sturz kann im Sumpf fatale Folgen',10
+		dc.b 'haben.',0
+TShurinknolle   dc.b 'Die Shurinknolle ist die etwa kirschgroße, grüne Frucht des',10
+		dc.b 'gleichnamigen Strauches, der vor allem auf kargen Böden gut',10
+		dc.b 'gedeiht. Sowohl die Früchte als auch der Stamm und Blätter',10
+		dc.b 'der Pflanze sind hochgiftig und werden zu entsprechend Mix-',10
+		dc.b 'truen weiterverarbeitet.',10
+		dc.b 'Preis: 8D (3 Knollen) / 70D (fertiges Gift)',0
+TSuesser        dc.b 'Die glänzende blaue Frucht des Merach-Strauches ähnelt einem',10
+		dc.b 'kleinen Apfel. Sie ist außergewöhnlich aromatisch und zucker-',10
+		dc.b 'süß. Ihr Genuß ist unschädlich, solange man folgende Regel be-',10
+		dc.b 'achtet: in einem Zeitraum von 3 Tagen vor bis 3 Tagen nach',10      
+		dc.b 'dem Verzehr der Frucht darf man keinen Alkohol zu sich nehmen.',10
+		dc.b 'Vorsichtist auch angebracht, wenn die Frucht etwas älter ist',10
+		dc.b 'und vielleicht durch Eigengärung Alkohol entwickelt hat!',10
+		dc.b 'Wirkung: Tödlich in Verbindung mit Alkohol (5W20 SP).',10
+		dc.b 'Preis: - / 2H pro Frucht',0
+TTalaschin      dc.b 'Die gelbgrüne Talaschin-Flechte, die man auf allerei Steinen',10
+		dc.b 'findet, gilt als eins der widerstandsfähigsten Gewächse',10
+		dc.b 'ganz Aventurien. Selbst in den Eiszinnen und in der Gor-',10
+		dc.b 'ischen Wüste wurde sie schon gefunden, ja es scheint so-',10
+		dc.b 'gar, daß sie diese extremen Bedingungen bevorzugt. Die',10
+		dc.b 'Flechte wird in einem Mörser zerstampft und zu einer zähen',10
+		dc.b 'Salbe verarbeitet, die bis zu einem Jahr haltbar ist.',10
+		dc.b 'Wirkung: Die Salbe löscht jegliche Körpergrüche. Selbst',10
+		dc.b 'gute Spürhunde können keine Witterung mehr aufnehmen. Der',10
+		dc.b 'Salbenauftrag muß all zwei Stunden erneuert werden.',10
+		dc.b 'Preis: 12H / 7D',0
+TTarnele        dc.b 'Die Tarnele ähnelt dem Löwenzahn, blüht aber während der',10
+		dc.b 'Monate Ingerimm bis Travia leuchtend rot. Sie gedeiht fast',10
+		dc.b 'überall, im Schatten jedoch besser als in der vollen Sonne.',10
+		dc.b 'Aus den zerriebenen Blättern und Stengeln (die von einer',10
+		dc.b 'frisch geernteten, blühenden Pflanze stammen müssen) kann',10
+		dc.b 'eine heilkräftige Salbe bereitet werden, die je nach Können',10
+		dc.b 'des Herstellers bis zu 18 Monate haltbar ist. (Der Hersteller',10
+		dc.b 'legt eine Alchimie-Probe ab. Die überschüssigen Talentpunkte',10
+		dc.b 'geben an, wie lange sich die Salbe ohne Wirkungsverlust hält.)',10
+		dc.b 'Wirkung: Auf Wunden aufgetragen wirkt die Salbe schmerzlin-',10
+		dc.b 'dernd und heilkräftig, zur nächtlichen Regeneration oder zu',10
+		dc.b 'dem Ergebnis einer Heilkund-Probe kann ein zusätzlicher LP',10
+		dc.b 'addiert werden.',10
+		dc.b 'Preis: 4H / 5S',0
+TTee            dc.b 'Tee ist - neben Bier - eines der meistkonsumierten Getränke',10
+		dc.b 'Aventuriens. Die Teepflanzen werden in großen Plantagen an-',10
+		dc.b 'gebaut und die Blätter ein oder zweimal im Jahr geerntet.',10
+		dc.b 'Bekannte Anbaugebiete für Tee sind die Vorgebirge des Rasch-',10
+		dc.b 'tulswalls, die mhanadischen und thalusischen Hügelrücken',10
+		dc.b 'und die Maraskankette. Der stärkste Tee ist der Boran Hochland,',10
+		dc.b 'während andere Sorten wie Rose von Fasar oder Tulamidengold',10
+		dc.b 'eher leicht aromatisch bis fruchtig schmecken. Die teuerste',10
+		dc.b 'Teesorte ist der Ongalo-Hochland-1. Ernte-Blattenspitzen-',10
+		dc.b 'Auswahl, der sogar im Kaiserpalast zu Gareth getrunken wird',10
+		dc.b '(obwohl man dort noch exotischere Getränke wie Kakao bevor-',10
+		dc.b 'zugt). Im Norden Aventuriens bekommt man häufig auch soge-',10
+		dc.b 'nannten Tee angeboten, doch handelt es sich dabei meist um',10
+		dc.b 'verschiedene Kräuteraufgüsse.',10
+		dc.b 'Preis: - / 10H bis 5D pro Stein',0
+TThonnys        dc.b 'Dieses unscheinbare, der Ackerwinde sehr ähnliche Kraut,',10
+		dc.b 'dessen einzig hervorstehendes Merkmal die grellroten Blüten',10
+		dc.b 'während zweier kurzer Wochen im Rahja sind, wird von den',10
+		dc.b 'Elfen hoch geschätzt. Es ermöglicht ihnen die Astrale Medi-',10
+		dc.b 'tation, die Umwandlung von Lebens- in Astralpunkte im Ver-',10
+		dc.b 'hältnis 1:1. Das getrocknete Kraut vermag dies zwar auch, ver-',10
+		dc.b 'ursacht jedoch eine leichte Übelkeit (1W6 SP). Das getrocknete',10
+		dc.b 'Kraut hält sich etwa ein Jahr lang.',10
+		dc.b 'Wirkung: ermöglicht Elfen, Hexen und Druiden die Astrale Medi-',10
+		dc.b 'tation ohne LP-Verlust.',10
+		dc.b 'Preis: 12S / 35D',0
+TTraschbart     dc.b 'Diese Flechte hängt in langen verfilzten "Bärten" von den',10
+		dc.b 'Bäumen, was ihr auch den Namen eingeragen hat. Wälder, in denen',10
+		dc.b 'der graugrüne Traschbart häufig ist, gelten oft als verzaubert',10
+		dc.b 'und unheimlich. Die Pflanze wird getrocknet und zu einem Pulver',10
+		dc.b 'verrieben, das bei trockener Lagerung praktisch ewig haltbar',10
+		dc.b 'ist. Da es auch keine bestimmte Erntezeit für das Gewächs gibt,',10
+		dc.b 'ist Traschbartpulver das bekannteste Mittel gegen Fieberkrank-',10
+		dc.b 'heiten.',10
+		dc.b 'Wirkung: In Wasser aufgelößtes Traschbartpulver gibt bei Trief-',10
+		dc.b 'nase, Dumpfschädel, Wundfieber, Brabaker Schweiß und Schlacht-',10
+		dc.b 'feldfieber 2W6 LP zurück und stoppt den Verlauf der Krankheit.',10
+		dc.b 'Preis: 1H / 4S',0
+TUlmenwuerger   dc.b 'Diese efeuähnliche Pflanze hat ihren Namen von ihrer Vorliebe,',10
+		dc.b 'in großen Mengen an alten Ulmen zu schmarotzen. Die blaßblauen',10
+		dc.b 'Blüten - Blütezeit des Ulmenwürgers sind Efferd und Travia -',10
+		dc.b 'können zu einem Aufguß verarbeitet werden, der das nächtliche',10
+		dc.b 'Wohlbefinden stärkt und ansteckungshemmend wirkt. Die ge-',10
+		dc.b 'trockneten Blüten, die einen leicht süßlichen Geruch ver-',10
+		dc.b 'strömen, können nahezu unbegrenzt aufbewahrt werden.',10
+		dc.b 'Wirkung: Verbessert die nächtliche Regeneration um 2LP, senkt',10
+		dc.b 'außerdem die Ansteckungsgefahr für Wundfieber einen Tag lang',10
+		dc.b 'um 20%.',10
+		dc.b 'Preis: 6S / 9D',0
+TVierblatt      dc.b 'Das Vierblatt - oder die Vierblättrige Einbeere, wie sie auch',10
+		dc.b 'genannt wird - ist eine Strauchpflanze, die man bisweilen an',10
+		dc.b 'Waldrändern finden kann. Im Gegensatz zur giftigen und sehr',10
+		dc.b 'ähnlichen Glanzbeere bringt der Saft dieser blauen, etwa hasel-',10
+		dc.b 'nußgroßen Beere Lebenskräfte zurückt, anstatt sie zu rauben.',10
+		dc.b 'Der eingekochte Saft aus etwa 20 Beeren enthält etwa 50 LP',10
+		dc.b 'und läßt sich bis zu einem Jahr lang lagern. Sowohl eine',10
+		dc.b 'äußerliche als auch eine innerliche Anwendung des Saftes sind',10
+		dc.b 'möglich.',10
+		dc.b 'Wirkung: stoppt Blutungen, frische Beere bringt 1W6 LP zurück,',10
+		dc.b 'Saft aus 20 Beeren enthält 50 LP.',10
+		dc.b 'Preis: 3H pro Beere / 7S pro Beere, 25D für einen 50 LP-Trunk',0
+TVragieswurzel  dc.b 'Diese Pflanze ist eigentlich im Süden Aventuriens heimisch,',10
+		dc.b 'kann aber in allen Klimazonen gezogen werden. Ihr oberir-',10
+		dc.b 'discher Teil ähnelt Möhrenlaub, während die Wurzel weißgelb-',10
+		dc.b 'lich und gewunden ist. Aus ihr läßt sich ein milchiger, nach',10
+		dc.b 'Lakritz riechender Saft gewinnen, der zu Boron-Wein, einem',10 
+		dc.b 'starken Rauschmittel weiterverarbeitet wird. Da bei der',10
+		dc.b 'Verarbeitung (Kochen und Eindicken)nicht alle Giftstoffe',10
+		dc.b 'der Pflanze zerfallen, kann es beim Genuß von Boron-Wein',10
+		dc.b 'durchauszu Todesfällen kommen.',10
+		dc.b 'Preis: 2S für eine Vragieswurzel / 5D pro Unze Boron-Wein',0
+TWasserrausch   dc.b 'Der Wasserrausch ist eine in Nordaventurien beheimatete, aber',10
+		dc.b 'recht seltene Wasserpflanze. Die fünfblättrigen, blaßrosa',10
+		dc.b 'Blütenkelche öffnen sich nur für einen Tag, aber die Pflanze',10
+		dc.b 'bringt von Rahja bis Efferd ständig neue Blüten hervor. Den',10
+		dc.b 'Blüten entströmt ein Duft, der einen schlafähnlichen Rausch',10
+		dc.b 'mit lüsternen Träumen erzeugt, dem am nächsten Tag ein schlim-',10
+		dc.b 'mer Kater folgt. Bei frischen Blüten ist die Wirkung am stär-',10
+		dc.b 'ksten, abgepflückte oder halb verblühte zeigen nur geringe',10
+		dc.b 'Wirkung. Auch erfahrene Schwimmer meide Gebiete mit Wasser-',10
+		dc.b 'rausch! (KK +5, sonst verliert der Schwimmer die Besinnung)',10
+		dc.b 'Sehr selten bringt die Pflanze eine dunkelgrüne, etwa krischen-',10
+		dc.b 'große Frucht hervor (eine Frucht auf ca. 500 Blüten). Diese',10
+		dc.b 'erzeugt, wenn man sie schluckt, einen leichten, euphorischen',10
+		dc.b 'Rausch (ohne Kater), und ist zugleicht ein hochtwirksames',10
+		dc.b 'Rahjaikum. Die Frucht ist ein Jahr lang haltbar.',10
+		dc.b 'Preis: 1D / 20D pro Frucht',0
+TWinselgras     dc.b 'Wenn der Wind über die Halme dieses Grases streicht -',10
+		dc.b 'eine schwache Brise genügt - entstehen unheimliche Geräu-',10
+		dc.b 'sche, meist ein elendes Winseln, das sich aber zu einem',10
+		dc.b 'durchdringenden Kreischen, manchmal auch zu einem dumpfen',10
+		dc.b 'Brüllen steigen kann. Art und Lautstärke der Töne sind nicht',10
+		dc.b 'von der Windstärke abhängig. Das Gras winselt nur während',10
+		dc.b 'der Nacht und tiefen Dämmerung.',0
+TWirselkraut    dc.b 'Diese ausgesprochen unscheinbare Graspflanze mit ihren',10
+		dc.b 'fingerbreiten, grünweißen Blättern ist in ganz Aven-',10
+		dc.b 'turien der Begriff für Heilkräuter geworden. Die Pflanze',10
+		dc.b 'findet sich in fast allen Grasländern, am häufigsten je-',10
+		dc.b 'doch auf trockenen, etwas sandigen Böden. Das Kraut muß',10
+		dc.b 'unbehandelt auf eine offene Wunde gelegt werden, um',10
+		dc.b 'seine volle Wirkung zu entfalten. Wirselkraut iat auch',10
+		dc.b 'Grundlage vieler käuflicher Heilsalben und Tränke.',10
+		dc.b 'Wirkung: stoppt Blutungen, gibt 10 LP zurück',10
+		dc.b 'Preis: 1D / 7D',0
+TWuergedattel   dc.b 'Diese fleischfressenden Rankpflanzen sind bei den Be-',10
+		dc.b 'suchern der Waldinseln gefürchtet. Ihr Stamm gleicht',10
+		dc.b 'dem eines Baumes, von dem mehrere Äste abgehen, an denen',10
+		dc.b 'Trauben leuchtend roter, dattelähnlicher Früchte hängen.',10
+		dc.b 'Was man nicht sieht, sind die Würgeschlingen, die ent-',10
+		dc.b 'weder unter Laub oder im Geäst benachbarter Bäume vor-',10
+		dc.b 'borgen sind. Wer eine der "Dattel" berührt, wird von der',10
+		dc.b 'Pflanze angegriffen (AT 10) und muß mit einer GE+4 aus-',10
+		dc.b 'weichen. Wem dies nicht gelingt, der befindet sich im',10
+		dc.b 'Würgegriff der Pflanze und erleidet pro KR 1W+2 SP. Man',10
+		dc.b 'kann die Würgedattel nur bekämpfen, indem man ihre Ranken',10
+		dc.b 'abschlägt (LE 10, RS 2). Endgültig vernichtet werden kann',10
+		dc.b 'der Strauch nur mit Feuer oder Gift.',0
+TXordai         dc.b 'Dies ist der Name für die Rinde des mächtigen Axorda-',10
+		dc.b 'Baumes, der etwa 40 Schritt hoch wird und nur auf Maraskan',10
+		dc.b 'wächst. Von seiner borkigen Rinde kann die innerste',10
+		dc.b 'Schicht abgekratzt und zusammen mit Tarnele zu einem',10
+		dc.b 'Sud verarbeitet werden, der als einziges Mittel gegen',10
+		dc.b 'Zorgan-Pocken wirkt. Aus der Rinde (200 Stein Gewicht)',10
+		dc.b 'eines Baumes lassen sich etwa fünfizg Aufgüsse gewinnen,',10
+		dc.b 'die in dunklen Kellern etwa ein halbes Jahr haltbar sind.',10
+		dc.b 'Wirkung: Verkürzt die Wirkungsdauer von Zorgan-Pocken auf',10
+		dc.b '1W+5 Tage, wobei der Erkrankte täglich nur noch 1W+4 SP',10
+		dc.b 'erleidet',10
+		dc.b 'Preis: 40D für die Rinde eines ganzen Baumes / 100D pro',10
+		dc.b 'Anwendung',0
+TYagan          dc.b 'Die Nuß des Maraskanischen Yagan-Strauches wird etwa',10
+		dc.b 'faustgroß und sollte im frühen Boron geerntet werden. Sie',10
+		dc.b 'ist schwer zu knacken, enthält dafür aber ein wirksames',10
+		dc.b 'Öl, das sowohl die Ausdauer heraufsetzt als auch gegen',10
+		dc.b 'einige Krankheiten Heilkräfte besitzt. Das Öl wird, wenn',10
+		dc.b 'man es richtig lagert, frühestens nach einem Jahr ranzig',10
+		dc.b 'und ungenießbar.',10
+		dc.b 'Wirkung: Steigert die Ausdauer eines Menschen, Elfen oder',10
+		dc.b 'Zwerges für einen Tag um 2W6 Punkte, das Öl dreier Nüsse',10
+		dc.b 'kann auch dem Pferdefutter beigemischt werden und be-',10
+		dc.b 'wirkt, daß die Tiere eine SR länger galoppieren können, am',10
+		dc.b 'Tag danach ist die AU jedoch halbiert. Steigert außerdem',10
+		dc.b 'die Chance, aus der Schlafkrankheit aufzuwachen.',10
+		dc.b 'Preis: 1S pro Nuß / 12D pro Nuß oder pro 2 Flux Öl',0
+TZunderschwamm  dc.b 'Der Zunderschwamm ist ein großer, an Bäumen schma-',10
+		dc.b 'rotzender Scheibenpilz von gelblicher bis grünlicher',10
+		dc.b 'Farbe, der in fast ganz Aventurien vorkommt. Er er-',10
+		dc.b 'reicht ein Gewicht von bis zu fünf Stein. Wenn er ge-',10
+		dc.b 'trocknet wird, verliert er mehr als zwei Drittel seines',10
+		dc.b 'Gewichts und entzündet sich beim kleinsten Funken.',10
+		dc.b 'Preis: 5H pro Stein / 2S (Zunderkistchen mit 4 Unzen',10
+		dc.b 'Inhalt)',0
+TZwoelfblatt    dc.b 'Zwölfblatt ist ein farnähnliches, buschiges, dunkel-',10
+		dc.b 'grünes Kraut, dessen Name daher rührt, daß sich stets',10
+		dc.b 'zwölf einzelne Stengel von der Hauptwurzel aus er-',10
+		dc.b 'heben. Die Pflanze liebt schattige und feuchte Orte,',10
+		dc.b 'kann aber auch unter widrigeren Bedingungen existiern.',10
+		dc.b 'Wenn das Kraut frisch gegessen wird, verhindert es',10
+		dc.b 'vier Tage lang Ansteckungen aller Art. Es kann jedoch',10
+		dc.b 'getrocknet und als Tee aufgebrüht werden und gewährt',10
+		dc.b 'dann zwei Tage Schutz. Der Tee ist etwa 9 Monate lang',10
+		dc.b 'genießbar.',10
+		dc.b 'Wirkung: verhindert vier Tage lang Infektionen.',10
+		dc.b 'Preis: 9S / 5D',0
+;;

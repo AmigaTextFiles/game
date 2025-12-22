@@ -1,0 +1,903 @@
+AmigaMUD, Copyright 1997 by Chris Gray
+
+
+			The AmigaMUD Agents
+
+The "Agents" in the AmigaMUD system are separate programs that run on
+the server machine, and which serve as intermediaries between the
+MUDServ server itself and whatever communications protocol is being
+used. On earlier releases of the system, only the "MUDAgent" program
+was used for this purpose - it handles a single serial port, doing
+reliable asynchronous transfers to the remote client, and converting
+messages between the serial format and the AmigaOS "Exec" messages
+used by the server. Now that AmigaMUD works over the internet, there
+are two more agent programs. MUDText is used to handle a text-only
+connection from a telnet or non-specific MUD client. MUDBinary is used
+to handle full connections with a remote custom client, speaking via
+TCP/IP messages. These two new clients are now more likely to be used
+than the old serial port client. They are simpler and will be
+described first. Note that neither MUDText nor MUDBinary can be
+started from the Workbench - they must be started by the "inetd"
+server program, or by something similar.
+
+I personally have tested the AmigaMUD system using AmiTCP/IP. One user
+has had success using Miami, both with him running the MUD client to
+connect to my server, and with me running here to connect to his
+server. Any TCP/IP stack that provides the bsdsocket.library interface
+should work just as well. The details of setup will of course vary
+from stack to stack.
+
+
+Setup for TCP/IP Operation
+
+There are two ends of the AmigaMUD system. The client end involves the
+"MUD" custom client. The documentation file "MUD.txt" contains
+information on how to use it with a TCP/IP connection to talk to a MUD
+server over the internet. Setting up an AmigaMUD server to be
+available over the internet is discussed here. A certain level of
+familiarity with the internet is assumed.
+
+In order to host an AmigaMUD system over the internet you will of
+course need an internet connection. This typically involves being at a
+site that is "on" the internet, or perhaps going through a commercial
+ISP (Internet Service Provider) that allows the needed activities.
+Since the AmigaMUD system currently runs only on Amiga computers, an
+Amiga with internet access is needed. Best for this purpose is a
+fairly fast Amiga with an ethernet card, plugged into a network that
+is linked to the internet. An Amiga with a SLIP or PPP connection
+through a modem will also work, but that restricts the network
+capacity available, and requires a dedicated telephone line if it is
+to be available continuously. Those lucky people with ISDN lines to
+their systems are perhaps the best off. Cable modems are more
+difficult to use as servers like this, since they often do not have
+fixed IP addresses, and the cable companies sometimes explicitly
+disallow users from running servers.
+
+After the hardware is setup, you will also need software to provide a
+"TCP/IP stack", which is the collection of drivers and protocol
+software that understands the internet standards in order to properly
+be a host on the internet. AmigaMUD does not come equipped with this
+software - you must obtain it elsewhere. As mentioned above, AmigaMUD
+is known to work with the AmiTCP/IP and Miami stacks, and should work
+with any stack that provides the "bsdsocket.library" interface. Note
+that you may not get an actual "bsdsocket.library" file to put into
+your "libs:" directory. AmiTCP/IP, for example, creates the library
+dynamically when it is started up. Because of this, the various
+AmigaMUD programs, when directed to use TCP/IP connections, may fail
+if your TCP/IP stack is not already running.
+
+In order for one computer to contact another over a TCP/IP connection,
+it must know a port number to attempt the connection on. These port
+numbers are not related to the named AmigaOS Exec message ports that
+the AmigaMUD server itself uses for communication. There are usually
+two choices for the protocol to use for such ports - TCP or UDP.
+AmigaMUD only works with the reliable TCP protocol. The port numbers I
+have randomly chosen to use as the defaults are 6666 for a text
+connection, and 6667 for a binary connection with the custom AmigaMUD
+"MUD" client. Some sites may not allow these ports through their
+security firewalls, in which case others can be chosen.
+
+With AmiTCP/IP, you must define the ports you want to use in the file
+"amitcp:db/services". Lines in that file look like this:
+
+mudtext 	6666/tcp
+mudbinary	6667/tcp
+
+On UNIX systems, this file is usually located in the "/etc" directory.
+
+Once you have the port numbers chosen, you need to set up something
+that will run the MUDText or MUDBinary agents when an external
+connection comes in for one of those ports. On UNIX systems and with
+AmiTCP/IP, this is done via the "inetd" program. This program is
+thought of as a "super server" which accepts connections on any of the
+ports it is told about, and which will then run the appropriate
+program for that port. This information is given to it in the file
+"inetd.conf", which is also located in "amitcp:db" or "/etc". Assuming
+you have set up the normal "AmigaMUD:" assign on your Amiga, and have
+created the above entries in your "services" file, the lines for
+AmiTCP/IP's inetd look like this:
+
+mudtext   stream tcp nowait bin/stack=10000 AmigaMUD:Progs/MUDText MUDText
+mudbinary stream tcp nowait bin AmigaMUD:Progs/MUDBinary MUDBinary
+
+If you need to add command line flags to either program, you do that
+by adding them at the end of the lines. For details on the format of
+the above lines, consult the appropriate AmiTCP/IP documentation.
+
+With Miami, all of the above configuration is done within the main
+Miami program, and is set up using GUIs. Consult the Miami
+documentation for details. (I haven't seen it myself, so cannot help
+you with it, but I've been told that it *is* there, so don't bug
+Holger about it! In email he indicates that the appropriate entries
+are in the "Services" and "InetD" pages.) For other TCP/IP stacks, you
+will have to consult the documentation for those stacks.
+
+With the above setup, a summary of what is going on goes something
+like this (for a full binary "MUD" connection):
+
+    - server machine establishes internet connection and starts its
+	AmigaMUD server, and its inetd.
+
+    ...
+
+    - client machine establishes internet connection
+
+    ...
+
+    - user runs "MUD" client program, specifying (see "MUD.txt") the
+	name or address of the machine to connect to, along with the
+	TCP port to connect on.
+
+    - inetd on server machine notices incoming connection request, and
+	consults its configuration to see what to do with it. If all
+	is well, it starts the "MUDBinary" program, and passes the
+	connection off to that program. Inetd will then go back to
+	waiting for more connection requests.
+
+    - MUDBinary attempts to contact a MUDServ via the AmigaOS Exec
+	message port "MUD port" or any other name specified (see
+	below).
+
+    - MUDServ and the remote MUD client begin exchanging messages to
+	allow character login/creation and gameplay.
+
+    ...
+
+    - player chooses to stop playing, and enters appropriate game
+	command or otherwise informs "MUD" that he/she wants to quit.
+	After a few messages back and forth, "MUD" will terminate on
+	the client machine, and the specific "MUDBinary" will
+	terminate on the server machine.
+
+
+MUDBinary
+
+The MUDBinary program is used to connect a remote "MUD" client program
+running over TCP/IP with the server on the local machine. There will
+be one copy of MUDBinary running for each such client. Do not attempt
+to run MUDBinary manually or from the Workbench - it is designed to
+only be run from an "inetd" program or similar server setup. MUDBinary
+accepts the following command line parameters:
+
+    -T - run using the test port "MUD test port" instead of the
+	default port "MUD port". This is handy if you want to run a
+	test server as well as a regular server.
+
+    -P<name> - run using the given port name instead of the default
+	port name.
+
+    -R<count> - use <count> as the number of server request messages
+	to allow to accumulate in this program. The default is 10.
+
+There is little that can be said about MUDBinary - it simply converts
+one message mechanism to another.
+
+
+MUDText
+
+The MUDText program is used to provide a link between a remote user
+running a "telnet" program or some non-AmigaMUD-specific MUD client
+program and the MUDServ program running on the local machine. There
+will be one instance of the MUDText program running for each such
+active client connection. You should not attempt to start MUDText
+manually - it will fail. Without any command line parameters, MUDText
+will attempt to contact a MUDServ running on the default AmigaMUD
+server port "MUD port". Possible command line parameters are:
+
+    -T - run using the test port "MUD test port" instead of the
+	default port "MUD port". This is handy if you want to run a
+	test server as well as a regular server.
+
+    -P<name> - run using the given port name instead of the default
+	port name.
+
+    -R<count> - use <count> as the number of server request messages
+	to allow to accumulate in this program. The default is 10.
+
+    -d - enable debugging of telnet protocol commands. This debugging
+	output will be done via the SyslogA function of your bsdsocket
+	library. Under AmiTCP/IP, such output goes to a window on your
+	Workbench and to a log file in T:. Consult the documentation
+	for your particular TCP/IP stack.
+
+    -p - enable some debugging of prompts. Not very useful.
+
+    -f - set operation flags. See later section.
+
+Any other command line parameters are silently ignored.
+
+The MUDText program understands only a small portion of the official
+telnet commands and options, but they should be enough for most
+situations. See RFC's 854, 856, 857, 858, 885 and 1073. In particular:
+
+    BINARY - MUDText will accept binary (8-bit) information going in
+	either direction, and will properly double IAC bytes. However,
+	since few telnet clients accept the binary transmission offer,
+	MUDText will not actually strip the high order bit from any
+	characters it sends or receives. This is in violation of the
+	telnet RFC's, but I believe it is safe, and allows the free
+	use of special international characters with telnet clients
+	that do not directly support the BINARY option but also do not
+	strip the high order bit.
+
+	Note that the AmigaMUD system allows the free use of
+	characters with the high bit set, assuming they are ISO Latin1
+	characters, such as are supported on the Amiga, most UNIX
+	boxes, and PC's (when properly setup). It has been reported to
+	me that Mac's normally have random characters (or no
+	characters) in the upper 128 slots of a font, so output of
+	this form doesn't work on them. I'm not concerned. To my
+	current recollection, the standard AmigaMUD scenario as of
+	V1.1 has only one such character in it, in the description of
+	Questor's Office. Players can of course add more.
+
+    ECHO - the telnet specification says that, by default, a telnet
+	client should provide its own echoing. Telnet also provides
+	ways in which either end of the session can suggest that the
+	server do the echoing. This is less efficient, but is needed
+	if the server is, say, a shell session running an editor,
+	where having the client end echo characters would mess up the
+	display. Early telnet clients, based on the original BSD
+	version, used the combination of ECHO and SUPGA to define
+	"line mode" and "character mode". In "line mode", the local
+	client would echo characters, and neither end would send
+	telnet GA (Go Ahead) commands. In "character mode", the server
+	is responsible for echoing characters back to the client, and
+	would send GA's to inform the client that input is wanted.
+	This "line mode" is *NOT* the official telnet LINEMODE, as
+	defined in RFC's 1116 and 1184. The official LINEMODE is a
+	much more complicated protocol, where the two ends of the
+	session negotiate on a set of line editing characters, etc.
+	Newer telnet clients, such as the one on the NeXt, support
+	this mode. MUDText does not support this mode, however.
+
+	MUDText can attempt to control the echoing in order to blank
+	out passwords. It does this by offering to echo characters
+	when a password is being entered (sends telnet WILL ECHO),
+	and, if the offer is accepted, it will echo spaces instead of
+	the password characters. After the password is entered, it
+	will attempt to withdraw its offer (sends telnet WONT ECHO),
+	and if that is also accepted, it stops echoing, assuming the
+	remote client end has resumed local echoing. This works with
+	some telnet clients, but not with others. For example, the
+	'telnet' program with AmiTCP/IP will negotiate this sequence
+	only once in the session. However, if the user enters the
+	telnet escape character (usually control-]) and instructs
+	telnet to go into "line mode", then telnet and MUDText will
+	properly negotiate, allowing local (client) echoing again.
+
+    SUPGA - MUDText can offer to suppress sending go-ahead characters,
+	and is happy to accept them from the client. It currently
+	ignores them and only sends them as prompt terminators, if
+	that is requested.
+
+    END-OF-RECORD - the TinyFugue UNIX client uses this option as one
+	way of identifying the prompt in the datastream. MUDText can
+	send the telnet END-OF-RECORD command at the end of each
+	prompt that it outputs, so that they can be identified.
+
+    NAWS (Negotiate About Window Size) - some telnet clients, such as
+	"napsaterm", can inform the server about the character
+	dimensions of the window. MUDText can accept this information
+	and pass it on to the server, so that text output can be
+	properly formatted and paginated for that size.
+
+    LINEMODE - MUDText does not currently handle the complex LINEMODE
+	option. If there is need for this, it can be done. Most older
+	telnet clients use a fake linemode, where they just fiddle
+	with the ECHO and SUPGA settings. See RFC's 1116 and 1184.
+
+
+MUDText Flags
+
+The '-f' command line parameter to MUDText allows the specification of
+a set of flag bits, which control how MUDText uses various telnet
+options. The value following the 'f' (no spaces) must be a hexadecimal
+value, which is calculated by adding (or or-ing) the values for the
+bits that are desired. Note that since MUDText is never run manually,
+these flags must typically be specified in the "inetd" configuration.
+The first few bits control the initial negotiation of options that
+MUDText will do.
+
+    neg-binary (0x0001) - if this flag is set, MUDText will send out
+	a telnet WILL BINARY offer at the start of the run.
+
+    neg-echo (0x0002) - if this flag is set, MUDText will send out a
+	telnet WILL ECHO offer at the start of the run. It is not
+	recommended that you set this bit, since you do not want
+	MUDText to be echoing characters in normal circumstances.
+
+    neg-supga (0x0004) - if this flag is set, MUDText will send out a
+	telnet WILL SUPGA offer at the start of the run. This normally
+	has little effect, but should not be used if you need MUDText
+	to append a telnet GA character to prompts in order to mark
+	them for the client.
+
+    neg-eormode (0x0008) - if this flag is set, MUDText will send out
+	a telnet WILL END-OF-RECORD offer at the start of the run.
+	This is currently only useful with the TinyFugue client, which
+	can use a telnet END-OF-RECORD command at the end of a prompt
+	in order to identify the prompt.
+
+    neg-naws (0x0010) - if this flag is set, MUDText will send out a
+	telnet DO NAWS request at the start of the run. Clients, such
+	as the HP telnet, and TinyFugue, which can send information
+	about window size, will then do so.
+
+    send-GA (0x0020) - if GA's are not suppressed (SUPGA negotiated),
+	and this bit is set, MUDText will send a telnet GA command at
+	the end of each prompt or control-R redraw that it sends. Note
+	that this means that if you set this bit, you should not set
+	the neg-supga bit.
+
+    pw-echo (0x0040) - if this bit is set, MUDText will attempt to
+	negotiate for echo control when a password is being input, and
+	to negotiate back to client echoing after the password input.
+	Problems here are quite likely, due to stubborn telnet
+	clients, but can often be resolved by manually forcing the
+	telnet client back into "line mode" after the password has
+	been entered.
+
+    pw-echo-supga (0x0080) - this bit has no effect if pw-echo is not
+	also set. This bit instructs MUDText to negotiate telnet SUPGA
+	at the same time as it negotiates telnet ECHO, while doing
+	password input. This is done since older telnet clients
+	treated the two as a pair, in order to distinguish their "line
+	mode" and "character mode" operation.
+
+    clear-prompt (0x0100) - special MUD clients like TinyFugue attempt
+	to detect the input prompt from a MUD server and treat it
+	special, so as to maintain a clean-appearing display. If you
+	are using a regular telnet client, however, this won't happen.
+	If this bit is set, MUDText will attempt to clear the prompt
+	from your display when needed, by sending a carriage return,
+	spaces to the length of the prompt, and another carriage
+	return. This works reasonably well with many telnet clients,
+	but can result in a messed up display. This happens when the
+	client is echoing (which it should be as much as possible),
+	and the user has typed a partial input line. If the MUD
+	generates output text (e.g. someone in the room speaks) at
+	that time, MUDText will attempt to clear the prompt before
+	outputting the text, and then redisplay the prompt. This works
+	if there is no partial input line, but since MUDText is not
+	aware of the partial input line, the result is messed up
+	input. The only proper fix for this requires adding more
+	smarts to MUDText (not hard), and having all characters echoed
+	by MUDText so it is aware of them (not desireable).
+
+    init-echo (0x0200) - this bit controls the initial value of the
+	flag causing MUDText to echo characters back to the client. It
+	is only useful for clients like "napsaterm", which refuse to
+	echo characters locally. It should in general be avoided.
+
+    init-eormode (0x0400) - this bit shouldn't exist, but does so to
+	handle a small timing problem. It is only useful in
+	conjunction with the neg-eormode bit. When neg-eormode is set,
+	MUDText sends out the telnet WILL END-OF-RECORD at the start
+	of the run, but it does not get around to processing any
+	received DO END-OF-RECORD until *after* it has already done
+	initial client startup which sets the prompt string. Thus, the
+	first prompt will get sent out without a following telnet
+	END-OF-RECORD marker, and TinyFugue will not display the
+	prompt. Setting the init-eormode bit tells MUDText to start
+	using END-OF-RECORD right away, so that the initial prompt
+	will have one. If it later receives a DONT END-OF-RECORD from
+	the client, it will then stop appending END-OF-RECORDs.
+
+The default flags value is 0x1d0, enabling:
+
+    neg-naws - if the client can do it, we want it
+    pw-echo
+    pw-echo-supga - assume old-style telnet, or a newer telnet that
+	tries to emulate the old style. This should allow the telnet
+	client to echo most input, but yet allow password blanking
+    clear-prompt - attempt to clear prompts as needed
+
+Other common settings include:
+
+    0x310 - useful with napsaterm, but if you are running napsaterm,
+	you are on an Amiga, so why aren't you using the "MUD" client?
+
+    0x419 - useful with the TinyFugue UNIX client. Note that this
+	setting does not attempt to do any password blanking. This
+	means that your passwords will be displayed unless you have
+	set up TinyFugue triggers which locally disable password echo
+	based on the prompts sent from AmigaMUD. (At least I *think*
+	that that is the way its supposed to work.)
+
+
+MUDAgent
+
+The MUDAgent program is only needed on a host machine (one running
+MUDServ, the AmigaMUD server program) which wants to allow serial port
+connections to remote players. One running copy of MUDAgent is needed
+for each serial port connection. MUDAgent serves as a "protocol
+converter" in that it uses the AmigaMUD reliable protocol over the
+serial port and uses simple Amiga OS messages to and from MUDServ.
+
+MUDAgent can be used in a number of ways:
+
+    - by default, MUDAgent will open a serial port and wait for
+	connections on that port. Each connection is treated as a
+	request to play one AmigaMUD session. When the session is
+	over, MUDAgent will go back to waiting for a connection. If
+	MUDAgent is started from a shell in this mode, then it can
+	be shut down by sending a BREAK signal to its CLI number. If
+	it is started from the Workbench, then the AgentKill program
+	can be used to shut it down.
+
+    - MUDAgent can be started up by another program which has already
+	established a connection and setup the serial port. In this
+	mode, MUDAgent will open the serial port for shared use, and
+	will exit after a single AmigaMUD session completes.
+
+    - MUDAgent communicates with a remote copy of "MUD" using a
+	special protocol. This allows reliable handling of graphics
+	output, mouse input, function editing, etc. MUDAgent can work
+	with a simple remote terminal (or terminal emulator), however,
+	by operating in a text-only mode. This mode is detectable by
+	the scenario, so it can change its behaviour accordingly.
+
+MUDAgent can be run from either the Workbench or from a shell command
+line. When started by another program (such as "Getty" or a BBS), it
+expects to be started as if from a shell command line.
+
+MUDAgent requires a stack of at least 10000 bytes. It will exit right
+away if it detects an insufficient stack. The large stack is needed
+because of the possibility that, when running in text-only mode, a
+remote wizard may cause functions to be parsed using the recursive
+descent parser in "mud.library". See file "Programming.txt" for more
+information on this and other wizard-mode features.
+
+MUDAgent supports Christopher Wichura's OwnDevUnit library. When not
+started with the '-Getty' flag, it will attempt to open that library
+and lock the serial port. It will wait indefinitely for that lock.
+Once it has the port locked, MUDAgent will accept a release request
+from OwnDevUnit.library, and will close and release the port. It will
+then request the port again, ready for when the other user releases
+it. If your system does not use OwnDevUnit.library, then this
+paragraph does not apply and can be ignored. Note that MUDAgent will
+not release the port if a MUD session is currently underway.
+
+
+Workbench ToolTypes Understood by MUDAgent
+
+'bool' values are those which can have one of two different values.
+The accepted values for a positive value are 'YES', 'Y', 'ON', 'TRUE',
+'Y' and 'T'. Any other value is interpreted as a negative value. If
+no value is given it is interpreted as a positive value. Note that
+early versions of the AmigaOS will not accept empty values.
+
+    DEVICE (string) - specifies the name of the serial device to open.
+	The default name is "serial.device", which refers to the
+	standard built-in serial port. Other names are used with
+	expansion serial ports. (Do not include the quotation marks.)
+
+    UNIT (number) - specifies the number of the port within a given
+	serial device of the particular port to use. This defaults to
+	0, indicating the "first" port.
+
+    BAUD (number) - specifies the connection speed to use. The default
+	value is whatever speed the serial port was last used at,
+	which is normally the preferences speed. A later section gives
+	more details on connection speed selection.
+
+    SHARED (boolean) - under the Amiga OS, a serial port can be opened
+	in "shared" mode. This means that more than one program can
+	have the port open at the same time. This can lead to great
+	confusion unless the programs cooperate. MUDAgent assumes that
+	if SHARED is specified, the calling program will not try to
+	use the port until MUDAgent has exited. If SHARED is not
+	specified, MUDAgent cannot open the port if some other program
+	already has it open. The other program must also have the port
+	opened for shared use.
+
+    XONXOFF (boolean) - this tooltype causes MUDAgent to open the
+	serial port with Xon/Xoff software flow control enabled. This
+	is only relevant for a text-only connection, since in a full
+	binary connection the flow control characters can be part of
+	messages and hence cannot be treated specially. By default,
+	MUDAgent will not enable this feature.
+
+    IGNORECD (boolean) - this tooltype causes MUDAgent to setup the
+	serial port to ignore the CD (Carrier Detect) signal. By
+	default, MUDAgent will assume that if the signal is not
+	present there is no connection, and will terminate the
+	session. You will need to supply this flag if your modem is
+	not configured to supply the signal, or if your serial cable
+	does not properly transmit the signal. Also, when connecting
+	directly to another computer or to a terminal, without a modem
+	in between, no CD signal will be present, so this flag should
+	be given. By default, MUDAgent will respect the CD signal.
+
+    7WIRE (boolean) - this tooltype tells MUDAgent to setup the serial
+	port using a 7-wire hardware flow-control system. Such a
+	system is recommended when using a high-speed connection,
+	since it allows either end of the serial cable to tell the
+	other end to temporarily stop transmitting. Compression and
+	error-recovery protocols on newer modems may require this type
+	of signalling. You should NOT specify this mode if your modem
+	is not configured to pay attention to it, or if your serial
+	cable does not transmit all of the required signals. By
+	default, MUDAgent will not enable 7-wire flow control.
+
+    AT (boolean) - by default, MUDAgent will assume that there is a
+	"Hayes-compatible" modem on the serial port, and will send an
+	"AT\r" sequence to get it in synchronization. This can be
+	disabled using the AT tooltype.
+
+    INITSTRING (string) - this tooltype can be used to send a modem
+	initialization string out when MUDAgent opens the serial port.
+	This will be sent after any "AT\r" string, and '\r' (carriage
+	return) will be added to the given string. Typically, this
+	string can be used to enable auto-answer on the modem, with a
+	string like "INITSTRING=ATS0=1".
+
+    BINARY (boolean) - this tooltype forces MUDAgent to look for a
+	full binary connection (as opposed to a text-only connection)
+	on the serial port. It will not recognize a text-only
+	connection. Forcing the type of connection must be done when
+	MUDAgent is started up from another program, and can also be
+	done under other types of startup.
+
+    TEXT (boolean) - this tooltype forces MUDAgent to only look for a
+	text-only connection on the serial port. It will not attempt
+	to make a full binary connection.
+
+    PARITY={NONE|EVEN|ODD} - this tooltype can be used to specify the
+	parity of the serial connection. Parity other than 'NONE'
+	cannot be used for a binary connection. By default, MUDAgent
+	will use 'NONE' parity.
+
+    RETRY (number) - this tooltype allows you to specify the number of
+	seconds that MUDAgent is to delay between its attempts to open
+	the serial port. This facility allows MUDAgent to be started
+	when the serial port is already in use, without using a
+	locking mechanism. The default value is 60 seconds.
+
+    PROBE (number) - this tooltype specifies in seconds the delay
+	between probes of the opened serial device, looking for a
+	carrier detect signal (if IGNORECD is specified, the first
+	such probe will report a connection). The default value is 3
+	seconds.
+
+    DISCONNECT (number) - this tooltype specifies in seconds the delay
+	between the ending of a session and when MUDAgent will close
+	the serial port (thus dropping the connection in most cases).
+	This delay allows characters to be flushed out, and prevents
+	possible disconnection noise for the given interval. The
+	default value is 3 seconds.
+
+    TIMEOUT (number) - this tooltype specifies in seconds the
+	inactivity timeout value. If no characters are received on the
+	serial port for this period, MUDAgent will assume that the
+	other end has gone away, and will terminate the connection.
+	The default value is 15 * 60 seconds, or 15 minutes.
+
+    RETRYLIMIT (number) - when operating in binary mode, line noise or
+	other errors can cause a message to be incorrectly received.
+	When this happens, the AmigaMUD protocol will try again to
+	send the same message, and will keep doing so until the
+	message is properly acknowledged by the receiving end, or
+	until this number of attempts have been made. In the latter
+	case, MUDAgent will assume that the other end has gone away,
+	and will terminate the session. The default value is 10.
+
+    REQUESTLIMIT (number) - the number of AmigaMUD messages that go
+	back and forth between the server and the remote client is not
+	possible to predict, and the counts can vary widely between
+	the two directions. Because of this, MUDAgent may build up an
+	accumulation of unused messages. This accumulation should be
+	limited, to prevent unreasonably large amounts of memory from
+	being tied up. This tooltype specifies the number of such
+	messages that MUDAgent can keep around. The default is 10.
+
+    TEST - by default, MUDAgent will look for an Amiga OS message port
+	called "MUD port" by which to contact MUDServ. If this
+	tooltype is given, then MUDAgent will use name "MUD test port"
+	instead. This is a handy way of having more than one AmigaMUD
+	running on a given Amiga.
+
+    PORTNAME (string) - this tooltype is a more general form of the
+	TEST tooltype. It allows a specific Amiga OS message port name
+	to be given for the connection to MUDServ.
+
+    FLAGS (number) - this flags value is passed through to the code in
+	"mud.library" when a text-only connection is made. In binary
+	connections, the flags are passed to the copy of the library
+	running on the remote machine by the "MUD" program. The flags
+	only affect wizards, and relate to some caching that can be
+	done by the library code. The value, which defaults to 0, is
+	the sum of the following two values:
+
+	    1 - cache procs
+	    2 - cache symbols
+
+	Both are of benefit only when a wizard will be doing a lot of
+	parsing of AmigaMUD code. They cut down on the number of
+	messages between MUDAgent and MUDServ when parsing code, at
+	the expense of increased memory usage.
+
+    IGNORECTRLE (boolean) - MUDAgent normally responds to a ^E signal
+	by immediately terminating the connection. This is useful if
+	something hangs. Setting this tooltype will cause MUDAgent to
+	ignore the ^E signal. This should not be needed, but I am
+	leaving it in because of the problems encountered when I was
+	using ^F for this signal, instead of ^E.
+
+
+Command Line Arguments Understood by MUDAgent
+
+If a command line argument does not have a leading '-', then it is
+parsed as a tooltype value, as described in the previous section. The
+first six command line flags described here are for use by the "Getty"
+program and for callouts by BBS's, etc. Most of the other flags are
+equivalent to a tooltype value. See those descriptions for more
+details.
+
+    -Getty - this flag tells MUDAgent that the serial port is already
+	opened and set up. MUDAgent will open it in shared mode and
+	will not do any initialization on it. Also, it will not send
+	any "AT\r" sequence, and it will exit after one AmigaMUD
+	session.
+
+    -DEVICE <name> - <name> is the name of the serial device to use.
+	The default name is "serial.device". Other names are used to
+	specify ports on expansion boards.
+
+    -UNIT <unit> - <unit> is the number of the particular port on a
+	serial port device to use. The default is 0.
+
+    -HLINK - this flag is equivalent to the IGNORECD=TRUE tooltype.
+
+    -BAUD <speed> - <speed> is the speed of the connection. The
+	default is the preferences set speed, although this value is
+	not actually used when the "-Getty" flag is given.
+
+    -USER <name> - this flag, given by newer versions of "Getty", is
+	ignored by MUDAgent.
+
+    -d<name> - this is the normal flag for specifying the name of the
+	device to use for the serial connection. The default name is
+	"serial.device".
+
+    -u<unit> - this is the normal flag for specifying the unit number
+	within a device of the port to use. The default is port 0.
+
+    -b<speed> - this is the normal flag to use to specify the speed of
+	the connection.
+
+    -s - this flag specifies that the port should be opened in shared
+	mode.
+
+    -x - enable XON/XOFF flow control (only in text-only mode)
+
+    -i - ignore CD (Carrier Detect)
+
+    -7 - use 7-wire hardware flow control
+
+    -a - do not send 'AT' sequence to force rate on modem
+
+    -p{n|e|o} - set parity. Must be 'n' for binary connection. The
+	default is -pn (no parity).
+
+    -t{r|p|d|t}<value> - set a timeout value:
+	-tr - retry delay between attempts to open serial port. (default
+	    60 seconds)
+	-tp - probe delay between probes for a carrier after the port
+	    is open (default 3 seconds)
+	-td - disconnect delay before device close. (default 3 secs)
+	-tt - inactivity timeout before disconnect. (default 15 * 60
+	    or 15 minutes)
+
+    -h - (hardwired) - this is an abbreviation for "-a -td1"
+
+    -T - use "MUD test port" as the Amiga OS port name
+
+    -P<name> - use <name> as the Amiga OS port name. The default name
+	is "MUD port".
+
+    -f<value> - set flags value. The flags value, (default 0) is the
+	sum of:
+	    1 - cache procs
+	    2 - cache symbols
+	Non-zero values are only of use when a text-only connection is
+	made, and the remote user is a wizard who will be doing a lot
+	of parsing of AmigaMUD code. In that case, enabling these
+	caches can greatly reduce the message traffic between MUDAgent
+	and MUDServ, at the expense of increased memory usage by the
+	remote MUD program.
+
+    -r<value> - the given value is the number of times MUDAgent will
+	attempt to send a given message over the serial port. Retries
+	are needed when line noise or lost data prevent a message from
+	reaching the receiver intact. If a given message cannot be
+	sent after this number of attempts, then MUDAgent will give up
+	on the connection and close it down. The default value is 10.
+	This is only relevant for binary connections.
+
+    -R<value> - set free request limit (default 10)
+
+    -N<name> - use <name> as the name of the character for the first
+	playing session, rather than prompting for a name. Note that
+	this option only makes sense for a text-only connection. On a
+	full binary connection, the corresponding flags can be given
+	on the remote MUD run.
+
+    -W<word> - use <word> as the password for the first playing
+	session. If it is incorrect, it counts as the first attempt,
+	and only two attempts remain. This is normally used in
+	conjunction with -N, but can be used without it. This flag
+	also is only relevant for a text-only connection.
+
+    -l<path> - do a bit of logging to <path>. Note that there is no
+	support for having multiple MUDAgent's logging to the same
+	file at the same time. This can be useful during initial
+	setup, if you are having trouble getting connections made, or
+	if they are going away for some reason.
+
+    -E - ignore ^E
+
+Line Speed and Mode Selection with MUDAgent
+
+When MUDAgent is started by another program which already has the
+serial port set up (the "-Getty" flag is given), then MUDAgent will
+not do any serial port initialization, and will not try to change the
+connection speed. Thus, the presence of "-Getty" makes BAUD, IGNORECD,
+7WIRE, PARITY, RETRY, PROBE, DISCONNECT and XONXOFF meaningless. It
+also forces SHARED and AT=FALSE. TEXT, BINARY, RETRYLIMIT,
+REQUESTLIMIT and FLAGS are still meaningful. With this type of
+startup, the type of connection (TEXT or BINARY) must be specified.
+
+The following paragraphs discuss speed and mode selection when
+MUDAgent is not started by another program.
+
+In most cases, MUDAgent will be used with a high-speed modem, and the
+connection between the modem and MUDAgent will be at a fixed rate,
+such as 38400 bps, regardless of the actual modem connection speed.
+The modem converts between the fixed serial port speed and the varying
+data speed as required. The type of connection can either be forced
+using TEXT or BINARY, or can be chosen dynamically, based on the first
+valid characters received. If the first two characters are ASCII SYN
+characters, then a binary connection is assumed. If the character
+received is a carriage return, in either no parity or even parity,
+then a text-only connection with that parity is assumed.
+
+Older, slower modems do not do this speed conversion, so the correct
+speed must be given explicitly, and must match the actual connection
+speed. If, however, a speed of 0 is specified, then MUDAgent will
+cycle through the 2400, 1200 and 300 bps speeds, looking for an ASCII
+SYN character or a carriage return.
+
+If possible, an explicit TEXT or BINARY should be given, so that
+MUDAgent does not have to do the possibly unreliable autodetection of
+the mode.
+
+
+Text-Only Line Editing with MUDAgent
+
+When a text-only connection is in effect, MUDAgent keeps user input
+and asynchronous output on separate lines. It does this by holding
+back output lines if the user has typed a partial input line. If the
+number of held-back lines reaches 10, then MUDAgent will erase the
+partial input line and prompt, display all held-back output lines,
+then redisplay the prompt and partial input line. If any lines are
+held back when the line is ended or is fully erased, then the prompt
+is erased, the held-back lines are printed, and the prompt is
+redisplayed. The normal situation is that there is no partial input
+line, and just the prompt is displayed. In this case, when output
+lines arrive, the prompt is cleared, the output lines are immediately
+displayed, and then the prompt is redisplayed.
+
+MUDAgent supports a small set of input-editing features when a text-
+only connection is in effect. The special characters handled are:
+
+    - carriage return (\r) or newline (\n) - these characters signal
+	the end of the input line. The current input line is sent to
+	the server (or parsed if in wizard mode). If any output lines
+	are held back, they are then displayed. Finally, a new prompt
+	is displayed. Input lines are entered into an input history
+	buffer, from which they can be retrieved.
+
+    - backspace (\b) - if there are any characters in the current
+	input line, then the rightmost one is erased (using a
+	backspace-space-backspace sequence). If this results in the
+	input line being empty, then any held-back lines are flushed.
+
+    - control-W - this character causes MUDAgent to erase the previous
+	"word" of input, in the same way that the standard Amiga shell
+	does, or the MUD client does.
+
+    - control-X, control-C or control-U - any of these characters will
+	empty the current input line, and, if needed, allow any held-
+	back output lines to be flushed.
+
+    - control-R - this character causes MUDAgent to redraw the current
+	input line. This is useful if line noise has garbled the
+	display. A '^R' is displayed at the end of the input line, and
+	the prompt and partial input are redrawn on the next line.
+
+    - control-\ or control-D - these characters (the AmigaDOS and more
+	standard end-of-file characters) indicate an end-of-input to
+	MUDAgent. It will output a carriage-return/linefeed sequence
+	and then initiate termination of the current session.
+
+    - control-P - this character retrieves the previous line of input
+	history. Any current input line is erased, and the previous
+	input line is redisplayed. Multiple control-P's can go back
+	further in the input history. Input lines retrieved from
+	history can be edited just like input lines typed by the user.
+	Lines retrieved and used unchanged from history are not re-
+	entered into the input history.
+
+    - control-N - this character retrieves the next line of input
+	history, undoing the effect of a control-P. Sequences of
+	control-P's and control-N's can be used to view the entire
+	input history (limited to 1024 characters).
+
+Other non-printable characters are simply discarded. When operating in
+8N1 mode the full international character set is allowed through.
+
+
+Examples Using MUDAgent
+
+If MUDAgent is run with all default settings, it will open the built-
+in serial port at whatever speed it is currently at, and wait for
+text-only or binary connections. It will only exit when a BREAK signal
+is sent to it (CLI startup) or the AgentKill program is run (Workbench
+startup).
+
+If a BBS or Getty is running, and will be used to startup MUDAgent,
+then there will normally be BBS commands or Getty logins which will
+start it in the text-only and the full binary modes. I use Getty
+logins 'mudt' and 'mudb' for those purposes. Appropriate entries in
+the "Passwd" file are something like this:
+
+    mudt,,207,1,(MUD-TEXT),AmigaMUD:,AmigaMUD:Progs/MUDAgent -7 text
+    mudb,,207,2,(MUD-BINARY),AmigaMUD:,AmigaMUD:Progs/MUDAgent -7 binary
+
+This assumes that the system has a volume or assign named "AmigaMUD"
+and that a "Progs" directory in that location contains the various
+AmigaMUD programs. Equivalent commands for a BBS callout might be:
+
+    AmigaMUD:Progs/MUDAgent -Getty -DEVICE $device -UNIT $unit text
+    AmigaMUD:Progs/MUDAgent -Getty -DEVICE $device -UNIT $unit binary
+
+where '$device' is replaced by the name of the serial device the
+caller is on, and '$unit' is replaced by it's unit number. For the
+built-in port, a binary connection would then be:
+
+    AmigaMUD:Progs/MUDAgent -Getty -DEVICE serial.device -UNIT 0 binary
+
+If no BBS is being run, and Getty is not being used, then MUDAgent can
+be told to answer incoming calls at the current speed with:
+
+    run AmigaMUD:Progs/MUDAgent
+
+from a shell or by double-clicking on its icon with no tooltypes
+specified.
+
+If an older, low-speed modem is used on device siosbx.device, unit 1,
+and auto-detection of line speed is desired, then the shell command:
+
+    run AmigaMUD:Progs/MUDAgent -dsiosbx.device -u1 -b0
+
+could be used. If the modem does not understand the "AT" commands,
+does not generate a proper carrier detect signal, but does properly do
+hardware handshaking, then the following set of icon tooltypes could
+be used for an appropriate Workbench startup:
+
+    DEVICE=siosbx.device
+    UNIT=1
+    BAUD=0
+    AT=OFF
+    IGNORECD=TRUE
+    7WIRE=TRUE
+
+Many other possibilities exist. Most users will not need to change the
+values of RETRY, PROBE, DISCONNECT, TIMEOUT, RETRYLIMIT, REQUESTLIMIT
+or PORT. Increasing RETRYLIMIT can help compensate for noisy binary
+connections, but the user will have to do the same with the MUD client
+program. If you have trouble with connections being dropped for no
+apparent reason, try using the -E flag or the IGNORECTRLE tooltype, or
+use the -l CLI flag and examine the logfile generated.

@@ -1,0 +1,235 @@
+SRC = src/NetPanzer/Interfaces/WorldViewInterface.cpp \
+src/NetPanzer/Interfaces/MapInterface.cpp       \
+src/NetPanzer/Interfaces/UnitInterface.cpp       \
+src/NetPanzer/Interfaces/BaseGameManager.cpp      \
+src/NetPanzer/Interfaces/BotGameManager.cpp        \
+src/NetPanzer/Interfaces/DedicatedGameManager.cpp   \
+src/NetPanzer/Interfaces/ObjectiveInterface.cpp      \
+src/NetPanzer/Interfaces/GameManager.cpp              \
+src/NetPanzer/Interfaces/PlayerGameManager.cpp         \
+src/NetPanzer/Interfaces/UnitProfileInterface.cpp       \
+src/NetPanzer/Interfaces/ChatInterface.cpp src/NetPanzer/Interfaces/Client.cpp \
+src/NetPanzer/Interfaces/PowerUpInterface.cpp \
+src/NetPanzer/Interfaces/PathScheduler.cpp     \
+src/NetPanzer/Interfaces/PlayerInterface.cpp    \
+src/NetPanzer/Interfaces/TileInterface.cpp       \
+src/NetPanzer/Interfaces/MouseInterface.cpp       \
+src/NetPanzer/Interfaces/ProjectileInterface.cpp   \
+src/NetPanzer/Interfaces/GameConfig.cpp             \
+src/NetPanzer/Interfaces/KeyboardInterface.cpp       \
+src/NetPanzer/Interfaces/MapsManager.cpp              \
+src/NetPanzer/Interfaces/ServerConsole.cpp             \
+src/NetPanzer/Interfaces/HeartbeatThread.cpp            \
+src/NetPanzer/Interfaces/InfoThread.cpp src/NetPanzer/Interfaces/Console.cpp \
+src/NetPanzer/Interfaces/ConsoleInterface.cpp                                 \
+src/NetPanzer/Interfaces/GameControlRulesDaemon.cpp                            \
+src/NetPanzer/Interfaces/ConfigVariable.cpp                                     \
+src/NetPanzer/Interfaces/MiniMapInterface.cpp                                    \
+src/NetPanzer/Interfaces/Server.cpp                                               \
+src/NetPanzer/Interfaces/unix/NetworkClientUnix.cpp                                \
+src/NetPanzer/Interfaces/unix/NetworkServerUnix.cpp                                 \
+src/NetPanzer/Network/ServerSocket.cpp src/NetPanzer/Network/ClientList.cpp          \
+src/NetPanzer/Network/SocketClient.cpp src/NetPanzer/Network/ClientSocket.cpp         \
+src/NetPanzer/Network/ProxyServer.cpp                                         \
+src/NetPanzer/Particles/FireParticleSystem2D.cpp                               \
+src/NetPanzer/Particles/TrajectoryParticle2D.cpp                                \
+src/NetPanzer/Particles/RadarPingParticle2D.cpp                                  \
+src/NetPanzer/Particles/SnowParticle2D.cpp                                        \
+src/NetPanzer/Particles/TemplateMuzzleSystem.cpp                                   \
+src/NetPanzer/Particles/ParticleInterface.cpp                                       \
+src/NetPanzer/Particles/VectorPuffParticle2D.cpp                                     \
+src/NetPanzer/Particles/ParticleSystem2D.cpp                                          \
+src/NetPanzer/Particles/SnowParticleSystem2D.cpp                                       \
+src/NetPanzer/Particles/CraterParticle2D.cpp                                            \
+src/NetPanzer/Particles/FlashParticle2D.cpp                                              \
+src/NetPanzer/Particles/FireParticle2D.cpp                                                \
+src/NetPanzer/Particles/PuffParticle2D.cpp                                                 \
+src/NetPanzer/Particles/Particle2D.cpp                                                      \
+src/NetPanzer/Particles/ParticleTweakView.cpp                                                \
+src/NetPanzer/Particles/WindParticle2D.cpp                                                    \
+src/NetPanzer/Particles/DirtKickParticle2D.cpp                                                 \
+src/NetPanzer/Particles/CloudParticle2D.cpp                                                     \
+src/NetPanzer/Particles/SparkParticle2D.cpp                                                      \
+src/NetPanzer/Particles/TemplateExplosionSystem.cpp                             \
+src/NetPanzer/Particles/SmolderParticleSystem2D.cpp                              \
+src/NetPanzer/Particles/FlameParticle2D.cpp src/NetPanzer/Particles/Physics.cpp   \
+src/NetPanzer/Particles/SmokingTrajectoryParticle2D.cpp                            \
+src/NetPanzer/Particles/GroundExplosionParticleSystem2D.cpp                         \
+src/NetPanzer/Particles/ParticleSystemGlobals.cpp                                    \
+src/NetPanzer/Particles/ChunkTrajectoryParticle2D.cpp                                 \
+src/NetPanzer/Particles/GroundExplosionParticle2D.cpp                                  \
+src/NetPanzer/Classes/UnitOpcodeDecoder.cpp src/NetPanzer/Classes/WorldMap.cpp          \
+src/NetPanzer/Classes/TileEngine.cpp src/NetPanzer/Classes/ViewCamera.cpp                \
+src/NetPanzer/Classes/UnitOpcodeEncoder.cpp src/NetPanzer/Classes/TipOfDay.cpp            \
+src/NetPanzer/Classes/BonusUnitPowerUp.cpp src/NetPanzer/Classes/Projectile.cpp            \
+src/NetPanzer/Classes/PlacementMatrix.cpp src/NetPanzer/Classes/PlayerState.cpp             \
+src/NetPanzer/Classes/UnitBucketArray.cpp src/NetPanzer/Classes/Objective.cpp                \
+src/NetPanzer/Classes/PlayerID.cpp src/NetPanzer/Classes/PlayerUnitConfig.cpp                 \
+src/NetPanzer/Classes/SpawnList.cpp src/NetPanzer/Classes/PowerUp.cpp                          \
+src/NetPanzer/Classes/Outpost.cpp src/NetPanzer/Classes/EnemyRadarPowerUp.cpp  \
+src/NetPanzer/Classes/TileSet.cpp src/NetPanzer/Classes/SelectionList.cpp       \
+src/NetPanzer/Classes/UnitState.cpp                                              \
+src/NetPanzer/Classes/WorldInputCmdProcessor.cpp                                  \
+src/NetPanzer/Classes/MapFile.cpp src/NetPanzer/Classes/UnitBlackBoard.cpp         \
+src/NetPanzer/Classes/SpriteSorter.cpp                                              \
+src/NetPanzer/Classes/ObjectiveMessageTypes.cpp                                      \
+src/NetPanzer/Classes/SelectionBoxSprite.cpp src/NetPanzer/Classes/Sprite.cpp         \
+src/NetPanzer/Classes/ScreenSurface.cpp src/NetPanzer/Classes/UnitPowerUp.cpp          \
+src/NetPanzer/Classes/OpcodeDebugger.cpp                                                \
+src/NetPanzer/Classes/Network/PowerUpNetMessage.cpp                                      \
+src/NetPanzer/Classes/Network/NetPacketDebugger.cpp                                       \
+src/NetPanzer/Classes/Network/UnitNetMessage.cpp                                           \
+src/NetPanzer/Classes/Network/NetworkClient.cpp                                             \
+src/NetPanzer/Classes/Network/NetworkServer.cpp                                              \
+src/NetPanzer/Classes/Network/ServerMessageRouter.cpp                                         \
+src/NetPanzer/Classes/Network/NetPacketQueues.cpp                                              \
+src/NetPanzer/Classes/Network/UnitSync.cpp                                                      \
+src/NetPanzer/Classes/Network/ConnectNetMessage.cpp                                              \
+src/NetPanzer/Classes/Network/ServerConnectDaemon.cpp                                             \
+src/NetPanzer/Classes/Network/ClientMessageRouter.cpp                                              \
+src/NetPanzer/Classes/Network/NetworkState.cpp                          \
+src/NetPanzer/Classes/Network/NetworkInterface.cpp                       \
+src/NetPanzer/Classes/Network/ClientConnectDaemon.cpp                     \
+src/NetPanzer/Classes/Network/NetMessageDecoder.cpp                        \
+src/NetPanzer/Classes/Network/NetMessageEncoder.cpp                         \
+src/NetPanzer/Classes/Network/SystemNetMessage.cpp                           \
+src/NetPanzer/Classes/Weapons/MissleWeapon.cpp                                \
+src/NetPanzer/Classes/Weapons/ShellWeapon.cpp                                  \
+src/NetPanzer/Classes/Weapons/WeaponGlobals.cpp                                 \
+src/NetPanzer/Classes/Weapons/BulletWeapon.cpp                                   \
+src/NetPanzer/Classes/Weapons/Weapon.cpp                                          \
+src/NetPanzer/Classes/Units/Valentine.cpp                                          \
+src/NetPanzer/Classes/Units/Scorpion.cpp                                            \
+src/NetPanzer/Classes/Units/SpahPanzer.cpp                                           \
+src/NetPanzer/Classes/Units/Humvee.cpp                                                \
+src/NetPanzer/Classes/Units/Hammerhead.cpp                                             \
+src/NetPanzer/Classes/Units/Archer.cpp src/NetPanzer/Classes/Units/Vehicle.cpp          \
+src/NetPanzer/Classes/Units/Abrams.cpp src/NetPanzer/Classes/Units/M109.cpp              \
+src/NetPanzer/Classes/Units/UnitGlobals.cpp                                               \
+src/NetPanzer/Classes/Units/Leopard.cpp src/NetPanzer/Classes/Units/Lynx.cpp               \
+src/NetPanzer/Classes/AI/PathList.cpp src/NetPanzer/Classes/AI/PathingState.cpp             \
+src/NetPanzer/Classes/AI/Astar.cpp src/NetPanzer/System/SDLEvents.cpp                        \
+src/NetPanzer/System/SDLSound.cpp src/NetPanzer/System/DummySound.cpp                         \
+src/NetPanzer/System/SDLVideo.cpp src/NetPanzer/System/Sound.cpp                               \
+src/NetPanzer/Panels/TestPanel.cpp src/NetPanzer/Views/GameViewGlobals.cpp                      \
+src/NetPanzer/Views/Components/ViewGlobals.cpp                                                   \
+src/NetPanzer/Views/Components/cMouse.cpp                                                         \
+src/NetPanzer/Views/Components/Component.cpp                                                       \
+src/NetPanzer/Views/Components/cInputField.cpp                                                      \
+src/NetPanzer/Views/Components/View.cpp                                                              \
+src/NetPanzer/Views/Components/cButton.cpp                                                            \
+src/NetPanzer/Views/Components/CheckBox.cpp                                                            \
+src/NetPanzer/Views/Components/Button.cpp                                                               \
+src/NetPanzer/Views/Components/ScrollBar.cpp                   \
+src/NetPanzer/Views/Components/AbstractButton.cpp               \
+src/NetPanzer/Views/Components/Choice.cpp                        \
+src/NetPanzer/Views/Components/Desktop.cpp                        \
+src/NetPanzer/Views/MainMenu/SpecialButtonView.cpp                 \
+src/NetPanzer/Views/MainMenu/HelpView.cpp                           \
+src/NetPanzer/Views/MainMenu/MainMenuView.cpp                        \
+src/NetPanzer/Views/MainMenu/OptionsTemplateView.cpp                  \
+src/NetPanzer/Views/MainMenu/RMouseHackView.cpp                        \
+src/NetPanzer/Views/MainMenu/MenuTemplateView.cpp                       \
+src/NetPanzer/Views/MainMenu/SkirmishView.cpp                            \
+src/NetPanzer/Views/MainMenu/OrderingView.cpp                             \
+src/NetPanzer/Views/MainMenu/Options/ControlsView.cpp                      \
+src/NetPanzer/Views/MainMenu/Options/SoundView.cpp                          \
+src/NetPanzer/Views/MainMenu/Options/InterfaceView.cpp                       \
+src/NetPanzer/Views/MainMenu/Options/VisualsView.cpp                          \
+src/NetPanzer/Views/MainMenu/Multi/HostOptionsView.cpp                         \
+src/NetPanzer/Views/MainMenu/Multi/MapSelectionView.cpp                         \
+src/NetPanzer/Views/MainMenu/Multi/ServerListView.cpp                           \
+src/NetPanzer/Views/MainMenu/Multi/UnitSelectionView.cpp                       \
+src/NetPanzer/Views/MainMenu/Multi/IPAddressView.cpp                            \
+src/NetPanzer/Views/MainMenu/Multi/UnitColorView.cpp                             \
+src/NetPanzer/Views/MainMenu/Multi/JoinView.cpp                                   \
+src/NetPanzer/Views/MainMenu/Multi/GetSessionHostView.cpp                          \
+src/NetPanzer/Views/MainMenu/Multi/FlagSelectionView.cpp                            \
+src/NetPanzer/Views/MainMenu/Multi/HostJoinTemplateView.cpp                          \
+src/NetPanzer/Views/MainMenu/Multi/HostView.cpp                                       \
+src/NetPanzer/Views/MainMenu/Multi/GetSessionView.cpp                                  \
+src/NetPanzer/Views/MainMenu/Multi/PlayerNameView.cpp                                   \
+src/NetPanzer/Views/MainMenu/Multi/MasterServer/ServerList.cpp                           \
+src/NetPanzer/Views/MainMenu/Multi/MasterServer/ServerQueryThread.cpp                     \
+src/NetPanzer/Views/MainMenu/Multi/MasterServer/ServerInfo.cpp                             \
+src/NetPanzer/Views/Game/CodeStatsView.cpp src/NetPanzer/Views/Game/LibView.cpp             \
+src/NetPanzer/Views/Game/ResignView.cpp                                                      \
+src/NetPanzer/Views/Game/AreYouSureExitView.cpp                                               \
+src/NetPanzer/Views/Game/HelpScrollView.cpp                                                    \
+src/NetPanzer/Views/Game/GameInfoView.cpp src/NetPanzer/Views/Game/GameView.cpp                 \
+src/NetPanzer/Views/Game/GameTemplateView.cpp                                                    \
+src/NetPanzer/Views/Game/VehicleSelectionView.cpp                                                 \
+src/NetPanzer/Views/Game/ConsoleLoadingView.cpp                                                    \
+src/NetPanzer/Views/Game/ProgressView.cpp                                                           \
+src/NetPanzer/Views/Game/AreYouSureResignView.cpp                                                    \
+src/NetPanzer/Views/Game/LobbyView.cpp src/NetPanzer/Views/Game/MiniMapView.cpp                       \
+src/NetPanzer/Views/Game/RankView.cpp src/NetPanzer/Port/blitters.cpp                                  \
+src/NetPanzer/Core/NetworkGlobals.cpp src/NetPanzer/Core/main.cpp                                       \
+src/NetPanzer/Bot/BotPlayer.cpp src/NetPanzer/Bot/BotTaskList.cpp                                        \
+src/NetPanzer/Bot/Bot.cpp src/Lib/optionmm/option.cpp
+
+LIB_SRC = src/Lib/optionmm/command_line.cpp src/Lib/Network/UDPSocket.cpp                                  \
+src/Lib/Network/TCPSocket.cpp src/Lib/Network/SocketBase.cpp                                                \
+src/Lib/Network/Address.cpp src/Lib/Network/SocketSet.cpp                                                    \
+src/Lib/Network/TCPListenSocket.cpp src/Lib/INIParser/Section.cpp                                             \
+src/Lib/INIParser/Store.cpp src/Lib/ArrayUtil/BoundBox.cpp                                                     \
+src/Lib/ArrayUtil/BitArray.cpp src/Lib/Types/iRect.cpp src/Lib/Types/fXYZ.cpp                                   \
+src/Lib/Types/iXY.cpp src/Lib/Types/fRect.cpp src/Lib/Types/Angle.cpp                                            \
+src/Lib/Util/TimerInterface.cpp src/Lib/Util/Timer.cpp                                                            \
+src/Lib/Util/BresenhamLine.cpp src/Lib/Util/Log.cpp src/Lib/Util/TimeStamp.cpp       \
+src/Lib/Util/Exception.cpp src/Lib/Util/FileSystem.cpp src/Lib/Util/FileUtil.cpp      \
+src/Lib/Util/Math.cpp src/Lib/Util/UtilInterface.cpp src/Lib/UI/Label.cpp              \
+src/Lib/UI/Painter.cpp src/Lib/UI/Component.cpp src/Lib/UI/Container.cpp                \
+src/Lib/UI/VerticalScrollBox.cpp src/Lib/UI/MouseEventParameter.cpp                      \
+src/Lib/UI/DrawingFunctions.cpp src/Lib/UI/Button.cpp src/Lib/UI/FontManager.cpp          \
+src/Lib/2D/Color.cpp src/Lib/2D/DigitText.cpp src/Lib/2D/ColorTable.cpp                    \
+src/Lib/2D/Palette.cpp src/Lib/2D/Span.cpp src/Lib/2D/RGBColor.cpp                          \
+src/Lib/2D/PackedSurface.cpp src/Lib/2D/Surface.cpp
+
+OBJ = $(SRC:.cpp=.o)
+LIB_OBJ = $(LIB_SRC:.cpp=.o)
+
+INCLUDES = -Isrc -Isrc/NetPanzer -Isrc/NetPanzer/Interfaces -Isrc/NetPanzer/Interfaces/unix \
+-Isrc/NetPanzer/Network -Isrc/NetPanzer/Structs -Isrc/NetPanzer/Particles       \
+-Isrc/NetPanzer/Classes -Isrc/NetPanzer/Classes/Network -Isrc/NetPanzer/Classes/Units \
+-Isrc/NetPanzer/Classes/AI -Isrc/NetPanzer/System -Isrc/NetPanzer/Panels               \
+-Isrc/NetPanzer/Views -Isrc/NetPanzer/Views/Components -Isrc/NetPanzer/Views/MainMenu   \
+-Isrc/NetPanzer/Views/MainMenu/Options -Isrc/NetPanzer/Views/MainMenu/Multi            \
+-Isrc/NetPanzer/Views/MainMenu/Multi/MasterServer -Isrc/NetPanzer/Views/Game            \
+-Isrc/NetPanzer/Port -Isrc/NetPanzer/Core -Isrc/NetPanzer/Bot -Isrc/Lib -Isrc/Lib/optionmm     \
+-Isrc/Lib/Network -Isrc/Lib/INIParser -Isrc/Lib/ArrayUtil -Isrc/Lib/Types -Isrc/Lib/Util        \
+-Isrc/Lib/UI -Isrc/Lib/2D -I. -Isrc/NetPanzer/Classes/Weapons -Iphysfs
+
+
+CFLAGS = -O3 -newlib -Wall -g -Isdk:local/newlib/include/SDL $(INCLUDES) -c
+LLIBS = -lSDL_Mixer -lvorbisfile -lvorbis -logg -lSDL_Image -lpng -ljpeg -lz -lSDL_ttf -lfreetype \
+			-lSDL -lpthread -Lphysfs -lphysfs -lauto -lunix
+
+EXE = NetPanzer
+LIB = liblib.a
+PHYSFS = physfs/libphysfs.a
+
+all: pfs $(EXE)
+
+$(EXE): $(OBJ) $(LIB) $(PHYSFS)
+	@echo "linking..."
+	@g++ -newlib -o $(EXE) $(OBJ) -lc -L. -llib $(LLIBS)
+
+$(LIB): $(LIB_OBJ)
+	@echo "making lib..."
+	@ar -ru $@ $(LIB_OBJ)
+	@ranlib $(LIB)
+
+pfs:
+	make -C physfs
+
+%.o : %.cpp
+	g++ $(CFLAGS) $< -o $@
+
+clean:
+	make -C physfs clean
+	delete NetPantzer
+	delete liblib.a
+	delete $(OBJ)
+	delete $(LIB_OBJ)
+

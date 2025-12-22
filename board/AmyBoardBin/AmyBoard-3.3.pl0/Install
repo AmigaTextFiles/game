@@ -1,0 +1,1125 @@
+;;; -*- Lisp-Interaction -*-      ;;;  Version: 03-Jul-95                ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  AmyBoard Installation script
+;;;  Copyright (C)  1995,   Free Software Foundation
+;;;
+;;;  This program is free software; you can redistribute it and/or modify
+;;;  it under the terms of the GNU General Public License as published by
+;;;  the Free Software Foundation; either version 2 of the License, or
+;;;  (at your option) any later version.
+;;;
+;;;  This program is distributed in the hope that it will be useful,
+;;;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;  GNU General Public License for more details.
+;;;
+;;;  You should have received a copy of the GNU General Public License
+;;;  along with this program; if not, write to the Free Software
+;;;  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+;;;
+;;;
+;;;  Author:   Jochen Wiedmann
+;;;            Am Eisteich 9
+;;;            72555 Metzingen
+;;;            Germany
+;;;
+;;;            Phone: (0049) +7123 / 14881
+;;;            Internet: wiedmann@neckar-alb.de
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  Variable settings
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(set installVersion "3.3.pl0")
+(set installName "AmyBoard")
+;(set installProgram (cat installName "-" installVersion))
+(set installProgram installName)
+(set minOsVersion 37)
+(set minMuiVersion 8)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  SelectInstallDir procedure
+;;;
+;;;  Allows the user to select an installation directory (full path),
+;;;  which will be stored in the installDir variable.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure SelectInstallDir
+    (set installDir-Parent (expandpath (askdir
+	(prompt "Please select the installation directory. "
+		"A drawer " installProgram " will be created."
+	)
+	(help installName " is installed in a separate directory. "
+	      "A typical place is something like `Work:" installProgram
+	      "' or something similar. In this example you should select "
+	      "the directory `Work:'.\n\n"
+	      @askdir-help)
+	(default @default-dest)
+	(newpath)
+    )))
+
+    (set installDir (tackon installDir-Parent installProgram))
+    (set @default-dest installDir)
+    (message "Installing in " installDir)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CheckOsVersion procedure
+;;;
+;;;  Aborts, if OS version is lower than the variable minOsVersion.
+;;;  Sets osVersion variable.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CheckOsVersion
+    (set osVersion (/ (getversion "exec.library" (resident)) 65536))
+    (if (< osVersion minOsVersion)
+    (   (abort "Sorry, " installName
+	       " needs Kickstart/Workbench 2.04 or higher.")
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CheckMuiVersion procedure
+;;;
+;;;  Aborts, if MUI isn't installed or the version is lower than
+;;;  minMuiVersion.
+;;;  Sets muiVersion variable.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CheckMuiVersion
+    (set muiVersion (/ (getversion "libs:muimaster.library") 65536))
+    (if (< muiVersion minMuiVersion)
+    (   (abort "Sorry, you don't seem to have installed MUI version "
+	       " 2.0 or higher.")
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  ShowCopyrightMessage procedure
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure ShowCopyrightMessage
+    (message installName ": GNU Chess and ICS frontend\n\n"
+	"V" installVersion " © 1995  Jochen Wiedmann\n\n"
+	"This program is FREE SOFTWARE; you can redistribute it and/or "
+	"modify it under the terms of the GNU General Public License as "
+	"published by the Free Software Foundation; either version 2 "
+	"or any later version.\n\n"
+	"This program is distributed in the hope that it will be useful, "
+	"but WITHOUT ANY WARRANTY! See the GNU General Public License "
+	"(in the file COPYING) for details."
+    )
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CreateDrawer procedure
+;;;
+;;;  Creates a new drawer.
+;;;
+;;;  Uses: drawerName    drawer's name
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateDrawer
+
+    (makedir drawerName
+	(prompt ("Creating drawer %s " drawerName))
+	(infos)
+    )
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CheckObsoleteDir procedure
+;;;
+;;;  Asks the user if he wants an "obsolete" directory and creates it,
+;;;  if this is the case. The name will be stored in installObsoleteDir
+;;;  in that case, otherwise this variable will receive the value "".
+;;;
+;;;  Uses: installDir   name of installation directory
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(set installObsoleteDirChecked 0)
+(procedure CheckObsoleteDir
+
+    (if (NOT installObsoleteDirChecked)
+    (   (set installObsoleteDir (tackon installDir "obsolete"))
+	(if (<> (exists installObsoleteDir) 2)
+	(   (makedir installObsoleteDir
+		(prompt "Creating a directory " installObsoleteDir " to keep "
+			"old prefs files and icons."
+		)
+		(help "Old prefs files and icons may be prevented from "
+		      "deletion by copying them to " installObsoleteDir
+		      ". You may skip this part, if you don't want this.\n\n"
+		      @makedir-help
+		)
+		(confirm)
+		(infos)
+	    )
+	    (if (<> (exists installObsoleteDir) 2)
+	    (   (set installObsoleteDir "")
+	    ))
+	))
+	(set installObsoleteDirChecked 1)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CheckObsoletefile procedure
+;;;
+;;;  Uses: checkObsoleteFileName    name of file to be copyied into the
+;;;                                 obsolete directory (relative to
+;;;                                 installDir)
+;;;        installObsoleteDir       name of the "obsolete" directory
+;;;        installDir               name of the installation directory
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CheckObsoleteFile
+
+    (if (exists checkObsoleteFileName)
+    (   (CheckObsoleteDir)
+
+	(if installObsoleteDir
+	(   (copyfiles
+		(prompt ("Preserving old file %s ..." checkObsoleteFileName))
+		(help "The old icon " checkObsoleteFileName " may be preserved "
+		      "by copying it to " installObsoleteDir ". You may skip "
+		      "this part, if you don't want this.\n\n"
+		      @rename-help
+		)
+		(source checkObsoleteFileName)
+		(confirm)
+		(dest installObsoleteDir)
+		(infos)
+		(optional "oknodelete" "force" "askuser")
+	    )
+	))
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CreateIcon procedure
+;;;
+;;;  Creates an icon
+;;;
+;;;  Uses: iconName     path of icon to create (".info" removed)
+;;;        iconSource   path of icon to use
+;;;        iconSave     1, if CheckObsoleteFile should be called
+;;;                     to save the icon, 0 otherwise
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateIcon
+
+    (set iconFullName (cat iconName ".info"))
+    (if iconSave
+    (   (set checkObsoleteFileName iconFullName)
+	(CheckObsoleteFile)
+    ))
+
+    (if (NOT (exists iconFullName))
+    (   (if (exists iconSource)
+	(   (transcript "Creating icon " iconFullName)
+	    (copyfiles
+		(prompt "Copying " (fileonly iconName) " icon ...")
+		(source iconSource)
+		(dest (pathonly iconName))
+		(newname (fileonly iconFullName))
+		(optional "oknodelete" "askuser")
+	    )
+	)
+	(   (transcript iconSource " not found, cannot create "
+			iconFullName
+	    )
+	))
+    )
+    (   (transcript "Using existing icon " iconFullName)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CreateICSIcon procedure
+;;;
+;;;  Uses: icsHost              name of ICS host, example chess.lm.com
+;;;        icsPort              port number of ICS host, example 5000
+;;;        icsHostName          name of icon to be created
+;;;        icsWindow            window specification for the ICS window
+;;;        telnetProgram        path of the telnet binary
+;;;        installDir           name of installation directory
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateICSIcon
+
+    (set iconName (tackon installDir icsHostName))
+    (set iconSource "AmyBoard.info")
+    (set iconSave 1)
+    (CreateIcon)
+
+    (tooltype
+	(prompt (cat "Changing tooltypes of " iconHostName "icon."))
+	(dest iconName)
+	(setstack 20000)
+	(setdefaulttool (tackon installDir "AmyBoard"))
+	(settooltype "ICSHOST" icsHost)
+	(settooltype "ICSPORT" (cat icsPort))
+	(settooltype "TELNETPROGRAM" telnetProgram)
+	(settooltype "NOCHESSPROGRAM" "FALSE")
+	(settooltype "ICS" "TRUE")
+	(settooltype "ICSWINDOW" (icsWindow icsHost))
+	(noposition)
+    )
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
+;;;;  CreateGNUChessIcon procedure
+;;;;
+;;;;  Creates a GNU Chess icon.
+;;;;
+;;;;  Uses:  installDir   path of installation directory
+;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateGNUChessIcon
+
+    (if (<> gnuChessPath "")
+    (   (set iconName (tackon installDir "GNU Chess"))
+	(set iconSource "AmyBoard.info")
+	(set iconSave 1)
+	(CreateIcon)
+
+	(tooltype
+	    (prompt "Changing tooltypes of " iconName ...)
+	    (dest iconName)
+	    (setdefaulttool (tackon installDir "AmyBoard"))
+	    (settooltype "NOCHESSPROGRAM" "FALSE")
+	    (settooltype "ICS" "FALSE")
+	    (noposition)
+	)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
+;;;;  CreateDocIcon procedure
+;;;;
+;;;;  Creates a docfile's icon.
+;;;;
+;;;;  Uses:  installDir   path of installation directory
+;;;;         docFile      docfile's name
+;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateDocIcon
+
+    (set iconName docFile)
+    (set iconSource "doc/ReadMe.mui.info")
+    (set iconSave 0)
+    (CreateIcon)
+
+    (if (< osVersion 39)
+    (   (tooltype
+	    (prompt "Changing tooltype of " iconName ...)
+	    (dest docFile)
+	    (setdefaulttool "Sys:Utilities/More")
+	    (noposition)
+	)
+    )
+    (   (tooltype
+	    (prompt "Changing tooltype of " iconName ...)
+	    (dest docFile)
+	    (setdefaulttool "Sys:Utilities/MultiView")
+	    (settooltype "FILETYPE" "TEXT|ASCII")
+	    (noposition)
+	)
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
+;;;;  CreateGuideIcon procedure
+;;;;
+;;;;  Creates an AmigaGuide file's icon.
+;;;;
+;;;;  Uses:  installDir   path of installation directory
+;;;;         guideFile    guidefile's name
+;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateGuideIcon
+
+    (set iconName guideFile)
+    (set iconSource "doc/AmyBoard.guide.info")
+    (set iconSave 0)
+    (CreateIcon)
+
+    (if (< osVersion 39)
+    (   (tooltype
+	    (prompt "Changing tooltype of " iconName ...)
+	    (dest guideFile)
+	    (setdefaulttool "Sys:Utilities/AmigaGuide")
+	    (noposition)
+	)
+    )
+    (   (tooltype
+	    (prompt "Changing tooltype of " iconName ...)
+	    (dest guideFile)
+	    (setdefaulttool "Sys:Utilities/MultiView")
+	    (settooltype "FILETYPE" "TEXT|ASCII|AMIGAGUIDE")
+	    (noposition)
+	)
+    ))
+)  
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  GetGNUChessSettings procedure
+;;;
+;;;  Asks the user for the variable gnuChessPath
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure GetGNUChessSettings
+
+    (set gnuChessPath "")
+    (set defaultGnuChessPath
+	 (tackon (fileonly installDir) "gnuchess-4.0.pl74/gnuchessx"))
+    (if (askbool
+	(prompt "Do you have GNU Chess installed?")
+	(help "AmyBoard needs to know the complete path of GNU Chess, "
+	      "if you want to play against it. Answer \"yes\" in that "
+	      "case, \"no\" otherwise."
+	      @askbool-help
+	)
+	(default 1))
+    (   (while (= gnuChessPath "")
+	(   (set gnuChessPath (expandpath (askfile
+		(prompt "Please select the gnuchessx binary.\n\n")
+		(help "To play against GNU Chess you must tell AmyBoard, "
+		      "where the gnuchessx binary is found. (Be sure, that "
+		      "you select gnuchessx and not gnuchess, gnuchessr or "
+		      "anything else.)\n\n"
+		      @askfile-help
+		)
+		(default defaultGnuChessPath)
+;               (newpath)
+	    )))
+	    (set defaultGnuChessPath gnuChessPath)
+
+	    (if (<> (fileonly gnuChessPath) "gnuchessx")
+	    (   (if (NOT (askbool
+		    (prompt "You have selected a binary called "
+			    (fileonly gnuChessPath) " and not gnuchessx.\n\n"
+			    "Are you sure?"
+		    )
+		    (help "There are different versions of GNU Chess, "
+			  "for example gnuchess nad gnuchessr using a "
+			  "curses display. Only gnuchessx may be used by "
+			  "AmyBoard.\n\n"
+			  "Select \"yes\", if you are sure, \"no\" "
+			  "otherwise.\n\n"
+			  @askbool-help
+		    )
+		    (default 0)))
+		(   (set gnuChessPath "")
+		))
+	    ))
+	))
+
+	(select (askchoice
+	    (prompt "Please select the memory reauirements of GNU Chess.")
+	    (help "GNU Chess may use a variable amount of memory. More memory "
+		  "enhances it's strength.\n\n"
+		  @askchoice-help
+	    )
+	    (choices "about 1 MByte   (-C 1001 -T 4001)"
+		     "about 2 MByte   (-C 3001 -T 20001)"
+		     "about 2.5 MByte (-C 4001 -T 30001)"
+		     "about 3 MByte   (-C 6001 -T 40001)"
+		     "different       (you'll be asked)"
+	    ))
+	(   (set gnuChessMemory "-C 1001 -T 4001")
+	)
+	(   (set gnuChessMemory "-C 3001 -T 20001")
+	)
+	(   (set gnuChessMemory "-C 4001 -T 30001")
+	)
+	(   (set gnuChessMemory "-C 6001 -T 40001")
+	)
+	(   (set gnuChessMemory (askstring
+		(prompt "Please enter the GNU Chess option string.")
+		(help "GNU Chess's memory requirements are controlled by "
+		      "a set of options. Please read the GNU Chess docs "
+		      "for detailed information and enter the appropriate "
+		      "option string.\n\n"
+		      @askstring-help
+		)
+		(default "-C 6001 -T 40001")
+	    ))
+	))
+
+	(set gnuChessPath ("\"%s\" %s" gnuChessPath gnuChessMemory))
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CreateIPDialTextFiles procedure
+;;;
+;;;  Creates files to connect to ICS using IPDial.
+;;;
+;;;  Uses: installLibDir    name of "lib" directory
+;;;        telnetProgram    path of the IPDial binary
+;;;        phoneNumber      remote hosts phone number
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreateIPDialTextFiles
+
+    (set icsSerialName (tackon installLibDir "ICSSerial"))
+    (set ipDialLoginName (tackon installLibDir "IcsLogin.IPDial"))
+
+    (set checkObsoleteFileName icsSerialName)
+    (CheckObsoleteFile)
+    (textfile
+	(prompt "Creating shell script " icsSerialName "...")
+	(help icsSerialName " is a shell script used as a fake terminal "
+	      "program which calls IPDial.\n\n"
+	      @textfile-help
+	)
+	(dest icsSerialName)
+	(append ".key HOST/A,PORT/A\n"
+		".bra <\n"
+		".ket >\n"
+		"set ICSHOST \"<HOST>\"\n"
+		"set ICSPORT \"<PORT>\"\n"
+		"\"" telnetProgram "\" \"" ipDialLoginName "\"\n"
+	)
+    )
+    (protect icsSerialName "+s +e")
+    (set docFile icsSerialName)
+    (CreateDocIcon)
+
+    (set checkObsoleteFileName ipDialLoginName)
+    (CheckObsoleteFile)
+    (textfile
+	(prompt "Creating IPDial script " ipDialLoginName "...")
+	(help ipDialLoginName " is a script executed by IPDial to "
+	      "connect to the remote host which can connect to the "
+	      "ICS server.\n\n"
+	      @textfile-help
+	)
+	(dest ipDialLoginName)
+	(append
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   Login script to the Internet chess server; to be used by\n"
+	    ";   IPDial (Aminet, comm/tcp).\n"
+	    ";\n"
+	    ";   Version 1.3,    09.03.1995\n"
+	    ";\n"
+	    ";   This is a template; you need to edit this according to\n"
+	    ";   your needs so that it can dial into your remote host.\n"
+	    ";\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   The line below *must* be present and *must* be the first command\n"
+	    ";   line in the script. It specifies the device and the protocol to\n"
+	    ";   use. (Possible protocols are RTSCTS, XONXOFF or NONE.)\n"
+	    "\n"
+	    "    DEVICE serial.device UNIT 0 7WIRE\n"
+	    "\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   Certain settings (Note, that these override the respective settings\n"
+	    ";   of the serial.prefs.)\n"
+	    ";\n"
+	    ";   Possible settings are:\n"
+	    ";       BAUD            Baudrate, integer\n"
+	    ";       DATABITS        number of data bits, integer\n"
+	    ";       STOPBITS        number of stop bits, integer\n"
+	    ";       BUFSIZE         Read buffer size, integer\n"
+	    ";       PARITY          one of NONE, ODD or EVEN\n"
+	    ";\n"
+	    ";   These are scanned with ReadArgs(), thus you can either use the syntax\n"
+	    ";       set BAUD=38400\n"
+	    ";   or, if you prefer, this version\n"
+	    ";       set BAUD 38400\n"
+	    ";   In the first case, however, it is important, that you omit blanks.\n"
+	    ";\n"
+	    "\n"
+	    "    set BAUD=38400 DATABITS=8 STOPBITS=1 BUFSIZE=4096\n"
+	    "\n"
+	    ";   Possible settings in the following line are:\n"
+	    ";       NONE EVEN ODD\n"
+	    "\n"
+	    "    set PARITY=NONE\n"
+	    "\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   Show the new settings\n"
+	    "\n"
+	    ";   SHOWPARMS\n"
+	    "\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   Send initialization command\n"
+	    "\n"
+	    "    SEND \"ATZ\\r\"\n"
+	    "\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   Wait for the modems ok; break, if timeout\n"
+	    "    WAIT TIMEOUT=10 \"NO CARRIER\" \"OK\"\n"
+	    "    ON STATUS GOTO TIMEOUT NoCarrier\n"
+	    "\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   Dialing ...\n"
+	    "\n"
+	    "Dial:\n"
+	    "    SEND \"" phoneNumber "\\r\"\n"
+	    "\n"
+	    "    WAIT TIMEOUT=60 \"Username: \" \"BUSY\" \"DELAYED\"\n"
+	    "    ON STATUS GOTO TIMEOUT Login\n"
+	    "\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   The usual case: Our Remote is busy. :-(\n"
+	    ";   We do a delay of 30 secs (thanks, telecom :-) and dial again.\n"
+	    "\n"
+	    "    Echo \"Remote busy, delaying ...\\n\"\n"
+	    "    DELAY 30\n"
+	    "    Echo \"Trying again.\\n\"\n"
+	    "    GOTO Dial\n"
+	    "\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   The following is *not* needed.\n"
+	    ";\n"
+	    ";   You could well do a\n"
+	    ";\n"
+	    ";Login:\n"
+	    ";   TERMINAL\n"
+	    ";   EXIT 0\n"
+	    ";\n"
+	    ";   at this point and login into your remote host manually.\n"
+	    ";\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   Okay, we are connected. Login into the host.\n"
+	    "\n"
+	    "Login:\n"
+	    "    SEND \"<MyLoginName>\\r\"\n"
+	    "    WAIT TIMEOUT=60 \"Password: \"\n"
+	    "    ON STATUS GOTO TIMEOUT\n"
+	    "    SEND \"<MyPassword>\\r\"\n"
+	    "    WAIT TIMEOUT=60 \"TS2>\"\n"
+	    "    ON STATUS GOTO TIMEOUT\n"
+	    "\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   If we came so far, everything is fine. Tell the remote host to\n"
+	    ";   connect to the ICS and go into terminal mode, so that the user\n"
+	    ";   may enter commands.\n"
+	    ";\n"
+	    ";   Note, that $ICSHOST and $ICSPORT are replaced by the respective\n"
+	    ";   environment variables. TerminalICS must set them before starting\n"
+	    ";   IPDial.\n"
+	    "\n"
+	    "    SEND \"telnet $ICSHOST $ICSPORT\\r\"\n"
+	    "    TERMINAL\n"
+	    "    EXIT 0\n"
+	    "\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   Error message: Timeout\n"
+	    "\n"
+	    "TIMEOUT:\n"
+	    "    ECHO \"\\nTimeout\\n\"\n"
+	    "    EXIT 10\n"
+	    "\n"
+	    ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
+	    ";\n"
+	    ";   Error message: NO CARRIER\n"
+	    "\n"
+	    "NoCarrier:\n"
+	    "    ECHO \"\\nNO CARRIER\\n\"\n"
+	    "    EXIT 10\n"
+	    "\n"
+	)
+    )
+    (set docFile ipDialLoginName)
+    (CreateDocIcon)
+
+    (message "I have created a script file " ipDialLoginName " which will "
+	     "be executed by IPDial to connect to the ICS.\n\n"
+	     "This file is just a template and not usable yet. "
+	     "You must edit it manually with your favourite text "
+	     "editor.\n\n"
+    )
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  SelectTelnetProgram procedure
+;;;
+;;;  Creates the telnetProgram variable.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure SelectTelnetProgram
+
+    (select (askchoice
+	(prompt "How do you want to connect to ICS?")
+	(help "AmyBoard allows to connect to the ICS (Internet Chess Server). "
+	      "Of course this possibility requires Internet Access in any "
+	      "way.\n\n"
+	      "You must not use Napsaterm or a similar program that opens its "
+	      "own window: Instead it must read from stdin and write to stdout. "
+	      "(You may, however, select the specifications of your ICS "
+	      "window.\n\n"
+	      @askchoice-help
+	)
+	(choices "AmiTCP:bin/telnet"
+		 "IPDial (serial line terminalprogram)"
+		 "Other telnet or terminal program"
+		 "none"
+	)
+    )
+    (   (set telnetProgram "AmiTCP:bin/telnet")
+    )
+    (   (set telnetProgram (expandpath (askfile
+	    (prompt "Please select the IPDial binary.")
+	    (help "AmyBoard needs to know the path of your terminal "
+		  "program, IPDial in that case, which you must have "
+		  "installed first. (You find this on Aminet, "
+		  "comm/tcp directory.)\n\n"
+		  @askfile-help
+	    )
+	    (default "IPDial")
+;           (newpath)
+	)))
+	(set phoneNumber (askstring
+	    (prompt "Enter your modem's dial string.")
+	    (help "IPDial needs a command to send to the modem "
+		  "so that it can dial into your remote hosts.\n\n"
+		  @askstring-help
+	    )
+	    (default "ATDP07071927920")
+	))
+	(CreateIPDialTextFiles)
+	(set telnetProgram (tackon installLibDir "IcsSerial"))
+    )
+    (   (set telnetProgram (expandpath (askfile
+	    (prompt "Please select your telnet or terminal program.")
+	    (help "AmyBoard needs to know the path of the telnet or "
+		  "terminal program. Please select it.\n\n"
+		  @askfile-help
+	    )
+;           (newpath)
+	    (default "IPDial")
+	)))
+	(set telnetOptions (askstring
+	    (prompt "Please enter options to put the telnet or "
+		    "terminal program into stdin/stdout mode.\n\n"
+	    )
+	    (help "Your terminal program must not open a separate window. "
+		  "Instead it has to read from stdin and write to stdout. "
+		  "If you need to specify certain options for this mode, "
+		  "you may specify them here.\n\n"
+		  @akstring-help
+	    )
+	))
+	(set telnetProgram ("\"%s\" %s" telnetProgram telnetOptions))
+    )
+    (   (set telnetProgram "")
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CopyAmyBoard procedure
+;;;
+;;;  Copies required files to the installation directory.
+;;;
+;;;  Uses: installDir   installation directory
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CopyAmyBoard
+
+    (set thisDir (expandpath ""))
+
+    (set n 0)
+    (while (set drawerName (select n installDir
+				     installDocDir
+				     installLibDir
+				     ""
+	   ))
+    (   (CreateDrawer)
+	(set n (+ n 1))
+    ))
+
+    (if (<> thisDir installDir)
+    (   (copylib
+	    (prompt "Copying the AmyBoard binary ...")
+	    (source "AmyBoard")
+	    (dest installDir)
+	    (infos)
+	    (optional "force" "askuser")
+	)
+	(copyfiles
+	    (prompt "Copying docs ...")
+	    (source "doc")
+	    (dest installDocDir)
+	    (optional "oknodelete" "askuser")
+	    (all)
+	    (infos)
+	)
+    ))
+
+    (set n 0)
+    (while (set docFile (select n "doc/ChangeLog"
+				  "doc/ChangeLog.2"
+				  "doc/COPYING"
+				  "doc/COPYRIGHT"
+				  "doc/FAQ"
+				  "doc/ReadMe.mui"
+				  "doc/READ_ME"
+				  "doc/ToDo"
+				  ""
+	   ))
+    (   (set docFile (tackon installDir docFile))
+	(CreateDocIcon)
+	(set n (+ n 1))
+    ))
+    (set guideFile (tackon installDir "doc/AmyBoard.guide"))
+    (CreateGuideIcon)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  SelectICSServers procedure
+;;;
+;;;  Allows the user to create ICS Icons.
+;;;
+;;;  Uses: installDir       installation directory path
+;;;        telnetProgram    telnet binary path
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure SelectICSServers
+
+    (if (<> telnetProgram "")
+    (
+	(set icsHostChoice (askoptions
+	    (prompt "For which ICS servers shall I create icons?")
+	    (help "I may create icons so that you can connect to an ICS "
+		  "server by just double-clicking the respective icon. "
+		  "Please select the servers you are interested in.\n\n"
+		  @askoptions-help
+	    )
+	    (choices "ICC    (chess.lm.com, commercial)"
+		     "FICS   (ics.onenet.net)"
+		     "EICS   (krypton.daimi.aau.dk)"
+		     "NLICS  (dds.hacktic.nl)"
+		     "Others"
+	    )
+	    (default 7)
+	))
+
+	(set n 0)
+	(set hostBit 1)
+	(while (set icsHost (select n "chess.lm.com"
+				      "ics.onenet.net"
+				      "krypton.daimi.aau.dk"
+				      "dds.hacktic.nl"
+				      ""
+	       ))
+	(   (set icsPort (select n 5000
+				   5000
+				   5000
+				   5000
+	    ))
+	    (set icsHostName (select n "ICC"
+				       "FICS"
+				       "EICS"
+				       "NLICS"
+	    ))
+	    (if (BITAND hostBit icsHostChoice)
+	    (   (CreateICSIcon)
+	    ))
+
+	    (set n (+ n 1))
+	    (set hostBit (shiftleft hostBit 1))
+	))
+
+	(if (BITAND hostBit icsHostChoice)
+	(   (set icsHost "")
+	    (set icsHostName "")
+	    (set icsPort 5000)
+	    (while (set icsHost (askstring
+		(prompt "Enter next ICS servers hostname or IP number.\n\n"
+			"(Empty string if done.)"
+		)
+		(help "ICS servers are given by their hostname or IP "
+		      "number. Enter the next servers name or an "
+		      "empty string, if you don't want to create another "
+		      "ICS icon.\n\n"
+		      @askstring-help
+		)
+		(default icsHost)))
+	    (   (set icsPort (asknumber
+		    (prompt ("Enter the port number of %s." icsHost))
+		    (help "The telnet program needs a so-called port "
+			  "number to connect to the ICS host. Usually "
+			  "the number 5000 is fine.\n\n"
+			  @asknumber-help
+		    )
+		    (default icsPort)
+		    (range 0 999999)
+		))
+		(set icsHostName (askstring
+		    (prompt ("Enter the icon name of %s." icsHost))
+		    (help "Enter a unique name for the icon to be "
+			  "created.\n\n"
+			  @askstring-help
+		    )
+		    (default icsHostName)
+		))
+		(if (askbool
+		    (prompt "About to create an ICS icon\n\n"
+			    ("Name: %s\n" icsHostName)
+			    ("Host: %s\n" icsHost)
+			    (cat "Port: " icsPort "\n")
+			    "\n\nIs this correct?"
+		    )
+		    (help "Select \"yes\", if you want me to create "
+			  "an icon called " icsHostName " to connect to "
+			  "the ICS host " icsHost
+			  (" with port %d.\n\n" icsPort)
+			  "Select \"no\", if you want to change these "
+			  "settings.\n\n"
+			  @askbool-help
+		    )
+		    (default 1))
+		(   (CreateICSIcon)
+		    (set icsHost "")
+		    (set icsHostName "")
+		    (set icsPort 5000)
+		))
+	    ))
+	))
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  GetWindowSettings procedure
+;;;
+;;;  Allows the user to enter a window specification.
+;;;
+;;;  Uses: telnetProgram    telnet binary path
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure GetWindowSettings
+
+    (if (<> telnetProgram "")
+    (   (set icsWindow (askstring
+	    (prompt "Enter a window specification for the ICS window.\n\n")
+	    (help "You must enter a valid window specificattion as "
+		  "accepted by AmigaDOS. You may, for example, replace "
+		  "con: with kcon: to get a scrollbar.\n\n"
+		  "A %s may be used to include the servers name into "
+		  "the window title.\n\n"
+		  @askstring-help
+	    )
+	    (default "CON://640/256/ICS %s")
+	))
+    ))
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CreatePrefsFile procedure
+;;;
+;;;  Creates lib/AmyBoard.prefs, according to the settings entered so far.
+;;;
+;;;  Uses: installLibDir    "lib" directory path
+;;;        gnuChessPath     gnuchessx binary path
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CreatePrefsFile
+
+    (set amyBoardPrefsName (tackon installLibDir "AmyBoard.prefs"))
+    (set checkObsoleteFileName amyBoardPrefsName)
+    (CheckObsoleteFile)
+
+    (textfile
+	(prompt "Creating prefs script " textFileName "...")
+	(help textFileName " is a textfile containing with your default "
+	      "settings. I will enter your choices so far, but you might "
+	      "edit it manually later.\n\n"
+	      @textfile-help
+	)
+	(dest amyBoardPrefsName)
+	(append
+	    ";\n"
+	    ";   AmyBoard preferences\n"
+	    ";\n"
+	    ";   Note the following:\n"
+	    ";       - Lines beginning with a ; are comments\n"
+	    ";       - Variables defining numbers may be followed by comments\n"
+	    ";         after the number; this is *not* the case for variables\n"
+	    ";         defining strings (obvious reason)\n"
+	    ";       - All these variables may be overwritten in the same manner\n"
+	    ";         by either CLI arguments or Icon tooltypes\n"
+	    ";\n"
+	    "\n"
+	    "\n"
+	    ";\n"
+	    ";   Color settings, -1 indicates default\n"
+	    ";\n"
+	    ";   Better use the MUI prefs to select colors; change the\n"
+	    ";   settings below only, if you don't have a registered MUI\n"
+	    ";   version\n"
+	    "whitePiecePen=-1    ; use default (MUI's SHINEPEN)\n"
+	    "blackPiecePen=-1    ; use default (MUI's SHADOWPEN)\n"
+	    "lightSquarePen=-1   ; use default (MUI's HALFSHINEPEN)\n"
+	    "darkSquarePen=-1    ; use default (MUI's HALFSHADOWPEN)\n"
+	    "\n"
+	    "\n"
+	    ";\n"
+	    ";   GNU Chess settings\n"
+	    ";\n"
+	    "noChessProgram=FALSE\n"
+	    ";   Memory settings:\n"
+	    ";       -C 1001 -T 4001     about 1 MByte\n"
+	    ";       -C 3001 -T 20001    about 2 MByte\n"
+	    ";       -C 4001 -T 30001    about 2.5 MByte\n"
+	    ";       -C 6001 -T 40001    about 3 MByte\n"
+	    "firstChessProgram=" gnuChessPath "\n"
+	    "secondChessProgram=" gnuChessPath "\n"
+	    "\n"
+	    "; Number of moves until flag falls\n"
+	    "movesPerSession=60\n"
+	    "; Number of minutes[:seconds] until flag falls\n"
+	    "timeControl=10\n"
+	    "showThinking=TRUE\n"
+	    "\n"
+	    "; child process settings, used both for GNU Chess and telnetProgram\n"
+	    "childPriority=0\n"
+	    "childStack=100000\n"
+	    "\n"
+	    "\n"
+	    ";\n"
+	    ";   ICS settings\n"
+	    "ics=FALSE\n"
+	    "icsHost=chess.lm.com\n"
+	    ";icsHost=ics.onenet.net\n"
+	    ";icsHost=krypton.daimi.aau.dk\n"
+	    ";icsHost=dds.hacktic.nl\n"
+	    ";icsHost=lux.latrobe.edu.au\n"
+	    "icsPort=5000\n"
+	    "icsLogon=PROGDIR:lib/.icsrc\n"
+	    "telnetProgram=" telnetProgram "\n"
+	    "alwaysQueen=FALSE\n"
+	    ";\n"
+	    ";   Defining icsWindow in the prefs will make AmyBoard to open the window,\n"
+	    ";   even when running from the shell, which is probably not what you\n"
+	    ";   want, especially because the program doesn't detach. (Which can,\n"
+	    ";   however, be forced with \"run <nil: >nil:\".) Thus you better define\n"
+	    ";   icsWindow in the icon tooltypes.\n"
+	    ";\n"
+	    ";icsWindow=" icsWindow "\n"
+	    "\n"
+	    ";\n"
+	    ";   Miscellaneous settings\n"
+	    "autoSaveGames=FALSE\n"
+	    "boardSize=big\n"
+	    ";boardSize=medium\n"
+	    ";boardSize=small\n"
+	    "ringBellAfterMoves=TRUE\n"
+	    "showCoords=FALSE\n"
+	)
+    )
+    (set docFile amyBoardPrefsName)
+    (CreateDocIcon)
+
+    (message "I have created a prefs file " checkObsoleteFileName
+	     " for you. This should be assumed to be a template (though "
+	     "perfectly usable), you might wish to edit it manually "
+	     "with your favourite text editor."
+    )
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  main program
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(transcript "Installing " installName ", Version " installVersion ".")
+(CheckOsVersion)
+(CheckMuiVersion)
+(ShowCopyrightMessage)
+
+(SelectInstallDir)
+(set installLibDir (tackon installDir "lib"))
+(set installDocDir (tackon installDir "doc"))
+(complete 10)
+
+(CopyAmyBoard)
+(complete 50)
+
+(GetGNUChessSettings)
+(CreateGNUChessIcon)
+(complete 60)
+
+(SelectTelnetProgram)
+(complete 70)
+
+(GetWindowSettings)
+(complete 80)
+
+(SelectICSServers)
+(complete 90)
+
+(CreatePrefsFile)
+(complete 100)

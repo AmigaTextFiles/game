@@ -1,0 +1,130 @@
+
+;----------------------------
+
+;try to figure out a place where the user usually installs his games
+(if (exists "Games:" (noreq) )
+    (set @default-dest "Games:")
+    (if (exists "SYS:Games" (noreq) )
+        (set @default-dest "SYS:Games")
+        (if (exists "Work:Games" (noreq) )
+            (set @default-dest "Work:Games")
+            (if (exists "JEUX:" (noreq) )
+               (set @default-dest "JEUX:")
+               (set @default-dest "SYS:")
+            )
+        )
+    )
+)
+
+(set @default-dest
+(askdir
+	(prompt ("Where should %s installed ?\nA drawer \"%s\" will automatically created." @app-name @app-name))
+	(help @askdir-help)
+	(default @default-dest)
+	(disk)
+)
+)
+
+(set #dest (tackon @default-dest @app-name))
+
+
+(set #game_ver
+	(askchoice
+		(prompt "Which version of Lotus \ndo you want to install")
+		(help	@askoptions-help)
+		(choices
+		   "CD-32 version"
+		   "floppy version"
+		)
+	)
+)
+
+(copyfiles
+	(help @copyfiles-help)
+	(source "lotushd.readme")
+	(dest #dest)
+	(infos)
+)
+
+(if (> #game_ver 0)
+    (
+
+(set #CI_unit
+	(askchoice
+		(prompt "From which disk unit do you want\nto install the game")
+		(help	@askoptions-help)
+		(choices
+		   "DF0:"
+		   "DF1:"
+		   "DF2:"
+		   "DF3:"
+		)
+	)
+)
+
+	(set #CI_drive ("DF%ld:" #CI_unit))
+    )
+)
+
+(makedir #dest
+	(help @makedir-help)
+	(infos)
+)
+
+;----------------------------
+
+(if (= #game_ver 1)
+    (
+
+	(copyfiles
+		(help @copyfiles-help)
+		(source "LotusHD")
+		(dest #dest)
+		(infos)
+    	)
+
+(message ("\nInsert Lotus 1 disk into drive %s !" #CI_drive))
+	(if
+		(= 0 (run ("boot2file %ld \"%s/lotus.b1\" >NIL:" #CI_unit #dest )))
+		("")
+		(abort "\"boot2file\" must be in your PATH !")
+	)
+
+	(if
+		(= 0 (run ("grem2file %ld \"%s/lotus.d1\" 2 157 >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"grem2file\" must be in your PATH !")
+	)
+
+	(exit)
+    )
+)
+
+
+
+(if (= #game_ver 0)
+    (
+	(message ("\nInsert Lotus Trilogy CD-ROM disk!"))
+
+
+        (copyfiles (source "CD0:Lotus1.a")
+                   (dest #dest)
+		   (newname "Lotus.d1")
+        )
+
+        (copyfiles (source "lotus1.b1")
+                   (dest #dest)
+        )
+
+	(copyfiles
+		(help @copyfiles-help)
+		(source "LotusHD")
+		(dest #dest)
+		(infos)
+	)
+    )
+
+(exit)
+
+)
+

@@ -1,0 +1,168 @@
+
+; use resident "amigalibs.res"
+
+optimize 3
+
+Goto SkipVer
+Dc.b "$VER:WBTRIZ_SDK v0.0 (09.09.2002) [68K/AGA] by RAZIEL"
+Even
+SkipVer
+
+#DTM_FrameBox  =$601
+#OBP_Precision =$84000000
+
+DEFTYPE.l
+DEFTYPE.BitMapHeader   *bmhd
+DEFTYPE.dtFrameBox     dtf
+DEFTYPE.gpLayout       gpl
+DEFTYPE.BitMap         *bm
+DEFTYPE.DataTypeHeader *dth
+DEFTYPE.DataType       *dtn
+DEFTYPE.RastPort       rp
+
+Dim attrs.TagItem(6),*SOBJ(3)
+
+WBStartup:WbToScreen 0
+
+; get some stats for WB
+
+*scr.Screen         = Peek.l(Addr Screen(0))
+diswid              = *scr\Width                              ;ScreenWidth
+dishit              = *scr\Height                             ;ScreenHeight
+disdep              = *scr\BitMap\Depth                       ;WBDepth
+HFONT               = *scr\Font\ta_YSize
+
+attrs(0)\ti_Tag = #DTA_SourceType,#DTST_FILE
+attrs(1)\ti_Tag = #DTA_GroupID,#GID_PICTURE
+attrs(2)\ti_Tag = #PDTA_Remap,-1
+attrs(3)\ti_Tag = #PDTA_Screen,*scr
+attrs(4)\ti_Tag = #OBP_Precision,-1 ; *** -1=Exact(Best) 0=Image(Good) 16=Icon(Poor) 32=GUI(Poor) ***
+attrs(5)\ti_Tag = #TAG_DONE,0
+
+Function BM_2_BM {*SrcB,SrcW,SrcH,*DestB,DestW,DestH} ; *** Copy bitmap & scale it ***
+
+  success=0
+  If *SrcB
+    BSA.BitScaleArgs\bsa_SrcX=0
+    BSA\bsa_SrcY=0
+    BSA\bsa_SrcWidth=SrcW
+    BSA\bsa_SrcHeight=SrcH
+    BSA\bsa_XSrcFactor=SrcW
+    BSA\bsa_YSrcFactor=SrcH
+    BSA\bsa_DestX=0
+    BSA\bsa_DestY=0
+    BSA\bsa_DestWidth=DestW
+    BSA\bsa_DestHeight=DestH
+    BSA\bsa_XDestFactor=DestW
+    BSA\bsa_YDestFactor=DestH
+    BSA\bsa_SrcBitMap=*SrcB
+    BSA\bsa_DestBitMap=*DestB
+    BitMapScale_ &BSA
+    success=1
+  End If
+  Function Return success
+End Function
+
+Buffer 0,32000
+
+scalex=0 ; change this to scale x in pixel
+scaley=0 ; change this to scale y in pixel
+TITLE$="WBTZ·SDK ;))"
+
+For r=0 To 1
+name$=Str$(r):If Exists(name$) Then Gosub DTREMAP Else Goto FIN
+Next
+
+bmw=ShapeWidth(0):bmh=ShapeHeight(0):fwinh=bmh+HFONT+5
+BitMap 0,bmw,bmh,disdep
+
+Blit 0,0,0 ; *** Draw background ***
+
+succ=Window(0,ScreenWidth/2-bmw/2,ScreenHeight/2-fwinh/2,bmw,fwinh,$200000|$2|$6,TITLE$,1,2)
+
+If succ
+sw=ShapeWidth(1):sh=ShapeHeight(1)
+x=0:y=bmh-sh:mov=0
+
+Repeat
+
+If mov=0 ; *** move object ***
+If x+sw<InnerWidth Then x+2 Else mov=1
+Else
+If x>1 Then x-2 Else mov=0
+EndIf
+
+BBlit 0,1,x,y ; *** Draw test object (transparent 0 colour) ***
+
+BitMaptoWindow 0,0,0,0,4,HFONT+3,InnerWidth,InnerHeight ; *** put bitmap to window ***
+
+Delay_ 1
+UnBuffer 0
+Until RawStatus($45) ; *** ESC to exit ***
+Else
+NPrint "Unable to open window..."
+EndIf
+
+Goto FIN
+
+.DTREMAP
+
+lock.l=Lock_(&name$,#ACCESS_READ)
+
+  If lock
+    *dtn=ObtainDataTypeA_(#DTST_FILE,lock,0)
+    If *dtn
+      *dth=*dtn\dtn_Header
+      GroupID$=Left$(Peek$(&*dth\dth_GroupID),4)
+      If GroupID$="pict"
+        *obj=NewDTObjectA_(&name$,attrs(0))
+        If *obj
+          dtf\MethodID=#DTM_FrameBox
+          DoDTMethodA_ *obj,0,0,&dtf
+          gpl\MethodID=#DTM_PROCLAYOUT
+          gpl\gpl_GInfo=0
+          gpl\gpl_Initial=1
+          DoDTMethodA_ *obj,0,0,&gpl
+          GetAttr_ #PDTA_BitMapHeader,*obj,&*bmhd
+          GetAttr_ #PDTA_BitMap,*obj,&*bm
+          bmw.l=*bmhd\bmh_Width
+          bmh.l=*bmhd\bmh_Height
+          bmd.l=*bmhd\bmh_Depth
+
+          BitMap 0,bmw+scalex,bmh+scaley,disdep
+          *bm1=Addr BitMap(0)
+
+      If *bm1
+
+         success=BM_2_BM {*bm,bmw,bmh,*bm1,bmw+scalex,bmh+scaley}
+
+    GetaShape r,0,0,bmw+scalex,bmh+scaley
+
+      EndIf
+
+      *SOBJ(r)=*obj
+
+        Else succ=Request(TITLE$,"Couldn't create datatype object!",OK$):Goto FIN
+        End If
+      Else succ=Request(TITLE$,"This is "+Chr$(34)+name$+Chr$(34)+" not an image file!",OK$):UnLock_ lock.l:Goto FIN
+      End If
+      ReleaseDataType_ *dtn
+    Else succ=Request(TITLE$,"Couldn't get datatype!",OK$):Goto FIN
+    End If
+    UnLock_ lock
+  Else succ=Request(TITLE$,"Couldn't get file lock!",OK$):Goto FIN
+  End If
+
+Return
+
+
+.FIN
+For work=0 To r-1
+DisposeDTObject_ *SOBJ(work)
+Next
+CloseWindow 0:Free BitMap 0:End
+
+
+
+
+

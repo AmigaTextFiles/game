@@ -1,0 +1,1784 @@
+;-> AdvConstructionSet by Stefano Maria Regattin
+;d> 30 ottobre 1999 da JumpingAround
+;m> 3 novembre 1999
+;m> 6 dicembre 1999
+;m> 3,24 marzo 2000
+;m> 3,25,26 aprile 2000
+;m> 2 maggio 2000
+;m> 18,19,20,22,29,31 gennaio 2001
+;m> 4,25,26 febbraio 2001
+;m> 31 luglio 2001
+;m> 1,2,5 agosto 2001
+;m> 10,11,12,14 settembre 2001
+;m> 9,10,12,14,15,16,17,18,19 novembre 2001
+;m> 6,7,8,9,12,29,30 dicembre 2001
+;m> 3,5 gennaio 2002
+;m> 28 gennaio 2003
+;m> 9 febbraio 2003
+;m> 15 agosto 2003
+;m> 22 maggio 2010
+;m> 27,29,30 novembre 2017
+;m> 1,4,5 dicembre 2017
+;-----------------------
+
+;----------------------------------------------------------------------
+;le seguenti linee servono per la corretta gestione della versione del
+; programma
+;the following lines are for the correct handling of the program's version
+;--------------------------------------------------------------------------
+JMP InizioDelProgramma
+
+Dc.b "$VER: AdvConstructionSet 0.06 (5.12.2017)"
+;-----------------------
+;versione del programma
+;program's version
+;------------------
+
+Even
+
+InizioDelProgramma
+
+#ExtraHalfBrite=$80
+
+;-------------------------------------
+;questi sono i tag per lo schermo aga
+;these are the aga screen tags
+;------------------------------
+#XPosS=$80000021
+;screen x position
+
+#YPosS=$80000022
+;screen y position
+
+#XLunS=$80000023
+;screen x lenght (width)
+
+#YLunS=$80000024
+;screen y lenght (height)
+
+#ProfS=$80000025
+;screen depth (bitplanes)
+
+#PennD=$80000026
+;detail pen
+
+#PennB=$80000027
+;block pen
+
+;-------------------------------------------------------
+;le seguenti due costanti devono avere lo stesso valore
+;the following two constants must have the same value
+;-----------------------------------------------------
+#TipoS=$8000002D
+;screen kind
+
+#IdenS=$80000032
+;screen identifier
+
+#PennS=$8000003A
+;screen pens
+
+#TrasS=$8000003E
+;draggable screen
+
+#CPenS=$80000040
+;shared pens
+
+#IntlS=$80000042
+;interleaved screen
+
+;---------------------------------------
+;questi sono gli eventi di una finestra
+;these are the events of a window
+;---------------------------------
+#HaiPremutoUnTastoDelTopo=8
+;you have pressed a mouse button
+
+#HaiMossoIlTopo=16
+;you have moved the mouse
+
+#HaiPremutoUnGadget=32
+;you have pressed a gadget
+
+#HaiRilasciatoUnGadget=64
+;you have released a gadget
+
+#HaiAttivatoUnMenu=256
+;you have activated a menu
+
+#HaiChiusoLaFinestra=512
+;you have closed the window
+
+#HaiPremutoUnTasto=1024
+;you have pressed a key
+
+#HaiInseritoUnDisco=32768
+;you have iserted a disk
+
+#HaiToltoUnDisco=65536
+;you have removed a disk
+
+#HaiAttivatoLaFinestra=262144
+;you have activated the window
+
+#HaiDisattivatoLaFinestra=524288
+;you have deactivated the window
+
+#BitMapMappa=0
+;gamemap BitMap
+
+#LarghezzaBitMapMappa=24*15
+;gamemap BitMap width
+
+#AltezzaBitMapMappa=24*11
+;gamemap BitMap height
+
+#BitMapImmagine=1
+;image BitMap
+
+#LarghezzaBitMapImmagine=48
+;image BitMap width
+
+#AltezzaBitMapImmagine=48
+;image BitMap height
+
+#BitMapIngrandimento=2
+;magnification BitMap
+
+#LarghezzaBitMapIngrandimento=#LarghezzaBitMapImmagine
+;magnification BitMap width
+
+#AltezzaBitMapIngrandimento=#AltezzaBitMapImmagine
+;magnification BitMap height
+
+#LarghezzaMappa=40
+;gamemap width
+
+#AltezzaMappa=32
+;gamemap height
+
+#FinestraPrincipale=0
+;main window
+
+#FinestraEditoreMappa=1
+;gamemap editor window
+
+#FinestraEditoreImmagini=1
+;images editor windows
+
+#FinestraImmagine=3
+;image window
+
+#FinestraTavolozzaColori=2
+;palette window
+
+#ListaMenuFinestraPrincipale=0
+;main window menulist
+
+;colour square size
+#GrandezzaColore=8
+
+;colours palette width
+#LarghezzaTavolozzaColori=#GrandezzaColore*32
+
+;clear the visible area
+#CancellaIngrandimento=1
+
+;clear the whole area
+#CancellaTutto=2
+
+#LineFeed=10
+#Escape=27
+#CursorUp=28
+#CursorDown=29
+#CursorRight=30
+#CursorLeft=31
+
+DEFTYPE .b AltezzaFonte,LunghezzaNumeroImmagine
+DEFTYPE .b ProfS,VoceMenuEsci,XBlocco,YBlocco
+DEFTYPE .l EventoFinestra
+
+Dim MappaBlocchi(#LarghezzaMappa-1,#AltezzaMappa-1)
+Dim ProgettoACSAperto$(4)
+
+RitornoLinea$=Chr$(#LineFeed)
+TastoCursoreDestra$=Chr$(#CursorRight)
+TastoCursoreGiu$=Chr$(#CursorDown)
+TastoCursoreSinistra$=Chr$(#CursorLeft)
+TastoCursoreSu$=Chr$(#CursorUp)
+TastoEsc$=Chr$(#Escape)
+
+ColorePenna.w=1
+ColoreSfondo.w=0
+ImmagineGiocatore.b=96
+Immagine.w=0
+Immagini.w=0
+NuovaXMappa.w=0
+NuovaYMappa.w=0
+XMappa.w=NuovaXMappa
+YMappa.w=NuovaYMappa
+ProgettiACSAperti$="ACSLoadedProjectsHistory"
+StoriaDeiProgettiACSAperti.b=False
+XBlocco=0
+XMappaFuori.b=#LarghezzaMappa-#LarghezzaBitMapMappa/24
+XGiocatoreNellaMappa.w=0
+XGiocatore.w=24+24*(XGiocatoreNellaMappa-XMappa)+12
+YBlocco=0
+YMappaFuori.b=#AltezzaMappa-#AltezzaBitMapMappa/24
+
+Statement ImpostaIProgettiACSAperti{}
+SHARED ProgettiACSAperti$
+SHARED RitornoLinea$
+SHARED StoriaDeiProgettiACSAperti
+SHARED VoceMenuEsci
+SHARED ProgettoACSAperto$()
+ VoceMenuEsci=5
+ For ProgettoACSAperto.b=0 To 4
+  ProgettoACSAperto$(ProgettoACSAperto)=""
+ Next ProgettoACSAperto
+ If Exists(ProgettiACSAperti$)>0
+  StoriaDeiProgettiACSAperti=ReadFile(0,ProgettiACSAperti$)
+  If StoriaDeiProgettiACSAperti=True
+   FileInput 0
+   ProgettoACSAperto=0
+   Repeat
+    Carattere$=Inkey$
+    Select Carattere$
+    Case RitornoLinea$
+     ProgettoACSAperto+1
+     VoceMenuEsci+1
+    Default
+     ProgettoACSAperto$(ProgettoACSAperto)+Carattere$
+    End Select
+   Until Carattere$=""
+   CloseFile 0
+   PopInput
+  EndIf
+ EndIf
+End Statement
+
+Statement RiduciLImmagine{XImmagine,YImmagine}
+SHARED XMappa
+SHARED YMappa
+ Use BitMap #BitMapMappa
+ If XImmagine+24+XMappa+12<#LarghezzaMappa-1
+  Boxf XImmagine+24,YImmagine,XImmagine+24+23,YImmagine+23,0
+ EndIf
+ If XImmagine+24+XMappa+12<#LarghezzaMappa-1
+  If YImmagine+24+YMappa+8<#AltezzaMappa-1
+   Boxf XImmagine+24,YImmagine+24,XImmagine+24+23,YImmagine+24+23,0
+  EndIf
+ EndIf
+ If YImmagine+24+YMappa+8<#AltezzaMappa-1
+  Boxf XImmagine,YImmagine+24,XImmagine+23,YImmagine+24+23,0
+ EndIf
+End Statement
+
+Statement CopiaLaMappaCorrenteNellaBitMapMappa{}
+SHARED AltezzaInternaFinestraEditoreMappa
+SHARED LarghezzaInternaFinestraEditoreMappa
+SHARED MappaBlocchi()
+SHARED XMappa
+SHARED YMappa
+ Use BitMap #BitMapMappa
+ For YBlocco.b=0 To 8
+  For XBlocco.b=0 To 12
+   Blocco.w=MappaBlocchi(XMappa+XBlocco,YMappa+YBlocco)
+   If Blocco>0
+    Blit Blocco-1,XBlocco*24,YBlocco*24
+    RiduciLImmagine{XBlocco*24,YBlocco*24}
+   Else
+    Boxf XBlocco*24,YBlocco*24,XBlocco*24+23,YBlocco*24+23,0
+   EndIf
+  Next XBlocco
+ Next YBlocco
+ XLunFinestra.w=LarghezzaInternaFinestraEditoreMappa
+ YLunFinestra.w=AltezzaInternaFinestraEditoreMappa
+ BitMaptoWindow #BitMapMappa,#FinestraEditoreMappa,XMappa*24,YMappa*24,0,0,XLunFinestra,YLunFinestra
+End Statement
+
+Statement Nord{}
+SHARED XMappa
+SHARED YBlocco
+SHARED YGiocatore
+SHARED YMappa
+SHARED MappaBlocchi()
+ If YBlocco<1
+  YBlocco=24
+  If YMappa>0
+   YMappa-1
+;   YGiocatore+24
+;   Use BitMap #BitMapMappa
+;   For Blocchi.b=0 To 12
+;    XBlocco=24+24*Blocchi
+;    Blocco.b=MappaBlocchi(XMappa+Blocchi,YMappa)
+;    If Blocco>0
+;     Blit Blocco-1,XBlocco,0
+;     RiduciLImmagine{XBlocco,0}
+;    Else
+;     Boxf XBlocco,0,XBlocco+23,23,0
+;    EndIf
+;   Next Blocchi
+;   GetaShape 256,24,0,24*13,24*9
+;   Cls
+;   Blit 256,24,24
+   CopiaLaMappaCorrenteNellaBitMapMappa{}
+  EndIf
+ Else
+  YBlocco-1
+ EndIf
+End Statement
+
+Statement Est{}
+SHARED XBlocco
+SHARED XGiocatore
+SHARED XMappa
+SHARED YMappa
+SHARED MappaBlocchi()
+ If XBlocco>24
+  XBlocco=1
+  If XMappa+12<#LarghezzaMappa-1
+   XMappa+1
+;   XGiocatore-24
+;   Use BitMap #BitMapMappa
+;   For Blocchi.b=0 To 8
+;    YBlocco=24+24*Blocchi
+;    Blocco.b=MappaBlocchi(XMappa+12,YMappa+Blocchi)
+;    If Blocco>0
+;     Blit Blocco-1,24*14,YBlocco
+;     RiduciLImmagine{24*14,YBlocco}
+;    Else
+;     Boxf 24*14,YBlocco,24*14+23,YBlocco+23,0
+;    EndIf
+;   Next Blocchi
+;   GetaShape 256,24*2,24,24*13,24*9
+;   Cls
+;   Blit 256,24,24
+   CopiaLaMappaCorrenteNellaBitMapMappa{}
+  EndIf
+ Else
+  XBlocco+1
+ EndIf
+End Statement
+
+Statement Sud{}
+SHARED XMappa
+SHARED YBlocco
+SHARED YGiocatore
+SHARED YMappa
+SHARED MappaBlocchi()
+ If YBlocco>24
+  YBlocco=1
+  If YMappa+8<#AltezzaMappa-1
+   YMappa+1
+;   YGiocatore-24
+;   Use BitMap #BitMapMappa
+;   For Blocchi.b=0 To 12
+;    XBlocco=24+24*Blocchi
+;    Blocco.b=MappaBlocchi(XMappa+Blocchi,YMappa+8)
+;    If Blocco>0
+;     Blit Blocco-1,XBlocco,24*10
+;     RiduciLImmagine{XBlocco,24*10}
+;    Else
+;     Boxf XBlocco,24*10,XBlocco+23,24*10+23,0
+;    EndIf
+;   Next Blocchi
+;   GetaShape 256,24,24*2,24*13,24*9
+;   Cls
+;   Blit 256,24,24
+   CopiaLaMappaCorrenteNellaBitMapMappa{}
+  EndIf
+ Else
+  YBlocco+1
+ EndIf
+End Statement
+
+Statement Ovest{}
+SHARED XBlocco
+SHARED XGiocatore
+SHARED XMappa
+SHARED YMappa
+SHARED MappaBlocchi()
+ If XBlocco<1
+  XBlocco=24
+  If XMappa>0
+   XMappa-1
+;   XGiocatore+24
+;   Use BitMap #BitMapMappa
+;   For Blocchi.b=0 To 8
+;    YBlocco=24+24*Blocchi
+;    Blocco.b=MappaBlocchi(XMappa,YMappa+Blocchi)
+;    If Blocco>0
+;     Blit Blocco-1,0,YBlocco
+;     RiduciLImmagine{0,YBlocco}
+;    Else
+;     Boxf 0,YBlocco,23,YBlocco+23,0
+;    EndIf
+;   Next Blocchi
+;   GetaShape 256,0,24,24*13,24*9
+;   Cls
+;   Blit 256,24,24
+   CopiaLaMappaCorrenteNellaBitMapMappa{}
+  EndIf
+ Else
+  XBlocco-1
+ EndIf
+End Statement
+
+Statement BloccoDelTopo{}
+SHARED XBloccoDelTopo
+SHARED YBloccoDelTopo
+ XTopo.w=WMouseX
+ YTopo.w=WMouseY
+ XBloccoDelTopo=XTopo/24
+ YBloccoDelTopo=YTopo/24
+ WLine 24*XBloccoDelTopo+1,24*YBloccoDelTopo+1,24*XBloccoDelTopo+22,24*YBloccoDelTopo+1,1
+ WLine 24*XBloccoDelTopo+22,24*YBloccoDelTopo+1,24*XBloccoDelTopo+22,24*YBloccoDelTopo+22,1
+ WLine 24*XBloccoDelTopo+22,24*YBloccoDelTopo+22,24*XBloccoDelTopo+1,24*YBloccoDelTopo+22,1
+ WLine 24*XBloccoDelTopo+1,24*YBloccoDelTopo+22,24*XBloccoDelTopo+1,24*YBloccoDelTopo+1,1
+End Statement
+
+Statement ScegliLaFonte{}
+SHARED AltezzaFonte
+ SceltaFonte.b=Request("Font choice","Please select the font","Data70|SteMar002")
+ If SceltaFonte=1
+  AltezzaFonte=13
+  LoadFont 0,"Data70.font",AltezzaFonte
+ Else
+  AltezzaFonte=9
+  LoadFont 0,"SteMar002.font",AltezzaFonte
+ EndIf
+End Statement
+
+Statement CaricaDelleImmagini{}
+SHARED NomeDelFileDelleImmagini$
+ MaxLen P$=192
+ MaxLen F$=192
+ NomeDelFileDelleImmagini$=ASLFileRequest$("Load ACS Images",P$,F$)
+ If NomeDelFileDelleImmagini$<>""
+  LoadShapes 0,255,NomeDelFileDelleImmagini$
+ EndIf
+End Statement
+
+Statement CaricaUnProgettoDiACS{}
+SHARED ProgettoACSAperto$()
+ MaxLen P$=192
+ MaxLen F$=192
+ NomeDelProgetto$=ASLFileRequest$("Load ACS project",P$,F$)
+ If NomeDelProgetto$<>""
+  For ProgettoACSAperto=0 To 4
+   If NomeDelProgetto$=ProgettoACSAperto$(ProgettoACSAperto) Then Statement Return
+  Next ProgettoACSAperto
+  StoriaDeiProgettiACSApertiDaSalvare.b=WriteFile(0,"ACSLoadedProjectsHistory")
+  If StoriaDeiProgettiACSApertiDaSalvare=True
+   For ProgettoACSAperto=3 To 0 Step -1
+    ProgettoACSAperto$(ProgettoACSAperto+1)=ProgettoACSAperto$(ProgettoACSAperto)
+   Next ProgettoACSAperto
+   ProgettoACSAperto$(0)=NomeDelProgetto$
+   FileOutput 0
+   For ProgettoACSAperto=0 To 4
+    If ProgettoACSAperto$(ProgettoACSAperto)<>""
+     NPrint ProgettoACSAperto$(ProgettoACSAperto)
+    EndIf
+   Next ProgettoACSAperto
+   CloseFile 0
+   PopOutput
+  EndIf
+ EndIf
+End Statement
+
+Statement ChiudiLaFinestraPrincipaleInvisibile{}
+ CloseWindow #FinestraPrincipale
+End Statement
+
+Function$ IsolaIlNomeDelProgetto{Nome$}
+ For Carattere.b=Len(Nome$) To 1 Step -1
+  Carattere$=Mid$(Nome$,Carattere,1)
+  If Carattere$="/" OR Carattere$=":"
+   Nome$=Right$(Nome$,Len(Nome$)-Carattere)
+   Pop For:Goto FineCicloFor
+  EndIf
+ Next Carattere
+ FineCicloFor
+Function Return Nome$
+End Statement
+
+Statement ImpostaIColori{}
+ InitPalette 0,32
+;------------------------------------
+;inizializza la tavolozza dei colori
+;initializes colours palette
+;----------------------------
+ LoadPalette 0,""
+;-------------------------------
+;carica i colori per lo schermo
+;loads colours for screen
+;-------------------------
+End Statement
+
+Statement ImpostaIlMenuPrincipale{}
+SHARED MenuPrincipaleAperto
+SHARED StoriaDeiProgettiACSAperti
+SHARED VoceMenuEsci
+SHARED ProgettoACSAperto$()
+ If MenuPrincipaleAperto=True Then Free MenuList #ListaMenuFinestraPrincipale
+ MenuTitle #ListaMenuFinestraPrincipale,0,"Project "
+ MenuItem #ListaMenuFinestraPrincipale,0,0,0,"New "
+ MenuItem #ListaMenuFinestraPrincipale,0,0,1,"Load "
+ MenuItem #ListaMenuFinestraPrincipale,0,0,2,"Save "
+ MenuItem #ListaMenuFinestraPrincipale,0,0,3,"Save as "
+ MenuItem #ListaMenuFinestraPrincipale,0,0,4,"About "
+ If StoriaDeiProgettiACSAperti=True
+  For ProgettoACSAperto.b=5 To VoceMenuEsci-1
+   NomeDelFile$=IsolaIlNomeDelProgetto{ProgettoACSAperto$(ProgettoACSAperto-5)}
+   If Len(NomeDelFile$)>17 Then NomeDelFile$="..."+Right$(NomeDelFile$,17)
+   MenuItem #ListaMenuFinestraPrincipale,0,0,ProgettoACSAperto,NomeDelFile$
+  Next ProgettoACSAperto
+ EndIf
+ MenuItem #ListaMenuFinestraPrincipale,0,0,VoceMenuEsci,"Quit "
+;-------------------------
+;imposta il menu' Project
+;sets Project menu
+;------------------
+ MenuTitle #ListaMenuFinestraPrincipale,1,"Windows "
+ MenuItem #ListaMenuFinestraPrincipale,0,1,0,"Map Editor "
+ MenuItem #ListaMenuFinestraPrincipale,0,1,1,"Images Editor "
+;-------------------------
+;imposta il menu' Windows
+;sets Windows menu
+;------------------
+ MenuTitle #ListaMenuFinestraPrincipale,2,"Prefs "
+ MenuItem #ListaMenuFinestraPrincipale,0,2,0,"Clear projects history "
+;-----------------------
+;imposta il menu' Prefs
+;sets Prefs menu
+;----------------
+ Use MenuList #ListaMenuFinestraPrincipale
+;-------------
+;usa il menu'
+;uses menu
+;----------
+ MenuPrincipaleAperto=True
+End Statement
+
+Statement ImpostaLeMappeDiBit{}
+SHARED ProfS
+ BitMap #BitMapMappa,#LarghezzaBitMapMappa,#AltezzaBitMapMappa,ProfS
+ BitMap #BitMapImmagine,#LarghezzaBitMapImmagine,#AltezzaBitMapImmagine,ProfS
+ BitMap #BitMapIngrandimento,#LarghezzaBitMapIngrandimento,#AltezzaBitMapIngrandimento,ProfS
+End Statement
+
+Statement ImpostaLoSchermo{}
+SHARED ColoS
+SHARED ProfS
+SHARED XLunS
+SHARED YLunS
+ If CheckAGA=True
+  Messaggio$="I have found the AGA chipset...|"
+  Messaggio$+"do you wish I open an AGA screen?"
+  Scelta.b=Request("ACS screen request",Messaggio$,"Yes|No")
+  If Scelta=1
+   SchermoAGA=True
+  Else
+   SchermoAGA=False
+  EndIf
+ EndIf
+
+ XPosS=0
+ YPosS=0
+ XLunS=320
+
+ If SchermoAGA=True
+  ProfS=8
+  ColoS=256
+ Else
+  ProfS=6
+  ColoS=64
+ EndIf
+ If NTSC=True
+  YLunS=200
+ Else
+  YLunS=256
+ EndIf
+ If SchermoAGA=True
+  NEWTYPE .TagSchermo
+   TXPosS.l
+   XPosS.l
+   TYPosS.l
+   YPosS.l
+   TXLunS.l
+   XLunS.l
+   TYLunS.l
+   YLunS.l
+   TProfS.l
+   ProfS.l
+   TPennD.l
+   PennD.l
+   TPennB.l
+   PennB.l
+   TTipoS.l
+   TipoS.l
+   TIdenS.l
+   IdenS.l
+   TPennS.l
+   PennS.l
+   TTrasS.l
+   TrasS.l
+   TCPenS.l
+   CPenS.l
+   TIntlS.l
+   IntlS.l
+  End NEWTYPE
+  DEFTYPE .TagSchermo TagSchermo
+  TagSchermo\TXPosS=#XPosS,XPosS
+  TagSchermo\TYPosS=#YPosS,YPosS
+  TagSchermo\TXLunS=#XLunS,XLunS
+  TagSchermo\TYLunS=#YLunS,YLunS
+  TagSchermo\TProfS=#ProfS,ProfS
+  TagSchermo\TPennD=#PennD,1
+  TagSchermo\TPennB=#PennB,2
+  TagSchermo\TPennS=#PennS,4
+  TagSchermo\TTrasS=#TrasS,True
+  TagSchermo\TCPenS=#CPenS,True
+;  TagSchermo\TIntlS=#IntlS,True
+  TagSchermo\TTipoS=#TipoS,$21000
+  TagSchermo\TIdenS=#IdenS,$21000
+  TitoloSchermo$="AdventuresConstructionSet 256cAGA"
+  ScreenTags 0,TitoloSchermo$,&TagSchermo
+ Else
+  TitoloSchermo$="AdventuresConstructionSet 64cEHB"
+  Screen 0,XPosS,YPosS,XLunS,YLunS,ProfS,#ExtraHalfBrite,TitoloSchermo$,1,2
+ EndIf
+ Use IntuiFont 0
+ IndirizzoSchermo.l=Peek.l(Addr Screen(0))
+ XLunS=Peek.w(IndirizzoSchermo+12)
+ YLunS=Peek.w(IndirizzoSchermo+14)
+End Statement
+
+Statement ImpostaLaFinestraPrincipaleInvisibile{}
+SHARED AltezzaInternaFinestra
+SHARED LarghezzaInternaFinestra
+SHARED XLunS
+SHARED YLunS
+ YPosF=AltezzaFonte+3
+ Window #FinestraPrincipale,0,YPosF,XLunS,YLunS-YPosF,$1900,"",-1,-1
+; Use Palette 0
+;-----------------------------
+;usa la tavolozza dei colori
+;use colours palette
+;--------------------
+
+ SetMenu 0
+;-------------------------------
+;attacca il menu' alla finestra
+;attaches menu to window
+;------------------------
+
+ WindowFont 0
+;--------------------------------------
+;usa la fonte caricata per la finestra
+;uses the loaded font for the window
+;------------------------------------
+End Statement
+
+Statement MostraIlNumeroDellImmagineCorrente{}
+SHARED AltezzaFonte
+SHARED Immagine
+SHARED Immagini
+ Use Window #FinestraImmagine
+ WLocate 0,72:Print "         "
+ WLocate 0,72
+ If Immagini>0
+  Print Str$(((Immagine+1)/100) MOD 10)
+  Print Str$(((Immagine+1)/10) MOD 10)
+  Print Str$((Immagine+1) MOD 10)
+  Print "/"
+  Print Str$((Immagini/100) MOD 10)
+  Print Str$((Immagini/10) MOD 10)
+  Print Str$(Immagini MOD 10)
+ Else
+  Print "No images"
+ EndIf
+End Statement
+
+Statement ImmaginiAffiancate{}
+SHARED Immagine
+SHARED AltezzaFonte
+ Use Window #FinestraImmagine
+ For YCopieImmagine.b=0 To 2
+  For XCopieImmagine.b=0 To 2
+   WBox XCopieImmagine*24,YCopieImmagine*24,XCopieImmagine*24+23,YCopieImmagine*24+23,0
+   WBlit Immagine,24*XCopieImmagine,24*YCopieImmagine
+  Next XCopieImmagine
+ Next YCopieImmagine
+End Statement
+
+Statement ImpostaLaFinestraImmagine{}
+SHARED AltezzaInternaFinestraImmagine
+SHARED AltezzaFonte
+SHARED Immagine
+SHARED Immagini
+SHARED XLunS
+SHARED YLunS
+ XPosF=WLeftOff
+ YPosF=(AltezzaFonte+3)*2
+ PropGadget 1,0,24*3+AltezzaFonte,64,1,24*3,8
+ Window #FinestraImmagine,XPosF,YPosF,WLeftOff+24*3+4,WTopOff+24*3+AltezzaFonte+8+2,$1406,"Images",1,2,1
+ WindowFont 0
+ SetHProp 1,1,(Immagine+1)/Immagini,1/Immagini
+ Redraw #FinestraImmagine,1
+ MostraIlNumeroDellImmagineCorrente{}
+End Statement
+
+Statement ImpostaLaFinestraEditoreMappa{}
+SHARED AltezzaFonte
+SHARED AltezzaInternaFinestraEditoreMappa
+SHARED LarghezzaInternaFinestraEditoreMappa
+SHARED XLunS
+SHARED XMappa
+SHARED XMappaFuori
+SHARED YLunS
+SHARED YMappa
+SHARED YMappaFuori
+ YPosF=AltezzaFonte+3
+ Window #FinestraEditoreMappa,0,YPosF,XLunS,YLunS-YPosF,$140C,"Map editor",1,2
+ LarghezzaInternaFinestraEditoreMappa=InnerWidth-8
+ AltezzaInternaFinestraEditoreMappa=InnerHeight-8
+ PropGadget 0,LarghezzaInternaFinestraEditoreMappa,0,128,1,8,AltezzaInternaFinestraEditoreMappa
+ PropGadget 0,0,AltezzaInternaFinestraEditoreMappa,64,2,LarghezzaInternaFinestraEditoreMappa,8
+ Window #FinestraEditoreMappa,0,YPosF,XLunS,YLunS-YPosF,$140C,"Map editor",1,2,0
+ WindowFont 0
+ SetVProp 0,1,YMappa/YMappaFuori,1/YMappaFuori:Redraw #FinestraEditoreMappa,1
+ SetHProp 0,2,XMappa/XMappaFuori,1/XMappaFuori:Redraw #FinestraEditoreMappa,2
+End Statement
+
+Statement ImpostaLaFinestraEditoreImmagini{}
+SHARED AltezzaFonte
+SHARED AltezzaImmagine
+SHARED AltezzaInternaFinestraEditoreImmagini
+SHARED LarghezzzaImmagine
+SHARED LarghezzaInternaFinestraEditoreImmagini
+SHARED LunghezzaNumeroImmagine
+SHARED Immagine
+SHARED XLunImmagine
+SHARED XLunS
+SHARED XPosImmagine
+SHARED YLunImmagine
+SHARED YLunS
+SHARED YPosImmagine
+ YPosF=AltezzaFonte+3
+ Window #FinestraEditoreImmagini,0,YPosF,XLunS,YLunS-YPosF,$140C,"Images editor",1,2
+ WindowFont 0
+ LarghezzaInternaFinestraEditoreImmagini=InnerWidth
+ AltezzaInternaFinestraEditoreImmagini=InnerHeight
+; AltezzaInternaFinestraEditoreImmagini-8
+ RastPortFinestraEditoreImmagini.l=RastPort(#FinestraEditoreImmagini)
+ TestoGet$="<Get"
+ LunghezzaGet=TextLength_(RastPortFinestraEditoreImmagini,TestoGet$,Len(TestoGet$))
+ TestoPut$=">Put"
+ LunghezzaPut=TextLength_(RastPortFinestraEditoreImmagini,TestoPut$,Len(TestoPut$))
+ TestoSwap$="<>Swap"
+ LunghezzaSwap=TextLength_(RastPortFinestraEditoreImmagini,TestoSwap$,Len(TestoSwap$))
+ TestoClear$="<Clear"
+ LunghezzaClear=TextLength_(RastPortFinestraEditoreImmagini,TestoClear$,Len(TestoClear$))
+ NumeroImmagine$="256"
+ LunghezzaNumeroImmagine=TextLength_(RastPortFinestraEditoreImmagini,NumeroImmagine$,Len(NumeroImmagine$))
+ TestoAdd$="Add"
+ LunghezzaAdd=TextLength_(RastPortFinestraEditoreImmagini,TestoAdd$,Len(TestoAdd$))
+ TestoSub$="Sub"
+ LunghezzaSub=TextLength_(RastPortFinestraEditoreImmagini,TestoSub$,Len(TestoSub$))
+ TestoPalette$="Palette"
+ LunghezzaPalette=TextLength_(RastPortFinestraEditoreImmagini,TestoPalette$,Len(TestoPalette$))
+ XPosImmagine=192+8+1+4
+ XLunImmagine=#LarghezzaBitMapImmagine
+ YPosImmagine=3
+ YLunImmagine=#AltezzaBitMapImmagine
+ XPosBottoni.w=0:YPosBottoni.b=-AltezzaFonte-3
+ PropGadget 0,192,0,128,1,8,192
+ PropGadget 0,0,192,64,2,192,8
+ TextGadget 0,XPosBottoni,YPosBottoni,$404,4,TestoGet$:XPosBottoni+4+LunghezzaGet+4
+ TextGadget 0,XPosBottoni,YPosBottoni,$404,5,TestoPut$:XPosBottoni+4+LunghezzaPut+4
+ TextGadget 0,XPosBottoni,YPosBottoni,$404,6,TestoSwap$:XPosBottoni+4+LunghezzaSwap+4
+ TestoClear$+"|>Clear"
+ TextGadget 0,XPosBottoni,YPosBottoni,$404,7,TestoClear$:XPosBottoni+4+LunghezzaClear+4
+ TextGadget 0,XPosBottoni,YPosBottoni,$404,8,TestoAdd$:XPosBottoni+4+LunghezzaAdd+4
+ TextGadget 0,XPosBottoni,YPosBottoni,$404,9,TestoSub$:YPosBottoni-2-AltezzaFonte-2
+ TextGadget 0,-3-LunghezzaPalette-4,YPosBottoni,$406,10,TestoPalette$
+ Window #FinestraEditoreImmagini,0,YPosF,XLunS,YLunS-YPosF,$140C,"Images editor",-1,-1,0
+ Menus Off
+ WindowFont 0
+ SetVProp 0,1,0,1/(YLunImmagine-24+1)
+ SetHProp 0,2,0,1/(YLunImmagine-24+1)
+; SetHProp 0,3,1,1
+ SetGadgetStatus 0,7,#CancellaIngrandimento
+ GadgetBorder XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+End Statement
+
+Statement MostraIDueColoriDaUsare{Modo.b}
+SHARED AltezzaFonte
+SHARED AltezzaInternaFinestraTavolozzaColori
+SHARED LarghezzaInternaFinestraTavolozzaColori
+SHARED ColorePenna
+SHARED ColoreSfondo
+ Use Window #FinestraTavolozzaColori
+ If Modo=True
+  XColore.w=ColorePenna MOD 32*#GrandezzaColore:YColore.w=ColorePenna/32*16
+  WBox XColore,YColore,XColore+#GrandezzaColore-1,YColore+3,1
+  XColore=ColoreSfondo MOD 32*#GrandezzaColore:YColore=12+ColoreSfondo/32*16
+  WBox XColore,YColore,XColore+#GrandezzaColore-1,YColore+3,2
+ Else
+  XColore=ColorePenna MOD 32*#GrandezzaColore:YColore=ColorePenna/32*16
+  WBox XColore,YColore,XColore+#GrandezzaColore-1,YColore+3,0
+  XColore=ColoreSfondo MOD 32*#GrandezzaColore:YColore=12+ColoreSfondo/32*16
+  WBox XColore,YColore,XColore+#GrandezzaColore-1,YColore+3,0
+ EndIf
+ XColore=#LarghezzaTavolozzaColori:YColore=0
+ X2Colore.w=LarghezzaInternaFinestraTavolozzaColori-1:Y2Colore.w=AltezzaInternaFinestraTavolozzaColori-1
+ WBox XColore,YColore,X2Colore,Y2Colore,ColoreSfondo
+ WLine XColore,YColore,X2Colore,YColore,X2Colore,Y2Colore,XColore,Y2Colore,XColore,YColore,2
+ XColore+4:YColore+4:X2Colore-4:Y2Colore-4
+ WBox XColore,YColore,X2Colore,Y2Colore,ColorePenna
+ WLine XColore,YColore,X2Colore,YColore,X2Colore,Y2Colore,XColore,Y2Colore,XColore,YColore,1
+End Statement
+
+Statement ImpostaLaFinestraTavolozzaColori{}
+SHARED AltezzaFonte
+SHARED AltezzaInternaFinestraTavolozzaColori
+SHARED ColoS
+SHARED LarghezzaInternaFinestraTavolozzaColori
+SHARED XLunS
+SHARED YLunS
+ YLunF=AltezzaFonte+3+ColoS/32*16+2
+ Window #FinestraTavolozzaColori,0,YLunS-YLunF,XLunS,YLunF,$140C,"Palette",1,2
+ WindowFont 0
+ Menus Off
+ LarghezzaInternaFinestraTavolozzaColori=InnerWidth
+ AltezzaInternaFinestraTavolozzaColori=InnerHeight
+ For Colore.w=0 To ColoS-1
+  XColore.w=(Colore MOD 32)*#GrandezzaColore:YColore.w=4+(Colore/32*16)
+  WBox XColore,YColore,XColore+#GrandezzaColore-1,YColore+#GrandezzaColore-1,Colore
+ Next Colore
+ MostraIDueColoriDaUsare{True}
+End Statement
+
+Statement CopiaLaBitMapMappaNellaFinestraEditoreMappa{}
+SHARED AltezzaInternaFinestraEditoreMappa
+SHARED LarghezzaInternaFinestraEditoreMappa
+SHARED XMappa
+SHARED YMappa
+ XLunFinestra.w=LarghezzaInternaFinestraEditoreMappa
+ YLunFinestra.w=AltezzaInternaFinestraEditoreMappa
+ BitMaptoWindow #BitMapMappa,#FinestraEditoreMappa,XMappa*24,YMappa*24,0,0,XLunFinestra,YLunFinestra
+End Statement
+
+Statement EditoreMappa{}
+SHARED AltezzaFonte
+SHARED AltezzaInternaFinestraEditoreMappa
+SHARED Immagine
+SHARED Immagini
+SHARED LarghezzaInternaFinestraEditoreMappa
+SHARED MappaBlocchi()
+SHARED MossaMappa
+SHARED NuovaXMappa
+SHARED NuovaYMappa
+SHARED TastoCursoreDestra$
+SHARED TastoCursoreGiu$
+SHARED TastoCursoreSinistra$
+SHARED TastoCursoreSu$
+SHARED TastoEsc$
+SHARED XBlocco
+SHARED XMappa
+SHARED XMappaFuori
+SHARED YBlocco
+SHARED YMappa
+SHARED YMappaFuori
+ Use Window #FinestraEditoreMappa
+ Menus Off
+ RidisegnaTutto.b=True
+ If RidisegnaTutto=True
+  If Immagini>0
+   CopiaLaBitMapMappaNellaFinestraEditoreMappa{}
+   Enable 0,1
+   Enable 0,2
+   Enable 1,1
+  Else
+   Disable 0,1
+   Disable 0,2
+   Disable 1,1
+  EndIf
+  Redraw #FinestraEditoreMappa,1
+  Redraw #FinestraEditoreMappa,2
+  Redraw #FinestraImmagine,1
+  ImmaginiAffiancate{}
+  MostraIlNumeroDellImmagineCorrente{}
+  RidisegnaTutto=False
+ EndIf
+ Repeat
+  EventoFinestre.l=WaitEvent
+;----------------------------------------------------------------------------
+;questa variabile cattura gli eventi della finestra dell'editore della mappa
+;this variable catches map editor window events
+;-----------------------------------------------
+  Select EventWindow
+  Case #FinestraEditoreMappa
+   Use Window #FinestraEditoreMappa
+   Select EventoFinestre
+   Case #HaiPremutoUnTastoDelTopo
+;------------------------------------
+;se avete premuto un tasto del mouse
+;if you have pressed a mouse button
+;-----------------------------------
+    If Immagini>0
+     TastoPremutoDelTopo.b=MButtons
+     XTopo.w=WMouseX:YTopo.w=WMouseY
+     If XTopo>=0 AND YTopo>=0 AND XTopo<LarghezzaInternaFinestraEditoreMappa AND YTopo<AltezzaInternaFinestraEditoreMappa
+      XImmagine.b=XTopo/24:YImmagine.b=YTopo/24
+      If TastoPremutoDelTopo=1 OR TastoPremutoDelTopo=5
+       MappaBlocchi(XMappa+XImmagine,YMappa+YImmagine)=Immagine+1
+      EndIf
+      If TastoPremutoDelTopo=2 OR TastoPremutoDelTopo=6
+       MappaBlocchi(XMappa+XImmagine,YMappa+YImmagine)=0
+      EndIf
+      CopiaLaMappaCorrenteNellaBitMapMappa{}
+      RidisegnaTutto=True
+     EndIf
+    EndIf
+   Case #HaiPremutoUnGadget
+;---------------------------
+;se avete premuto un gadget
+;if you have pressed a gadget
+;-----------------------------
+    Select GadgetHit
+    Case 1
+     YMappa=VPropPot(0,1)*YMappaFuori
+     If YMappa<>NuovaYMappa
+      YMappa=NuovaYMappa
+      CopiaLaMappaCorrenteNellaBitMapMappa{}
+      RidisegnaTutto=True
+     EndIf
+    Case 2
+     XMappa=HPropPot(0,2)*XMappaFuori
+     If XMappa<>NuovaXMappa
+      XMappa=NuovaXMappa
+      CopiaLaMappaCorrenteNellaBitMapMappa{}
+      RidisegnaTutto=True
+     EndIf
+    End Select
+   Case #HaiRilasciatoUnGadget
+;------------------------------
+;se avete rilasciato un gadget
+;if you have released a gadget
+;------------------------------
+    Select GadgetHit
+    Case 1
+     YMappa=VPropPot(0,1)*YMappaFuori
+     If YMappa<>NuovaYMappa
+      YMappa=NuovaYMappa
+      CopiaLaMappaCorrenteNellaBitMapMappa{}
+      RidisegnaTutto=True
+     EndIf
+    Case 2
+     XMappa=HPropPot(0,2)*XMappaFuori
+     If XMappa<>NuovaXMappa
+      XMappa=NuovaXMappa
+      CopiaLaMappaCorrenteNellaBitMapMappa{}
+      RidisegnaTutto=True
+     EndIf
+    End Select
+;--------------------------------------
+;se avete attivato il menu'
+;if you have activated the menu
+;--------------------------------
+   Case #HaiAttivatoUnMenu
+;--------------------------------------------------------
+;se avete cliccato il bottone di chiusura della finestra
+;if you have clicked the window's close gadget
+;----------------------------------------------
+   Case #HaiChiusoLaFinestra
+    EsciDallEditoreMappa=True
+;--------------------------
+;se avete premuto un tasto
+;if you have pressed a key
+;--------------------------
+   Case #HaiPremutoUnTasto
+    TastoPremuto$=LCase$(Inkey$)
+;--------------------------------------------
+;questa variabile memorizza il tasto premuto
+;this variable store key pressed
+;--------------------------------
+    Select TastoPremuto$
+    Case TastoEsc$
+;-----------------------------------------------------------------------
+;se avete premuto il tasto Esc attiva la variabile EsciDallEditoreMappa
+;if you have typed Esc key activates EsciDallEditoreMappa flag
+;--------------------------------------------------------------
+     EsciDallEditoreMappa=True
+    Case TastoCursoreSu$
+     If Immagini>0
+      YBlocco-24
+      Nord{}
+      SetVProp 0,1,YMappa/YMappaFuori,1/YMappaFuori
+      RidisegnaTutto=True
+     EndIf
+    Case TastoCursoreGiu$
+     If Immagini>0
+      YBlocco+24
+      Sud{}
+      SetVProp 0,1,YMappa/YMappaFuori,1/YMappaFuori
+      RidisegnaTutto=True
+     EndIf
+    Case TastoCursoreDestra$
+     If Immagini>0
+      XBlocco+24
+      Est{}
+      SetHProp 0,2,XMappa/XMappaFuori,1/XMappaFuori
+      RidisegnaTutto=True
+     EndIf
+    Case TastoCursoreSinistra$
+     If Immagini>0
+      XBlocco-24
+      Ovest{}
+      SetHProp 0,2,XMappa/XMappaFuori,1/XMappaFuori
+      RidisegnaTutto=True
+     EndIf
+    End Select
+   Case #HaiAttivatoLaFinestra
+    Use Window #FinestraEditoreMappa
+    Menus Off
+   End Select
+  Case #FinestraImmagine
+   Use Window #FinestraImmagine
+   Select EventoFinestre
+   Case #HaiRilasciatoUnGadget
+;------------------------------
+;se avete rilasciato un gadget
+;if you have released a gadget
+;------------------------------
+    Select GadgetHit
+    Case 1
+;---------------------------
+;barra orizzontale immagini
+;images horizontal slider
+;-------------------------
+     Immagine=HPropPot(1,1)*Immagini
+     RidisegnaTutto=True
+    End Select
+   Case #HaiPremutoUnTasto
+    TastoPremuto$=LCase$(Inkey$)
+;--------------------------------------------
+;questa variabile memorizza il tasto premuto
+;this variable store key pressed
+;--------------------------------
+    Select TastoPremuto$
+    Case TastoEsc$
+;-----------------------------------------------------------------------
+;se avete premuto il tasto Esc attiva la variabile EsciDallEditoreMappa
+;if you have typed Esc key activates EsciDallEditoreMappa flag
+;--------------------------------------------------------------
+     EsciDallEditoreMappa=True
+    Case TastoCursoreDestra$
+     If Immagini>0
+      If Immagine+1<Immagini
+       Immagine+1
+       SetHProp 1,1,(Immagine+1)/Immagini,1/Immagini
+       RidisegnaTutto=True
+      EndIf
+     Else
+      SetHProp 1,1,1,1
+     EndIf
+    Case TastoCursoreSinistra$
+     If Immagini>0
+      If Immagine+1>1
+       Immagine-1
+       SetHProp 1,1,(Immagine+1)/Immagini,1/Immagini
+       RidisegnaTutto=True
+      EndIf
+     Else
+      SetHProp 1,1,1,1
+     EndIf
+    End Select
+   Case #HaiAttivatoLaFinestra
+    Use Window #FinestraImmagine
+    Menus Off
+   End Select
+  End Select
+;----------------------------------------------------------------
+;ripete il ciclo se la variabile EsciDalProgramma e' disattivata
+;repeats loop if EsciDalProgramma flag is deactivated
+;-----------------------------------------------------
+ Until EsciDallEditoreMappa=True
+ CloseWindow #FinestraImmagine
+ Free GadgetList 1
+ CloseWindow #FinestraEditoreMappa
+ Free GadgetList 0
+ Use Window #FinestraPrincipale
+ Menus On
+End Statement
+
+Statement CreaImmagineVuota{}
+SHARED Immagini
+SHARED ProfS
+ InitShape Immagini,#LarghezzaBitMapImmagine,#AltezzaBitMapImmagine,ProfS
+End Statement
+
+Statement CancellaLUltimaImmagine{}
+SHARED Immagini
+ Free Shape Immagini
+End Statement
+
+Statement Ingrandimento{XInizioIngrandimento.b,YInizioIngrandimento.b}
+ For YIngrandimento=0 To 23
+  For XIngrandimento=0 To 23
+   Use BitMap #BitMapIngrandimento
+   ColorePunto=Point(XInizioIngrandimento+XIngrandimento,YInizioIngrandimento+YIngrandimento)
+   Use Window #FinestraEditoreImmagini
+   WBox XIngrandimento*8,YIngrandimento*8,XIngrandimento*8+7,YIngrandimento*8+7,ColorePunto
+  Next XIngrandimento
+ Next YIngrandimento
+End Statement
+
+Statement EditoreImmagini{}
+SHARED NomeDelFileDelleImmagini$
+SHARED AltezzaFonte
+SHARED AltezzaInternaFinestraEditoreImmagini
+SHARED AltezzaInternaFinestraTavolozzaColori
+SHARED ColorePenna
+SHARED ColoreSfondo
+SHARED ColoS
+SHARED LarghezzaInternaFinestraTavolozzaColori
+SHARED Immagine
+SHARED Immagini
+SHARED TastoCursoreDestra$
+SHARED TastoCursoreGiu$
+SHARED TastoCursoreSinistra$
+SHARED TastoCursoreSu$
+SHARED TastoEsc$
+SHARED XLunImmagine
+SHARED XPosImmagine
+SHARED YLunImmagine
+SHARED YPosImmagine
+ XInizioIngrandimento.b=0
+ YInizioIngrandimento.b=0
+ RidisegnaTutto.b=True
+ Repeat
+  If RidisegnaTutto=True
+   If Immagini>0
+    Use BitMap #BitMapImmagine:Cls:Blit Immagine,0,0
+    BitMaptoWindow #BitMapImmagine,#FinestraEditoreImmagini,0,0,XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+    Enable 0,1
+    Enable 0,2
+;    Enable 0,3
+    Enable 0,4
+    Enable 0,5
+    Enable 0,6
+    Enable 0,7
+    Enable 1,1
+    If Immagini=256 Then Disable 0,8 Else Enable 0,8
+    Enable 0,9
+    Enable 0,10
+;    SetHProp 0,3,(Immagine+1)/Immagini,1/Immagini
+    SetHProp 1,1,(Immagine+1)/Immagini,1/Immagini
+    ImmaginiAffiancate{}
+    MostraIlNumeroDellImmagineCorrente{}
+    Ingrandimento{XInizioIngrandimento,YInizioIngrandimento}
+   Else
+;    SetHProp 0,3,1,1
+    SetHProp 1,1,1,1
+    Disable 0,1
+    Disable 0,2
+;    Disable 0,3
+    Disable 0,4
+    Disable 0,5
+    Disable 0,6
+    Disable 0,7
+    Disable 0,9
+    Disable 0,10
+    Disable 1,1
+   EndIf
+   Redraw #FinestraEditoreImmagini,1
+   Redraw #FinestraEditoreImmagini,2
+   Redraw #FinestraEditoreImmagini,4
+   Redraw #FinestraEditoreImmagini,5
+   Redraw #FinestraEditoreImmagini,6
+   Redraw #FinestraEditoreImmagini,7
+   Redraw #FinestraEditoreImmagini,8
+   Redraw #FinestraEditoreImmagini,9
+   Redraw #FinestraEditoreImmagini,10
+   Redraw #FinestraImmagine,1
+   MostraIlNumeroDellImmagineCorrente{}
+   RidisegnaTutto=False
+  EndIf
+  EventoFinestre.l=Event
+;----------------------------------------------------------------------
+;questa variabile cattura gli eventi della finestra dell'editore delle
+; immagini
+;this variable catches images editor window events
+;--------------------------------------------------
+  Select EventWindow
+  Case #FinestraEditoreImmagini
+   Use Window #FinestraEditoreImmagini
+   Select EventoFinestre
+   Case #HaiPremutoUnTastoDelTopo
+;------------------------------------
+;se avete premuto un tasto del mouse
+;if you have pressed a mouse button
+;-----------------------------------
+    XTopo.w=WMouseX/24:YTopo.w=WMouseY/24
+    If XTopo>=0 AND YTopo>=0 AND XTopo<192 AND YTopo<192
+     TastoPremutoDelTopo.b=MButtons
+     Select TastoPremutoDelTopo
+     Case 1
+      Colore.w=ColorePenna
+     Case 2
+      Colore=ColoreSfondo
+     End Select
+    EndIf
+    If XTopo>=XPosImmagine AND XTopo<XPosImmagine+XLunImmagine AND YTopo>=YPosImmagine AND YTopo<YPosImmagine+YLunImmagine
+     TastoPremutoDelTopo.b=MButtons
+     Select TastoPremutoDelTopo
+     Case 1
+      Colore=ColorePenna
+     Case 2
+      Colore=ColoreSfondo
+     End Select
+    EndIf
+   Case #HaiPremutoUnGadget
+    Select GadgetHit
+    Case 1
+;-----------------------------------
+;barra verticale area ingrandimento
+;zoom area vertical slider
+;--------------------------
+     YInizioIngrandimento=VPropPot(0,1)*(YLunImmagine-24+1)
+     Ingrandimento{XInizioIngrandimento,YInizioIngrandimento}
+    Case 2
+;-------------------------------------
+;barra orizzontale area ingrandimento
+;zoom area horizontal slider
+;----------------------------
+     XInizioIngrandimento=HPropPot(0,2)*(XLunImmagine-24+1)
+     Ingrandimento{XInizioIngrandimento,YInizioIngrandimento}
+    Case 7
+;------
+;Clear
+;------
+     Cancellazione.b=GadgetStatus(0,7)
+     ColoreCancellazione=ColoreSfondo
+     Select Cancellazione
+     Case #CancellaIngrandimento
+      XInizioIngrandimentoCancellazione=XInizioIngrandimento
+      YInizioIngrandimentoCancellazione=YInizioIngrandimento
+      X=XInizioIngrandimentoCancellazione
+      Y=YInizioIngrandimentoCancellazione
+      Use BitMap #BitMapIngrandimento
+      Boxf X,Y,X+23,Y+23,ColoreCancellazione
+      WBox 0,0,191,191,ColoreCancellazione
+      CopyBitMap #BitMapIngrandimento,#BitMapImmagine
+      GetaShape Immagine,0,0,XLunImmagine,YLunImmagine
+      BitMaptoWindow #BitMapImmagine,#FinestraEditoreImmagini,0,0,XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+     Case #CancellaTutto
+      Use BitMap #BitMapIngrandimento
+      Cls ColoreCancellazione
+      WBox 0,0,191,191,ColoreCancellazione
+      CopyBitMap #BitMapIngrandimento,#BitMapImmagine
+      GetaShape Immagine,0,0,XLunImmagine,YLunImmagine
+      BitMaptoWindow #BitMapImmagine,#FinestraEditoreImmagini,0,0,XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+     End Select
+    End Select
+;---------------------------
+;se avete premuto un gadget
+;if you have pressed a gadget
+;-----------------------------
+   Case #HaiRilasciatoUnGadget
+;------------------------------
+;se avete rilasciato un gadget
+;if you have released a gadget
+;------------------------------
+    Select GadgetHit
+    Case 1
+;-----------------------------------
+;barra verticale area ingrandimento
+;zoom area vertical slider
+;--------------------------
+     YInizioIngrandimento=VPropPot(0,1)*(YLunImmagine-24+1)
+     Ingrandimento{XInizioIngrandimento,YInizioIngrandimento}
+    Case 2
+;-------------------------------------
+;barra orizzontale area ingrandimento
+;zoom area horizontal slider
+;----------------------------
+     XInizioIngrandimento=HPropPot(0,2)*(XLunImmagine-24+1)
+     Ingrandimento{XInizioIngrandimento,YInizioIngrandimento}
+;    Case 3
+;---------------------------
+;barra orizzontale immagini
+;images horizontal slider
+;-------------------------
+;     Immagine=HPropPot(0,3)*Immagini
+;     XLunImmagine=ShapeWidth(Immagine)
+;     YLunImmagine=ShapeHeight(Immagine)
+;     Use BitMap #BitMapImmagine
+;     Cls:Blit Immagine,0,0
+;     BitMaptoWindow #BitMapImmagine,#FinestraEditoreImmagini,0,0,XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+;     GadgetBorder XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+;     SetGadgetStatus 0,7,1
+;     RidisegnaTutto=True
+    Case 4
+;----
+;Get
+;----
+     CopyBitMap #BitMapImmagine,#BitMapIngrandimento
+     Ingrandimento{XInizioIngrandimento,YInizioIngrandimento}
+    Case 5
+;----
+;Put
+;----
+     CopyBitMap #BitMapIngrandimento,#BitMapImmagine
+     GetaShape Immagine,0,0,XLunImmagine,YLunImmagine
+     BitMaptoWindow #BitMapImmagine,#FinestraEditoreImmagini,0,0,XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+     RidisegnaTutto=True
+    Case 6
+;-----
+;Swap
+;-----
+     If GadgetStatus(0,6)=False Then Toggle 0,6,On
+     Use BitMap #BitMapImmagine
+     GetaShape 256,0,0,#LarghezzaBitMapImmagine,#AltezzaBitMapImmagine
+     CopyBitMap #BitMapIngrandimento,#BitMapImmagine
+     GetaShape Immagine,0,0,XLunImmagine,YLunImmagine
+     BitMaptoWindow #BitMapImmagine,#FinestraEditoreImmagini,0,0,XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+     Use BitMap #BitMapIngrandimento
+     Cls:Blit 256,0,0
+     Ingrandimento{XInizioIngrandimento,YInizioIngrandimento}
+     RidisegnaTutto=True
+    Case 8
+;---------------
+;add one image
+;---------------
+     If Immagini<256
+      CreaImmagineVuota{}
+      Immagini+1
+      RidisegnaTutto=True
+     EndIf
+    Case 9
+;------------------
+;delete last image
+;------------------
+     If Immagini>0
+      CancellaLUltimaImmagine{}
+      Immagini-1
+      If Immagine>Immagini
+       Immagine=Immagini
+      EndIf
+      RidisegnaTutto=True
+     EndIf
+    Case 10
+;--------
+;palette
+;--------
+     If ApertaLaFinestraTavolozzaColori.b=False
+      ImpostaLaFinestraTavolozzaColori{}
+      ApertaLaFinestraTavolozzaColori=True
+     Else
+      CloseWindow #FinestraTavolozzaColori
+      ApertaLaFinestraTavolozzaColori=False
+      Use Window #FinestraEditoreImmagini
+     EndIf
+    End Select
+   Case #HaiAttivatoUnMenu
+;--------------------------------------
+;se avete attivato il menu'
+;if you have activated the menu
+;--------------------------------
+   Case #HaiChiusoLaFinestra
+;--------------------------------------------------------
+;se avete cliccato il bottone di chiusura della finestra
+;if you have clicked the window's close gadget
+;----------------------------------------------
+    If ApertaLaFinestraTavolozzaColori=True
+     CloseWindow #FinestraTavolozzaColori
+     ApertaLaFinestraTavolozzaColori=False
+    Else
+     EsciDallEditoreImmagini=True
+    EndIf
+   Case #HaiPremutoUnTasto
+;--------------------------
+;se avete premuto un tasto
+;if you have pressed a key
+;--------------------------
+    TastoPremuto$=LCase$(Inkey$)
+;--------------------------------------------
+;questa variabile memorizza il tasto premuto
+;this variable store key pressed
+;--------------------------------
+    Select TastoPremuto$
+    Case TastoEsc$
+;-----------------------------------------------------------------------
+;se avete premuto il tasto Esc attiva la variabile EsciDallEditoreMappa
+;if you have typed Esc key activates EsciDallEditoreMappa flag
+;--------------------------------------------------------------
+     EsciDallEditoreImmagini=True
+    Case "p"
+     If ApertaLaFinestraTavolozzaColori.b=False
+      ImpostaLaFinestraTavolozzaColori{}
+      ApertaLaFinestraTavolozzaColori=True
+     Else
+      CloseWindow #FinestraTavolozzaColori
+      ApertaLaFinestraTavolozzaColori=False
+      Use Window #FinestraEditoreImmagini
+     EndIf
+    End Select
+   Case #HaiAttivatoLaFinestra
+    Use Window #FinestraEditoreImmagini
+   End Select
+   If Immagini>0
+    XTopo=WMouseX:YTopo=WMouseY
+    If XTopo>=0 AND YTopo>=0 AND XTopo<192 AND YTopo<192
+     If TastoPremutoDelTopo=1 OR TastoPremutoDelTopo=2
+      Use BitMap #BitMapIngrandimento
+       XBitMap=XInizioIngrandimento+XTopo/8
+       YBitMap=YInizioIngrandimento+YTopo/8
+       Plot XBitMap,YBitMap,Colore
+      Use Window #FinestraEditoreImmagini
+      XQuadrato.w=XTopo/8*8:YQuadrato.w=YTopo/8*8
+      WBox XQuadrato,YQuadrato,XQuadrato+7,YQuadrato+7,Colore
+      SetGadgetStatus 0,7,#CancellaIngrandimento:Redraw #FinestraEditoreImmagini,7
+      Cancellazione=#CancellaTutto
+     EndIf
+    EndIf
+    If XTopo>=XPosImmagine AND YTopo>=YPosImmagine AND XTopo<XPosImmagine+XLunImmagine AND YTopo<YPosImmagine+YLunImmagine
+     If TastoPremutoDelTopo=1 OR TastoPremutoDelTopo=2
+      Use BitMap #BitMapImmagine
+      Plot XTopo-XPosImmagine,YTopo-YPosImmagine,Colore
+      Use Window #FinestraEditoreImmagini
+      WPlot XTopo,YTopo,Colore
+      SetGadgetStatus 0,7,#CancellaIngrandimento
+      Cancellazione=#CancellaTutto
+     EndIf
+    EndIf
+    If Cancellazione=#CancellaIngrandimento
+     If ColoreSfondo<>ColoreCancellazione
+      SetGadgetStatus 0,7,#CancellaIngrandimento
+      Cancellazione=#CancellaTutto
+      RidisegnaTutto=True
+     EndIf
+     If XInizioIngrandimento<>XInizioIngrandimentoCancellazione
+      SetGadgetStatus 0,7,#CancellaIngrandimento
+      Cancellazione=#CancellaTutto
+      RidisegnaTutto=True
+     EndIf
+     If YInizioIngrandimento<>YInizioIngrandimentoCancellazione
+      SetGadgetStatus 0,7,#CancellaIngrandimento
+      Cancellazione=#CancellaTutto
+      RidisegnaTutto=True
+     EndIf
+    EndIf
+   EndIf
+  Case #FinestraTavolozzaColori
+   Use Window #FinestraTavolozzaColori
+   Select EventoFinestre
+;------------------------------------
+;se avete premuto un tasto del mouse
+;if you have pressed a mouse button
+;-----------------------------------
+   Case #HaiPremutoUnTastoDelTopo
+    XTopo=WMouseX:YTopo=WMouseY
+    TastoPremutoDelTopo=MButtons
+    If XTopo>=0 AND YTopo>=0 AND XTopo<#LarghezzaTavolozzaColori AND YTopo<AltezzaInternaFinestraTavolozzaColori
+     MostraIDueColoriDaUsare{False}
+     Colore=XTopo/#GrandezzaColore+YTopo/16*32
+     Select TastoPremutoDelTopo
+     Case 5
+      ColorePenna=Colore
+     Case 6
+      ColoreSfondo=Colore
+     End Select
+     MostraIDueColoriDaUsare{True}
+    EndIf
+;--------------------------------------
+;se avete attivato il menu'
+;if you have activated the menu
+;--------------------------------
+   Case #HaiAttivatoUnMenu
+;--------------------------------------------------------
+;se avete cliccato il bottone di chiusura della finestra
+;if you have clicked the window's close gadget
+;----------------------------------------------
+   Case #HaiChiusoLaFinestra
+    CloseWindow #FinestraTavolozzaColori
+    ApertaLaFinestraTavolozzaColori=False
+    Use Window #FinestraEditoreImmagini
+    Menus Off
+;--------------------------
+;se avete premuto un tasto
+;if you have pressed a key
+;--------------------------
+   Case #HaiPremutoUnTasto
+;--------------------------------------------
+;questa variabile memorizza il tasto premuto
+;this variable store key pressed
+;--------------------------------
+    TastoPremuto$=LCase$(Inkey$)
+;-----------------------------------------------------------------------
+;se avete premuto il tasto Esc attiva la variabile EsciDallEditoreMappa
+;if you have typed Esc key activates EsciDallEditoreMappa flag
+;--------------------------------------------------------------
+    Select TastoPremuto$
+    Case TastoCursoreSu$
+     If ColorePenna<ColoS-1
+      MostraIDueColoriDaUsare{False}
+      ColorePenna+1
+      MostraIDueColoriDaUsare{True}
+     EndIf
+    Case TastoCursoreGiu$
+     If ColorePenna>0
+      MostraIDueColoriDaUsare{False}
+      ColorePenna-1
+      MostraIDueColoriDaUsare{True}
+     EndIf
+    Case TastoCursoreDestra$
+     If ColoreSfondo<ColoS-1
+      MostraIDueColoriDaUsare{False}
+      ColoreSfondo+1
+      MostraIDueColoriDaUsare{True}
+     EndIf
+    Case TastoCursoreSinistra$
+     If ColoreSfondo>0
+      MostraIDueColoriDaUsare{False}
+      ColoreSfondo-1
+      MostraIDueColoriDaUsare{True}
+     EndIf
+    Case TastoEsc$
+     CloseWindow #FinestraTavolozzaColori
+     ApertaLaFinestraTavolozzaColori=False
+     Use Window #FinestraEditoreImmagini
+     Menus Off
+    Case "p"
+     CloseWindow #FinestraTavolozzaColori
+     ApertaLaFinestraTavolozzaColori=False
+     Use Window #FinestraEditoreImmagini
+     Menus Off
+    End Select
+   Case #HaiAttivatoLaFinestra
+    Use Window #FinestraTavolozzaColori
+   End Select
+  Case #FinestraImmagine
+   Use Window #FinestraImmagine
+   Select EventoFinestre
+   Case #HaiPremutoUnGadget
+;---------------------------
+;se avete premuto un gadget
+;if you have pressed a gadget
+;-----------------------------
+;    Select GadgetHit
+;    Case 1
+;---------------------------
+;barra orizzontale immagini
+;images horizontal slider
+;-------------------------
+;     Immagine=HPropPot(1,1)*Immagini
+;     Use BitMap #BitMapImmagine
+;     Cls:Blit Immagine,0,0
+;     BitMaptoWindow #BitMapImmagine,#FinestraEditoreImmagini,0,0,XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+;     GadgetBorder XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+;     SetGadgetStatus 0,7,1
+;     RidisegnaTutto=True
+;    End Select
+;------------------------------
+;se avete rilasciato un gadget
+;if you have released a gadget
+;------------------------------
+   Case #HaiRilasciatoUnGadget
+    Select GadgetHit
+    Case 1
+;---------------------------
+;barra orizzontale immagini
+;images horizontal slider
+;-------------------------
+     Immagine=HPropPot(1,1)*Immagini
+     Use BitMap #BitMapImmagine
+     Cls:Blit Immagine,0,0
+     BitMaptoWindow #BitMapImmagine,#FinestraEditoreImmagini,0,0,XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+     GadgetBorder XPosImmagine,YPosImmagine,XLunImmagine,YLunImmagine
+     SetGadgetStatus 0,7,1
+     RidisegnaTutto=True
+    End Select
+   Case #HaiPremutoUnTasto
+    TastoPremuto$=LCase$(Inkey$)
+;--------------------------------------------
+;questa variabile memorizza il tasto premuto
+;this variable store key pressed
+;--------------------------------
+    Select TastoPremuto$
+    Case TastoEsc$
+;-----------------------------------------------------------------------
+;se avete premuto il tasto Esc attiva la variabile EsciDallEditoreMappa
+;if you have typed Esc key activates EsciDallEditoreMappa flag
+;--------------------------------------------------------------
+    Case TastoCursoreSu$
+     If Immagini>0
+      If Immagine+1<Immagini
+       Immagine+1
+       RidisegnaTutto=True
+      EndIf
+     EndIf
+    Case TastoCursoreGiu$
+     If Immagini>0
+      If Immagine+1>1
+       Immagine-1
+       RidisegnaTutto=True
+      EndIf
+     EndIf
+    Case TastoCursoreDestra$
+     If Immagini>0
+      If Immagine+1<Immagini
+       Immagine+1
+       RidisegnaTutto=True
+      EndIf
+     EndIf
+    Case TastoCursoreSinistra$
+     If Immagini>0
+      If Immagine+1>1
+       Immagine-1
+       RidisegnaTutto=True
+      EndIf
+     EndIf
+    Case "p"
+     If ApertaLaFinestraTavolozzaColori.b=False
+      ImpostaLaFinestraTavolozzaColori{}
+      ApertaLaFinestraTavolozzaColori=True
+     Else
+      CloseWindow #FinestraTavolozzaColori
+      ApertaLaFinestraTavolozzaColori=False
+      Use Window #FinestraEditoreImmagini
+      Menus Off
+     EndIf
+    End Select
+   Case #HaiAttivatoLaFinestra
+    Use Window #FinestraImmagine
+    Menus Off
+   End Select
+  End Select
+ Until EsciDallEditoreImmagini=True
+;----------------------------------------------------------------
+;ripete il ciclo se la variabile EsciDalProgramma e' disattivata
+;repeats loop if EsciDalProgramma flag is deactivated
+;-----------------------------------------------------
+ CloseWindow #FinestraImmagine
+ Free GadgetList 1
+ CloseWindow #FinestraEditoreImmagini
+ Free GadgetList 0
+ Use Window #FinestraPrincipale
+ Menus On
+End Statement
+
+;*********************************************
+;fine delle procedure ed inizio del programma
+;procedures end and porgran start
+;*********************************
+
+WBStartup
+
+ImpostaIProgettiACSAperti{}
+
+ScegliLaFonte{}
+
+;ImpostaIColori{}
+
+ImpostaLoSchermo{}
+
+ImpostaLeMappeDiBit{}
+
+ImpostaIlMenuPrincipale{}
+
+ImpostaLaFinestraPrincipaleInvisibile{}
+
+AutoCookie On
+
+BlitMode CookieMode
+
+WJam 1
+
+;-----------------
+;ciclo principale
+;main loop
+;----------
+Repeat
+;--------------------------------------------------------------
+;questa variabile cattura gli eventi della finestra Principale
+;this variable catches main window events
+;-----------------------------------------
+ EventoFinestraPrincipale.l=WaitEvent
+ Select EventoFinestraPrincipale
+;--------------------------------------
+;se avete attivato il menu' Principale
+;if you have activated main menu
+;--------------------------------
+ Case #HaiAttivatoUnMenu
+;-------------------------------------------------------------------
+;se avete scelto la voce Quit dal menu' Project attiva la variabile
+; EsciDalProgramma
+;if you have selected voice Quit from Project menu activates EsciDalProgramma
+; flag
+;------
+  If MenuHit=0 AND ItemHit=VoceMenuEsci Then EsciDalProgramma=True
+  If MenuHit=0 AND ItemHit=1
+   CaricaUnProgettoDiACS{}
+   ImpostaIProgettiACSAperti{}
+   ChiudiLaFinestraPrincipaleInvisibile{}
+   ImpostaIlMenuPrincipale{}
+   ImpostaLaFinestraPrincipaleInvisibile{}
+  EndIf
+  If MenuHit=0 AND ItemHit=4
+   Messaggio$="    AdvConstructionSet 0.06    |"
+   Messaggio$+"   by Stefano Maria Regattin   |"
+   Messaggio$+"   Tuesday 5th December 2017   |"
+   Messaggio$+"www.stefanomaria.altervista.org|"
+   Messaggio$+"   esseemmeerre@fastwebnet.it  "
+   Request "About ACS",Messaggio$,"OK"
+  EndIf
+  If MenuHit=1 AND ItemHit=0
+   ImpostaLaFinestraEditoreMappa{}
+   ImpostaLaFinestraImmagine{}
+   EditoreMappa{}
+  EndIf
+  If MenuHit=1 AND ItemHit=1
+   ImpostaLaFinestraEditoreImmagini{}
+   ImpostaLaFinestraImmagine{}
+   EditoreImmagini{}
+  EndIf
+  If MenuHit=2 AND ItemHit=0
+   If Exists(ProgettiACSAperti$)
+    KillFile ProgettiACSAperti$
+    ImpostaIProgettiACSAperti{}
+    ImpostaIlMenuPrincipale{}
+    ChiudiLaFinestraPrincipaleInvisibile{}
+    ImpostaLaFinestraPrincipaleInvisibile{}
+   EndIf
+  EndIf
+;--------------------------
+;se avete premuto un tasto
+;if you have pressed a key
+;--------------------------
+ Case #HaiPremutoUnTasto
+;--------------------------------------------
+;questa variabile memorizza il tasto premuto
+;this variable stores key pressed
+;---------------------------------
+  TastoPremuto$=LCase$(Inkey$)
+;-------------------------------------------------------------------
+;se avete premuto il tasto Esc attiva la variabile EsciDalProgramma
+;if you have typed Esc key activates EsciDalProgramma flag
+;----------------------------------------------------------
+  If TastoPremuto$=TastoEsc$ Then EsciDalProgramma=True
+ End Select
+;----------------------------------------------------------------
+;ripete il ciclo se la variabile EsciDalProgramma e' disattivata
+;repeats loop if EsciDalProgramma flag is deactivated
+;-----------------------------------------------------
+Until EsciDalProgramma=True
+;----------------------
+;fine del programma
+;program end
+;------------
+End

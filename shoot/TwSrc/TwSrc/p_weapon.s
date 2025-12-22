@@ -1,0 +1,6363 @@
+	.file	"p_weapon.c"
+gcc2_compiled.:
+	.section	".rodata"
+	.align 2
+.LC0:
+	.string	"axhit1.wav"
+	.align 2
+.LC1:
+	.string	"sky"
+	.align 2
+.LC2:
+	.string	"axhit2.wav"
+	.align 3
+.LC3:
+	.long 0x3ff00000
+	.long 0x0
+	.align 2
+.LC4:
+	.long 0x46000000
+	.align 2
+.LC5:
+	.long 0x420c0000
+	.align 2
+.LC6:
+	.long 0x3f800000
+	.align 2
+.LC7:
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl fire_sword
+	.type	 fire_sword,@function
+fire_sword:
+	stwu 1,-208(1)
+	mflr 0
+	stfd 31,200(1)
+	stmw 22,160(1)
+	stw 0,212(1)
+	lis 9,gi@ha
+	mr 27,3
+	la 26,gi@l(9)
+	mr 30,4
+	lwz 10,48(26)
+	addi 24,27,4
+	mr 25,5
+	mr 23,6
+	mr 22,7
+	lis 9,0x600
+	addi 3,1,16
+	mtlr 10
+	mr 4,24
+	li 5,0
+	li 6,0
+	mr 7,30
+	mr 8,27
+	ori 9,9,3
+	lis 11,.LC3@ha
+	addi 31,1,144
+	la 11,.LC3@l(11)
+	lfd 31,0(11)
+	blrl
+	lfs 0,24(1)
+	fcmpu 0,0,31
+	bc 12,0,.L7
+	addi 29,1,80
+	addi 28,1,96
+	mr 3,25
+	mr 4,29
+	bl vectoangles
+	mr 3,29
+	mr 4,28
+	addi 5,1,112
+	addi 6,1,128
+	bl AngleVectors
+	lis 9,.LC4@ha
+	mr 4,28
+	la 9,.LC4@l(9)
+	mr 5,31
+	lfs 1,0(9)
+	mr 3,30
+	bl VectorMA
+.L7:
+	lis 9,.LC5@ha
+	mr 3,30
+	la 9,.LC5@l(9)
+	mr 4,25
+	lfs 1,0(9)
+	mr 5,31
+	bl VectorMA
+	lwz 11,48(26)
+	lis 9,0x600
+	addi 3,1,16
+	mr 4,24
+	mr 7,31
+	li 5,0
+	li 6,0
+	mtlr 11
+	mr 8,27
+	ori 9,9,3
+	blrl
+	lwz 3,60(1)
+	cmpwi 0,3,0
+	bc 12,2,.L9
+	lwz 0,16(3)
+	andi. 9,0,4
+	bc 4,2,.L6
+.L9:
+	lfs 0,24(1)
+	fcmpu 0,0,31
+	bc 4,0,.L6
+	lwz 11,68(1)
+	lwz 0,788(11)
+	cmpwi 0,0,0
+	bc 12,2,.L11
+	li 9,34
+	li 0,0
+	stw 9,12(1)
+	mr 3,11
+	mr 4,27
+	stw 0,8(1)
+	mr 9,23
+	mr 5,27
+	mr 6,25
+	mr 10,22
+	addi 7,1,28
+	addi 8,1,40
+	bl T_Damage
+	lwz 9,36(26)
+	lis 3,.LC0@ha
+	la 3,.LC0@l(3)
+	mtlr 9
+	blrl
+	lis 9,.LC6@ha
+	lwz 0,16(26)
+	lis 11,.LC6@ha
+	la 9,.LC6@l(9)
+	mr 5,3
+	lfs 1,0(9)
+	la 11,.LC6@l(11)
+	li 4,0
+	mtlr 0
+	lis 9,.LC7@ha
+	mr 3,27
+	lfs 2,0(11)
+	la 9,.LC7@l(9)
+	lfs 3,0(9)
+	blrl
+	b .L6
+.L11:
+	lis 4,.LC1@ha
+	li 5,3
+	la 4,.LC1@l(4)
+	bl strncmp
+	cmpwi 0,3,0
+	bc 12,2,.L6
+	lwz 9,100(26)
+	li 3,3
+	addi 29,1,28
+	mtlr 9
+	blrl
+	lwz 9,100(26)
+	li 3,9
+	mtlr 9
+	blrl
+	lwz 9,120(26)
+	mr 3,29
+	mtlr 9
+	blrl
+	lwz 9,124(26)
+	addi 3,1,40
+	mtlr 9
+	blrl
+	lwz 9,88(26)
+	mr 3,29
+	li 4,2
+	mtlr 9
+	blrl
+	lwz 9,36(26)
+	lis 3,.LC2@ha
+	la 3,.LC2@l(3)
+	mtlr 9
+	blrl
+	lis 9,.LC6@ha
+	lwz 0,16(26)
+	lis 11,.LC6@ha
+	la 9,.LC6@l(9)
+	mr 5,3
+	lfs 1,0(9)
+	la 11,.LC6@l(11)
+	li 4,0
+	mtlr 0
+	lis 9,.LC7@ha
+	mr 3,27
+	lfs 2,0(11)
+	la 9,.LC7@l(9)
+	lfs 3,0(9)
+	blrl
+.L6:
+	lwz 0,212(1)
+	mtlr 0
+	lmw 22,160(1)
+	lfd 31,200(1)
+	la 1,208(1)
+	blr
+.Lfe1:
+	.size	 fire_sword,.Lfe1-fire_sword
+	.section	".rodata"
+	.align 3
+.LC8:
+	.long 0x43300000
+	.long 0x80000000
+	.align 2
+.LC9:
+	.long 0x41c00000
+	.align 2
+.LC10:
+	.long 0x41000000
+	.align 2
+.LC11:
+	.long 0xc0000000
+	.section	".text"
+	.align 2
+	.globl Weapon_Sword_Fire
+	.type	 Weapon_Sword_Fire,@function
+Weapon_Sword_Fire:
+	stwu 1,-112(1)
+	mflr 0
+	stmw 27,92(1)
+	stw 0,116(1)
+	mr 29,3
+	addi 4,1,8
+	lwz 3,84(29)
+	addi 5,1,24
+	li 6,0
+	lis 28,vec3_origin@ha
+	addi 3,3,3752
+	la 27,vec3_origin@l(28)
+	bl AngleVectors
+	lis 10,.LC8@ha
+	lwz 9,784(29)
+	la 10,.LC8@l(10)
+	lfs 12,vec3_origin@l(28)
+	lis 0,0x4330
+	lfd 10,0(10)
+	addi 9,9,-8
+	addi 5,1,56
+	lis 10,.LC9@ha
+	xoris 9,9,0x8000
+	lfs 9,8(27)
+	la 10,.LC9@l(10)
+	stw 9,84(1)
+	addi 6,1,8
+	lfs 0,0(10)
+	addi 7,1,24
+	addi 8,1,40
+	stw 0,80(1)
+	lis 10,.LC10@ha
+	addi 4,29,4
+	la 10,.LC10@l(10)
+	lfs 13,4(27)
+	fadds 12,12,0
+	lfs 11,0(10)
+	lfd 0,80(1)
+	lwz 3,84(29)
+	fadds 13,13,11
+	stfs 12,56(1)
+	fsub 0,0,10
+	stfs 13,60(1)
+	frsp 0,0
+	fadds 0,0,9
+	stfs 0,64(1)
+	crxor 6,6,6
+	bl P_ProjectSource
+	lis 9,.LC11@ha
+	lwz 4,84(29)
+	addi 3,1,8
+	la 9,.LC11@l(9)
+	lfs 1,0(9)
+	addi 4,4,3700
+	bl VectorScale
+	lwz 9,84(29)
+	lis 0,0xbf80
+	mr 3,29
+	addi 4,1,40
+	addi 5,1,8
+	stw 0,3688(9)
+	li 6,50
+	li 7,500
+	bl fire_sword
+	lwz 11,84(29)
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	lwz 0,116(1)
+	mtlr 0
+	lmw 27,92(1)
+	la 1,112(1)
+	blr
+.Lfe2:
+	.size	 Weapon_Sword_Fire,.Lfe2-Weapon_Sword_Fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.15,@object
+pause_frames.15:
+	.long 8
+	.long 8
+	.long 8
+	.long 8
+	.long 8
+	.long 8
+	.align 2
+	.type	 fire_frames.16,@object
+fire_frames.16:
+	.long 5
+	.long 2
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC12:
+	.string	"weapons/noammo.wav"
+	.align 2
+.LC13:
+	.string	"rifle.wav"
+	.align 2
+.LC14:
+	.long 0x3f800000
+	.align 2
+.LC15:
+	.long 0x0
+	.align 3
+.LC16:
+	.long 0x43300000
+	.long 0x80000000
+	.align 2
+.LC17:
+	.long 0x42480000
+	.align 2
+.LC18:
+	.long 0xc2480000
+	.section	".text"
+	.align 2
+	.globl Rifle_Fire
+	.type	 Rifle_Fire,@function
+Rifle_Fire:
+	stwu 1,-144(1)
+	mflr 0
+	stmw 25,116(1)
+	stw 0,148(1)
+	mr 31,3
+	li 26,75
+	lwz 9,84(31)
+	li 27,0
+	lwz 0,3632(9)
+	andi. 11,0,1
+	bc 4,2,.L21
+	stw 27,3856(9)
+	lwz 11,84(31)
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	b .L20
+.L21:
+	lwz 0,92(9)
+	cmpwi 0,0,5
+	li 0,5
+	bc 4,2,.L22
+	li 0,4
+.L22:
+	stw 0,92(9)
+	lwz 10,84(31)
+	lwz 0,3628(10)
+	addi 11,10,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	cmpwi 0,9,0
+	bc 12,1,.L24
+	li 0,6
+	lis 9,level@ha
+	stw 0,92(10)
+	la 30,level@l(9)
+	lfs 13,4(30)
+	lfs 0,708(31)
+	fcmpu 0,13,0
+	cror 3,2,1
+	bc 4,3,.L25
+	lis 29,gi@ha
+	lis 3,.LC12@ha
+	la 29,gi@l(29)
+	la 3,.LC12@l(3)
+	lwz 9,36(29)
+	mtlr 9
+	blrl
+	lis 9,.LC14@ha
+	lwz 0,16(29)
+	lis 11,.LC14@ha
+	la 9,.LC14@l(9)
+	mr 5,3
+	lfs 1,0(9)
+	la 11,.LC14@l(11)
+	li 4,2
+	mtlr 0
+	lis 9,.LC15@ha
+	mr 3,31
+	lfs 2,0(11)
+	la 9,.LC15@l(9)
+	lfs 3,0(9)
+	blrl
+	lis 9,.LC14@ha
+	lfs 0,4(30)
+	la 9,.LC14@l(9)
+	lfs 13,0(9)
+	fadds 0,0,13
+	stfs 0,708(31)
+.L25:
+	mr 3,31
+	crxor 6,6,6
+	bl NoAmmoWeaponChange
+	b .L20
+.L24:
+	lis 9,is_quad@ha
+	lwz 0,is_quad@l(9)
+	cmpwi 0,0,0
+	bc 12,2,.L26
+	slwi 26,26,2
+	slwi 27,27,2
+.L26:
+	lwz 9,3856(10)
+	addi 9,9,1
+	stw 9,3856(10)
+	lwz 9,84(31)
+	lwz 0,3856(9)
+	cmpwi 0,0,9
+	bc 4,1,.L27
+	li 0,9
+	stw 0,3856(9)
+.L27:
+	lwz 9,84(31)
+	addi 30,1,24
+	addi 28,1,40
+	addi 3,1,56
+	mr 4,30
+	lfs 0,3688(9)
+	mr 5,28
+	li 6,0
+	lfs 13,3752(9)
+	addi 29,31,4
+	mr 25,29
+	fadds 13,13,0
+	stfs 13,56(1)
+	lfs 13,3692(9)
+	lfs 0,3756(9)
+	fadds 0,0,13
+	stfs 0,60(1)
+	lfs 13,3696(9)
+	lfs 0,3760(9)
+	fadds 0,0,13
+	stfs 0,64(1)
+	bl AngleVectors
+	lwz 9,784(31)
+	lis 8,0x4330
+	lis 11,.LC16@ha
+	li 0,0
+	lwz 3,84(31)
+	addi 9,9,-8
+	la 11,.LC16@l(11)
+	stw 0,72(1)
+	xoris 9,9,0x8000
+	lfd 13,0(11)
+	mr 7,28
+	stw 9,108(1)
+	lis 11,0x4100
+	mr 4,29
+	stw 8,104(1)
+	addi 5,1,72
+	mr 6,30
+	lfd 0,104(1)
+	addi 8,1,8
+	stw 11,76(1)
+	fsub 0,0,13
+	frsp 0,0
+	stfs 0,80(1)
+	crxor 6,6,6
+	bl P_ProjectSource
+	addi 3,31,620
+	bl VectorLength
+	lis 9,.LC17@ha
+	lis 11,.LC18@ha
+	la 9,.LC17@l(9)
+	la 11,.LC18@l(11)
+	lfs 13,0(9)
+	lfs 0,0(11)
+	fcmpu 6,1,13
+	fcmpu 7,1,0
+	mfcr 9
+	rlwinm 0,9,26,1
+	rlwinm 9,9,29,1
+	or. 11,0,9
+	bc 12,2,.L28
+	mr 5,30
+	mr 6,26
+	mr 7,27
+	mr 3,31
+	addi 4,1,8
+	li 8,2000
+	li 9,1500
+	li 10,36
+	bl fire_bullet
+	b .L29
+.L28:
+	mr 5,30
+	mr 6,26
+	mr 7,27
+	mr 3,31
+	addi 4,1,8
+	li 8,0
+	li 9,0
+	li 10,36
+	bl fire_bullet
+.L29:
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	ori 3,3,1
+	blrl
+	lwz 9,88(29)
+	mr 3,25
+	li 4,2
+	mtlr 9
+	blrl
+	lwz 9,36(29)
+	lis 3,.LC13@ha
+	la 3,.LC13@l(3)
+	mtlr 9
+	blrl
+	lis 9,.LC14@ha
+	lwz 0,16(29)
+	lis 11,.LC14@ha
+	la 9,.LC14@l(9)
+	la 11,.LC14@l(11)
+	lfs 1,0(9)
+	mr 5,3
+	mtlr 0
+	li 4,2
+	lis 9,.LC15@ha
+	lfs 2,0(11)
+	mr 3,31
+	la 9,.LC15@l(9)
+	lfs 3,0(9)
+	blrl
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,104(1)
+	lwz 11,108(1)
+	andi. 0,11,8192
+	bc 4,2,.L20
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-1
+	stwx 11,9,0
+.L20:
+	lwz 0,148(1)
+	mtlr 0
+	lmw 25,116(1)
+	la 1,144(1)
+	blr
+.Lfe3:
+	.size	 Rifle_Fire,.Lfe3-Rifle_Fire
+	.section	".rodata"
+	.align 2
+.LC19:
+	.string	"player_noise"
+	.align 2
+.LC20:
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl PlayerNoise
+	.type	 PlayerNoise,@function
+PlayerNoise:
+	stwu 1,-48(1)
+	mflr 0
+	stmw 25,20(1)
+	stw 0,52(1)
+	mr 25,5
+	mr 31,3
+	cmpwi 0,25,1
+	mr 30,4
+	bc 4,2,.L39
+	lwz 11,84(31)
+	lwz 9,3900(11)
+	cmpwi 0,9,0
+	bc 12,2,.L39
+	addi 0,9,-1
+	stw 0,3900(11)
+	b .L38
+.L39:
+	lis 9,.LC20@ha
+	lis 11,deathmatch@ha
+	la 9,.LC20@l(9)
+	lfs 13,0(9)
+	lwz 9,deathmatch@l(11)
+	lfs 0,20(9)
+	fcmpu 0,0,13
+	bc 4,2,.L38
+	lwz 0,268(31)
+	andi. 9,0,32
+	bc 4,2,.L38
+	lwz 0,844(31)
+	cmpwi 0,0,0
+	bc 4,2,.L43
+	bl G_Spawn
+	lis 28,0xc100
+	lis 27,0x4100
+	lis 29,.LC19@ha
+	mr 10,3
+	la 29,.LC19@l(29)
+	li 26,1
+	stw 28,188(10)
+	stw 29,284(10)
+	stw 28,192(10)
+	stw 28,196(10)
+	stw 27,200(10)
+	stw 27,204(10)
+	stw 27,208(10)
+	stw 31,256(10)
+	stw 26,184(10)
+	stw 10,844(31)
+	bl G_Spawn
+	mr 10,3
+	stw 29,284(10)
+	stw 28,196(10)
+	stw 27,208(10)
+	stw 26,184(10)
+	stw 28,188(10)
+	stw 28,192(10)
+	stw 27,200(10)
+	stw 27,204(10)
+	stw 31,256(10)
+	stw 10,848(31)
+.L43:
+	cmplwi 0,25,1
+	bc 12,1,.L44
+	lis 9,level@ha
+	lwz 10,844(31)
+	lwz 0,level@l(9)
+	la 9,level@l(9)
+	stw 10,248(9)
+	stw 0,252(9)
+	b .L45
+.L44:
+	lis 9,level@ha
+	lwz 10,848(31)
+	lwz 0,level@l(9)
+	la 9,level@l(9)
+	stw 10,256(9)
+	stw 0,260(9)
+.L45:
+	lfs 13,0(30)
+	lis 9,level+4@ha
+	lis 11,gi+72@ha
+	lfs 10,200(10)
+	mr 3,10
+	lfs 12,204(10)
+	stfs 13,4(10)
+	lfs 0,4(30)
+	lfs 11,208(10)
+	stfs 0,8(10)
+	lfs 13,8(30)
+	stfs 13,12(10)
+	lfs 0,0(30)
+	fsubs 0,0,10
+	stfs 0,212(10)
+	lfs 13,4(30)
+	fsubs 13,13,12
+	stfs 13,216(10)
+	lfs 0,8(30)
+	fsubs 0,0,11
+	stfs 0,220(10)
+	lfs 13,0(30)
+	fadds 13,13,10
+	stfs 13,224(10)
+	lfs 0,4(30)
+	fadds 0,0,12
+	stfs 0,228(10)
+	lfs 13,8(30)
+	fadds 13,13,11
+	stfs 13,232(10)
+	lfs 0,level+4@l(9)
+	stfs 0,956(10)
+	lwz 0,gi+72@l(11)
+	mtlr 0
+	blrl
+.L38:
+	lwz 0,52(1)
+	mtlr 0
+	lmw 25,20(1)
+	la 1,48(1)
+	blr
+.Lfe4:
+	.size	 PlayerNoise,.Lfe4-PlayerNoise
+	.section	".rodata"
+	.align 2
+.LC21:
+	.string	"players/"
+	.align 2
+.LC22:
+	.string	"skin"
+	.align 2
+.LC23:
+	.string	".md2"
+	.align 2
+.LC24:
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl ChangeWeapon
+	.type	 ChangeWeapon,@function
+ChangeWeapon:
+	stwu 1,-160(1)
+	mflr 0
+	stfd 31,152(1)
+	stw 31,148(1)
+	stw 0,164(1)
+	mr 31,3
+	lis 9,.LC24@ha
+	lwz 11,84(31)
+	la 9,.LC24@l(9)
+	lfs 31,0(9)
+	lfs 0,3896(11)
+	fcmpu 0,0,31
+	bc 12,2,.L58
+	lis 9,level+4@ha
+	li 0,0
+	lfs 0,level+4@l(9)
+	li 4,0
+	stfs 0,3896(11)
+	lwz 9,84(31)
+	stw 0,3904(9)
+	bl weapon_grenade_fire
+	lwz 9,84(31)
+	stfs 31,3896(9)
+.L58:
+	lwz 9,84(31)
+	li 10,0
+	lwz 0,1848(9)
+	stw 0,1852(9)
+	lwz 11,84(31)
+	lwz 0,3648(11)
+	stw 0,1848(11)
+	lwz 9,84(31)
+	stw 10,3648(9)
+	lwz 11,84(31)
+	stw 10,3856(11)
+	lwz 9,84(31)
+	lwz 3,1848(9)
+	cmpwi 0,3,0
+	bc 12,2,.L59
+	lwz 3,52(3)
+	cmpwi 0,3,0
+	bc 12,2,.L59
+	bl FindItem
+	lis 9,itemlist@ha
+	lis 0,0x38e3
+	lwz 11,84(31)
+	la 9,itemlist@l(9)
+	ori 0,0,36409
+	subf 3,9,3
+	mullw 3,3,0
+	srawi 3,3,3
+	stw 3,3628(11)
+	b .L60
+.L59:
+	lwz 9,84(31)
+	li 0,0
+	stw 0,3628(9)
+.L60:
+	lwz 9,84(31)
+	lwz 0,1848(9)
+	cmpwi 0,0,0
+	bc 4,2,.L74
+	stw 0,88(9)
+	b .L57
+.L74:
+	lwz 0,40(31)
+	cmpwi 0,0,255
+	bc 12,2,.L62
+	li 0,0
+	stw 0,88(9)
+	b .L57
+.L62:
+	li 0,1
+	li 10,0
+	stw 0,3684(9)
+	lis 8,gi+32@ha
+	lwz 9,84(31)
+	stw 10,92(9)
+	lwz 11,84(31)
+	lwz 0,gi+32@l(8)
+	lwz 9,1848(11)
+	mtlr 0
+	lwz 3,32(9)
+	blrl
+	lwz 11,84(31)
+	li 0,3
+	stw 3,88(11)
+	lwz 9,84(31)
+	stw 0,3864(9)
+	lwz 11,84(31)
+	lbz 0,16(11)
+	andi. 9,0,1
+	bc 12,2,.L64
+	li 0,169
+	li 9,172
+	b .L75
+.L64:
+	li 0,62
+	li 9,65
+.L75:
+	stw 0,56(31)
+	stw 9,3860(11)
+	lwz 3,84(31)
+	lwz 0,1848(3)
+	cmpwi 0,0,0
+	bc 4,2,.L66
+	stw 0,44(31)
+	b .L57
+.L66:
+	lis 9,.LC21@ha
+	lis 4,.LC22@ha
+	lwz 10,.LC21@l(9)
+	la 11,.LC21@l(9)
+	la 4,.LC22@l(4)
+	lbz 9,8(11)
+	addi 3,3,188
+	lwz 0,4(11)
+	stw 10,8(1)
+	stw 0,12(1)
+	stb 9,16(1)
+	bl Info_ValueForKey
+	mr 4,3
+	addi 3,1,8
+	bl strcat
+	addi 10,1,8
+	li 9,8
+	lbzx 0,10,9
+	cmpwi 0,0,0
+	bc 12,2,.L73
+	li 8,0
+	mr 11,10
+.L70:
+	lbzx 0,11,9
+	cmpwi 0,0,47
+	bc 4,2,.L72
+	addi 9,9,1
+	stbx 8,10,9
+.L72:
+	addi 9,9,1
+	lbzx 0,11,9
+	cmpwi 0,0,0
+	bc 4,2,.L70
+.L73:
+	lwz 11,84(31)
+	addi 3,1,8
+	lwz 9,1848(11)
+	lwz 4,36(9)
+	bl strcat
+	lis 4,.LC23@ha
+	addi 3,1,8
+	la 4,.LC23@l(4)
+	bl strcat
+	lis 9,gi+32@ha
+	addi 3,1,8
+	lwz 0,gi+32@l(9)
+	mtlr 0
+	blrl
+	stw 3,44(31)
+.L57:
+	lwz 0,164(1)
+	mtlr 0
+	lwz 31,148(1)
+	lfd 31,152(1)
+	la 1,160(1)
+	blr
+.Lfe5:
+	.size	 ChangeWeapon,.Lfe5-ChangeWeapon
+	.section	".rodata"
+	.align 2
+.LC25:
+	.string	"slugs"
+	.align 2
+.LC26:
+	.string	"railgun"
+	.align 2
+.LC27:
+	.string	"cells"
+	.align 2
+.LC28:
+	.string	"hyperblaster"
+	.align 2
+.LC29:
+	.string	"bullets"
+	.align 2
+.LC30:
+	.string	"chaingun"
+	.align 2
+.LC31:
+	.string	"machinegun"
+	.align 2
+.LC32:
+	.string	"shells"
+	.align 2
+.LC33:
+	.string	"super shotgun"
+	.align 2
+.LC34:
+	.string	"shotgun"
+	.align 2
+.LC35:
+	.string	"blaster"
+	.section	".text"
+	.align 2
+	.globl NoAmmoWeaponChange
+	.type	 NoAmmoWeaponChange,@function
+NoAmmoWeaponChange:
+	stwu 1,-32(1)
+	mflr 0
+	stmw 27,12(1)
+	stw 0,36(1)
+	mr 30,3
+	lis 31,0x38e3
+	lis 3,.LC25@ha
+	lwz 29,84(30)
+	ori 31,31,36409
+	la 3,.LC25@l(3)
+	bl FindItem
+	lis 9,itemlist@ha
+	addi 29,29,748
+	la 28,itemlist@l(9)
+	subf 3,28,3
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L77
+	lis 27,.LC26@ha
+	lwz 29,84(30)
+	la 3,.LC26@l(27)
+	bl FindItem
+	subf 3,28,3
+	addi 29,29,748
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L77
+	la 3,.LC26@l(27)
+	b .L83
+.L77:
+	lis 3,.LC27@ha
+	lwz 29,84(30)
+	lis 31,0x38e3
+	la 3,.LC27@l(3)
+	ori 31,31,36409
+	bl FindItem
+	lis 9,itemlist@ha
+	addi 29,29,748
+	la 28,itemlist@l(9)
+	subf 3,28,3
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L78
+	lis 27,.LC28@ha
+	lwz 29,84(30)
+	la 3,.LC28@l(27)
+	bl FindItem
+	subf 3,28,3
+	addi 29,29,748
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L78
+	la 3,.LC28@l(27)
+	b .L83
+.L78:
+	lis 3,.LC29@ha
+	lwz 29,84(30)
+	lis 31,0x38e3
+	la 3,.LC29@l(3)
+	ori 31,31,36409
+	bl FindItem
+	lis 9,itemlist@ha
+	addi 29,29,748
+	la 28,itemlist@l(9)
+	subf 3,28,3
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L79
+	lis 27,.LC30@ha
+	lwz 29,84(30)
+	la 3,.LC30@l(27)
+	bl FindItem
+	subf 3,28,3
+	addi 29,29,748
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L79
+	la 3,.LC30@l(27)
+	b .L83
+.L79:
+	lis 3,.LC29@ha
+	lwz 29,84(30)
+	lis 31,0x38e3
+	la 3,.LC29@l(3)
+	ori 31,31,36409
+	bl FindItem
+	lis 9,itemlist@ha
+	addi 29,29,748
+	la 28,itemlist@l(9)
+	subf 3,28,3
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L80
+	lis 27,.LC31@ha
+	lwz 29,84(30)
+	la 3,.LC31@l(27)
+	bl FindItem
+	subf 3,28,3
+	addi 29,29,748
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L80
+	la 3,.LC31@l(27)
+	b .L83
+.L80:
+	lis 3,.LC32@ha
+	lwz 29,84(30)
+	lis 31,0x38e3
+	la 3,.LC32@l(3)
+	ori 31,31,36409
+	bl FindItem
+	lis 9,itemlist@ha
+	addi 29,29,748
+	la 28,itemlist@l(9)
+	subf 3,28,3
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,1
+	bc 4,1,.L81
+	lis 27,.LC33@ha
+	lwz 29,84(30)
+	la 3,.LC33@l(27)
+	bl FindItem
+	subf 3,28,3
+	addi 29,29,748
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L81
+	la 3,.LC33@l(27)
+	b .L83
+.L81:
+	lis 3,.LC32@ha
+	lwz 29,84(30)
+	lis 31,0x38e3
+	la 3,.LC32@l(3)
+	ori 31,31,36409
+	bl FindItem
+	lis 9,itemlist@ha
+	addi 29,29,748
+	la 28,itemlist@l(9)
+	subf 3,28,3
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L82
+	lis 27,.LC34@ha
+	lwz 29,84(30)
+	la 3,.LC34@l(27)
+	bl FindItem
+	subf 3,28,3
+	addi 29,29,748
+	mullw 3,3,31
+	srawi 3,3,3
+	slwi 3,3,2
+	lwzx 0,29,3
+	cmpwi 0,0,0
+	bc 12,2,.L82
+	la 3,.LC34@l(27)
+	b .L83
+.L82:
+	lis 3,.LC35@ha
+	la 3,.LC35@l(3)
+.L83:
+	bl FindItem
+	lwz 9,84(30)
+	stw 3,3648(9)
+	lwz 0,36(1)
+	mtlr 0
+	lmw 27,12(1)
+	la 1,32(1)
+	blr
+.Lfe6:
+	.size	 NoAmmoWeaponChange,.Lfe6-NoAmmoWeaponChange
+	.section	".rodata"
+	.align 2
+.LC36:
+	.string	"Airstrike intercepted en route.\n"
+	.align 2
+.LC37:
+	.string	"world/pilot1.wav"
+	.align 2
+.LC39:
+	.string	"world/pilot2.wav"
+	.align 2
+.LC41:
+	.string	"world/flyby1.wav"
+	.align 2
+.LC43:
+	.string	"Airstrike has arrived.\n"
+	.align 2
+.LC38:
+	.long 0x3f4ccccd
+	.align 2
+.LC40:
+	.long 0x3f666666
+	.align 2
+.LC42:
+	.long 0x3f333333
+	.align 3
+.LC44:
+	.long 0x43300000
+	.long 0x80000000
+	.align 2
+.LC45:
+	.long 0x46000000
+	.align 3
+.LC46:
+	.long 0x3ff00000
+	.long 0x0
+	.align 2
+.LC47:
+	.long 0x3f800000
+	.align 2
+.LC48:
+	.long 0x0
+	.align 2
+.LC49:
+	.long 0x43960000
+	.align 2
+.LC50:
+	.long 0x42800000
+	.align 2
+.LC51:
+	.long 0x43000000
+	.align 2
+.LC52:
+	.long 0x3f000000
+	.align 2
+.LC53:
+	.long 0x437a0000
+	.align 2
+.LC54:
+	.long 0x40900000
+	.align 2
+.LC55:
+	.long 0x40600000
+	.align 2
+.LC56:
+	.long 0x40200000
+	.section	".text"
+	.align 2
+	.globl Think_Airstrike
+	.type	 Think_Airstrike,@function
+Think_Airstrike:
+	stwu 1,-240(1)
+	mflr 0
+	stfd 30,224(1)
+	stfd 31,232(1)
+	stmw 28,208(1)
+	stw 0,244(1)
+	mr 31,3
+	lwz 0,784(31)
+	lis 11,0x4330
+	lis 10,.LC44@ha
+	la 10,.LC44@l(10)
+	lfs 13,12(31)
+	addi 29,1,24
+	xoris 0,0,0x8000
+	lfd 11,0(10)
+	addi 28,1,40
+	stw 0,204(1)
+	addi 30,1,56
+	li 6,0
+	stw 11,200(1)
+	mr 4,29
+	li 5,0
+	lfd 0,200(1)
+	lfs 10,4(31)
+	lfs 12,8(31)
+	fsub 0,0,11
+	lwz 3,84(31)
+	stfs 10,8(1)
+	stfs 12,12(1)
+	addi 3,3,3752
+	frsp 0,0
+	fadds 13,13,0
+	stfs 13,16(1)
+	bl AngleVectors
+	lis 9,.LC45@ha
+	addi 3,1,8
+	la 9,.LC45@l(9)
+	mr 4,29
+	lfs 1,0(9)
+	mr 5,28
+	bl VectorMA
+	lis 11,gi@ha
+	lis 9,0x600
+	la 29,gi@l(11)
+	addi 4,1,8
+	lwz 11,48(29)
+	addi 3,1,72
+	ori 9,9,27
+	mr 7,28
+	li 5,0
+	mtlr 11
+	li 6,0
+	mr 8,31
+	blrl
+	lwz 9,84(31)
+	mr 3,30
+	lfs 13,84(1)
+	lfs 0,3932(9)
+	lfs 12,88(1)
+	lfs 11,92(1)
+	fsubs 13,13,0
+	stfs 13,56(1)
+	lfs 0,3936(9)
+	fsubs 12,12,0
+	stfs 12,60(1)
+	lfs 0,3940(9)
+	fsubs 11,11,0
+	stfs 11,64(1)
+	bl VectorNormalize
+	lwz 11,84(31)
+	lis 9,0x600
+	addi 3,1,136
+	lfs 0,56(1)
+	ori 9,9,27
+	addi 4,1,8
+	lfs 13,3932(11)
+	li 5,0
+	li 6,0
+	lwz 10,48(29)
+	addi 7,1,84
+	mr 8,31
+	lfs 11,60(1)
+	fadds 13,13,0
+	lfs 12,64(1)
+	mtlr 10
+	stfs 13,8(1)
+	lfs 0,3936(11)
+	fadds 0,0,11
+	stfs 0,12(1)
+	lfs 13,3940(11)
+	fadds 13,13,12
+	stfs 13,16(1)
+	blrl
+	lwz 9,52(29)
+	addi 3,1,8
+	mtlr 9
+	blrl
+	cmpwi 0,3,1
+	bc 12,2,.L91
+	lfs 0,144(1)
+	lis 9,.LC46@ha
+	la 9,.LC46@l(9)
+	lfd 13,0(9)
+	fcmpu 0,0,13
+	bc 4,0,.L90
+.L91:
+	lwz 9,8(29)
+	lis 5,.LC36@ha
+	li 4,2
+	la 5,.LC36@l(5)
+	mr 3,31
+	mtlr 9
+	crxor 6,6,6
+	blrl
+	lwz 9,36(29)
+	lis 3,.LC37@ha
+	la 3,.LC37@l(3)
+	mtlr 9
+	blrl
+	lis 9,.LC38@ha
+	lwz 0,16(29)
+	lis 10,.LC48@ha
+	lfs 1,.LC38@l(9)
+	mr 5,3
+	la 10,.LC48@l(10)
+	lis 9,.LC47@ha
+	mr 3,31
+	lfs 3,0(10)
+	mtlr 0
+	la 9,.LC47@l(9)
+	li 4,3
+	lfs 2,0(9)
+	blrl
+	b .L89
+.L90:
+	lwz 9,36(29)
+	lis 3,.LC39@ha
+	la 3,.LC39@l(3)
+	mtlr 9
+	blrl
+	lis 9,.LC40@ha
+	lwz 11,16(29)
+	lis 10,.LC48@ha
+	lfs 1,.LC40@l(9)
+	mr 5,3
+	la 10,.LC48@l(10)
+	lis 9,.LC47@ha
+	lfs 3,0(10)
+	mtlr 11
+	li 4,3
+	la 9,.LC47@l(9)
+	mr 3,31
+	lfs 2,0(9)
+	blrl
+	lwz 9,36(29)
+	lis 3,.LC41@ha
+	la 3,.LC41@l(3)
+	mtlr 9
+	blrl
+	lis 9,.LC42@ha
+	lwz 11,16(29)
+	lis 10,.LC48@ha
+	lfs 1,.LC42@l(9)
+	mr 5,3
+	la 10,.LC48@l(10)
+	lis 9,.LC47@ha
+	mr 3,31
+	lfs 3,0(10)
+	mtlr 11
+	la 9,.LC47@l(9)
+	li 4,0
+	lfs 2,0(9)
+	blrl
+	lwz 9,84(31)
+	lwz 0,1840(9)
+	cmpwi 0,0,0
+	bc 4,2,.L92
+	lis 9,.LC49@ha
+	lis 10,.LC50@ha
+	la 9,.LC49@l(9)
+	la 10,.LC50@l(10)
+	lfs 1,0(9)
+	addi 4,1,8
+	mr 3,31
+	lfs 31,0(10)
+	mr 5,30
+	li 6,700
+	li 7,250
+	li 8,450
+	bl fire_rocket
+	lfs 0,12(1)
+	lis 10,.LC49@ha
+	lis 9,.LC51@ha
+	la 10,.LC49@l(10)
+	la 9,.LC51@l(9)
+	lfs 1,0(10)
+	addi 4,1,8
+	mr 3,31
+	fsubs 0,0,31
+	lfs 30,0(9)
+	mr 5,30
+	li 6,700
+	li 7,250
+	li 8,450
+	stfs 0,12(1)
+	bl fire_rocket
+	lfs 0,12(1)
+	lis 9,.LC49@ha
+	addi 4,1,8
+	la 9,.LC49@l(9)
+	mr 3,31
+	lfs 1,0(9)
+	mr 5,30
+	li 6,700
+	fadds 0,0,30
+	li 7,250
+	li 8,450
+	stfs 0,12(1)
+	bl fire_rocket
+	lfs 13,12(1)
+	lis 9,.LC49@ha
+	addi 4,1,8
+	lfs 0,16(1)
+	la 9,.LC49@l(9)
+	mr 3,31
+	lfs 1,0(9)
+	mr 5,30
+	li 6,700
+	fsubs 13,13,31
+	li 7,250
+	li 8,450
+	fsubs 0,0,31
+	stfs 13,12(1)
+	stfs 0,16(1)
+	bl fire_rocket
+	lfs 0,12(1)
+	lis 9,.LC49@ha
+	addi 4,1,8
+	la 9,.LC49@l(9)
+	mr 3,31
+	lfs 1,0(9)
+	mr 5,30
+	li 6,700
+	fsubs 0,0,31
+	li 7,250
+	li 8,450
+	stfs 0,12(1)
+	bl fire_rocket
+	lfs 0,12(1)
+	lis 9,.LC49@ha
+	mr 3,31
+	la 9,.LC49@l(9)
+	addi 4,1,8
+	lfs 1,0(9)
+	mr 5,30
+	li 6,700
+	fadds 0,0,30
+	li 7,250
+	li 8,450
+	stfs 0,12(1)
+	bl fire_rocket
+	lfs 13,12(1)
+	lis 9,.LC49@ha
+	mr 3,31
+	lfs 0,16(1)
+	la 9,.LC49@l(9)
+	addi 4,1,8
+	lfs 1,0(9)
+	mr 5,30
+	li 6,700
+	fsubs 13,13,31
+	li 7,250
+	li 8,450
+	fadds 0,0,30
+	stfs 13,12(1)
+	stfs 0,16(1)
+	bl fire_rocket
+.L92:
+	lwz 9,84(31)
+	lwz 0,1840(9)
+	cmpwi 0,0,1
+	bc 4,2,.L93
+	lis 9,.LC52@ha
+	lis 10,.LC53@ha
+	la 9,.LC52@l(9)
+	la 10,.LC53@l(10)
+	lfs 1,0(9)
+	addi 4,1,8
+	mr 3,31
+	lfs 2,0(10)
+	mr 5,30
+	li 6,150
+	li 7,600
+	bl fire_clustergrenade
+	lis 9,.LC50@ha
+	lfs 0,12(1)
+	lis 10,.LC52@ha
+	la 9,.LC50@l(9)
+	la 10,.LC52@l(10)
+	lfs 13,0(9)
+	mr 3,31
+	addi 4,1,8
+	lis 9,.LC53@ha
+	lfs 1,0(10)
+	mr 5,30
+	la 9,.LC53@l(9)
+	li 6,150
+	fsubs 0,0,13
+	lfs 2,0(9)
+	li 7,600
+	stfs 0,12(1)
+	bl fire_clustergrenade
+	lis 9,.LC51@ha
+	lfs 0,12(1)
+	lis 10,.LC52@ha
+	la 9,.LC51@l(9)
+	la 10,.LC52@l(10)
+	lfs 13,0(9)
+	mr 3,31
+	addi 4,1,8
+	lis 9,.LC53@ha
+	lfs 1,0(10)
+	mr 5,30
+	la 9,.LC53@l(9)
+	li 6,150
+	fadds 0,0,13
+	lfs 2,0(9)
+	li 7,600
+	stfs 0,12(1)
+	bl fire_clustergrenade
+.L93:
+	lwz 9,84(31)
+	lwz 0,1840(9)
+	cmpwi 0,0,2
+	bc 4,2,.L94
+	lis 9,.LC54@ha
+	lis 10,.LC53@ha
+	la 9,.LC54@l(9)
+	la 10,.LC53@l(10)
+	lfs 1,0(9)
+	addi 4,1,8
+	mr 3,31
+	lfs 2,0(10)
+	mr 5,30
+	li 6,150
+	li 7,300
+	bl fire_napalmgrenade
+	lis 9,.LC50@ha
+	lfs 0,12(1)
+	lis 10,.LC55@ha
+	la 9,.LC50@l(9)
+	la 10,.LC55@l(10)
+	lfs 13,0(9)
+	mr 3,31
+	addi 4,1,8
+	lis 9,.LC53@ha
+	lfs 1,0(10)
+	mr 5,30
+	la 9,.LC53@l(9)
+	li 6,150
+	fsubs 0,0,13
+	lfs 2,0(9)
+	li 7,300
+	stfs 0,12(1)
+	bl fire_clustergrenade
+	lis 9,.LC51@ha
+	lfs 0,12(1)
+	lis 10,.LC56@ha
+	la 9,.LC51@l(9)
+	la 10,.LC56@l(10)
+	lfs 13,0(9)
+	mr 5,30
+	mr 3,31
+	lis 9,.LC53@ha
+	lfs 1,0(10)
+	addi 4,1,8
+	la 9,.LC53@l(9)
+	li 6,150
+	fadds 0,0,13
+	lfs 2,0(9)
+	li 7,300
+	stfs 0,12(1)
+	bl fire_clustergrenade
+.L94:
+	lwz 0,8(29)
+	lis 5,.LC43@ha
+	mr 3,31
+	la 5,.LC43@l(5)
+	li 4,2
+	mtlr 0
+	crxor 6,6,6
+	blrl
+.L89:
+	lwz 0,244(1)
+	mtlr 0
+	lmw 28,208(1)
+	lfd 30,224(1)
+	lfd 31,232(1)
+	la 1,240(1)
+	blr
+.Lfe7:
+	.size	 Think_Airstrike,.Lfe7-Think_Airstrike
+	.section	".rodata"
+	.align 2
+.LC57:
+	.string	"No %s for %s.\n"
+	.align 2
+.LC58:
+	.string	"Not enough %s for %s.\n"
+	.align 2
+.LC59:
+	.string	"Can't drop current weapon\n"
+	.align 2
+.LC60:
+	.string	"items/damage3.wav"
+	.align 2
+.LC61:
+	.long 0x3f800000
+	.align 2
+.LC62:
+	.long 0x0
+	.align 3
+.LC63:
+	.long 0x43300000
+	.long 0x80000000
+	.section	".text"
+	.align 2
+	.type	 Weapon_Generic2,@function
+Weapon_Generic2:
+	stwu 1,-48(1)
+	mflr 0
+	stmw 26,24(1)
+	stw 0,52(1)
+	mr 31,3
+	mr 28,5
+	lwz 0,40(31)
+	mr 27,9
+	mr 26,10
+	cmpwi 0,0,255
+	bc 4,2,.L104
+	lwz 9,84(31)
+	lwz 5,3684(9)
+	mr 10,9
+	cmpwi 0,5,2
+	bc 4,2,.L106
+	lwz 0,92(10)
+	cmpw 0,0,7
+	bc 4,2,.L107
+	bl ChangeWeapon
+	b .L104
+.L107:
+	subf 0,0,7
+	cmpwi 0,0,4
+	bc 4,2,.L108
+	li 0,-1
+	stw 0,3864(10)
+	lwz 11,84(31)
+	lbz 0,16(11)
+	andi. 9,0,1
+	bc 12,2,.L110
+	li 0,173
+	li 9,169
+	b .L147
+.L110:
+	li 0,66
+	li 9,62
+.L147:
+	stw 0,56(31)
+	stw 9,3860(11)
+.L108:
+	lwz 11,84(31)
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	b .L104
+.L106:
+	cmpwi 0,5,1
+	bc 4,2,.L112
+	lwz 9,92(10)
+	cmpw 0,9,4
+	bc 4,2,.L113
+	li 0,0
+	addi 11,28,1
+	stw 0,3684(10)
+	lwz 9,84(31)
+	stw 11,92(9)
+	b .L104
+.L113:
+	addi 0,9,1
+	stw 0,92(10)
+	b .L104
+.L112:
+	lwz 0,3648(10)
+	cmpwi 0,0,0
+	bc 12,2,.L114
+	cmpwi 0,5,3
+	bc 12,2,.L114
+	li 0,2
+	addi 11,7,-1
+	stw 0,3684(10)
+	subf 11,6,11
+	lwz 9,84(31)
+	cmpwi 0,11,3
+	addi 0,6,1
+	stw 0,92(9)
+	bc 12,1,.L104
+	lwz 9,84(31)
+	li 0,-1
+	stw 0,3864(9)
+	lwz 11,84(31)
+	lbz 0,16(11)
+	andi. 9,0,1
+	bc 12,2,.L116
+	li 0,173
+	li 9,169
+	b .L148
+.L116:
+	li 0,66
+	li 9,62
+.L148:
+	stw 0,56(31)
+	stw 9,3860(11)
+	b .L104
+.L114:
+	lwz 0,3684(10)
+	cmpwi 0,0,0
+	bc 4,2,.L118
+	lwz 9,3640(10)
+	lwz 0,3632(10)
+	or 0,9,0
+	andi. 11,0,1
+	bc 12,2,.L119
+	rlwinm 0,9,0,0,30
+	stw 0,3640(10)
+	lwz 7,84(31)
+	lwz 11,3628(7)
+	cmpwi 0,11,0
+	bc 12,2,.L121
+	lwz 8,1848(7)
+	slwi 11,11,2
+	addi 9,7,748
+	lwzx 10,9,11
+	lwz 0,48(8)
+	cmpw 0,10,0
+	bc 12,0,.L120
+.L121:
+	addi 0,4,1
+	li 10,3
+	stw 0,92(7)
+	li 8,4
+	lwz 9,84(31)
+	stw 10,3684(9)
+	lwz 11,84(31)
+	stw 8,3864(11)
+	lwz 11,84(31)
+	lbz 0,16(11)
+	andi. 9,0,1
+	bc 12,2,.L122
+	li 0,159
+	li 9,168
+	b .L149
+.L122:
+	li 0,45
+	li 9,53
+.L149:
+	stw 0,56(31)
+	stw 9,3860(11)
+	b .L118
+.L120:
+	lis 9,level@ha
+	lfs 13,708(31)
+	la 30,level@l(9)
+	lfs 0,4(30)
+	fcmpu 0,0,13
+	cror 3,2,1
+	bc 4,3,.L125
+	lis 29,gi@ha
+	lis 3,.LC12@ha
+	la 29,gi@l(29)
+	la 3,.LC12@l(3)
+	lwz 9,36(29)
+	mtlr 9
+	blrl
+	lis 9,.LC61@ha
+	lwz 0,16(29)
+	lis 11,.LC61@ha
+	la 9,.LC61@l(9)
+	mr 5,3
+	lfs 1,0(9)
+	la 11,.LC61@l(11)
+	li 4,2
+	mtlr 0
+	lis 9,.LC62@ha
+	mr 3,31
+	lfs 2,0(11)
+	la 9,.LC62@l(9)
+	lfs 3,0(9)
+	blrl
+	lis 9,.LC61@ha
+	lfs 0,4(30)
+	la 9,.LC61@l(9)
+	lfs 13,0(9)
+	fadds 0,0,13
+	stfs 0,708(31)
+.L125:
+	mr 3,31
+	bl NoAmmoWeaponChange
+	b .L118
+.L119:
+	lwz 0,92(10)
+	cmpw 0,0,6
+	bc 4,2,.L127
+	addi 0,28,1
+	stw 0,92(10)
+	b .L104
+.L127:
+	cmpwi 0,8,0
+	bc 12,2,.L128
+	lwz 0,0(8)
+	cmpwi 0,0,0
+	bc 12,2,.L128
+	mr 29,8
+.L132:
+	lwz 9,92(10)
+	lwz 0,0(29)
+	cmpw 0,9,0
+	bc 4,2,.L131
+	bl rand
+	andi. 0,3,15
+	bc 4,2,.L104
+.L131:
+	lwzu 0,4(29)
+	lwz 10,84(31)
+	cmpwi 0,0,0
+	bc 4,2,.L132
+.L128:
+	lwz 9,92(10)
+	addi 9,9,1
+	stw 9,92(10)
+	b .L104
+.L118:
+	lwz 9,84(31)
+	lwz 0,3684(9)
+	mr 10,9
+	cmpwi 0,0,3
+	bc 4,2,.L104
+	lwz 0,0(27)
+	addi 28,28,2
+	li 30,0
+	cmpwi 0,0,0
+	bc 12,2,.L146
+	lis 9,gi@ha
+	lis 8,level@ha
+	la 29,gi@l(9)
+	lis 7,0x4330
+	lis 9,.LC63@ha
+	lis 3,.LC60@ha
+	la 9,.LC63@l(9)
+	mr 11,27
+	lfd 12,0(9)
+.L140:
+	lwz 9,92(10)
+	lwz 0,0(11)
+	cmpw 0,9,0
+	bc 4,2,.L139
+	lwz 0,level@l(8)
+	lfs 13,3876(10)
+	xoris 0,0,0x8000
+	stw 0,20(1)
+	stw 7,16(1)
+	lfd 0,16(1)
+	fsub 0,0,12
+	frsp 0,0
+	fcmpu 0,13,0
+	bc 4,1,.L142
+	lwz 9,36(29)
+	la 3,.LC60@l(3)
+	mtlr 9
+	blrl
+	lis 9,.LC61@ha
+	lwz 0,16(29)
+	lis 11,.LC61@ha
+	la 9,.LC61@l(9)
+	mr 5,3
+	lfs 1,0(9)
+	la 11,.LC61@l(11)
+	li 4,3
+	mtlr 0
+	lis 9,.LC62@ha
+	mr 3,31
+	lfs 2,0(11)
+	la 9,.LC62@l(9)
+	lfs 3,0(9)
+	blrl
+.L142:
+	mr 3,31
+	mtlr 26
+	blrl
+	b .L138
+.L139:
+	lwzu 0,4(11)
+	addi 30,30,1
+	cmpwi 0,0,0
+	bc 4,2,.L140
+.L138:
+	slwi 0,30,2
+	lwzx 9,27,0
+	cmpwi 0,9,0
+	bc 4,2,.L144
+.L146:
+	lwz 11,84(31)
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+.L144:
+	lwz 3,84(31)
+	lwz 0,92(3)
+	cmpw 0,0,28
+	bc 4,2,.L104
+	li 0,0
+	stw 0,3684(3)
+.L104:
+	lwz 0,52(1)
+	mtlr 0
+	lmw 26,24(1)
+	la 1,48(1)
+	blr
+.Lfe8:
+	.size	 Weapon_Generic2,.Lfe8-Weapon_Generic2
+	.section	".rodata"
+	.align 2
+.LC64:
+	.string	"Grapple"
+	.align 3
+.LC65:
+	.long 0x4064d555
+	.long 0x55555555
+	.align 3
+.LC66:
+	.long 0x43300000
+	.long 0x80000000
+	.align 3
+.LC67:
+	.long 0x40080000
+	.long 0x0
+	.align 3
+.LC68:
+	.long 0x40790000
+	.long 0x0
+	.align 2
+.LC69:
+	.long 0x44820000
+	.align 2
+.LC70:
+	.long 0x43250000
+	.align 3
+.LC71:
+	.long 0x3ff00000
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl weapon_grenade_fire
+	.type	 weapon_grenade_fire,@function
+weapon_grenade_fire:
+	stwu 1,-112(1)
+	mflr 0
+	stmw 28,96(1)
+	stw 0,116(1)
+	mr 31,3
+	lwz 9,784(31)
+	lis 6,0x4330
+	lis 10,.LC66@ha
+	la 10,.LC66@l(10)
+	lwz 3,84(31)
+	mr 30,4
+	addi 9,9,-8
+	lfd 13,0(10)
+	lis 7,0x4100
+	xoris 9,9,0x8000
+	lis 10,is_quad@ha
+	stw 7,12(1)
+	stw 9,92(1)
+	addi 4,1,24
+	addi 3,3,3752
+	stw 6,88(1)
+	mr 28,4
+	addi 5,1,40
+	lfd 0,88(1)
+	li 6,0
+	lwz 11,is_quad@l(10)
+	stw 7,8(1)
+	fsub 0,0,13
+	addic 11,11,-1
+	subfe 11,11,11
+	nor 0,11,11
+	andi. 11,11,125
+	andi. 0,0,500
+	frsp 0,0
+	or 29,11,0
+	stfs 0,16(1)
+	bl AngleVectors
+	lfs 0,8(1)
+	addi 9,1,8
+	addi 10,1,72
+	lwz 11,84(31)
+	addi 3,31,4
+	stfs 0,72(1)
+	lfs 13,4(9)
+	stfs 13,76(1)
+	lfs 0,8(9)
+	stfs 0,80(1)
+	lwz 0,1804(11)
+	cmpwi 0,0,2
+	bc 12,2,.L168
+	lwz 0,716(11)
+	cmpwi 0,0,1
+	bc 4,2,.L157
+	fneg 0,13
+	stfs 0,76(1)
+	b .L156
+.L157:
+	cmpwi 0,0,2
+	bc 4,2,.L156
+.L168:
+	li 0,0
+	stw 0,4(10)
+.L156:
+	addi 7,1,56
+	addi 4,1,72
+	addi 5,1,24
+	addi 6,1,40
+	bl G_ProjectSource
+	lwz 11,84(31)
+	lis 9,level+4@ha
+	lis 10,.LC67@ha
+	lfs 10,level+4@l(9)
+	la 10,.LC67@l(10)
+	lfs 13,3896(11)
+	lis 9,.LC68@ha
+	lfd 0,0(10)
+	la 9,.LC68@l(9)
+	lis 10,.LC65@ha
+	lfd 9,0(9)
+	fsubs 1,13,10
+	lfd 11,.LC65@l(10)
+	lwz 9,1832(11)
+	lwz 0,1804(11)
+	fmr 13,1
+	xori 9,9,4
+	subfic 10,9,0
+	adde 9,10,9
+	xori 0,0,4
+	subfic 11,0,0
+	adde 0,11,0
+	and. 10,0,9
+	fsub 0,0,13
+	fmadd 0,0,11,9
+	fctiwz 12,0
+	stfd 12,88(1)
+	lwz 7,92(1)
+	bc 12,2,.L161
+	lwz 0,920(31)
+	cmpwi 0,0,0
+	bc 4,2,.L162
+	lis 11,.LC69@ha
+	mr 5,28
+	la 11,.LC69@l(11)
+	mr 8,30
+	lfs 2,0(11)
+	mr 3,31
+	addi 4,1,56
+	li 6,1000
+	bl fire_detpack
+.L162:
+	li 0,1
+	stw 0,920(31)
+	b .L163
+.L161:
+	lis 9,.LC70@ha
+	mr 5,28
+	la 9,.LC70@l(9)
+	mr 6,29
+	lfs 2,0(9)
+	mr 8,30
+	mr 3,31
+	addi 4,1,56
+	bl fire_grenade2
+.L163:
+	lwz 9,84(31)
+	lbz 0,16(9)
+	andi. 10,0,1
+	bc 12,2,.L164
+	li 0,4
+	li 10,159
+	stw 0,3864(9)
+	li 11,162
+	b .L169
+.L164:
+	lwz 0,40(31)
+	cmpwi 0,0,255
+	bc 12,2,.L165
+	li 0,-1
+	li 10,119
+	stw 0,3864(9)
+	li 11,112
+.L169:
+	lwz 9,84(31)
+	stw 10,56(31)
+	stw 11,3860(9)
+.L165:
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,88(1)
+	lwz 11,92(1)
+	andi. 0,11,8192
+	bc 4,2,.L167
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-1
+	stwx 11,9,0
+.L167:
+	lis 9,level+4@ha
+	lis 10,.LC71@ha
+	lwz 11,84(31)
+	lfs 0,level+4@l(9)
+	la 10,.LC71@l(10)
+	lfd 13,0(10)
+	fadd 0,0,13
+	frsp 0,0
+	stfs 0,3896(11)
+	lwz 0,116(1)
+	mtlr 0
+	lmw 28,96(1)
+	la 1,112(1)
+	blr
+.Lfe9:
+	.size	 weapon_grenade_fire,.Lfe9-weapon_grenade_fire
+	.section	".rodata"
+	.align 2
+.LC72:
+	.string	"weapons/hgrena1b.wav"
+	.align 2
+.LC74:
+	.string	"weapons/hgrenc1b.wav"
+	.align 3
+.LC73:
+	.long 0x3fc99999
+	.long 0x9999999a
+	.align 2
+.LC75:
+	.long 0x3f800000
+	.align 2
+.LC76:
+	.long 0x0
+	.align 3
+.LC77:
+	.long 0x40080000
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl Weapon_Grenade
+	.type	 Weapon_Grenade,@function
+Weapon_Grenade:
+	stwu 1,-32(1)
+	mflr 0
+	stmw 29,20(1)
+	stw 0,36(1)
+	mr 31,3
+	lwz 9,84(31)
+	lwz 0,3648(9)
+	cmpwi 0,0,0
+	bc 12,2,.L171
+	lwz 0,3684(9)
+	cmpwi 0,0,0
+	bc 4,2,.L171
+	bl ChangeWeapon
+	b .L170
+.L171:
+	lwz 9,84(31)
+	lwz 0,3684(9)
+	cmpwi 0,0,1
+	bc 4,2,.L172
+	li 0,0
+	li 11,16
+	stw 0,3684(9)
+	lwz 9,84(31)
+	stw 11,92(9)
+	b .L170
+.L172:
+	cmpwi 0,0,0
+	bc 4,2,.L173
+	lwz 11,3640(9)
+	lwz 0,3632(9)
+	or 0,11,0
+	andi. 10,0,1
+	bc 12,2,.L174
+	rlwinm 0,11,0,0,30
+	stw 0,3640(9)
+	lwz 8,84(31)
+	lwz 0,3628(8)
+	addi 11,8,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	cmpwi 0,9,0
+	bc 12,2,.L175
+	li 0,1
+	li 10,3
+	stw 0,92(8)
+	lwz 9,84(31)
+	li 8,0
+	stw 10,3684(9)
+	lwz 11,84(31)
+	stw 8,3896(11)
+	b .L170
+.L175:
+	lis 9,level@ha
+	lfs 13,708(31)
+	la 30,level@l(9)
+	lfs 0,4(30)
+	fcmpu 0,0,13
+	cror 3,2,1
+	bc 4,3,.L177
+	lis 29,gi@ha
+	lis 3,.LC12@ha
+	la 29,gi@l(29)
+	la 3,.LC12@l(3)
+	lwz 9,36(29)
+	mtlr 9
+	blrl
+	lwz 0,16(29)
+	lis 9,.LC75@ha
+	lis 10,.LC75@ha
+	lis 11,.LC76@ha
+	la 9,.LC75@l(9)
+	mr 5,3
+	la 10,.LC75@l(10)
+	lfs 1,0(9)
+	mtlr 0
+	la 11,.LC76@l(11)
+	li 4,2
+	lfs 2,0(10)
+	mr 3,31
+	lfs 3,0(11)
+	blrl
+	lis 9,.LC75@ha
+	lfs 0,4(30)
+	la 9,.LC75@l(9)
+	lfs 13,0(9)
+	fadds 0,0,13
+	stfs 0,708(31)
+.L177:
+	mr 3,31
+	bl NoAmmoWeaponChange
+	b .L170
+.L174:
+	lwz 11,92(9)
+	xori 9,11,29
+	subfic 0,9,0
+	adde 9,0,9
+	xori 0,11,34
+	subfic 10,0,0
+	adde 0,10,0
+	or. 10,9,0
+	bc 4,2,.L179
+	cmpwi 0,11,39
+	bc 12,2,.L179
+	cmpwi 0,11,48
+	bc 4,2,.L178
+.L179:
+	bl rand
+	andi. 0,3,15
+	bc 4,2,.L170
+.L178:
+	lwz 11,84(31)
+	lwz 9,92(11)
+	addi 9,9,1
+	cmpwi 0,9,48
+	stw 9,92(11)
+	bc 4,1,.L170
+	lwz 9,84(31)
+	li 0,16
+	stw 0,92(9)
+	b .L170
+.L173:
+	cmpwi 0,0,3
+	bc 4,2,.L170
+	lwz 0,92(9)
+	cmpwi 0,0,5
+	bc 4,2,.L183
+	lis 29,gi@ha
+	lis 3,.LC72@ha
+	la 29,gi@l(29)
+	la 3,.LC72@l(3)
+	lwz 9,36(29)
+	mtlr 9
+	blrl
+	lwz 0,16(29)
+	lis 9,.LC75@ha
+	lis 10,.LC75@ha
+	lis 11,.LC76@ha
+	mr 5,3
+	la 9,.LC75@l(9)
+	la 10,.LC75@l(10)
+	mtlr 0
+	la 11,.LC76@l(11)
+	li 4,1
+	lfs 1,0(9)
+	mr 3,31
+	lfs 2,0(10)
+	lfs 3,0(11)
+	blrl
+.L183:
+	lwz 10,84(31)
+	lwz 0,92(10)
+	cmpwi 0,0,11
+	bc 4,2,.L184
+	lis 9,.LC76@ha
+	lfs 13,3896(10)
+	la 9,.LC76@l(9)
+	lfs 0,0(9)
+	fcmpu 0,13,0
+	bc 4,2,.L185
+	lis 9,level+4@ha
+	lis 11,.LC77@ha
+	lfs 0,level+4@l(9)
+	la 11,.LC77@l(11)
+	lis 3,.LC74@ha
+	lfd 12,0(11)
+	lis 9,gi+36@ha
+	la 3,.LC74@l(3)
+	lis 11,.LC73@ha
+	lfd 13,.LC73@l(11)
+	fadd 0,0,12
+	fadd 0,0,13
+	frsp 0,0
+	stfs 0,3896(10)
+	lwz 0,gi+36@l(9)
+	mtlr 0
+	blrl
+	lwz 9,84(31)
+	stw 3,3904(9)
+.L185:
+	lwz 11,84(31)
+	lwz 0,3892(11)
+	cmpwi 0,0,0
+	bc 4,2,.L186
+	lis 9,level+4@ha
+	lfs 13,3896(11)
+	lfs 0,level+4@l(9)
+	fcmpu 0,0,13
+	cror 3,2,1
+	bc 4,3,.L186
+	stw 0,3904(11)
+	mr 3,31
+	li 4,1
+	bl weapon_grenade_fire
+	lwz 9,84(31)
+	li 0,1
+	stw 0,3892(9)
+.L186:
+	lwz 11,84(31)
+	lwz 0,3632(11)
+	andi. 10,0,1
+	bc 4,2,.L170
+	lwz 0,3892(11)
+	cmpwi 0,0,0
+	bc 12,2,.L184
+	lis 9,level+4@ha
+	lfs 13,3896(11)
+	lfs 0,level+4@l(9)
+	fcmpu 0,0,13
+	cror 3,2,1
+	bc 4,3,.L170
+	li 0,15
+	stw 0,92(11)
+	lwz 9,84(31)
+	stw 10,3892(9)
+.L184:
+	lwz 9,84(31)
+	lwz 0,92(9)
+	cmpwi 0,0,12
+	bc 4,2,.L191
+	li 0,0
+	mr 3,31
+	stw 0,3904(9)
+	li 4,0
+	bl weapon_grenade_fire
+.L191:
+	lwz 11,84(31)
+	lwz 10,92(11)
+	cmpwi 0,10,15
+	bc 4,2,.L192
+	lis 9,level+4@ha
+	lfs 13,3896(11)
+	lfs 0,level+4@l(9)
+	fcmpu 0,0,13
+	bc 12,0,.L170
+.L192:
+	addi 0,10,1
+	stw 0,92(11)
+	lwz 9,84(31)
+	lwz 0,92(9)
+	cmpwi 0,0,16
+	bc 4,2,.L170
+	li 0,0
+	li 11,0
+	stw 0,3896(9)
+	lwz 9,84(31)
+	stw 11,3684(9)
+.L170:
+	lwz 0,36(1)
+	mtlr 0
+	lmw 29,20(1)
+	la 1,32(1)
+	blr
+.Lfe10:
+	.size	 Weapon_Grenade,.Lfe10-Weapon_Grenade
+	.section	".rodata"
+	.align 3
+.LC78:
+	.long 0x43300000
+	.long 0x80000000
+	.align 2
+.LC79:
+	.long 0xc0000000
+	.align 2
+.LC80:
+	.long 0x43200000
+	.align 2
+.LC81:
+	.long 0x40200000
+	.section	".text"
+	.align 2
+	.globl weapon_grenadelauncher_fire
+	.type	 weapon_grenadelauncher_fire,@function
+weapon_grenadelauncher_fire:
+	stwu 1,-112(1)
+	mflr 0
+	stmw 28,96(1)
+	stw 0,116(1)
+	mr 31,3
+	lwz 9,784(31)
+	lis 6,0x4330
+	lis 11,.LC78@ha
+	la 11,.LC78@l(11)
+	lis 10,is_quad@ha
+	lwz 3,84(31)
+	addi 9,9,-8
+	lfd 13,0(11)
+	lis 7,0x4100
+	xoris 9,9,0x8000
+	lwz 11,is_quad@l(10)
+	addi 4,1,24
+	stw 9,92(1)
+	addi 3,3,3752
+	mr 30,4
+	stw 6,88(1)
+	addic 11,11,-1
+	subfe 11,11,11
+	addi 5,1,40
+	lfd 0,88(1)
+	nor 0,11,11
+	li 6,0
+	rlwinm 11,11,0,25,28
+	rlwinm 0,0,0,23,26
+	stw 7,12(1)
+	or 29,11,0
+	stw 7,8(1)
+	fsub 0,0,13
+	frsp 0,0
+	stfs 0,16(1)
+	bl AngleVectors
+	lfs 0,8(1)
+	addi 9,1,8
+	addi 10,1,72
+	lwz 11,84(31)
+	addi 3,31,4
+	stfs 0,72(1)
+	lfs 13,4(9)
+	stfs 13,76(1)
+	lfs 0,8(9)
+	stfs 0,80(1)
+	lwz 0,1804(11)
+	cmpwi 0,0,2
+	bc 12,2,.L205
+	lwz 0,716(11)
+	cmpwi 0,0,1
+	bc 4,2,.L198
+	fneg 0,13
+	stfs 0,76(1)
+	b .L197
+.L198:
+	cmpwi 0,0,2
+	bc 4,2,.L197
+.L205:
+	li 0,0
+	stw 0,4(10)
+.L197:
+	addi 7,1,56
+	addi 4,1,72
+	addi 5,1,24
+	addi 6,1,40
+	mr 28,7
+	bl G_ProjectSource
+	lis 9,.LC79@ha
+	lwz 4,84(31)
+	mr 3,30
+	la 9,.LC79@l(9)
+	lfs 1,0(9)
+	addi 4,4,3700
+	bl VectorScale
+	lis 9,.LC80@ha
+	lis 11,.LC81@ha
+	la 9,.LC80@l(9)
+	la 11,.LC81@l(11)
+	lfs 2,0(9)
+	lis 0,0xbf80
+	mr 6,29
+	lfs 1,0(11)
+	mr 5,30
+	li 7,600
+	lwz 9,84(31)
+	mr 4,28
+	mr 3,31
+	stw 0,3688(9)
+	bl fire_grenade
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	ori 3,3,8
+	blrl
+	lwz 0,88(29)
+	addi 3,31,4
+	li 4,2
+	mtlr 0
+	blrl
+	lwz 11,84(31)
+	mr 4,28
+	mr 3,31
+	li 5,1
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	bl PlayerNoise
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,88(1)
+	lwz 11,92(1)
+	andi. 0,11,8192
+	bc 4,2,.L202
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-1
+	stwx 11,9,0
+.L202:
+	lwz 11,84(31)
+	lwz 0,1832(11)
+	cmpwi 0,0,1
+	bc 4,2,.L203
+	lwz 0,3628(11)
+	addi 11,11,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	addi 9,9,-4
+	stwx 9,11,0
+.L203:
+	lwz 3,84(31)
+	lwz 0,1832(3)
+	cmpwi 0,0,2
+	bc 4,2,.L204
+	lwz 0,3628(3)
+	addi 11,3,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	addi 9,9,-9
+	stwx 9,11,0
+.L204:
+	lwz 0,116(1)
+	mtlr 0
+	lmw 28,96(1)
+	la 1,112(1)
+	blr
+.Lfe11:
+	.size	 weapon_grenadelauncher_fire,.Lfe11-weapon_grenadelauncher_fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.68,@object
+pause_frames.68:
+	.long 34
+	.long 51
+	.long 59
+	.long 0
+	.align 2
+	.type	 fire_frames.69,@object
+fire_frames.69:
+	.long 6
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC82:
+	.long 0x46fffe00
+	.align 3
+.LC83:
+	.long 0x43300000
+	.long 0x80000000
+	.align 3
+.LC84:
+	.long 0x40340000
+	.long 0x0
+	.align 2
+.LC85:
+	.long 0xc0000000
+	.align 2
+.LC86:
+	.long 0x42f00000
+	.section	".text"
+	.align 2
+	.globl Weapon_RocketLauncher_Fire
+	.type	 Weapon_RocketLauncher_Fire,@function
+Weapon_RocketLauncher_Fire:
+	stwu 1,-144(1)
+	mflr 0
+	stfd 31,136(1)
+	stmw 25,108(1)
+	stw 0,148(1)
+	mr 31,3
+	lis 28,0x4330
+	bl rand
+	li 26,120
+	lis 9,.LC83@ha
+	rlwinm 3,3,0,17,31
+	la 9,.LC83@l(9)
+	xoris 3,3,0x8000
+	lfd 31,0(9)
+	lis 8,.LC82@ha
+	lis 11,.LC84@ha
+	lfs 11,.LC82@l(8)
+	la 11,.LC84@l(11)
+	stw 3,100(1)
+	lis 10,is_quad@ha
+	stw 28,96(1)
+	lfd 13,96(1)
+	lfd 10,0(11)
+	mr 11,9
+	lwz 0,is_quad@l(10)
+	fsub 13,13,31
+	cmpwi 0,0,0
+	frsp 13,13
+	fdivs 13,13,11
+	fmr 0,13
+	fmul 0,0,10
+	fctiwz 12,0
+	stfd 12,96(1)
+	lwz 11,100(1)
+	addi 30,11,100
+	bc 12,2,.L211
+	slwi 30,30,2
+	li 26,480
+.L211:
+	lwz 3,84(31)
+	addi 29,1,40
+	addi 5,1,56
+	mr 4,29
+	li 6,0
+	addi 3,3,3752
+	mr 25,29
+	bl AngleVectors
+	lis 9,.LC85@ha
+	lwz 4,84(31)
+	mr 3,29
+	la 9,.LC85@l(9)
+	lfs 1,0(9)
+	addi 4,4,3700
+	bl VectorScale
+	lwz 9,84(31)
+	lis 0,0xbf80
+	addi 10,1,8
+	addi 3,31,4
+	stw 0,3688(9)
+	addi 7,1,72
+	mr 27,3
+	lwz 9,784(31)
+	lis 0,0x4100
+	lwz 8,84(31)
+	addi 9,9,-8
+	stw 0,72(1)
+	xoris 9,9,0x8000
+	stw 0,8(1)
+	stw 9,100(1)
+	stw 28,96(1)
+	lfd 0,96(1)
+	stw 0,12(1)
+	fsub 0,0,31
+	frsp 0,0
+	stfs 0,16(1)
+	lfs 13,4(10)
+	stfs 13,76(1)
+	lfs 0,8(10)
+	stfs 0,80(1)
+	lwz 0,1804(8)
+	cmpwi 0,0,2
+	bc 12,2,.L222
+	lwz 0,716(8)
+	cmpwi 0,0,1
+	bc 4,2,.L214
+	fneg 0,13
+	stfs 0,76(1)
+	b .L213
+.L214:
+	cmpwi 0,0,2
+	bc 4,2,.L213
+.L222:
+	li 0,0
+	stw 0,4(7)
+.L213:
+	addi 7,1,24
+	addi 4,1,72
+	addi 5,1,40
+	addi 6,1,56
+	mr 28,7
+	bl G_ProjectSource
+	lis 9,.LC86@ha
+	mr 8,26
+	la 9,.LC86@l(9)
+	mr 5,25
+	lfs 1,0(9)
+	mr 6,30
+	li 7,1000
+	mr 4,28
+	mr 3,31
+	bl fire_rocket
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	ori 3,3,7
+	blrl
+	lwz 0,88(29)
+	mr 3,27
+	li 4,2
+	mtlr 0
+	blrl
+	lwz 11,84(31)
+	mr 4,28
+	mr 3,31
+	li 5,1
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	bl PlayerNoise
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,96(1)
+	lwz 11,100(1)
+	andi. 0,11,8192
+	bc 4,2,.L218
+	lwz 11,84(31)
+	lwz 0,1832(11)
+	cmpwi 0,0,2
+	bc 4,2,.L218
+	lwz 0,1804(11)
+	cmpwi 0,0,3
+	bc 4,2,.L218
+	lwz 0,3628(11)
+	addi 11,11,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	addi 9,9,-4
+	stwx 9,11,0
+.L218:
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,96(1)
+	lwz 11,100(1)
+	andi. 9,11,8192
+	bc 4,2,.L221
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-1
+	stwx 11,9,0
+.L221:
+	lwz 0,148(1)
+	mtlr 0
+	lmw 25,108(1)
+	lfd 31,136(1)
+	la 1,144(1)
+	blr
+.Lfe12:
+	.size	 Weapon_RocketLauncher_Fire,.Lfe12-Weapon_RocketLauncher_Fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.76,@object
+pause_frames.76:
+	.long 25
+	.long 33
+	.long 42
+	.long 50
+	.long 0
+	.align 2
+	.type	 fire_frames.77,@object
+fire_frames.77:
+	.long 5
+	.long 0
+	.section	".rodata"
+	.align 3
+.LC87:
+	.long 0x43300000
+	.long 0x80000000
+	.align 2
+.LC88:
+	.long 0x41c00000
+	.align 2
+.LC89:
+	.long 0x41000000
+	.align 2
+.LC90:
+	.long 0xc0000000
+	.section	".text"
+	.align 2
+	.globl Blaster_Fire
+	.type	 Blaster_Fire,@function
+Blaster_Fire:
+	stwu 1,-128(1)
+	mflr 0
+	stmw 26,104(1)
+	stw 0,132(1)
+	lis 11,is_quad@ha
+	mr 31,3
+	lwz 9,is_quad@l(11)
+	slwi 0,5,2
+	mr 29,4
+	lwz 3,84(31)
+	mr 30,6
+	mr 28,7
+	addic 9,9,-1
+	subfe 9,9,9
+	addi 4,1,8
+	andc 0,0,9
+	and 5,5,9
+	or 27,5,0
+	addi 3,3,3752
+	addi 5,1,24
+	li 6,0
+	bl AngleVectors
+	lis 7,.LC87@ha
+	lwz 9,784(31)
+	la 7,.LC87@l(7)
+	lfs 13,0(29)
+	lis 0,0x4330
+	lfd 10,0(7)
+	addi 9,9,-8
+	addi 8,1,72
+	lis 7,.LC88@ha
+	xoris 9,9,0x8000
+	lfs 9,8(29)
+	la 7,.LC88@l(7)
+	stw 9,100(1)
+	addi 3,31,4
+	lfs 0,0(7)
+	stw 0,96(1)
+	lis 7,.LC89@ha
+	la 7,.LC89@l(7)
+	lfs 11,4(29)
+	fadds 13,13,0
+	lfs 12,0(7)
+	lfd 0,96(1)
+	lwz 10,84(31)
+	fadds 11,11,12
+	stfs 13,72(1)
+	fsub 0,0,10
+	stfs 13,56(1)
+	stfs 11,60(1)
+	frsp 0,0
+	stfs 11,76(1)
+	fadds 0,0,9
+	stfs 0,80(1)
+	stfs 0,64(1)
+	lwz 0,1804(10)
+	cmpwi 0,0,2
+	bc 12,2,.L237
+	lwz 0,716(10)
+	cmpwi 0,0,1
+	bc 4,2,.L231
+	fneg 0,11
+	stfs 0,76(1)
+	b .L230
+.L231:
+	cmpwi 0,0,2
+	bc 4,2,.L230
+.L237:
+	li 0,0
+	stw 0,4(8)
+.L230:
+	addi 7,1,40
+	addi 4,1,72
+	addi 5,1,8
+	addi 6,1,24
+	mr 29,7
+	bl G_ProjectSource
+	mr 26,29
+	lis 7,.LC90@ha
+	lwz 4,84(31)
+	addi 3,1,8
+	la 7,.LC90@l(7)
+	lfs 1,0(7)
+	addi 4,4,3700
+	bl VectorScale
+	lwz 11,84(31)
+	lis 0,0xbf80
+	mr 9,30
+	mr 4,29
+	mr 8,28
+	stw 0,3688(11)
+	mr 6,27
+	addi 5,1,8
+	li 7,1000
+	mr 3,31
+	bl fire_blaster
+	lis 9,gi@ha
+	li 3,1
+	la 29,gi@l(9)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	cmpwi 0,30,0
+	bc 12,2,.L235
+	lis 9,is_silenced@ha
+	lwz 0,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 0
+	ori 3,3,14
+	blrl
+	b .L236
+.L235:
+	lwz 0,100(29)
+	lis 9,is_silenced@ha
+	lbz 3,is_silenced@l(9)
+	mtlr 0
+	blrl
+.L236:
+	lis 9,gi+88@ha
+	addi 3,31,4
+	lwz 0,gi+88@l(9)
+	li 4,2
+	mtlr 0
+	blrl
+	mr 3,31
+	mr 4,26
+	li 5,1
+	bl PlayerNoise
+	lwz 0,132(1)
+	mtlr 0
+	lmw 26,104(1)
+	la 1,128(1)
+	blr
+.Lfe13:
+	.size	 Blaster_Fire,.Lfe13-Blaster_Fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.87,@object
+pause_frames.87:
+	.long 19
+	.long 32
+	.long 0
+	.align 2
+	.type	 fire_frames.88,@object
+fire_frames.88:
+	.long 5
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC91:
+	.string	"weapons/hyprbl1a.wav"
+	.align 2
+.LC93:
+	.string	"weapons/hyprbd1a.wav"
+	.align 3
+.LC92:
+	.long 0x400921fb
+	.long 0x54442d18
+	.align 2
+.LC94:
+	.long 0x3f800000
+	.align 2
+.LC95:
+	.long 0x0
+	.align 3
+.LC96:
+	.long 0x43300000
+	.long 0x80000000
+	.align 3
+.LC97:
+	.long 0x40180000
+	.long 0x0
+	.align 3
+.LC98:
+	.long 0xc0100000
+	.long 0x0
+	.align 3
+.LC99:
+	.long 0x40100000
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl Weapon_HyperBlaster_Fire
+	.type	 Weapon_HyperBlaster_Fire,@function
+Weapon_HyperBlaster_Fire:
+	stwu 1,-80(1)
+	mflr 0
+	stfd 30,64(1)
+	stfd 31,72(1)
+	stmw 29,52(1)
+	stw 0,84(1)
+	lis 9,gi@ha
+	mr 31,3
+	la 29,gi@l(9)
+	lis 3,.LC91@ha
+	lwz 9,36(29)
+	la 3,.LC91@l(3)
+	mtlr 9
+	blrl
+	lwz 9,84(31)
+	stw 3,3904(9)
+	lwz 10,84(31)
+	lwz 0,3632(10)
+	andi. 9,0,1
+	bc 4,2,.L246
+	lwz 9,92(10)
+	addi 9,9,1
+	stw 9,92(10)
+	b .L247
+.L246:
+	lwz 0,3628(10)
+	addi 11,10,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	cmpwi 0,9,0
+	bc 4,2,.L248
+	lis 9,level@ha
+	lfs 13,708(31)
+	la 30,level@l(9)
+	lfs 0,4(30)
+	fcmpu 0,0,13
+	cror 3,2,1
+	bc 4,3,.L249
+	lwz 9,36(29)
+	lis 3,.LC12@ha
+	la 3,.LC12@l(3)
+	mtlr 9
+	blrl
+	lis 9,.LC94@ha
+	lwz 0,16(29)
+	lis 11,.LC94@ha
+	la 9,.LC94@l(9)
+	mr 5,3
+	lfs 1,0(9)
+	la 11,.LC94@l(11)
+	li 4,2
+	mtlr 0
+	lis 9,.LC95@ha
+	mr 3,31
+	lfs 2,0(11)
+	la 9,.LC95@l(9)
+	lfs 3,0(9)
+	blrl
+	lis 9,.LC94@ha
+	lfs 0,4(30)
+	la 9,.LC94@l(9)
+	lfs 13,0(9)
+	fadds 0,0,13
+	stfs 0,708(31)
+.L249:
+	mr 3,31
+	bl NoAmmoWeaponChange
+	b .L250
+.L248:
+	lwz 9,92(10)
+	lis 0,0x4330
+	lis 11,.LC96@ha
+	la 11,.LC96@l(11)
+	addi 9,9,-5
+	lfd 11,0(11)
+	add 9,9,9
+	lis 11,.LC92@ha
+	xoris 9,9,0x8000
+	lfd 13,.LC92@l(11)
+	stw 9,44(1)
+	lis 11,.LC97@ha
+	stw 0,40(1)
+	la 11,.LC97@l(11)
+	lfd 0,40(1)
+	lfd 12,0(11)
+	lis 11,.LC95@ha
+	fsub 0,0,11
+	la 11,.LC95@l(11)
+	lfs 30,0(11)
+	fmul 0,0,13
+	fdiv 0,0,12
+	frsp 0,0
+	fmr 31,0
+	fmr 1,31
+	bl sin
+	lis 9,.LC98@ha
+	stfs 30,12(1)
+	la 9,.LC98@l(9)
+	lfd 13,0(9)
+	fmul 0,1,13
+	fmr 1,31
+	frsp 0,0
+	stfs 0,8(1)
+	bl cos
+	lis 9,.LC99@ha
+	lwz 10,84(31)
+	mr 3,31
+	la 9,.LC99@l(9)
+	addi 4,1,8
+	lfd 0,0(9)
+	li 6,1
+	lis 9,deathmatch@ha
+	lwz 11,deathmatch@l(9)
+	fmul 1,1,0
+	frsp 1,1
+	stfs 1,16(1)
+	lfs 0,20(11)
+	lwz 7,92(10)
+	fcmpu 7,0,30
+	xori 0,7,9
+	subfic 11,0,0
+	adde 0,11,0
+	xori 7,7,6
+	subfic 9,7,0
+	adde 7,9,7
+	or 7,7,0
+	slwi 7,7,6
+	mfcr 5
+	rlwinm 5,5,31,1
+	neg 5,5
+	nor 0,5,5
+	andi. 0,0,5
+	andi. 5,5,10
+	or 5,5,0
+	bl Blaster_Fire
+	lwz 9,84(31)
+	li 0,4
+	stw 0,3864(9)
+	lwz 11,84(31)
+	lbz 0,16(11)
+	andi. 9,0,1
+	bc 12,2,.L255
+	li 0,159
+	li 9,168
+	b .L260
+.L255:
+	li 0,45
+	li 9,53
+.L260:
+	stw 0,56(31)
+	stw 9,3860(11)
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,40(1)
+	lwz 11,44(1)
+	andi. 0,11,8192
+	bc 4,2,.L250
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-1
+	stwx 11,9,0
+.L250:
+	lwz 9,84(31)
+	lwz 11,92(9)
+	addi 11,11,1
+	stw 11,92(9)
+	lwz 10,84(31)
+	lwz 0,92(10)
+	cmpwi 0,0,12
+	bc 4,2,.L259
+	lwz 0,3628(10)
+	addi 11,10,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	cmpwi 0,9,0
+	bc 12,2,.L247
+	li 0,6
+	stw 0,92(10)
+.L247:
+	lwz 9,84(31)
+	lwz 0,92(9)
+	cmpwi 0,0,12
+	bc 4,2,.L259
+	lis 29,gi@ha
+	lis 3,.LC93@ha
+	la 29,gi@l(29)
+	la 3,.LC93@l(3)
+	lwz 9,36(29)
+	mtlr 9
+	blrl
+	lis 9,.LC94@ha
+	lwz 0,16(29)
+	lis 11,.LC94@ha
+	la 9,.LC94@l(9)
+	mr 5,3
+	lfs 1,0(9)
+	la 11,.LC94@l(11)
+	mtlr 0
+	li 4,0
+	lis 9,.LC95@ha
+	mr 3,31
+	lfs 2,0(11)
+	la 9,.LC95@l(9)
+	lfs 3,0(9)
+	blrl
+	lwz 9,84(31)
+	li 0,0
+	stw 0,3904(9)
+.L259:
+	lwz 0,84(1)
+	mtlr 0
+	lmw 29,52(1)
+	lfd 30,64(1)
+	lfd 31,72(1)
+	la 1,80(1)
+	blr
+.Lfe14:
+	.size	 Weapon_HyperBlaster_Fire,.Lfe14-Weapon_HyperBlaster_Fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.95,@object
+pause_frames.95:
+	.long 0
+	.align 2
+	.type	 fire_frames.96,@object
+fire_frames.96:
+	.long 6
+	.long 7
+	.long 8
+	.long 9
+	.long 10
+	.long 11
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC100:
+	.long 0x46fffe00
+	.align 3
+.LC101:
+	.long 0x3fd66666
+	.long 0x66666666
+	.align 3
+.LC102:
+	.long 0x3fe66666
+	.long 0x66666666
+	.align 2
+.LC103:
+	.long 0x3f800000
+	.align 2
+.LC104:
+	.long 0x0
+	.align 3
+.LC105:
+	.long 0x43300000
+	.long 0x80000000
+	.align 3
+.LC106:
+	.long 0x3fe00000
+	.long 0x0
+	.align 3
+.LC107:
+	.long 0xbff80000
+	.long 0x0
+	.align 2
+.LC108:
+	.long 0x42480000
+	.align 2
+.LC109:
+	.long 0xc2480000
+	.section	".text"
+	.align 2
+	.globl Machinegun_Fire
+	.type	 Machinegun_Fire,@function
+Machinegun_Fire:
+	stwu 1,-224(1)
+	mflr 0
+	stfd 27,184(1)
+	stfd 28,192(1)
+	stfd 29,200(1)
+	stfd 30,208(1)
+	stfd 31,216(1)
+	stmw 19,132(1)
+	stw 0,228(1)
+	mr 31,3
+	li 26,4
+	lwz 9,84(31)
+	li 25,2
+	lwz 0,3632(9)
+	andi. 0,0,1
+	bc 4,2,.L266
+	stw 0,3856(9)
+	lwz 11,84(31)
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	b .L265
+.L266:
+	lwz 0,92(9)
+	cmpwi 0,0,5
+	bc 4,2,.L267
+	stw 26,92(9)
+	b .L268
+.L267:
+	li 0,5
+	stw 0,92(9)
+.L268:
+	lwz 10,84(31)
+	lwz 0,3628(10)
+	addi 11,10,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	cmpwi 0,9,0
+	bc 12,1,.L269
+	li 0,6
+	lis 9,level@ha
+	stw 0,92(10)
+	la 30,level@l(9)
+	lfs 13,4(30)
+	lfs 0,708(31)
+	fcmpu 0,13,0
+	cror 3,2,1
+	bc 4,3,.L270
+	lis 29,gi@ha
+	lis 3,.LC12@ha
+	la 29,gi@l(29)
+	la 3,.LC12@l(3)
+	lwz 9,36(29)
+	mtlr 9
+	blrl
+	lwz 0,16(29)
+	lis 6,.LC103@ha
+	lis 9,.LC103@ha
+	lis 10,.LC104@ha
+	la 6,.LC103@l(6)
+	mr 5,3
+	la 9,.LC103@l(9)
+	lfs 1,0(6)
+	mtlr 0
+	la 10,.LC104@l(10)
+	li 4,2
+	lfs 2,0(9)
+	mr 3,31
+	lfs 3,0(10)
+	blrl
+	lis 6,.LC103@ha
+	lfs 0,4(30)
+	la 6,.LC103@l(6)
+	lfs 13,0(6)
+	fadds 0,0,13
+	stfs 0,708(31)
+.L270:
+	mr 3,31
+	bl NoAmmoWeaponChange
+	b .L265
+.L269:
+	lis 9,is_quad@ha
+	lwz 0,is_quad@l(9)
+	cmpwi 0,0,0
+	bc 12,2,.L271
+	slwi 26,26,2
+	slwi 25,25,2
+.L271:
+	lis 9,.LC100@ha
+	lis 6,.LC105@ha
+	lfs 29,.LC100@l(9)
+	lis 11,.LC101@ha
+	lis 10,.LC102@ha
+	lis 9,.LC106@ha
+	la 6,.LC105@l(6)
+	lfd 27,.LC101@l(11)
+	la 9,.LC106@l(9)
+	lfd 28,.LC102@l(10)
+	addi 22,1,56
+	lfd 30,0(6)
+	addi 27,1,24
+	addi 23,1,40
+	lfd 31,0(9)
+	addi 24,1,88
+	addi 21,31,4
+	addi 20,1,8
+	addi 19,31,620
+	lis 28,0x4330
+	li 29,4
+	li 30,2
+.L275:
+	bl rand
+	rlwinm 3,3,0,17,31
+	lwz 11,84(31)
+	xoris 3,3,0x8000
+	stw 3,124(1)
+	addi 11,11,3700
+	stw 28,120(1)
+	lfd 13,120(1)
+	fsub 13,13,30
+	frsp 13,13
+	fdivs 13,13,29
+	fmr 0,13
+	fsub 0,0,31
+	fadd 0,0,0
+	fmul 0,0,27
+	frsp 0,0
+	stfsx 0,11,29
+	bl rand
+	rlwinm 3,3,0,17,31
+	lwz 11,84(31)
+	xoris 3,3,0x8000
+	addic. 30,30,-1
+	stw 3,124(1)
+	addi 11,11,3688
+	stw 28,120(1)
+	lfd 13,120(1)
+	fsub 13,13,30
+	frsp 13,13
+	fdivs 13,13,29
+	fmr 0,13
+	fsub 0,0,31
+	fadd 0,0,0
+	fmul 0,0,28
+	frsp 0,0
+	stfsx 0,11,29
+	addi 29,29,4
+	bc 4,2,.L275
+	bl rand
+	rlwinm 3,3,0,17,31
+	lwz 6,84(31)
+	xoris 3,3,0x8000
+	lis 7,0x4330
+	stw 3,124(1)
+	lis 10,.LC105@ha
+	lis 11,.LC106@ha
+	stw 7,120(1)
+	la 10,.LC105@l(10)
+	la 11,.LC106@l(11)
+	lfd 9,0(10)
+	lis 8,.LC101@ha
+	lfd 13,120(1)
+	lis 10,.LC100@ha
+	lfs 10,.LC100@l(10)
+	lfd 11,0(11)
+	lis 10,.LC104@ha
+	fsub 13,13,9
+	lfd 12,.LC101@l(8)
+	mr 11,9
+	la 10,.LC104@l(10)
+	lis 9,.LC107@ha
+	lfs 7,0(10)
+	la 9,.LC107@l(9)
+	frsp 13,13
+	lfd 8,0(9)
+	lis 9,deathmatch@ha
+	lwz 10,deathmatch@l(9)
+	fdivs 13,13,10
+	fmr 0,13
+	fsub 0,0,11
+	fadd 0,0,0
+	fmul 0,0,12
+	frsp 0,0
+	stfs 0,3700(6)
+	lwz 9,84(31)
+	lwz 0,3856(9)
+	xoris 0,0,0x8000
+	stw 0,124(1)
+	stw 7,120(1)
+	lfd 0,120(1)
+	fsub 0,0,9
+	fmul 0,0,8
+	frsp 0,0
+	stfs 0,3688(9)
+	lfs 13,20(10)
+	fcmpu 0,13,7
+	bc 4,2,.L277
+	lwz 9,84(31)
+	lwz 11,3856(9)
+	addi 11,11,1
+	stw 11,3856(9)
+	lwz 9,84(31)
+	lwz 0,3856(9)
+	cmpwi 0,0,9
+	bc 4,1,.L277
+	li 0,9
+	stw 0,3856(9)
+.L277:
+	lwz 9,84(31)
+	li 6,0
+	mr 3,22
+	mr 5,23
+	mr 4,27
+	lfs 13,3688(9)
+	lfs 0,3752(9)
+	fadds 0,0,13
+	stfs 0,56(1)
+	lfs 0,3692(9)
+	lfs 13,3756(9)
+	fadds 13,13,0
+	stfs 13,60(1)
+	lfs 12,3696(9)
+	lfs 0,3760(9)
+	fadds 0,0,12
+	stfs 0,64(1)
+	bl AngleVectors
+	lwz 9,784(31)
+	lis 10,0x4330
+	lis 6,.LC105@ha
+	lwz 7,84(31)
+	lis 0,0x4100
+	addi 9,9,-8
+	la 6,.LC105@l(6)
+	stw 0,92(1)
+	xoris 9,9,0x8000
+	lfd 13,0(6)
+	li 8,0
+	stw 9,124(1)
+	stw 10,120(1)
+	lfd 0,120(1)
+	stw 8,72(1)
+	stw 0,76(1)
+	fsub 0,0,13
+	stw 8,88(1)
+	frsp 0,0
+	stfs 0,96(1)
+	stfs 0,80(1)
+	lwz 0,1804(7)
+	cmpwi 0,0,2
+	bc 12,2,.L288
+	lwz 0,716(7)
+	cmpwi 0,0,1
+	bc 4,2,.L281
+	lis 0,0xc100
+	stw 0,92(1)
+	b .L280
+.L281:
+	cmpwi 0,0,2
+	bc 4,2,.L280
+.L288:
+	stw 8,4(24)
+.L280:
+	addi 6,1,40
+	mr 7,20
+	mr 3,21
+	addi 4,1,88
+	addi 5,1,24
+	bl G_ProjectSource
+	mr 3,19
+	bl VectorLength
+	lis 6,.LC108@ha
+	lis 9,.LC109@ha
+	la 9,.LC109@l(9)
+	la 6,.LC108@l(6)
+	lfs 0,0(9)
+	lfs 13,0(6)
+	fcmpu 7,1,0
+	fcmpu 6,1,13
+	mfcr 0
+	rlwinm 9,0,29,1
+	rlwinm 0,0,26,1
+	or. 10,0,9
+	bc 12,2,.L285
+	mr 5,27
+	mr 6,26
+	mr 7,25
+	mr 3,31
+	addi 4,1,8
+	li 8,600
+	li 9,300
+	li 10,4
+	bl fire_bullet
+	b .L286
+.L285:
+	mr 5,27
+	mr 6,26
+	mr 7,25
+	mr 3,31
+	addi 4,1,8
+	li 8,300
+	li 9,500
+	li 10,4
+	bl fire_bullet
+.L286:
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	ori 3,3,1
+	blrl
+	lwz 0,88(29)
+	mr 3,21
+	li 4,2
+	mtlr 0
+	blrl
+	mr 3,31
+	addi 4,1,8
+	li 5,1
+	bl PlayerNoise
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,120(1)
+	lwz 11,124(1)
+	andi. 0,11,8192
+	bc 4,2,.L265
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-1
+	stwx 11,9,0
+.L265:
+	lwz 0,228(1)
+	mtlr 0
+	lmw 19,132(1)
+	lfd 27,184(1)
+	lfd 28,192(1)
+	lfd 29,200(1)
+	lfd 30,208(1)
+	lfd 31,216(1)
+	la 1,224(1)
+	blr
+.Lfe15:
+	.size	 Machinegun_Fire,.Lfe15-Machinegun_Fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.103,@object
+pause_frames.103:
+	.long 23
+	.long 45
+	.long 0
+	.align 2
+	.type	 fire_frames.104,@object
+fire_frames.104:
+	.long 4
+	.long 5
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC110:
+	.string	"weapons/chngnu1a.wav"
+	.align 2
+.LC111:
+	.string	"weapons/chngnd1a.wav"
+	.align 2
+.LC112:
+	.string	"weapons/chngnl1a.wav"
+	.align 2
+.LC113:
+	.long 0x46fffe00
+	.align 3
+.LC114:
+	.long 0x3fd66666
+	.long 0x66666666
+	.align 3
+.LC115:
+	.long 0x3fe66666
+	.long 0x66666666
+	.align 2
+.LC116:
+	.long 0x0
+	.align 2
+.LC117:
+	.long 0x3f800000
+	.align 2
+.LC118:
+	.long 0x40000000
+	.align 3
+.LC119:
+	.long 0x43300000
+	.long 0x80000000
+	.align 3
+.LC120:
+	.long 0x3fe00000
+	.long 0x0
+	.align 3
+.LC121:
+	.long 0x40100000
+	.long 0x0
+	.align 3
+.LC122:
+	.long 0x401c0000
+	.long 0x0
+	.align 2
+.LC123:
+	.long 0x41000000
+	.align 2
+.LC124:
+	.long 0x42480000
+	.align 2
+.LC125:
+	.long 0xc2480000
+	.align 3
+.LC126:
+	.long 0x3fd00000
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl Chaingun_Fire
+	.type	 Chaingun_Fire,@function
+Chaingun_Fire:
+	stwu 1,-208(1)
+	mflr 0
+	stfd 27,168(1)
+	stfd 28,176(1)
+	stfd 29,184(1)
+	stfd 30,192(1)
+	stfd 31,200(1)
+	stmw 20,120(1)
+	stw 0,212(1)
+	lis 9,deathmatch@ha
+	lis 8,.LC116@ha
+	lwz 10,deathmatch@l(9)
+	la 8,.LC116@l(8)
+	mr 31,3
+	lfs 13,0(8)
+	li 21,2
+	lfs 0,20(10)
+	lwz 9,84(31)
+	fcmpu 7,0,13
+	lwz 11,92(9)
+	cmpwi 0,11,5
+	mfcr 0
+	rlwinm 0,0,31,1
+	neg 0,0
+	nor 9,0,0
+	rlwinm 0,0,0,28,28
+	rlwinm 9,9,0,29,30
+	or 25,0,9
+	bc 4,2,.L296
+	lis 29,gi@ha
+	lis 3,.LC110@ha
+	la 29,gi@l(29)
+	la 3,.LC110@l(3)
+	lwz 9,36(29)
+	mtlr 9
+	blrl
+	lwz 0,16(29)
+	lis 8,.LC117@ha
+	lis 9,.LC118@ha
+	lis 11,.LC116@ha
+	mr 5,3
+	la 8,.LC117@l(8)
+	la 9,.LC118@l(9)
+	mtlr 0
+	la 11,.LC116@l(11)
+	li 4,0
+	lfs 1,0(8)
+	mr 3,31
+	lfs 2,0(9)
+	lfs 3,0(11)
+	blrl
+.L296:
+	lwz 9,84(31)
+	lwz 0,92(9)
+	mr 10,9
+	cmpwi 0,0,14
+	bc 4,2,.L297
+	lwz 0,3632(10)
+	andi. 11,0,1
+	bc 4,2,.L297
+	li 0,32
+	stw 0,92(10)
+	lwz 9,84(31)
+	stw 11,3904(9)
+	b .L293
+.L297:
+	lwz 0,92(10)
+	cmpwi 0,0,21
+	bc 4,2,.L299
+	lwz 0,3632(10)
+	andi. 8,0,1
+	bc 12,2,.L299
+	lwz 0,3628(10)
+	addi 11,10,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	cmpwi 0,9,0
+	bc 12,2,.L299
+	li 0,15
+	stw 0,92(10)
+	b .L298
+.L299:
+	lwz 11,84(31)
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+.L298:
+	lwz 9,84(31)
+	lwz 0,92(9)
+	cmpwi 0,0,22
+	bc 4,2,.L301
+	li 0,0
+	lis 29,gi@ha
+	stw 0,3904(9)
+	la 29,gi@l(29)
+	lis 3,.LC111@ha
+	lwz 9,36(29)
+	la 3,.LC111@l(3)
+	mtlr 9
+	blrl
+	lwz 0,16(29)
+	lis 8,.LC117@ha
+	lis 9,.LC118@ha
+	lis 11,.LC116@ha
+	mr 5,3
+	la 8,.LC117@l(8)
+	la 9,.LC118@l(9)
+	mtlr 0
+	la 11,.LC116@l(11)
+	li 4,0
+	lfs 1,0(8)
+	mr 3,31
+	lfs 2,0(9)
+	lfs 3,0(11)
+	blrl
+	b .L302
+.L301:
+	lis 9,gi+36@ha
+	lis 3,.LC112@ha
+	lwz 0,gi+36@l(9)
+	la 3,.LC112@l(3)
+	mtlr 0
+	blrl
+	lwz 9,84(31)
+	stw 3,3904(9)
+.L302:
+	lwz 9,84(31)
+	lwz 0,92(9)
+	mr 10,9
+	cmpwi 0,0,9
+	bc 12,1,.L303
+	li 8,1
+	b .L304
+.L303:
+	cmpwi 0,0,14
+	bc 12,1,.L305
+	lwz 0,3632(10)
+	andi. 8,0,1
+	mfcr 9
+	rlwinm 9,9,3,1
+	neg 9,9
+	nor 0,9,9
+	rlwinm 9,9,0,31,31
+	rlwinm 0,0,0,30,30
+	or 8,9,0
+	b .L304
+.L305:
+	li 8,3
+.L304:
+	lwz 0,3628(10)
+	addi 11,10,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	cmpw 7,9,8
+	cror 31,30,29
+	mfcr 0
+	rlwinm 0,0,0,1
+	neg 0,0
+	andc 9,9,0
+	and 0,8,0
+	or. 23,0,9
+	bc 4,2,.L310
+	lis 9,level@ha
+	lfs 13,708(31)
+	la 30,level@l(9)
+	lfs 0,4(30)
+	fcmpu 0,0,13
+	cror 3,2,1
+	bc 4,3,.L311
+	lis 29,gi@ha
+	lis 3,.LC12@ha
+	la 29,gi@l(29)
+	la 3,.LC12@l(3)
+	lwz 9,36(29)
+	mtlr 9
+	blrl
+	lwz 0,16(29)
+	lis 8,.LC117@ha
+	lis 9,.LC117@ha
+	lis 11,.LC116@ha
+	la 8,.LC117@l(8)
+	mr 5,3
+	la 9,.LC117@l(9)
+	lfs 1,0(8)
+	mtlr 0
+	la 11,.LC116@l(11)
+	li 4,2
+	lfs 2,0(9)
+	mr 3,31
+	lfs 3,0(11)
+	blrl
+	lis 8,.LC117@ha
+	lfs 0,4(30)
+	la 8,.LC117@l(8)
+	lfs 13,0(8)
+	fadds 0,0,13
+	stfs 0,708(31)
+.L311:
+	mr 3,31
+	bl NoAmmoWeaponChange
+	b .L293
+.L310:
+	lis 9,is_quad@ha
+	lwz 0,is_quad@l(9)
+	cmpwi 0,0,0
+	bc 12,2,.L312
+	slwi 25,25,2
+	slwi 21,21,2
+.L312:
+	lis 9,.LC113@ha
+	lis 8,.LC119@ha
+	lfs 29,.LC113@l(9)
+	lis 11,.LC114@ha
+	lis 10,.LC115@ha
+	lis 9,.LC120@ha
+	la 8,.LC119@l(8)
+	lfd 27,.LC114@l(11)
+	la 9,.LC120@l(9)
+	lfd 28,.LC115@l(10)
+	addi 24,31,4
+	lfd 30,0(8)
+	addi 20,23,2
+	lis 28,0x4330
+	lfd 31,0(9)
+	li 29,0
+	li 30,3
+.L316:
+	bl rand
+	rlwinm 3,3,0,17,31
+	lwz 11,84(31)
+	xoris 3,3,0x8000
+	stw 3,116(1)
+	addi 11,11,3700
+	stw 28,112(1)
+	lfd 13,112(1)
+	fsub 13,13,30
+	frsp 13,13
+	fdivs 13,13,29
+	fmr 0,13
+	fsub 0,0,31
+	fadd 0,0,0
+	fmul 0,0,27
+	frsp 0,0
+	stfsx 0,11,29
+	bl rand
+	rlwinm 3,3,0,17,31
+	lwz 11,84(31)
+	xoris 3,3,0x8000
+	addic. 30,30,-1
+	stw 3,116(1)
+	addi 11,11,3688
+	stw 28,112(1)
+	lfd 13,112(1)
+	fsub 13,13,30
+	frsp 13,13
+	fdivs 13,13,29
+	fmr 0,13
+	fsub 0,0,31
+	fadd 0,0,0
+	fmul 0,0,28
+	frsp 0,0
+	stfsx 0,11,29
+	addi 29,29,4
+	bc 4,2,.L316
+	cmpwi 0,23,0
+	bc 4,1,.L319
+	lis 9,.LC113@ha
+	lis 8,.LC119@ha
+	lfs 27,.LC113@l(9)
+	lis 11,.LC121@ha
+	la 8,.LC119@l(8)
+	lis 9,.LC120@ha
+	la 11,.LC121@l(11)
+	lfd 30,0(8)
+	la 9,.LC120@l(9)
+	lfd 29,0(11)
+	lis 26,0x4330
+	lfd 28,0(9)
+	li 29,0
+	addi 27,1,88
+	addi 22,1,8
+	addi 28,1,24
+	mr 30,23
+.L321:
+	lwz 3,84(31)
+	addi 4,1,24
+	addi 5,1,40
+	addi 6,1,56
+	addi 3,3,3752
+	bl AngleVectors
+	bl rand
+	rlwinm 3,3,0,17,31
+	xoris 3,3,0x8000
+	lis 8,.LC122@ha
+	stw 3,116(1)
+	la 8,.LC122@l(8)
+	stw 26,112(1)
+	lfd 13,112(1)
+	lfd 12,0(8)
+	fsub 13,13,30
+	frsp 13,13
+	fdivs 13,13,27
+	fmr 0,13
+	fsub 0,0,28
+	fadd 0,0,0
+	fmadd 0,0,29,12
+	frsp 31,0
+	bl rand
+	rlwinm 3,3,0,17,31
+	lwz 0,784(31)
+	xoris 3,3,0x8000
+	mr 11,9
+	lwz 10,84(31)
+	stw 3,116(1)
+	xoris 0,0,0x8000
+	lis 8,.LC123@ha
+	stw 26,112(1)
+	la 8,.LC123@l(8)
+	lfd 13,112(1)
+	stw 0,116(1)
+	stw 26,112(1)
+	fsub 13,13,30
+	lfd 12,112(1)
+	lfs 11,0(8)
+	stw 29,72(1)
+	frsp 13,13
+	stfs 31,76(1)
+	fsub 12,12,30
+	stw 29,88(1)
+	stfs 31,92(1)
+	fdivs 13,13,27
+	fmr 0,13
+	frsp 12,12
+	fsub 0,0,28
+	fadd 0,0,0
+	fmul 0,0,29
+	frsp 0,0
+	fadds 0,0,12
+	fsubs 0,0,11
+	stfs 0,96(1)
+	stfs 0,80(1)
+	lwz 0,1804(10)
+	cmpwi 0,0,2
+	bc 12,2,.L334
+	lwz 0,716(10)
+	cmpwi 0,0,1
+	bc 4,2,.L324
+	fneg 0,31
+	stfs 0,92(1)
+	b .L323
+.L324:
+	cmpwi 0,0,2
+	bc 4,2,.L323
+.L334:
+	stw 29,4(27)
+.L323:
+	mr 3,24
+	addi 4,1,88
+	addi 5,1,24
+	addi 6,1,40
+	mr 7,22
+	bl G_ProjectSource
+	addi 3,31,620
+	bl VectorLength
+	lis 8,.LC124@ha
+	lis 9,.LC125@ha
+	la 9,.LC125@l(9)
+	la 8,.LC124@l(8)
+	lfs 0,0(9)
+	lfs 13,0(8)
+	fcmpu 7,1,0
+	fcmpu 6,1,13
+	mfcr 0
+	rlwinm 9,0,29,1
+	rlwinm 0,0,26,1
+	or. 11,0,9
+	bc 12,2,.L328
+	mr 3,31
+	addi 4,1,8
+	mr 5,28
+	mr 6,25
+	mr 7,21
+	li 8,1500
+	li 9,1500
+	li 10,5
+	bl fire_bullet
+	b .L320
+.L328:
+	mr 3,31
+	addi 4,1,8
+	mr 5,28
+	mr 6,25
+	mr 7,21
+	li 8,300
+	li 9,500
+	li 10,5
+	bl fire_bullet
+.L320:
+	addic. 30,30,-1
+	bc 4,2,.L321
+.L319:
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	or 3,20,3
+	blrl
+	lwz 0,88(29)
+	mr 3,24
+	li 4,2
+	mtlr 0
+	blrl
+	mr 3,31
+	addi 4,1,8
+	li 5,1
+	bl PlayerNoise
+	lwz 11,84(31)
+	li 0,4
+	stw 0,3864(11)
+	lwz 9,84(31)
+	lbz 0,16(9)
+	andi. 8,0,1
+	bc 12,2,.L331
+	bl rand
+	rlwinm 3,3,0,17,31
+	lwz 8,84(31)
+	xoris 3,3,0x8000
+	lis 0,0x4330
+	stw 3,116(1)
+	lis 9,.LC119@ha
+	lis 10,.LC113@ha
+	stw 0,112(1)
+	la 9,.LC119@l(9)
+	lfd 13,0(9)
+	li 0,168
+	lfd 0,112(1)
+	lis 9,.LC126@ha
+	lfs 11,.LC113@l(10)
+	la 9,.LC126@l(9)
+	lfd 10,0(9)
+	fsub 0,0,13
+	mr 9,11
+	frsp 0,0
+	fdivs 0,0,11
+	fmr 13,0
+	fadd 13,13,10
+	fctiwz 12,13
+	stfd 12,112(1)
+	lwz 9,116(1)
+	subfic 9,9,160
+	b .L335
+.L331:
+	bl rand
+	rlwinm 3,3,0,17,31
+	lwz 8,84(31)
+	xoris 3,3,0x8000
+	lis 0,0x4330
+	stw 3,116(1)
+	lis 9,.LC119@ha
+	lis 10,.LC113@ha
+	stw 0,112(1)
+	la 9,.LC119@l(9)
+	lfd 13,0(9)
+	li 0,53
+	lfd 0,112(1)
+	lis 9,.LC126@ha
+	lfs 11,.LC113@l(10)
+	la 9,.LC126@l(9)
+	lfd 10,0(9)
+	fsub 0,0,13
+	mr 9,11
+	frsp 0,0
+	fdivs 0,0,11
+	fmr 13,0
+	fadd 13,13,10
+	fctiwz 12,13
+	stfd 12,112(1)
+	lwz 9,116(1)
+	subfic 9,9,46
+.L335:
+	stw 9,56(31)
+	stw 0,3860(8)
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,112(1)
+	lwz 11,116(1)
+	andi. 0,11,8192
+	bc 4,2,.L293
+	lwz 9,84(31)
+	lwz 11,3628(9)
+	addi 9,9,748
+	slwi 11,11,2
+	lwzx 0,9,11
+	subf 0,23,0
+	stwx 0,9,11
+.L293:
+	lwz 0,212(1)
+	mtlr 0
+	lmw 20,120(1)
+	lfd 27,168(1)
+	lfd 28,176(1)
+	lfd 29,184(1)
+	lfd 30,192(1)
+	lfd 31,200(1)
+	la 1,208(1)
+	blr
+.Lfe16:
+	.size	 Chaingun_Fire,.Lfe16-Chaingun_Fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.111,@object
+pause_frames.111:
+	.long 38
+	.long 43
+	.long 51
+	.long 61
+	.long 0
+	.align 2
+	.type	 fire_frames.112,@object
+fire_frames.112:
+	.long 5
+	.long 6
+	.long 7
+	.long 8
+	.long 9
+	.long 10
+	.long 11
+	.long 12
+	.long 13
+	.long 14
+	.long 15
+	.long 16
+	.long 17
+	.long 18
+	.long 19
+	.long 20
+	.long 21
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC127:
+	.long 0xc0000000
+	.align 3
+.LC128:
+	.long 0x43300000
+	.long 0x80000000
+	.align 2
+.LC129:
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl weapon_shotgun_fire
+	.type	 weapon_shotgun_fire,@function
+weapon_shotgun_fire:
+	stwu 1,-128(1)
+	mflr 0
+	stmw 26,104(1)
+	stw 0,132(1)
+	mr 31,3
+	li 30,4
+	lwz 3,84(31)
+	li 28,8
+	lwz 0,92(3)
+	cmpwi 0,0,9
+	bc 4,2,.L341
+	li 0,10
+	stw 0,92(3)
+	b .L340
+.L341:
+	addi 29,1,32
+	addi 5,1,48
+	mr 4,29
+	li 6,0
+	addi 3,3,3752
+	mr 27,29
+	bl AngleVectors
+	lis 9,.LC127@ha
+	lwz 4,84(31)
+	mr 3,29
+	la 9,.LC127@l(9)
+	lfs 1,0(9)
+	addi 4,4,3700
+	bl VectorScale
+	lwz 9,84(31)
+	lis 0,0xc000
+	lis 10,0x4330
+	li 6,0
+	stw 0,3688(9)
+	addi 3,31,4
+	addi 5,1,80
+	lis 9,.LC128@ha
+	lwz 8,84(31)
+	lis 0,0x4100
+	la 9,.LC128@l(9)
+	addi 7,1,16
+	lfd 13,0(9)
+	mr 26,3
+	lwz 9,784(31)
+	stw 0,84(1)
+	addi 9,9,-8
+	stw 6,64(1)
+	xoris 9,9,0x8000
+	stw 0,68(1)
+	stw 9,100(1)
+	stw 10,96(1)
+	lfd 0,96(1)
+	stw 6,80(1)
+	fsub 0,0,13
+	frsp 0,0
+	stfs 0,88(1)
+	stfs 0,72(1)
+	lwz 0,1804(8)
+	cmpwi 0,0,2
+	bc 12,2,.L352
+	lwz 0,716(8)
+	cmpwi 0,0,1
+	bc 4,2,.L344
+	lis 0,0xc100
+	stw 0,84(1)
+	b .L343
+.L344:
+	cmpwi 0,0,2
+	bc 4,2,.L343
+.L352:
+	stw 6,4(5)
+.L343:
+	addi 4,1,80
+	addi 5,1,32
+	addi 6,1,48
+	bl G_ProjectSource
+	lis 9,is_quad@ha
+	lwz 0,is_quad@l(9)
+	cmpwi 0,0,0
+	bc 12,2,.L348
+	slwi 30,30,2
+	slwi 28,28,2
+.L348:
+	lis 9,.LC129@ha
+	lis 11,deathmatch@ha
+	la 9,.LC129@l(9)
+	lfs 13,0(9)
+	lwz 9,deathmatch@l(11)
+	lfs 0,20(9)
+	fcmpu 0,0,13
+	bc 12,2,.L349
+	li 0,2
+	mr 5,27
+	stw 0,8(1)
+	mr 6,30
+	mr 7,28
+	mr 3,31
+	addi 4,1,16
+	li 8,500
+	li 9,500
+	li 10,12
+	bl fire_shotgun
+	b .L350
+.L349:
+	li 0,2
+	mr 5,27
+	stw 0,8(1)
+	mr 6,30
+	mr 7,28
+	mr 3,31
+	addi 4,1,16
+	li 8,500
+	li 9,500
+	li 10,12
+	bl fire_shotgun
+.L350:
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	ori 3,3,2
+	blrl
+	lwz 0,88(29)
+	mr 3,26
+	li 4,2
+	mtlr 0
+	blrl
+	lwz 11,84(31)
+	mr 3,31
+	addi 4,1,16
+	li 5,1
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	bl PlayerNoise
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,96(1)
+	lwz 11,100(1)
+	andi. 0,11,8192
+	bc 4,2,.L340
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-1
+	stwx 11,9,0
+.L340:
+	lwz 0,132(1)
+	mtlr 0
+	lmw 26,104(1)
+	la 1,128(1)
+	blr
+.Lfe17:
+	.size	 weapon_shotgun_fire,.Lfe17-weapon_shotgun_fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.119,@object
+pause_frames.119:
+	.long 22
+	.long 28
+	.long 34
+	.long 0
+	.align 2
+	.type	 fire_frames.120,@object
+fire_frames.120:
+	.long 8
+	.long 9
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC130:
+	.long 0xc0000000
+	.align 3
+.LC131:
+	.long 0x43300000
+	.long 0x80000000
+	.section	".text"
+	.align 2
+	.globl weapon_tranquilizer_fire
+	.type	 weapon_tranquilizer_fire,@function
+weapon_tranquilizer_fire:
+	stwu 1,-128(1)
+	mflr 0
+	stmw 27,108(1)
+	stw 0,132(1)
+	mr 31,3
+	li 30,4
+	lwz 3,84(31)
+	lwz 0,92(3)
+	cmpwi 0,0,9
+	bc 4,2,.L358
+	li 0,10
+	stw 0,92(3)
+	b .L357
+.L358:
+	addi 29,1,24
+	addi 5,1,40
+	mr 4,29
+	li 6,0
+	addi 3,3,3752
+	mr 27,29
+	bl AngleVectors
+	lis 9,.LC130@ha
+	lwz 4,84(31)
+	mr 3,29
+	la 9,.LC130@l(9)
+	lfs 1,0(9)
+	addi 4,4,3700
+	bl VectorScale
+	lwz 9,84(31)
+	lis 0,0xc000
+	lis 10,0x4330
+	li 6,0
+	stw 0,3688(9)
+	addi 3,31,4
+	addi 5,1,72
+	lis 9,.LC131@ha
+	lwz 8,84(31)
+	lis 0,0x4100
+	la 9,.LC131@l(9)
+	addi 7,1,8
+	lfd 13,0(9)
+	mr 28,3
+	lwz 9,784(31)
+	stw 0,76(1)
+	addi 9,9,-8
+	stw 6,56(1)
+	xoris 9,9,0x8000
+	stw 0,60(1)
+	stw 9,100(1)
+	stw 10,96(1)
+	lfd 0,96(1)
+	stw 6,72(1)
+	fsub 0,0,13
+	frsp 0,0
+	stfs 0,80(1)
+	stfs 0,64(1)
+	lwz 0,1804(8)
+	cmpwi 0,0,2
+	bc 12,2,.L367
+	lwz 0,716(8)
+	cmpwi 0,0,1
+	bc 4,2,.L361
+	lis 0,0xc100
+	stw 0,76(1)
+	b .L360
+.L361:
+	cmpwi 0,0,2
+	bc 4,2,.L360
+.L367:
+	stw 6,4(5)
+.L360:
+	addi 4,1,72
+	addi 5,1,24
+	addi 6,1,40
+	bl G_ProjectSource
+	lis 9,is_quad@ha
+	lwz 0,is_quad@l(9)
+	cmpwi 0,0,0
+	bc 12,2,.L365
+	slwi 30,30,2
+.L365:
+	li 9,0
+	addi 4,1,8
+	mr 5,27
+	mr 6,30
+	li 7,600
+	li 8,0
+	mr 3,31
+	crxor 6,6,6
+	bl fire_tranquilizer
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	ori 3,3,2
+	blrl
+	lwz 0,88(29)
+	mr 3,28
+	li 4,2
+	mtlr 0
+	blrl
+	lwz 11,84(31)
+	mr 3,31
+	addi 4,1,8
+	li 5,1
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	bl PlayerNoise
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,96(1)
+	lwz 11,100(1)
+	andi. 0,11,8192
+	bc 4,2,.L357
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-1
+	stwx 11,9,0
+.L357:
+	lwz 0,132(1)
+	mtlr 0
+	lmw 27,108(1)
+	la 1,128(1)
+	blr
+.Lfe18:
+	.size	 weapon_tranquilizer_fire,.Lfe18-weapon_tranquilizer_fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.127,@object
+pause_frames.127:
+	.long 22
+	.long 28
+	.long 34
+	.long 0
+	.align 2
+	.type	 fire_frames.128,@object
+fire_frames.128:
+	.long 8
+	.long 9
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC132:
+	.long 0xc0000000
+	.align 3
+.LC133:
+	.long 0x43300000
+	.long 0x80000000
+	.align 2
+.LC134:
+	.long 0x40a00000
+	.section	".text"
+	.align 2
+	.globl weapon_supershotgun_fire
+	.type	 weapon_supershotgun_fire,@function
+weapon_supershotgun_fire:
+	stwu 1,-160(1)
+	mflr 0
+	stfd 31,152(1)
+	stmw 26,128(1)
+	stw 0,164(1)
+	mr 31,3
+	addi 29,1,32
+	lwz 3,84(31)
+	mr 4,29
+	addi 5,1,48
+	li 6,0
+	mr 26,29
+	addi 3,3,3752
+	li 27,6
+	bl AngleVectors
+	li 30,12
+	lis 9,.LC132@ha
+	lwz 4,84(31)
+	mr 3,29
+	la 9,.LC132@l(9)
+	lfs 1,0(9)
+	addi 4,4,3700
+	bl VectorScale
+	lwz 9,84(31)
+	lis 0,0xc000
+	lis 10,0x4330
+	li 6,0
+	stw 0,3688(9)
+	addi 5,1,96
+	addi 3,31,4
+	lis 9,.LC133@ha
+	lwz 8,84(31)
+	lis 0,0x4100
+	la 9,.LC133@l(9)
+	addi 7,1,16
+	lfd 13,0(9)
+	lwz 9,784(31)
+	stw 0,100(1)
+	addi 9,9,-8
+	stw 6,64(1)
+	xoris 9,9,0x8000
+	stw 0,68(1)
+	stw 9,124(1)
+	stw 10,120(1)
+	lfd 0,120(1)
+	stw 6,96(1)
+	fsub 0,0,13
+	frsp 0,0
+	stfs 0,104(1)
+	stfs 0,72(1)
+	lwz 0,1804(8)
+	cmpwi 0,0,2
+	bc 12,2,.L381
+	lwz 0,716(8)
+	cmpwi 0,0,1
+	bc 4,2,.L375
+	lis 0,0xc100
+	stw 0,100(1)
+	b .L374
+.L375:
+	cmpwi 0,0,2
+	bc 4,2,.L374
+.L381:
+	stw 6,4(5)
+.L374:
+	addi 4,1,96
+	addi 5,1,32
+	addi 6,1,48
+	bl G_ProjectSource
+	lis 9,is_quad@ha
+	lwz 0,is_quad@l(9)
+	cmpwi 0,0,0
+	bc 12,2,.L379
+	slwi 27,27,2
+	slwi 30,30,2
+.L379:
+	lwz 9,84(31)
+	lis 11,.LC134@ha
+	addi 29,1,80
+	la 11,.LC134@l(11)
+	mr 3,29
+	lfs 13,3752(9)
+	mr 4,26
+	li 5,0
+	lfs 31,0(11)
+	li 6,0
+	li 28,3
+	stfs 13,80(1)
+	lfs 0,3756(9)
+	fsubs 0,0,31
+	stfs 0,84(1)
+	lfs 13,3760(9)
+	stfs 13,88(1)
+	bl AngleVectors
+	addi 4,1,16
+	stw 28,8(1)
+	li 9,500
+	mr 7,30
+	li 8,1000
+	li 10,10
+	mr 3,31
+	mr 5,26
+	mr 6,27
+	bl fire_shotgun
+	lwz 9,84(31)
+	mr 3,29
+	mr 4,26
+	li 5,0
+	li 6,0
+	lfs 0,3756(9)
+	fadds 0,0,31
+	stfs 0,84(1)
+	bl AngleVectors
+	li 9,500
+	li 10,10
+	stw 28,8(1)
+	addi 4,1,16
+	mr 5,26
+	mr 6,27
+	mr 7,30
+	li 8,1000
+	mr 3,31
+	bl fire_shotgun
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	ori 3,3,13
+	blrl
+	lwz 0,88(29)
+	addi 3,31,4
+	li 4,2
+	mtlr 0
+	blrl
+	lwz 11,84(31)
+	mr 3,31
+	addi 4,1,16
+	li 5,1
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	bl PlayerNoise
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,120(1)
+	lwz 11,124(1)
+	andi. 0,11,8192
+	bc 4,2,.L380
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-2
+	stwx 11,9,0
+.L380:
+	lwz 0,164(1)
+	mtlr 0
+	lmw 26,128(1)
+	lfd 31,152(1)
+	la 1,160(1)
+	blr
+.Lfe19:
+	.size	 weapon_supershotgun_fire,.Lfe19-weapon_supershotgun_fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.135,@object
+pause_frames.135:
+	.long 29
+	.long 42
+	.long 57
+	.long 0
+	.align 2
+	.type	 fire_frames.136,@object
+fire_frames.136:
+	.long 7
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC135:
+	.long 0x0
+	.align 2
+.LC136:
+	.long 0xc0400000
+	.align 3
+.LC137:
+	.long 0x43300000
+	.long 0x80000000
+	.section	".text"
+	.align 2
+	.globl weapon_railgun_fire
+	.type	 weapon_railgun_fire,@function
+weapon_railgun_fire:
+	stwu 1,-128(1)
+	mflr 0
+	stmw 26,104(1)
+	stw 0,132(1)
+	lis 11,.LC135@ha
+	lis 9,deathmatch@ha
+	la 11,.LC135@l(11)
+	mr 31,3
+	lfs 13,0(11)
+	lwz 11,deathmatch@l(9)
+	lfs 0,20(11)
+	fcmpu 0,0,13
+	li 28,150
+	li 30,250
+	lis 9,is_quad@ha
+	lwz 0,is_quad@l(9)
+	cmpwi 0,0,0
+	bc 12,2,.L389
+	slwi 28,28,2
+	slwi 30,30,2
+.L389:
+	lwz 3,84(31)
+	addi 29,1,24
+	addi 5,1,40
+	mr 4,29
+	li 6,0
+	addi 3,3,3752
+	mr 26,29
+	bl AngleVectors
+	lis 9,.LC136@ha
+	lwz 4,84(31)
+	mr 3,29
+	la 9,.LC136@l(9)
+	lfs 1,0(9)
+	addi 4,4,3700
+	bl VectorScale
+	lwz 9,84(31)
+	lis 0,0xc040
+	lis 10,0x4330
+	li 6,0
+	stw 0,3688(9)
+	addi 3,31,4
+	addi 5,1,72
+	lis 9,.LC137@ha
+	lwz 8,84(31)
+	lis 0,0x40e0
+	la 9,.LC137@l(9)
+	addi 7,1,8
+	lfd 13,0(9)
+	mr 27,3
+	lwz 9,784(31)
+	stw 0,76(1)
+	addi 9,9,-8
+	stw 6,56(1)
+	xoris 9,9,0x8000
+	stw 0,60(1)
+	stw 9,100(1)
+	stw 10,96(1)
+	lfd 0,96(1)
+	stw 6,72(1)
+	fsub 0,0,13
+	frsp 0,0
+	stfs 0,80(1)
+	stfs 0,64(1)
+	lwz 0,1804(8)
+	cmpwi 0,0,2
+	bc 12,2,.L397
+	lwz 0,716(8)
+	cmpwi 0,0,1
+	bc 4,2,.L392
+	lis 0,0xc0e0
+	stw 0,76(1)
+	b .L391
+.L392:
+	cmpwi 0,0,2
+	bc 4,2,.L391
+.L397:
+	stw 6,4(5)
+.L391:
+	addi 4,1,72
+	addi 5,1,24
+	addi 6,1,40
+	bl G_ProjectSource
+	addi 4,1,8
+	mr 5,26
+	mr 6,28
+	mr 7,30
+	mr 3,31
+	bl fire_rail
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	ori 3,3,6
+	blrl
+	lwz 0,88(29)
+	mr 3,27
+	li 4,2
+	mtlr 0
+	blrl
+	lwz 11,84(31)
+	mr 3,31
+	addi 4,1,8
+	li 5,1
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	bl PlayerNoise
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,96(1)
+	lwz 11,100(1)
+	andi. 0,11,8192
+	bc 4,2,.L396
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-1
+	stwx 11,9,0
+.L396:
+	lwz 0,132(1)
+	mtlr 0
+	lmw 26,104(1)
+	la 1,128(1)
+	blr
+.Lfe20:
+	.size	 weapon_railgun_fire,.Lfe20-weapon_railgun_fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.143,@object
+pause_frames.143:
+	.long 56
+	.long 0
+	.align 2
+	.type	 fire_frames.144,@object
+fire_frames.144:
+	.long 4
+	.long 0
+	.section	".rodata"
+	.align 2
+.LC138:
+	.long 0x46fffe00
+	.align 2
+.LC139:
+	.long 0x0
+	.align 2
+.LC140:
+	.long 0xc0000000
+	.align 3
+.LC141:
+	.long 0x43300000
+	.long 0x80000000
+	.align 3
+.LC142:
+	.long 0x3fe00000
+	.long 0x0
+	.align 3
+.LC143:
+	.long 0x40200000
+	.long 0x0
+	.align 2
+.LC144:
+	.long 0x447a0000
+	.section	".text"
+	.align 2
+	.globl weapon_bfg_fire
+	.type	 weapon_bfg_fire,@function
+weapon_bfg_fire:
+	stwu 1,-128(1)
+	mflr 0
+	stfd 31,120(1)
+	stmw 28,104(1)
+	stw 0,132(1)
+	lis 9,deathmatch@ha
+	lis 10,.LC139@ha
+	lwz 11,deathmatch@l(9)
+	la 10,.LC139@l(10)
+	mr 31,3
+	lfs 31,0(10)
+	lfs 0,20(11)
+	lwz 3,84(31)
+	fcmpu 7,0,31
+	lwz 10,92(3)
+	cmpwi 6,10,9
+	mfcr 0
+	rlwinm 0,0,31,1
+	neg 0,0
+	nor 9,0,0
+	andi. 0,0,500
+	andi. 9,9,50
+	or 8,0,9
+	bc 4,26,.L405
+	lis 29,gi@ha
+	li 3,1
+	la 29,gi@l(29)
+	lwz 9,100(29)
+	mtlr 9
+	blrl
+	lis 9,g_edicts@ha
+	lis 0,0x6f71
+	lwz 10,104(29)
+	lwz 3,g_edicts@l(9)
+	ori 0,0,56853
+	mtlr 10
+	subf 3,3,31
+	mullw 3,3,0
+	srawi 3,3,2
+	blrl
+	lis 9,is_silenced@ha
+	lwz 11,100(29)
+	lbz 3,is_silenced@l(9)
+	mtlr 11
+	ori 3,3,12
+	blrl
+	lwz 0,88(29)
+	addi 3,31,4
+	li 4,2
+	mtlr 0
+	blrl
+	lwz 11,84(31)
+	mr 3,31
+	addi 4,1,24
+	li 5,1
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	bl PlayerNoise
+	b .L402
+.L405:
+	lwz 0,3628(3)
+	addi 11,3,748
+	slwi 0,0,2
+	lwzx 9,11,0
+	cmpwi 0,9,49
+	bc 12,1,.L406
+	addi 0,10,1
+	stw 0,92(3)
+	b .L402
+.L406:
+	lis 9,is_quad@ha
+	slwi 11,8,2
+	lwz 0,is_quad@l(9)
+	addi 29,1,40
+	addi 5,1,56
+	li 6,0
+	mr 4,29
+	addic 0,0,-1
+	subfe 0,0,0
+	addi 3,3,3752
+	andc 11,11,0
+	mr 28,29
+	and 0,8,0
+	or 30,0,11
+	bl AngleVectors
+	lis 9,.LC140@ha
+	lwz 4,84(31)
+	mr 3,29
+	la 9,.LC140@l(9)
+	lfs 1,0(9)
+	addi 4,4,3700
+	bl VectorScale
+	lwz 9,84(31)
+	lis 0,0xc220
+	stw 0,3716(9)
+	bl rand
+	rlwinm 3,3,0,17,31
+	lwz 6,84(31)
+	xoris 3,3,0x8000
+	lis 7,0x4330
+	stw 3,100(1)
+	lis 10,.LC141@ha
+	lis 11,.LC138@ha
+	stw 7,96(1)
+	la 10,.LC141@l(10)
+	lis 8,level+4@ha
+	lfd 9,0(10)
+	lis 0,0x4100
+	addi 5,1,72
+	lfd 13,96(1)
+	lis 10,.LC142@ha
+	addi 4,31,4
+	lfs 12,.LC138@l(11)
+	la 10,.LC142@l(10)
+	lfd 10,0(10)
+	addi 11,1,8
+	fsub 13,13,9
+	lis 10,.LC143@ha
+	la 10,.LC143@l(10)
+	lfd 11,0(10)
+	frsp 13,13
+	mr 10,9
+	fdivs 13,13,12
+	fmr 0,13
+	fsub 0,0,10
+	fadd 0,0,0
+	fmul 0,0,11
+	frsp 0,0
+	stfs 0,3712(6)
+	lfs 13,level+4@l(8)
+	lwz 9,84(31)
+	fadd 13,13,10
+	frsp 13,13
+	stfs 13,3720(9)
+	lwz 9,784(31)
+	lwz 8,84(31)
+	addi 9,9,-8
+	stw 0,72(1)
+	xoris 9,9,0x8000
+	stw 0,8(1)
+	stw 9,100(1)
+	stw 7,96(1)
+	lfd 0,96(1)
+	stw 0,12(1)
+	fsub 0,0,9
+	frsp 0,0
+	stfs 0,16(1)
+	lfs 13,4(11)
+	stfs 13,76(1)
+	lfs 0,8(11)
+	stfs 0,80(1)
+	lwz 0,1804(8)
+	cmpwi 0,0,2
+	bc 12,2,.L415
+	lwz 0,716(8)
+	cmpwi 0,0,1
+	bc 4,2,.L410
+	fneg 0,13
+	stfs 0,76(1)
+	b .L409
+.L410:
+	cmpwi 0,0,2
+	bc 4,2,.L409
+.L415:
+	stfs 31,4(5)
+.L409:
+	addi 7,1,24
+	mr 3,4
+	addi 4,1,72
+	addi 5,1,40
+	addi 6,1,56
+	mr 29,7
+	bl G_ProjectSource
+	lis 9,.LC144@ha
+	mr 5,28
+	la 9,.LC144@l(9)
+	mr 6,30
+	lfs 1,0(9)
+	mr 3,31
+	mr 4,29
+	li 7,400
+	bl fire_bfg
+	lwz 11,84(31)
+	mr 4,29
+	mr 3,31
+	li 5,1
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	bl PlayerNoise
+	lis 10,dmflags@ha
+	lwz 9,dmflags@l(10)
+	lfs 0,20(9)
+	fctiwz 13,0
+	stfd 13,96(1)
+	lwz 11,100(1)
+	andi. 0,11,8192
+	bc 4,2,.L402
+	lwz 9,84(31)
+	lwz 0,3628(9)
+	addi 9,9,748
+	slwi 0,0,2
+	lwzx 11,9,0
+	addi 11,11,-50
+	stwx 11,9,0
+.L402:
+	lwz 0,132(1)
+	mtlr 0
+	lmw 28,104(1)
+	lfd 31,120(1)
+	la 1,128(1)
+	blr
+.Lfe21:
+	.size	 weapon_bfg_fire,.Lfe21-weapon_bfg_fire
+	.section	".data"
+	.align 2
+	.type	 pause_frames.151,@object
+pause_frames.151:
+	.long 39
+	.long 45
+	.long 50
+	.long 55
+	.long 0
+	.align 2
+	.type	 fire_frames.152,@object
+fire_frames.152:
+	.long 9
+	.long 17
+	.long 0
+	.section	".rodata"
+	.align 3
+.LC145:
+	.long 0x43300000
+	.long 0x80000000
+	.section	".text"
+	.align 2
+	.globl Think_Weapon
+	.type	 Think_Weapon,@function
+Think_Weapon:
+	stwu 1,-32(1)
+	mflr 0
+	stw 31,28(1)
+	stw 0,36(1)
+	mr 31,3
+	lwz 0,728(31)
+	cmpwi 0,0,0
+	bc 12,1,.L85
+	lwz 9,84(31)
+	li 0,0
+	stw 0,3648(9)
+	bl ChangeWeapon
+.L85:
+	lwz 8,84(31)
+	lwz 9,1848(8)
+	cmpwi 0,9,0
+	bc 12,2,.L86
+	lwz 0,16(9)
+	cmpwi 0,0,0
+	bc 12,2,.L86
+	lis 11,level@ha
+	lfs 12,3876(8)
+	lwz 0,level@l(11)
+	lis 10,0x4330
+	lis 11,.LC145@ha
+	lwz 8,3900(8)
+	xoris 0,0,0x8000
+	la 11,.LC145@l(11)
+	stw 0,20(1)
+	cmpwi 0,8,0
+	stw 10,16(1)
+	lfd 13,0(11)
+	lfd 0,16(1)
+	lis 11,is_quad@ha
+	fsub 0,0,13
+	frsp 0,0
+	fcmpu 7,12,0
+	mfcr 0
+	rlwinm 0,0,30,1
+	stw 0,is_quad@l(11)
+	bc 12,2,.L87
+	lis 9,is_silenced@ha
+	li 0,128
+	stb 0,is_silenced@l(9)
+	b .L88
+.L87:
+	lis 9,is_silenced@ha
+	stb 8,is_silenced@l(9)
+.L88:
+	lwz 11,84(31)
+	mr 3,31
+	lwz 9,1848(11)
+	lwz 0,16(9)
+	mtlr 0
+	blrl
+.L86:
+	lwz 0,36(1)
+	mtlr 0
+	lwz 31,28(1)
+	la 1,32(1)
+	blr
+.Lfe22:
+	.size	 Think_Weapon,.Lfe22-Think_Weapon
+	.section	".rodata"
+	.align 3
+.LC146:
+	.long 0x43300000
+	.long 0x80000000
+	.align 2
+.LC147:
+	.long 0x41c00000
+	.align 2
+.LC148:
+	.long 0x41000000
+	.align 2
+.LC149:
+	.long 0xc0000000
+	.section	".text"
+	.align 2
+	.globl sword_attack
+	.type	 sword_attack,@function
+sword_attack:
+	stwu 1,-128(1)
+	mflr 0
+	stmw 25,100(1)
+	stw 0,132(1)
+	mr 29,3
+	addi 27,1,24
+	lwz 3,84(29)
+	mr 28,4
+	mr 25,5
+	addi 4,1,8
+	mr 5,27
+	addi 3,3,3752
+	li 6,0
+	bl AngleVectors
+	lis 10,.LC146@ha
+	lwz 9,784(29)
+	la 10,.LC146@l(10)
+	lfs 12,0(28)
+	lis 0,0x4330
+	lfd 10,0(10)
+	addi 9,9,-8
+	addi 26,1,40
+	lis 10,.LC147@ha
+	xoris 9,9,0x8000
+	lfs 9,8(28)
+	la 10,.LC147@l(10)
+	stw 9,92(1)
+	mr 7,27
+	lfs 0,0(10)
+	addi 5,1,56
+	addi 6,1,8
+	stw 0,88(1)
+	lis 10,.LC148@ha
+	addi 4,29,4
+	la 10,.LC148@l(10)
+	lfs 13,4(28)
+	mr 8,26
+	fadds 12,12,0
+	lfs 11,0(10)
+	lfd 0,88(1)
+	lwz 3,84(29)
+	fadds 13,13,11
+	stfs 12,56(1)
+	fsub 0,0,10
+	stfs 13,60(1)
+	frsp 0,0
+	fadds 0,0,9
+	stfs 0,64(1)
+	crxor 6,6,6
+	bl P_ProjectSource
+	lis 9,.LC149@ha
+	lwz 4,84(29)
+	addi 3,1,8
+	la 9,.LC149@l(9)
+	lfs 1,0(9)
+	addi 4,4,3700
+	bl VectorScale
+	lwz 9,84(29)
+	lis 0,0xbf80
+	mr 3,29
+	mr 4,26
+	mr 6,25
+	stw 0,3688(9)
+	addi 5,1,8
+	li 7,500
+	bl fire_sword
+	lwz 0,132(1)
+	mtlr 0
+	lmw 25,100(1)
+	la 1,128(1)
+	blr
+.Lfe23:
+	.size	 sword_attack,.Lfe23-sword_attack
+	.align 2
+	.globl Weapon_Sword
+	.type	 Weapon_Sword,@function
+Weapon_Sword:
+	stwu 1,-16(1)
+	mflr 0
+	stw 0,20(1)
+	lis 8,pause_frames.15@ha
+	lis 9,fire_frames.16@ha
+	lis 10,Weapon_Sword_Fire@ha
+	la 8,pause_frames.15@l(8)
+	la 9,fire_frames.16@l(9)
+	la 10,Weapon_Sword_Fire@l(10)
+	li 4,0
+	li 5,7
+	li 6,13
+	li 7,14
+	crxor 6,6,6
+	bl Weapon_Generic
+	lwz 0,20(1)
+	mtlr 0
+	la 1,16(1)
+	blr
+.Lfe24:
+	.size	 Weapon_Sword,.Lfe24-Weapon_Sword
+	.section	".sbss","aw",@nobits
+	.align 2
+is_quad:
+	.space	4
+	.size	 is_quad,4
+is_silenced:
+	.space	1
+	.size	 is_silenced,1
+	.section	".text"
+	.align 2
+	.type	 P_ProjectSource,@function
+P_ProjectSource:
+	stwu 1,-32(1)
+	mflr 0
+	stw 0,36(1)
+	lwz 0,1804(3)
+	mr 9,6
+	lfs 12,4(5)
+	mr 6,7
+	lfs 13,8(5)
+	cmpwi 0,0,2
+	mr 7,8
+	lfs 0,0(5)
+	stfs 12,12(1)
+	stfs 13,16(1)
+	stfs 0,8(1)
+	bc 12,2,.L420
+	lwz 3,716(3)
+	cmpwi 0,3,1
+	bc 4,2,.L35
+	fneg 0,12
+	stfs 0,12(1)
+	b .L34
+.L35:
+	cmpwi 0,3,2
+	bc 4,2,.L34
+.L420:
+	li 0,0
+	stw 0,12(1)
+.L34:
+	mr 3,4
+	mr 5,9
+	addi 4,1,8
+	bl G_ProjectSource
+	lwz 0,36(1)
+	mtlr 0
+	la 1,32(1)
+	blr
+.Lfe25:
+	.size	 P_ProjectSource,.Lfe25-P_ProjectSource
+	.align 2
+	.globl Pickup_Weapon
+	.type	 Pickup_Weapon,@function
+Pickup_Weapon:
+	stwu 1,-32(1)
+	mflr 0
+	stw 31,28(1)
+	stw 0,36(1)
+	lwz 9,1000(3)
+	mr 31,4
+	lwz 3,52(9)
+	bl FindItem
+	lis 11,dmflags@ha
+	lwz 10,dmflags@l(11)
+	mr 4,3
+	lfs 0,20(10)
+	fctiwz 13,0
+	stfd 13,16(1)
+	lwz 9,20(1)
+	andi. 0,9,8192
+	bc 12,2,.L47
+	mr 3,31
+	li 5,1000
+	bl Add_Ammo
+	b .L48
+.L47:
+	lwz 5,48(4)
+	mr 3,31
+	bl Add_Ammo
+.L48:
+	lwz 0,36(1)
+	mtlr 0
+	lwz 31,28(1)
+	la 1,32(1)
+	blr
+.Lfe26:
+	.size	 Pickup_Weapon,.Lfe26-Pickup_Weapon
+	.align 2
+	.globl ShowGun
+	.type	 ShowGun,@function
+ShowGun:
+	stwu 1,-160(1)
+	mflr 0
+	stmw 29,148(1)
+	stw 0,164(1)
+	mr 31,3
+	lwz 3,84(31)
+	lwz 0,1848(3)
+	cmpwi 0,0,0
+	bc 4,2,.L50
+	stw 0,44(31)
+	b .L49
+.L50:
+	lis 9,.LC21@ha
+	addi 29,1,8
+	lwz 10,.LC21@l(9)
+	lis 4,.LC22@ha
+	addi 3,3,188
+	la 9,.LC21@l(9)
+	la 4,.LC22@l(4)
+	lbz 11,8(9)
+	lwz 0,4(9)
+	stw 10,8(1)
+	stw 0,4(29)
+	stb 11,8(29)
+	bl Info_ValueForKey
+	mr 4,3
+	mr 3,29
+	bl strcat
+	li 9,8
+	mr 11,29
+	lbzx 0,29,9
+	cmpwi 0,0,0
+	bc 12,2,.L52
+	mr 8,11
+	li 10,0
+.L54:
+	lbzx 0,8,9
+	cmpwi 0,0,47
+	bc 4,2,.L53
+	addi 9,9,1
+	stbx 10,11,9
+.L53:
+	addi 9,9,1
+	lbzx 0,11,9
+	cmpwi 0,0,0
+	bc 4,2,.L54
+.L52:
+	lwz 11,84(31)
+	addi 3,1,8
+	lwz 9,1848(11)
+	lwz 4,36(9)
+	bl strcat
+	lis 4,.LC23@ha
+	addi 3,1,8
+	la 4,.LC23@l(4)
+	bl strcat
+	lis 9,gi+32@ha
+	addi 3,1,8
+	lwz 0,gi+32@l(9)
+	mtlr 0
+	blrl
+	stw 3,44(31)
+.L49:
+	lwz 0,164(1)
+	mtlr 0
+	lmw 29,148(1)
+	la 1,160(1)
+	blr
+.Lfe27:
+	.size	 ShowGun,.Lfe27-ShowGun
+	.section	".rodata"
+	.align 2
+.LC150:
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl Use_Weapon
+	.type	 Use_Weapon,@function
+Use_Weapon:
+	stwu 1,-16(1)
+	mflr 0
+	stmw 30,8(1)
+	stw 0,20(1)
+	mr 30,3
+	mr 31,4
+	lwz 9,84(30)
+	lwz 0,1848(9)
+	cmpw 0,31,0
+	bc 12,2,.L95
+	lwz 3,52(31)
+	cmpwi 0,3,0
+	bc 12,2,.L97
+	lis 9,.LC150@ha
+	lis 11,g_select_empty@ha
+	la 9,.LC150@l(9)
+	lfs 13,0(9)
+	lwz 9,g_select_empty@l(11)
+	lfs 0,20(9)
+	fcmpu 0,0,13
+	bc 4,2,.L97
+	lwz 0,56(31)
+	andi. 9,0,2
+	bc 4,2,.L97
+	bl FindItem
+	lis 9,itemlist@ha
+	lis 0,0x38e3
+	lwz 11,84(30)
+	la 9,itemlist@l(9)
+	ori 0,0,36409
+	subf 9,9,3
+	addi 11,11,748
+	mullw 9,9,0
+	srawi 9,9,3
+	slwi 9,9,2
+	lwzx 9,11,9
+	cmpwi 0,9,0
+	bc 4,2,.L98
+	lis 9,gi+8@ha
+	lis 5,.LC57@ha
+	lwz 6,40(3)
+	lwz 0,gi+8@l(9)
+	mr 3,30
+	la 5,.LC57@l(5)
+	b .L421
+.L98:
+	lwz 0,48(31)
+	cmpw 0,9,0
+	bc 4,0,.L97
+	lis 9,gi+8@ha
+	lis 5,.LC58@ha
+	lwz 6,40(3)
+	lwz 0,gi+8@l(9)
+	mr 3,30
+	la 5,.LC58@l(5)
+.L421:
+	lwz 7,40(31)
+	li 4,2
+	mtlr 0
+	crxor 6,6,6
+	blrl
+	b .L95
+.L97:
+	lwz 9,84(30)
+	stw 31,3648(9)
+.L95:
+	lwz 0,20(1)
+	mtlr 0
+	lmw 30,8(1)
+	la 1,16(1)
+	blr
+.Lfe28:
+	.size	 Use_Weapon,.Lfe28-Use_Weapon
+	.align 2
+	.globl Drop_Weapon
+	.type	 Drop_Weapon,@function
+Drop_Weapon:
+	stwu 1,-32(1)
+	mflr 0
+	stmw 30,24(1)
+	stw 0,36(1)
+	lis 11,dmflags@ha
+	lwz 10,dmflags@l(11)
+	mr 30,3
+	lfs 0,20(10)
+	fctiwz 13,0
+	stfd 13,16(1)
+	lwz 9,20(1)
+	andi. 0,9,4
+	bc 4,2,.L100
+	lwz 10,84(30)
+	lis 9,itemlist@ha
+	lis 0,0x38e3
+	la 9,itemlist@l(9)
+	ori 0,0,36409
+	lwz 11,1848(10)
+	subf 9,9,4
+	mullw 9,9,0
+	cmpw 0,4,11
+	srawi 9,9,3
+	bc 12,2,.L103
+	lwz 0,3648(10)
+	slwi 31,9,2
+	cmpw 0,4,0
+	bc 4,2,.L102
+.L103:
+	slwi 0,9,2
+	addi 9,10,748
+	mr 31,0
+	lwzx 11,9,0
+	cmpwi 0,11,1
+	bc 4,2,.L102
+	lis 9,gi+8@ha
+	lis 5,.LC59@ha
+	lwz 0,gi+8@l(9)
+	mr 3,30
+	la 5,.LC59@l(5)
+	li 4,2
+	mtlr 0
+	crxor 6,6,6
+	blrl
+	b .L100
+.L102:
+	mr 3,30
+	bl Drop_Item
+	lwz 11,84(30)
+	addi 11,11,748
+	lwzx 9,11,31
+	addi 9,9,-1
+	stwx 9,11,31
+.L100:
+	lwz 0,36(1)
+	mtlr 0
+	lmw 30,24(1)
+	la 1,32(1)
+	blr
+.Lfe29:
+	.size	 Drop_Weapon,.Lfe29-Drop_Weapon
+	.align 2
+	.globl Weapon_Generic
+	.type	 Weapon_Generic,@function
+Weapon_Generic:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lwz 0,40(31)
+	cmpwi 0,0,255
+	bc 4,2,.L150
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L150:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe30:
+	.size	 Weapon_Generic,.Lfe30-Weapon_Generic
+	.align 2
+	.globl Weapon_GrenadeLauncher
+	.type	 Weapon_GrenadeLauncher,@function
+Weapon_GrenadeLauncher:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.68@ha
+	lwz 0,40(31)
+	la 8,pause_frames.68@l(11)
+	lis 9,fire_frames.69@ha
+	lis 11,weapon_grenadelauncher_fire@ha
+	la 9,fire_frames.69@l(9)
+	cmpwi 0,0,255
+	la 10,weapon_grenadelauncher_fire@l(11)
+	bc 4,2,.L208
+	li 4,5
+	li 5,16
+	li 6,59
+	li 7,64
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L208:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe31:
+	.size	 Weapon_GrenadeLauncher,.Lfe31-Weapon_GrenadeLauncher
+	.align 2
+	.globl Weapon_RocketLauncher
+	.type	 Weapon_RocketLauncher,@function
+Weapon_RocketLauncher:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.76@ha
+	lwz 0,40(31)
+	la 8,pause_frames.76@l(11)
+	lis 9,fire_frames.77@ha
+	lis 11,Weapon_RocketLauncher_Fire@ha
+	la 9,fire_frames.77@l(9)
+	cmpwi 0,0,255
+	la 10,Weapon_RocketLauncher_Fire@l(11)
+	bc 4,2,.L225
+	li 4,4
+	li 5,12
+	li 6,50
+	li 7,54
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L225:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe32:
+	.size	 Weapon_RocketLauncher,.Lfe32-Weapon_RocketLauncher
+	.section	".rodata"
+	.align 2
+.LC151:
+	.long 0x0
+	.section	".text"
+	.align 2
+	.globl Weapon_Blaster_Fire
+	.type	 Weapon_Blaster_Fire,@function
+Weapon_Blaster_Fire:
+	stwu 1,-32(1)
+	mflr 0
+	stmw 29,20(1)
+	stw 0,36(1)
+	lis 11,.LC151@ha
+	lis 9,deathmatch@ha
+	la 11,.LC151@l(11)
+	mr 29,3
+	lfs 13,0(11)
+	lis 4,vec3_origin@ha
+	lwz 11,deathmatch@l(9)
+	la 4,vec3_origin@l(4)
+	li 6,0
+	li 7,8
+	lfs 0,20(11)
+	fcmpu 7,0,13
+	crnor 31,30,30
+	mfcr 5
+	rlwinm 5,5,0,1
+	neg 5,5
+	rlwinm 5,5,0,28,31
+	ori 5,5,10
+	bl Blaster_Fire
+	lwz 11,84(29)
+	lwz 9,92(11)
+	addi 9,9,1
+	stw 9,92(11)
+	lwz 0,36(1)
+	mtlr 0
+	lmw 29,20(1)
+	la 1,32(1)
+	blr
+.Lfe33:
+	.size	 Weapon_Blaster_Fire,.Lfe33-Weapon_Blaster_Fire
+	.align 2
+	.globl Weapon_Blaster
+	.type	 Weapon_Blaster,@function
+Weapon_Blaster:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.87@ha
+	lwz 0,40(31)
+	la 8,pause_frames.87@l(11)
+	lis 9,fire_frames.88@ha
+	lis 11,Weapon_Blaster_Fire@ha
+	la 9,fire_frames.88@l(9)
+	cmpwi 0,0,255
+	la 10,Weapon_Blaster_Fire@l(11)
+	bc 4,2,.L243
+	li 4,4
+	li 5,8
+	li 6,52
+	li 7,55
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L243:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe34:
+	.size	 Weapon_Blaster,.Lfe34-Weapon_Blaster
+	.align 2
+	.globl Weapon_HyperBlaster
+	.type	 Weapon_HyperBlaster,@function
+Weapon_HyperBlaster:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.95@ha
+	lwz 0,40(31)
+	la 8,pause_frames.95@l(11)
+	lis 9,fire_frames.96@ha
+	lis 11,Weapon_HyperBlaster_Fire@ha
+	la 9,fire_frames.96@l(9)
+	cmpwi 0,0,255
+	la 10,Weapon_HyperBlaster_Fire@l(11)
+	bc 4,2,.L263
+	li 4,5
+	li 5,20
+	li 6,49
+	li 7,53
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L263:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe35:
+	.size	 Weapon_HyperBlaster,.Lfe35-Weapon_HyperBlaster
+	.align 2
+	.globl Weapon_Machinegun
+	.type	 Weapon_Machinegun,@function
+Weapon_Machinegun:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.103@ha
+	lwz 0,40(31)
+	la 8,pause_frames.103@l(11)
+	lis 9,fire_frames.104@ha
+	lis 11,Machinegun_Fire@ha
+	la 9,fire_frames.104@l(9)
+	cmpwi 0,0,255
+	la 10,Machinegun_Fire@l(11)
+	bc 4,2,.L291
+	li 4,3
+	li 5,5
+	li 6,45
+	li 7,49
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L291:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe36:
+	.size	 Weapon_Machinegun,.Lfe36-Weapon_Machinegun
+	.align 2
+	.globl Weapon_Chaingun
+	.type	 Weapon_Chaingun,@function
+Weapon_Chaingun:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.111@ha
+	lwz 0,40(31)
+	la 8,pause_frames.111@l(11)
+	lis 9,fire_frames.112@ha
+	lis 11,Chaingun_Fire@ha
+	la 9,fire_frames.112@l(9)
+	cmpwi 0,0,255
+	la 10,Chaingun_Fire@l(11)
+	bc 4,2,.L338
+	li 4,4
+	li 5,31
+	li 6,61
+	li 7,64
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L338:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe37:
+	.size	 Weapon_Chaingun,.Lfe37-Weapon_Chaingun
+	.align 2
+	.globl Weapon_Shotgun
+	.type	 Weapon_Shotgun,@function
+Weapon_Shotgun:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.119@ha
+	lwz 0,40(31)
+	la 8,pause_frames.119@l(11)
+	lis 9,fire_frames.120@ha
+	lis 11,weapon_shotgun_fire@ha
+	la 9,fire_frames.120@l(9)
+	cmpwi 0,0,255
+	la 10,weapon_shotgun_fire@l(11)
+	bc 4,2,.L355
+	li 4,7
+	li 5,18
+	li 6,36
+	li 7,39
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L355:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe38:
+	.size	 Weapon_Shotgun,.Lfe38-Weapon_Shotgun
+	.align 2
+	.globl Weapon_tranquilizer
+	.type	 Weapon_tranquilizer,@function
+Weapon_tranquilizer:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.127@ha
+	lwz 0,40(31)
+	la 8,pause_frames.127@l(11)
+	lis 9,fire_frames.128@ha
+	lis 11,weapon_tranquilizer_fire@ha
+	la 9,fire_frames.128@l(9)
+	cmpwi 0,0,255
+	la 10,weapon_tranquilizer_fire@l(11)
+	bc 4,2,.L370
+	li 4,7
+	li 5,18
+	li 6,36
+	li 7,39
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L370:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe39:
+	.size	 Weapon_tranquilizer,.Lfe39-Weapon_tranquilizer
+	.align 2
+	.globl Weapon_SuperShotgun
+	.type	 Weapon_SuperShotgun,@function
+Weapon_SuperShotgun:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.135@ha
+	lwz 0,40(31)
+	la 8,pause_frames.135@l(11)
+	lis 9,fire_frames.136@ha
+	lis 11,weapon_supershotgun_fire@ha
+	la 9,fire_frames.136@l(9)
+	cmpwi 0,0,255
+	la 10,weapon_supershotgun_fire@l(11)
+	bc 4,2,.L384
+	li 4,6
+	li 5,17
+	li 6,57
+	li 7,61
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L384:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe40:
+	.size	 Weapon_SuperShotgun,.Lfe40-Weapon_SuperShotgun
+	.align 2
+	.globl Weapon_Railgun
+	.type	 Weapon_Railgun,@function
+Weapon_Railgun:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.143@ha
+	lwz 0,40(31)
+	la 8,pause_frames.143@l(11)
+	lis 9,fire_frames.144@ha
+	lis 11,Rifle_Fire@ha
+	la 9,fire_frames.144@l(9)
+	cmpwi 0,0,255
+	la 10,Rifle_Fire@l(11)
+	bc 4,2,.L400
+	li 4,3
+	li 5,18
+	li 6,56
+	li 7,61
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L400:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe41:
+	.size	 Weapon_Railgun,.Lfe41-Weapon_Railgun
+	.align 2
+	.globl Weapon_BFG
+	.type	 Weapon_BFG,@function
+Weapon_BFG:
+	stwu 1,-16(1)
+	mflr 0
+	stw 31,12(1)
+	stw 0,20(1)
+	mr 31,3
+	lis 11,pause_frames.151@ha
+	lwz 0,40(31)
+	la 8,pause_frames.151@l(11)
+	lis 9,fire_frames.152@ha
+	lis 11,weapon_bfg_fire@ha
+	la 9,fire_frames.152@l(9)
+	cmpwi 0,0,255
+	la 10,weapon_bfg_fire@l(11)
+	bc 4,2,.L418
+	li 4,8
+	li 5,32
+	li 6,55
+	li 7,58
+	bl Weapon_Generic2
+	lwz 9,84(31)
+	lis 4,.LC64@ha
+	la 4,.LC64@l(4)
+	lwz 11,1848(9)
+	lwz 3,40(11)
+	bl stricmp
+.L418:
+	lwz 0,20(1)
+	mtlr 0
+	lwz 31,12(1)
+	la 1,16(1)
+	blr
+.Lfe42:
+	.size	 Weapon_BFG,.Lfe42-Weapon_BFG
+	.ident	"GCC: (GNU) 2.95.2 19991024 (release)"

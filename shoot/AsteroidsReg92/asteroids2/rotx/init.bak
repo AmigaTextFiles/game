@@ -1,0 +1,515 @@
+#include <exec/types.h>
+#include <exec/memory.h>
+#include <exec/interrupts.h>
+#include <devices/input.h>
+#include <devices/inputevent.h>
+#include <devices/timer.h>
+#include <libraries/dos.h>
+#include <intuition/intuition.h>
+#include <graphics/gfx.h>
+#include <graphics/gfxbase.h>
+#include <graphics/gfxmacros.h>
+#include <graphics/gfxbase.h>
+#include <graphics/rastport.h>
+#include <graphics/view.h>
+#include <hardware/custom.h>
+#include <stdio.h>
+#include <string.h>
+#include <h/rot.h>
+
+#define ESC 0x45
+#define DEPTH  1
+#define WIDTH  640
+#define HEIGHT 400
+
+extern LONG inputkey;
+extern LONG Lturn,Rturn;
+extern LONG Thrust; 
+extern LONG Fire,Pause;
+extern LONG Photon,Aim;
+
+extern LONG Lturn2,Rturn2;
+extern LONG Thrust2; 
+extern LONG Fire2;
+extern LONG Photon2,Aim2;
+
+extern struct control control;
+extern struct ship ship[7];
+extern struct asteroid a[32];
+
+struct NewScreen newscreen =
+{
+0,0,
+640,400,
+1,
+0,0,
+HIRES | LACE,
+CUSTOMBITMAP,
+NULL,NULL,NULL,NULL
+};
+
+
+struct TextAttr basic = {"basic.font",32,0,0};
+struct TextFont *basicfont;
+
+struct TextAttr hires = {"hires-5a.font",8,0,0};
+struct TextFont *hiresfont;
+
+struct TextAttr fixplain7 = {"fixplain7.font",12,0,0};
+struct TextFont *fixplain7font;
+
+struct BitMap *bm1[2],*bm2[2];       /*struct BitMap bm[2];*/
+struct View *view[2],*oldview;
+
+struct RasInfo *ri1[2],*ri2[2];
+struct RastPort *rp1[2],*rp2[2];
+struct ViewPort *vp[2];
+
+struct GfxBase *GfxBase;
+struct IntuitionBase *IntuitionBase;
+struct Library *DiskfontBase;
+struct DosLibrary	*DOSBase;
+struct Library		*IFFParseBase;
+
+struct Screen *screen;
+
+
+Initialization()
+{
+LONG x,i;
+
+IntuitionBase = (struct IntuitionBase *) OpenLibrary("intuition.library",NULL);
+if (IntuitionBase == NULL) printf("INTUITIONBASE error!!\n");
+
+GfxBase = (struct GfxBase *) OpenLibrary("graphics.library",NULL);
+if (GfxBase == NULL) printf("GFXBASE error!!\n");
+
+DiskfontBase = (struct Library *) OpenLibrary("diskfont.library",NULL);
+if (DiskfontBase == NULL) printf("DISKFONTBASE error!!\n");
+
+DOSBase = (struct DosLibrary *)OpenLibrary("dos.library",37);
+if (DOSBase == NULL) printf("DOSBASE error!!\n");
+
+IFFParseBase = (struct Library *)OpenLibrary("iffparse.library",37);
+if (IFFParseBase == NULL) printf("IFFPARSEBASE error!!\n");
+
+basicfont = (struct TextFont *)OpenDiskFont(&basic);
+if (basicfont == NULL) printf("basic font error ***\n");
+
+hiresfont = (struct TextFont *)OpenDiskFont(&hires);
+if (hiresfont == NULL) printf("hires font error ***\n");
+
+fixplain7font = (struct TextFont *)OpenDiskFont(&fixplain7);
+if (fixplain7font == NULL) printf("fixplain7 font error ***\n");
+
+
+for (i=0;i<2;i++)
+    {
+	bm1[i] = (struct BitMap *)AllocMem(sizeof(struct BitMap),MEMF_PUBLIC|MEMF_CLEAR);
+	bm2[i] = (struct BitMap *)AllocMem(sizeof(struct BitMap),MEMF_PUBLIC|MEMF_CLEAR);
+
+	InitBitMap(bm1[i],DEPTH,WIDTH,HEIGHT);
+	InitBitMap(bm2[i],DEPTH,WIDTH,HEIGHT);
+
+	for (x=0;x<DEPTH;x++)
+	    {
+		bm1[i]->Planes[x] = (PLANEPTR)AllocRaster(WIDTH,HEIGHT);
+		if (bm1[i]->Planes[x] == NULL) printf("BITMAP error\n");
+		else BltClear(bm1[i]->Planes[x],RASSIZE(WIDTH,HEIGHT),NULL);
+
+		bm2[i]->Planes[x] = (PLANEPTR)AllocRaster(WIDTH,HEIGHT);
+		if (bm2[i]->Planes[x] == NULL) printf("BITMAP error\n");
+		else BltClear(bm2[i]->Planes[x],RASSIZE(WIDTH,HEIGHT),NULL);
+	    }
+    }
+
+newscreen.CustomBitMap = bm1[0];
+screen = (struct Screen *)OpenScreen(&newscreen);
+if (screen == NULL) printf("error opening screen\n");
+
+
+for (i=0;i<2;i++)
+{
+rp1[i] = (struct RastPort *)AllocMem(sizeof(struct RastPort),MEMF_PUBLIC|MEMF_CLEAR);
+rp2[i] = (struct RastPort *)AllocMem(sizeof(struct RastPort),MEMF_PUBLIC|MEMF_CLEAR);
+InitRastPort(rp1[i]);
+InitRastPort(rp2[i]);
+rp1[i]->BitMap = bm1[i];
+rp2[i]->BitMap = bm2[i];
+
+ri1[i] = (struct RasInfo *)AllocMem(sizeof(struct RasInfo),MEMF_PUBLIC|MEMF_CLEAR);
+ri2[i] = (struct RasInfo *)AllocMem(sizeof(struct RasInfo),MEMF_PUBLIC|MEMF_CLEAR);
+ri1[i]->BitMap = bm1[i];
+ri1[i]->RxOffset = 0;
+ri1[i]->RyOffset = 0;
+ri1[i]->Next = ri2[i];
+ri2[i]->BitMap = bm2[i];
+ri2[i]->RxOffset = 0;
+ri2[i]->RyOffset = 0;
+ri2[i]->Next = NULL;
+
+vp[i] = (struct ViewPort *)AllocMem(sizeof(struct ViewPort),MEMF_PUBLIC|MEMF_CLEAR);
+InitVPort(vp[i]);
+vp[i]->DWidth = WIDTH;
+vp[i]->DHeight = HEIGHT;
+vp[i]->RasInfo = ri1[i];
+vp[i]->Modes = DUALPF | LACE | HIRES;
+
+view[i] = (struct View *)AllocMem(sizeof(struct View),MEMF_PUBLIC|MEMF_CLEAR);
+InitView(view[i]);
+view[i]->ViewPort = vp[i];
+view[i]->Modes = LACE;
+MakeVPort(view[i],vp[i]);
+MrgCop(view[i]);
+
+SetRGB4(vp[i],0,0,0,0);
+SetRGB4(vp[i],1,15,15,15);
+SetRGB4(vp[i],8,0,0,0);
+SetRGB4(vp[i],9,7,7,7);
+SetRGB4(vp[i],10,0,0,0);
+
+SetDrMd(rp1[i],JAM1);
+SetDrMd(rp2[i],JAM1);
+
+SetFont(rp2[i],basicfont);
+}
+
+LoadAllImages();
+LoadAllSounds();
+LoadHighScores();
+
+SetRGB4(vp[0],0,10,10,10);
+
+SetDelay(60,0);
+initaudio();
+addtimer();
+addhandler();
+
+SetRGB4(vp[0],0,0,0,0);
+}
+
+
+
+
+
+Cleanup()
+{
+LONG i,x;
+
+closeaudio();
+removetimer();
+removehandler();
+freeimages();
+
+if (basicfont) CloseFont(basicfont);
+if (hiresfont) CloseFont(hiresfont);
+if (fixplain7font) CloseFont(fixplain7font);
+
+CloseScreen(screen);
+
+
+for (i=0;i<2;i++)
+    {
+	if (ri1[i]) FreeMem(ri1[i],sizeof(struct RasInfo));
+	if (rp1[i]) FreeMem(rp1[i],sizeof(struct RastPort));
+	if (ri2[i]) FreeMem(ri2[i],sizeof(struct RasInfo));
+	if (rp2[i]) FreeMem(rp2[i],sizeof(struct RastPort));
+	if (vp[i]) FreeMem(vp[i],sizeof(struct ViewPort));
+	if (view[i]) FreeMem(view[i],sizeof(struct View));
+
+	if (bm1[i]) FreeMem(bm1[i],sizeof(struct BitMap));
+	if (bm2[i]) FreeMem(bm2[i],sizeof(struct BitMap));
+
+	for (x=0;x<DEPTH;x++)
+	    {
+
+		if (bm1[i]->Planes[x]) FreeRaster(bm1[i]->Planes[x],WIDTH,HEIGHT);
+		if (bm2[i]->Planes[x]) FreeRaster(bm2[i]->Planes[x],WIDTH,HEIGHT);
+	    }
+	/*
+	if (view[i]->ViewPort) FreeVPortCopLists(view[i]->ViewPort);
+	if (view[i]->LOFCprList) FreeCprList(view[i]->LOFCprList);
+	if (view[i]->SHFCprList) FreeCprList(view[i]->SHFCprList);
+	*/
+    }
+
+if (IFFParseBase)  CloseLibrary(IFFParseBase);
+if (DiskfontBase)  CloseLibrary((struct Library *)DiskfontBase);
+if (DOSBase)       CloseLibrary((struct Library *)DOSBase);
+if (GfxBase)	    CloseLibrary(GfxBase);
+if (IntuitionBase) CloseLibrary(IntuitionBase);
+
+SetDelay(0,300000);
+
+exit(0);
+}
+
+
+HandleOptions()
+{
+LONG x;
+BYTE string[10];
+
+SetFont(rp1[0],fixplain7font);
+Move(rp1[0],280,100);
+Text(rp1[0],"OPTIONS",7);
+
+Move(rp1[0],180,235);
+Text(rp1[0],"<F2>",4);
+Move(rp1[0],180,250);
+Text(rp1[0],"<F3>",4);
+Move(rp1[0],180,265);
+Text(rp1[0],"<F4>",4);
+Move(rp1[0],180,280);
+Text(rp1[0],"<F5>",4);
+Move(rp1[0],180,310);
+Text(rp1[0],"<F1>",4);
+
+SetFont(rp1[0],hiresfont);
+Move(rp1[0],225,234);
+Text(rp1[0],"PLAYER ONE --",13);
+Move(rp1[0],310,234);
+if (control.player[0] == TRUE)
+    {
+	if (control.input[0] == 0) Text(rp1[0],"HUMAN (KEYBOARD)",16);
+	else					  Text(rp1[0],"HUMAN (JOYSTICK)",16);
+    }
+else						 Text(rp1[0],"NONE",4);
+
+Move(rp1[0],225,249);
+Text(rp1[0],"PLAYER TWO --",13);
+Move(rp1[0],310,249);
+if (control.player[1] == TRUE)
+    {
+	if (control.input[1] == 0) Text(rp1[0],"HUMAN (KEYBOARD)",16);
+	else					  Text(rp1[0],"HUMAN (JOYSTICK)",16);
+    }
+else						 Text(rp1[0],"NONE",4);
+
+Move(rp1[0],225,264);
+Text(rp1[0],"ENEMY SHIPS--",13);
+Move(rp1[0],310,264);
+sprintf(string,"%d",control.enemyonscreen);
+Text(rp1[0],string,strlen(string));
+
+Move(rp1[0],225,279);
+Text(rp1[0],"FIRE TYPE--",11);
+Move(rp1[0],310,279);
+if (control.fire[0] == 0) Text(rp1[0],"NORMAL FIRE",11);
+else
+if (control.fire[0] == 1) Text(rp1[0],"HEAVY FIRE",10);
+else
+if (control.fire[0] == 2) Text(rp1[0],"DOUBLE FIRE",11);
+else					 Text(rp1[0],"SUPER FIRE",10);
+
+Move(rp1[0],225,309);
+Text(rp1[0],"TO RETURN",9);
+
+inputkey = NULL;
+while (inputkey != F1)
+    {
+	if (inputkey == F2)
+	    {
+ 		SetAPen(rp1[0],0);
+ 		RectFill(rp1[0],309,226,409,235);
+		SetAPen(rp1[0],1);
+		Move(rp1[0],310,234);
+		
+ 		if (++control.player[0] > 2) control.player[0] = 1;
+ 		if (control.player[0] == 1) Text(rp1[0],"HUMAN (KEYBOARD)",16);
+		else
+		if (control.player[0] == 2) Text(rp1[0],"HUMAN (JOYSTICK)",16);
+		else					   Text(rp1[0],"NONE",4);
+		Delay(10);
+	    }
+	else
+	if (inputkey == F3)
+	    {
+		SetAPen(rp1[0],0);
+ 		RectFill(rp1[0],309,241,409,250);
+		SetAPen(rp1[0],1);
+		Move(rp1[0],310,249);
+
+ 		if (++control.player[1] > 2) control.player[1] = 0;
+ 		if (control.player[1] == 1) Text(rp1[0],"HUMAN (KEYBOARD)",16);
+		else
+ 		if (control.player[1] == 2) Text(rp1[0],"HUMAN (JOYSTICK)",16);
+		else					   Text(rp1[0],"NONE",4);
+		Delay(10);
+	    }
+	if (inputkey == F4)
+	    {
+		SetAPen(rp1[0],0);
+ 		RectFill(rp1[0],309,256,409,265);
+		SetAPen(rp1[0],1);
+		Move(rp1[0],310,264);
+		
+ 		if (++control.enemyonscreen > 3) control.enemyonscreen = 0;
+		sprintf(string,"%d",control.enemyonscreen);
+		Text(rp1[0],string,strlen(string));
+		Delay(10);
+	    }
+	if (inputkey == F5)
+	    {
+		SetAPen(rp1[0],0);
+ 		RectFill(rp1[0],309,271,409,280);
+		SetAPen(rp1[0],1);
+		Move(rp1[0],310,279);
+		
+ 		if (++control.fire[0] > 3) control.fire[0] = 0;
+ 		if (control.fire[0] == 0) Text(rp1[0],"NORMAL FIRE",11);
+		else
+ 		if (control.fire[0] == 1) Text(rp1[0],"HEAVY FIRE",10);
+		else
+ 		if (control.fire[0] == 2) Text(rp1[0],"DOUBLE FIRE",11);
+		else					 Text(rp1[0],"SUPER FIRE",10);
+		Delay(10);
+	    }
+    }
+inputkey = NULL;
+
+for(x=0;x<2;x++)
+	if (control.player[x] > 1)
+	    {
+		control.player[x] = 1;
+		control.input[x] = 1;
+	    }
+	else	control.input[x] = 0;
+
+control.playernum = control.player[0]+control.player[1];
+}
+
+
+
+
+
+
+DrawTitleScreen()
+{
+
+SetAPen(rp1[0],1);
+
+SetFont(rp1[0],basicfont);			/* title screen */
+Move(rp1[0],180,100);
+Text(rp1[0],"ASTERIODS II",12);
+
+SetFont(rp1[0],hiresfont);			/* title screen */
+
+Move(rp1[0],255,130);
+Text(rp1[0],"by mike seifert",15);
+
+Move(rp1[0],240,200);
+Text(rp1[0],"PRESS  <F1>  TO START",21); 
+
+Move(rp1[0],240,210);
+Text(rp1[0],"PRESS  <F2>  TO CHANGE OPTIONS",30);
+
+Move(rp1[0],240,220);
+Text(rp1[0],"PRESS  <F3>  TO VIEW HIGH SCORES",32);
+
+Move(rp1[0],240,250);
+Text(rp1[0],"PRESS  <ESC>  TO EXIT",21);
+}
+
+
+startwait()
+{
+inputkey = FALSE;
+while (inputkey != F1)
+    {
+	if (inputkey == F2) 
+	    {
+		ClearScreen();
+		HandleOptions();
+		ClearScreen();
+		DrawTitleScreen();
+	    }
+	else
+	if (inputkey == F3) 
+	    {
+		ClearScreen();
+		DisplayHighScores();
+
+		inputkey = FALSE;
+		while (inputkey != F1)
+		    {
+			Delay(2);
+		    }
+		inputkey = FALSE;
+
+		ClearScreen();
+		DrawTitleScreen();
+	    }
+	else
+	if (inputkey == ESC) Cleanup();
+    }
+inputkey = FALSE;
+}
+
+
+DrawGameScreen()
+{
+LONG x;
+
+for(x=0;x<2;x++)
+    {
+	SetFont(rp2[x],hiresfont);
+
+	Move(rp2[x],20,10);
+	Text(rp2[x],"PLAYER 1 SHIELDS",16);
+	Move(rp2[x],20,20);
+	Text(rp2[x],"TECHNOLOGY LEVEL",16);
+	Move(rp2[x],20,389);
+	Text(rp2[x],"PLAYER 1 SCORE",14);
+	Move(rp2[x],20,399);
+	Text(rp2[x],"SHIPS REMAINING",15);
+
+	Move(rp2[x],320,10);
+	Text(rp2[x],"PLAYER 2 SHIELDS",16);
+	Move(rp2[x],320,20);
+	Text(rp2[x],"TECHNOLOGY LEVEL",16);
+	Move(rp2[x],320,389);
+	Text(rp2[x],"PLAYER 2 SCORE",14);
+	Move(rp2[x],320,399);
+	Text(rp2[x],"SHIPS REMAINING",15);
+
+	IncreaseScore(0,0);
+	IncreaseScore(1,0);
+
+	IncreaseLives(0,0);
+	IncreaseLives(1,0);
+
+ 	IncreaseShields(0,0);
+	IncreaseShields(1,0);
+
+ 	IncreaseTech(0,0);
+	IncreaseTech(1,0);
+    }
+}
+
+ClearScreen()
+{
+LONG x;
+
+for(x=0;x<2;x++)
+    {
+	SetAPen(rp1[x],0);
+	SetAPen(rp2[x],8);
+	SetRast(rp1[x],0);
+	SetRast(rp2[x],8);
+    }
+
+for(x=0;x<2;x++)
+    {
+	SetAPen(rp1[x],1);
+	SetAPen(rp2[x],9);
+    }
+}
+
+changeview(bit)
+LONG bit;
+{
+
+
+
+RethinkDisplay();

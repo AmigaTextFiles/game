@@ -1,0 +1,107 @@
+Tomble's Curses Notes (Nov 20 2002)
+=====================
+
+As gleamed from O'Reilly's "Programming With Curses", possibly the
+first O'Reilly book that I've found hard to follow.
+
+Versions:
+=========
+The (old) book covers the original, Berkeley Curses.
+NCurses, the version usually included with Linux, is an extended
+version of the already-bigger SysV curses, with stuff like colour
+attributes (whereas original had v.few attributes).
+
+Screen arrays:
+==============
+The book is hard to follow on this.
+
+     /----------\         ||||||||
+     |          |        ----------
+     | curscr   |________| stdscr |
+     |          |        -TTTTTTTT-
+     \----------/         ||||||||
+      Curses thinks       Curses works on
+     curscr is on the     stdscr in it's memory.
+     terminal screen.
+
+In other words, curses works like a double-buffered display, where curscr
+is what curses *thinks* is the front buffer (it might not be, if you
+write bad code, but curses acts as though it is), and stdscr is used as
+the back buffer.
+
+refresh() writes the difference between stdscr and curscr onto the
+terminal screen, and then sets curscr to contain what was in stdscr
+(which will also still be in stdscr). In other words, refresh() acts
+like a buffer swap in a double buffered display.
+
+If the screen gets garbled because something else ends up on the screen
+that curses didn't put there (which would mean that curscr no longer
+described the display contents), then refresh(curscr) will draw
+everything that was supposed to be there. Obviously, this should not
+be used frequently, as drawing the whole screen is slower than drawing
+just a bit of it.
+
+Both screens are initialised (around beginning of program) with
+initscr().
+Curses usage should be cleaned up at the end by endwin().
+
+The screens are of type WINDOW, it would seem. You can make subwindows
+of existing windows, and you can make "new windows".
+The "new windows" bit sounds incongruous- where would a new window go if
+it wasn't part of an existing window? AHA! The distinction is:
+A subwindow takes up part of the area of its parent window, acts mostly
+independently of it, *but* its text contents are shared with its parent.
+In other words, if you write something in a subwindow, that something
+actually gets written in the parent window.
+The "new window" is basically the same as a subwindow, it appears
+somewhere on the display, covering at least part of existing windows
+(or at least stdscr), *but*, its text contents are particular to itself.
+
+Terminal input modes:
+=====================
+
+Default mode: Kernel processes much of the terminal input, doing
+line editing functions and converting certain control characters
+into signals. Input is given to program line at a time.
+
+Crmode/cbreak (the same thing??): Kernel still interprets most
+control characters into signals, but supplies no line editing
+support, instead feeding input to program character at a time.
+NB- ncurses documentation makes no reference to crmode or nocrmode.
+The curses.h header only supplies them as macros to cbreak() and
+nocbreak().
+
+Raw: Kernel does nothing at all, no line editing and no control
+character interpretation. Program will ignore ^C interrupt keys.
+
+nocrmode/nocbreak: Comes out of crmode to return to default (if
+raw wasn't also selected?)
+
+echo(): Sets physical and logical echoing of input. You should
+probably turn it off with
+noecho(): which turns off both physical and logical echoing, useful
+if you use raw or crmode.
+nl(): To do with newline mapping. Normally turned *off* by crmode
+and rawmode, I expect with good reason.
+
+Etc.
+
+Attributes (added Jul 21 2004!)
+==========
+
+Not sure if attributes are addable or what.
+
+A_BOLD makes character bright. Seems universal. Makes BLACK into grey.
+A_UNDERLINE makes characters underlined, DOESN'T Seem to work on
+ Linux console, haven't checked Windows yet. Works fine on Xterm and
+ on WYSE serial terminal.
+A_DIM *seems* to be the same brightness as the default, rather than
+ a third, lower brightness level.
+
+If attributes are combinable, then A_NORMAL presumably sets everything
+ to normal. Otherwise, would appear equivalent to A_DIM??
+
+Other than these, and colours, haven't really tried any others.
+Should try A_REVERSE? It might be a useful way to interpret the BLACK
+ colour (as in the BLACK+DIM combo, but not BLACK+BOLD, which is
+ obviously useful as grey)

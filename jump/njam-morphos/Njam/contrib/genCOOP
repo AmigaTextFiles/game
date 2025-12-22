@@ -1,0 +1,185 @@
+#!/usr/bin/perl -w
+
+# Programmed by:	Jalal A. Elhusseini
+# Date:			DEC 5, 2003
+
+# Perl script to Convert a '.DEF' level definition file for the NJAM game
+# to a '.COOP' file used by NJAM.
+
+$ARGC = $#ARGV + 1; # Get number of arguments.
+
+$WORLD_HEADER = "";
+$LEVEL_END = "[EndEndEnd]";
+
+$Stop_Script      = 0;
+
+$Row = ""; 
+
+$Row_START = 0;
+$Row_END   = 23;
+$Col_START = 0;
+$Col_END   = 27;
+
+$WORLD_COUNT = 0;
+$WORLDS_MAX = 20;
+
+$BLOCK        = 0x0;
+$EMPTY        = 0x1;
+$GHOST_HOME   = 0x2;
+$DOOR         = 0x3;
+$POWER        = 0x4;
+$COOKIE       = 0x5;
+$FREEZE       = 0x6;
+$TRAP         = 0x7;
+$WARP         = 0x8;
+$INVISIBILITY = 0x9;
+
+$SYMBOLS      = "BEGDPCFTWI";
+
+%Elements = ();		#clear hash 1st
+%Elements = (	B	=>	0,
+		E	=>	1,
+		G	=>	2,
+		D	=>	3,
+		P	=>	4,
+		C	=>	5,
+		F	=>	6,
+		T	=>	7,
+		W	=>	8,
+		I	=>	9, );
+
+@Dead_world0 = (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+@Dead_world1 = (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0);
+@Dead_world2 = (0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0);
+
+sub write_dead
+{ 
+ for ( $LOOP4 = $Row_START ; $LOOP4 <= $Row_END ; $LOOP4++ )
+ { printf D_OUT "%s", chr($_[$LOOP4]); }
+}
+
+sub gen_dead_worlds
+{
+ print "I'm in the DEAD zone\n";
+ for ( $LOOP2 = $WORLD_COUNT + 1 ; $LOOP2 <= $WORLDS_MAX  ; $LOOP2++ )
+ {
+  write_dead(@Dead_world0);
+  write_dead(@Dead_world1);
+  for ( $LOOP3 = 2 ; $LOOP3 <= 25 ; $LOOP3++ ) { write_dead(@Dead_world0); }
+  write_dead(@Dead_world2);  
+  write_dead(@Dead_world0);  
+ }
+}
+
+# ARGUMENT ERROR Message
+if ($ARGC < 2 )
+{
+	print "\n\n\n";
+	print "Usage: genCOOP INPUT_FILE (OUTPUT_FILE)\n";
+	print "Do NOT include a file extension on the command line.\n";
+	print "Default extension for Input  file is .DEF\n";
+	print "Default extention for Output file is .COOP\n";
+	print "If OUTPUT_FILE not entered then OUTPUT_FILE = INPUT_FILE'\n";
+	print "File names will be capitalized.\n";
+	print "\n\n\n";
+}
+
+# Open Input and output files
+if ($ARGC >= 1)
+{
+	$INPUT_FILE_TEMP = $ARGV[0];
+	$_ = $INPUT_FILE_TEMP; tr/a-z/A-Z/; $INPUT_FILE_TEMP = $_;	
+	$INPUT_FILE = "$INPUT_FILE_TEMP".".DEF";
+	open (D_IN, $INPUT_FILE) || die "Sorry, I can't open $INPUT_FILE.\n";
+	print "Input File = $INPUT_FILE.\n";
+
+	if ( $ARGC == 1 ) { $OUTPUT_FILE = "$INPUT_FILE_TEMP".".COOP"; }
+	else
+	{ $OUTPUT_FILE = $ARGV[1];
+	  $_ = $OUTPUT_FILE; tr/a-z/A-Z/; $OUTPUT_FILE = $_.".COOP";
+	}
+	open (D_OUT,">$OUTPUT_FILE") || die "Sorry, I can't create $OUTPUT_FILE.\n";
+	binmode D_OUT;
+	print "Output File = $OUTPUT_FILE.\n";
+
+# Start a loop based on a valid World header in the Input file [world name]
+	while ( $Stop_Script == 0 )
+	{
+	 $WORLD_HEADER = <D_IN>;
+	 chomp ($WORLD_HEADER);
+	 if ($WORLD_HEADER eq $LEVEL_END)
+	 { 
+	  $Stop_Script = 1;
+	  print "End of file detected.\n";
+	  if ($WORLD_COUNT < $WORLDS_MAX) { gen_dead_worlds(); }
+	 }
+	 elsif ( index($WORLD_HEADER , "[") > -1 )	#valid header name?
+	 {
+	  $world = $WORLD_HEADER;
+	  print "New World = $world.\n";
+	  $WORLD_COUNT++;
+	  
+# Read a World from Input file into a temp 2D array
+          for ( $LOOP0 = $Row_START ; $LOOP0 <= $Row_END  ; $LOOP0++ )
+          {
+	   $Row = <D_IN>; chomp ($Row);
+	   @TEMP = split(/,/,$Row);
+	   $World[$LOOP0] = [@TEMP];
+#	   print "@TEMP\n";
+	  }
+
+# Check for undefined symbols in the world
+          for ( $LOOP0 = $Row_START ; $LOOP0 <= $Row_END  ; $LOOP0++ )
+          {
+	   for ( $LOOP1 = $Col_START ; $LOOP1 <= $Col_END  ; $LOOP1++ )
+	   {
+	    $test = index $SYMBOLS, $World[$LOOP0][$LOOP1];
+	    if  ( $test < 0 ) { $World[$LOOP0][$LOOP1] = "B"; }
+	   }
+	  }
+
+# Make sure the world boundary is a BLOCK type
+	  for ( $LOOP1 = $Col_START ; $LOOP1 <= $Col_END  ; $LOOP1++ )
+	  {
+	   $World[$Row_START][$LOOP1] = "B";	# Top Row
+	   $World[$Row_END][$LOOP1]   = "B";	# Bottom Row
+	  }
+          for ( $LOOP0 = ($Row_START+1) ; $LOOP0 <= ($Row_END-1)  ; $LOOP0++ )
+          {
+	   $World[$LOOP0][$Col_START] = "B";	# 1st Col
+	   $World[$LOOP0][$Col_END]   = "B";	# Last Col
+	  }	  
+
+# Convert the temp array from text to numbers
+          for ( $LOOP0 = $Row_START ; $LOOP0 <= $Row_END  ; $LOOP0++ )
+          {
+	   for ( $LOOP1 = $Col_START ; $LOOP1 <= $Col_END  ; $LOOP1++ )
+	   {
+	    $Old = $World[$LOOP0][$LOOP1];
+	    $World[$LOOP0][$LOOP1] = $Elements{$Old};
+	    $New = $World[$LOOP0][$LOOP1]; print "$New ";
+	   }
+	   print "\n";
+	  }
+	  print "----------------------------------------------------\n";
+	  print "Done with World: $world, Number: $WORLD_COUNT\n";
+	  print "----------------------------------------------------\n\n";
+
+# Write the World to the Output file in a .COOP compatible write foramt
+          for ( $LOOP0 = $Col_START ; $LOOP0 <= $Col_END  ; $LOOP0++ )
+          {
+	   for ( $LOOP1 = $Row_START ; $LOOP1 <= $Row_END  ; $LOOP1++ )
+	   { printf D_OUT "%s", chr($World[$LOOP1][$LOOP0]); }
+          }
+
+	 }	#valid header name?
+	 if ($WORLD_COUNT == $WORLDS_MAX)
+	 { 
+	  $Stop_Script = 1;
+	  print "Only $WORLDS_MAX Worlds in a .COOP file are allowed.\n"
+	 }
+	}	#while ( $Stop_Script == 0)
+
+	close (D_IN);
+	close (D_OUT);
+}

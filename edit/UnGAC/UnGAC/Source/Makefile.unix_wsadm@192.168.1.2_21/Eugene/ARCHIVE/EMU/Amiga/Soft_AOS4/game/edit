@@ -1,0 +1,71 @@
+#
+# Makefile for Unix and CP/M-80 versions of UnGAC
+#
+# Currently, without a DOS cross-compiler, I have to do the DOS version
+# separately (see mk.bat).
+
+#
+# Install locations
+#
+BINDIR = /usr/local/bin
+MANDIR = /usr/local/man/man1
+
+#
+# Compiler
+#
+CC=gcc
+CFLAGS=-g -Wall -ansi -pedantic
+#
+# Z80 cross-compiler (actually the native Hi-Tech C running under emulation).
+#
+Z80_CC=zxc -DTINY_MODEL
+
+#
+# Zip utility
+#
+ZIP=zip
+
+#
+# Files to pack
+#
+ZIPFILES=COPYING ungac.c ungac.com ungac.txt ungac.1 Makefile fbstrip.com
+
+all:	ungac ungac.txt ungac.1 # ungact
+
+zip:	$(ZIPFILES)
+	zip ungac.zip $(ZIPFILES)
+
+install: ungac ungac.1
+	install -m 755 ungac $(BINDIR)
+	install -m 644 unquill.1 $(MANDIR)
+
+cpm:	fbmake ungac.com
+
+ungac:	ungac.c
+
+#
+# ungact builds a version that uses the tiny-model code found in the DOS and 
+# CP/M ports, for debugging.
+#
+ungact: ungac.c
+	$(CC) -DTINY_MODEL $(CFLAGS) -o $@ $<
+
+ungac.man:    ungac.1
+	        nroff -c -mandoc $< > $@
+
+ungac.txt:    ungac.man
+	        col -b < $< > $@
+
+#
+# Generate a unified COM file for CP/M and DOS. 
+#
+ungac.cpm:	ungac.c 
+	$(Z80_CC) $<
+	mv ungac.com $@
+
+ungac.com: ungac.cpm ungac.dos fbmake
+	./fbmake ungac.cpm ungac.dos $@
+
+clean:
+	rm -f ungac ungac.com ungac.cpm ungac.dos fbmake ungac.man
+

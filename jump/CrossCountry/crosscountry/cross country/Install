@@ -1,0 +1,110 @@
+(set #intro "Welcome to the Cross Country installer")
+(set #where "Where do you want to install Cross Country ?\n(A drawer named \"Cross Country\" will be created).")
+(set #where_help "Select a place to install Cross Country")
+(set #copy1 "Copying disk 1 files")
+(set #copy2 "Copying disk 2 files")
+(set #end "Installation complete.\n\nTo remove Cross Country,\njust run the installer again\n\nHave FUN with your Amiga !")
+(set #end2 "Cross Country has been removed.")
+(set #disk2 "Please insert disk 2")
+(set #uninstall "Un-Installing Cross Country.")
+(set #startup "In order to use Cross Country, I need to append\nthe following assigns to your user-startup:\n")
+(set #startup_help "If you do not want the installer to append\nthese assigns, you will have to make them\nmanually.")
+(set #unstartup "Should I remove the assigns from the user-startup ?")
+
+(if (= @language "français") (
+(set #intro "Bienvenue dans l'installeur de Cross Country")
+(set #where "Où voulez-vous installer Cross Country ?\n(Un répertoire du nom de\n\"Cross Country\" sera créé).")
+(set #where_help "Sélectionnez l'endroit où vous\nvoulez installer Cross Country")
+(set #copy1 "Copie des fichiers de la disquette 1")
+(set #copy2 "Copie des fichiers de la disquette 2")
+(set #end "Installation terminée.\n\nPour désinstaller Cross Country,\nrelancez simplement l'installeur\n\nAmusez-vous bien avec votre Amiga !")
+(set #end2 "Cross Country a été désinstallé.")
+(set #disk2 "Veuillez insérer la disquette 2.")
+(set #uninstall "Désinstallation de Cross Country.")
+(set #startup "Pour pouvoir utiliser Cross Country, je dois ajouter\nà votre user-startup les assignations suivantes:\n")
+(set #startup_help "Si vous ne voulez pas que l'installeur\nfasse ces assignations, vous\ndevrez les faire manuellement.")
+(set #unstartup "Dois-je enlever les assignations\nde la user-startup ?")
+))
+
+(complete 0)
+
+(if (> (/ (getversion) 65536) 36) (run "InstImg"))
+
+(message #intro)
+
+(welcome)
+
+(if (exists "CrossCountry:" (noreq))
+
+;désinstallation
+(
+(working #uninstall)
+(run "assign >NIL: \"Cross Country:\"  remove")
+(run "assign >NIL: \"Cross Disk 2:\"  remove")
+(run "delete >NIL: \"CrossCountry:Cross Country\" all quiet force")
+(run "delete >NIL: \"CrossCountry:Cross Country.info\"")
+(run "assign >NIL: CrossCountry:  remove")
+(startup "Cross Country"
+	(prompt #unstartup)
+	(help " ")
+	(command ";removed")
+)
+(complete 100)
+(set #inst 0)
+)
+
+;installation
+(
+(set target "Work:")
+(set target (askdir
+	(prompt #where)
+	(help #where_help)
+	(default "Work:")
+	)
+)
+(makedir (tackon target "Cross Country"))
+(working #copy1)
+(copyfiles
+	(source "Cross Country:")
+	(dest (tackon target "Cross Country"))
+	(all)
+	(infos)
+)
+(complete 50)
+(askdisk
+	(prompt #disk2)
+	(help #disk2)
+	(dest "Cross Disk 2")
+)
+(working #copy2)
+(copyfiles
+	(source "Cross Disk 2:")
+	(dest (tackon target "Cross Country"))
+	(all)
+	(infos)
+)
+(makeassign "CrossCountry" target)
+(makeassign "Cross Country" (tackon target "Cross Country"))
+(makeassign "Cross Disk 2" (tackon target "Cross Country"))
+(complete 99)
+(startup "Cross Country"
+	(prompt
+		(cat
+			#startup
+			"Assign \"Cross Country:\" \"" (tackon target "Cross Country") "\"\n"
+			"Assign \"Cross Disk 2:\" \"" (tackon target "Cross Country") "\"\n"
+			"Assign CrossCountry: \"" target "\"\n"
+		)
+	)
+	(help #startup_help)
+	(command
+		"Assign \"Cross Country:\" \"" (tackon target "Cross Country") "\"\n"
+		"Assign \"Cross Disk 2:\" \"" (tackon target "Cross Country") "\"\n"
+		"Assign CrossCountry: \"" target "\"\n"
+	)
+)
+(complete 100)
+(set #inst 1)
+)
+) ;end if
+(if (= #inst 1) (exit #end) (exit #end2))

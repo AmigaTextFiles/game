@@ -1,0 +1,84 @@
+;
+; 68030 specific fixpoint stuff
+;
+; $Revision: 1.5 $
+; $Author: tfrieden $
+; $Log: fix.a,v $
+; Revision 1.5  1998/03/28 23:05:04  tfrieden
+; fixmulaccum replaced by assembler
+;
+; Revision 1.4  1998/03/27 00:53:41  tfrieden
+; Fixed up the long integer versions for fixpoint stuff
+;
+; Revision 1.3  1998/03/25 21:57:58  tfrieden
+; Removed the long int stuff for now
+;
+; Revision 1.2  1998/03/22 19:20:50  tfrieden
+; new short int version
+;
+; Revision 1.1  1998/03/22 01:59:10  tfrieden
+; Initial check-in
+;
+;
+
+		SECTION name,CODE
+		xdef _fixmul_int
+		xdef _fixdiv_int
+		xdef _fixdivquadlong_int
+		xdef _fixmulaccum_int
+		xdef _fixmul_short
+
+_fixmul_int
+		muls.l     d1,d1:d0
+		move.w     d1,d0
+		swap       d0
+		rts
+
+_fixdiv_int
+		movem.l d2/d3,-(sp)
+		move.l  d0,d3
+		swap    d0
+		move.w  d0,d2
+		ext.l   d2
+		clr.w   d0
+		tst.l   d1
+		beq.b   3$      ; check for divide by 0 !
+		divs.l  d1,d2:d0
+		bvc.b   1$
+3$      eor.l   d1,d3
+		bmi.b   2$
+		move.l  #$7fffffff,d0
+		bra.b   1$
+2$      move.l  #$80000000,d0
+1$      movem.l (sp)+,d2/d3
+		rts
+
+*        movem.l    d2/d3,-(a7)
+*        move.l     d0,d2
+*        moveq      #16,d3
+*        asl.l      d3,d0
+*        lsr.l      d3,d2
+*        divs.l     d1,d2:d0
+*        movem.l    (a7)+,d2/d3
+*        rts
+
+_fixdivquadlong_int
+		divs.l     d2,d1:d0
+		rts
+
+
+_fixmulaccum_int:
+		muls.l     d0,d0:d1            ; d1:d0 = d1 * d0 -> multiply two fixes
+		add.l      d1,(a0)             ; and add low to qlow
+		move.l     4(a0),d1            ; get qhigh
+		addx.l     d0,d1               ; hight to qhigh with carry
+		move.l     d1,4(a0)            ; write it back
+		rts
+
+_fixmul_short                          ; Version without long multiplication
+		asr.l      #8,d0
+		asr.l      #8,d1
+		muls.l     d1,d0
+		rts
+
+		END

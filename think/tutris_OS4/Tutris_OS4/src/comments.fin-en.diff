@@ -1,0 +1,1302 @@
+diff -ur Tutris-1.0.1/src/cTutris.cpp Tutris-1.0.1.en/src/cTutris.cpp
+--- Tutris-1.0.1/src/cTutris.cpp	2003-07-28 18:30:06.000000000 +0300
++++ Tutris-1.0.1.en/src/cTutris.cpp	2003-07-28 18:23:37.000000000 +0300
+@@ -15,10 +15,10 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Tiedosto: cTutris.cpp
+-// Tekijä: Jarmo Hekkanen <jarski@2ndpoint.fi>
++// File: cTutris.hpp
++// Author: Jarmo Hekkanen <jarski@2ndpoint.fi>
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Sisällytettävät otsikkotiedostot
++// Includes
+ #include "cTutris.hpp"
+ #include <iostream>
+ #include <stdlib.h>
+@@ -30,10 +30,10 @@
+ //==============================================================================
+ // Constructor
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Alustetaan joitain muuttuja
++// Initialize some variables
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ cTutris::cTutris (void):
+-mpScreen (SDL_GetVideoSurface ()),	// Video surface
++mpScreen (SDL_GetVideoSurface ()),	// Get the framebuffer
+ mpBackground (NULL),
+ mpBlocks (NULL)
+ {
+@@ -47,7 +47,7 @@
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ cTutris::~cTutris (void)
+ {
+-	// Vapautetaan grafiikat
++	// Free the graphics
+ 	SDL_FreeSurface (mpBackground);
+ 	SDL_FreeSurface (mpBlocks);
+ };
+@@ -56,37 +56,35 @@
+ //==============================================================================
+ // Initialize the game
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Alustaa pelin. Kun tämä metodi on suoritettu onnistuneesti, peli voidaan 
+-// käynnistää MainLoop-metodia kutsumalla.
++// If this method returns EXIT_SUCCESS you can go ahead and call MainLoop
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Palauttaa:
+-// 		0: jos kaikki ok
+-//		1: jos tapahtui virhe
++// Returns:
++// 		EXIT_SUCCESS: OK
++//		EXIT_FAILURE: Error
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ int 
+ cTutris::Initialize (void)
+ {
+-	// Siemennetään satunnaislukugeneraattori =)
++	// Initialize random numbers
+ 	srand (time (NULL));
+ 	
+-	// Ladataan taustakuva
++	// Load background image
+ 	mpBackground = LoadImage (BackgroundFile);
+ 	if ( mpBackground == NULL )
+ 		return EXIT_FAILURE;
+ 	
+-	// Ladataan palikoiden kuvat
++	// Load block image
+ 	mpBlocks = LoadImage (BlocksFile);
+ 	if ( mpBlocks == NULL )
+ 		return EXIT_FAILURE;
+ 	
+-	// Ladataan fontti
+-	SDL_Surface *pFontSurface = LoadImage (FontFile, false);
++	// Load font
++	SDL_Surface *pFontSurface = LoadImage (FontFile, true);
+ 	if ( pFontSurface == NULL )
+ 		return EXIT_FAILURE;
+-	
+ 	mFont.load (pFontSurface);
+ 	
+-	// Aloitetaan uusi peli
++	// Initialize game variables
+ 	NewGame ();
+ 	
+ 	return EXIT_SUCCESS;
+@@ -94,40 +92,38 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Aloittaa uuden pelin
+-//­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Alustaa muuttujat oikeisiin aloitusarvoihin
++// Initializes game variables to starting values
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ void 
+ cTutris::NewGame (void)
+ {
+-	// Tyhjennetään pelialue
++	// Clear the play area
+ 	memset (mPlayArea, 0, AreaWidth * AreaHeight);
+ 		
+-	// Alustetaan nykyinen palikka
++	// Initialize current shape
+ 	RandomShape (mCurrentShape);
+-	// Keskitetään palikka sivuttaissuunnassa
++	// Center current shape horizontally
+ 	mShapeX = (AreaWidth - 4) / 2;
+-	// Asetetaan palikka pelialueen ylälaitaan
++	// Shape starts from the top of the play area
+ 	mShapeY = 0;
+ 		
+-	// Alustetaan seuraava palikka
++	// Initialize next shape
+ 	RandomShape (mNextShape);
+ 	
+-	// Alustetaan pisteet
++	// Initialize score
+ 	mLevel = 1;
+ 	mScore = mLines = 0;
+ 	
+-	// Alustetaan palikan liikkeeseen liittyvät muuttujat
+-	mMoving = false;				// Pelaaja ei liikuta palikkaa tällä hetkellä
+-	mDropDelay = StartDropDelay;	// Aloitus viive palikan putoamiselle
++	// Initialize block movement
++	mMoving = false;				// Player is not moving the shape
++	mDropDelay = StartDropDelay;	// Set starting delay
+ 	mLastDrop = SDL_GetTicks ();
+ 	
+-	// Piirretään taustakuva ruudulle
++	// Draw the background
+ 	SDL_BlitSurface (mpBackground, NULL, mpScreen, NULL);
+ 	SDL_Flip (mpScreen);
+ 	
+-	// Määrätään kaikki alueet piirrettäviksi
++	// Redraw all areas
+ 	mRedrawPlayArea = true;
+ 	mRedrawNextShape = true;
+ 	mRedrawScore = true;
+@@ -135,88 +131,91 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Pääsilmukka
++// Main loop
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ int 
+ cTutris::MainLoop (void)
+ {
+-	// Pääsilmukka pyörii kunnes mRunning asetetaan false:ksi
++	// Main loop
+ 	mRunning = true;
+ 	while ( mRunning )
+ 	{
+-		// Käsitellään tapahtumat
++		// Handle events
+ 		EventHandler ();
+ 		
+-		// Paljos se kello on tähän aikaan päivästä?
++		// Get tick count
+ 		Uint32 now = SDL_GetTicks ();
+ 		
+-		// Lasketaan kuinka monta riviä palikka on pudonnut sitten viime päivityksen
++		// Calculate how many lines the shape has dropped since the last update
+ 		int linesToDrop = (now - mLastDrop) / mDropDelay;
+ 		if ( linesToDrop > 0 )
+ 		{
+-			// Lasketaan viimeisein pudotuksen aika
++			// Calculate the time of last drop
+ 			mLastDrop += linesToDrop * mDropDelay;
+-			// Pudotetaan palikkaa
++			// Drop the shape...
+ 			DropShape (linesToDrop);
+-			// ...joten se tarvitsee uudelleen piirtämistä
++			// ...and redraw it
+ 			mRedrawNextShape = true;
+ 		}
+ 		
+-		// Onko palikka liikkeessä
++		// Is the shape moving?
+ 		if ( mMoving )
+ 		{
+-			// Onko seuraavan liikutuksen aika?
++			// Is it time to move?
+ 			if ( now - mLastMove >= MoveDelay )
+ 			{
+-				// Liikutetaan palikkaa...
++				// Move the shape
+ 				MoveShape (mMoveDir);
+-				// ...ja lasketaan liikutuksen aika
++				// Calculate the time of last move
+ 				mLastMove = mLastMove + MoveDelay;
+-				// Määrätään pelialue uudelleen piiirrettäväksi
++				// Redraw play area
++				mRedrawPlayArea = true;
+ 			}
+ 		}
+ 		
+-		// Piirretään pelialue
++		// Draw play area
+ 		if ( mRedrawPlayArea )
+ 		{
+-			// Pyyhitään pelialue eli kopioidaan taustakuvsta ao. alue näytölle
++			// Clear the play area. This is done by redrawing a part of the
++			// background image.
+ 			SDL_Rect playArea = {AreaX, AreaY, AreaWidth * BlockSize, AreaHeight * BlockSize};
+ 			SDL_BlitSurface (mpBackground, &playArea, mpScreen, &playArea);
+ 			
+-			// Piirretään pelialue
++			// Draw the play area
+ 			DrawBlocks (AreaX, AreaY, AreaWidth, AreaHeight, mPlayArea);
+ 			
+-			// Piirretään palikka
++			// Draw the shape
+ 			DrawBlocks (AreaX + mShapeX * BlockSize, AreaY + mShapeY * BlockSize, 4, 4, mCurrentShape);
+ 			
+ 			mRedrawPlayArea = false;
+ 			
+-			// Päivitetään näyttö
++			// Update the screen
+ 			SDL_UpdateRects (mpScreen, 1, &playArea);
+ 		}
+ 		
+-		// Piirretään 'seuraava palikka'-näyttö
++		// Draw next shape display
+ 		if ( mRedrawNextShape )
+ 		{
+-			// Pyyhitään näyttö oikasta kohdasta
++			// Clear the display.
+ 			SDL_Rect nextShape = { NextShapeX, NextShapeY, 4 * BlockSize, 4 * BlockSize };
+ 			SDL_BlitSurface (mpBackground, &nextShape, mpScreen, &nextShape);
+ 			
+-			// Piirretään seuraava palikka
++			// Draw the next shape
+ 			DrawBlocks (NextShapeX, NextShapeY, 4, 4, mNextShape);
+ 			
+ 			mRedrawNextShape = false;
+ 			
+-			// Päivitetään näyttö
++			// Update the screen
+ 			SDL_UpdateRects (mpScreen, 1, &nextShape);
+ 		}
+ 		
++		// Draw score
+ 		if ( mRedrawScore )
+ 		{
+ 			DrawScore ();
+ 		}
+ 		
+-		// Pikku viive
++		// Small delay. We don't really need 500fps for tetris =)
+ 		SDL_Delay (SDL_TIMESLICE);
+ 	}
+ 	
+@@ -227,29 +226,27 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Tapahtuma käsittelijä
+-//­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Tämä metodi käsittelee SDL:n lähettämiä tapahtumia ja toimii kuten
+-// parhaaksi näkee...
++// This methods handles the SDL events
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ void 
+ cTutris::EventHandler (void)
+ {
+ 	SDL_Event event;
+ 	
++	// Poll the event queue till it's empty
+ 	while ( SDL_PollEvent (&event) != 0 )
+ 	{
+ 		switch ( event.type )
+ 		{
+ 			case SDL_QUIT:
+-				// Pysäytetään pääsilmukka
++				// Stop the main loop
+ 				mRunning = false;
+ 				break;
+ 			case SDL_KEYDOWN:
+ 				switch ( event.key.keysym.sym )
+ 				{
+ 					case SDLK_ESCAPE:
+-						// Pysäytetään pääsilmukka
++						// Stop the main loop
+ 						mRunning = false;
+ 						break;
+ 					case SDLK_LEFT:
+@@ -277,15 +274,15 @@
+ 						SDL_WM_ToggleFullScreen (mpScreen);
+ 						break;
+ 					case SDLK_F10:
+-						// Tallennetaan screenshotti
++						// Save screenshot
+ 						SDL_SaveBMP (mpScreen, "screenshot.bmp");
+ 						break;
+ 					case SDLK_F1:
+-						// Uusi peli
++						// Start a new game
+ 						NewGame ();
+ 						break;
+ 					case SDLK_F2:
+-						// Paussi
++						// Pause the game
+ 						Pause ();
+ 						break;
+ 					default:
+@@ -319,43 +316,44 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Panee pelin pausille
++// Pause the game
+ //------------------------------------------------------------------------------
+ void 
+ cTutris::Pause (void)
+ {	
+-	// Tallennetaan ajat
++	// Save the current times
+ 	Uint32 now = SDL_GetTicks ();
+ 	Uint32 dropTime = now - mLastDrop;
+ 	Uint32 moveTime = now - mLastMove;
+ 	
+ 	SDL_Rect playArea = {AreaX, AreaY, AreaWidth * BlockSize, AreaHeight * BlockSize};
+ 	
+-	// Väliaikainen taulukko, jolla peitetään varsinainen pelialue
++	// Temporary block table which hides the play area
+ 	Uint8 temp[AreaWidth * AreaHeight];
+ 	Uint8 color = 1;	// Täyttö väri
+ 
+-	// Piirretään taulukko
++	// Draw the block table
+ 	memset (temp, color, AreaWidth * AreaHeight);
+ 	DrawBlocks (AreaX, AreaY, AreaWidth, AreaHeight, temp);
+-	// Päivitetään näyttö
++	// Update the screen
+ 	SDL_UpdateRects (mpScreen, 1, &playArea);
+ 
+-	// Odotellaan kunnes peli jatkuu
++	// Wait for the game to continue
+ 	bool paused = true;
+ 	SDL_Event event;
+ 	while ( paused )
+ 	{
++		// Redraw the block table if color has changed
+ 		if ( temp[0] != color )
+ 		{
+-			// Piirretään taulukko
++			// Draw the table
+ 			memset (temp, color, AreaWidth * AreaHeight);
+ 			DrawBlocks (AreaX, AreaY, AreaWidth, AreaHeight, temp);
+-			// Päivitetään näyttö
++			// Update the screen
+ 			SDL_UpdateRects (mpScreen, 1, &playArea);
+ 		}
+ 
+-		// Odotetaan tapahtumia
++		// Wait for events
+ 		SDL_WaitEvent (&event);
+ 		switch ( event.type )
+ 		{
+@@ -374,7 +372,7 @@
+ 						paused = false;
+ 						break;
+ 					default:
+-						// Vaihdetaan väriä
++						// Change the color
+ 						color++;
+ 						if ( color == 0 || color > NumberOfBlocks )
+ 							color = 1;
+@@ -382,24 +380,23 @@
+ 				}
+ 		}
+ 	}
+-	// Piiretään varsinainen pelialue uudelleen
++	// Redraw the play area
+ 	mRedrawPlayArea = true;
+ 	
+-	// Palautetaan ajat
++	// Restore times
+ 	mLastDrop = SDL_GetTicks () - dropTime;
+ 	mLastMove = SDL_GetTicks () - moveTime;
+ }
+ //==============================================================================
+ 
+ //==============================================================================
+-// Palikkataulukkojen piirtorutiini
++// Draws block tables
+ //------------------------------------------------------------------------------
+-// Parametrit:
+-//		x: piirtoalueen vasemman yläkulman X-koordinaatti
+-//		y: piirtoalueen vasemman yläkulman Y-koordinaatti
+-//		width: taulukon leveys
+-//		height: taulukon korkeus
+-//		pArray: taulukko, joka piirretään (koko pitää olla width*height)
++// Parameters:
++//		x, y: Position of the table on screen (top left corner)
++//		width: Width of the table
++//		height: Height of the table
++//		pArray: Table to draw (size must be at least width*height)
+ //------------------------------------------------------------------------------
+ void 
+ cTutris::DrawBlocks (int x, int y, int width, int height, Uint8 *pArray)
+@@ -407,29 +404,29 @@
+ 	SDL_Rect srcRect, dstRect;
+ 	Uint8 blockID;
+ 	
+-	// Asetetaan lähdenelikulmio
++	// Source rectangle
+ 	srcRect.w = srcRect.h = BlockSize;
+ 	srcRect.y = 0;
+ 	
+-	// Käydään läpi taulukko
++	// Loop through the table
+ 	for ( int yy = 0; yy < height; yy++ )
+ 	{
+ 		for ( int xx = 0; xx < width; xx++ )
+ 		{
+-			// Haetaan palikan koodi
++			// Get block ID (type or color of the block)
+ 			blockID = pArray[yy * width + xx];
+ 			
+-			// Jos palikka ei ole nolla, eikä suurempi kuin erilaisten palikoiden määrä
++			// If ID is valid, draw a block
+ 			if ( blockID > 0 && blockID <= NumberOfBlocks )
+ 			{
+-				// Valitaan oikea palikan kuva
++				// Select block image
+ 				srcRect.x = (blockID - 1) * BlockSize;
+ 				
+-				// Asetetaan kohdenelikulmio
++				// Destination rectangle
+ 				dstRect.x = x + xx * BlockSize;
+ 				dstRect.y = y + yy * BlockSize;
+ 				
+-				// Piirretään palikka
++				// Draw a block
+ 				SDL_BlitSurface (mpBlocks, &srcRect, mpScreen, &dstRect);
+ 			}
+ 		}
+@@ -438,15 +435,18 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Alustaa palikan satunnaisesti valitulla muodolla
++// Get random shape
++//------------------------------------------------------------------------------
++// Parameters:
++//		pShape: Random shape is saved to this array (size must be 16)
+ //------------------------------------------------------------------------------
+ void
+ cTutris::RandomShape (Uint8 *pShape)
+ {
+-	// Tyhjennetään taulukko
++	// Clear the shape
+ 	memset (pShape, 0, 16);
+ 	
+-	// Arvotaan muoto
++	// Get random shape
+ 	int randomShape = int (1.0f + 7.0f * rand () / (RAND_MAX + 1.0f));
+ 	switch ( randomShape )
+ 	{
+@@ -480,22 +480,21 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Palikan pudotusrutiini
++// Drops the current shape [linesToDrop] lines. If shape hits other blocks or the 
++// bottom of the play area, it's clued to play area
+ //------------------------------------------------------------------------------
+-// Pudottaa palikkaa [linesToDrop] riviä alaspäin. Jos palikka törmää johonkin
+-// 'Liimataan' se pelialueeseen.
+-// Parametrit:
+-//	linesToDrop: kuinka monta riviä palikkaa pudotetaan
++// Parameters:
++//	linesToDrop: Number of lines to drop
+ //------------------------------------------------------------------------------
+ void 
+ cTutris::DropShape (int linesToDrop)
+ {
+ 	for ( int i = 0; i < linesToDrop; i++ )
+ 	{
+-		// Pudotetaan palikkaa alaspäin ja jos se törmää johonkin...
++		// Drop the shape and if it collides...
+ 		if ( MoveShape (Down) == false )
+ 		{
+-			//...liimataan se pelialustaan
++			//...Clue it to the play area
+ 			ClueShape ();
+ 			return;
+ 		}
+@@ -504,23 +503,21 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Palikan siirtorutiini
++// Moves the current shape to [direction] if possible
+ //------------------------------------------------------------------------------
+-// Tutkii voiko palikaa siirtää johonkin suuntaan ja siirtää sitä jos voi
+-// Parametrit:
+-//	direction: liikkeen suunta
++// Parameters:
++//		direction: Direction of movement
+ // Palauttaa:
+-//	true: jos palikkaa siirrettiin (se ei törmännyt mihinkään)
+-//	false: jos palikkaa ei voitu siirtää (se törmäsi johonkin)
++//		true: If shape was moved (it didn't collide)
++//		false: If shape wasn't moved (it collided)
+ //------------------------------------------------------------------------------
+ bool
+ cTutris::MoveShape (Direction direction)
+ {
+-	// Palikan uudet koordinaatit
+ 	int newX = mShapeX;
+ 	int newY = mShapeY;
+ 	
+-	// Muutetaan uusia koordinaatteja liikeen suunnasta riippuen
++	// Get new position
+ 	switch ( direction )
+ 	{
+ 		case Left:
+@@ -536,34 +533,31 @@
+ 			return false;
+ 	}
+ 	
+-	// Tarkistetaan törmääkö palikka johonkin uusissa koordinaateissa
++	// Check if shape collides in the new position
+ 	if ( Collision (newX, newY, mCurrentShape) )
+-		return false;	// Jos törmää niin palikkaa ei siirretä
++		return false;
+ 	
+-	// Palikka ei törmää, joten siirretään sitä
++	// Shape doesn't collide. Move it
+ 	mShapeX = newX;
+ 	mShapeY = newY;
+ 	
+-	// Pelialue kaipaa uudelleen piirtoa
++	// Redraw play area
+ 	mRedrawPlayArea = true;
+ 	
+-	// Siirsimme palikkaa joten palautamme true...
+ 	return true;
+ }
+ //==============================================================================
+ 
+ //==============================================================================
+-// Palikan pyöritysrutiini
++// Rotaete shape 90 degrees clockwise if possible
+ //------------------------------------------------------------------------------
+-// Tutkii voiko palikkaa pyörittää ja jos voi niin pyörittää sitä
+-// 90 astetta myötäpäivään
+ // Parametrit:
+-//	pShape: palikka jota pyöritetään (koko täytyy olla 16)
++//	pShape: shape to rotate (size muse be 16)
+ //------------------------------------------------------------------------------
+ void 
+ cTutris::RotateShape (Uint8 *pShape)
+ {
+-	// Pyöritetään palikkaa ja tallennetaan tulos väliaikaiseen taulukkoon
++	// Rotate shape and save the result to temporary array
+ 	Uint8 tempShape[16];
+ 	for ( int yy = 0; yy < 4; yy++ )
+ 	{
+@@ -573,51 +567,49 @@
+ 		}
+ 	}
+ 	
+-	// Tarkistetaan törmääkö pyöritetty palikka johonkin
++	// Check if rotated shape collides
+ 	if ( Collision (mShapeX, mShapeY, tempShape) == false )
+ 	{
+-		// Jos ei niin kopioidaan väliaikaisen taulukon sisältö varsinaiseen taulukkoon...
++		// It doesn't collide. Copy temporary array to actual shape array
+ 		memcpy (pShape, tempShape, 16);
+-		// ...ja määrätään pelialue uudelleen piirrettäväksi
++		// Redraw play area
+ 		mRedrawPlayArea = true;
+ 	}
++	// Rotated shape collides. Do nothing
+ }
+ //==============================================================================
+ 
+ //==============================================================================
+-// Palikan törmäystarkistus
++// Check if shape collides with play area borders or other blocks 
+ //------------------------------------------------------------------------------
+-// Tarkistaa törmääkö annettu palikka annetussa kohdassa pelialueen reunoihin
+-// tai pelialueella oleviin rakennelmiin.
+-// Parametrit:
+-//	x: Palikan X-koordinaatti
+-//	y: Palikan Y-koordinaatti
+-// pShape: Palikka
++// Parameters:
++//	x, y: Shape's position
++// pShape: Shape (size must be 16)
+ //------------------------------------------------------------------------------
+ bool 
+ cTutris::Collision (int x, int y, Uint8 *pShape)
+ {
+ 	int areaX, areaY;
+ 	
+-	// Käydään läpi palikan osapalikat
++	// Loop through the shape array
+ 	for ( int yy = 0; yy < 4; yy++ )
+ 	{
+ 		for ( int xx = 0; xx < 4; xx++ )
+ 		{
+-			// Jos palikan tässä kohtaa on osapalikka
++			// If this position in shape array isn't empty
+ 			if ( pShape[yy * 4 + xx] != 0 )
+ 			{
+-				// Lasketaan kyseisen osapalikan paikka pelialueella...
++				// Calculate position of this block in the play area
+ 				areaX = x + xx;
+ 				areaY = y + yy;
+ 
+-				// ...palikka törmää jos kyseinen paikka on pelialueen ulkopuoella 
++				// Shape collides if block's position is outside the play area
+ 				if ( areaX < 0 || areaX >= AreaWidth || areaY >= AreaHeight )
+ 					return true;
+-				// Jos osapalikka on pelialueen sisäpuoella
+ 				if ( areaY >= 0 )
+ 				{
+-					// Se törmää jos pelialueen kyseinen paikka ei ole tyhjä
++					// Shape collides if there is a block in the play area
++					// in this position
+ 					if ( mPlayArea[areaY * AreaWidth + areaX] != 0 )
+ 						return true;
+ 				}
+@@ -625,28 +617,28 @@
+ 		}
+ 	}
+ 	
+-	// Palikka ei törmää mihinkään
++	// Shape doesn't collide
+ 	return false;
+ }
+ //==============================================================================
+ 
+ //==============================================================================
+-// Liimaa palikan pelialueelle
++// Clues the current shap to the play area
+ //------------------------------------------------------------------------------
+ void 
+ cTutris::ClueShape (void)
+ {
+ 	int areaX, areaY;
+ 	
+-	// Käydään läpi palikan osapalikat
++	// Loop through the shape array
+ 	for ( int yy = 0; yy < 4; yy++ )
+ 	{
+ 		for ( int xx = 0; xx < 4; xx++ )
+ 		{
+-			// Jos palikan tässä kohtaa on osapalikka
++			// If this position isn't empty
+ 			if ( mCurrentShape[yy * 4 + xx] != 0 )
+ 			{
+-				// Survaistaan se pelialueelle
++				// Clue the block in this position to play area
+ 				areaX = mShapeX + xx;
+ 				areaY = mShapeY + yy;
+ 				assert ( areaX >= 0 && areaX < AreaWidth && areaY >= 0 && areaY < AreaHeight );
+@@ -656,102 +648,93 @@
+ 		}
+ 	}
+ 	
+-	// Pelialue kaipaa uudelleen piirtoa
++	// Redraw play area
+ 	mRedrawPlayArea = true;
+ 	
+-	// Tarkastetaan täydet rivit
++	// Check full lines
+ 	CheckFullLines ();
+ 	
+-	// Kopiodaan seuraava palikka nykyiseen palikkaan
++	// Copy the next shape to current shape...
+ 	memcpy (mCurrentShape, mNextShape, 16);
+-	// Arvotaan uusi seuraava palikka
++	// ...and get new next shape
+ 	RandomShape (mNextShape);
+-	// Uudelleen piirtoa...
++	// Redraw next shape display
+ 	mRedrawNextShape = true;
+-	// Asetetaan palikka lähtöasetelmiin
++	// Initialize current shape's position
+ 	mShapeX = (AreaWidth - 4) / 2;
+ 	mShapeY = 0;
+ 	mLastDrop = SDL_GetTicks ();
+ 	
+-	// Tarkistetaan törmääkö palikka johonkin
++	// Check if our brand new shape collides (Game Over)
+ 	if ( Collision (mShapeX, mShapeY, mCurrentShape) == true )
+-	{
+-		// Palikka törmää, joten pelialue on täynnä ja peli loppuu
+ 		GameOver ();
+-	}
+ }
+ //==============================================================================
+ 
+ //==============================================================================
+-// Tarkistaa onko pelialueella täysiä rivejä, ja poistaa ne. Jos rivejä
+-// löytyy annetaan pelaajalle pisteitä mystisen kaavan mukaan.
++// Checks if play area contains full lines and removes them. Gives points
++// from each removed line
+ //------------------------------------------------------------------------------
+ void
+ cTutris::CheckFullLines (void)
+ {
+-	bool full;		// Onko rivi täysi
+-	int lines = 0;	// Täysien rivien määrä
++	bool full;		// Is the line full
++	int lines = 0;	// Number of full lines
+ 	
+-	// Käydään lapi pelialueen rivit ylhäältä aloittaen
++	// Loop through the play area lines starting from the top
+ 	for ( int y = 0; y < AreaHeight; y++ )
+ 	{
+-		// Oletetaan, että rivi on täysi
+ 		full = true;
+ 		
+-		// Käydään läpi rivin palikat
++		// Loop through line
+ 		for ( int x = 0; x < AreaWidth; x++ )
+ 		{
+-			// Jos reikä löytyy
++			// If we find a hole...
+ 			if ( mPlayArea[y * AreaWidth + x] == 0 )
+ 			{
+-				// Rivi ei ole täysi
++				// ...line isn't full
+ 				full = false;
+ 				break;
+ 			}
+ 		}
+ 		
+-		// Rivi oli täysi
+ 		if ( full )
+ 		{
+-			// Lisätään täysien rivien määrää
+ 			lines++;
+ 			
+-			// Pudotetaan ylempiä rivejä alaspäin
++			// Drop the lines above
+ 			for ( int yy = y; yy > 0; yy-- )
+ 			{
+ 				memcpy (&mPlayArea[yy * AreaWidth], &mPlayArea[(yy - 1) * AreaWidth], AreaWidth);
+ 			}
+-			// Nollataan ylin rivi
++			// Clear the top line
+ 			memset (mPlayArea, 0, AreaWidth);
+ 		}
+ 	}
+ 	
+-	// Jos täysiä rivejä löytyi
+ 	if ( lines != 0 )
+ 	{
+-		// Pelialuetta muutettiin, joten se kaipaa piristystä
++		// Redraw play area
+ 		mRedrawPlayArea = true;		
+-		// Lisätään tuhottujen rivien määrää
++		// Add score
+ 		mLines += lines;
+-		// Lisätään pisteitä
+ 		mScore += lines * lines * mLevel * mLevel;
++		// Redraw scores
++		mRedrawScore = true;
+ 			
+-		// Tarkistetaan nousimmeko seuraavalle levelille
++		// Check if player moved to the next level
+ 		if ( mLines > mLevel * 10 )
+ 		{
+ 			mLevel++;
+-			// Lasketaan uusi putoamis nopeus
++			// Calculate new drop delay
+ 			mDropDelay = int ( float (mDropDelay) * 3.0f / 4.0f);
+ 		}
+-		
+-		// Pisteet tarvii uudelleen piirtoa
+-		mRedrawScore = true;
+ 	}
+ }
+ //==============================================================================
+ 
+ //==============================================================================
+-// Piirtää pistetilanteen ruudulle
++// Draws the score
+ //------------------------------------------------------------------------------
+ void 
+ cTutris::DrawScore (void)
+@@ -760,7 +743,7 @@
+ 	
+ 	SDL_Rect textRects[3];
+ 	
+-	// Piirretään 'Taso'
++	// Draw "Level"
+ 	textRects[0].x = LevelX;
+ 	textRects[0].y = LevelY;
+ 	textRects[0].w = 50;
+@@ -771,7 +754,7 @@
+ 	mFont.PutString (mpScreen, 	textRects[0].x + (textRects[0].w - mFont.TextWidth (buffer)) / 2, 
+ 								textRects[0].y + (textRects[0].h - mFont.FontHeight ()) / 2, buffer, &textRects[0]);
+ 	
+-	// Piirretään 'Pisteet'
++	// Draw "Score"
+ 	textRects[1].x = ScoreX;
+ 	textRects[1].y = ScoreY;
+ 	textRects[1].w = 150;
+@@ -782,7 +765,7 @@
+ 	mFont.PutString (mpScreen, 	textRects[1].x + (textRects[1].w - mFont.TextWidth (buffer)) / 2, 
+ 								textRects[1].y + (textRects[1].h - mFont.FontHeight ()) / 2, buffer, &textRects[1]);
+ 
+-	// Piirretään 'Rivit'
++	// Draw "Lines"
+ 	textRects[2].x = LinesX;
+ 	textRects[2].y = LinesY;
+ 	textRects[2].w = 150;
+@@ -793,13 +776,13 @@
+ 	mFont.PutString (mpScreen, 	textRects[2].x + (textRects[2].w - mFont.TextWidth (buffer)) / 2, 
+ 								textRects[2].y + (textRects[2].h - mFont.FontHeight ()) / 2, buffer, &textRects[2]);
+ 
+-	// Päivitetään ruutu
++	// Update the screen
+ 	SDL_UpdateRects (mpScreen, 3, textRects);
+ }
+ //==============================================================================
+ 
+ //==============================================================================
+-// Pelin loppukikkailut
++// Game over
+ //------------------------------------------------------------------------------
+ void 
+ cTutris::GameOver (void)
+@@ -807,7 +790,8 @@
+ 	int color = 1;
+ 	SDL_Rect playArea = {AreaX, AreaY, AreaWidth * BlockSize, AreaHeight * BlockSize};
+ 	SDL_Rect nextShape = { NextShapeX, NextShapeY, 4 * BlockSize, 4 * BlockSize };
+-			
++	
++	// Game over effect
+ 	for ( int y = 0; y < AreaHeight; y++ )
+ 	{
+ 		memset (&mPlayArea[y * AreaWidth], color, AreaWidth);
+@@ -834,49 +818,54 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Lataa kuvan tiedostosta ja konvertoi sen oikeaan formaattiin
++// Loads image from a file and converts it to display format
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ SDL_Surface *
+ cTutris::LoadImage (string filename, bool alpha)
+ {
+-	// Määritellään tiedoston nimi, jossa on mukana hakemistopolku
+-	// Esim: background.png -> /usr/local/share/games/Tutris/background.png
++	// Get complete filename (data direction + filename)
++	// Example: background.png -> /usr/local/share/games/Tutris/background.png
+ 	string completeFilename = DATA_DIR;
+ 	completeFilename.append (filename);
+ 	
+-	// Ensin yritetään ladata kuva hakemistosta, johon make sen asentaa
++	// Try to load image from the data dir
+ 	SDL_Surface *pTemp = IMG_Load (completeFilename.c_str ());
+ 	if ( pTemp == NULL )
+ 	{
+-		// ...ja jos se ei onnitu, yritetään ladata kuva data-hakemistosta
++		// Loading failed. Try to load imgae from ../data/
+ 		string temp = "../data/";
+ 		temp.append (filename);
+ 		pTemp = IMG_Load (temp.c_str ());
+ 		if ( pTemp == NULL )
+ 		{
+-			// Errormessu ja exit
++			// Loading failed. Output error...
+ 			cerr << "Unable to load image " << completeFilename << " or " << temp << endl;
++			// ...and exit
+ 			return NULL;
+ 		}
+ 	}	
++	
+ 	SDL_Surface *pImage = NULL;
+ 	
+ 	if ( alpha )
+ 	{
+-		// Konvertoidaan kuva (alpha versio)
++		// Convert image with alpha channel
+ 		pImage = SDL_DisplayFormatAlpha (pTemp);
+ 	}
+ 	else
+ 	{
+-		// Kovertoidaan kuva
++		// Convert image
+ 		pImage = SDL_DisplayFormat (pTemp);
+ 	}
+ 	
+ 	if ( pImage == NULL )
+ 		cerr << "Unable to convert image to display format: " << SDL_GetError () << endl;
+ 	
+-	// Palautetaan konvertoimaton kuva
+-	return pTemp;
++	// Free the original image
++	SDL_FreeSurface (pTemp);
++	
++	// Return converted image
++	return pImage;
+ }
+ //==============================================================================
+ 
+diff -ur Tutris-1.0.1/src/cTutris.hpp Tutris-1.0.1.en/src/cTutris.hpp
+--- Tutris-1.0.1/src/cTutris.hpp	2003-07-28 18:30:08.000000000 +0300
++++ Tutris-1.0.1.en/src/cTutris.hpp	2003-07-28 18:22:35.000000000 +0300
+@@ -15,46 +15,46 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Tiedosto: cTutris.hpp
+-// Tekijä: Jarmo Hekkanen <jarski@2ndpoint.fi>
++// File: cTutris.hpp
++// Author: Jarmo Hekkanen <jarski@2ndpoint.fi>
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ #ifndef cTutris_hpp
+ #define cTutris_hpp
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Sisällytettävät otsikkotiedostot
++// Includes
+ #include <string>
+ #include <SDL.h>
+ #include "SoFont.h"
+ 
+ using namespace std;
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Peliin liittyvät vakiot
+-const int 		BlockSize 		= 15;	// Kuinka iso yksi palikka on (pikseleitä)
+-const int 		NumberOfBlocks	= 7;	// Kuinka monta erilaista palikkaa on
+-const int 		AreaWidth 		= 18;	// Kuinka leveä pelialue on (palikoita)
+-const int 		AreaHeight 		= 28;	// Kuinka korkea pelialue on (palikoita)
+-const Uint32	StartDropDelay	= 1000;	// Kuinka nopeasti palikkaa putoaa pelin alussa
+-const Uint32 	MoveDelay 		= 130;	// Kuinka nopeasti pelaaja voi liikuttaa palikkaa
+-const int 		AreaX 			= 185;	// Pelialueen X-koordinaatti
+-const int 		AreaY 			= 30;	// Pelialueen Y-koordinaatti
+-const int 		NextShapeX 		= 500;	// 'Seuraava palikka'-näytön X-koordinaatti
+-const int 		NextShapeY 		= 100;	// 'Seuraava palikka'-näytön Y-koordinaatti
+-const int 		LevelX 			= 120;	// 'Taso'-näytön X-koordinaatti
+-const int 		LevelY 			= 280;	// 'Taso'-näytön Y-koordinaatti
+-const int 		ScoreX 			= 20;	// 'Pisteet'-näytön X-koordinaatti
+-const int 		ScoreY 			= 340;	// 'Pisteet'-näytön Y-koordinaatti
+-const int 		LinesX 			= 20;	// 'Rivit'-näytön X-koordinaatti
+-const int 		LinesY 			= 400;	// 'Rivit'-näytön Y-koordinaatti
+-const string	BackgroundFile	= "background.png";
+-const string	BlocksFile		= "blocks.png";
+-const string	FontFile		= "font.png";
++// Game related constants
++const int 		BlockSize 		= 15;	// Size of a block (pixels)
++const int 		NumberOfBlocks	= 7;	// Number of different block types
++const int 		AreaWidth 		= 18;	// Width of the play area (blocks)
++const int 		AreaHeight 		= 28;	// Height of the play area (blocks)
++const Uint32	StartDropDelay	= 1000;	// Shape drop delay at level 1
++const Uint32 	MoveDelay 		= 130;	// How fast the player can move the shape
++const int 		AreaX 			= 185;	// Horizontal position of the play area
++const int 		AreaY 			= 30;	// Vertical position of the play area
++const int 		NextShapeX 		= 500;	// Horizontal position of the next shape view
++const int 		NextShapeY 		= 100;	// Vertical position of the next shape view
++const int 		LevelX 			= 120;	// Horizontal position of the "Level" display
++const int 		LevelY 			= 280;	// Vertical position of the "Level" display
++const int 		ScoreX 			= 20;	// Horizontal position of the "Score" display
++const int 		ScoreY 			= 340;	// Vertical position of the "Score" display
++const int 		LinesX 			= 20;	// Horizontal position of the "Lines" display
++const int 		LinesY 			= 400;	// Vertical position of the "Lines" display
++const string	BackgroundFile	= "background.png";	// Background image
++const string	BlocksFile		= "blocks.png";	// Block images
++const string	FontFile		= "font.png";	// Font
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Palikan liikkeen mahdolliset suunnat
++// Shape's moving directions
+ enum Direction { Left = 0, Right, Down };
+ //==============================================================================
+ 
+ //==============================================================================
+-// Tämä luokka sisältää kaikki pelissä tarvittavat muuttujat ja metodit
++// This class contains the main functionality and data for the game
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ class cTutris
+ {
+@@ -65,81 +65,81 @@
+ 		// Destructor
+ 		~cTutris (void);
+ 	
+-	// Yleiset metodit
++	// Public methods
+ 	public:
+-		// Alustaa pelin
++		// Initializes the game
+ 		int Initialize (void);
+-		// Pääsilmukka
++		// Main loop
+ 		int MainLoop (void);
+ 	
+-	// Yksityiset metodit
++	// Private methods
+ 	private:
+-		// Aloittaa uuden pelin
++		// Initializes game variables to starting values
+ 		void NewGame (void);
+-		// Palikkataulukkojen piirtorutiini
++		// Draws block tables
+ 		void DrawBlocks (int x, int y, int width, int height, Uint8 *pArray);
+-		// Piirtää pistetilanteen ruudulle
++		// Draws the score
+ 		void DrawScore (void);
+-		// Tapahtuma käsittelijä
++		// Event handler
+ 		void EventHandler (void);
+-		// Tarkistaa onko pelialueella täysiä rivejä, ja poistaa ne
++		// Checks if play area contains full lines and removes them
+ 		void CheckFullLines (void);
+-		// Pelin loppukikkailut
++		// Game over 
+ 		void GameOver (void);
+-		// Panee pelin pausille
++		// Pause the game
+ 		void Pause (void);
+ 	
+-		// Alustaa palikan satunnaisesti valitulla muodolla
++		// Get random shape
+ 		void RandomShape (Uint8 *pShape);
+-		// Palikan pudotusrutiini
++		// Drops the shape
+ 		void DropShape (int linesToDrop);
+-		// Palikan siirtorutiini
++		// Moves the shape
+ 		bool MoveShape (Direction direction);
+-		// Palikan pyöritysrutiini
++		// Rotates the shape
+ 		void RotateShape (Uint8 *pShape);
+-		// Liimaa palikan pelialueelle
++		// Clues the current shap to the play area
+ 		void ClueShape (void);
+-		// Palikan törmäystarkistus
++		// Collision detection
+ 		bool Collision (int x, int y, Uint8 *pShape);
+ 		
+-		// Lataa kuvan tiedostosta ja konvertoi sen oikeaan formaattiin
++		// Loads image from a file and converts it to display format
+ 		SDL_Surface *LoadImage (string filename, bool alpha = false);
+ 		
+-	// Yksityiset muuttujat
++	// Member variables
+ 	private:
+-		// Yleiset muuttujat
+-		bool mRunning;				// Onko peli käynnissä?
+-		bool mRedrawPlayArea;		// Pitääkö pelialue piirtää
+-		bool mRedrawNextShape;		// Pitääkö seuraava palikka piirtää
+-		bool mRedrawScore;			// Pitääkö pisteet piirtää
++		// General
++		bool mRunning;				// Is the game running
++		bool mRedrawPlayArea;		// Does play area need redrawing
++		bool mRedrawNextShape;		// Does next shape display need redrawing
++		bool mRedrawScore;			// Does score display need redrawing
+ 				
+-		// Peli data
+-		Uint8 mCurrentShape[16];				// Pelaajan palikka
+-		Uint8 mNextShape[16];					// Seuraava palikka
+-		Uint8 mPlayArea[AreaWidth * AreaHeight];// Pelialue
+-		int mShapeX;							// Palikan X-koordinaatti
+-		int mShapeY;							// Palikan Y-koordinaatti
++		// Game data
++		Uint8 mCurrentShape[16];				// Current shape
++		Uint8 mNextShape[16];					// Next shape
++		Uint8 mPlayArea[AreaWidth * AreaHeight];// Play area
++		int mShapeX;							// Current shape's X-position
++		int mShapeY;							// Current shape's Y-position
+ 		
+-		// Palikan putoaminen
+-		Uint32 mLastDrop;						// Viimeisen pudotuksen tick count
+-		Uint32 mDropDelay;						// Pudotusten väli
++		// Shape dropping
++		Uint32 mLastDrop;						// Tick count of the last drop
++		Uint32 mDropDelay;						// Drop delay
+ 		
+-		// Palikan ohjaus
+-		bool mMoving;		// Liikuttaako pelaaja palikkaa
+-		Direction mMoveDir;	// Liikkeen suunta
+-		Uint32 mLastMove;	// Viimeisen liikkeen tick count
++		// Shape moving
++		bool mMoving;		// Is the player moving the shape
++		Direction mMoveDir;	// Direction of the movement
++		Uint32 mLastMove;	// Tick count of the last move
+ 		
+-		// Pisteet
+-		int mLevel;		// Taso
+-		int mScore;		// Pisteet
+-		int mLines;		// Rivit
++		// Score
++		int mLevel;		// Current level
++		int mScore;		// Current score
++		int mLines;		// Current lines
+ 	
+-		// Video data
+-		SDL_Surface *mpScreen;		// Video surface
+-		SDL_Surface *mpBackground;	// Taustakuva
+-		SDL_Surface *mpBlocks;		// Palikoiden kuvat
++		// Graphics
++		SDL_Surface *mpScreen;		// Framebuffer surface
++		SDL_Surface *mpBackground;	// Background image
++		SDL_Surface *mpBlocks;		// Block images
+ 				
+-		// Fontti
++		// Font
+ 		SoFont mFont;
+ };
+ //==============================================================================
+Only in Tutris-1.0.1.en/src/: en
+diff -ur Tutris-1.0.1/src/Main.cpp Tutris-1.0.1.en/src/Main.cpp
+--- Tutris-1.0.1/src/Main.cpp	2003-07-28 18:25:24.000000000 +0300
++++ Tutris-1.0.1.en/src/Main.cpp	2003-07-28 17:10:06.000000000 +0300
+@@ -15,10 +15,10 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Tiedosto: Main.cpp
+-// Tekijä: Jarmo Hekkanen <jarski@2ndpoint.fi>
++// File: cTutris.hpp
++// Author: Jarmo Hekkanen <jarski@2ndpoint.fi>
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Sisällytettävät otsikkotiedostot
++// Includes
+ #include <iostream>
+ #include <stdexcept>
+ #include <stdlib.h>
+@@ -33,42 +33,38 @@
+ //==============================================================================
+ 
+ //==============================================================================
+-// Main funktio
++// Main function
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+-// Parametrit:
+-//		argc komentoriviparametrien määrä
+-//		argv komentorivitparametrit
++// Parameters:
++//		argc number of command line arguments
++//		argv command line arguments vector
+ //
+-// Palauttaa:
+-//		EXIT_SUCCESS: Normaali ohjelmasta poistuminen
+-//		EXIT_FAILURE: Ohjelmasta poistuttiin virheen seurauksena
++// Returns:
++//		EXIT_SUCCESS: Normal exit
++//		EXIT_FAILURE: Error occurred
+ //
+-//		EXIT_SUCCESS- ja EXIT_FAILURE-makrot on määritelty stdlib.h:ssa
++//		EXIT_SUCCESS and EXIT_FAILURE are defined in stdlib.h
+ //­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-­-
+ int main (int argc, char *argv[])
+ {
+-	// Koodi on kirjoitettu try-lohkon sisään, jotta mahdolliset poikkeukset 
+-	// saataisiin pyydystettyä. 
++	// This is the main try/catch block. The last line of defence
+ 	try
+ 	{
+-		// Tätä muuttujaa käytetään kun päätetään mitä lippuja SDL_SetVideoMode:lle annetaan
+-		// Alustamme muuttujan arvolla false, joten ohjelma käynnistetään oletuksena ikkunaan eikä
+-		// kokoruututilaan. Tämän muuttujan arvoa voidaan vaihtaa antamalla ohjelmalle --fullscreen 
+-		// parametri
++		// Do we want fullscreen mode. This can be changed with --fullscreen argument
+ 		bool fullscreen = false;
+ 		
+-		// Tarkistetaan mahdolliset komentoriviparametrit
++		// Check the command line arguments
+ 		if ( argc > 1 )
+ 		{
+-			// Käydään parametrit läpi indeksin arvosta yksi lähtien. Tämä siksi, 
+-			// että ensimmäinen parametri (eli siis argv[0]) on ohjelman
+-			// käynnistämiseen käytetty komento (esim src/tutris)
++			// Loop through the command line argument vector.
++			// Starting from index one because argv[0] is the command used to
++			// start the program (src/tutris for example)
+ 			for ( int i = 1; i < argc; i++ )
+ 			{
+-				// Tarkistus "--help"-parametrille
++				// Check for --help
+ 				if ( strcmp (argv[i], "--help") == 0 )
+ 				{
+-					// Tulostetaan opastus ohjelman komentoriviparametreistä...
++					// Output help...
+ 					cout << "Usage: tutris [OPTION]\n\n";
+ 					cout << "  --help                     Display this help and exit.\n";
+ 					cout << "  --version                  Output version information and exit.\n";
+@@ -85,87 +81,87 @@
+ 					cout << "Up arrow                     Rotate shape\n";
+ 					cout << "Space                        Drop shape\n";
+ 					cout << endl;
+-					// ...ja poistutaan ohjelmasta
++					// ...and exit
+ 					return EXIT_SUCCESS;
+ 				}
+ 				
+-				// Tarkistus "--version"-parametrille
++				// Check for --version
+ 				if ( strcmp (argv[i], "--version") == 0 )
+ 				{
+-					// Tulostetaan ohjelman versio...
++					// Output version information...
+ 					cout << "tutris version " << VERSION << endl;
+-					// ...ja poistutaan ohjelmasta
++					// ...and exit
+ 					return EXIT_SUCCESS;
+ 				}
+ 				
+-				// Tarkistus "--fullscreen"-parametrille
++				// Check for --fullscreen
+ 				if ( strcmp (argv[i], "--fullscreen") == 0 )
+ 				{
+-					// Aktivoidaan kokoruututila
++					// Activate fullscreen mode
+ 					fullscreen = true;
+ 				}
+ 			}
+ 		}
+ 				
+-		// Alustetaan SDL. Tämä on tehtävä ennen kuin mitään muita SDL-kirjaston funktioita
+-		// kutsutaan...
++		// Initialize SDL. 
++		// This must be done before we can call any other SDL-functions
+ 		if ( SDL_Init (SDL_INIT_VIDEO) !=  0 )
+ 		{
+-			// Alustus epäonnistui. Tulostetaan virheilmoitus...
++			// Initialization failed. Output error...
+ 			cerr << "Initialization of the SDL failed: " << SDL_GetError () << endl;
+-			// ..ja poistutaan ohjelmasta
++			// ...and exit
+ 			return EXIT_FAILURE;
+ 		}
+-		// Varmistetaan, että SDL_Quit-funktiota kutsutaan kun ohjelmasta poistutaan
++		// Make sure that SDL_Quit is called at exit
+ 		atexit (SDL_Quit);
+ 		
+-		// Määritellään SDL_SetVideoMode:lla annettavat liput
+-		Uint32 videoFlags = 0;
++		// Flags for SDL_SetVideoMode
++		Uint32 videoFlags = SDL_SWSURFACE;
+ 		if ( fullscreen == true )
+ 			videoFlags |= SDL_FULLSCREEN;
+ 		
+-		// Asetetaan ikkunan otsikko
++		// Set the window caption
+ 		SDL_WM_SetCaption ("Tutris", NULL);
+ 				
+-		// Yritetään avata haluttu videotila
++		// Try to set 640x480x16 video mode
+ 		SDL_Surface *pScreen = SDL_SetVideoMode (640, 480, 16, videoFlags);
+ 		if ( pScreen == NULL )
+ 		{
+-			// Avaus apäonnistui. Tulostetaan virheilmoitus...
++			// Unable to set video mode. Output error...
+ 			cerr << "Unable to set video mode: " << SDL_GetError () << endl;
+-			// ...ja poistutaan ohjelmasta
++			// ...and exit
+ 			return EXIT_FAILURE;
+ 		}
+ 		
+-		// Karsitaan turhia tapahtumia
++		// Filter some unused events
+ 		SDL_EventState (SDL_MOUSEMOTION, SDL_IGNORE);
+ 		SDL_EventState (SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
+ 		SDL_EventState (SDL_MOUSEBUTTONUP, SDL_IGNORE);
+ 		SDL_EventState (SDL_ACTIVEEVENT, SDL_IGNORE);
+ 		
+ 		cTutris game;
+-		// Alustetaan peli
++		// Initialize the game
+ 		if ( game.Initialize () != 0 )
+ 		{
+-			// Alustus epäonnistui. Tulostetaan virheilmoitus...
++			// Initialization failed. Output error...
+ 			cerr << "Initialization of the game failed." << endl;
+-			// ...ja poistutaan ohjelmasta
++			// ...and exit
+ 			return EXIT_FAILURE;
+ 		}
+ 		
+-		// Hypätään pelin pääsilmukkaan ja poistutaan ohjelmasta sitten kun se loppuu...
++		// Run the game.
+ 		return game.MainLoop ();
+ 	}
+-	catch ( exception x )	// Käsitellään STL:n poikkeukset
++	catch ( exception x )	// Handler for standard exceptions
+ 	{
+ 		cerr << "Exception caught: " << x.what () << endl;
+ 	}
+-	catch ( ... )			// Yleinen poikkeuskäsittelijä
++	catch ( ... )			// Generic exception handler
+ 	{
+ 		cerr << "Unknown exception caught." << endl;
+ 	}
+ 	
+-	// Poistutaan ohjelmasta
++	// Exit
+ 	return EXIT_FAILURE;
+ }
+ //==============================================================================

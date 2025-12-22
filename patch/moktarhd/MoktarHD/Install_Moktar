@@ -1,0 +1,106 @@
+
+;try to figure out a place where the user usually installs his games
+(if (exists "Games:" (noreq) )
+    (set @default-dest "Games:")
+    (if (exists "SYS:Games" (noreq) )
+        (set @default-dest "SYS:Games")
+        (if (exists "Work:Games" (noreq) )
+            (set @default-dest "Work:Games")
+            (if (exists "JEUX:" (noreq) )
+               (set @default-dest "JEUX:")
+               (set @default-dest "SYS:")
+            )
+        )
+    )
+)
+
+;	(message ("\"%s %s\"" (tackon @icon "patchexe") (tackon @default-dest "RoboCod") ))
+;	(message ("\"xfddecrunch %s\"" (tackon @default-dest "RoboCod") ))
+
+(set GameDir @app-name)
+
+
+
+;ask the user to select a directory to install the game into
+(set default-dest
+     (tackon (askdir (prompt "Où desirez vous que " @app-name " soit installé?\n"
+                             "Un tiroir nommé " GameDir " sera crée.")
+                     (help @askdir-help)
+                     (default @default-dest)
+             )
+     GameDir
+     )
+)
+
+(set #icontype
+	(askchoice
+		(prompt "Quelle icone désirez-vous installer")
+		(help	@askoptions-help)
+		(choices
+		   "8 couleurs (MWB)"
+		   "16 couleurs (ROMIcons)"
+		)
+	)
+)
+
+(set @default-dest default-dest)
+
+;	create the selected directory
+(makedir @default-dest
+         (infos)
+)
+
+
+	;copy all extra files to this directory
+
+        (copyfiles (source "moktarhd.readme")
+                   (dest @default-dest)
+		   (infos)
+        )
+
+(if (= 0 #icontype) (set #iconname "Moktar.icon_8") (set #iconname "Moktar.icon_16") )
+
+
+        (copyfiles (source #iconname)
+                   (dest @default-dest)
+		   (newname "Moktar.info")
+        )
+
+        (copyfiles (source "Moktar")
+                   (dest @default-dest)
+        )
+
+
+(askdisk
+        (prompt ("\n\n\n\n\n\nInsérez le disque de %s dans un lecteur" @app-name) )
+	(dest		"Zou_zou_zou_zou_zou_zoubidaaa")
+	(help		"Insérez le disque dans un lecteur\nou ça risque de trainer")
+)
+
+(copyfiles (source "Zou_zou_zou_zou_zou_zoubidaaa:")
+           (dest @default-dest)
+	   (pattern "#?")
+           (files)
+)
+
+        (message "\n\n\n\n\n\nJe vais decompacter et modifier l'exécutable")
+
+	(if
+
+		(= 0 (run ("xfddecrunch >NIL: %s" (tackon @default-dest "main")  )) )
+		("")
+		(abort "Installez XFDDecrunch d'abord\n\n(util/pack/XFDDecrunch.lha sur aminet)")
+	)
+
+;		(message ("%s %s" (tackon @icon "patchexe") (tackon @default-dest "main") ))
+
+	(if
+
+		(= 0 (run ("patchexe %s" (tackon @default-dest "main") )) )
+		("")
+		(abort "Impossible d'exécuter patchexe!!")
+	)
+
+
+
+

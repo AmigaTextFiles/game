@@ -1,0 +1,230 @@
+\ HAM drawing routine for HAMmmm.
+\ Provides several points which bounce around on screen.
+\ Lines are then drawn beteen pairs of points.
+\
+\ Author: Phil Burk
+\ Copyright 1987 Phil Burk
+\ This code is considered to be in the public domain and
+\ may be freely distributed but may not be sold for profit.
+
+ANEW TASK-MMM_DRAW
+
+\ Variables used to control modes of HAM drawing.
+variable HAM-DRAW-MODE
+
+0  dup constant HAM_DRAW_BETWEEN
+1+ dup constant HAM_DRAW_STAR
+1+ dup constant HAM_DRAW_BOXES
+1+ constant HAM_MANY_MODES
+
+
+ham_xmax ham_xmin - 16 / constant HAM_X/16
+
+: HAM.SHOW.COLORS  ( -- , test routine )
+    16 0
+    DO i gr.color!
+       ham_xmin ham_x/16 i * + ham_ymin
+       over ham_x/16 + ham_ymax gr.rect
+    LOOP
+;
+
+: HAM.SET.RGB ( n red green blue -- )
+    >r >r >r >r
+    hamscreen @ .. sc_viewport >abs
+    r> r> r> r>
+    call graphics_lib setrgb4 drop
+;
+
+: HAM.SET.COLORS  ( -- , create a rainbow like spectrum )
+    0 0 0 0 ham.set.rgb  ( set zero to black )
+    8 0  ( red to green )
+    DO i 1+  ( index )
+       15  i 15 * 8 / -   ( red )
+       i 15 * 8 /         ( green )
+       0  ( blue )
+       ham.set.rgb
+    LOOP
+    8 0  ( green to blue )
+    DO i 8 +
+       0  ( red )
+       15  i 15 * 8 / -   ( green )
+       i 15 * 8 /         ( blue )
+       ham.set.rgb
+    LOOP
+;     
+       
+\ Constants for building colors.
+$ 10 constant HAM_CHANGE_BLUE
+$ 20 constant HAM_CHANGE_RED
+$ 30 constant HAM_CHANGE_GREEN
+
+: HAM.COLOR!  ( RGB new_value -- , set HAM color )
+    OR gr.color!
+;
+
+ham_ymax ham_ymin  + 2/ constant HAM_1/2Y
+
+: HAM.FILL.SCREEN ( -- , split into Redless top and Blueless bottom )
+    ham_change_red 0 ham.color!
+    ham_xmin ham_ymin ham_xmax ham_1/2y gr.rect
+    ham_change_blue 0 ham.color!
+    ham_xmin ham_1/2y ham_xmax ham_ymax gr.rect
+;
+
+10 constant HAM_NUM_LINES
+ham_num_lines 2* constant HAM_NUM_POINTS
+
+ham_num_points array HAM-X-POS
+ham_num_points array HAM-Y-POS
+ham_num_points array HAM-X-VEL
+ham_num_points array HAM-Y-VEL
+
+\ ------------------------------------------------------
+: HAM.GET.RECT ( index -- x1 y1 x2 y2 , get unsorted corners )
+    >r
+    r@ ham-x-pos @ r@ ham-y-pos @
+    r@ ham_num_lines + ham-x-pos @
+    r@ ham_num_lines + ham-y-pos @
+    rdrop
+;
+: HAM.DRAW.LINE  ( index -- , draw line between points)
+    ham.get.rect
+    gr.move gr.draw
+;
+
+ham_ymin ham_ymax + constant ham_ysum
+: REFLECT.Y  ( y -- y' )
+    ham_ysum swap -
+;
+
+: HAM.DRAW.BETWEEN ( index -- )
+    dup ham.draw.line
+    ham.get.rect
+    reflect.y >r >r
+    reflect.y r> r>   ( reflect about y center )
+    gr.move gr.draw
+;
+
+: HAM.START.POINT ( -- x y )
+    0 ham-x-pos @
+    0 ham-y-pos @
+;
+
+: HAM.DRAW.STAR ( index -- , draw from one point )
+    ham.get.rect
+    ham.start.point gr.move gr.draw
+    ham.start.point gr.move gr.draw
+;
+
+: DRAW.BOX { x1 y1 x2 y2 -- }
+    x1 y1 gr.move
+    x2 y1 gr.draw x2 y2 gr.draw
+    x1 y2 gr.draw x1 y1 gr.draw
+;
+
+: HAM.DRAW.BOXES ( index -- , draw box )
+    ham.get.rect
+    draw.box
+;
+
+: HAM.DRAW.POINTS  ( index -- , draw based on current mode selections )
+    ham-draw-mode @
+    CASE
+        ham_draw_between
+        OF ham.draw.between
+        ENDOF
+\
+        ham_draw_star
+        OF ham.draw.star
+        ENDOF
+\
+        ham_draw_boxes
+        OF ham.draw.boxes
+        ENDOF
+\
+        ham.draw.between   ( default )
+    ENDCASE
+;
+    
+: HAM.MOVE.DIM  { position velocity minpos maxpos -- }
+    position @ velocity @ + dup minpos maxpos within?
+    IF position !
+    ELSE drop velocity @ negate velocity !
+    THEN
+;
+
+: HAM.MOVE.POINT  ( index -- )
+    >r
+    r@ ham-x-pos r@ ham-x-vel ham_ymin ham_xmax ham.move.dim
+    r@ ham-y-pos r@ ham-y-vel ham_ymin ham_ymax ham.move.dim
+    rdrop
+;
+
+: HAM.MOVE.LINE  ( -- )
+    dup ham.move.point
+    ham_num_lines + ham.move.point
+;
+
+: HAM.SETUP.POS  ( -- , choose initial random cluster )
+    ham_xmax 60 -  ham_ymax 2/
+    ham_num_points 0
+    DO 2dup 20 choose + i ham-y-pos !
+       20 choose + i ham-x-pos !
+    LOOP 2drop
+;
+
+: CHOOSE.NONZERO ( -- num , return nonzero random number )
+    16 choose 7 - dup 1 <
+    IF 1- THEN
+;
+
+: HAM.SETUP.VEL ( -- , choose random velocities )
+    ham_num_points 0
+    DO choose.nonzero i ham-y-vel !
+       choose.nonzero i ham-x-vel !
+    LOOP
+;
+
+VARIABLE HAM-COLOR-OFFSET
+
+: HAM.CHANGE.MODE ( -- )
+    ham_many_modes choose ham-draw-mode !
+;
+
+: HAM.MOVING.LINES ( -- , draw one complete pass )
+    swap.buffers     ( next surface )
+    ham.fill.screen  ( clear screen )
+\
+\ Move all points.
+    ham_num_points 0  
+    DO i ham.move.point
+    LOOP
+\
+\ Draw lines between them.
+    ham-color-offset @ -4 ashift
+    ham_num_lines 0
+    DO  i 3 * over + 63 and
+        gr.color!  ( move through rgb spectrum )
+        i ham.draw.points
+    LOOP drop
+\
+\ Make visible.
+    ham.rebuild
+    1 ham-color-offset +!
+;
+
+: HAM.DUMP.POS ( -- , for debugging )
+    cr ham_num_points 0
+    DO i . i ham-x-pos @ .
+       i ham-y-pos @ . cr
+    LOOP
+;
+
+: HAM.DUMP.VEL ( -- , for debugging )
+    cr ham_num_lines 0
+    DO i .
+       i ham-x-vel @ .
+       i ham-y-vel @ . cr
+    LOOP
+;
+

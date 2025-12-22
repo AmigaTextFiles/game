@@ -1,0 +1,125 @@
+# makefile for AmigaOS4
+
+CPP = g++
+
+OFILES = main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o \
+   draw.o edit.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o \
+   upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o \
+   generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o \
+   optimize.o smanage.o
+
+all: mkupgrade screenshot escape convert
+# version convert
+
+PROF =
+# PROF = -pg
+
+# to distribute dynamic: sdl-config --prefix=.
+# then ldd escape
+# and upload the .so files with the thingy
+
+LINKFLAGS =
+#  LINKFLAGS = -lefence
+
+CPPFLAGS = -ggdb -Wall -O2 ${PROF} -ISDK:Local/clib2/include/SDL -ISDK:Local/clib2/include/libpng -IUSR:local/include -Iamigaos4/include
+
+escape: ${OFILES}
+	 ${CPP} ${PROF} -o $@ $^ -LSDK:Local/clib2/lib -LUSR:local/lib -lSDL_image -lSDL_net -lSDL_mixer -lSDL \
+   -lpng -ljpeg -lz -lvorbisfile -lvorbis -logg -lm -lnet -lunix -lauto ${LINKFLAGS}
+
+screenshot: draw-console.o pngsave-console.o level-console.o font-console.o util-console.o sdlutil-console.o screenshot-console.o animation-console.o
+	 ${CPP} -o $@ $^ -LSDK:Local/clib2/lib -lSDL_image -lSDL -lpng -ljpeg -lz -lvorbisfile -lvorbis -logg -lm -lauto
+	 strip screenshot
+
+# XX deprecated
+convert: convert.o level.o util.o
+	 ${CPP} -o $@ -LSDK:Local/clib2/lib -LUSR:local/lib -lSDL_image -lSDL_net -lSDL_mixer -lpng -ljpeg -lz -lvorbisfile -lvorbis -logg -lm -lnet -lauto $^
+
+packpng: util-console.o font-console.o level-console.o sdlutil-console.o packpng-console.o pngsave-console.o
+	 ${CPP} -o $@ $^ -LSDK:Local/clib2/lib -lSDL_image -lSDL -lpng -ljpeg -lz -lauto
+	 strip $@
+
+packsound: util-console.o packsound-console.o
+	 ${CPP} -o $@ $^ -LSDK:Local/clib2/lib -lSDL -lauto
+	 strip $@
+
+mkupgrade: mkupgrade.cpp md5.cpp
+	 ${CPP} -o $@ -DLINUX -Iamigaos4/include mkupgrade.cpp md5.cpp
+	 strip $@
+
+version: .dummy
+	 ${CPP} version.cpp -o version
+	 version >version.h
+
+sound_load.h : sound.pack packsound.cpp
+	 make packsound
+	 packsound sound.pack sound
+
+%-console.o : %.cpp
+	 ${CPP} ${CPPFLAGS} -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
+
+.c.o:
+	 ${CPP} ${CPPFLAGS} -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
+
+.dummy :
+
+LIBFILES = -lSDL_net -lSDL -ljpeg -logg -lpng -ltiff -lvorbisfile -lvorbis -lz -lartsc -lesd
+RELEASEFILES = escape font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png ${LIBFILES}
+
+UPGRADE: .dummy escape.exe releasefiles.linux symlinks.linux deletefiles.linux mkupgrade
+	 strip escape
+	 mkupgrade releasefiles.linux symlinks.linux deletefiles.linux >UPGRADE
+	 mkupgrade -v >CURRENT
+
+releasefiles.linux: ${RELEASEFILES}
+	 C:Echo >releasefiles.linux ${RELEASEFILES}
+
+release: UPGRADE
+	 scp -C ${RELEASEFILES} UPGRADE CURRENT tom@escape.spacebar.org:/Y/escape/linux/
+	 C:Delete FORCE UPGRADE CURRENT mkupgrade
+
+zip: escape-beta.tar.gz
+
+escape-beta.tar.gz: escape
+	 rm -rf /tmp/escape
+	 rm -f /tmp/escape-beta.tar
+	 rm -f /tmp/escape-beta.tar.gz
+	 rm -f escape-beta.tar.gz
+	 mkdir /tmp/escape
+	 strip escape
+	 cp ${RELEASEFILES} /tmp/escape
+	 cp -a triage /tmp/escape
+	 cp -a official /tmp/escape
+	 mkdir /tmp/escape/mylevels
+	 cp mylevels/index.esi /tmp/escape/mylevels/
+	 cd /tmp && tar -c escape > escape-beta.tar && gzip escape-beta.tar
+	 mv /tmp/escape-beta.tar.gz .
+
+zipup: escape-beta.tar.gz
+	 scp escape-beta.tar.gz tom@escape.spacebar.org:/Y/escape/
+
+source: escape-src.tar.bz2
+
+escape-src.tar.bz2:
+	 cd /usr0/src/escape-src && cvs up -dP
+	 rm -rf /usr0/src/escape-src/web /usr0/src/escape-src/*.es{p,d}
+	 cd /usr0/src && tar -c escape-src > /tmp/escape-src.tar
+	 cd /tmp && bzip2 escape-src.tar
+	 mv /tmp/escape-src.tar.bz2 .
+
+sourceup: source
+	 scp escape-src.tar.bz2 tom@escape.spacebar.org:/Y/escape/source/
+
+wc:
+	 wc -l *.cpp *.h
+
+clean:
+	  C:Delete FORCE escape
+	  C:Delete FORCE convert
+	  C:Delete FORCE mkupdate
+	  C:Delete FORCE screenshot
+	  C:Delete FORCE version
+	  C:Delete FORCE packpng
+	  C:Delete FORCE packsound
+    C:Delete FORCE #?.o
+

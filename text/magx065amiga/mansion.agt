@@ -1,0 +1,173 @@
+! MANSION.AGT
+!    Copyright (C) 1999 Robert Masenten
+!
+!  This is a game fragment illustrating how to use the subroutines
+!  contained in STDLIB.AGT.
+!
+
+VERSION MAGX
+#include stddecl.agt
+#include stdlib.agt  ! Need this for any game using STDLIB.AGT
+
+TITLE
+THE MANSION
+
+A Game Fragment with Examples
+Using Subroutines from STDLIB.AGT
+END_TITLE
+
+! DEMONSTRATION OF [object loop]
+! This is an example of how to use [object loop] to move all
+! edible objects into the refrigerator 
+
+! First, create a subroutine that checks whether an object is edible
+! and if so moves it to the kitchen
+
+SUBROUTINES
+ [move edible]
+END_SUBROUTINES
+
+COMMAND SUBROUTINE[move edible]
+  1 IsEdible [arg]  ! [arg] contains the object we're interested in
+    SendToRoom [arg] [kitchen]
+  1 Return
+END_COMMAND
+
+! Finally, to actually move everything, we set [loop routine] 
+!  equal to our subroutine and then invoke [object loop]:
+
+COMMAND CLEANUP
+  Set [loop routine] [move edible] 
+  DoSubroutine [object loop]
+  DoneWithTurn
+END_COMMAND
+
+VERBS
+cleanup
+END_VERBS
+
+
+!
+!  Demonstration of [get direction].  This defines a robot
+!   that moves around on the player's command.
+!
+
+VARIABLE [dir] "?" "north" "south" "east" "west" "northeast" \
+   "northwest" "southeast" "southwest" "up" "down" "in" "out"
+
+
+! This is an implementation of a creature that moves 
+!  according to the players orders.  Aside from the use
+!  of [get direction] to figure out which direction the player 
+!  wants it to move, there are a couple of other things worthy
+!  of note:
+! 1) The use of "NameWasPresent" instead of "Present NAME"
+!     This allows multiple commands such as ROBOT, NORTH THEN EAST
+!     to work.  "NameWasPresent" checks to see if NAME was in the same
+!     room as the player when the command was first issued, even if
+!     they have since moved appart.
+! 2) Also, "Present NAME" is checked before each message to be printed
+!     out, in case the robot and the player are now in different rooms.
+!     (as could happen for the second part of ROBOT, NORTH THEN EAST.)
+
+COMMAND ROBOT, ANY
+   NameWasPresent     ! This allows "ROBOT, NORTH THEN EAST"
+   DoSubroutine [get direction]
+ 1 Equal [arg] 0  ! Not a direction command
+   PrintMessage "The wheeled device beeps."
+   DoneWithTurn
+ 1 CanGo NAME [arg]
+   Set [dir] [arg]
+   2 Present NAME  
+     PrintMessage "$The_name$$name$ races $var[dir]$."
+   2 MoveInDirection NAME [arg]
+     DoneWithTurn
+ 1 
+   2 Present NAME
+     PrintMessage "$The_name$$name$ tries to go $var[dir]$, but finds it \
+ cannot. It beeps twice."
+   2 DoneWithTurn
+END_COMMAND
+
+
+
+
+!
+! The rest of this file is just infrastructure so that there
+! is actually something to demonstrate this command with.
+! 
+
+NOUN [thyme]
+sprig
+thyme
+A sprig of thyme is here.
+LOCATION [garden]
+EDIBLE
+NOUN_SYNONYMS sprig
+END_NOUN
+
+NOUN_DESCR [thyme]
+You don't have thyme to examine all of these herbs!
+END_NOUN_DESCR
+
+NOUN [eggplant]
+eggplant
+purple
+A large purple eggplant is resting here.
+LOCATION [garden]
+EDIBLE
+NOUN_SYNONYMS large
+END_NOUN
+
+NOUN_DESCR [eggplant]
+The eggplant is purple and egg-shaped.
+END_NOUN_DESCR
+
+ROOM [kitchen]
+Kitchen
+E [Garden]
+S [Laboratory]
+END_ROOM
+
+ROOM_DESCR [kitchen] 
+  The smell of fresh bread wafts out of an oven in the center of this \
+room; next to it a large refrigerator hums.  A pair of glass doors \
+open eastward out to an herb garden and a passage leads south.
+  A sign read "type 'CLEANUP' to move everything edible to this room."
+END_ROOM_DESCR
+
+ROOM [garden]
+Herb Garden
+W [Kitchen]
+END_ROOM
+
+ROOM_DESCR [garden] 
+Small green plants spring out of the freshly-turned earth.  You \
+recognize cilantro, basil, sage, and rosemary.  A pair of glass doors \
+leads back into the house, to the west.
+END_ROOM_DESCR
+
+ROOM [laboratory]
+Laboratory
+N [kitchen]
+END_ROOM
+
+ROOM_DESCR [laboratory]
+Piles of unidentifiable devices, sheets of metal, pipes, stacks of wire \
+and metal barrells filled with unknown substances loom over you, giving \
+this room a claustrophobic feel in spite of its size.
+END_ROOM_DESCR
+
+CREATURE [robot]
+robot
+wheeled
+A small wheeled device waits on the floor expectantly.
+location [laboratory]
+NOUN_SYNONYMS device
+END_CREATURE
+
+CREATURE_DESCR [robot]
+This is a robot that Uncle Mortmain built from a kit. It responds
+to simple spoken commands like "ROBOT, NORTH".
+END_CREATURE_DESCR
+

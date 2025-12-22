@@ -1,0 +1,26 @@
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
+#define FPS_ON
+#define FPS 40
+
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
+
+#define PLAYER_WIDTH 40
+#define PLAYER_HEIGHT 60
+
+#define MAX_PLAYER_XVEL 11
+#define MAX_PLAYER_YVEL 23
+
+#define MAX_CRATE_COUNT 1024
+
+#define CRATE_FRAME_DELAY 40
+
+#define MAX_CAM_YVEL 15
+
+#define INITIAL_LAVA_HEIGHT 690
+
+#define LAVA_SPEED 1
+
+#endif

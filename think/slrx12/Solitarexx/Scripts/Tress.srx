@@ -1,0 +1,115 @@
+/*****************************\
+** Tress v1.0 for Solitarexx **
+**    by Michal Szafranski   **
+\*****************************/
+OPTIONS RESULTS
+
+tex = '"Tress"'
+win = '"We Have a Winner"'
+ADDBUTTON 0 10 "Start"
+ADDCYCLE 1 6 '0|1|2|3' 2 'Reshuffles' 12
+ADDTEXT 4 24 tex 6
+ADDBUTTON 12 10 "Abort"
+ADDBUTTON 13 12 'Reshuffle'
+ADDTEXT 14 30 tex 6
+SELECTGUI 1
+SCREENSIZE 4 0 6 12
+DO i = 0 TO 17
+	NEWSTACK 0 1 0 (i//6) (i%6) 2*(i//6) 0 2
+	stack.i = RESULT
+END
+DO i = 0 TO 3
+	NEWSTACK 20 0 2+i 1+i 3
+	base.i = RESULT
+END
+NEWSTACK 21 0 1 0 3
+deck = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	SELECTGUI 4
+	SETGADGET 14 STR tex
+	GETGADGET 1
+	resh = RESULT
+	CLEANUP deck
+	sel = 0
+	fin = 0
+	DO i = 0 TO 17
+		CARDSELECT deck 3
+		MOVECARDS deck stack.i REVERSE
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sel=0 & card>0 & sid = 0 THEN sel = stack
+			WHEN sel>0 & (sel = stack | sid = 20) THEN CALL DOBASE
+			WHEN sel>0 THEN CALL DOSTACKS
+			OTHERWISE ERRBEEP
+		END
+		IF act = 3 THEN SELECT
+			WHEN resh>0 & stack = 13 THEN CALL DEAL
+			WHEN stack = 12 THEN DO
+				SELECTGUI 1
+				RETURN
+			END
+			OTHERWISE ERRBEEP
+		END
+	END
+RETURN
+DOSTACKS:
+	CARDSELECT sel 1
+	PARSE VAR RESULT xx wars xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT xx war xx
+	WHICHCARD stack
+	IF RESULT<3 & wars = war THEN MOVECARDS sel stack
+	ELSE ERRBEEP
+	sel = 0
+RETURN
+DOBASE:
+	IF sel~=stack THEN CALL CHBASE
+	ELSE DO i= 0 TO 3 UNTIL ok=0
+		stack = base.i
+		CALL CHBASE
+	END
+	IF ok=0 THEN DO
+		fin = fin +1
+		MOVECARDS sel stack
+		IF fin = 52 THEN SETGADGET 14 STR win
+	END
+	ELSE ERRBEEP
+	sel = 0
+RETURN
+CHBASE:
+	CARDSELECT sel 1
+	PARSE VAR RESULT kolors wars xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT kolor war xx
+	IF kolor = '' THEN DO
+		kolor = kolors
+		war = -1
+	END
+	IF kolor = kolors & (wars - war) = 1 THEN ok = 0
+	ELSE ok = 1
+RETURN
+DEAL:
+	DO i = 0 TO 17
+		CARDSELECT stack.i 3
+		MOVECARDS stack.i deck REVERSE
+	END
+	SHUFFLECARDS deck
+	DO i = 0 TO 17
+		CARDSELECT deck 3
+		MOVECARDS deck stack.i REVERSE
+	END
+	resh = resh - 1
+RETURN

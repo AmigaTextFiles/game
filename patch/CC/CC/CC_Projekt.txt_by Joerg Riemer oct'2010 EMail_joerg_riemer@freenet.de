@@ -1,0 +1,670 @@
+*****************************************************************************
+*									    *
+*	PROJEKT: Carrier Command					    *
+*	  DATUM: 15.01.2001 - 09.02.2001 (15.10.2010 - 03.11.2010)	    *
+*									    *
+*	  AUTOR: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+*	 SYSTEM: A1200	KS 40.68 WB 40.42 2MB chip 64MB fast 68030/50mhz    *
+*									    *
+*****************************************************************************
+
+
+Carrier  Command  ein  altes aber interessantes spiel.  die orig.  diskette
+ist  in  einem  fremd-format erstellt und lässt sich auf meinem a1200 nicht
+mehr starten.  für das spezielle format dieser diskette gilt, das auf jeder
+spur  nur  einen  block  liegt.   die grösse des sektors umfasst dabei 5120
+bytes.   sync.-  und header-daten etc.  nicht mitgerechnet.  wenn überhaupt
+noch  von  einem block-header geredet werden kann.  der besteht nämlich nur
+noch  aus  einem  langwort  für  die  spurnummer.   der  label-puffer fehlt
+gänzlich.    zusätzlich   und   ganz   im   gegensatz  zum  konventionellen
+ladevorgang, bei dem die daten von der diskette immer wechselseitig gelesen
+werden,   wird   bei   Carrer  Command  jeweils  nur  von/auf  einer  seite
+gelesen/geschrieben.
+
+dadurch  ergibt  sich  für den lader ein wesentliches merkmal, er liest die
+die  spuren  extrem  schnell  in  den  speicher.  zumindest ergibt sich mir
+dieser  eindruck,  wenn ich dieses maschinengewehrartige geräusch höre, das
+der  schreib/lese-kopf  beim  laden des spiels verursacht.  der trick dabei
+ist  die  art  des ladevorgangs, oder besser gesagt die schon eben erwähnte
+anordnung der daten auf der diskette.  auf der einen seite ist das program;
+der  lader;  das  titelbild  und  zusätzlich  (etwas  kurios)  ein weiteres
+programm   (speziell  für  diese  art  von  diskette).   die  andere  seite
+beinhaltet  von  der  ersten bis zur letzten spur ein soundsample mit einer
+abspieldauer von etwa 40 sek.
+
+beim  laden  der  daten wird also nur von jeweils einer disketten-seite und
+auch  nur  ein block pro spur gelesen.  dadurch erhoeht sich der track-step
+um  mehr  als  das  doppelte und es wird der eindruck erweckt, das programm
+wird sehr schnell eingeladen.  was im gewissen masse natürlich auch stimmt,
+da  es  sich hierbei erstens um einen hardware-lader handelt der direkt das
+disketten-lfwk   anspricht  und  zweitens  pro  spur  auch  nur  ein  block
+eingeladen  wird.  damit wird im vergleich zu einer amigados-diskette schon
+eine   erhebliche   lese-geschwindikeit  erreicht.   doch  darf  man  nicht
+übersehen,  das  in  diesem  fall auch nur etwa halb soviele daten pro spur
+eingelesen werden und die diskette im verhältnis zur amigados-diskette auch
+weniger daten enthält.
+
+Amigados-diskette: 80 cylinder mit je 2 tracks =    160 tracks.
+                   11 bloecke pro track        =   1760 bloecke
+                   512 bytes pro block         = 901120 bytes
+
+      CC-Diskette: 159 tracks = 159 bloecke = 5120x159 = 814080 bytes
+    + DOS-track 0:  11 bloecke a 512 bytes  = 512 x 11 = 5632 bytes
+
+selbst  wenn  diese  diskette in einem format erstellt wurde, das der amiga
+als  solches  nicht  erkennen  kann.  muss auch hier, wie gerade die kleine
+statistik  zeigte,  auf  track  0 das amigados-format vorhanden sein.  denn
+sonst lässt sich diese diskette auf einem amiga nicht starten.  das heisst,
+für  track  0  gilt  das  konventionelle  amigados-format  mit  den  beiden
+bootbloecken  0 und 1.  die weiteren bloecke 2-10 dieses tracks werden hier
+nicht  weiter  benutzt  und  beinhalten keine relevanten daten.  just a bit
+TML!  promotion :)
+
+in  den  bootbloecken 0-1 steht also das bootprogramm.  dieses bootprg.lädt
+als erstes das titelbild und nachfolgend das spiel Carrier Command ein.
+
+hält  der  anwender  bei  ausführung des bootprogramms die linke maus-taste
+gedrückt,  wird  statt des spiels ein kopierprogramm gestartet.  opps!!  wo
+gibts  denn sowas, ein spiel inklusive kopierprogramm!?!?!  häh häh :)) ein
+diskette  mit  fremd-format,  das raubkopierer normalerweise davon abhalten
+soll  ein  programm  zu  vervielfältigen,  und  nun wird's gleich frei-haus
+mitgeliefert.   hmm?...   so  ist  das halt, nicht jedes fremd-format dient
+auch gleich dem kopierschutz.
+
+das spiel hat dafuer eine passwort-abfrage als kopierschutz,  basierend auf
+eine  zufällige auswahl von wörtern aus dem dazugehörigem handbuch, die der
+anwender  nachlesen  muss  und schliesslich eingibt.  hat man das spiel mit
+seinem  auswahlbildschirm  vor sich und wählt fuer eine gewisse zeit nichts
+aus, wird automatisch das erwähnte soundsample von diskette nachgeladen und
+gleichzeitg abgespielt.  sozusagen ein vorläufer des heute im allgemein als
+harddisk-recording  bekannten prinzips.  man denke dabei an das Jahr in dem
+diese Spiel entwickelt wurde!!!  1987/88!!!  :))
+
+
+CCBackUpper.s
+-------------
+ist  eine  von mir neu geschriebene version des kopierprg's (Realtime Amiga
+Backerupper)  und  lässt  sich  wie ein CLI-befehl über jede Shell starten.
+mehr  information  steht  im sourcecode oder erscheint automatisch wenn der
+befehl  'CCBackUpper'  ohne  argument  aufgerufen wird.  mit der Ur-version
+dieses  sourcecodes  war  es  mir  erstmals  möglich die defekte CC-Disk zu
+kopieren.   ich  war  positiv  überrascht,  da  sich die kopie sogar wieder
+booten  liess  und  auch  das  spiel startete.  allerdings wurde das sample
+nicht abgespielt und auch die spielstände liessen sich weder speichern noch
+einladen.  nun gut, konnte ich damit doch erstmal die CC-Disk retten.
+
+
+CCBackUpperPart1.s
+------------------
+auch  die  beiden  bootbloecke  habe  ich  komplett  neu entwickelt, um den
+gegebenheiten  des  A1200  gerecht  zu  werden.   sie  sind unter dem namen
+CCBackUpperPart1.s abgespeichert.  um im einklang mit dem A1200 zu bleiben,
+der  ja  während  des  bootvorgangs  ein  early-startup  menü zur verfügung
+stellt,  das auch die beiden maus-tasten überprüft, wird bei dieser version
+nur  noch  die  linke  maus-taste  abgefragt.   ist  sie  gedrückt, startet
+automatisch das Realtime Amiga Backerupper programm.  damit sich aber nicht
+gleich  alles  überschlägt  und  nicht sofort der kopiervorgang eingeleitet
+wird.   müssen  im  backup-programm  grundsätzlich  immer beide maus-tasten
+gedrückt werden, wenn vom anwender ein OK gefordert wird.
+
+in  seiner  aktuellen  form  ist  der code aber noch kein echter bootblock.
+(ihm   fehlt   noch   die   typische  dos-kennung)  er  ist  ein  teil  des
+neugeschriebenen  kopierprogramms.   wird  also  erst  bei  ausführung  des
+kopierprg's   zu   einem   bootblock   generiert   und  auf  die  jeweilige
+diskettenkopie geschrieben.
+
+im  grossen  und  ganzen  wurde  von  mir hauptsächlich der track-lader neu
+entwickelt,  der  machte  nämlich  die  meisten  sorgen.  daher gehören die
+beiden  programmteile LoadDatas.s und SaveDatas.s zu den schlüssel-routinen
+in diesem projekt.
+
+eins  der  grössten probleme der alten lade-routine, waren die eingesetzten
+warte-schleifen.   der  track-lader  wurde ursprünglich auf dem und für den
+MC68000 entwickelt.  inzwischen ging aber die entwicklung weiter und neuere
+processoren  wie  der  MC68030/040/060  sind  um einiges schneller was ihre
+laufzeit für bestimmte schleifen angeht.  dementsprechend gilt das auch für
+die  warte-schleifen  wenn  sie  auf  einem processor wie z.b.  dem MC68030
+ausgeführt werden.
+
+die  warte-schleifen werden aus zwei gründen eingesetzt.  einmal sollen sie
+dem  lader genug zeit bis zum abbruch geben, wenn die disketten-hardware in
+einem  gewissen  zeitrahmen  kein  OK  zurücksendete,  zum anderen wird der
+programmablauf    an   einigen   stellen   etwas   abgebremst   damit   der
+disketten-kontroller  aufgrund zu schneller zugriffe nicht überfordert wird
+und ins trudeln kommt.
+
+in   der   neuentwickelten   lade-routine   werden   (in  der  regel)  alle
+warte-schleifen  grundsätzlich  von  einem  der  CIA-timer  gesteuert.  der
+ladevorgang    ist    damit    unabhängig   vom   processor-typ   und   der
+disketten-kontroller  kann  entsprechend  seiner zeit-vorgaben, was z.b das
+bewegen des kopfes betrifft, exakt angesprochen werden.
+
+aber wo eine regel auch eine ausnahme.  denn für die signale disk_ready und
+disk_block-finished gibt es jeweils noch herkömmliche warte-schleifen.  sie
+warten   auf   ein   signal  des  disketten-kontrollers  und  zählen  dabei
+gleichzeitig  einen  zähler  runter.   ist  der zähler auf null und lag bis
+dahin   noch   kein   signal  des  kontrollers  an,  wird  der  ladevorgang
+abgebrochen.   sie  dienen  sozusagen  als  notausgang  wenn  kein  OK  vom
+disketten-kontroller  zurück  kommt.   allerdings  kommt  hier  wieder  das
+angesprochene  laufzeit-problem  ins spiel.  wenn ein zukünftiger processor
+unerwartet  schnell ist und bricht die schleife deswegen zu früh ab, werden
+die daten nicht vollständig von diskette eingelesen.  eine alternative wäre
+den  zähler  wegzulassen  und nur auf das signal des kontrollers zu warten,
+dann  könnte  bei  nutzung  eines  schnelleren processor die schleife nicht
+versehentlich  (vorzeitig)  abgebrochen  werden.
+
+was die lade-routine und das einladen des spiels betrifft wäre ein verzicht
+auf  den  zähler  nicht  weiter  schlimm.   denn sollte wirklich ein fehler
+vorliegen,  ist es erstmal egal, ob die routine an dieser stelle hängt oder
+der  track-lader  in  einer  endlos-schleife  immer wieder versucht defekte
+spuren  einzuladen.
+
+das  weglassen  würde  aber  andere gravierende nachteile mit sich bringen.
+ist  z.b.   die  diskette  oder  der disketten-kontroller defekt, hängt der
+computer   wegen   des   nicht   gelöschten   disk_ready-signals  in  einer
+dauerschleife fest aus die er sich nicht mehr befreien lässt.  auch was das
+kopierprogramm  und  das  schreiben  von disketten betrifft, ist der zähler
+äusserst  nützlich.   man  stelle  sich  nur  vor  die  diskette,  auf  die
+gespeichert  werden  soll,  ist  defekt.  das würde jedesmal eine reset des
+systems vorraussetzen um einen neuen kopiervorgang starten zu können.  dank
+des zähler und mittels einer fehler-meldung kann das kopierprogramm einfach
+nach einer neuen diskette verlangen.
+
+um das laufzeit-problem für akt.  prozessoren in den griff zubekommen, habe
+ich die folgende kleine schleife eingesetzt.
+
+		moveq	#0,D0			;reset counter
+
+.wait		addq.l	#1,D0			;add counter
+		btst	#20,D0			;check for break
+		bne	DriveError1		;stop waiting if set
+
+		btst	#5,$1001(A4)		;disk ready ?
+		bne.b	.wait			;branch if not
+
+hier wird solange gewartet, bis das gewünschte bit erreicht wurde.  sie ist
+zwar  je  nach  verwendetem prozessor unterschiedlich schnell abgearbeitet,
+aber  so  ausgelegt, das sie auch bei einem 030/50mhz noch ausreichend zeit
+verstreichen  lässt, bis sie den ladevorgang abbricht.  der laufzeit-effekt
+macht  sich  auch  nur im falle eines fehlers seitens der hardware oder der
+disketten-struktur  bemerkbar.   für  mein empfinden, ist sie ein guter und
+sauberer  kompromiss  zwischen  dem  was  machbar  ist,  und dem was dieser
+anwendung  gerecht  wird.   für  den,  der  sich  jetzt gerne näher mit der
+lade-routine  beschäftigen  möchte,  hat  im folgenden teil die möglichkeit
+dazu.
+
+*****************************************************************************
+
+Bit		equ	18		;break_bit for primitiv wait_loop :)
+
+FirstTrack	rs.b	1		;first track want to read
+Position	rs.b	1		;buffer current head position
+TrackCount	rs.b	1		;count of cylinder want to read
+DriveNum	rs.b	1		;requested drive
+
+DiskSide	rs.b	1		;requested diskside
+TrackError	rs.b	1		;error flag  -1/0
+Zero		rs.b	1		;flag (head position is known)
+ciaCTRLB	rs.b	1		;temp. buffer ciab_control byte
+
+Destination	rs.l	1		;ptr. memory when reading from disk
+MFMBuffer	rs.l	1		;ptr. buffer for mfm de/encoding
+
+BSS_Size	rs.b	0		;bss_size over all
+
+*****************************************************************************
+
+LoadDatas	lea	$DFF000,A6		;set custom_base
+
+		lea	DataBase(pc),A5		;set data_base
+
+		move.b	D0,FirstTrack(A5)	;first track
+		move.b	D1,TrackCount(A5)	;tracks to read
+		move.b	D2,DiskSide(A5)		;set diskside
+		move.b	D3,DriveNum(A5)		;set drive select
+		addq.b	#3,DriveNum(a5)		;generate drive bit
+		move.l	A0,Destination(A5)	;memory location
+		move.l	A1,MFMBuffer(A5)	;DMA buffer
+
+		st	TrackError(A5)		;preset load error
+
+		move.l	#$55555555,D5		;mfm decoding bits
+
+* preset count for timer_b **************************************************
+
+		lea	$BFD000,A4		;set ciab_base
+
+		move.b	$F00(A4),ciaCTRLB(A5)	;save ciab_control
+
+		bset	#3,$F00(A4)		;timer b one-shot mode
+		move.b	#$14,$600(A4)		;preset timer b low
+		move.b	#$0B,$700(A4)		;preset timer b hi, wait 4ms
+
+* set drive and motor on ****************************************************
+
+		or.b	#$78,$100(A4)		;deselect all drives
+		bclr	#7,$100(A4)		;set motor on
+		move.b	DriveNum(A5),D0		;get drive number
+		bclr	D0,$100(A4)		;select drive
+
+		moveq	#0,D0			;reset counter
+.wait1		addq.l	#1,D0			;count
+		btst	#Bit,D0			;check for break ?
+		bne	LoadError		;branch if so
+
+		btst	#5,$1001(A4)		;disk ready ?
+		bne.b	.wait1			;branch if not
+
+* move head back to track 00 ************************************************
+
+		tst.b	Zero(A5)		;position(A5) known ?
+		bne.b	.quit			;yes, skip
+
+		btst	#4,$1001(A4)		;head at track 00 ?
+		beq.b	.ready			;branch if so
+
+		bset	#1,$100(A4)		;head direction backward.
+
+.MoveBack	bclr	#0,$100(A4)		;send a quick impulse
+		bset	#0,$100(A4)		;to force move head.
+
+		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait2		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait2			;waits ($B14 = 4ms)
+
+		btst	#4,$1001(A4)		;head at track 00 ?
+		bne.b	.MoveBack		;branch if not
+
+.ready		clr.b	Position(A5)		;position(A5) = 00 !!
+		st	Zero(A5)		;set flag (position known)
+
+.quit
+
+* move head to firsttrack(a5) ***********************************************
+
+		move.b	#$D8,$600(A4)		;set timer b low
+		move.b	#$31,$700(A4)		;set timer b hi, wait 18ms
+.wait3		btst	#1,$D00(A4)		;settle time 18ms=$31DA
+		beq.b	.wait3			;waits ($31DA = 18ms)
+
+		bset	#1,$100(A4)		;head direction backward.
+
+		move.b	Position(A5),D0		;calculate step_count
+		sub.b	FirstTrack(A5),D0
+		bpl.b	.Move			;move backward
+
+		not.b	D0			;move forward
+
+		bclr	#1,$100(A4)		;head direction forward.
+
+.MoveHead	bclr	#0,$100(A4)		;send a quick impulse
+		bset	#0,$100(A4)		;to force move head.
+
+		move.b	#$14,$600(A4)		;preset timer b low
+		move.b	#$0B,$700(A4)		;preset timer b hi, wait 4ms
+.wait4		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait4			;waits ($B14 = 4ms)
+
+.Move		subq.b	#1,D0			;decrement step_count
+		bpl.b	.MoveHead		;do for all steps!
+
+		bclr	#1,$100(A4)		;head direction forward.
+
+		move.b	FirstTrack(A5),Position(A5) ;save current position
+
+* set requested diskside  ***************************************************
+
+		bset	#2,$100(A4)		;set lower side
+
+		tst.b	DiskSide(A5)		;lower side?
+		beq.b	.wait5			;branch if so
+
+		bclr	#2,$100(A4)		;set upper side.
+
+.wait5		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait6		btst	#1,$D00(A4)		;flip_side requires 100us=$47
+		beq.b	.wait6			;waits ($B14 = 4ms)
+
+		bra.b	LoadTrack
+
+* move head one track forward ***********************************************
+
+LoadNextTrack	moveq	#1,D0			;get count
+		add.b	D0,Position(A5)		;increment position
+
+		bclr	#0,$100(A4)		;send a quick impulse
+		bset	#0,$100(A4)		;to force move head.
+
+		bset	#0,$F00(A4)		;start timer b one-shot mode
+.wait		btst	#1,$D00(A4)		;head_step requires 3ms=$850
+		beq.b	.wait			;waits ($B14 = 4ms)
+
+* load track / decode mfm buffer ********************************************
+
+LoadTrack	move.w	#$4000,$24(A6)		;force DSKDMA to be turned off
+		move.w	#$0002,$9C(A6)		;reset interrupt request
+		move.l	MFMBuffer(A5),$20(A6)	;set DMA_buffer
+		move.w	#$6800,$9E(A6)		;adkcon, no precomp
+		move.w	#$9500,$9E(A6)		;adkcon, mfm-format etc..
+		move.w	#$4489,$7E(A6)		;set syncword
+		move.w	#$9414,$24(A6)		;dsklen read $1414 words
+		move.w	#$9414,$24(A6)		;twice, starts DISKDMA
+
+		moveq	#0,D0			;reset counter
+.wait		addq.l	#1,D0			;increment
+		btst	#Bit,D0			;time to break?
+		bne	LoadError		;branch if so
+
+		btst	#1,$1f(A6)		;diskblock finished ?
+		beq.b	.wait			;just wait if not
+
+* decode mfm and write track to memory **************************************
+
+Track2Mem	movea.l	MFMBuffer(A5),A0	;set buffer
+
+		cmp.w	#$4489,(A0)+		;skip syncword
+		bne	LoadError		;do an error check, too
+
+		movea.l	A0,A1			;get tracknumber
+
+		move.l	(A1)+,D0		;read odd bits
+		move.l	(A1)+,D1		;read even bits
+
+		and.l	D5,D0			;decode mfm
+		and.l	D5,D1			;decode mfm
+		add.l	D0,D0			;decode mfm
+		or.l	D1,D0			;decode mfm
+
+		move.b	Position(A5),D1		;get position
+		add.b	D1,D1			;calculate real tracknumber
+		add.b	DiskSide(A5),D1		;calculate real tracknumber
+
+		cmp.b	D0,D1			;check for the right one
+		bne.b	LoadError		;branch if not
+
+* get checksum **************************************************************
+
+		lea	8(A0),A1		;get datablock checksum
+
+		move.l	(A1)+,D0		;read odd bits
+		move.l	(A1)+,D1		;read even bits
+
+		and.l	D5,D0			;decode mfm
+		and.l	D5,D1			;decode mfm
+		add.l	D0,D0			;decode mfm
+		or.l	D1,D0			;decode mfm
+
+		move.l	D0,D3			;required later
+
+* verify checksum ***********************************************************
+
+		move.w	#$2800,D0		;datablock size (mfm)
+		lsr.w	#2,D0			;prepare dbf_loop
+		subq.w	#2,D0			;prepare dbf_loop
+
+		lea	16(A0),A1		;skip tracknum/chksum
+
+		move.l	(A1)+,D1		;get first value
+
+.ChkSum		move.l	(A1)+,D4		;get next one
+		eor.l	D4,D1			;calculate checksum
+		dbra	D0,.ChkSum		;do for all bytes
+
+		and.l	D5,D1			;decode mfm
+
+		cmp.l	D1,D3			;compare checksum
+		bne.b	LoadError		;branch if wrong
+
+* decode mfm and write datablock ********************************************
+
+		lea	16(A0),A0		;get datablock
+
+		move.w	#$1400,D0		;offset for even bits
+		lea	0(A0,D0.W),A1		;get even bits
+
+		lsr.w	#2,D0			;prepare dbf_loop
+		subq.w	#1,D0			;prepare dbf_loop
+
+		movea.l	Destination(A5),A2	;base of decode area
+
+.MoveDatas	move.l	(A0)+,D1		;read odd bits
+		move.l	(A1)+,D3		;read even bits
+
+		and.l	D5,D1			;decode mfm
+		and.l	D5,D3			;decode mfm
+		add.l	D1,D1			;decode mfm
+		or.l	D3,D1			;decode mfm
+
+		move.l	D1,(A2)+		;save readable bits
+		dbra	D0,.MoveDatas		;do for all bytes
+
+		move.l	A2,Destination(A5)	;reset save area
+
+		subq.b	#1,TrackCount(A5)	;decrement required tracks
+		bne	GetNextTrack		;do for all tracks
+
+		clr.b	TrackError(A5)		;set flag (all done well)
+
+*****************************************************************************
+
+LoadError	move.w	#$4000,$24(A6)		;beware accidental writes
+
+* stop drive ****************************************************************
+
+		or.b	#$F8,$100(A4)		;deselect all/motor off
+		move.b	DriveNum(A5),D0
+		bclr	D0,$100(A4)		;select drive
+
+		move.b	ciaCTRLB(A5),$F00(A4)	;reset ciacontrol_b
+
+		tst.b	TrackError(A5)		;warn user ?
+		beq.b	.quit			;no, skip
+
+		bchg	#1,$1001(A4)		;warn user
+
+.quit		tst.b	TrackError(A5)		;set condition return
+		rts
+
+*****************************************************************************
+
+CCBackUpperPart2.s
+------------------
+ist  der hauptteil des ( Realtime Amiga BackerUpper Clone) kopierprogramms.
+auch  dieser teil ist komplett neugeschrieben.  die ehemaligen programierer
+haben   offensichtlich   versucht   die  lesbarkeit  des  programmcodes  zu
+erschweren, oder wollten damit möglicherweise ihre intelligenz unter beweis
+stellen.   einige  programmzeilen  werden  ploetzlich  durch eine reihe von
+datenworte  unterbrochen,  die auf den ersten blick keinen sinn ergeben und
+den eindruck erwecken eine entpack-routine hätte ihren dienst versagt.
+
+		bsr	lbC0005E2		;print text
+		dc.w	$0000,$0003,$0002	;insert master disk
+		bsr	WaitMouse
+
+bei  näherem hinschauen lässt sich erkennen, das es sich dabei um parameter
+fuer  die  text-ausgabe  handelt.   mittels  dubioser programmierung werden
+diese  werte über den STACK-Zeiger ausgelesen.  nach erfolgreicher übergabe
+an  die  textprint-routine  wird der STACK dann entsprechend manipuliert um
+auf eine korrekte rücksprung-adresse zu zeigen.
+
+lbC0005E2	move.l	(SP),A0
+		lea	lbW001196(pc),A1
+		move.l	(A0)+,(A1)+		;lbW001196+$400
+		move.w	(A0)+,(A1)		;lbW00119A+$400
+		move.l	A0,(SP)
+
+Sowohl beim CCBackUpper part_1 als auch beim CCBackUpper part_2 müssen nach
+dem  assemblieren,  die HunkHeader/HunkEnd-daten noch abgeschnitten werden.
+wenn mit devpac assembliert wurde.  part_1 und part_2 werden gleich zweimal
+verwendet.   sie  kommen  sowohl im befehl 'CCBackUpper' als auch im befehl
+'CCDiskCreator' vor, der im folgenden beschrieben wird.
+
+
+CCDiskCreator.s
+---------------
+nach  dem  assemblieren  des  sourcecodes  CCDiskCreator.s,  enthält dieser
+befehl  alle  wichtigen daten um eine komplette Carrier Command Diskette zu
+erstellen.   nach  aufruf  wird der anwender gebeten eine leere diskette in
+df0:   einzulegen  und  beide  maustasten  zu  betätigen  um die erstellung
+auszuführen.  auch hier steht mehr information im sourcecode oder erscheint
+automatisch wenn der befehl 'CCDiskCreator' ohne argument eingegeben wird.
+
+
+CCDiskCreator1.s !!! ACHTUNG !!!
+---------------
+der  CCDiskCeator bring den rechner zum absturz, wenn zur gleichen zeit der
+Enforcer aktiv ist.  die ursache ist das zurücksetzen des VBR's.  der grund
+dafür  liegt in der philosophie des Enforcers.  sinn und zeck des enforcers
+ist  das  aufspüren  von illegalen speicher-zugriffen.  die zero-page, also
+ca.   die  ersten  1000  bytes des chiprams gehören dazu.  ein wesentlicher
+teil   des  enforcers  sind  die  interrupt-einsprungaddressen.   wird  die
+VBR_tabelle ins chipram zurückversetz, kollidiert der enforcer zwangsläufig
+mit sich selbst.
+
+CCDiskCreator1  schaltet zusätzlich die 030/MMU ab und setzt damit auch den
+enforcer  radikal  ausser gefecht.  da aber nicht jede CPU eine MMU enthält
+und  die  MMU  des  MC68040/060  andere  vorgaben erwartet, ist das nur als
+schneller  hack anzusehen.  es findet keine überprüfung auf eine vorhandene
+MMU  statt.   CCDiskCreator1  ist  eine  inoffizelle  testversion und (war)
+hilfsmittel  bei  der  untersuchung  des  absturzes  in  verbindung mit dem
+aktiven enforcer.
+
+
+sonstiges
+---------
+desweiteren habe ich noch einen sog.  CCExtractor, einen CCDataReader sowie
+eine CCInstaller entwickelt.
+
+mit  dem  CCExtractor  können die einzelnen inhalte der CC-diskette gelesen
+und im  jeweils akt. ordner speichert werden.
+
+der  CCDataReader macht das gleiche für die vier möglichen spielstände, die
+auf  einer  speziell  dafür angelegten CC-SaveDisk gespeichert sein können.
+denn  auch  für die CC-SaveDisk gilt, das sie mit dem CC-format beschrieben
+ist.
+
+der  CCInstaller  ist  eigentlich mehr ein patch, als ein HD-Installer.  er
+arbeitet  ähnlich  wie der CCExtractor, lädt aber nur das titelbild und das
+spiel  von  der  CC-Diskette.  darüber hinaus wird aus diesen beiden teilen
+eine  ausführbare  datei  erstellt,  die sich von jedem DOS-Medium aufrufen
+lässt.   will  man  den  titelsong  hören muss die CC-Diskette weiterhin im
+lfwk.   0  verbleiben.   auch  zum  speichern  der  spielstände  muss  eine
+save-diskette parat liegen.  also 'very much as simple!!!'
+
+wobei  ich  dazu  sagen  muss,  das  es  von anfang an meine intention war,
+Carrier Command möglichst in seinem original-zustand zu belassen.
+
+warum  sollte ich mir sonst diesen aufwand mit dem track-lader machen.  ich
+will  das  rattern  des  laufwerks  hören,  der ursprung allem amiga-seins.
+diese  feeling  nochmal  spüren,  wenn  wir  freitag-nacht zu dritt vor dem
+rechner  gesessen  haben,  dabei  das  mondlicht  durchs  fenster fiel, von
+draussen  kein  geräusch zuhören war und aus den boxen Marillion klang.  wo
+auf dem tisch nebem dem amiga, kaffee und chips standen. die mit steigender
+spanunng  immer  mehr  in  die tastatur bröselten,  weil irgend so'n nappel
+zwischen  durch  immer  wieder  den  monitor betatchen muss, um dem mann am
+joystick  zu  zeigen  wo's  lang geht.  und dem sorfältig sortierten stapel
+disketten mit neuesten cracks und sonstigen higlights.  die wie immer nicht
+beschriftet  waren und die spätestens nach dem dritten game oder der ersten
+pizza-pause  vom  tisch  fielen,  weil  der  tisch allenfalls platz für den
+rechner bot, trotzdem aber jeder noch etwas darauf abstellen wollte.  jedes
+game  hat  eben  seine zeit und es macht mir spass ab und zu dorthin zurück
+zugehen, wenn auch nur in gedanken.
+
+
+Patch1.s - Patch6.s
+-------------------
+sind  reparaturen  die angewendet wurden, um Carrier Command auch auf einem
+A1200   betreiben   zu  können.   darunter  sind  korrekturen,  die  sowohl
+programmierung  des  disketten-laufwerks  betreffen  (patch1,2),  als  auch
+workarounds für den blitter (patch6).  der blitter ist ein co-prozessor der
+parallel  zur  CPU  seinen  dienst  versieht  und fast ausschliesslich fuer
+grafik-operatonen eingesetzt wird.  Carrier Command wurde 1988 geschrieben.
+zu  diesem  zeitpunkt  waren  rechner  wie  der A500 und der A2000 aktuell.
+beide beinhalten in der regel einen MC68000 mit 8mhz takgeschwindigkeit als
+hauptprozessor.  höherwertige CPU's, also MC68020,MC68030 etc..  waren eher
+die   ausnahme.    bedingt   durch   diesen  umstand  konnte  man  bei  der
+programmierung  des  blitters  ein  wenig  nachlässig sein.  dazu zählt die
+häufig  vorkommende nachlässigkeit, den blitter in bestimmten fällen, nicht
+auf beendigung seiner operation abzufragen.  führt die CPU ihre arbeit fort
+ohne  darauf  zu achten ob der blitter seine operation beendet hat, kann es
+bei  neueren/schnelleren  prozessoren  zu grafik-fehlern kommen.  grund ist
+vorrangig  die höhere taktgeschwindigkeit dieser prozessoren und der daraus
+resultierende geschwindigkeitszuwachs gegenüber dem blitter.
+
+bei  einigen  patches handelt es sich nur um NOPs (NoOperation =$4e71).  um
+crackern  die arbeit etwas schwerer zumachen, sind einige zeilen in Carrier
+Command  selbstmodifizierend.   das  heisst  sie verändern sich während des
+programmablaufes.   zu zeiten des data.- and instruction caches, ( kann das
+/  wird  es  )  allerdings folgen haben.  denn ist der caches eines MC68030
+angeschaltet,  wird  bei  solchen programmzeilen, automatisch der GURU sein
+recht  auf  protest  zur geltung bringen und den rechner in eine meditative
+haltung versetzen (absturz).  um hier zusehen, was ich da genau geNOPt habe
+müsste   ich  nochmal  die  orginal  programmzeilen  sehen.   die  original
+programmteile  liegen  im  unter-ordner  .../org/.
+
+ich  weiss,  das innerhalb des programmes noch mehr zeilen dieser art sind.
+(siehe Printtext-routine/CCDiskcreator.s) .  aus gründen der kompatibilität
+zum MC68000 und zur sicherheit, schalte ich schon im bootprogramm den cache
+ab, damit solche zeilen zu keinem absturz führen.
+
+
+/CC/docs/
+---------
+CC.doc           89064 19-02-01  17:51:16 ----rwed
+CC.doc.info       1188 07-03-01  11:28:30 ----rw-d
+english.pwl       2241 19-02-01  17:41:00 ----rwed
+english.pwl.info  1188 07-03-01  11:28:30 ----rw-d
+french.pwl        2253 19-02-01  17:41:14 ----rwed
+french.pwl.info   1188 07-03-01  11:28:30 ----rw-d
+german.pwl        2227 19-02-01  17:41:31 ----rwed
+german.pwl.info   1188 07-03-01  11:28:30 ----rw-d
+
+eine  im  internet  gefundene  kopie  des  handbuchs (CC.doc) habe ich hier
+abgelegt.  zudem sind hier auch die listen (*.pwl) der möglichen passwörter
+gespeichert.   die  listen  wurden von mir mittels der internen routinen in
+eine  lesbare form gebracht.  die routinen habe ich separat gespeichert und
+liegen im ordner .../misc/ unter dem namen Password.s und Pagelist.s.
+
+um   an   eine  verwendbare  form  der  passwörter  zu  gelangen,  bin  ich
+folgendermassen  vorgegangen.   das  ladeprogramm  in den bootbloecken gibt
+immmer  schon  wichtige  dinge  vor.   dazu  gehören die addresse wohin das
+hauptprogramm  geladen wird und viel wichtiger auch der programm-einsprung.
+also  die  addresse,  die  vom  ladeprogramm  angesprungen  wird,  wenn der
+ladevorgang  abgeschlossen  ist.   mit diesen vorgaben kann ich in ReSource
+die basis-addresse für CarrierCommand bestimmen und auch relativ leicht den
+einsprung-offset   finden.   da  jeder  kopier/crackschutz  in  den  ersten
+programmzeilen  eine  programmes aufgerufen wird, habe ich, während ich den
+ersten  teil  des  programms in ein verständliche form brachte, gleich auch
+auf    schutz-routinen   geachtet.    hat   man   wesentliche   teile   der
+schutz-routinen  erkannt  und  interpretiert.  lässt sich mit diesem wissen
+und  dem  schon  vorhandenen  material an sub-routinen, neues konstruieren.
+das  resultat  sind  Password.s  und  Pagelist.s.  beide routinen sind aber
+aufgrund  meiner  faulheit  nur  bedingt  nutzbar.   sie  müssen mit Devpac
+assembliert  werden,  vorzugsweise inklusive debug option, um sie dann über
+den  beigefügten  debugger  (Monam)  aufzurufen  und  schrittweise ablaufen
+zulassen.   nach ablauf, muss noch der speicher-bereich gesichert werden in
+dem   die   umgewandelten   daten   liegen.    hierfür  stellt  Monam  eine
+'save-binare' option zur verfügung.
+
+hilfreiche  programme  und  tools die bei diesem projekt verwendung fanden,
+waren wie immer:
+
+	DevPac	   zum entwickeln/assemblieren/debuggen der
+		   entstandenen programme.
+
+	ReSource   für die sourcecode generierung von Carrier Command
+		   und den schnellen blick zwischen die zeilen.
+
+	DPaint	   zum editieren des veränderten titelbildes.
+
+	GFXMaster  für die IFF/RAW-konvertierung des titelbildes.
+
+	ColorType  mit dem der neue zeichensatz für CC erzeugt wurde.
+
+	HEX	   für den schnellen patch zwischendurch.
+
+und 'last but not least' 15 (25 jahre 12.12.2010) jahre amiga-erfahrung
+meinerseits, ohne die es nicht so schnell gegangen wäre. :))
+
+eof *************************************************************************

@@ -1,0 +1,95 @@
+/************************************\
+** MonteCarlo2D v1.0 for Solitarexx **
+**       by Michal Szafranski       **
+\************************************/
+OPTIONS RESULTS
+
+tex = '"Monte Carlo 2D v1.0"'
+order.0 = '0 6 12 18 24 30 1 7 13 19 25 31 2 8 14 20 26 32 3 9 15 21 27 33 4 10 16 22 28 34 5 11 17 23 29 35 36'
+order.1 = '0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36'
+order.2 = '35 34 33 32 31 30 24 25 26 27 28 29 23 22 21 20 19 18 12 13 14 15 16 17 11 10 9 8 7 6 0 1 2 3 4 5 36'
+order.3 = '21 20 14 15 16 22 28 27 26 25 19 13 7 8 9 10 11 17 23 29 35 34 33 32 31 30 24 18 12 6 0 1 2 3 4 5 36'
+ADDBUTTON 0 10 "Start"
+ADDCYCLE 1 12 'Vert|Horiz|Snake|Spiral' 1
+ADDTEXT 4 30 tex 6
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 13 12 '""' 6
+ADDTEXT 14 30 tex 6
+SELECTGUI 1
+SCREENSIZE 6 0 7 0
+DO i = 0 TO 35
+	NEWSTACK i 0 0 (i//6) (i%6)
+	stack.i = RESULT
+END
+NEWSTACK 36 0 1 6 0
+stack.36 = RESULT
+NEWSTACK 37 0 1 6 5
+waste = RESULT
+ADDCARDS stack.36
+ADDCARDS stack.36 SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP stack.36
+	SELECTGUI 4
+	sel = 20
+	fin = 104
+	SETGADGET 13 STR '"Left: 104"'
+	GETGADGET 1
+	order = order.RESULT
+	CALL DODECK
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sid = 36 THEN CALL DODECK
+			WHEN sid < 36 & sel = 36 & card>0 THEN sel=sid
+			WHEN sid < 36 & sel < 36 & card>0 THEN CALL DOSTACKS
+			OTHERWISE ERRBEEP
+		END
+		IF act = 3 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+	END
+RETURN
+DODECK:
+	sel = 36
+	sfrom = 1
+	DO sto = 1 TO 36
+		asto = WORD(order,sto)
+		DO FOREVER
+			asfrom = WORD(order,sfrom)
+			CARDSELECT stack.asfrom 1
+			IF RESULT = '' THEN sfrom = sfrom +1
+			ELSE LEAVE
+			IF sfrom = 38 THEN RETURN
+		END
+		IF sfrom = 37 THEN mode = 'REVERSE'
+		ELSE mode = ''
+		IF asfrom = asto THEN sfrom = sfrom +1
+		ELSE MOVECARDS stack.asfrom stack.asto mode
+	END
+RETURN
+DOSTACKS:
+	CARDSELECT stack.sel 1
+	PARSE VAR RESULT . w1 .
+	CARDSELECT stack 1
+	PARSE VAR RESULT . w2 .
+	IF w1 = w2 & ABS((sel//6)-(sid//6))<2 & 2>ABS((sel%6)-(sid%6)) & sel~=sid THEN DO
+		MOVECARDS stack.sel waste
+		MOVECARDS stack waste
+		fin = fin - 2
+		IF fin = 0 THEN SETGADGET 13 STR '"Winner"'
+		ELSE SETGADGET 13 STR '"Left:' fin||'"'
+	END
+	ELSE ERRBEEP
+	sel = 36
+RETURN

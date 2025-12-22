@@ -1,0 +1,209 @@
+; $VER: Patch_F1GP-Ed 2.7 (17.4.99)
+;   by Oliver Roberts (oliver.roberts@iname.com)
+;
+; French translation by Daniel Grenson
+
+;************
+; PARAMETERS
+;************
+
+(set #newver "3.44")
+(set #oldver "3.42")
+(set #oldvernum 3)
+(set #oldrevnum 42)
+
+;*************
+; LOCALE INIT
+;*************
+
+(if (= (exists "Env:Language") 1)
+	(set @language (getenv "Language"))
+)
+
+;*****************
+; ENGLISH STRINGS
+;*****************
+
+(set #str-createnew "Creating new %s file in T:")
+(set #str-copynew "Copying updated %s file to destination")
+(set #str-deletetmp "Deleting temporary file")
+(set #str-welcome (cat
+	"This Installer script will attempt to patch an existing "
+	"installation of F1GP-Ed %s.  The F1GP-Ed, F1GP-Ed.guide, "
+	"History.txt & 1999.f1gp files will be transformed into their "
+	"v%s counterparts.\n\n"
+	"Make sure you have booted from your hard drive and "
+	"have already successfully installed F1GP-Ed %s, before "
+	"continuing with this installation!\n\n"
+	"Do you want to continue?")
+)
+(set #str-where "Where have you installed F1GP-Ed?")
+(set #str-failed (cat
+	"Could not find the \"F1GP-Ed\" executable in this drawer - "
+	"make sure you have selected the correct drawer.\n\n\n"
+	"Patching Failed!")
+)
+(set #str-attemptpatch "Attempting to patch F1GP-Ed %ld.%ld")
+(set #str-wrongver "Found F1GP-Ed %ld.%ld - unable to patch this version.")
+(set #str-installnew "Installing new files")
+(set #str-updatecats "Updating catalogs")
+(set #str-theend (cat
+	"\nEnjoy using F1GP-Ed ;-)\n\n"
+	"The latest version of F1GP-Ed is always available from the "
+        "F1GP-Ed Web Site\n\n"
+        "   %s\n\n"
+	"%s\n")
+)
+(set #str-updatelib "Updating f1gp.library")
+
+;****************
+; FRENCH STRINGS
+;****************
+
+(if (= @language "français") (
+
+ (set #str-createnew "Creating new %s file in T:")
+ (set #str-copynew "Copie des mises à jour du fichier %s vers le fichier de destination")
+ (set #str-deletetmp "Effacement du fichier temporaire")
+ (set #str-welcome (cat
+	"Ce script d'installation essayera de 'patcher' une "
+        "installation existante de F1GP-Ed %s.  Les fichiers F1GP-Ed, "
+	"F1GP-Ed.guide, History.txt & 1999.f1gp seront transformés en leurs "
+	"v%s équivalents.\n\n"
+	"Assurez-vous d'avoir lancé votre ordinateur au départ de votre "
+	"disque dur et que vous avez déja installé avec succès F1GP-Ed %s, "
+	"avant de poursuivre cette installation!\n\n"
+	"Voulez-vous continuer?")
+ )
+ (set #str-where "Où avez-vous installé F1GP-Ed?")
+ (set #str-failed (cat
+	"Impossible de trouver le programme exécutable \"F1GP-Ed\" dans ce "
+	"tiroir - assurez-vous d'avoir sélectionné le tiroir correct.\n\n\n"
+	"Echec de l'opération de patch!")
+ )
+ (set #str-attemptpatch "Essai de 'patch' de F1GP-Ed %ld.%ld")
+ (set #str-wrongver "Trouvé F1GP-Ed %ld.%ld - impossible de patcher cette version.")
+ (set #str-installnew "Installation des nouveaux fichiers")
+ (set #str-updatecats "Mise à jour des catalogues")
+ (set #str-theend (cat
+	"\nAmusez-vous en utilisant F1GP-Ed !\n\n"
+	"La dernière version de F1GP-Ed est toujours disponible sur "
+        "le site Web F1GP-Ed\n\n"
+        "   %s\n\n"
+	"%s\n")
+ )
+))
+
+;************
+; PROCEDURES
+;************
+
+(procedure P_Patch
+	(if (exists (tackon (tackon @default-dest #pdir) #pfile))
+		(
+			(working (#str-createnew #pfile))
+			(run ("C/spatch -p%s.pch -oT:%s.new \"%s\"" #pfile #pfile (tackon (tackon @default-dest #pdir) #pfile)))
+			(if (exists ("T:%s.new" #pfile))
+				(
+					(copyfiles
+						(prompt (#str-copynew #pfile))
+						(source ("T:%s.new" #pfile))
+						(dest (tackon @default-dest #pdir))
+						(newname #pfile)
+					)
+					(delete ("T:%s.new" #pfile) (prompt #str-deletetmp))
+				)
+			)
+		)
+	)
+)
+
+;*******
+; START
+;*******
+
+(if (NOT (askbool
+		(prompt (#str-welcome #oldver #newver #oldver))
+		(default 0)
+		(help "")
+	))
+	(exit (quiet))
+)
+      
+(welcome "")
+
+(complete 0)
+
+(set #destdir
+	(askdir
+		(prompt #str-where)
+		(help @askdir-help)
+		(default @default-dest)
+	)
+)
+
+(set @default-dest #destdir)
+
+(if (<> 1 (exists (tackon @default-dest "F1GP-Ed"))) (
+	(message #str-failed)
+	(exit (quiet)))
+)
+
+;*****************
+; PATCH OLD FILES
+;*****************
+
+(set #vernum (getversion (tackon @default-dest "F1GP-Ed")))
+(set #ver (/ #vernum 65536))
+(set #rev (- #vernum (* #ver 65536)))
+
+(if (AND (= #ver #oldvernum) (= #rev #oldrevnum))
+	(
+		(message (#str-attemptpatch #ver #rev))
+		(set #psrcdir "")
+		(set #pdir "")
+                (set #pfile "F1GP-Ed")
+		(P_Patch)
+		(complete 33)
+		(set #pdir "Docs/")
+                (set #pfile "F1GP-Ed_english.guide")
+		(P_Patch)
+                (set #pfile "F1GP-Ed_deutsch.guide")
+		(P_Patch)
+		(complete 66)
+		(set #pdir "")
+                (set #pfile "History.txt")
+		(P_Patch)
+	)
+	(
+		(message (#str-wrongver #ver #rev))
+                (exit (quiet))
+	)
+)
+
+(complete 85)
+
+;****************
+; COPY NEW FILES
+;****************
+
+(copyfiles
+	(prompt #str-installnew)
+	(source "")
+	(choices "1999.f1gp" "1999.f1gp.events")
+	(dest @default-dest)
+	(help @copyfiles-help)
+	(confirm)
+	(infos)
+)
+
+;*********
+; THE END
+;*********
+
+(complete 100)
+
+(exit (#str-theend
+        "http://www.nanunanu.org/~oliver/F1GP-Ed/"
+	"Oliver Roberts (oliver.roberts@iname.com)")
+)

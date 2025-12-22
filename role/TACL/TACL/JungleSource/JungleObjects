@@ -1,0 +1,346 @@
+*
+*  Sample T.A.C.L. Adventure Game source code. © 1989 by Kevin Kelm.
+*  total of 25 points possible this file
+OBJECT Lamp
+
+NAME Lamp, Light, FlashLight
+
+ADJ Flash, Old
+
+ATTRIB
+ On N
+ FirstGrab Y
+ENDATTRIB
+
+INITROOM Float_Plane
+
+CODE
+ IF PLAYER HAS Lamp THEN
+  IF Lamp IS On THEN
+   T A lamp (currently on)
+  ELSE
+   T A lamp (currently off)
+  ENDIF
+ ELSE
+  T There is a lamp here.
+ ENDIF
+ IF Lamp IS On THEN
+  IMAGE Lamp Lamp_Lit
+ ELSE
+  IMAGE Lamp Lamp_Unlit
+ ENDIF
+ENDCODE
+
+ACTION GET, TAKE, GRAB
+ IF PLAYER HAS Lamp THEN
+  T You already have it.
+ ELSE
+  T You pick up the lamp.
+  GRAB Lamp
+  IF Lamp IS FirstGrab THEN
+   SCORE 5
+   UNSET Lamp FirstGrab
+  ENDIF
+ ENDIF
+ENDACT
+
+ACTION DROP
+ IF PLAYER HAS Lamp THEN
+  DROP Lamp
+  IF InCaverns = 1 THEN
+   T You drop the lamp and it shatters.  Afraid of the dark?  You should be!
+   PLACEOBJ Lamp NoWhere  * bye bye!
+   LINK THISROOM N Dark_Death
+   LINK THISROOM S Dark_Death       * player is done for!
+   LINK THISROOM E Dark_Death
+   LINK THISROOM W Dark_Death
+   LINK THISROOM U Dark_Death
+   LINK THISROOM D Dark_Death
+  ELSE
+   T Dropped.
+  ENDIF
+ ELSE
+  T You can't drop something you don't have!
+ ENDIF
+ENDACT
+
+ACTION LOOK, EXAMINE, SEE, VIEW
+ IF Lamp IS On THEN
+  T Though old, the lamp works well.  It now glows with a warm yellow light.
+  SHOW Lamp_Lit
+ ELSE
+  T The lamp looks to be in bad shape.  It is off.
+  SHOW Lamp_Unlit
+ ENDIF
+ENDACT
+
+ACTION LIGHT
+ IF PLAYER HAS Lamp THEN
+  IF Lamp NOT On THEN
+   T The old lamp flares to life.
+   SET Lamp On
+   EQU CanSee 1
+   LINK Cavern_Entrance N Rock_Slide
+   LINK Cavern_Entrance S Stair_Well
+   IMAGE Lamp Lamp_Lit
+  ELSE
+   T You burn your fingers trying.
+  ENDIF
+ ELSE
+  T You don't have it.
+ ENDIF
+ENDACT
+
+ACTION EXTINGUISH, PUT, BLOW, DOUSE
+ IF PLAYER HAS Lamp THEN
+  IF Lamp IS On THEN
+   IF InCaverns = 0 THEN
+    T The lamp goes dim.
+    UNSET Lamp On
+    EQU CanSee 0
+    LINK Cavern_Entrance N Dark_Death
+    LINK Cavern_Entrance S Dark_Death
+    IMAGE Lamp Lamp_Unlit
+   ELSE
+    T That would be very unwise at this point.
+   ENDIF
+  ELSE
+   T That has already been done.
+  ENDIF
+ ELSE
+  T You don't have it.
+ ENDIF
+ENDACT
+
+ENDOBJ
+*
+*
+*
+OBJECT Big_Tree
+
+NAME Tree
+
+ADJ Big, Large
+
+INITROOM Jungle_Path
+
+CODE
+ IF PLAYER IN Jungle_Path THEN
+  T There is an exceptionally large tree here.
+ ENDIF
+ENDCODE
+
+ACTION CLIMB
+ IF PLAYER IN Jungle_Path THEN
+  T You climb up the massive old tree.
+  GO Forest_Canopy
+ ELSE
+  T Deciding not to go any higher, you lower yourself back to the ground.
+  GO Jungle_Path
+ ENDIF
+ENDACT
+
+ACTION EXAMINE, LOOK, SEE, VIEW
+ IF PLAYER IN Jungle_Path THEN
+  T The old tree has many knobs and protrusions and towers up through the
+  T forest's roof of leaves.
+  SHOW Jungle_Tree
+ ELSE
+  T You see yourself standing on a large limb in this great tree about
+  T 40 feet off the ground.  Smaller branches continue above you, but the
+  T don't look very safe.  There are some vines snaking through the limbs,
+  T connecting to other trees.
+  SHOW In_Tree
+ ENDIF
+
+ENDACT
+
+ENDOBJ
+*
+*
+*
+OBJECT Vine
+
+NAME Vine, Vines         * the latter is a hack :)
+
+ADJ Long, Old
+
+ATTRIB
+ Tied
+ FirstGrab Y
+ENDATTRIB
+
+INITROOM Forest_Canopy
+
+CODE
+ IF PLAYER HAS Vine THEN
+  T A long piece of vine
+ ELSE
+  IF PLAYER IN Forest_Canopy THEN
+   T There are some vines snaking through the limbs, connecting to other
+   T trees.
+  ELSIF PLAYER IN Ledge THEN
+   IF Vine IS Tied THEN
+    T There is a vine tied to a tree here.
+   ELSE
+    T There is a vine here.
+   ENDIF
+  ELSE
+   T There is a vine here.
+  ENDIF
+ ENDIF
+ IF Vine IS Tied THEN
+  IMAGE Vine Cliff_Ledge2
+ ELSE
+  IMAGE Vine Vine
+ ENDIF
+ENDCODE
+
+ACTION EXAMINE, LOOK, SEE, VIEW
+ T The vines are sturdy and long.  Remember how much fun Tarzan had with
+ T vines?
+ IF Vine IS Tied THEN
+  SHOW Cliff_Ledge2
+ ELSE
+  SHOW Vine
+ ENDIF
+ENDACT
+
+ACTION SWING, USE
+ IF PLAYER IN Forest_Canopy THEN
+  T You lose all caution and with a whoop and holler, you grab a vine,
+  T spring into the air, and swing away from the tree on it.  You enjoy
+  T the exhilaration of the air rushing past you until ~ianother ~nlarge
+  T tree looms ahead.  You spend several painful seconds examining the
+  T tree's bark from the inside out and then you expire.
+  CALL BuyTheFarm
+ ELSE
+  T How are you going to do that?
+ ENDIF
+ENDACT
+
+ACTION GET, TAKE, GRAB, FETCH
+ IF PLAYER HAS Vine THEN
+  T You already have it.
+ ELSE
+  IF Vine NOT Tied THEN
+   T You gather the vine into a coil and tie it to your belt.
+   GRAB Vine
+   IF Vine IS FirstGrab THEN
+    SCORE 5
+    UNSET Vine FirstGrab
+   ENDIF
+  ELSE
+   T You can't.  It is tied firmly to the base of the tree.
+  ENDIF
+ ENDIF
+ENDACT
+
+ACTION DROP
+ IF PLAYER HAS Vine THEN
+  T Dropped.
+  DROP Vine
+ ELSE
+  T You don't have the vine to drop.
+ ENDIF
+ENDACT
+
+ACTION TIE, FASTEN
+ IF PLAYER IN Ledge THEN
+  IF PLAYER HAS Vine THEN
+   IF Vine NOT Tied THEN
+    IF USING Small_Tree THEN
+     T You tie the vine tightly around the base of the tree.
+     SET Vine Tied
+     LINK Ledge D River_Path
+     DROP Vine                 * leave the vine here!
+     IMAGE Ledge Cliff_Ledge2  * update image to show vine!
+     IMAGE Vine Cliff_Ledge2
+     SHOW Cliff_Ledge2
+     SCORE 10
+    ELSE
+     T I think you're confused.
+    ENDIF
+   ELSE
+    T You already did that.
+   ENDIF
+  ELSE
+   T You don't have the vine.
+  ENDIF
+ ELSE
+  T You can't do that.
+ ENDIF
+ENDACT
+
+ACTION CLIMB
+ IF Vine IS Tied THEN
+  T You rapell down the vine, but find that it is about ten feet shy of
+  T reaching the ground.  You jump the remaining distance.
+  GO River_Path
+ ELSE
+  T How do you propose to do that?
+ ENDIF
+ENDACT
+
+ENDOBJ
+*
+*
+*
+OBJECT Water
+
+NAME Water
+
+ATTRIB
+ Drunk N
+ENDATTRIB
+
+INITROOM Water_Passage
+
+CODE
+ENDCODE
+
+ACTION LOOK, EXAMINE, SEE, VIEW
+ T Yes, that is, without a doubt, water.
+ENDACT
+
+ACTION SWIM
+ T You are swept away by the current and drowned.
+ CALL BuyTheFarm
+ENDACT
+
+ACTION DRINK
+ IF Water NOT Drunk THEN
+  SCORE 5
+  SET Water Drunk
+ ENDIF
+ T Yum.  Refreshing!
+ENDACT
+
+ENDOBJECT
+*
+*
+*
+OBJECT Small_Tree
+
+NAME Tree, Bush
+
+ADJ Small, Young, Sturdy
+
+INITROOM Ledge
+
+CODE
+ T There is a small tree growing from between the rocks here.
+ENDCODE
+
+ACTION EXAMINE, LOOK, SEE, VIEW
+ T It is a small but sturdy young tree.
+ENDACT
+
+ACTION CLIMB
+ T It is far too small to climb.
+ENDACT
+
+ENDOBJECT
+*
+* ----- END OF FILE
+*

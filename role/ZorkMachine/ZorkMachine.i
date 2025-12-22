@@ -1,0 +1,14 @@
+VERSION		EQU	1
+REVISION	EQU	15
+DATE	MACRO
+		dc.b	'15.5.92'
+	ENDM
+VERS	MACRO
+		dc.b	'ZorkMachine 1.15'
+	ENDM
+VSTRING	MACRO
+		dc.b	'ZorkMachine 1.15 (15.5.92)',13,10,0
+	ENDM
+VERSTAG	MACRO
+		dc.b	0,'$VER: ZorkMachine 1.15 (15.5.92)',0
+	ENDM

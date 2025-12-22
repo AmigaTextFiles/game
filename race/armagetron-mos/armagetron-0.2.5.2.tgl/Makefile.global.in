@@ -1,0 +1,138 @@
+@SET_MAKE@
+
+#********************************************************
+#                Compiler Options                       *
+#********************************************************
+
+# name of the LaTeX command
+LATEX.LINUX=ltx
+
+CXX     =@CXX@
+CXXCPP  =@CXXCPP@
+CXX	=@CXX@
+CXXFLAGS=@CXXFLAGS@
+
+#*********************************************************
+#                    Implicit Rules                      *
+#*********************************************************
+
+
+# how to compile C++ - files
+
+%.o: ${srcdir}/%.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -I${srcdir} -I${top_srcdir}/src -c  $< -o $@
+
+%.a:
+	ar cru $@ $?
+	ranlib $@
+
+#*********************************************************
+#                    Dependencies                        *
+#*********************************************************
+
+# the libraries:
+
+
+# create a list of dependencies automatically from the .C-files
+
+dep:
+	rm -f dep
+	for f in $(DIRS) "."; do \
+	 if [ -r ${srcdir}/$$f ] ; then \
+	  if [ "$$f" != "." ] ; then \
+	   if ! [ -r $$f/dep ] ; then\
+	    $(MAKE) dep -C $$f;\
+	   fi;\
+	  fi;\
+	  for x in `find ${srcdir}/$$f/ -name \*.cpp` ; do\
+            echo "Generating dependencies for $$x" ; \
+            DEPS=`$(CXXCPP) $(CXXFLAGS) $(INCLUDES) -I ${srcdir}/$$f -I${top_srcdir}/src -M $$x | sed -e 's/\\\//'`;\
+	   if [ "$$DEPS" != "" ] ; then\
+	    echo  -e $$f/$$DEPS >> dep;\
+	   fi;\
+	   echo >> dep;\
+	  done;\
+	 fi;\
+	done
+	rm -f *.u 
+	touch dep
+
+#*********************************************************
+#        Deps for the libraries                          *
+#*********************************************************
+
+../tools/tools.a: ${top_srcdir}/src/tools/*.cpp ${top_srcdir}/src/tools/*.h ../../config.h ${top_srcdir}/src/defs.h
+	${MAKE} -C ../tools
+	touch $@
+
+../render/render.a: ${top_srcdir}/src/render/*.cpp ${top_srcdir}/src/tools/*.h ${top_srcdir}/src/render/*.h ../../config.h ${top_srcdir}/src/defs.h
+	${MAKE} -C ../render
+	touch $@
+
+../network/network.a: ${top_srcdir}/src/network/*.cpp ${top_srcdir}/src/network/*.h ${top_srcdir}/src/tools/*.h ../../config.h ${top_srcdir}/src/defs.h
+	${MAKE} -C ../network
+	touch $@
+
+../ui/ui.a: ${top_srcdir}/src/ui/*.cpp ${top_srcdir}/src/ui/*.h ${top_srcdir}/src/tools/*.h ${top_srcdir}/src/render/*.h ../../config.h ${top_srcdir}/src/defs.h
+	${MAKE} -C ../ui
+	touch $@
+
+../engine/engine.a: ${top_srcdir}/src/engine/*.cpp ${top_srcdir}/src/engine/*.h ${top_srcdir}/src/tools/*.h ${top_srcdir}/src/render/*.h ${top_srcdir}/src/network/*.h ${top_srcdir}/src/ui/*.h ../../config.h ${top_srcdir}/src/defs.h
+	${MAKE} -C ../engine
+	touch $@
+
+
+#*********************************************************
+#           HTML generation rules: need M4               *
+#*********************************************************
+
+% : ${srcdir}/%.m4 %.ghost ${top_dir}/html.m4
+	pwd
+	{ echo "include(${top_dir}/html.m4)" ; cat $< ; } | m4 -I ${srcdir} > $@
+
+%.ghost: ${srcdir}/%.m4
+	 touch $@
+
+%.ghost: %.m4
+	 touch $@
+
+${top_dir}/html.m4: ${top_srcdir}/html.m4.in ${top_dir}/config.status
+	cd "${top_dir}" ; ./config.status html.m4
+
+.m4.dep: Makefile ${srcdir}/*.m4
+	pwd
+	echo > .m4.dep
+	for f in ${srcdir}/*.m4 ; do\
+         echo >> .m4.dep;\
+	 echo -n $$( echo $$f | sed -e "s/.m4$$/.ghost/" -e "s|${srcdir}/||" ) >> .m4.dep;\
+	 echo -en ":" >> .m4.dep;\
+	 { echo -n "define(include,\$$1\) define(m4,ghost)" ; grep "include(" $$f; }| m4 >> .m4.dep;\
+	done
+
+#	 grep include $$f | sed -e "s/include(//g" -e "s/m4)/ghost/" >> .m4.dep\
+
+#*********************************************************
+#        Cleanup and editing                             *
+#*********************************************************
+
+# removes all the junk in this directory
+
+clean:
+	rm -rf *.log *.o *~ *.a  dep  $(CLEANEXTRA)
+
+# cleans up subdirectories, too
+
+besenrein: clean
+	for f in *; do\
+	  if [ -r $$f ] &&  [ -r $$f/dep ]; then $(MAKE) besenrein -C $$f; fi;\
+	done
+
+edit:
+	FILES="`find . -name "*.cpp" -ctime -1 ; find . -name "*.m4" -ctime -1 ; find . -name "*.h" -ctime -1`";\
+	if [ "$(EDITEXTRA)" ]; then\
+	  emacs  $$FILES  Makefile.in  $(EDITEXTRA)&\
+	else\
+          emacs  $$FILES  Makefile.in&\
+	fi
+
+

@@ -1,0 +1,4856 @@
+ _________________________________________________________________________
+/#########################################################################\
+|#####...####..######..######......####...####..#####..##......##......###|
+|####.....###..######..########..#####.....###...####..##..######..#######|
+|###..###..##..######..########..####..###..##....###..##..######..#######|
+|###..###..##..######..########..####..###..##..#...#..##..######......###|
+|###.......##..######..########..####.......##..##.....##..######..#######|
+|###..###..##..######..########..####..###..##..###....##..######..#######|
+|###..###..##...#####...#######..####..###..##..####...##..######..#######|
+|###..###..##......##......##......##..###..##..#####..##......##......###|
+|#########################################################################|
+|####################################################################{RB}#|
+|=========================================================================|
+|									  |
+|		           ----> PRESENTS <----				  |
+|									  |
+|            AMIGA GRAPHICS INSIDE AND OUT - THE COMPLETE BOOK            |
+|									  |
+| 				> PART 5 <				  |
+|									  |
+| Typed / Scanned / Edited By : RAZOR BLADE.			          |
+| Additional Typing by        : GLITCH ( + 8 pages by Asterix ! ).	  |
+| Original Supplied by	      : VIPER					  |
+|									  |
+|-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-|
+| 		CALL THE ALLIANCE WORLD HQ -> THE PLACE TO BE             |
+|       UNKNOWN PLEASURES --> +44 (0) 823 322 891 --> SYSOP: BARBARIAN    |
+|_________________________________________________________________________|        
+        
+                        CHAPTER 14 - THE COLORMAP FUNCTIONS.
+        
+Now that you know how to work with the graphic primitives, the simple 
+graphic functions, we will take a more detailed look  into the Amiga
+colour capabilities.
+        
+At the moment you know how to change you drawing colours by changing the 
+foreroud pen. However, we have not shown you how to change the colour 
+itself (the color stored in the color registers).
+        
+To do this you must change the corresponding entry in the colormap of the
+ViewPort. Then after modifying th colormap entry, you have to update the
+copper list.
+        
+Basically, each colour entry is composed of 16 bits, or one word. At the
+moment, the Amiga uses only the lower 12 bits. The bit structure is 
+composed of bits 0-3 which contain the blue component, bits 4-7 which 
+contain the green component and bits 8-11, which contain the red 
+component. By changing the red, green and blue values with additive mixing,
+you can achieve any desired colour. The term RGB monitor is derived from 
+red, green and blue colour technique. With the Amiga it is possible to 
+have 2^12 = 16^3 = 4096 different colours.
+        
+When all four bits of the three colour components are set, your color is
+white (R=15,G=15,B=15). When all four bits are unset your colour is
+black (R=0,G=0,B=0).
+        
+The following section shows you how to change the colours.
+        
+                                PAGE 381
+        
+---------------------------------------------------------------------------
+        
+14.1 SETTING A NEW COLOUR PALETTE:
+        
+LoadRGB4(&ViewPort, &Palette, Color_Value) transfers Color_Value words 
+from the indicates palette (memory area) to the colormap of the selected
+ViewPort.
+        
+Most of the time the memory area or the palette is a word array that you
+created. You copy the values from this array into the colormap of the 
+selected ViewPort. However, you will not see any colour changes until 
+you update the part of the Copper list that uses the colour registers.
+        
+To do this, use MakeVPort, MrgCop and LoadView and calculate a completely 
+new Copper list (RemakeDisplay when using intuition screens).
+        
+        
+                --------------------------------
+        
+        
+14.2 CHANGING ONE COLOUR.
+        
+In the following function you do not have to change or update the entire
+copper list. SetRGB4(&ViewPort, ColorReg, Red, Green, Blue) not only 
+changes the colour for the selected color register in the ColorMap, but
+also updates this colour in the Copper list. The new colour is modified 
+through additive mixing of the red, greenand blue and is immediately 
+visible on the screen (when pixels in the colour value being changed exist)
+You can use SetRGB4 to make an immediately visible colour change to an 
+individual colour register.
+        
+Again, the red, green and blue colour components are limited to values 
+between 0 and 15 (%0000 and %1111).
+        
+                                PAGE 382
+        
+----------------------------------------------------------------------------
+        
+14.3 AVAILABLE COLOURS.
+        
+The opposite of SetRGB4 amd LoadRGB4 is Color = GetRGB4(ViewPort.ColorMap,
+ Color_Reg). This command returns a color value that is the current color
+in the selected Color_reg. This following small procedure allows you to 
+separete this value back into the reg, green and blue components:
+        
+        Red = (Color>>8) & 15
+        Green = (Color>>4) & 15
+        Blue = Color & 15
+        
+The following program makes use of this calculation. We change the 
+background colour in the colour register zero to the colour currently 
+under the mouse pointer.
+        
+        /*********************************************************/
+        /*                    SimpleColour.c                     */
+        /*                                                       */
+        /* This program uses ReadPixel(), Load-, Get-, and       */
+        /* SetRGB4().                                            */
+        /*                                                       */
+        /* Compiled With : Lattice V5                            */
+        /*                                                       */
+        /*********************************************************/
+        
+        #include "exec/types.h"
+        #include "exec/memory.h"
+        #include "exec/devices.h"
+        #include "graphics/gfx.h"
+        #include "graphics/text.h"
+        #include "graphics/regions.h"
+        #include "graphics/gfxbase.h"
+        #include "graphics/gfxmacros.h"
+        #include "graphics/copper.h"
+        #include "graphics/gels.h"
+        #include "intuition/intuition.h"
+        #include "devices/keymap.h"
+        #include "hardware/blit.h"
+        
+        #define Width 320
+        #define Height 200
+        #define Depth 5
+        #define MODES 0
+        
+        struct GfxBase *GfxBase;
+        struct IntuitionBase *IntuitionBase;
+        
+        
+                                PAGE 383
+        
+---------------------------------------------------------------------------
+        
+        struct Screen *Screen;
+        struct Window *Window;
+        struct IntuiMessage *Message;
+        struct RastPort *RPort;
+        
+        struct NewScreen NewScreen =
+                { 0,0,
+                  Width, Height, Depth,
+                  0,1,
+                  MODES,
+                  CUSTOMSCREEN,
+                  NULL,
+                  NULL,
+                  NULL,NULL
+                };
+        
+        struct NewWindow NewWindow = 
+                { 0,0,
+                  Width, Height,
+                  0,1,
+                  NULL,
+                  ACTIVATE | BORDERLESS,
+                  NULL, NULL,
+                  "Simple-Color_Selection",
+                  NULL,
+                  NULL,
+                  NULL,NULL,NULL,NULL,
+                  CUSTOMSCREEN
+                };
+        
+        char string[16][4] = {
+                                {"0   "},{"1   "},{"2   "},{"3   "},
+                                {"4   "},{"5   "},{"6   "},{"7   "},
+                                {"8   "},{"9   "},{"A   "},{"B   "},
+                                {"C   "},{"D   "},{"E   "},{"F   "}
+                              };
+                                        /* Hex Values */
+        
+        UWORD RED,
+              GREEN, /* Red-, Green, Blue components of color */
+              BLUE;
+        
+        UWORD dummy;
+        int Length,x,y,1;
+        char text[] = "R G B";
+        
+        UWORD Color[] = 
+            {
+                0x0200,0x0405,0x060A,0x080F,
+                0x0214,0x0419,0x061E,0x0823,
+                0x0228,0x042D,0x0632,0x0837,
+                0x023C,0x0441,0x0646,0x084B,
+                0x0250,0x0455,0x065A,0x085F,
+                0x0264,0x0469,0x066E,0x0873,
+                0x0278,0x047D,0x0682,0x0887,
+                0x028C,0x0491,0x0696,0x089B,
+                0x02A0,0x04A5,0x06AA,0x08AF
+            };        /* Own colorMap */
+        
+                                PAGE 384
+        
+---------------------------------------------------------------------------
+        
+        char *LeftMouse = (char *) 0xbfe001;
+        
+        extern struct IntuiMessage *GetMsg();
+                
+        /********************************************************/
+        /* Here we go !                                         */
+        /********************************************************/
+        main()
+          {
+            if((GfxBase = (struct GfxBase *)
+                Openibrary("graphics.library",0))==NULL)
+            {
+                printf("No grpahics !!!!\n");
+                Exit(0);
+            }
+            
+            if((IntuitionBase = (struct IntuitionBase *)
+                OpenLibrary("intuition.library",0))==NULL)
+            {
+                printf("No intuition !!!!\n");
+                goto cleanup1;
+            }
+        
+            if ((Screen = (struct Screen *)OpenScreen(&NewScreen))
+                ==NULL)
+            {
+                printf(" No Screen !!!\n");
+                goto cleanup2;
+            }
+            
+            NewWindow.Screen = Screen;
+            
+            if ((window = (struct Window *)
+                 OpenWindow(&NewWindow))==NULL)
+            {
+                printf("No window !!!!\n");
+                goto cleanup3;
+            }
+        
+            RPort = Window->RPort;
+            
+            LoadRGB4(&Screen->ViewPort, &Colors[0], 32);
+            RemakeDisplay();        /* Load own colormap */
+                                    /* and display it    */
+            
+            for (i=0;i<32;i++)
+              {
+                SetAPen(RPort,1);
+                RectFill(RPort, i*(Width/32),(Height/100*90),
+                         (i+1)*(Width/32)-1,Height-1);
+              }
+                                /* Draw Rectangle */
+        
+            Length = TextLength(RPort,text,7);
+            x = (Width/2)-(Length/2);
+            y = (Height/2)+RPort->TxBaseline;        /* centre string */
+        
+                                PAGE 385
+        
+---------------------------------------------------------------------------
+        
+            while ((*LeftMouse & 0x40) == 0x40)
+              {
+                dummy = ReadPixel(RPort,Screen->MouseX,Screen->MouseY);
+                        /* Read colour of pixel under pointer */
+        
+                SetAPen(RPort,dummy + 15);
+                dummy = GetRGB4(Screen->ViewPort.ColorMap,dummy);
+        
+                RED = (dummy >> 8) & 15;
+                GREEN=(dummy >> 4) & 15;
+                BLUE = dummy & 15;
+                                        /* Extract Components */
+        
+                Move(RPort,x,y);
+                Text(RPort,&text[0],7);
+                Move(RPort,x,y+20);
+                                /* Set text position */
+        
+                Text(RPort,&string[RED][0],3);
+                Text(RPort,&string[GREEN][0],3);
+                Text(RPort,&string[BLUE][0],3);
+                                /* Output text */
+        
+                SetRGB4(&Screen->ViewPort,0,RED,GREEN,BLUE);
+              }
+            
+                    CloseWindow(Window);
+            cleanup3: CloseScreen(Screen);
+            cleanup2: CloseLibrary(GfxBase);
+            cleanup1: CloseLibrary(IntuitionBase);
+            return(0);
+            /* BYE !!! */
+        }
+        
+The four (4) in the name of the functions LOAD, GET and SetRGB4 refers to 
+the four bits which comprise a color component.
+        
+        
+                ----------------------------------------
+        
+14.4 THE PIXEL'S COLOUR.
+        
+Of course, in order for the above program to work, we must have a way to 
+determine the colour under the mouse pointer. ColorReg = ReadPixel(
+&RastPort,x,y) helps us to do this by providing the number of the color
+register for the color at the specified x/y coordinate. Then we simply
+read the colour register contents with GetRGB4, extract the red, green 
+and blue components and use SetRGB4 to write them into the background 
+colour register.
+        
+                                PAGE 386
+        
+---------------------------------------------------------------------------
+        
+                        CHAPTER 15 - TEXT OUTPUT
+        
+MOst of the time we will probably want a graphic display that contains 
+more than just lines and pixels. Often, we need text combined with our 
+graphics. One possibility would be to draw the text with lines, but this
+method be very tiring.
+        
+The best solution is to build-in text routines.
+        
+To output text at the current graphic position we use Text(&RastPort,
+"string",Number_of_Characters). Th Number_of_Characters variable determines
+how many characters of the specified string should be outputted.
+]        
+When using the above function, instead of counting the number of 
+characters in the string, let the compiler calculate it for you. Using
+the Count = strlen("String") function, which is part of almost every 
+standard library in C compilers (c.lib for LAttice), is much easier.
+        
+Now you can use Text(&RastPort,"String",strlen("string")) to easily
+output your text.
+        
+However, there is another problem with positioning your string. We use the
+actual graphic cursor position but the top line of the characters is not 
+located at the Y coordinate of this position. Instead, the BaseLine is used
+for the actual position. So the text is displayed a little higher than
+expected.
+        
+                                PAGE 387
+        
+---------------------------------------------------------------------------
+        
+To position the top row of the text string, add the desired Y position to 
+the text baseline of the actual font:
+        
+Instead of using;
+                        Move(&RastPort,x,y);
+        
+USE;
+                        Move(&RastPort,x,y+RastPort.TxBaseline);
+        
+                                PAGE 388
+        
+---------------------------------------------------------------------------
+        
+15.1 THE TEXT LENGTH.
+        
+Sometimes it is necessary to know the exact width of the text in the 
+RastPort. You can determine this using Width = TextLength(&RastPort,
+"String",strlen("string")). You can see that this function uses the same
+parameters as text. In this case, instead of outputting the string it 
+calculates the width in pixels.
+        
+You could use this with CAD programs to determine if the output string will
+fit at the desired location.
+        
+You can also use this technique to centre text on the screen. To do this
+you calculate the X coordinate as follows:
+        
+        x = Width_of_Screen/2 - Width_of_String/2
+        
+To set the position use Move(&RastPort, x, y) to place the text in location
+it should appear (remember the baseline).
+        
+        
+                ----------------------------------------
+        
+5.2 FONTS WITH THE AMIGA.
+        
+        
+The various character shapes are stored in fonts which are actually a
+type of packed data array. We access the fonts using the TextAttr 
+(Text Attribute) and TextFont structures.
+        
+                                PAGE 389
+        
+---------------------------------------------------------------------------
+        
+15.3 OPENING FONTS.
+        
+With the TextAttr structure you can set the name of the font that you want 
+opened. However, you must also specify the font size since most fonts have
+more than one version that determine their different sizes. The best 
+example of this is the CLI font. In Preferences you have the choice between
+60 and 80 column text. This selection is possible because of two differently
+sized fonts (topaz.font with heights of 8 or 9 pixels).
+        
+The name of the font you specify with the TextAttr.ta_Name = "NAME" must be
+a file in the Sys:Fonts directory. The selected file, with the extension 
+Font, is the header file for all of the different sized fonts with this 
+name.
+        
+By using this header you can determine whether or not the selected font 
+size and style are available in a particular font. Lets take a look at the
+Ruby.Font:
+        
+In the Sys:Fonts directory we find:
+        
+        "ruby.font" (Header file)        
+        ....
+        ruby (dir)
+        
+Ruby.font is the header file that contains the information for the 
+individual font sizes. In the ruby directory we find the following files:
+        
+ruby (dir):
+        
+        12    15    8
+        
+These files represent three fonts that look the same, but are different 
+sizes: 8,12 and 15 pixels high.
+        
+To select the desired font height, use TextAttr.ta_YSize (for example:
+TextAttr.ta_YSize = 8).
+        
+It is also possible to set a specific style for your font by using 
+TextAttr.ta_Style. The following Font Style Flags are used:
+        
+FS_NORMAL      The font is displayed without specil styles.
+FSF_UNDERLINED All the characters of the font are underlined.
+FSF_BOLD       The font characters are bold.
+FSF_ITALICS    The font characters are italic.
+        
+                                PAGE 390
+        
+---------------------------------------------------------------------------
+
+You must specify in the variable TextAttr.ta_Flags, whether the font
+is in the system font list (FPF_ROMFONT) or is on the disk (FPF_DISKFONT).
+If you removed the font from the system font list using RemFont, the
+FPF_REMOVED bit is set in ta_flags.
+        
+At the moment, you only need to know that all fonts are on disk except
+Topaz.
+        
+Now we can finally open the fonts. To open the fonts in the system font
+list, such as Topaz, use TextFont = OpenFont(&TextAttr).
+        
+We access the font through the TextFont structure. SetFont(&RastPort,
+TextFont) switches fonts and any additional output that uses text is in 
+the new font.
+        
+To use a font is only on disk, you have to open the DiskFont library. To
+do this use DiskFontBase = (ULONG *)OpenLibrary("diskfont.library",0).
+You can probably tell by the cast (ULONG *), that the DiskFontBase is a
+pointer to a ULONG variable. So a DiskFontBase structure does not exist.
+        
+Now you can use TextFont = OpenDiskFont (&TextAttr) to open a disk based
+font. Then use SetFont to make this font available to the text function 
+However, AddFont (see appendix B) can also be used to add this font to
+the system font list. Then in order to use the font, use the simpler
+OpenFont function (when you have not used RemFont).
+        
+                ----------------------------------------
+        
+15.4 CLOSING THE FONT.
+        
+Just as with libraries, you also have to close the fonts when you are 
+finished with them. To do this use the CloseFont(TextFont) command, which
+also closes disk fonts. If you are using a diskfont, just must also
+close the DiskFont library (CloseLibrary(DiskFontBase)).
+        
+                                PAGE 391
+        
+---------------------------------------------------------------------------
+        
+15.5 SOFTWARE CONTROLLED TEXT STYLES.
+        
+Previously we demontrated how to select your font style using 
+TextAttr.ta_Style. However, this style is firmly anchored in th bit
+pattern for the individual characters.
+        
+To change the font style without making a permanent chang to the font
+bit-pattern, use SetSoftStyle(&RastPort, StyleBits, StyleEnable). This
+command changes the font shape output for text strings before they are 
+written into the RastPort bitmap. For example, use underline by making 
+StyleBits = FSF_UNDERLINED.
+        
+With italic characters every two rows of the character, starting from 
+bottom to top, are shifted one pixel to the right
+        
+Bold characters are actually output twice - once in the specified position
+and again one pixel to the right. Underline is achieved by setting all 
+pixels in the baseline.        
+        
+We have not discussed the variable StyleEnable yet. This variable contains 
+the style flags that can still be set with SetSoftStyle. If a font is 
+already italic it wouldnt be practical to modify it again and have double
+italics because the characters would be barely legible.
+        
+By using StyleEnable = AskSofyStyle(&RastPort) you can set all of the font
+flags in StyleEnable that still can be set.
+        
+                                PAGE 392
+        
+---------------------------------------------------------------------------
+        
+Now we will explain theactual meaning o TextAttr.ta_Flags. You can use this
+variable to determine whether a font is a disk or system font. However, the
+varaible will only contain this information once you perform a specific 
+function with the TextAttr structure.
+        
+This function, called Error = AvailFonts(&Buffer,Num_Bytes, Flags, fills 
+the specified buffer with an AvailFontsHeader and the following AvailFonts
+structure:
+        
+                AvailFonts()
+        
+        __________________________________
+       |                AvailFontsHeader  |
+       |                  afh_NumEntries  |
+       |----------------------------------|
+       |                   AvailFonts[0]  |
+       |                         af_Type  |
+       |                         af_Attr  |
+       |----------------------------------|
+       |                   AvailFonts[1]  |
+       |                         af_Type  |
+       |                         af_Attr  |
+       |----------------------------------|
+       |                   AvailFonts[2]  |
+       |                         af_Type  |
+       |----------------------------------|
+       |                         af_Attr  |
+       |__________________________________|
+             .    .     .     .     .    .
+        
+        ___________________________________
+       |                    AvailFonts[x]  |
+       |                          af_Type  |
+       |                          af_Attr  |
+       |___________________________________|
+        
+        
+The AvailFonts structure contains the TextAttr structure for all available 
+fonts (AvailFonts.af_Attr). You can use the flags parameters to determine 
+which font TextAttr structure you want - system fonts (AFF_MEMORY), 
+disk fonts (AFF_DISK) or all fonts (AFF_MEMORY | AFF_DISK).
+        
+The variable AvailFonts[i].af_Type indicates where the font for this 
+TextAttr structure is located on disk (AFF_DISK) or in the system font
+list (AFF_MEMORY).
+        
+The unique variable of AvailFontsHeader contains, after AvailFonts, 
+the number of available fonts. (AvailFontsHEader.afh_NumEntries).
+        
+                                PAGE 393
+        
+---------------------------------------------------------------------------
+        
+The following program duplicates a short text string in all the possible 
+styles and fonts:
+        
+        /********************************************************/        
+        /*                SetFont.c                             */
+        /*                                                      */
+        /* This program demonstrates the use of :               */
+        /* AvailFonts(), OpenFont(), OpenDiskFont(),            */
+        /* SetFont(), AskSofyStyle() and SetSoftStyle().        */
+        /*                                                      */
+        /* Compiled with Lattice V5                             */
+        /*                                                      */
+        /********************************************************/
+        
+        #include "exec/types.h"
+        #include "exec/memory.h
+        #include "exec/devices.h"
+        #include "devices/keymap.h"
+        #include "graphics/gfx.h"
+        #include "graphics/gfxbase.h"
+        #include "graphics/regions.h"
+        #include "hardware/blit.h"
+        #include "intuition/intuition.h"
+        #include "intuition/intuitionbase.h"
+        #include "libraries/diskfont.h"
+        
+        #define WIDTH 320
+        #define BUFSIZE 1000        /* How big is the Buffer ? */
+        
+        #define RP Screen->RastPort        /* Access the RastPort */
+        
+        struct GfxBase *GfxBase;           /* Our basepointer */
+        struct IntuitionBase *IntuitionBase;
+        ULONG *DiskfontBase;
+                                /* No special base for Diskfonts */
+        
+        struct NewScreen NewScreen = 
+                        {
+                            0,0,WIDTH,200,2,
+                            1,0,
+                            0,                           
+                            CUSTOMSCREEN,
+                            NULL,
+                            "",
+                            NULL,NULL
+                        };
+        
+        struct AvailFontsHeader *Buffer;
+        struct AvailFonts *AvailFonts;
+                /* One time header and pointer to */
+                /* AvailFonts structures.         */
+        struct Screen *Screen;
+        
+                                PAGE 394
+        
+---------------------------------------------------------------------------
+        
+        int StyleEnable, Style;
+        
+        /****************************************/
+        /* Here We Go !!                        */
+        /****************************************/
+        
+        main()
+          {
+            struct TextFont *TextFont;
+            BOOL Error;
+            long i,j,Length;
+            char *LeftMouse = (char *)0xBFE001;
+        
+            if((GfxBase = (struct GfxBase *)
+                OpenLibrary("graphics.library",0)) == NULL)
+              {
+                printf(" Sorry, No grahpics !!!\n");
+                goto cleanup3;
+              }
+        
+            if ((IntuitionBase = (struct IntuitionBase *)
+                OpenLibrary("intuition.library",0))==NULL)
+              {
+                printf(" Sorry, No intuition !!! \n");
+                goto cleanup2;
+              }
+        
+            if ((DiskfontBase = (ULONG *)
+                 OpenLibrary("diskfont.library",0)) == NULL)
+              {
+                printf(" Sorry, No diskfonts !!! \n");
+                goto cleanup1;
+              }
+        
+            Screen = (struct Screen *) OpenScreen(&NewScreen);
+            if(Screen == 0)
+              {
+                printf(" Sorry, No Screen !!!\n");
+                goto cleanup0;
+              }
+        
+            SetRGB4(&Screen->ViewPort,0,0,0,0); /* Change colours */
+            SetRGB4(&Screen->ViewPort,1,15,0,0);
+            SetRGB4(&Screen->ViewPort,2,0,15,0);
+            SetRGB4(&Screen->ViewPort,3,0,0,15);
+        
+            SetRast(&RP,0);
+                /* Clear screen to get rid of 'gadgets' */
+        
+            Buffer = (struct AvailFontsHeader *)
+                AllocMem(BUFSIZE, MEMF_CLEAR |MEMF_CHIP);
+        
+            if(Buffer ==0)
+              {
+                printf("Sorry, no Buffer !!!\n);
+        
+                                PAGE 395
+        
+---------------------------------------------------------------------------
+        
+                goto cleanup0;
+              }
+        
+            SetAPen(&RP,3);
+            Length = TextLength(&RP,"AvailFonts()...",15);
+            Move(&RP, WIDTH/2-Length/2,30);
+            Text(&RP, "AvailFonts()...",15);
+                                /* Message to user */
+        
+            Error = AvailFonts(Buffer, BUFSIZE, AFF_MEMORY | AFF_DISK);
+        
+            Availfonts = (struct AvailFonts *) &Bffer[1];
+                                /* Skip AvailFontsHeader */
+                        /* (Buffer type AvailFontsHeader ) */
+            
+            for (i=0; i<Buffer[0].afh_NumEntries; i++)
+              {
+                if (AvailFonts[i].af_Type == AFF_DISK)
+                  TextFont = (struct TextFont *)OpenDiskFont
+                        (&Availfonts[i].af_Attr);
+        
+                        /* Font on disk or in memory ? */
+                
+                else
+                  TextFont = (struct TextFont *) OpenFont
+                    (&AvailFonts[i].af_Attr);
+        
+                if (TextFont ! = 0) /* font opened correctly */
+                {
+                    SetFont(&RP, TextFont);
+                        /* Link font to RastPort */
+            
+                    StyleEnable = AskSoftStyle(&RP);
+                        /* Which styles are allowed ? */
+                
+                    SetAPen(&RP,0);                /* Clear Screen */
+        
+                    WaitTOF();        /* To prevent Blink */
+        
+                    RectFil(&RP, 0, 10, WIDTH,50);
+                                      /* Clear top row */
+                
+                    SetAPen(&RP,2);
+                    Length = TextLength(&RP,"The AMIGA Fonts:",20);
+        
+                    Move(&RP, WIDTH/2-Length/2,30);
+        
+                    Text(&RP,"The AMIGA Fonts:",20);
+        
+                    for (Style=FSF_ITALIC*2; Style>=0; Style--)
+                      {
+                        SetSoftStyle(&RP, Style, StyleEnable);
+                        /* Display all Styles once with a loop */
+        
+                                PAGE 396
+        
+---------------------------------------------------------------------------
+        
+                        Length = Text_Length(&RP,
+                            AvailFonts[i].af_Attr.ta_Name,
+                            strlen(Availfonts[i].af_Attr.ta_Name));
+        
+                        Move(&RP, WIDTH/2-Length/2,100);
+        
+                        SetAPen(&RP,0);
+        
+                        WaitTOF();
+        
+                        RectFill (&RP,0, 80,WIDTH, 110);
+                        SetAPen(&RP,1);
+                
+                        Text(&RP, Availfonts[i].af_Attr.ta_Name,
+                            strlen(Availfonts[i].af_Attr.ta_Name));
+                                /* Output font name */
+        
+                        j = 0;
+                        while(((*LeftMouse & 0x40) == 0x40) &&
+                                   (j < 500000)) j++);
+        
+                        Delay(10);
+                    }
+                CloseFont(TextFont);
+             }
+            }
+        FreeMem(Buffer, BUFSIZE);
+                        /* Free extra memory */
+        
+        cleanup0: CloseScreen(Screen);
+        cleanup1: CloseLibrary(DiskfontBase);
+        cleanup2: CloseLibrary(IntuitionBase);
+        cleanup3: CloseLibrary(GfxBase);
+        return(0);
+        }
+
+                                PAGE 397
+        
+---------------------------------------------------------------------------
+        
+                  CHAPTER 16 - THE BLITTER FUNCTIONS.
+        
+Now we will discuss a set of functions that are only used with the Amiga.
+These functions are designed to take advantage of the graphic powers of the 
+blitter coprocessor. This coprocessor can transfer memory from one area to 
+another at the rate of 125k per second. It can also, simultaneously, copy 
+a memory area and perform logic functions on the data being moved.
+        
+We  control the type of logic function performed with the so called
+'minterms'. However, it is only possible to change the minterms by using
+two functions. The remaining functions we will present in this chapter
+are limited to copying and erasing data.
+        
+                ----------------------------------------
+        
+16.1 CLEARING A MEMORY AREA.
+        
+To clear a memory area, use the BltClear function. This function was 
+introduced in our first program to clear our self-defined bitplanes. 
+        
+We must also provide the address of the memory area to be cleared. The
+Num_Bytes and Flags parameters indicate the size of the area we want 
+cleared (BltClear (&Memory, Num_Bytes, Flags)).
+        
+When you set bit one of the Flags parameter (Flags = 2) then Num_Bytes 
+is interpreted as a long word (32 bits). The lower 16 bits (0-15) 
+determine the number of bytes (each equal to 8 pixels) per line to
+clear. The upper 16 bits (16-31) provide the number of lines to clear.
+The maximum value possible for the lower 16 bits is 128. This routine
+is designed to clear a maximum bitplane size of 1024*1024 pixels.
+(128 bytes * 8 pixels = 1024).
+        
+As you can see, this method for clearing a biplane is awkward. It is much
+easier when you set the Flags parameter to one and Num_Bytes contains the
+actual value of for the number of bytes to clear.
+        
+The RASSIZE(Width,Height) macro calculates the number of bytes for you.
+The Width and Height parameters define, in pixels, the bitplane area 
+that you want cleared.
+        
+                                PAGE 399
+        
+---------------------------------------------------------------------------
+        
+16.2 COPYING DATA WITH THE BLITTER.
+        
+We can also use this capability to copy data from one bitmap to another.
+The function BltBitMap (&SourceBitMap, X1,Y1,&TargetBitMap,X2,Y2,Width,
+Height,Minterm,Mask,&TmpA) helps us do this. It is possible to take
+a rectangular piece of data from a source bitmap and copy it to a target
+bitmap.
+        
+The source, from which you read the data, and the target, where you write
+the data can also be in the same bitmap.
+        
+To select the rectangle you want to copy simply specify the upper left
+corner of the rectangle in the source bitmap (X1,Y1). Also set the 
+target position for the rectangle to be copied, as the upper left corner
+in the target bitmap (X2,Y2).
+        
+Then set the width of the rectangle in pixels and the height in lines.
+Since the size is not going to change, we have to set these size only once.
+The Blitter only copies data; it does not change the size as we previously
+did with printer graphics.
+        
+In order to copy a rectangle with the blitter, the width of the rectangle
+must bebetween 1 and 976 pixels and the height must be between 1 and 1023 
+lines.
+        
+Also remember that the entire rectangle must be inside the bitmap. If any
+portion of your rectangle overlaps a bitmap boundary, a Software failure
+or guru meditation will occur.
+        
+                                PAGE 400
+        
+---------------------------------------------------------------------------
+        
+If you carefully follow these instructions, everything should work properly.
+Now we will discuss the methods used for logic operations.
+        
+As we mentioned earlier, the Blitter can perform logic operations on the 
+data while it is copying. For example, the data from  the source and 
+target can be logically modified with AND before being written to the 
+target location.
+        
+We use the minterms to determine which logic operation will take place
+between the source and target areas (see the Appendix on hardware 
+registers).
+        
+Each bit of this parameter (of type CHAR) determines how you merge the 
+source and target. However, when using this you must remember to use only
+two sources and one target, which is used as source two. The blitter is
+capable of merging three different sources to a fourth location, the 
+target. In our example, we use only source B and C. Target D and source C
+are the same (see hardware register (bltcon)).
+        
+Of the 256 possible minterms of the BltBitMap functions, our example 
+leaves only 16 unused, which can be set in the upper 4 bits (7-4) of the
+minterm parameters. The various minterms are represented by the following 
+bits :
+        
+        Minterm            Bit        Value
+        ----------------------------------------
+        BC (B and C)       7          0x80
+         _
+        BC (B and !C)      6          0x40
+        _
+        BC (!B and C)      5          0x20
+        __
+        BC (!b and !C)     4          0x10
+        ----------------------------------------
+        
+When a single Minterm is insufficient for your operation, you must OR
+the required bits, which represent the desired minterm, with each other.
+        
+Here are a few examples of how to use minterms:
+        
+With the combination (!B AND !C) OR (!B AND C) = !B, which equals a minterm
+value of 0x30, your target area is overwritten with an inverted version
+of the source.
+        
+With (!B AND !C) OR (B AND !C) = !C we invert only the target rectangle, 
+each bitplane separately.
+        
+AND can be replaced with * and OR or +. The hierarchy of operation rules
+(logic and arithmetic) also apply here.
+        
+                                PAGE 401
+        
+---------------------------------------------------------------------------
+        
+Here are some often used minterms :
+        
+0x60: Where pixels on C are unset, the pixels from source B are set.
+      When a pixel in source B is set, then C remains as is.
+        
+0x80: In this case an AND is performed on the two rectangles to be merged.
+      This means that a pixel from B can only be set if the same pixel in 
+      C is also set.
+        
+0xC0: Copies the data from the source B to target C without any data 
+      changes.
+        
+With logic operations, th bitmaps are processed bitplane for bitplane. 
+Unlike the positive/negative effect with single plane operations, these
+multi-plane operations can cause colour changes.
+        
+In order to achieve the desired positive/negative effects, allow the 
+BltBitMap functions access to only specific bitplanes. You can use the
+Mask parameter to select which bitplanes you want affected. This parameter
+is also of type CHAR where you set a bit to determine which planes canbe
+accessed (bit 0 for the first bitplane etc..). Normally this value is 
+0xFF which allows all bitplanes to be affected (The funtion
+SetWrMask(&RastPort) can be used to mask out specific bitplanes.
+Protecting a bitplane from being changed with these methods will also 
+affect ther funtions like Draw, Text, Etc).
+        
+The last parameter, the TmpA-Pointer, points to a buffer area of memory 
+that is reserved for use when the source and target areas overlap. This 
+only occus when you use the BltBitMap command on a single bitmap. Yo 
+can determine the size of this buffer according to the size of the 
+overlapping area of the source and target. If you are certain that the 
+two areas dont overlap and that you dont need a buffer, you can set this
+parameter to zero.
+        
+A subset of the BltBitMap function is the ClipBlit function.
+        
+        
+                ----------------------------------------
+        
+16.2.1 THE CLIPBLIT FUNCTION.
+        
+The functions BltBitMap and ClipBlit(&SourceRastPort, X1, Y1, 
+&TargetRastPort, X2, Y2, Width, Height, Minterm) are almost the same. The
+difference between the two is that BltBitMap merges bitmaps and ClipBlit 
+merges RastPor structures used by the blitter Again, both source and target
+can be in the same RastPort.
+        
+                                PAGE 402
+        
+---------------------------------------------------------------------------
+        
+Another difference is that ClipBlit does not use the Mask parameter. It 
+uses the RastPorts, where the Maks variable resides, which we can change
+with SetWrMsk(&RastPort,Mask).
+        
+The remaining BltBitMap and ClipBlit parameters have the same rules and
+uses. However, for you own safety, you should always use ClipBlit with
+Intuition because ClipBlit is capable of clipping graphic information
+past a window border. So using ClipBlit with Intuition allows Intuition
+to control this problem without causing a system crash.
+        
+Here is an example Blitter program:
+        
+        /********************************************************/
+        /*                BltBitMap.c                           */
+        /*                                                      */
+        /* This program demonstrates the basic functions of the */
+        /* BltBitMap() and ClipBlit() commands.                 */
+        /*                                                      */
+        /* Compiled with : Lattice V5                           */
+        /*                                                      */
+        /********************************************************/
+        
+        #include "exec/types.h"
+        #include "exec/memory.h"
+        #include "exec/devices.h"
+        #include "devices/keymap.h"
+        #include "graphics/gfx.h"
+        #include "graphics/text.h"
+        #include "graphics/regions.h"
+        #include "graphics/gfxmacros.h"
+        #include "graphics/gfxbase.h"
+        #include "graphics/gels.h"
+        #include "graphics/copper.h"
+        #include "graphics/intuition.h"
+        #include "graphics/blit.h"
+        
+        #define Width 320        /* Screen definitions */
+        #define Height 200
+        #define Depth 2
+        #define MODES 0
+        
+        char *LeftMouse = (char *) 0xbfe001;
+        
+        struct GfxBase *GfxBase;
+        struct IntuitionBase *IntuitionBase;
+        
+        struct Screen *Screen;
+        struct Window *Window;
+        struct IntuiMessage *Message;
+        struct RastPort *RPort;
+        
+        struct NewScreen NewScreen = 
+                        {0,0,
+        
+                                PAGE 403
+        
+---------------------------------------------------------------------------
+        
+                         Width, Height, Depth,
+                         1,0,
+                         MODES,
+                         CUSTOMSCREEN,
+                         NULL,
+                         NULL,
+                         NULL,NULL
+                        };
+        
+        struct NewWindow NewWindow = 
+                        {0,0,Width,Height,
+                         1,0,NULL,
+                         ACTIVATE | BORDERLESS,
+                         NULL,NULL,
+                         "Blit-BitMap",
+                         NULL,
+                         NULL,
+                         NULL,NULL,NULL,NULL,
+                         CUSTOMSCREEN
+                        };
+        
+        int length,
+            x,y,
+            oldx, oldy,
+            i,j,Mint;
+        
+        char Mins[16][5] = {
+                            "$00 ","$10 ","$20 ","$30 ",
+                            "$40 ","$50 ","$60 ","$70 ",
+                            "$80 ","$90 ","$A0 ","$B0 ",
+                            "$C0 ","$D0 ","$E0 ","$F0 "
+                           };
+        
+        APTR TmpA,
+             Save;
+        
+        BOOL Ende = FALSE;
+        
+        /****************************************/
+        /* Here We Go !!                        */
+        /****************************************/
+        
+        main()
+        {
+            if((GfxBase = (struct GfxBase *)
+                OpenLibrary("graphics.library",0))==NULL)
+            {
+                printf(" NO Graphics !!! ");
+                Exit(0);
+            }
+        
+            if((IntuitionBase = (struct IntuitionBase *)
+                OpenLibrary("intuition.library",0))==NULL)
+            {
+                printf(" No Intution !!!! ");
+                goto cleanup1;
+        
+                                PAGE 404
+        
+---------------------------------------------------------------------------
+        
+            }
+        
+            if((Screen = (struct Screen *)
+                OpenScreen(&NewScreen))==NULL)
+            {
+                printf(" No Screen !!!");
+                goto cleanup2;
+            }
+            
+            NewWindow.Screen = Screen;
+        
+            if((Window = (struct Window *)
+                OpenWindow(&NewWindow)) == NULL)
+                {
+                    printf("No Window !!!!");
+                    goto cleanup3;
+                }
+        
+            RPort = Window->RPort;
+            Length = TextLength(RPort,NewWindow.Title, 
+                                strlen(NewWindow.Title))+5
+        
+       /*
+            if((TmpA = (APTR) AllocMem(RASSIZE(Width,Height),
+                                MEMF_CHIP)) == NULL)
+            {
+                printf("No Rasterbuffer !!! ");
+                goto cleanup4;
+            } */
+            
+            SetDrMd(RPort,Jam2);
+            
+            oldx = oldy = -1;
+            
+            while(Ende == FALSE)
+              {
+                x = Screen->MouseX;
+                y = Screen->MouseY;
+            
+                if(((x == 0) && (y==0)) && 
+                   ((*LeftMouse & 0x40 != 0x40)) Ende = TRUE;
+                        /* Upper left Clicked == End */
+            
+                if(((x != oldx) || (y != oldy)) &&
+                    (y>RPort->TxHeight+1) &&
+                   ((*LeftMouse & 0x40) !=0x40))
+                    {
+                        /* Only on mouse click 'Blitter' */
+                        
+                        /* Save = TmpA;
+                            BltBitMap(&Screen->BitMap,0,0,
+                            &Screen->BitMap,
+                            x, y, Length, RPort->TxHeight,
+                            Mint, 0xff, Save); */
+        
+                    ClipBlit(RPort,0,0,RPort,x,y,Length,RPort->TxHeight,
+                             Mint);        /* Blitter */
+        
+                                PAGE 405
+        
+---------------------------------------------------------------------------
+            
+                SetAPen(RPort,2);
+                Move(RPort,Length,RPort->TxBaseLine);
+                Text(RPort,"  Minterms: ",12);
+                Text(RPort,&Mins[(Mint >> 4)][0],4);
+            
+                Mint += 0x10;        /* Minterm ++ */
+                Mint &= 0xF0;
+            
+                oldx = x;
+                oldy = y;
+            }
+          }
+            
+        /* if (TmpA != 0) FreeMem(TmpA,RASSIZE(Width,Height)); */
+            
+        cleanup4: CloseWindow(Window);
+        cleanup3: CloseScreen(Screen)l
+        cleanup2: CloseLibrary(IntuitionBase);
+        cleanup1: CloseLibrary(GfxBase);
+        
+        return(0);        /* BYE */
+    }
+        
+                                PAGE 406
+        
+---------------------------------------------------------------------------
+        
+16.3 READING DATA WITH THE BLITTER.
+        
+It is possible to read data from a pakced data array with the function 
+BltTemplate (&Buffer, BitPosition,Modulo,&RastPort,X,Y,Width,Height). For
+example, the Amiga fonts are stored in this type of packed data array
+andthe individual characters are stored by bit in memory.
+        
+To read the individual character from this format use the BltTemplate
+function. Before we discuss the parameter details of this function ,
+we have a short program which simulates a mini-font.
+        
+        /********************************************************/
+        /                        Figures.c                      */
+        /* This program demonstrates the functions of the       */
+        /* BitTemplate() Command on Sample of a Pseduo-Font.    */
+        /*                                                      */
+        /* Compiled with: Lattice V5                            */
+        /*                                                      */
+        /********************************************************/
+        
+        #include "exec/types.h"
+        #include "exec/memory.h"
+        #include "exec/devices.h"
+        #include "devices/keymaps.h"
+        #include "graphics/gfx.h"
+        #include "graphics/text.h"
+        #include "graphics/regions.h"
+        #include "graphics/copper.h"
+        #include "graphics/gels.h"
+        #include "graphics/clip.h"
+        #include "graphics/gfxmacros.h"
+        #include "graphics/view.h"
+        #include "graphics/gfxbase.h"
+        
+                                PAGE 407
+        
+---------------------------------------------------------------------------
+        
+        #include "intuition/intuition.h"
+        #include "hardware/blit.h"
+        
+        #define WIDTH 640        /* Screen definition */
+        #define Height 200
+        #define Depth 2
+        #define MODES HIRES
+        
+        char *LeftMouse = (char *) oxbfe001;
+        
+        struct GfxBase *GfxBase;
+        struct IntuitionBase *IntuitionBase;
+        
+        struct TextAttr TextAttr =
+                {"topaz.font",
+                  8,
+                  FS_NORMAL,
+                  FPF_ROMFONT};
+        
+        struct Screen *Screen;
+        struct Window *Window;
+        struct IntuiMessage *Message;
+        struct RastPort *RPort;
+        
+        struct NewScreen NewSscreen =  /* Screen definition */
+            {0,0,
+             Width, Height, Depth,
+             1,0,
+             MODES,
+             CUSTOMSCREEN,
+             &TextAttr,
+             NULL,
+             NULL,NULL
+	            };
+        
+        struct NewWindow NewWindow =         /* Window defines */
+                {0,0,
+                 Width,Height,
+                 1,0,
+                 NULL,
+                 ACTIVATE | BORDERLESS,
+                 NULL,NULL,
+                 NULL,
+                 NULL,
+                 NULL,
+                 NULL,NULL,NULL,NULL,
+                 CUSTOMSCREEN
+                };
+        
+        int i;
+        
+        BOOL ende = FALSE, MOVE;
+        
+        UWORD Class, Code;
+        
+                                PAGE 408
+        
+---------------------------------------------------------------------------
+        
+        UWORD CharData[] = {
+            /* 1.  Row  */  0x001e,0x0cfe, 0x11f9, 0xc3c0, 0x0000,
+            /* 2.  Row  */  0x6f23,0x1cc0, 0x221a, 0x3467, 0x8000,
+            /*   ""     */  0xf183,0x2cc0, 0x4036, 0x3c68, 0xc000,
+                            0x618e,0x4cf8, 0xf863, 0xcc78, 0xc000,
+                            0x6303,0xff0d, 0x8cc1, 0xe7db, 0xc000,
+                            0x6c43,0x0c07, 0x8cc6, 0x3198, 0x8000,
+                            0x7f82,0x0c05, 0x8986, 0x230f, 0x0000,
+                            0x0036,0x0cf8, 0xf183, 0xc600, 0x0000,
+           /* 9. Row   */   0x0000,0x0800, 0x0000, 0x0000, 0x0000
+                           };
+                              /* Numbers: 1 2 3 4 5 6 7 8 9 0 */
+        
+        UWORD *ChipCharData, *Help;  /* Blitter can only use memory */
+                                     /* 'below' 512k. for this      */
+                                     /* reason we write CharData[]  */
+                                     /* in 'chip-accessible' memory */
+                                     /* or copied !!!               */
+        
+        UWORD CharHeight = 9;
+                                /* Each character is 9 rows high */
+        
+        UWORD CharLoc[] = {0,3, 3,7, 10,6, 16,8, 24,7,
+                           31,7, 38,7, 45,7, 52,7, 59,7);
+                                /* Bitpos width */
+        
+        UWORD Modulo = 5*2;     /* 5 words * 2 = 10 bytes */
+        
+        WORD TxSpacing = 11;
+                                /* LArgest width + 3 */
+        
+        char *String1 = "Well, how about these numbers : ";
+        char *String2 = "Yes, and output using BltTemplate() instead of
+                         text.";
+        
+        VOID Figures();        /* Forward declaration */
+        
+        /****************************************/
+        /* Here we Go !!                        */
+        /****************************************/
+        
+        main()
+        {
+            if((GfxBase = (struct GfxBase *)
+                OpenLibrary("graphics.library",0))==NULL)
+            {
+                printf(" No Graphics !!!! ");
+                Exit(1000);
+            }
+            
+            if((IntuitionBase = (struct IntuitionBase *)
+                OpenLibrary("intuition.library",0))==NULL)
+            {
+                printf(" No intuition !!! ");
+        
+                                PAGE 409
+        
+--------------------------------------------------------------------------
+        
+                goto cleanup1;
+            }
+        
+            if((Screen = (struct Screen *)
+                OpenScreen(&NewScreen)) == NULL)
+            {
+                printf(" No Screen !!!");
+                goto cleanup2;
+            }
+        
+            NewWindow.Screen = Screen;  /* Screen structure for newscreen*/
+        
+            if((Window = (struct Window *)
+                OpenWindow(&NewWindow)) == NULL)
+            {
+                printf(" No Window !!");
+                goto cleanup3;
+            }
+            
+            ChipCharData = (UWORD *)AllocMem(sizeof(CharData),MEMF_CLEAR |
+                            MEMF_CHIP);
+        
+            if(ChipCharData == 0)
+            {
+                printf(" No more chip memory !!! \n");
+                goto cleanup4;
+            }
+            
+            Help = ChipCharData;
+            for(i=0; i<(sizeof(CharData)/sizeof(UWORD));i++)
+              {
+                *Help = CharData[i];
+                Help++;
+              }
+        
+            RPort = Window->RPort;
+        
+            SetAPen(RPort,1);
+            SetDrMd(RPort,JAM1);
+        
+            Move(RPort,20,20);
+            Text(RPort,String1,strlen(String1));
+                        /* Output text */
+            
+            Move(RPort,20,35);
+            Figures();        /* Output numbers */
+        
+            Move(RPort,20,50);
+        
+            SetDrMd(RPort,JAM2);
+            Figures();
+            
+            SetDrMd(RPort,JAM1);
+            SetAPen(RPort,1);        /* Outline */
+        
+                                PAGE 410
+        
+---------------------------------------------------------------------------
+        
+            Move(RPort,20,76);
+            Figures();
+        
+            Move(RPort,20,74);
+            Figures();
+            
+            Move(RPort,21,75);
+            Figures();
+        
+            Move(RPort,19,75);
+            Figures();
+            
+            SetAPen(RPort,2);
+            Move(RPort,20,75);
+            Figures();
+            
+            Move(RPort,20,100);
+            Text(RPort,String2,strlen(String2));
+        
+            while ((*LeftMouse & 0x40 ) == 0x40);
+            
+                    FreeMem(ChiCharData,sizeof(CharData));
+            cleanup4: CloseWindow(Window);
+            cleanup3: CloseScreen(Screen);
+            cleanup2: CloseLibrary(IntuitionBase);
+            cleanup1: CloseLibrary(GfxBase);
+        
+            return(0); /* BYE!! */
+        }
+        
+        
+        /********************************************************/
+        /*                                                      */
+        /* This function is for reading the Data from the       */
+        /* array.                                               */
+        /*------------------------------------------------------*/
+        /* Entry parameters : None                              */
+        /*------------------------------------------------------*/
+        /* Returned Values  : None                              */
+        /********************************************************/
+        
+        VOID Figures()
+        {
+            int i;
+        
+            for (i=0; i<10; i++)
+                {
+                    BltTemplate(ChipCharData,CharLoc[i*2],Modulo,
+                                RPort,RPort->cp_x,RPort->cp_y,
+                                CharLoc[i*2+1],CharHeight);
+                        /* Get data from the CharArray */
+                
+                    Move(RPort, RPort->cp_x+TxSpacing,RPort->cp_y);
+                                /* New position for output */
+                }
+        }
+        
+                                PAGE 411
+        
+---------------------------------------------------------------------------
+        
+In our program we filled a UWORD array (CharData) with a mini font 
+consisting of the numbers zero through nine. Then we included the starting
+address of this array in the BltTemplate command.
+        
+We also had to provide the BltTemplate function information for the bit
+position at which a specific character begins. To do this we created an 
+additional array that contains the beginning of a character (CharLoc, and
+Element 0,  2,  4...) and the width in pixels (Charloc, Element 1, 3, 5...).
+Specifiying the bit position means that instead of a character beginning 
+with a new byte, it begins at a specific position within a byte. This 
+method saves a lot of memory.
+        
+Next we provide the modulo to the BltTempplate function. This value
+determines how many bytes and therefore pixels (1 byte = 8 pixels) we 
+have to add to the actual bit position in order to read the data for the
+next "row". In other words, modulo provides the width of the array in 
+bytes.
+        
+After specifying the RastPort where you want the data written, you set the
+position for the bitmap with X,Y. At this location, you are setting the
+upper left corner where the copied rectangle should be positioned.
+        
+Width and Height set the width in pixels and height in rows for the 
+rectangle you are copying. You can read the value for width from the 
+uneven CharLoc elements.
+        
+All of the parameters determine the size and screen position of the 
+rectangle being read. However, this function cant help you perform any 
+logic operations on the data unless it is written to the bitmap first.
+        
+                                PAGE 412
+        
+---------------------------------------------------------------------------          
+
+	          CHAPTER 17 - AMIGA RESOLUTION MODES
+        
+We are now going to discuss the resolution modes we have discussed in the 
+previous chapters. With the use of many program examples, we have 
+demonstrated how to open windows and how to create your own grahpics in 
+these windows using the graphic functions.
+        
+You are probably wondering how many resolution modes exist and how to set
+them up in a ViewPort. However, some modes require more than just changing
+the mode variable of the View or ViewPort. We will provide additional 
+information about this in the following section.
+        
+First we will present a few basics about resolution modes. You can 
+separate them into four types:
+        
+The first type of mode sets the resolution, or number of pixels, for 
+both vertical and horizontal directions.
+        
+The second type are the colour modes that determine the number of colours
+you can display.
+        
+The third type consists of the special modes.  These modes are involved 
+with the software changes you make rather than with the actual hardware
+control of resolutions.
+        
+Sprites and other special effects appear in the fourth type.
+        
+                                PAGE 413
+        
+---------------------------------------------------------------------------
+        
+17.1 THE RESOLUTION MODES.
+        
+The quality of a graphic computer, especially the Amiga, is determined by 
+the quality of its display resolution. The more pixels a computer can 
+display on the monitor's screen, the better the computer. Naturally, the 
+speed of a computer is also an important factor, but at the moment we arent
+considering this.
+        
+With a miximum of 640*400 pixels in the Interlaced mode, the amiga isnt
+exactly one of the best graphic computers but it is definitely in the middle
+range. The Amiga's strength is determined not only by its resolution, but
+also by its ability to use 4096 colors (at one time).
+        
+The following table presents a small overview of the possible resolution
+modes:
+        
+        1.) 320 * 200 pixels with 32/64 colors (lo-res)
+        2.) 320 * 400 pixels with 32/64 colors
+        3.) 640 * 200 pixels with 16 colors (hires)
+        4.) 640 * 400 pixels with 16 colors
+        
+Please remember that the above table applies to the visible portion of 
+the monitor seen with the Workbench screen. If you use the Overscan 
+techniques, which will enable you to fill the entire screen without a 
+border, you can attain resolutions up to 720*480 pixels.
+                
+                                PAGE 414
+        
+---------------------------------------------------------------------------
+        
+As you can see, the various resolution modes are different in the X and Y
+directions by a factor of two. To display these different modes, you must
+use the flags, HIRES and LACE. These flags, which are located in the modes
+variables of the View and ViewPorts, can be set for various pixel 
+resolutions.
+        
+Set the hi-res flag when you want to switch from 320 to 640 pixel 
+resolution horizontally (ViewPort.Modes = View.Mode = HIRES). Of course
+you must also double the bitmap memory area where the doubled resolution
+will be displayed.
+        
+One side effect of the hires mode is that it also affects your colour.
+More colours also means more data must be read and manipulated, per pixel,
+from the bitmap. Actually, the real problem involves the best way to 
+manipulate large amounts of data in the least amount of time.
+        
+In normal resolution mode the electronic beam is working with an area about
+one millimeter square (mm2) per pixel. The electronic beam scans (moves 
+across) the screen with a constant speed regardless of the resolution mode.
+This means, that in normal mode, the Amiga has more time to read the 
+required data from memory and to display it. In hires, the Amiga has to 
+read twice as much data in the same amount of time because each mm2 area
+contains two pixels.
+        
+So, the number of available colours is also limited. You can use up to
+six bitplanes in normal mode, but only four bitplanes with hires mode.
+This means that you can only use 16 colours in hires.        
+        
+To increase the vertical resolution, set the LACE flag (ViewPort.Modes =
+View.Modes = LACE). This increases your vertical resolution from 200 lines
+to 400 lines.
+        
+An old television technique provides us with double vertical resolution.
+The electronic beam, which moves acrodd the screen makes two passes across 
+the screen. The first pass displays all even numbered lines of the bitmap,
+0,2,4..398. The second pass displays all the odd lines from the bitmap,
+1,3,5..399.
+        
+                                PAGE 415
+        
+---------------------------------------------------------------------------
+        
+The beam has to make two passes to display the entire bitmap. This causes 
+the screen dispay frequency to be halved. So, instead of 60 frames a second,
+it only displays 30 frames a second and a visible flicker is produced.
+        
+This slight flicker can become very intense and annoying. If you use very
+bright colours in your ViewPorts, they will lose their intensity very
+quickly. This loss of intensity is caused by the limited light holding
+capabilities of the monitor, from the phosphor particles. These particles
+cannot be allowed to glow too long, especially in normal resolution modes.
+A phosphor particle that remains on screen for an extended time can 
+actually burn an image permanently onto the screen.
+        
+This effect is very noticable with monochrome monitors (you will see it 
+quite often on IBM PCs and compatibles). Color monitors have an added
+disturbing effect that can be kept to a minimum when using interlace
+mode. This doesnt solve the problem but offers a slight compromise instead.
+        
+If you use interlace, you shoulduse colors that arent too bright and that 
+have the least amount of contrast between them. This will produce the 
+best display and least amount of the flicker.
+        
+Interlace's biggest advantage is that it doesnt affect the number of 
+colours that you can use. It actually displays two colours with a slight
+time difference and a one line horizontal offset. You can still use up
+to six bitplanes for your graphics (a single scan takes only a 
+sixtieth of a second).
+        
+                                PAGE 416
+        
+---------------------------------------------------------------------------
+        
+If you are still unsure about the organisation of interlaced bitmaps, 
+remember that you are only responsible for reserving enough memory. The
+Amiga will display the control characteristics (the even and odd scan 
+lines). Just remember that when you reserve memory, you must reserve twice
+as much for interlace and four times as much for hires and interlace 
+together.
+        
+Also remember that the resolution mode of the View must match the 
+resolution mode of the ViewPort. When your View doesnt allow hires, you
+cannot use this mode with any of your ViewPorts. However, you can use lores
+with your ViewPorts even though you have set the hires flag in your View.
+        
+                             PAGE 417
+        
+---------------------------------------------------------------------------
+        
+17.2 THE COLOR MODES
+        
+Now we will discuss the color modes of the Amiga. You will discover that 
+the power of Amiga color is astonishing.
+        
+First, the Amiga can quite easily display 64 colors at one time. Secondly,
+the Amiga can display all of its 4096 colors on the screen simultaneously.
+        
+        --------------------------------------------------------
+        
+17.2.1 THE EXTRA_HALFBRITE MODE.
+        
+This mode allows you to display up to 64 colors at one time in a low 
+resolution ViewPort.
+        
+Just like in the lo-res mode, it is possible to use six bitplanes. In
+addition to the six bitplanes, you must also set the EXTRA_HALFBRITE flag
+in the mode variables of the ViewPort.
+        
+In order to discover what the halfbrite does, we must take a closer look
+at the Amiga.
+        
+Appendix C which covers the hardware registers indicates that the Amiga has
+only 32 color registers. To tak advantaes of all of these registers you 
+must use five bitplanes.
+        
+The sixth bitplane is where we encounter the halfbrite mode. When you set
+a bit in the sixth bitplane, the pixel receives its color information 
+from the color register being used by the other five bitplanes. However,
+this color is only half as bright.  This is the secret of the halfbrite
+mode - making the intensity half a bright provides you with 32 additional
+colors. This half intensity is achieved by shifting the color register
+value to the right by one bit.
+        
+When you use SetAPen to add 32 to the value of the colour register, each
+newly set pixel is displayed with half intensity.
+        
+                                PAGE 418
+        
+---------------------------------------------------------------------------
+        
+17.2.2 HOLD-AND-MODIFY (HAM) for 4096 Colors.
+        
+The ultimate in color graphics is the Hold-and-Modify or HAM mode.
+        
+With this mode you can display all 4096 colors on the screen. However, 
+there are a few problems that can occur, but we will show you how to 
+avoid them.
+        
+In order to use this mode, you first need five bitplanes, although six
+bitplanes are actually better to use with the HAM bitmap (Naturally, this
+prevents the use of Hi-res mode).
+        
+In addition you must set the HAM flag in the mode variables of your 
+ViewPort (ViewPort.Modes = HAM, View is not included yet).
+        
+In order to clearly explain the function of this mode, we must review the
+construction of a color register in the ViewPort colormap. The 16 bits used
+for the color register contain red in bits 11-8, green in bits 7-4 and
+blue in bits 3-0.
+        
+Hold and modify pixels take their color from the pixel directly to the
+left. To determine the new color, two of the color components are used 
+(hold) and a third colour component is modified (modify).
+        
+                                PAGE 419
+        
+---------------------------------------------------------------------------
+        
+We use the pixel bit pattern in bitplanes five and six to determine which
+two colour components are used "as is" and which component is modified.
+        
+The value %01 (=0x10) specifies that you want the red and green components
+used as is and bitplanes 1-4 to determine your new blue component for the
+pixel.
+        
+When you write a value of %10 (0x20) into bitplanes 5 and 6, you are 
+using the green and blue components and modifying the red components.
+        
+Setting both bits, or the value %11 ... (0x30), in planes 5 and 6 means
+you modify the green component.
+        
+If bitplanes 5 and 6 both contain a value of zero, use bitplanes 1 to 4
+and your colors will be determined from the normal colormap. You can
+use these 16 normal colours as the starting point for your modifications
+and quickly and easily make color changes.
+        
+To use the red component of a pixel as the modifier, use SetAPen with a 
+value of 0x20 and thenadd the new red intensity (0-15) to it. SetAPen
+determines which pixel bits in the bitplane are set to zeros and ones.
+Now your set pixel (for example, using WritePixel) uses the green and blue
+components of the neighbouring pixel and sets the new red component to
+your specified value.
+        
+If you want to use a color from the colormap, simply use SetAPen with the
+number of the desired colour register without adding any additional value
+to it.
+        
+You should remember that the hold-and-modify does not wrap from row to row.
+The last pixel in a row has no effect on the first pixel in the next row. 
+To set a pixel with an X coordinate of zero you must clear the neighbouring
+pixel's color components even though it really doesnt exist.
+        
+As we mentioned earlier, you must reserve f1ve or six bitplanes for the HAM
+mode. However, if you decide to only use five bitplanes (most likely for
+memory reasons), you must remember that plane six will be considered as 
+clear. This means that you can only set a pixel with color from the 
+colormap or only modify the blue component of a pixel.
+        
+                                PAGE 420
+        
+---------------------------------------------------------------------------
+        
+17.3 THE SPECIAL MODES
+        
+The previously explained modes pertain to how a pixel is displayed in a 
+bitmap. The modes we will discuss now pertain to the organisation of a 
+bitmap. Following are explanations of how you can display overlapping and
+double buffered bitmaps.
+        
+        --------------------------------------------------------
+        
+17.3.1 DUAL PLAYFIELD.
+        
+You have probably never thought of displaying more than one bitmap in a 
+ViewPort. However, this is possible with the Amiga.
+        
+By using the Dual Playfield mode, it is possble to display two bitmaps, 
+with up to three bitplanes each, in a single ViewPort. These bitmaps are
+not merged or next to each other but are on top of each other. Any set
+pixel in the top bitmap prevents you from seeing a set pixel in the bottom
+bitmap.
+        
+Besides setting the DUALPF flag in the ViewPort.modes variables, there is 
+another way you can set up this mode.
+        
+We know that the RasInfo structure determines the connection between the
+ViewPort and the bitmap. While discussing this structure we told you that
+the pointer of the RasInfo structure (RasInfo.Next) for another RasInfo
+structure is empty. However, with Dual Playfield mode we need a second
+RasInfo structure connected to the first (RasInfoA.Next = &RasInfoB; 
+RasInfoB.Next = NULL;). We also have to point to the additional bitmap
+(RasInfoA.BitMap) = &BitMapA; RasInfoB.BitMap = BitMapB).
+        
+We represent playfield A by the bitmap pointed to by the frst RasInfo 
+structure that is also linked to the ViewPort (ViewPort.RasInfo = 
+&RasInfoA). Bitmap number two represents playfield B and normally is
+covered by playfield A. When you set a pixel in playfield A the pixel
+directly underneath it in playfield B is no longer visible. When a pixel in
+playfield A is clear, the pixel from playfield b is visible. The term
+playfield, which actually means bitmap, is used because you have created 
+two areas that you can change any way you want.
+        
+                                PAGE 422
+        
+---------------------------------------------------------------------------
+        
+You can open the screen once you have completed the following preparations.
+set the ViewPort.Modes variables for DUALPF, initialised both bitmaps,
+RasInfos and RastPorts. This means using MakeVPort, MrgCop and LoadView
+to open the screen.
+ 
+To place playfield B on top instead of playfield A, simply set the PFBA 
+flag in addition to the DUALPF flag (ViewPort.Modes = DUALPF | PFBA).
+        
+The colors for the separate bitmaps are determined as follows: playfield
+A uses color registers 0-7 and playfield B uses color registers 8-15.
+Register 0 is normally used as the background color and register 8 is
+taken from playfield B as transparent.
+        
+It is possible to use this mode to represent the cockpit of an airplane.
+Playfield A could be the interior of the cockpit and playfield B could be 
+the view outside the cockpit.
+ 
+You access the two bitmaps by using their corresponding initialised
+RastPorts.
+        
+        ----------------------------------------------------------
+        
+17.3.2 DOUBLE BUFFERING.
+        
+Now we will show you how to create graphics in the background while 
+completely different graphics are being displayed.
+        
+To create double buffered displays, first you need two bitmaps. The
+graphics data must be stored somewhere and both bitmaps must be the same
+size.
+        
+The rest is rather simple. You open a screen as usual, with an initialised
+View and ViewPort.
+        
+Then you set up a pointer in the RasInfo structure to the first bitmap and
+continue as usual (MakeVPort, MrgCop). However, LoadView is not used as 
+yet. First you must store the addresses of both hardware Copper lists
+into an array:
+        
+        struct CprList *Copper[2][2];
+        ...
+        struct Copper[0][0] = View.LOFCprList;
+        struct Copper[0][1] = View.SHFCprList;
+        
+Now you can point the RasInfo pointer for the bitmaps to the second bitmap.
+Then generate the second hardware Copper list by using MakeVPort and MrgCop.        
+        
+                                PAGE 423
+        
+---------------------------------------------------------------------------
+        
+However, before making the second list, you have to set both hardware 
+Copper list pointers to zero. If you dont do this, MrgCop will assume a 
+Copper list exists and the additional list will not be generated.
+        
+These additional Copper lists must also be stored using (Copper[1][0] = 
+View.LOFCprList; Copper[1][1] = View.SHFCprList;). Now you can safely 
+use LoadView which will display your second bitmap on the screen.
+        
+This is how you display one bitmap and modify a second bitmap through the
+RastPort structures that were initialised for both bitmaps. When the second
+bitmap is complete, you simply load the View structure with the saved 
+address of the first bitmaps Copper list (View.LOFCprList = Copper[x][0];
+and View.SHFCprList = Copper[x][1];).Then you use LoadView and continue.
+Of course you must make sure that you access the bitmaps correctly. You
+should organise the RastPorts of both bitmaps as arrays so you can switch
+between them similar to the Copper arrays.
+        
+The following program uses all of the described modes divided among several
+ViewPorts and displayed in a single View.
+        
+        
+/********************************************************/
+/*                        The_Modes.c                   */
+/*                                                      */
+/* This program demonstrates all of the possible        */
+/* display modes on one screen in 4 ViewPorts.          */
+/*                                                      */
+/* compiled with : Lattice V5                           */
+/*                                                      */
+/********************************************************/
+
+
+#include "exec/types.h"
+#include "graphics/gfx.h"
+#include "graphics/rastport.h"
+#include "graphics/copper.h"
+#include "graphics/view.h"
+#include "graphics/gels.h"
+#include "graphics/regions.h"
+#include "graphics/clip.h"
+#include "exec/exec.h"
+#include "graphics/text.h"
+#include "graphics/gfxbase.h"
+#include "hardware/dmabits.h"
+#include "hardware/custom.h"
+#include "hardware/blit.h"
+#include "devices/keymap.h"
+
+#define DUAL1 3	/* Indexes for DualPlayfield */
+#define DUAL2 4	/* (Access to Rast and ViewPort) */
+
+				PAGE 424
+
+-----------------------------------------------------------------------------
+
+#define	DBUFF1	DUAL1		/*	Double-Buffer	*/
+#define	DBUFF2	DUAL2+1		/*	Indexes		*/
+
+UWORD	BUFF[2]	= (DBUFF1,DBUFF2);    /*	For Double-Buffer	*/
+				      /*	(will be triggered)	*/
+
+int Trigger;		              /*	Triggervariable		*/
+
+struct	View View;
+struct	ViewPort ViewPorts[4];	/* Four	ViewPorts */
+
+struct	Raslnfo RasInfos[6];	/* Six BitMaps. For	*/
+struct	BitMap BitMaps[6];	/* the 'above' 3 Modes	*/
+struct	RastPort RastPorts[6];	/* and also one used	*/
+				/* for DualPF 2 and	*/
+				/* for Double Buffer	*/
+				/* an additional ( =6)	*/
+
+SHORT	i,j,k,l,n;		/* Help	variables	*/
+
+struct	GfxBase	*GfxBase;
+
+struct	View *oldview;	/* To save the old View	*/
+
+UWORD ColorTable[4][16]	= {{
+		0x000,0x00F,0x0F0,0xF00,
+		0xFF0,0xO0F,0xF0F,0xABC,
+		0xFF2,0xD30,0x7CF,0x4C3,
+		0x7A8,0x9C6,0xlD6,0xFD9
+		},
+		{
+		0x000,0x00F,0x0F0,0xF00,
+		0xFF0,0x0F0,0xF0F,0xABC,
+		0xFF2,0xD30,0x7CF,0x9C3,
+		0x7A8,0x9C6,0xlD6,0x0D9
+		},
+		{
+		0x000,0x100,0x200,0x300,
+		0x400,0x500,0x600,0x700,
+		0xe00,0x900,0xA00,0xB00,
+		0xC00,0xD00,0xE00,0xF00,
+		},
+		{
+		0x000,0x00F,0x0F0,0x00F,
+		0xFF0,0x0FF,0xF0F,0x000,
+		0xFF2,0xD30,0x7CF,0x4C3,
+		0x7A8,0x9C6,0x1D6,0xFD9
+		}};
+	/*	Color Palette for own ViewPorts	*/
+
+int x,y;
+int Red,Green,Blue;		/* For HAM-Usage	*/
+int Length;
+
+char *LeftMouse (char *) 0xBFE001; /* HARDWARE!!!  */
+
+				PAGE 425
+
+-----------------------------------------------------------------------------
+
+char *LaceString = "Uff !! Very tight fit !";
+char *HAMString  = "The HAMmer";
+char *HighString = "This is the HIRES Power !!!";
+char *Pf2String  = "Nothing in Foreground !!!";
+
+struct cprlist *L0F[2]; /* Double Buffer CopperLists */
+struct cprlist *SHF[2];
+
+int Edges[4][2] = {{50,23},	/* For Movement of */
+       		   {270,23},	/* Rectangle */
+		   {50,43},
+ 		   {270,43}};
+     
+int Veloc[4][2] = {{2,-3},	/* 'Speed control' */
+		   {3,2},
+ 		   {-3,-2},
+		   {-2,3}};
+VOID Make();
+VOID FreeMemory();
+
+/****************************************/
+/* Here We Go !!!			*/
+/****************************************/
+
+
+ main()
+ (
+	if ((GfxBase = (struct GfxBase *)
+	OpenLibrary("graphics.library",0)) == NULL)
+	Exit (1000);
+
+	oldview = GfxBase->ActiView;
+				 	/* Save old View */
+	InitView(&View); 		/*Initialize new */
+	for (i=0; i<4; i++)		/* View, and ViewPorts */
+	    InitVPort(&ViewPorts[i]);
+
+	     View.ViewPort=&ViewPorts[0]; /* Link View with */
+					  /* first ViewPort */
+	     View.Modes = HIRES | LACE;	  /* Highest Resolution mode*/
+				          /* for View so that LACE */
+				          /* and HIRES is possible */
+					  /* in ViewPorts. */
+
+	     InitBitMap(&BitMaps[0],6,320,65);
+				/* 1. LACE | HALFBRITE BitMap */
+
+             InitBitMap(&BitMaps[1],4,640,33);
+ 				/* 2. HIRES BitMap */
+
+	      initBitMap(&BitMaps[2],6,320,67);
+
+				PAGE 426
+
+-----------------------------------------------------------------------------
+
+				/* 3. HAM BitMap */
+	InitBitMap(&BitMaps[DUAL1],3,320,67);
+	InitBitMap(&BitMaps[DUAL2],3,320,67);
+				/* 4. DualPlayfield BitMaps */
+
+	InitBitMap(&BitMaps[DBUFF2],3,320,67) ;
+				/* Double Buffering BitMap */ 
+				/* DUALPFI BitMap is */
+				/* buffered	*/
+
+	for (i=0; i<6; i++)
+		{
+			RasInfos[i].BitMap   = &BitMaps[i];
+			RasInfos[i].RxOffset = 0;
+			RasInfos[i].RyOffset = 0;
+			RasInfos[i].Next     = NULL;
+				/* initialize all RasInfos */
+		}	
+
+	ViewPorts[0].DxOffset= 0;    ViewPorts[0].DyOffset=0; 
+	ViewPorts[0].DWidth  = 320;  ViewPorts[0].DHeight =64;
+	ViewPorts[0].Raslnfo = &Raslnfos[0];
+	ViewPorts[0].Modes   = LACE | EXTRA HALFBRITE;
+	ViewPorts[0].Next    = &ViewPorts[1];
+			/* LACE | EXTRA HALFBRITE ViewPort (first) */
+
+	ViewPorts[1].DxOffset = 0;    ViewPorts[1].DyOffset = 33;
+	ViewPorts[1].DWidth   = 640;  ViewPorts[1].DHeight  = 32;
+	ViewPorts[l.Raslnfo   = &Raslnfos[1];
+	ViewPorts[1].Modes    = HIRES;
+	ViewPorts[1].Next     = &ViewPorts[2l;
+			/* HIRES ViewPort (second) */
+
+	ViewPorts[2].DxOffset = 0;   ViewPorts[2].DyOffset = 66; 
+	ViewPorts[2].DWidth   = 320; ViewPorts[2].DHeight  = 66;
+	ViewPorts[2].Raslnfo  = &Raslnfos[2];
+	ViewPorts[2].Modes    = HAM;
+	ViewPorts[2].Next     = &ViewPorts[3];
+			/* HAM ViewPort (third) */
+
+	ViewPorts[3].DxOffset = 0;   ViewPorts[3].DyOffset = 133;
+	ViewPorts[3].DWidth   = 320; ViewPorts[3].DHeight  = 66;
+	ViewPorts[3].Raslnfo  = &Raslnfos[DUAL1];
+	ViewPorts[3].Modes    = DUALPF | PFB$;
+			/* Playfield 2 in front of Playfield 1 */
+
+	ViewPorts[3].Next = NULL;
+	/* Dual-Playfield and Double Buffer ViewPort (fourth) */
+
+	RasInfos[DUAL1].Next = &RasInfos[DUAL2];
+			/* DUALPF RasInfos linking */
+
+				PAGE 427
+
+-----------------------------------------------------------------------------
+
+	ViewPorts[0].ColorMap=(struct ColorMap*)GetColorMap(16);
+	ViewPorts[1].ColorMap=(struct ColorMap*)GetColorMap(16);
+	ViewPorts[2].ColorMap=(struct ColorMap*)GetColorMap(16);
+	ViewPorts[3l.ColorMap=(struct ColorMap*)GetColorMap(16);
+			/* Get ColorMap-Memory for each Viewport */
+
+	for (i=0;i<4;i++)
+
+	    LoadRGB4(&ViewPorts[i],&ColorTable[i][0], 16);
+			/* Each ViewPort has own Colors */
+
+			/* Get Memory now for the BitMaps */
+	for (i=0; i<6; i++)
+		{
+		if ((BitMaps[0].Planes[i] =
+		    (PLANEPTR)AllocRaster(320,65)) == NULL)
+                     Exit (1000);	 /* LACE Requirements */'
+	        BltClear ((UBYTE *)BitMaps[0].Planes[i],
+			           RASSIZE(320,65),0);
+		}
+
+	for (i=0; i<4; i++)
+		{
+		if ((BitMaps[1].Planes[i] =
+                    (PLANEPTR)AllocRaster(640,33)) == NULL)
+		Exit (1000); 		/* HIRES Requirements */
+		BltClear ((UBYTE *)BitMaps[1].Planes[i],
+				RASSIZE(640,33),0);
+		}
+
+	for (i=0; i<6; i++)
+		{
+		if ((BitMaps[2].Planes[i] =
+		    (PLANEPTR)AllocRaster(320,67)) = NULL)
+	            Exit (1000); 	/* HAM Requirements */
+		BltClear ((UBYTE *)BitMaps[2].Planes[i],
+			           RASSIZE(320,67),0);
+		}
+
+	for (i=0; i<3; i++)
+		{
+		if ((BitMaps[DUAL1].Planes[i] =
+		    (PLANEPTR)AllocRaster(320,67)) = NULL)
+                     Exit (1000); /* DUALPF1 Requirements */
+		BltClear ((UBYTE *)BitMaps[DUAL1].Planes[i],
+			   RASSIZE(320,67),0);
+		}
+
+	for (i=0; i<3; i++)
+		{
+		if ((BitMaps[DUAL2].Planes[i] =
+		    (PLANEPTR)AllocRaster(320,67)) == NULL)
+		
+				PAGE 428
+
+-----------------------------------------------------------------------------
+
+		     Exit (1000); /* DUALPF2 Requirements	*/
+		BltClear ((UBYTE *)BitMaps[DUAL2].Planes[i],
+			   RASSIZE(320,67),0);
+		}
+
+	for (i=0;i<3;i++)
+		{
+		if((BitMaps[DBUFF2].Planes[i]	
+	            (PLANEPTR)AllocRaster(320,67)) == NULL)
+		Exit (1000); /* Double Buffer Requirements	*/
+		BltClear ((UBYTE *)BitMaps[DBUFF2].Planes[i],
+			   RASSIZE(320,67),0);
+		}
+
+	for (i=0;i<6;i++)
+		{	
+		InitRastPort(&RastPorts[i]);
+		RastPorts[i].BitMap = &BitMaps[i];
+				/* Prepare RastPorts	*/
+		}
+
+	MakeVPort(&View,&ViewPorts[0]);		/* Calculate Copper */
+	MakeVPort(&View,&ViewPorts[1]);		/* List for every   */
+	MakeVPort(&View,&ViewPorts[2]);		/* ViewPort	    */
+	MakeVPort(&View,&ViewPorts[3]);
+
+	MrgCop(&View);		/* Merge all ViewPort Lists */
+
+	LOF[0] = View.LOFCprList;	/* Store lists for */
+	SHF[0] = View.SHFCprList;	/* Double Buffer   */
+
+	ViewPorts[3].Raslnfo = &RasInfos[DBUFF2];
+	Raslnfos[DBUFF2].Next= &RasInfos[DUAL2];
+			/* Prepare Raslnfo for DUALPF Double Buffer */
+
+	View.LOFCprList	= NULL;
+	View.SHFCprList	= NULL;		/* important !!!!! */
+					/* Otherwise no second CopperList */
+
+	MakeVPort(&View,&ViewPorts[0]);	/* Same	as above */
+	MakeVPort(&View,&ViewPorts[1]);	/* once	more ,   */
+	MakeVPort(&View,&ViewPorts[2]);	/* for Double-  */
+	MakeVPort(&View,&ViewPorts[3]);	/* Buffering	*/
+
+	MrgCop(&View);
+
+	LOF[1] = View.LOFCprList;	/* Store second	CopperList */
+	SHF[1] = View.SHFCprList;
+
+		/* Here we write all of	the BitMaps and 	*/
+		/* build the Screens				*/
+
+		/* The first is	the HALFBRITE | LACE Mode       */
+
+	for (x=0 ; x<16 ; x++)
+	    {
+		SetAPen(&RastPorts[0],x);
+
+				PAGE 429
+
+-----------------------------------------------------------------------------
+
+		RectFill(&RastPorts[0], x*(320/16)+1,1,
+			(x+1)*(320/16)-1, 31);
+		SetAPen(&RastPorts[0],x+32);
+				/* For Halfbrite */
+		RectFill(RastPorts[0],x*(320/16)+1,32,
+			(x+1)*(320/16)-1, 62);
+	     }	
+
+	SetAPen (&RastPorts[0],2);
+
+	Move (&RastPorts[0],0,0);	/* Draw frame */
+	Draw (&RastPorts[0],3l9,0);
+	Draw (&RastPorts[0],3l9,63);
+	Draw (&RastPorts[0],0,63);
+	Draw (&RastPorts[0],0,0);
+
+	SetAPen(&RastPorts[0],5);	 /* output Text */
+	SetDrMd (&RastPorts[0],JAM1);
+	Length=TextLength(&RastPort[0],LaceString,
+			   strlen(LaceString)); 
+	Move(&RastPorts[0],320/2-Length/2,
+			   64/24+RastPorts[0].TxBaseline);
+	Text (&RastPorts[0],LaceString,strlen(LaceString));
+
+					/* HIRES Viewport */
+	for (i=1;i<31;i++)
+		{	/* Draw a few lines */
+		SetAPen(&RastPorts[1],i%l6);
+		Move(&RastPorts[1],1,i);
+		Draw(&RastPorts[1],638,30-i);
+		}
+
+	for (i=1;i<638;i++)
+		{
+		SetAPen(&RastPorts[1],i%16);
+		Move(&RastPorts[1],i,1);
+		Draw(&RastPorts[1],638-i,31);
+		}
+
+	SetAPen(&RastPorts[1],2);
+
+	Move(&RastPorts[1],0,0);	/* New Frame */
+	Draw(&RastPorts[1],639,0);
+	Draw(&RastPorts[1],639,31);
+	Draw(&RastPorts[1],0,31);
+	Draw(&RastPorts[1],0,0);
+
+	SetDrMd(&RastPorts[1],JAM1); 	/* Text */
+	SetAPen(&RastPorts[1],0);
+	Length = TextLength(&RastPorts[1],HighString,
+			strlen(HighString)); 
+	Move(&RastPorts[1],640/2-Length/2,
+			32/2+RastPorts[1].TxBaseline);
+	Text (&RastPorts[1],HighString,strlen(HighString));
+
+			/* And the Hold and Modify Mode */
+
+				PAGE 430
+
+-----------------------------------------------------------------------------
+
+	SetAPen (&RastPorts[2],15+0x20);
+
+	Move(&RastPorts[2],0,0);	/* Frame */
+	Draw(&RastPorts[2],319,0);
+	Draw(&RastPorts[2],319,65);
+	Draw(&RastPorts[2],0,65);
+	Draw(&RastPorts[2],0,0);
+
+	SetDrMd(&RastPorts[2],Jam1);
+	SetAPen(&RastPorts[2],l4+0x30);
+
+	x = 0;
+	y = 1;
+	Red = 0;
+	Green = 0;
+
+	for (i=0; i<64; i++)		/* 64 Rows */
+		{
+		x = 320/2-(64+8)/2;
+		for (i=0; i<4; i++)
+		    {
+			SetAPen(&RastPorts[2],(Red + 0x20));	/* Red */
+			WritePixel(&RastPorts[2],x,y+i);
+			x++;
+			SetAPen(&RastPorts[2],(Green+0x30));
+			WritePixel(&RastPorts[2],x,y+i);	 /* Green */
+			x++;
+			for (Blue=0; Blue<l6; Blue++)
+			  {
+			    SetAPen(&RastPorts[2],(Blue+0x10));
+			    WritePixel(&RastPorts[2],x,y+i);
+								/*Blue*/
+			    x++;
+			   }
+			Green++;
+		     }
+		if (Green = l6){Green = 0; Red ++;}
+		{
+
+	1=2;
+	Length=TextLength(&RastPorts[2],HAMString,
+			strlen(HAMString));
+	for (i=1; i<(66-RastPorts[2].TxHeight);
+			i+=RastPorts[2].TxHeight)
+	{
+		SetAPen(&RastPorts[2],1);
+		i++;
+		Move (&RastPorts[2],1,
+		      i+RastPorts[2].TxBaseline);
+		Text (&RastPorts[2],HAMString,strlen(HAMString));
+
+		Move (&RastPorts[2],320-Length-1,	 /* Text */
+		      i+RastPorts[2].TxBaseline);
+		 Text (&RastPorts[2],HAMString,strlen(HAMString));
+	}
+
+						/* DUALPF2 'color' */
+
+				PAGE 431
+
+-----------------------------------------------------------------------------
+
+	SetAPen(&RastPorts[DUAL2],1);
+
+	RectFill(&RastPorts[DUAL2],0,0,319,6);
+	RectFill(&RastPorts[DUAL2],0,59,319,65);
+
+	RectFill(&RastPorts[DUAL2],0,6,16,59);
+	RectFill(&RastPorts[DUAL2],303,6,319,59);
+
+	SetAPen(&RastPorts[DUAL2],2);
+
+	Length = TextLength(&RastPorts[DUAL2],Pf2String,
+			    strlen(Pf2String));
+	Move(&RastPorts[DUAL2],320/2-Length/2,
+			    66/2+RastPorts[DUAL2].TxBaseline);
+	Text(&RastPorts[DUAL2],Pf2String,strlen(Pf2String));
+
+	Trigger = 0;
+
+	SetAPen(&RastPorts[BUFF[0],10);		/* Set colors for */
+	SetAPen(&RastPorts[BUFF[1],10);		/* both BitMaps */
+
+	while ((*LeftMouse & 0x40) = 0x40)
+	    {		/* Program End on Mouse Click */
+		SetRast(&RastPorts[BUFF[Trigger]],0);
+		Move(&RastPorts[BUFF[Trigger]],Edges[0][0],
+						Edges[0][1]);
+		/* Draw a few lines */
+		for (i=1; i<4; i++)
+		  {
+		    Draw(&RastPorts[BUFF[Trigger]],Edges[i][0],
+						  Edges[i][1]);
+		   }
+
+		Draw(&RastPorts[BUFF[Trigger]],Edges[0][0],
+						Edges[0][1]);
+		for (i=0; i<4; i++)
+		    {
+			Edges[i][0] += Veloc[i][0];
+			Edges[i][1] += Veloc[i][1];
+
+	            if ((Edges[i][0] <= 0) || Edges[i][0] >= 319)
+			{
+			    Edges[i][0] -= Veloc[i][0];
+			    Veloc[i][0] =- Veloc[i][0];
+			}
+
+	             if	((Edges[i][1] < 0) || (Edges[i][1] >= 65))
+			{
+			    Edges[i][1] -= Veloc[i][1];
+			    Veloc[i][1] =- Veloc[i][1];
+			}
+		}
+
+		Make(&View,Trigger);	/* Switch View to	*/
+		Trigger ^= 1;		/* other BitMap	*/
+
+				PAGE 432
+
+-----------------------------------------------------------------------------
+
+	    }
+	    LoadView (oldview) ;	/* Load Old View */
+	    FreeMemory();
+	    return(0);
+	}
+
+
+
+/*************************************************************/
+/* This Function manages the Switching between the two	     */
+/* View CopperLists. 					     */
+/*-----------------------------------------------------------*/
+/* Entry-Parameters: View: that contains the new List,	     */
+/* 		     Trigger: Which CopperList ?	     */
+/*-----------------------------------------------------------*/
+/* Returned-Values: None				     */
+/*************************************************************/
+
+	VOID Make(View,Trigger)
+	struct View *View;
+	int Trigger;
+		(
+		View->LOFCprList = LOF[Trigger];
+		View->SHFCprList = SHF[Trigger];
+		LoadView(View);
+		WaitTOF();
+		)
+/**************************************************************/
+/* This Functions returns all memory to the system that	      */
+/* was used for the Bitmaps & any other reserved areas.	      */
+/*------------------------------------------------------------*/
+/* Entry-Parameters: None				      */
+/*------------------------------------------------------------*/
+/* Returned-Values: None				      */
+/ *************************************************************/
+
+	VOID FreeMemory()
+	(
+		for (i-0; i<6; i++)
+		FreeRaster(BitMaps[0].Planes[i],320,640);
+					/* LACE | HALFBRITE */
+		for (i-0; i<4; i++)
+		FreeRaster(BitMaps[1].Planes[i],640,32);
+					/* HIRES */
+
+		for (i=0; i<6; i++)
+		FreeRaster(BitMaps[2].Planes[i],320,66);
+					/* HAM */
+
+		for (i=0; i<3; i++)
+		FreeRaster(BitMaps[DUAL1].Planes[i],320,66);
+					/* DualPlayfield 1 */
+
+		for (i=0; i<3; i++)
+
+				PAGE 433
+
+-----------------------------------------------------------------------------
+
+		FreeRaster(BitMaps[DUAL2].Planes[i],320,66);
+					 /* DualPlayfield 2 */
+
+		for (i=0; i<3; i++)
+			FreeRaster(BitMaps[DBUFF2].Planes[i],320,66);
+					/* Double Buffer */
+
+		for (i=0; i<9; i++)
+			FreeColorMap(ViewPorts[i].ColorMap) ;
+					/* ColorMaps free */
+
+		for (i-0; i<4; i++)
+			FreeVPortCopLists(&ViewPorts[i]);
+					/* ViewPort CopperLists free */
+
+		FreeCprList(LOF[0]);
+		FreeCprList(SHF[0]);
+		FreeCprList(LOF[1]);
+		FreeCprList(SHF[1]);
+
+					/* Free the Copper ! */
+
+		CloseLibrary(GfxBase);
+	}
+	
+				PAGE 434
+
+-----------------------------------------------------------------------------
+
+17.4 Other modes
+
+The next group of modes include sprites and are called "other" modes.
+However, before we complete our discussion of modes, we will discuss 
+another one that isn't actually a mode.
+
+
+17.4.1	VP HIDE
+
+If you set this mode flag in a ViewPort, then the ViewPort will be ignored 
+when you generate the Copper list. The result is that the ViewPort will not 
+appear on the screen. (For example, you set this flag lo place a screen in 
+the background.)
+
+
+17.4.2 Sprites
+
+Now we will discuss sprites, one of the Amiga's technical accomplishments. 
+In the next section we will show you the vsprites function. Right now we
+explain the hardware sprites in detail.
+
+
+17.4.2.1 The hardware sprites
+
+As the name indicates, the hardware sprites are an ahievement of the
+Amiga's hardware (the vsprites include some skillful Copper programming).
+There are a total of eight hardware sprites. Each sprite has its own shape 
+and motion that is independent of the others.
+
+The sprites do have specific limitations. They can only be a maximum of 16 
+pixels wide, but any desired height. Also, they can have only three colors. 
+However, a small trick enables you to use 15 colors.
+
+To initialize the sprites, first set up a SimpleSprite structure (for
+example with struct SimpleSprite SimpleSprite;). The sprite functions 
+GetSprite, ChangeSprite and MoveSprite give you access to your hardware 
+sprite. However, you must set the SPRITES flag in the ViewPort mode
+variables before you can use either the hardware or vSprites sprites.
+
+				PAGE 435
+
+-----------------------------------------------------------------------------
+
+Once you complete the SimpleSprite structure and set the SPRITES flag,
+you can begin programming.
+
+The first step to creating your own sprites is to call the function 
+Getsprite. This function checks whether or not the sprite you want to use
+is available.
+
+Use status = GetSprite (&SimpleSprite, SpriteNumber) to	discover whether or
+not the sprite number SpriteNumber is available (sprites are numbered
+from zero to seven). It is possible that another running program is already
+using the requested sprite or this sprite is being used to display a 
+vsprite. When two tasks attempt to use the same sprite, a conflict occurs
+which causes problems, for either task, in displaying the sprite.
+
+When you have selected a specific sprite with SpriteNumber(0-7), the
+variable status will contain this sprite number if the sprite is available. 
+If it doesn't matter which sprite you use, set SpriteNumber to -1. Status 
+will then contain the number of an available sprite that you can use. If 
+Status contains a value of -1, this indicates that all sprites are being 
+used at the moment.
+
+Use the variable simpleSprite.num with both sprite functions in order to
+point the SimpleSprite structure to the correct hardware sprite. This 
+variable is stored in the SimpleSprite structure after you use GetSprite.
+
+Additional sprite functions must specify only the SimpleSprite structure 
+that contains the sprites you want to affect.
+
+At the end of your program you should use Freesprite(Status) to return 
+the sprite that you used to the system. Remember to use the status variable
+only for your assigned spite from the system and not for other uses in 
+the program.
+
+Now we will continue to initialize your sprites. When you have received 
+a sprite you must specify a height, in rows, for it. Use the variable 
+SimpleSprite.height for your desired value.
+
+Use the variable SimpleSprite.x and SimpleSprite.y to set the starting or
+initial screen position. This is the place where the sprite will appear on
+the screen when you use the ChangeSprite function.
+
+The Changesprite function changes the appearance of your sprite. We 
+previously mentioned that, without using any tricks, the hardware
+
+				PAGE 436
+
+-----------------------------------------------------------------------------
+
+sprites are always three colors. To display three colors a minimum of two
+color bits per pixel is required. You define each sprite row as two 
+sequential UWORDS that are 16 bits wide (#define UWORD unsigned int 
+(s. 'exec/types.h')).
+
+Theoretically, you could use four colors instead of only three. However, 
+the color "transparent", which is used when both bits are equal to zero 
+isn't really a color.
+
+To easily define the appearance of your sprite, define a two dimensional 
+array. Then define all of the sprite rows with two UWORDS:
+
+	UWORD Appearance [Height][2] =
+		{
+		0x...., 0x...., /* first Row */
+		...
+		0x...., 0x.... /* last Row */
+		}
+
+Simply passing the array starting address with ChangeSprite (&ViewPort,
+&SimpleSprite, &SpriteData) would be too easy. To create your sprites 
+correctly, four additional UWORDS, that are used for system storage, are
+required. You must place two UWORDS before the array that determines the 
+sprites appearance. Then you add the - other two UWORDs at the end of the 
+array. The following structure results for the SpriteData passed with 
+ChangeSprite:
+
+				PAGE 437
+
+-----------------------------------------------------------------------------
+
+	struct SpriteData
+		{
+		UWORD posctl[2];
+		UWORD Appearance[Height][2];
+		UWORD Reserved[2];
+		}
+
+You don't have to worry about the pocst and reserved arrays right now. All
+you need to know is that they must be included in order for everything to
+work properly and both of them must be set to zero.
+
+After setting the appearance of your sprite with ChangeSprite, you can make 
+it appear at a selected position (SimpleSprite. x/y). Use the parameter 
+ViewPort to determine whether your sprite appears relative to the ViewPort 
+or relative to the View. You can select View by using a value of zero 
+instead of a ViewPort address.
+
+So far we have performed all the tasks needed to display a hardware sprite 
+on the screen. To move your sprite to a new coordinate, use MoveSprite 
+(&ViewPort, GSimpleSprite, X,Y). Again the variable ViewPort determines
+whether the destination coordinates are relative to ViewPort or View.
+
+Sprites use only lo-res positioning. If you want to move sprites in a 
+HIRES or LACE ViewPort remember that position 320/200 places the sprite in
+the centre of the screen. So, in order to use a sprite in these screens, 
+you must change your coordinates by a factor of two.
+
+Another problem that occurs with sprites is color. All hardware sprites 
+cannot have individual color sets. They are paired to color registers so that
+every two sprites sharee four color registers (These color registers are the
+same as those in your RastPort that determine pixel colors).
+
+				PAGE 438
+
+-----------------------------------------------------------------------------
+
+The following bit pattern determines which color register is used for a 
+specific sprite pixel:
+
+1. UWORD 2. UWORD 	Color register for Sprite 
+			0/1     2/3     4/5   6/7
+	1	0	17 	21	25     29
+	0	1	18 	22	26     30
+	1	1	19      23	27     31
+
+A bit pattern of 00 is transparent and allows the background to show through.
+
+
+17.4.2.2 Hardware sprites in 15 colors
+
+Now we will show you how to display sprites in 15 colors. As you can see, 
+the sprites are divided into four even and odd numbered pairs (sprites 0/1, 
+2/3, 4/5, and 6/7).
+
+After initializing the SpriteData structure for a pair of sprites, set the 
+SPRITE_ ATTACHED bit for this pair (posctl[1] |=SPRITE_ATTACHED). Now you 
+can use the bit patterns of these sprites together, which gives you 15 
+colors plus one transparent (all bits of a pixel equal to zero).
+
+Both sprites in a pair must occupy the same position and overlap completely.
+This overlapped area uses color regis@rs 17-31 for colors that are determined 
+by the sprites bit patterns. Also, you must set both UWORDs of the odd 
+numbered sprite to their highest value and the UWORDs of the even numbered 
+sprite to their lowest value for color selection.
+
+Another quality of the sprites is that each one has an individual video 
+priority. When all the sprites overlap, sprite zero is in front of sprite 
+one, one is in front of two, etc. Sprite seven has the lowest priority.
+
+				PAGE 439
+
+-----------------------------------------------------------------------------
+
+17.4.2.3	Sprite collisions
+
+Now that you know how to initialise and control the hardware sprites, you 
+should have a few ideas about how to use them. One way these small 
+graphics can be very useful is in action games.
+
+For example, there must be a way to determine when a fired shot (such as
+a cannonball) hits a target. There are three possible ways to determine this.
+
+The first and easiest way is to constantly check your cannonball sprites 
+position. When your sprite reaches the desired target position you can 
+create the explosion or desired action effect by using a ChangeSprite loop.
+
+The second collision control possibility involves sprites and background 
+objects. You can check the area around a sprite with ReadPixel. If a pixel 
+is set, you change the sprites movement direction.
+
+The third method involves checking a hardware register that is responsible 
+for collision control. For sprite to sprite collisions this method is much 
+better than the first one we described. However, for sprite to background 
+collisions, you can only test for true or not true. You can select 
+specific bit-planes to test (the hardware registers clxdat and clxcon), but 
+you do not have as much control as with the Readpixel method
+
+Appendix C which covers the hardware registers provides complete bit 
+information for using the clxdat hardware collision test.
+
+The following program uses all three methods of testing for collisions and 
+is quite a nice game.
+
+/************************************************************/
+/* 		           Breakout.c   		    */
+/*						            */
+/* This is the familiar Game Breakout. We demonstrate	    */
+/* all the various methods used for 'Collision Detection'.  */
+/*							    */
+/+ Compiled with: Aztec V3.6a	cc +L -S Breakout,c	    */
+/*				    ln Breakout.o -lc32     */
+/*							    */
+/* (c) Bruno Jennrich					    */
+/*							    */
+/************************************************************/
+
+	#include	"exec/types.h"
+	#include	"exec/memory.h"
+	#include	"exec/tasks.h"
+	#include	"exec/devices.h"
+
+				PAGE 440
+
+-----------------------------------------------------------------------------
+
+	#include	"graphics/gfx.h"
+	#include	"graphics/gfxbase.h"
+	#include	"graphics/gfxmacros.h"
+	#include	"graphics/regions.h"
+	#include	"graphics/copper.h"
+	#include	"graphics/gels.h"
+	#include	"graphics/sprite.h"
+	#include	"intuition/intuition.h"
+	#include	"hardware/blit.h"
+	#include	"hardware/custom.h"
+	#include 	"devices/printer.h"
+	#include 	"devices/keymap.h"
+
+	#define WIDTH 320
+	#define HEIGHT 200
+
+	#define RP Window->RPort
+
+	struct GfxBase GfxBase=0;
+	struct IntuitionBase *IntuitionBase=0;
+
+	struct Screen *Screen=0;
+	struct Window *Window=0;
+
+	struct NewWindow NewWindow;
+	struct NewScreen NewScreen;
+
+	struct SimpleSprite BumperL, BumperR, Ball;
+
+	UWORD Ball Data[] = {		/* Sprite Definitions */ 
+		0,0,
+		0x0ff0,0x0000,
+		0x0ff0,0x0000,
+		0x0ff0,0x0000,
+		0x0ff0,0x0000,
+		0x0ff0,0x0000,
+		0x0ff0,0x0000,
+		0,0
+		/* 1.Word,2.Word */
+		};
+
+	UWORD BumperR Data[] = {
+		0,0,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0,0
+		};
+
+	UWORD BumperL Data[] = {
+		0,0,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0xffff,0x0000,
+		0,0
+		};
+
+				PAGE 441
+
+-----------------------------------------------------------------------------
+
+	/*	SetPointer requires an Address	*/
+	/*	not equal to 0x00000000		*/
+
+	UWORD	*NewPointer;
+
+	UWORD	*ChipBall,*ChipBumperR,*ChipBumperL,*Help;
+		/* Sprite-Data must be in Chip_mem	*/
+		/* (lowest 512K) !!			*/
+
+	UWORD Colors[32] = {
+
+			0x000,0x00f,0x0f0,0xf00,
+			0x0f0,0xff0,0xf0f,0xaaa,
+			0x789,0xa2e,0x5ad,0x8ed,
+			0xdb9,0xa56,0x789,0xabc,
+			0xfd0,0xccc,0x8e0,0xfb0,
+			0xfac,0x93f,0x06d,0x6fe,
+			0xfac,0x0db,0x4fb,0xf80,
+			0xf90,0xc5f,0xc80,0x999
+			};
+				/* Color definitions of Screen	*/
+	char ASCString[11];	/* For 'itoa()'			*/
+
+	struct TextAttr TextAttr = {"topaz.font",
+				8,0,FPF_DISKFONT|FPF_ROMFONT
+					};
+			/* Always 80 Characters	per Row	*/
+
+	WORD Spr1, Spr2 , Spr3;		/* Sprite Identifier */
+
+	long score = 0,			/* Score	     */
+	     balls = 3;			/* How many Balls ?  */
+	     long New,			/* New Level ?	     */
+	     count;			/* How many Bricks removed? */
+
+	/*extern struct	Custom custom;	in custom.h	*/
+	/* Direct Access of the	Hardware Register	*/
+
+	VOID	InitScreenWindow();	/*	Forward	declaration	*/
+	VOID	Closelt();
+	VOID	OpenLibs();
+	VOID	DelBox();
+	VOID	Score();
+	VOID	itoa();
+	VOID	AwaitClick();
+
+	/******************************************************/
+	/* Here is where everything starts !!! 		      */
+	/******************************************************/
+
+	main ()
+	{
+	long	x,y,
+		vx=-1,vy=-1,	/* Direction of	Balls	*/
+		px,py,		/* Position of Balls	*/
+		MouseX,		/* Position of Bumpers	*/
+		Color;		/* Color for Bricks	*/
+
+	BOOL Ende = FALSE;	/* Program end	? 	*/
+	long	i=0;
+
+				PAGE 442
+
+-----------------------------------------------------------------------------
+
+	long level =0; 			/* Difficulty level */ 
+	char *LeftMouse = (char *)0xBFE001;
+					/* Access from CIA */
+
+	UWORD Collision;		/* Which Collision */
+
+	OpenLibs () ;
+
+	LoadRGB4 (&Screen->ViewPort,Colors,32) ;
+					/* Load own Colors */
+	RemakeDisplay();		/* Link Colors to Screen !! */
+
+	NewPointer = (UWORD *)AllocMem(sizeof(UWORD)*2,
+				MEMF_CLEAR | MEMF_CHIP);
+
+	if (NewPointer = 0) Closeit("No NewPointer !!!\n");
+
+	SetPointer(Window,NewPointer,0,0,0,0);
+					/* Clear Mouse Pointer */ 
+					/* NewPointer-Pointer must != 0 */
+
+	MoveSprite(&Screen->ViewPort, &BumperL, 0,200);
+	MoveSprite(&Screen->ViewPort, &BumperR, 0,200);
+					/* Remove Buffer from ViewPort */
+	custom.clxcon = 0x0;
+			/* Set Collision Control Register */
+			/* Provides us every Collision !  */
+ 			/* We have to filter out the	  */
+ 			/* ones were looking for !	  */
+
+	while (!Ende)	/* Program end ? */
+	{
+		balls = 3;
+		level = 0;
+		score = 0;
+
+	while (balls > 0)	 /* More Balls ? */
+	{
+		New = FALSE;
+		count = 0;		 /* All Bricks available *
+		MoveSprite(&Screen->ViewPort,&Ball,0,200);
+					/* Remove Ball from ViewPort */
+		SetRast (RP,0); 	/* Clear BitMap */
+		SetAPen (RP,1);		/* Foreground Color */
+		SetDrMd (RP,JAM1); 	/* Drawing Mode */
+
+		Move (RP,0,HEIGHT-1);	/* Frame around */
+		Draw (RP,0,10);
+		Draw (RP,WIDTH-1,10);
+		Draw (RP,WIDTH-1,HEIGHT-1);
+
+		for(y=4;y<16;y++)	 /*BuildBricks*/
+	          for (x=2; x<15; x++)
+		    {
+			Color = 2+level%64 - (x+y) %2;
+			if ((color=0) ||(color = 32) ) color ++;
+			setAPen (RP,Color) ;
+			RectFill (RP,x*19+1,y*8+1,
+				  (x+1)*19-1,(y+1)*8-1);
+
+				PAGE 443
+
+-----------------------------------------------------------------------------
+
+		    }
+					/* Draw Beams for Level */
+		if (level%4 ==  1)
+		    {
+			SetAPen (RP,1);
+			RectFill (RP,30,18*8,100,19*8-1);
+			RectFill (RP,WIDTH-100,18*8,
+				  WIDTH-30,19*8-1);
+		     }
+
+		if (level%4 == 2)
+			RectFill (RP,WIDTH/2-75,17*8,
+				  WIDTH/2+75,18*8-1);
+
+		if (level%4 == 3)
+		    {
+			SetAPen (RP,1);
+			RectFill (RP,30,18*8,100,19*8-1);
+			RectFill (RP,WIDTH-100,18*8,
+				   WIDTH-30,19*8-1);
+			RectFill (RP,WIDTH/2-75,17*8,
+				   WIDTH/2+75,18*8-1);
+		    }
+
+		level++;
+		Score (score,level,balls);
+		AwaitClick(); 	/* Wait for Mouse click*/
+
+		px = Screen->MouseX; 		/*Calculate */
+		if(px >= WIDTH-1) px -= 14;	/* Ballposition*/
+		if(px >= WIDTH/2) vx *= -1;
+		py = 192-7;
+
+		while ((balls > 0) && (New == FALSE))
+						/* Ball in Play ? */
+		    {
+			MouseX = Screen->MouseX;
+
+			MoveSprite (&Screen->ViewPort,
+				    &BumperL,MouseX-16,192); 
+			MoveSprite (&Screen->ViewPort,
+				    &BumperR,MouseX,l92);
+					/* Bumper controlled with Mouse */
+
+			i++; 		/* Always wait a little bit */
+			if (i > 3)
+			 {
+			   px += vx; 	/* new Ballposition */
+			   py += vy;
+
+		           Collision = custom.clxdat;
+					/* read Collision register */
+			   i=0;
+			   if (py > 200)
+					/* Ball passed thru ? */
+			      {
+				balls--;
+				Score(score,level,balls);
+				vy = vx = -1;
+				while (((*LeftMouse & 0x40)
+
+				PAGE 444
+
+-----------------------------------------------------------------------------
+
+					== 0x40) &&
+				(balls != 0))
+			   {
+			MouseX = Screen->MouseX;
+			   MoveSprite(&Screen->ViewPort,
+				      &BumperL, MouseX-16,192);
+			   MoveSprite(&Screen->ViewPort,
+				      &BumperR, MouseX,l92);
+			   }
+
+			px = MouseX;
+			if (px >= WIDTH-2) px =- 14;
+			if (px > WIDTH/2)  vx *= -1;
+			 py = 192-7;
+		   }
+		if ((Collision & 0x3000) > 0)
+		   {			 /* Ball crashed to */
+		vy = -1; 		 /* Bumper 	    */
+					/* S2 with S4 or S6 */
+		
+		if (px <= 0) px = 1;
+		if (px >= WIDTH-14)
+			px=WIDTH-15;
+		    }
+
+	/* Alternate Collision-Control: Actual Sprite Pos. is */ 
+	/* compared with the Position of another Sprite,      */
+        /* Using a predetermined area limit value a Collision */
+	/* can be registered:	*/
+
+	/*	if (py >= 192-6)
+		{
+			if ((px >= (MouseX-20)) &&
+			(px <= (MouseX+16)))
+			 {
+			   vy = -1;
+			   py = 192-7;
+			 }
+		}						*/
+
+	else
+		{
+		/* Use ReadPixel() to check	 */
+		/* the Balls edges and react 	 */
+		/* accordingly		         */
+
+		if (ReadPixel(RP,px+4,py+3)>0)
+						/* calculate edge */
+		}
+			vx *= -1;
+			DelBox(px+4,py+3,level);
+		{
+	
+		if(ReadPixel(RP,px+11,py+3)>0)
+						/* left edge */
+		 {
+			vx * = -1;
+			DelBox(px+4,py+3,level);
+		  }
+
+				PAGE 445
+
+-----------------------------------------------------------------------------
+
+		if (ReadPixel(RP,px+8,py) >0)
+						/* top edge */
+		{
+	             vy *= -1;
+		     DelBox (px+8,py,level);
+		}
+
+		if (ReadPixel(RP,px+8,py+6) >0)
+						/* bottom edge */
+		{
+		      vy *= -1;
+		      DelBox(px+8,py+6,level);
+		}
+             }
+            MoveSprite(&Screen->ViewPort,
+	               &Ball,px,py);
+						/* Ball to new Position */
+	    }	
+	  }  
+	}
+
+	MoveSprite(&Screen->ViewPort,&Ball,0,200);
+	SetDrMd (RP,JAM2);
+	SetAPen (RP,2);
+	Move (RP,WIDTH/2-TextLength (RP,"Game Over"',9)/2,100);
+	Text (RP,"Game Over",9);
+						/* Game is Over */
+	AwaitClick();
+
+	while ((*LeftMouse & 0x40) != 0x40) i++;
+					/* How long is it pressed ? */
+
+	if (i > 10000) Ende = TRUE;	/* Program end ? */
+	}
+	ClearPointer(Window);		/* Yes */
+	Closelt ("Bye Bye");
+	return(0);
+    }	
+
+/**************************************************************/
+/* This Punction Initializes the required NewScreen 	      */
+/* and NewWindow Structures, and opens the Screen and 	      */
+/* the Window. The Hardware-Sprites are also allocated        */
+/* and changed                                                */
+/*------------------------------------------------------------*/
+/* Entry-Parameters: Pointer to the initialized 	      */
+/* 		     NewScreen and NewWindow Structure        */
+/*------------------------------------------------------------*/
+/* Returned-Values:  None 				      */
+/**************************************************************/
+
+VOID InitScreenWindow (NS,NW)
+struct NewScreen *NS;
+struct NewWindow *NW;
+{
+	int i;
+
+	NS->LeftEdge = 0;	NS->TopEdge = 0;
+	NS->Width = WIDTH;	NS->Height = HEIGHT;
+	NS->Depth = 6;
+	NS->DetailPen = 1;	NS->BlockPen = 0;	
+
+				PAGE 446
+
+-----------------------------------------------------------------------------
+
+	NS->ViewModes = 0;
+
+	if (WIDTH > 320) NS->ViewModes |= HIRES;
+	if (HEIGHT > 200) NS->ViewModes |= LACE;
+	NS->ViewModes |= SPRITES | EXTRA_HALFBRITE;
+			/* Mode SPRITES for the use of Sprites */
+
+	NS->Type = CUSTOMSCREEN;
+	NS->Font = &TextAttr;
+	NS->DefaultTitle = "";
+	NS->Gadgets = NULL;	 NS->CustomBitMap = NULL;
+
+	NW->LeftEdge = 0;	 NW->TopEdge = 0;
+	NW->Width = WIDTH;	 NW->Height = HEIGHT;
+	NW->DetailPen = 6;	 NW->BlockPen = 0;
+	NW->IDCMPFlags = NULL;
+	NW->Flags = BORDERLESS | ACTIVATE | RMBTRAP |
+		    NOCAREREFRESH | REPORTMOUSE;
+	NW->FirstGadget = NULL;
+	NW->CheckMark = NULL; 	 NW->Title = "";
+	NW->Screen = NULL; 	 NW->BitMap = NULL;
+	NW->MinWidth = NW->MinHeight =
+	NW->MaxWidth = NW->MaxHeight = 0;
+	NW->Type = CUSTOMSCREEN;
+
+	Sprl = GetSprite(&Ball,2); 	/* Allocate Sprites */ 
+	Spr2 = GetSprite(&BumperR,4); 	/* for own use 	    */ 
+	Spr3 = GetSprite(&BumperL,6);
+
+	if ((Sprl == -1) | (Spr2 == -1) | (Spr3 == -1))
+		Closeit("No Sprites !!!\n");
+
+	Ball.x = BumperL.x = BumperR.x = 0; 	/* Set Position */ 
+	Ball.y = BumperL.y = BumperR.y = 0; 	/* and Height */
+
+	Ball.height = 6;
+	BumperL.height = 8;
+	BumperR.height = 8;
+
+	if ((Screen = (struct Screen *)
+		OpenScreen(&NewScreen)) == 0) 
+	    Closeit("No Screen!!!");
+
+	NewWindow.Screen = Screen;
+
+	if ((Window = (struct Window *)
+		OpenWindow(&NewWindow)) == 0) 
+	     Closeit("No Window !!!");
+
+	ChipBall = (UWORD*)
+		AllocMem(sizeof(Ball_Data),MEMF_CLEAR | MEMF_CHIP); 
+	ChipBumperR = (UWORD*)
+		AllocMem(sizeof(BumperR_Data),MEMF_CLEAR | MEMF_CHIP); 
+	ChipBumperL = (UWORD*)
+		AllocMem(sizeof(BumperL_Data),MEMF_CLEAR | MEMF_CHIP);
+
+	if ((ChipBall == 0) |
+	    (ChipBumperR = 0) |
+            (ChipBumperL = 0)) Closeit("No ChipMem !!!\n");
+
+	Help = ChipBall;
+	for (i=0; i<(sizeof(Ball_Data)/sizeof(UWORD));i++)
+
+				PAGE 447
+
+-----------------------------------------------------------------------------
+
+	{
+		*Help = Ball_Data[i];
+		Help++;
+	}
+
+	Help = ChipBumperR;
+	for (i=0; i <(sizeof(BumperR_Data) /sizeof(UWORD)); i++)
+	{
+		*Help = BumperR_Data[i];
+		Help++;
+	}
+
+	Help = ChipBumperL;
+	for (i=0; i<(sizeof(BumperL_Data)/sizeof(UWORD));i++)
+	{
+		*Help = BumperL_Data[i];
+		Help++;
+	}
+
+	ChangeSprite (&Screen->ViewPort,&Ball,ChipBall);
+	ChangeSprite (&Screen->ViewPort,&BumperL,ChipBumperL);
+	ChangeSprite (&Screen->ViewPort,&BumperR,ChipBumperR);
+		/* Link Sprite to Data-Block */
+	}
+
+	/**********************************************************/
+	/* This Routine returns all memory used by the Program    */
+	/* (Window,Screen, Sprites...). 			  */
+	/*--------------------------------------------------------*/
+	/* Entry-Parameters: Errormessage (String)	          */
+	/*--------------------------------------------------------*/
+	/* Returned-Values : None			          */
+	/**********************************************************/
+
+	VOID Closeit(s)
+	char *s;
+	{
+		puts(s);
+		if (Spr1 != -1) FreeSprite(Spr1);   /* Sprites released*/
+		if (Spr2 != -1) FreeSprite(Spr2);   /* to System       */
+		if (Spr3 != -1) FreeSprite(Spr3);
+
+		if (NewPointer != 0)FreeMem(NewPointer, sizeof(UWORD)*2);
+
+		if (ChipBall != 0) FreeMem(ChipBall,sizeof(Ball_Data));
+		if (ChipBumperR != 0)
+		    FreeMem(ChipBumperR, sizeof(BumperR_Data));
+		if (ChipBumperL != 0)
+		    FreeMem(ChipBumperL, sizeof(BumperL_Data));
+
+		if (Window) CloseWindow(Window); 	/* Close Window */
+		
+		if(Screen) CloseScreen(Screen); 	/*CloseScreen */ 
+		if(GfxBase) CloseLibrary(GfxBase);	/* Close Librarys*/ 
+		if (IntuitionBase) CloseLibrary (IntuitionBase);
+		exit (0);				/* Bye !! */
+	}
+
+	/********************************************************/
+	/* This Function opens the required Libtarys, and calls */
+	/* InitScreen()						*/
+
+				PAGE 448
+
+-----------------------------------------------------------------------------
+	
+	/*------------------------------------------------------*/
+	/* Entry-Parameters: None 				*/
+	/*------------------------------------------------------*/
+	/* Returned-Values: None 				*/
+	/********************************************************/
+	VOID OpenLibs()
+	{
+		if ((GfxBase = (struct GfxBase *)
+		     OpenLibrary("graphics.library",0)) == 0)
+		    Closeit("No Graphics!!!");
+
+		if ((IntuitionBase = (struct IntuitionBase *) 
+		     OpenLibrary("intuition.library",0)) == 0)
+		    Closeit("No Intuition !!!");
+
+		InitScreenWindow(&NewScreen,&NewWindow);
+	}
+
+/****************************************************************/
+/* This Function deletes a hit Brick from the screen		*/
+/* and raises the point standing.				*/
+/*--------------------------------------------------------------*/
+/* Entry-Parameters: x,y Position of Ball, Play Level.		*/
+/*--------------------------------------------------------------*/
+/* Returned-Values : None 				        */
+/****************************************************************/
+	
+VOID DelBox(x,y,level)
+long x,y,level;
+{
+	if ((x != 0) && (y < 17*8) && (x <= WIDTH - 16)
+		&& (y > 16))
+					/* Ball in valid area ? */
+
+	{ 
+	   x /= 19; 			/* Calculate Brick-Position */
+	   y /= 8;
+		
+	SetAPen (RP,0); 		/* Erase ? */
+	RectFill(RP,x*19+1,y*8+1,
+		(x+1)*19-1,(y+1)*8-1);
+
+	score += (16-y)*10; 		/* Raise Score ? */ 	
+	count ++; 			/* Another Brick Hit */ 
+	Score (score,level,balls);
+					/* display New Score (also */
+					/* go to new level) 	   */
+	if (count == 13*12) New = TRUE;
+					/* New Level ? */
+	}
+}
+
+/***************************************************************/
+/* This Function shows the Point standing, the Play 	       */
+/* level and the Number of Balls left 			       */
+/*-------------------------------------------------------------*/
+/* Entry-Parameters: score (Point stand),		       */
+/* level (play level) ,					       */
+/* balls (Balls left)	                                       */
+/*-------------------------------------------------------------*/
+/* Returned-Values: None 				       */
+/***************************************************************/
+	
+VOID Score(score,level,balls)
+long score,level,balls;
+
+				PAGE 449
+
+-----------------------------------------------------------------------------
+
+    {
+	SetDrMd(RP,JAM2);
+	SetAPen (RP,2);
+	Move (RP,0,RP->TxBaseline) ;
+	Text (RP,"Level:  ",8);
+	itoa (level,2);
+	Text (RP,"  Score:  ",9);
+	itoa (score,10);
+	Text (RP,"  Balls:  ",9);
+	itoa (balls,2);
+	SetDrMd(RP,JAM1);
+    }
+
+/***************************************************************/
+/* This Function converts an Integer Value to ASCII, 	       */
+/* and displays the String                                     */
+/*-------------------------------------------------------------*/
+/* Entry-Parameters:  Number to Convert, how 		       */
+/* 		      many posit@ons for this Number? 	       */
+/*-------------------------------------------------------------*/
+/* Returned-Values :  None 				       */
+/***************************************************************/
+	
+VOID itoa(num,places)
+long num,places;
+    {
+	long saver;
+
+	saver = places;
+	places --; 	/* Position value reduced by one	*/
+			/* because of +- 1 Error	*/
+
+	ASCString[0] = 32; 	/* Zero Character equals ' ' */
+
+				/* Convert Integer */
+	do {
+		ASCString[places] = (num % 10) + '0';
+		places --;
+		num /= 10;
+            } while (places > 0);
+
+	Text (RP,ASCString,saver); 	/* Display Text */
+    }
+
+/**************************************************************/
+/* This Function waits for a Mouse Click 		      */
+/*------------------------------------------------------------*/
+/* Entry-Parameters: None 				      */
+/*------------------------------------------------------------*/
+/* Returned-Values : None 				      */
+/**************************************************************/
+	
+VOIDAwaitClick()
+{
+	long MouseX;
+	char *LeftMouse = (char *)0xBFE001;
+
+	while ((*LeftMouse & 0x40) == 0x40)
+	    {
+		MouseX = Screen->MouseX;
+
+		MoveSprite (&Screen->ViewPort, &BumperL,
+				MouseX-16,192);
+		MoveSprite (&Screen->ViewPort, &BumperR,
+				MouseX,l92);
+	    }
+}
+	
+				PAGE 450
+
+-----------------------------------------------------------------------------
+
+18. The Amiga animation system
+===============================
+
+Now that you have been introduced to the hardware sprites, we will present 
+the vsprites and bobs. These graphic elements (GELs) are small graphic 
+images, which are similar to the hardware sprites but arev controlled 
+directly.
+
+18.1 The vsprites
+-----------------
+
+With the help of the hardware sprites and some creative Copper 
+programming, we can use the vsprites (the V stands for virtual = visible).
+
+To display a vsprite we use a hardware sprite once and then again at a		lower location:
+lower location.
+
+BEfore the electronic beam can reach the bottom of the screen, the same
+hardware sprite is displayed again. By repeating this procedure, we can
+display many vsprites.
+
+However, there are some limitations when using vsprites. You have to 
+allow a short pause for the electronic beam between each use of a 
+hardware sprite. This pause must equal at least one raster row. 
+The DMA, which is reponsible for displaying the hardware sprites, 
+is very fast but not as fast as the electronic beam. Also, it is 
+not possible to	use a single hardware sprite to display several vsprites 
+starting in the same row.
+
+				PAGE 451
+
+-----------------------------------------------------------------------------
+
+A maximum of eight vsprites in one row, one for each of the eight 
+hardware sprites, can be used. An additional limitation occurs when you 
+use one of the eight sprites yourself. When you use Getsprite to gain 
+control of a sprite for your use, you must remove two sprites from 
+vsprite use.
+
+Each vsprite can use different colors. Just before the Copper Displays 
+the vsprite, you can change the color values in the color registers.
+
+
+Remember that hardware sprites use the color registers in pairs. So changing 
+the colors of one hardware sprite will also affect the other sprite in the 
+pair.
+
+To prevent these color problems, test whether the vsprites are going to be 
+displayed in different colors by using the pointer GelsInfo.lastcolor. 
+If this test is positive (true), the system will no longer allow the use 
+of both hardware sprites in a pair at the same time.
+
+To clearly explain this, we have included a short example:
+
+The Intuition mouse pointer is displayed with hardware sprite zero. 
+Hardware sprites zero and one use the same color registers and colors. 
+In our example, we will use hardware sprite one for vsprites and we will 
+make it use different colors than the mouse pointer. However, when the 
+vsprite is displayed, the mouse pointer would immediately change colors 
+to match the vsprite colors set by hardware sprite one. To prevent 
+this from happening, the system doesn't allow the use of hardware sprite 
+one for vsprites.
+
+You can determine which sprites are available for vsprite use in the 
+variable GelsInfo.sprRsvrd. Each set bit in this variable determines if 
+the corresponding hardware sprite is available for the vsprite software. 
+This variable has a different meaning than GfxBase->SpriteReserved. 
+Normally this variable contains information about your assigned sprites. 
+When Intuition bit zero is set (= 0x01), it means that sprite zero 
+is reserved for Intuition and cannot be used for vsprites. To duplicate 
+this, you must while a value of 0xfe in GelsInfo.sprRsrvd. This makes all
+hardware sprites, except zero, available for displaying vsprites.
+
+When using vsprites of different colors, you should not use hardware 
+sprite pairs.
+
+Since the Copper is not capable of making the needed changes fast enough, 
+it isn't able to display a hardware sprite pair as different colored 
+vsprites on the same raster row.
+
+				PAGE 452
+
+-----------------------------------------------------------------------------
+
+This limits you to a maximum of four vsprites, of four different colors, 
+on the same raster row.
+
+Just as the hardware sprites have the SimpleSprite structure, the vsprites
+also have a structure named vsprite that helps you initialise the vsprites. 
+This structure contains all the required vsprite data.
+
+The first step in any program that uses vsprites is to create this
+structure for each vsprite (struct VSprite VSprite;).
+
+You must also initialise two additional vsprite structures that mark 
+the beginning and end of the GEL list. Without a GEL list nothing happens 
+and vsprites or bobs won't work.
+
+To build a GEL list we use another structure called the GelsInfo structure. 
+You must provide the pointers nextline, lastcolor and the variable sprRsvd
+with the necessary values (for example, memory area pointers). Without this
+information, nothing will happen on your screen. Appendix A has a complete 
+description of the Gelsinfo structure.
+
+After all the variables and pointers are initialised, you can initialise
+the Gelsinfo structure with InitGels (&StartVSprite, &EndVSprite, &GelsInfo).
+You provide GelsInfo.- gelHead and GelsInfo.gelTail with the addresses of
+both specified vsprite structure).
+
+These two vsprites mark the beginning and end of the GEL list. To add 
+any additional GELs (vsprites and bobs) to this list, use Addvsprite and
+AddBob. Then you use the commands sortGList and DrawGList to organise the
+GEL list for display purposes.
+
+You must also specify the appearance of your vsprites.. The pointer to the 
+data that contains the vsprites' image (vsprite.ImageData) is used for this.
+This data is organised exactly like the hardware sprites Appearance [Height]
+[2]. The vsprite row data is provided in two UWORDs. Unlike the hardware 
+sprite, no additional memory areas are required (this is handled by the 
+vsprite structure and the GEL list).
+
+The vsprite height is set in thc variable Vsprite.Height. Use the 
+variables VSprite.x and VSprite.Y to position your vsprite. Once again, 
+you must consider the resolution difference between normal, hi-res and 
+lace. Change your X and Y coordinates by a factor of two, depending on 
+which mode you are using. If your coordinates are off, the movement may be
+very jerky-looking.
+
+As we previously mentioned, each vsprite can use different colors. These 
+colors are set with the help of the pointer
+
+				PAGE 453
+
+-----------------------------------------------------------------------------
+
+VSprite.SprColors, which references a three dimensional UWORD array that 
+contains the colors. You format this array like the color registers 
+(bits 11-8 contain red, bits 7-4 the green and bits 3-0 the blue color 
+components). Remember, placing many vsprites, that contain many colors,
+close to each other, limits your possibilities.
+
+Due to the hardware sprite pairing that helps us display the vsprites in
+different colors, some problems can occur. lt is possible to display too 
+many different colored vsprites on one raster row (Y position), which can 
+cause some vsprite to disappear. This happens because the Amiga isn't able
+to quickly switch between the many different color definitions.
+
+To avoid this problem, display all your vsprites with the same colors. 
+The Amiga will then ensure that all the SprColor pointers for the vsprites
+point to the same area. In order to test this, you must first make sure that
+GelsInfo.lastcolor has enough memory assigned. This is where the pointer to 
+the last color definition for an individual vsprite is stored. The color
+definition for a new vsprite is then compared to this value.
+
+If all of your vsprites have the same shape, don't point all the ImageData 
+pointers to the same address. The memory access timing of the Amiga doesn't
+allow several vsprites to use the same ImageData pointer. Instead, copy the
+image to a memory area and point the ImageData pointer to the different 
+starting addresses of the
+
+You still have to set the flags variable for vsprites to VSPRITE 
+(VSprite.Flags = VSPRITE). This informs the system that
+
+				PAGE 454
+
+-----------------------------------------------------------------------------
+
+you are using vsprites, not bobs. later we will explain how you can
+also use vsprite structures for bobs.	
+
+Even though it isn't possible to create vsprites with a width greater than 
+16 pixels, or one UWORD, you still have to set their width. Use a value of 
+one with VSprite.Width. If you forget to do this, your vsprite may not 
+appear on the screen.
+
+Although a different value isn't possible, you still must set the depth of
+your vsprite (VSprite Depth) to a value of two. This ensures that the system
+knows exactly what you want. Vsprites cannot be attached to each other like 
+hardware sprites.
+
+When all the parameters are set, you can join the vsprite to your Rastport
+with Addvsprite(&VSprite,&Rastport). This links your vsprite to the Rastport
+that was specified earlier with RastPort.Gelslnfo = &GelsInfo. Now we can
+finally display the vsprite.
+
+First you have to sort the GEL list with SortGList(&Rastport). All the 
+vsprites in the GEL list are sorted by their Y coordinates (ascending) and
+X coordinates (ascending by Y coordinate). This makes it easier for the 
+Copper to display as many vsprites as possible in the least amount of time.
+
+Next you can generate a new Copper list with DrawGList(&RastPort,&ViewPort); 
+for the specified ViewPort. This Copper list will control everything that 
+is needed for displaying vsprites. To execute the new Copper list use 
+MakeVport, MrgCop and LoadView, RemakeDisplay for Intuition screens, and
+your vsprites appear on the screen.
+
+These are all the necessary steps for displaying one or more vsprites.
+
+To change the position, appearance or colors of a vsprite, change the
+corresponding pointers and variables. Then sort the GEL list again 
+(SortGList) and draw again (DrawGList, MakeVPort, MrgCop, and LoadView).
+
+
+
+18.1.1 Vsprites and collisions
+------------------------------
+
+
+The above procedures provide information on how to display and move 
+vsprites. However, you cannot use these procedures to check for collisions,
+which is very important, for example, in games.
+
+				PAGE 455
+
+----------------------------------------------------------------------------
+
+The pointers in the vsprite structure, BorderLine and CollMask, help us check
+for collisions. The variables Vsprite.MeMask and vsprite.HitMask and the
+pointer CollTable from the GelsInfo structure (these must be initialised 
+whether you use collisions or not are also needed.
+
+We will discuss BorderLine and CollMask first. These pointers point at two 
+memory areas where you have stored data.
+
+After calling Initmasks,  Borderline contains the logical OR of all rows for
+your vsprite and requires a single UWORD pointer. BorderLine is used for 
+very fast collision control. When you use BorderLine to determine whether 
+a collision is possible, the CollMask is used to discover whether a 
+collision occurred.
+
+The CollMask contains the logical OR for both UWORDs of each vsprite row. 
+You can use a one dimensional UWORD array that must contain the 
+VSprite.Height element.
+
+After providing the required memory for both pointers, you can use Initmasks
+(&VSprite) to initialise both collision masks. BorderLine and CollMask are
+now initialised for the specified vsprite (bob). You should have already 
+pointed ImageData to the correct memory area because this is where
+CollMask and Borderline are calculated from.
+
+Once both masks are correctly initialised, you can set the variables 
+MeMask and Hitmask for each vsprite to determine which collisions will 
+be registered. The routine DoCollision (&RastPort) not only use whether 
+a collision has occurred, but also decides if another
+
+				PAGE 456
+
+-----------------------------------------------------------------------------
+
+action should be performed. This routine tests all vsprites in the GEL list 
+and then determines if the collision requires any action. For example, 
+whether or not to execute another routine.
+
+Suppose you wanted to program the game "PacMan" by using vsprites. For ghost 
+collisions there shouldn't be a reaction. But when a ghost collides with 
+PacMan, you should lose the Pacman.
+
+You can determine the actions of the DoCollision routine by using the 
+variables MeMask and HitMask. We set bit one in the ghost MeMask, which 
+means: "I am a ghost". For the PacMan vsprite we only set bit two which means,
+"I am PacMan".
+
+Now we set bit two in the ghost HitMask. This means that the ghost can 
+collide with another ghost without causing anything to happen. However,
+a collision with a PacMan will cause a reaction.
+
+Finally we set bit one in the PacMan's HitMask. This means that any collision
+between a PacMan and a ghost will cause the PacMan to disappear.
+
+The MeMask and HitMask for both look like this:
+
+Ghost :         MeMask  %0000000000000010
+		HitMask %0000000000000100
+
+PacMan:         MeMask  %0000000000000100
+		HitMask %0000000000000010
+
+When DoCollision registers a collision, the MeMask of the vsprite,
+located above and left, is ANDed with the HitMask of the other vsprite. 
+The resulting bit of this logical AND identifies the routine that DoCollision
+executes for this collision. 
+
+For example, When two ghosts collide, DoCollision performs the following 
+routine:
+
+Ghost1.MeMask AND Ghost2.HitMask = %10 AND %100 = %000 
+			 (or no collision)
+
+When a ghost and a PacMan collide:
+
+Ghost.MeMask AND PacMan.HitMask = %10 AND %10 = %10 
+			 (here routine one is called)
+
+When a PacMan and a ghost collide it means that the Pacman is above and 
+left of the ghost (above was the opposite).
+
+				PAGE 457
+
+-----------------------------------------------------------------------------
+
+PacMan.MeMask AND Ghost.HitMask = %100 AND %100 = %100
+(here routine two is executed);
+
+To determine the collision routines, you first have to initialise the
+pointer CollTable in the GelsInfo structure. (For this you the structure
+CollTable which contains the pointers to the collision routines).
+
+Of course, the collision routines themselves must exist. Use 
+SetCollision (CollisionNumber, Routine, &GelsInfo) specify which routines 
+you want for each collision. When the result bit of the logical AND of 
+MeMask and HitMask determine that a collision has occurred, your program 
+routines are executed. You write the addresses for these routines into
+the GelsInfo.CollTable.
+
+Make sure that your collision routine provides two parameters for 
+DoCollision. You must provide the addresses of both vsprites in the 
+collision. The first address parameter is for the vsprite that is to the
+left and above the other vsprite:
+
+Routine (&VSprite1, &VSprite2)
+struct VSprite *VSprite1, *VSprite2;
+{...}
+
+This is how you test for collisions between vsprites (and bobs). To test
+for collisions with the border, first set the variables topmost, bottommost,
+leftmost, and rightmost in the GelsInfo structure. These variables determine 
+the limits of a bit-map rectangle within which the vsprites can move without 
+registering a collision.
+
+Collision routine number zero is executed when you set bit zero (reserved for
+border collisions) in a vsprites HitMask and it touches a border. You set up
+this routine with SetCollision(0, Routine, &GelsInfo);. It has the following
+parameters:
+
+	BorderControl (VSprite, Flags)
+	struct VSprite *VSprite;
+	BYTE Flags;
+	(...)
+
+VSprite is the vsprite that has a collision with the border.Flags
+contains the border where the collision occurred (TOPHIT,BOTTOMHIT,
+LEFTHIT, RIGHTHIT).
+
+The vsprite structure does not support collisions with the background. 
+You have to use the Readpixel method for vsprite to background collisions.
+
+				PAGE 458
+
+-----------------------------------------------------------------------------
+
+The following program demonstrates how vsprites are created and tested
+for collisions: 
+
+/**********************************************************************/
+/*                              Tribars.c                             */
+/*                                                                    */
+/* VSprites pur.                                                      */
+/*                                                                    */
+/* Compiled with: Lattice V5                                          */
+/*                                                                    */
+/* (c) Bruno Jennrich                                                 */
+/*                                                                    */
+/**********************************************************************/
+
+struct  VSpriteExt      {               /* Our Data is linked   */
+			int vx,vy;      /*      with the VSprite        */
+			};              /*      Structure       */
+
+#define VUserStuff      struct  VSpriteExt
+				/* Must happen before #INCLUDES! */
+
+#include        "exec/types.h"
+#include        "exec/memory.h"
+#include        "exec/devices.h"
+#include        "devices/keymap.h"
+#include        "graphics/gfx.h"
+#include        "graphics/gfxmacros.h"
+#include        "graphics/copper.h"
+#include        "graphics/gels.h"
+#include        "graphics/collide.h"
+#include        "graphics/gfxbase.h"
+#include        "graphics/regions.h"    
+#include        "hardware/blit.h"
+#include        "hardware/custom.h"
+#include        "intuition/intuition.h"
+#include        "intuition/intuitionbase.h"
+#include        "libraries/diskfont.h"
+3include        "hardware/dmabits.h"
+
+#define RP      Screen->RastPort                /* Access RastPort      */
+
+#define MAXVSPRITES 16                          /* How many VSprites ?  */
+struct GfxBase *GfxBase;                        /* BasePointer          */
+struct IntuitionBase *IntuitionBase;
+
+struct  NewScreen NewScreen =                   /* Our Screen           */
+		{
+		   0,0,320,199,1,
+		   1,0,
+		   0,
+		   CUSTOMSCREEN,
+		   NULL,
+		   "",
+		   NULL,NULL
+		};
+
+struct Screen *Screen;
+
+					PAGE 459
+
+---------------------------------------------------------------------------
+
+struct VSprite Start, Ende,                     /* Vsprites for GEL */
+	
+VSprite[MAXVSPRITES];                           /* List             */
+
+UWORD   VSBorderLine[MAXVSPRITES);              /* VSprites Borderline  */
+
+UWORD   VsCols[3] =
+		{0xfff,0x057,0x889);            /* Colors for all   */
+
+struct GelsInfo GelsInfo;                       /* GelsInfo must be      */     
+						/* completely initialised*/
+						/* prior to any use of   */     
+						/* VSprites !            */
+
+WORD    Nextlines[8] = {0,0,0,0,0,0,0,0};
+			/* Nextline-Array for GInfo     */
+
+WORD    *lastColors[8] = {0,0,0,0,0,0,0,0);
+			/* lastColor-Array for GInfo    */
+
+struct collTable collTable;     ;
+			/* Collisions-Jump Table        */
+	
+UWORD Tribar[18][2] =   
+		{       
+		{0xe000,0xc000},        /*      How do the       */
+		{0xf800,0xc000},        /*      VSprites look?   */
+		{0xfe00,0xc000},        
+		{0xff80,0xc000},        
+		{0xf3e0,0xcc00},
+		{0xf0f8,0xcf00},
+		{0xf03e,0xc1c0},        
+		{0xf00f,0xc11f},
+		{0xf043,0xc07c},
+		{0xf0f0,0xc0ff},        
+		{0xf3e0,0xc3ff},
+		{0xff80,0xcffc},        
+		{0xfe00,0xfff0},
+		{0xf800,0xffc0},        
+		{0xe000,0xff00},        
+		{0x8000,0xfc00},        
+		{0x0000,0xf000},
+		{0x0000,0xc000}
+		};
+
+VOID    BordControler();                /* Our Routine for              */
+					/* Border Collision             */
+
+/******************************************************************/
+/* Here we Go !                                                   */
+/******************************************************************/
+
+	main()  
+	{
+	long    i,j,k;
+
+	int     Length; 
+
+				PAGE 460        
+
+----------------------------------------------------------------------------
+
+	UWORD *Tribs, *HelpTrib,*VSCollMask,*HelpColl;
+	char *LeftMouse = (char *) 0xBFE001;
+					/* Left Mouse Button */
+
+	if ((GfxBase = (struct GfxBase *)
+		OpenLibrary("graphics.library",0)) == NULL)
+		{
+		    printf (" No Graphics!\n");
+		    exit(0);
+		}
+
+	if ((IntuitionBase = (struct IntuitionBase *)
+		OpenLibrary("intuition.library",0)) == NULL)
+		{
+		    printf ("No Intuition!\n");
+		    goto cleanup1;
+		}
+
+	if ((Screen = (struct Screen *)
+		OpenScreen (&NewScreen)) == NULL)
+		{
+		    printf ("No Screen!\n");
+		    goto cleanup2;
+		}
+
+	Tribs = (UWORD *)AllocMem
+
+	(l8*2*sizeof(UWORD)*MAXVSPRITES,MEMF_CLEAR | MEMF_CHIP);
+				/* Even though all VSprites    */ 
+				/* have the same shape you must*/ 
+				/* reserve a 'Chip' Buffer for */ 
+				/* each VSprite or DMA can     */
+				/* lose track of them.         */
+	if (Tribs == 0)
+		{
+		printf (" No Memory for Tribs !!!\n"); 
+		goto cleanup3;
+		}
+
+	HelpTrib = Tribs;
+
+	for (i=0; i<MAXVSPRITES; i++)
+	    for (j=0; j<18; j++)
+		for (k=0; k<2; k++)
+		{
+			*HelpTrib = Tribar[j][k];
+			HelpTrib++;
+		}
+
+	VSCollMask = (UWORD *)
+		AllocMem (18*sizeof(UWORD)*MAXVSPRITES, MEMF_CHIP);
+
+	if (VSCollMask == 0)
+		{
+		printf (" No Memory for CollMask !!!\n");
+		goto cleanup4;
+
+					PAGE 461
+
+-----------------------------------------------------------------------------
+		
+		}
+
+	SetRGB4 (&Screen->ViewPort,0,0,0,0);
+	SetRGB4 (&Screen->ViewPort,1,13,7,1);
+						/* A little Color */
+	SetRast (RP,0);
+
+	Length = TextLength(&RP,"Tribars in Action!!!",21);
+	
+	Move (@RP,320/2-Length/2,100);
+	Text (&RP,"Tribars in Action !!!",21);
+
+	BltClear (&Start,sizeof(struct VSprite),0);
+	BltClear (&Ende, sizeof(struct VSprite),0);
+	BltClear (&GelsInfo, sizeof(struct GelsInfo),O);
+	BltClear (VSprite, sizeof(struct
+		VSprite)*MAXVSPRITES,0);
+	BltClear (&collTable,sizeof(collTable),0);
+				/* to be sure, clear everything */
+
+	GelsInfo.sprRsrvd = 0xfc;
+
+				/* All Sprites except           */
+				/* 0 and 1 for VSprites         */
+
+	GelsInfo.nextLine = Nextlines;  
+	GelsInfo.lastColor = lastColors;        
+	GelsInfo.collHandler = &collTable;
+
+	GelsInfo.leftmost = 23;         /* Limits for Border */
+	GelsInfo.rightmost = 300;       /* Collisions        */
+	GelsInfo.topmost = 9;
+	GelsInfo.bottommost = 191;
+
+	InitGels (&Start, &Ende, &GelsInfo);
+					/* Initialise GelsInfo and */
+	RP.GelsInfo = &GelsInfo;        /* link with RastPort      */
+
+	SetCollision(0,BordControler, &GelsInfo);
+
+	HelpTrib = Tribs;
+	HelpColl = VSCollMask;
+	for (i-0;i<MAXVSPRITES; i++)
+	    {
+		VSprite[i].Width = 1;   /* 1 WORD width         */
+		VSprite[i].Height = 18; /* 18 Rows high         */
+		VSprite[i].Flags = VSPRITE;
+					/* VSprite is VSprite   */
+
+		VSprite[i].Depth = 2;                   /* 2 'Planes'   */
+		VSprite[i].ImageData =  HelpTrib;       /* own Tribar   */
+		VSprite[i].MeMask = 0;                  /* no GEL Collision */
+
+		VSprite[i].HitMask = 1;                 /* but with Border  */
+		VSprite[i].CollMask = HelpColl;
+		VSprite[i].BorderLine = &VSBorderLine[i];
+
+		VSprite[i].SprColors = VSCols;          /* Colors */
+
+				PAGE 462
+
+-----------------------------------------------------------------------------
+
+	VSprite[i].X = 23+i*(320/MAXVSPRITES-4);
+	VSprite[i].Y = 9+i*(200/MAXVSPRITES-2);
+						/* Position */
+
+	VSprite[i].VUserExt.vx = 5;             /* individual */
+	VSprite[i].VUserExt.vy = 5;             /* Speed      */
+
+	HelpTrib += 2*18;
+	HelpColl += 18;
+						/* next Tribar */
+
+	InitMasks(&VSprite[i]);                 /* Calculate CollMask */ 
+						/* and Borderline     */
+
+	AddVSprite (&VSprite[i], &RP);
+						/* Sort VSprite In List */
+	}
+
+	while ((*LeftMouse & 0x40) == 0x40)
+	    {
+		for (i=0; i<MAXVSPRITES; i++)
+		{
+		  VSprite[i].Y +=
+		    VSprite[i].VUserExt.vy;
+		  VSprite[i].X +=
+		    VSprite[i].VUserExt.vx;
+						/* move VSprites        */
+		}
+
+		SortGList(&RP);                 /* new Sort       */
+		DoCollision(&RP);               /* Collision test */
+		DrawGList(&RP,&Screen->ViewPort);
+						/* Generate Copper-List */ 
+		WaitTOF();
+		RemakeDisplay();                /* and use it */
+	    }
+
+	FreeMem(VSCollMask,
+		18*sizeof(UWORD)*MAXVSPRITES);
+	
+	cleanup4:       FreeMem(Tribs,
+		18*2*sizeof(UWORD)*MAXVSPRITES);
+						/* Release Memory */
+
+	cleanup3:       CloseScreen(Screen);
+	cleanup2:       CloseLibrary(IntuitionBase);
+	cleanupl:       CloseLibrary(GfxBase);
+	return(0);
+     }
+
+/************************************************************/
+/* This Routine is executed by DoCollision() when a         */
+/* VSprite collides with a Border                           */
+/*----------------------------------------------------------*/
+/* Entry-Parameters: VSprite, that collided with a          */
+/*                   Border - and which Border              */
+/*----------------------------------------------------------*/
+/* Returned-Values: None                                    */
+/************************************************************/
+
+				    PAGE 463
+
+-----------------------------------------------------------------------------
+
+	VOID BordControler (VSprite, Border)
+	struct VSprite *VSprite;
+	BYTE Border;
+
+	{ 
+	if ((Border & TOPHIT) == TOPHIT)                    /* top */
+		      VSprite->VUserExt.vy *=-1;
+
+	if ((Border & BOTTOMHIT) == BOTTOMHIT)              /* Bottom */
+			VSprite->VUserExt.vy *=-1;
+
+	if ((Border & LEFTHIT) == LEFTHIT)                  /* Left */  
+			VSprite->VUserExt.vx *=-1;
+		
+	if ((Border & RIGHTHIT) == RIGHTHIT)                /* Right */ 
+			VSprite->VUserExt.vx *=-1;
+	}
+
+We have to inform you about a small problem with collision control. 
+DoCollision, which tetst all GELs in the GEL list for collision, doesn't 
+always work perfectly. It is possible for a collision to occur but not be 
+detected.
+
+The following is some information about an additional vsprite flag, 
+GELGONE. This flag affects not only vsprites, but also all collision 
+controls for bobs. When the system sets this flag (in VSprite.Flags) your 
+GEL (vsprite or bob) completely disappears from the area specified in your 
+Gelslnfo structure.
+
+Once you determine that this flag is set use RemVSprite to remove your 
+vsprite from the GEL list (the next use of DrawGList does not have to 
+calculate for it). To do the same for bobs use RemIBob or the macro RemBob, 
+which we will discuss in the next section.
+
+				PAGE 464
+
+-----------------------------------------------------------------------------
+
+18.2 Another GEL: the bob
+
+
+Just like vsprites, bobs (Blitler objects) are also graphic elements (GELS). 
+To display bobs, an initialised GelsInfo structure linked with a RastPort is 
+required. With other types of computers these graphic elements are called 
+"shapes". however, with the Amiga these elements are called bobs (Blitter 
+objects) because they are controlled through the Blitter.
+
+Unlike vsprites, these rectangular graphic objects can be any size you want. 
+The only limitation to their size is that the width must be a multiple of 16 
+(16, 32, 48...).
+
+Bobs are written directly into the bit-plane memory of a RastPort. This means 
+that bobs are automatically displayed in the same resolution and with as many 
+possible colors as the RastPort.
+
+Because of this, you define a bob's appearance the same way as a bit-
+plane. This is done by telling the Blitter which bit combinations
+(stored in UWORDs) should be written into the bit-plane memory.
+	
+Just defining the appearance of a bob in a UWORD array isn't enough.
+THe blitter also must know how large the bob is and how many bit-planes 
+it has.
+
+To accomplish this you must initialise an individual vsprite structure 
+for each bob. However, this does not mean that bobs are displayed as 
+vsprites. As we mentioned earlier, bobs are written directly into the 
+bitmap.
+
+				PAGE 465
+
+-----------------------------------------------------------------------------
+
+The size of your bob is specified in the vsprite structure variables 
+BOBvSprite.Height and BOBVSprite.Width. The width variable (BobVSprite.width) 
+contains the number of words (16 bits). You must also specify the addess of 
+the first bob bit-plane in BOBVSprite.ImageData.
+
+Their position is set the same way as vsprites. BOBVSprite.X sets the X 
+coordinates and BOBVSprite.Y sets the Y coordinate for your bob.
+
+For collision control, initialise the Memask and HitMask of the vsprite 
+structure. Collisions are managed much like they are for vsprites. 
+The buffer for Borderline must be at least as wide as one row of the bob. 
+The CollMask buffer must also be as large as one bob bit-plane. To 
+initialise them for bobs, use InitMasks (&BOBVSprite).
+
+One difference between vsprites and bobs is that the vsprite flag should 
+not be set to VSPRITE because this flag is not set when we use bobs.
+
+Also a color definition for bobs is not required as it is with vsprites 
+(VSprite.SprColors). Since bobs are written into the RastPort, they use the 
+colors of the RastPort. We have now reached another limiting factor. If you 
+want to use both bobs and vsprites in one RastPort you cannot use any colors 
+from registers 17 to 31 for your bobs. In other words, do not create any 
+bobs that are more than four bit-planes deep. For example, when displaying 
+vsprites with changing color values, your bob could start flickering in 
+the areas affected by the changed colors. If you need more than 16 colors 
+you can still use color registers 16, 20, 24, and 28. These registers are 
+used for the sprites transparent color and can also be used for vsprites.
+
+You set the depth for your bobs the same way as the vsprites - by using 
+BOBVSprite.Depth. However, with bobs this value is not constant and changes 
+depending on how you define your bobs. Also, the more bit-planes you define 
+for your bob, the more colors it can have.
+
+The vsprite structure isn't the only place your bob can be described. The 
+bob structure contains additional variables that provide more details 
+about your bob.
+
+You must also link the bob and corresponding vsprite structure together. 
+First you point a pointer in the bob structure to the required vsprite 
+structure (Bob.BobvSprite = &VSprite). Then you point a pointer in the 
+vsprite structure to the bob structure (VSprite.VSBob = Bob). The two 
+structures are now linked together.
+
+				PAGE 466
+
+-----------------------------------------------------------------------------
+	_______________________
+ ----->| BOSVsprite	       |
+ |     |=======================|
+ |     | Flags		       |
+ |     |-----------------------|
+ |     | Height		       |
+ |     |-----------------------|
+ |     | Depth		       |
+ |     |-----------------------|
+ |     | Image Data	       |
+ |     |-----------------------|
+ |     | Borderline            |
+ |     |-----------------------|
+ |     | Collmask      	       |
+ |     |-----------------------|      __________________________
+ |     | VSBob		       |---->| BOB                      |
+ |     |-----------------------|     |==========================|
+ |     | PlanePick	       |     |     Flags                |
+ |     |-----------------------|     |--------------------------|
+ |     | PlaneOnOff            |     |     SaveBuffer           | 
+ |     |_______________________|     |--------------------------|
+ |				     |     Image Shadow.	|  
+ |				     |--------------------------|
+ |___________________________________|     BobVSprite	        |
+ 				     |__________________________|
+
+		   THE RELEVANT VARIABLES FOR DISPLAYING BOBS.
+
+
+
+
+There is another pointer in the bob structure that is very important for 
+color display: Bob.ImageShadow. ImageShadow is the same as the CollMask, 
+a logical OR of all bit-plane rows of the bob.
+
+You may be wondering why there are two pointers for the same thing. 
+Actually, ImageShadow and CollMask are not quite the same. You can change 
+the CollMask after you use InitMasks. For example, you could change it so 
+that not all of the set bits of the bob's bit-plane respond to collisions. 
+Perhaps only one bit-plane is available for collision control.
+
+The relationship between the vsprite variables PlanePick and PlaneOnoff 
+give ImageShadow a different meaning. The bits in PlanePick determine which 
+bit-planes of the RastPort the bit-planes of a bob are written to. 
+Normally 0xff is written. This means that you copy, in order, all the bob 
+bit-planes to all the bit-planes of the RastPort. However, a value of 
+%00000101 = 0x05 has the following effect: You copy the first bob bit-plane 
+to the first RastPort bit-plane and copy the second bob bit-plane to the 
+third bit-plane of the RastPort.
+
+The PlaneOnOff variable determines what happens with the inactive bit-planes 
+of the RastPort. The default value here is 0x00. This means that nothing is 
+written to a RastPort bit-plane that is not selected with PlanePick. A 
+value of 0x2 means that ImageShadow is written to bit-plane two of the 
+RastPort.
+
+When all the variables and pointers of the vsprite structure are initialised 
+you are almost ready to initialise the GelsInfo structure.
+
+The bobs provide many more possibilities than vsprites because they are 
+actually designed for software control. You can program the functions of 
+the Blitter thru the 68000, but these routines are not as fast.
+
+				   PAGE 467
+
+-----------------------------------------------------------------------------
+
+For example, you could set the SAVEBOB flag in the flags variables of the bob 
+structure. This causes the bob to act like a brush, which draws over 
+the background. However, the background is not restored after the bob moves 
+over it.
+
+To restore the background after the bob moves, set the SAVEBACK flag, which 
+is located in the Vsprite.Flags variables. In addition, you must reserve 
+enough memory for as many bob bit-planes that will be written to the RastPort 
+(please note the uses of planepick and PlaneonOff). The bob software restores 
+the background and you provide the background memory address to 
+Bob.SaveBuffer.
+
+The OVERLAY flag, set in the vsprite structure, is used to prevent the unset 
+bits of the bob from being written to the RastPort. These bits allow the 
+original background to show through. The bob is actually ORed wilh the 
+bit-planes of the RastPort. It is important that, prior to this, you have 
+initialised ImageShadow for use with the OVERLAYs use Bob.ImageShadow = 
+BOBVSprite.Collmask after using InitMasks).
+
+All of the flags we have discussed up until now have been involved in the 
+displaying of bobs. However, there are other flags that aren't associated 
+with displaying bobs. When you determine that a bob is gone, this means 
+that the GELGONE flag in vSprite.Flags is set. You can use the macro 
+RemBob (&Bob) to set the BOBSAWAY flag.
+
+When the system knows that this flag is set, the next DrawGList call will 
+not draw the bob. If you want the bob to immediately disappear, call RemIBob 
+(the I stands for immediate) (&Bob, &RastPort, &ViewPort). This removes-the 
+bob from both the GEL list and the screen.
+
+You now know the complete procedure for displaying bobs. To design the bobs 
+in the RastPort, use DrawGList, which not only prepares the vsprites for 
+display but also designs the bobs in the RastPort. However, you must sort 
+the GEL list (SortGList) before using DrawGList.
+
+The following program demonstrates how to create, move and test bobs for 
+collisions:
+
+/***********************************************************************/
+/*                              Bobs.c                                 */
+/*                                                                     */
+/* Bobs test                                                           */
+/*                                                                     */
+/* Compiled with: Lattice V5                                           */
+/*                                                                     */
+/* (c) Bruno Jennrich                                                  */
+/***********************************************************************/       @!
+
+				PAGE 468
+
+-----------------------------------------------------------------------------
+
+struct  VSpriteExt {                    /* Our own Data that is */
+			int vx,vy;      /* linked with the      */
+		   };                   /* VSprite structure    */
+
+#define VUserStuff struct VSpriteExt
+				/* Must happen before #INCLUDES ! */
+
+#include        "exec/types.h"
+#include        "exec/memory.h" "
+#include        "exec/devices.h"
+#include        "devices/keymap.h"
+#include        "graphics/gfx.h"
+#include        "graphics/gfxmacros.h"
+#include        "graphics/copper.h"
+#include        "graphics/gels.h"
+#include        "graphics/collide.h"
+#include        "graphics/gfxbase.h"
+#include        "graphics/regions.h"
+#include        "hardware/blit.h"
+#include        "hardware/custom.h"
+#include        "intuition/intuition.h"
+#include        "intuition/intuitionbase.h"
+#include        "libraries/diskfont.h"
+#include        "hardware/dmabits.h"
+
+#define RP      Screen->RastPort                /* Access to RastPort */
+
+#define MAXBOBS 6                               /* How many Bobs ?    */
+struct GfxBase *GfxBase;                        /* BasePointer        */
+struct IntuitionBase *IntuitionBase;
+
+UWORD   *SaveBuffer;
+UWORD   *DBufBuffer;
+
+struct  NewScreen NewScreen =                   /* Our Screen         */
+	{
+	 0,0,320,199,3,
+	 1,0,
+	 0,
+	CUSTOMSCREEN | CUSTOMBITMAP,
+	NULL,
+	"",
+	NULL,NULL
+	};
+
+struct  Screen  *Screen;
+
+struct  BitMap  BitMap  [2];
+
+struct VSprite Start, Ende,             /* VSprites for GEL */
+	BobVSprite[MAXBOBS];            /* List */
+
+struct Bob Bob[MAXBOBS];
+UWORD *CollMask;                        /* for Chip-Mem allocation */
+
+UWORD BorderLine[MAXBOBS][2];           /* Bobs Borderline         */
+
+struct GelsInfo GelsInfo;               /* GelsInfo must be        */
+					/* completely initialised  */
+					/* before using VSprites!  */
+
+WORD Nextlines[8] = {0,0,0,0,0,0,0,0};
+
+				PAGE 469
+
+-----------------------------------------------------------------------------
+
+					/* Nextline-Array for GInfo */
+
+UWORD *lastColors[8] = {0,0,0,0,0,0,0,0};
+					/* lastColor-Array for GInfo */
+
+struct collTable collTable;
+					/* Collisions-Jump Table */
+
+struct DBufPacket *DBufPackets,*HelpPack;       /* for Chip-Mem  */
+
+UWORD *Image,*Help;
+UWORD Baloon[46*2*2] =                  /* 46 Rows of 2 WORDs   */
+		{                       /* and everything twice */
+	
+		0x0007,0xf000,          /* Bob-Plane 1 */
+		0x0019,0x6400,
+		0x0073,0x3300,
+		0x00e3,0x3880,
+		0x01c7,0x1c40,
+		0x03c7,0xlc20,
+		0x0387,0x1e20,
+		0x0787,0x1e10,
+		0x078f,0x0e10,
+		0x0f8f,0x0e08,
+		0x0f0f,0x0f08,
+		0x0f0f,0x0f08,
+		0x0f0f,0x0f08,
+		0x0f0f,0x0f08,
+		0x0f0f,0x0f08,
+		0x0f0f,0x0f08,
+		0x0f0f,0x0f08,
+		0x0f0f,0x0f08,
+		0x070f,0x0f10,
+		0x070f,0x0f10,
+		0x0307,0x1f20,
+		0x0307,0x1f20,
+		0x0187,0x1e40,
+		0x0187,0x1e40,
+		0x0087,0x1e80,
+		0x0087,0x1e80,
+		0x0043,0x1d00,
+		0x0043,0x3d00,
+		0x0023,0x3e00,
+		0x0023,0x3a00,
+		0x0003,0x3800,
+		0x001f,0xfc00,
+		0x000f,0xf800,
+		0x000f,0xf800,
+		0x0007,0xf000,
+		0x0004,0x1000,
+		0x0004,0x1000,
+		0x0006,0x3000,
+		0x0002,0xa000,
+		0x0002,0xa000,
+		0x0003,0xe000,
+		0x0003,0xe000,
+		0x0007,0xf000,
+		0x0007,0xf000,
+		0x0007,0xf000,
+		0x0007,0xf000,
+
+				PAGE 470
+
+-----------------------------------------------------------------------------
+
+		0x0000,0x0000,                  /* Bob-Plane 2 */
+		0x0006,0x9800,
+		0x000c,0xcc00,
+		0x001c,0xc700,
+		0x0038,0xe380,
+		0x0038,0xe3c0,
+		0x0078,0xe1c0,
+		0x0078,0xe1e0,
+		0x0070,0xf1e0,
+		0x0070,0xf1e0,
+		0x00f0,0xf0f0,
+		0x00f0,0xf0f0,
+		0x00f0,0xf0f0,
+		0x00f0,0xf0f0,
+		0x00f0,0xf0f0,
+		0x00f0,0xf0f0,
+		0x00f0,0xf0f0,
+		0x00f0,0xf0f0,
+		0x00f0,0xf0e0,
+		0x00f0,0xf0e0,
+		0x00f8,0xe0c0,
+		0x00f8,0xe0c0,
+		0x00f8,0xe180,
+		0x0078,0xe180,
+		0x0078,0xe100,
+		0x0078,0xe100,
+		0x003c,0xe200,
+		0x003c,0xe200,
+		0x001c,0xc000,
+		0x001c,0xc400,
+		0x001c,0xc400,
+		0x0000,0x0000,
+		0x0000,0x0000,
+		0x0000,0x0000,
+		0x0000,0x0000,
+		0x0004,0x1000,
+		0x0004,0x1000,
+		0x0006,0x3000,
+		0x0002,0xa000,
+		0x0002,0xa000,
+		0x0003,0xe000,
+		0x0003,0xe000,
+		0x0007,0xf000,
+		0x0007,0xf000,
+		0x0007,0xf000,
+		0x0007,0xf000,
+	     };
+
+VOID BackController();                  /* Our Routine that is     */   
+					/* executed for Collisions */ 
+					/* with the Border         */
+
+VOID GelCol();                          /* Routine, executed for   */
+
+					/* Gel-Gel collisions.  */
+
+/**************************************************************************/
+/* Herewego !                                                             */
+/**************************************************************************/
+
+main()
+{
+
+				PAGE 471
+
+-----------------------------------------------------------------------------
+
+long i,j;
+int Iength;
+long toggle;
+char *IeftMouse = (char *) 0xBFE001;
+						/* Left Mouse Button */
+
+if ((GfxBase = (struct GfxBase *)
+	OpenLibrary("graphics.library",0)) == NULL)
+	{
+	 printf ("NoGraphics!\n");
+	 exit(0);
+	}       
+
+if (IntuitionBase = (struct IntuitionBase *)
+	OpenLibrary("Intuition.library",0)) = NULL)
+	{
+	 printf ("No Intuition!\n");
+	 goto cleanup1;
+	}
+
+InitBitMap (&BitMap[0], NewScreen.Depth, 
+	       NewScreen.Width, NewScreen.Height);
+
+InitBitMap (&BitMap[1], NewScreen.Depth, 
+	       NewScreen.Width, NewScreen.Height);
+
+for (i=0; i<2; i++)
+       for (j=0; j<NewScreen.Depth; j++)
+	 {
+	   BitMap[i].Planes[j] - (PLANEPTR) AllocRaster
+		(NewScreen.Width, NewScreen.Height);
+	   if ((BitMap[il.Planes[j]) == NULL)
+		{
+		  printf (" No Space for BitMaps\n");
+		  goto cleanup2;
+		}
+	   else BltClear (BitMap[i].Planes[j],
+		RASSIZE (NewScreen.Width, NewScreen.Height),0);
+	 }
+
+NewScreen.CustomBitMap = &BitMap[0];
+
+Screen = (struct Screen *) OpenScreen (&NewScreen);
+if (Screen == 0) {
+		   printf ("No Screen!\n");
+		   goto cleanup3;
+		 }
+
+Image =  (UWORD *)
+    AllocMem (MAXBOBS*2*2*46*sizeof(UWORD),MEMF_CHIP);
+					/* Bob definition:       */
+					/* 2 WORD width, 46 high */
+					/* 2 Planes deep         */
+SaveBuffer =  (UWORD *)
+	AllocMem (MAXBOBS*3*2*46*sizeof(UWORD),MEMF_CHIP); 
+					/* 2 WORD width, 46 high */
+					/* 3 Planes (planeOnOff)!*/ 
+DBufBuffer =  (UWORD*)
+	AllocMem (MAXBOBS*3*2*46*sizeof(UWORD),MEMF_CHIP);
+
+CollMask = (UWORD *)
+
+				PAGE 472
+
+-----------------------------------------------------------------------------
+
+AllocMem (MAXBOBS*2*46*sizeof(UWORD),MEMF_CHIP); 
+			/*Bobs Collision         */
+			/* Mask                  */
+			/* (46 Rows of 2 Words) */
+
+DBufPackets = (struct DBuffPacket *)
+
+AllocMem(sizeof(struct DBuffPacket) * MAXBOBS, 
+			MEMF_CLEAR | MEMF_CHIP);
+
+if ((SaveBuffer == 0) | (DBufBuffer == 0) |
+	(CollMask ==0 ) |  (DBufPackets == 0 ) |
+	(Image == 0))
+	{
+		printf (" No Chip Memory for Bobs !!! \n") ;
+		goto cleanup4;
+	)
+
+Help = Image;
+
+for (i=0; i<2*2*46; i++)
+	{
+	*Help = Baloon[i];
+	Help++;
+	}                               /* Copy BOB to Chip-Mem */
+
+SetRGB4 (&Screen->ViewPort,0,0,5,15);
+					/* A little Color       */
+SetRast (&RP,0);
+SetAPen (&RP,2);
+
+RP.BitMap = &BitMap[1];
+
+Length = TextLength (&RP,"Balloons in Action !!!",21); 
+Move (&RP,320/2-Length/2,100);
+Text (&RP,"Balloons in Action !!!",21);
+
+RP.BitMap = &BitMap[0];
+Move (&RP,320/2-Length/2,100);
+Text (&RP,"Balloons in Action !!!",21);
+
+BltClear (&Start, sizeof(struct VSprite),0);
+
+BltClear (&Ende, sizeof(struct VSprite),0);
+
+BltClear (&GelsInfo, sizeof(struct GelsInfo),0); 
+BltClear (BobVSprite, sizeof(struct VSPrite)*MAXBOBS,0); 
+BltClear (Bob, sizeof(struct Bob)*MAXBOBS,0);
+BltClear (&collTable, sizeof(collTable),0);
+					/* To be sure clear everything */
+
+GelsInfo.sprRsrvd = 0xfc;
+			/* All Sprites except       */ 
+			/* 0 and 1 for VSprites ! ! */
+
+GelsInfo.nextLine = Nextlines;
+GelsInfo.lastColor = lastColors;
+GelsInfo.collHandler = &collTable;
+
+GelsInfo.leftmost = 1;  /* Limits for   */
+
+				PAGE 473
+
+-----------------------------------------------------------------------------
+
+GelsInfo.rightmost = 318;       /* Border Collision */
+GelsInfo.topmost = 13;
+GelsInfo.bottommost = 198;
+
+				/* Initialise GelsInfo and */
+
+InitGels (&Start, &Ende, &GelsInfo);
+RP.GelsInfo - &GelsInfo; /* link with RastPort */
+
+SetCollision (0,BackController,&GelsInfo); 
+SetCollision (0,GelCol,&GelsInfo);
+
+HelpPack = DBufPackets;
+for (i=0; i<MAXBOBS; i++)
+	{
+	BobVSprite[i].Width = 2;                /* 2 WORDs width */     
+	BobVSprite[i].Height = 46;              /* 46 Rows High  */ 
+	BobVSprite[i].Flags = OVERLAY | SAVEBACK;
+
+	BobVSprite[i].Depth = 2;                /*2'Planes'      */ 
+	BobVSprite[i].ImageData = Image; 
+	BobVSprite[i].MeMask = 0x2;             /* GEL Collision */ 
+	BobVSprite[i].HitMask = 0x3;            /* but with Bord */ 
+	BobVSprite[i].PlanePick = 0x05;         /* Plane 1 & 3   */ 
+	BobVSprite[i].PlaneOnOff = 0x02;        /* Plane 2       */
+
+	BobVSprite[i].CollMask = CollMask+i*2*46; 
+	BobVSprite[i].BorderLine = &BorderLine[i][0];
+
+	BobVSprite[i].X = 11+i*(320/MAXBOBS-10);
+	BobVSprite[i].Y = 15+i*(200/MAXBOBS-10);
+						/* Position      */
+
+	BobVSprite[i].VUserExt.vx = 1;          /* individual    */ 
+	BobVSprite[i].VUserExt.vy = 1;          /*Speed          */
+
+	Bob[i].Flags = 0; 
+	Bob[i].Bobvsprite = &BobVSprite[i];
+	BobVSprite[i].VSBob = &Bob[i];
+	Bob[i].ImageShadow = CollMask+i*2*46;
+					/* Image Shadow must be stored */
+					/* in ChipMemory.              */
+
+	Bob[i].SaveBuffer = SaveBuffer+i*3*2*46; 
+	Bob[i].DBuffer = HelpPack;
+	
+	HelpPack->BufBuffer = DBufBuffer+i*3*2*46;      
+	HelpPack++;
+
+	InitMasks(&BobVSprite[i]);
+					/* Calculate CollMask */ 
+					/* and Borderline     */
+
+	AddBob(&Bob[i], &RP);
+					/* Place in List      *
+    }
+
+	SetRGB4 (&Screen->ViewPort, 0x5+0x2,0,0,0);
+	SetRGB4 (GScreen->ViewPort, 0x1+0x2,15,0,0);
+		/* Plane 2 is always written with Shadow        */
+
+	SetRGB4 (&Screen->ViewPort, 0x4+0x2,15,15,15);
+
+				PAGE 474
+
+-----------------------------------------------------------------------------
+
+	toggle = 1;
+
+	while((*LeftMouse & 0x40) == 0x40)
+	    {
+		for(i=0;i<MAXBOBS;i++)
+		    {
+			BobVSprite[il.Y +=
+			   BobVSprite[i].VUserExt.vy;
+			BobVsprite[i].X +=
+			   BobVSprite[i].VUserExt.vx;
+					/* Move VSprites */
+		    }
+
+	SortGList(&RP);                         /* new Sort */
+	DoCollision (&RP);                      /* Collisions test */
+	DrawGList (&RP, &Screen->ViewPort);
+						/* Generate Copper-List */
+	WaitTOF();
+	RemakeDisplay();
+	Screen->ViewPort.Rasinfo->BitMap = &Bitmap[toggle];
+	RP.BitMap = &BitMap[toggle];
+	toggle ^= 1;
+	}
+
+	cleanup4:
+	if (Image != 0)
+		FreeMem (Image, MAXBOBS*2*2*46* sizeof(UWORD));
+	if (SaveBuffer != 0)
+		FreeMem(SaveBuffer,MAXBOBS*3*2*46*sizeof(UWORD));
+	if (DBuffBuffer != 0)
+		FreeMem(DBufBuffer,MAXBOBS*3*2*46*sizeof(UWORD));
+	if (CollMask != 0)
+		FreeMem(CollMask,MAXBOBS*2*46*sizeof(UWORD));
+	if (DBufPackets != 0)
+		FreeMem(DBufPackets,sizeof(struct DBufPacket) *MAXBOBS);
+
+		CloseScreen (Screen);
+	cleanup3: for (i=0; i<2; i++)
+		    for (j=0; j<NewScreen.Depth; j++)
+		      if ((BitMap[i].Planes[j] != NULL)
+			{
+			FreeRaster(Bitmap[i].Planes[j],
+			NewScreen.Width,NewScreen.Height);
+			}
+
+	cleanup2: CloseLibrary (IntuitionBase);
+	cleanupl: CloseLibrary (GfxBase);
+	return(0);
+    }
+
+/*********************************************************************/
+/* This Routine is executed by DoCollision() when a                  */
+/* VSprite collides with the Border                                  */
+/*-------------------------------------------------------------------*/
+/* Entry-Parameters: VSprite, colliding with the Border              */
+/*                   and which Border                                */
+/* ------------------------------------------------------------------*/
+/* Returned-Values: None                                             */
+/*********************************************************************/
+
+VOID BackController (VSprite, Border)
+struct VSprite *VSprite;
+
+				PAGE 475
+
+-----------------------------------------------------------------------------
+
+	Byte Border;
+	{
+
+	    if((Border & TOPHIT) == TOPHIT)             /* Top    */
+		VSprite->VUserExt.vy *=-1;
+	    if((Border & BOTTOMHIT) == BOTTOMHIT)       /* Bottom */
+		VSprite->VUserExt.vy *=-1;
+	    if((Border & LEFTHIT) == LEFTHIT)           /* Left   */
+		VSprite->VUserExt.vx *=-1;
+	    if((Border & RIGHTHIT) == RIGHTHIT)         /* Right  */
+		VSprite->VUserExt.vx *=-1;
+	}
+
+	VOID GelCol(VSpriteleftabove, VSpriterightunder) 
+	struct VSprite *VSpriteleftabove,
+			*Vspriterightunder;
+	{
+		VSpriteleftabove->VUserExt.vx *= -1;    
+		VSpriteleftabove->VUserExt.vy *= -1;
+
+		VSpriterightunder->VUserExt.vx *= -1;
+		Vspriterightunder->VUserExt.vy *= -1;
+	}
+
+
+18.2.1 Bobs in buffered bit-maps
+
+In the previous example we used the Double Buffering technique. When moving 
+many and/or large bobs, it is possible for you to see the bobs being drawn. 
+After moving a bob, the background is restored and the bob is redrawn. This 
+can produce an annoying flickering effect To avoid this, draw your bobs in 
+one bit-map while displaying a second bit-map. Then switch bit-maps When 
+you have finished drawing your bob.
+
+Our program uses an Intuition screen to display the bobs. We will now 
+explain how Intuition manages this display mode.
+
+Intuition automatically recognizes the hi-res, Interlace, HAM and 
+HlafBrite modes. However, the dualplayfield and double buffering modes 
+are programmed by the user. In our example program we demonstrated the 
+double buffering functions with  Intuition. You declare the screen with a 
+custom bit-map. Then you initialise two identically sized bitmaps and 
+switch between them by alternating the Rasinfo structure information for 
+the screens. After switching, you use RemakeDisplay to calculate the Copper 
+list for the new current bitmap. You can also display vsprites at the same 
+time (you don't always have to create a new Copper list for bobs).
+
+To install the DuALPF mode for Intuition screens use the following procedure. 
+First declare the screen as a custom bit-map and put in your
+
+				PAGE 476
+
+-----------------------------------------------------------------------------
+
+own bit-maps. These bit-maps cannot have more than three bit-planes. You 
+can create an additional RasInfo structure that points to one bitmap 
+(Rasinfo2.BitMap = MyBitMap2) and link it with (Screen-ViewPort.Rasinfo.Next 
+= &RasInfo2;). Then point the first bit-map to the existing RasInfo 
+structure (Screen>ViewPort.Rasinfo.BitMap = &MyBitMap1;)  After 
+RemakeDisplay two bitplanes are displayed (First you must set the 
+DUALPF mode in the NewScreen structure).
+
+You should prevent any screen movement while using these two modes because 
+new Copper lists will be created. This conflict can cause a system crash. 
+Also, place windows in the screens that are unmovable (we have prevented 
+this in our program by ending the program on any mouse click).
+
+We must set up our bobs to support the Double Buffering mode. When we want 
+to save the bobs' background (vsprite.Flags = SAVEBACK), We must save the 
+background from both bit-maps.
+
+Remember to reserve more memory and save the bit-map background positions 
+for storing both bit-maps. Store the first bit-maps position in the variables 
+vsprite.oldX and vsprite.oldY. The background ilself is in the 
+Bob.SaveBuffer. The background and the position of the second bit-map are 
+located in DBufPacket. You inform your bob about the DBufpacket structure 
+with Bob.DBuffer = &DBufPacket.When this pointer is not equal to zero, the 
+system will know that your bobs are using DoubleBuffering. This must apply 
+to all bobs or none.
+
+In order for Double Buffering to function properly, a memory area address to 
+the variable DBufpacket.BufBuffer must be provided. This area is used for 
+the background of the second bit-map and it must be the same size as the 
+SaveBuffer. The system will take care of the rest.
+
+When restoring the background, there is another technique, besides 
+double buffering, for displaying bobs without the flickering effect. 
+Simply wait for the electronic beam to reach the top row of the monitor 
+(waitTOF helps us here). Before the electronic beam can reach the first row 
+of the data on the displayed bit-map, you can restore the old background 
+and draw the new bob with DrawGList. Then the electronic beam displays the 
+rest of the picture. Anything that happens after this will not be displayed 
+because the electronic beam is already at another location.
+
+However, this method only works with smaller and fewer numbers of bobs, 
+not with large bobs. Also, you shouldn't move your bobs too
+
+				PAGE 477
+-----------------------------------------------------------------------------
+
+close to the upper screen border. The electronic beam is extremely fast 
+and drawing the bobs requires some time.
+
+				PAGE 478
+
+-----------------------------------------------------------------------------
+			    > Now load part 6 <
+-----------------------------------------------------------------------------
+

@@ -1,0 +1,821 @@
+G4C ;<== Muss in der ersten Zeile stehen!!!
+
+;Schön das Sie sich Mein Werk näher betrachten
+;Diese Programm hatte eine Entwicklungszeit von 4 Wochen
+;
+;$VER: Euro Trade v1.0 (10.08.2001) - ©2001 Nightshade (thenightshade@freenet.de)
+;
+;Dieses Programm wurde mit GoldED 4 PRO, von der "AmigaFuture©20" geschrieben
+;Das Piktogramm von Euro Trade ist von Nightshade, und wurde mit Iconian erstellt
+;Die weiteren Piktogramme sind Default-Icons, die im Gui4Cli-Paket beilagen
+;Die hier verwendeten Fonts sind von der "Amiga plus CD 2/2001"
+;Gui4Cli Version 3.8.5
+
+WinBig 0 24 640 53 ""
+WinType 00001100
+winbackground image winbg 0
+screen EUROTRADE
+varpath "anzahl"
+
+xOnLoad
+   ;Ränder setzten
+   set tbmargins 5/4       ;ist der Vorgabewert
+   set margins 5/0/8       ;Normal ist 5/10/2
+
+   ;Laden
+   guiopen lade
+
+   update lade 1 0
+   delay 40
+
+   ;Bildschirmtitel
+   version   = v1.0
+   date      = 10.08.2001
+   copyright = ©2001
+   name      = Nightshade
+   mailme    = thenightshade@freenet.de
+   scrtitle  = "Euro Trade $version ($date) - $copyright $name ($mailme) - EmailWare!"
+
+   update lade 1 10
+   delay 10
+
+   ;Zuweisung setzten
+   extract #this guipath assignhere
+   assign ETrade: $assignhere
+
+   update lade 1 15
+   delay 10
+
+   ;WCP Sounds von der "Amiga plus CD 1/99"
+   loadsound ETrade:Sounds/CashRegister.snd nextsnd
+   loadsound ETrade:Sounds/ClassicBeep.snd   buysnd
+   loadsound ETrade:Sounds/CrashTinkle.snd  quitsnd
+   loadsound ETrade:Sounds/ShortBeep.snd    sellsnd
+
+   update lade 1 25
+   delay 10
+
+   ;Gui4Cli Sounds von der "Amiga plus CD 3/2000"
+   loadsound ETrade:Samp/Click3    reqsnd
+   loadsound ETrade:Samp/Click2 selectsnd
+   loadsound ETrade:Samp/Click1  closesnd
+   loadsound ETrade:Samp/On       opensnd
+   loadsound ETrade:Samp/off      movesnd
+
+   update lade 1 50
+   delay 10
+
+   ;Bilder laden
+   ;Die folgenen Bilder wurden von Nightshade erstellt mit
+   ;"Personal Paint 6.4" von der "Amiga plus - Cover Disk"
+   loadimage ETrade:Bilder/winbg           winbg noremap
+   loadimage ETrade:Bilder/winbar           tbar noremap
+   loadimage ETrade:Bilder/kaufen1          buy1 noremap
+   loadimage ETrade:Bilder/kaufen2          buy2 noremap
+   loadimage ETrade:Bilder/verkaufen1      sell1 noremap
+   loadimage ETrade:Bilder/verkaufen2      sell2 noremap
+   loadimage ETrade:Bilder/weiter1         next1 noremap
+   loadimage ETrade:Bilder/weiter2         next2 noremap
+   loadimage ETrade:Bilder/ende1           quit1 noremap
+   loadimage ETrade:Bilder/ende2           quit2 noremap
+   loadimage ETrade:Bilder/kaufen_aus      nobuy noremap
+   loadimage ETrade:Bilder/verkaufen_aus  nosell noremap
+   loadimage ETrade:Bilder/hiscores1   hiscores1 noremap
+   loadimage ETrade:Bilder/hiscores2   hiscores2 noremap
+   loadimage ETrade:Bilder/hiscores_aus noscores noremap
+
+   update lade 1 100
+
+   ;Lade-Fenster schliessen
+   delay 100
+   guiclose lade
+
+   ;Bildschirm initialisieren
+   makescreen EUROTRADE 640/77/5/0x29000/newtopaz.font/8 "Euro Trade Screen" ;PAL HighRes Screenmode
+   c = 270
+   while $c >= 190
+      --c
+      movescreen #EUROTRADE 0 $c ;Bildschirm nach obenschieben
+      playsound movesnd
+   endwhile
+
+   ;Farbparlette ändern
+   palette set winbg EUROTRADE
+
+   ;Kopiere HiScores nach T:
+   copy ETrade:ETrade.HiScores T:ETrade.temp
+
+   ;Fenster öffnen
+   guiload ETrade:HiScoreTable
+   guiload anzahl
+   guiload titlebar
+   guiopen titlebar
+   GuiOpen #This
+   gosub #this go
+
+xroutine go
+   ;Titel ändern
+   setscreentitle #this $scrtitle
+
+   ;Intro
+   guiwindow #this wait
+   guiwindow titlebar wait
+      setpointer #this hide
+      setpointer titlebar hide
+         string = "Herzlich Willkommen bei Euro Trade!"
+         delay 50
+            update titlebar 1 $string
+            redraw titlebar
+               gosub #this move in
+               delay 200
+                  setpointer #this default
+                  setpointer titlebar default
+                     guiwindow #this resume
+                     guiwindow titlebar resume
+                        playsound reqsnd
+                           gosub #this start_game
+                           gosub #this title
+
+xroutine start_game
+   ;Setze Variablen
+   gosub #this set_vars
+
+   ;Titel anzeigen
+   guiwindow #this wait
+   guiwindow titlebar wait
+      gosub #this move down
+      gosub #this title
+      gosub #this move up
+   guiwindow #this resume
+   guiwindow titlebar resume
+
+   ;Kauf/Verkauf
+   gosub anzahl check
+
+   ;Buttons einstellen
+   gosub #this setbutton1
+   gosub #this setbutton2
+
+xroutine set_vars
+   ;Fenster blockieren
+   guiwindow #this wait
+   guiwindow titlebar wait
+
+   ;Levelauswahl
+   ezreq "Bitte wählen Sie den Schwierigkeitsgrad:" Leicht|Normal|Schwer level
+   playsound selectsnd
+   if $level = 1
+      maxrunden = 100
+   elseif $level = 2
+      maxrunden = 75
+   elseif $level = 0
+      maxrunden = 50
+   endif
+
+   ;Variabeln setzten
+   geld    = 500
+   aktien  = 0
+   runde   = 0
+   kurs    = $($$Rand.998 + 1)
+   anzahl  = 1
+
+   ;Flash Counter
+   counter = 0
+
+   ;Fenster befreien
+   guiwindow #this resume
+   guiwindow titlebar resume
+
+xroutine title
+   title = "Konto: $geld Euro - Depot: $aktien\% - Runde: $runde\/$maxrunden - Kurs: $kurs Euro"
+   update titlebar 1 $title
+   redraw titlebar
+
+xonRMB
+   ;Rechte Maustaste
+   guiopen anzahl
+
+xonkey #32
+   ;Leertaste
+   guiopen anzahl
+
+xonkey #R
+   gosub #this help
+
+xroutine help
+   if $$RAWKEY.CODE == 80    ;<- Taste F1
+      guiwindow #this wait
+      guiwindow titlebar wait
+         guiscreen #this back
+            cli "SYS:Utilities/MultiView ETrade:EuroTrade.Guide"
+         guiscreen #this front
+      guiwindow #this resume
+      guiwindow titlebar resume
+   endif
+
+xOnClose
+   ;Kopiere HiScores nach ETrade:
+   copy T:ETrade.temp ETrade:ETrade.HiScores
+
+   ;Ordnung muss sein!!!
+   delete T:ETrade.temp
+
+   ;Titelfenster schliessen
+   guiclose titlebar
+
+   ;Fenster runterschieben
+   c = 190
+   while $c <= 270
+      ++c
+      playsound reqsnd
+      movescreen #EUROTRADE 0 $c ;Bildschirm nach untenschieben
+   endwhile
+
+   ;Bilder freigeben
+   freeimage winbg
+   freeimage tbar
+   freeimage buy1
+   freeimage buy2
+   freeimage nobuy
+   freeimage nosell
+   freeimage sell1
+   freeimage sell2
+   freeimage next1
+   freeimage next2
+   freeimage quit1
+   freeimage quit2
+   freeimage hiscores1
+   freeimage hiscores2
+   freeimage noscores
+
+   ;Sounds freigeben
+   freesound reqsnd
+   freesound selectsnd
+   freesound movesnd
+   freesound closesnd
+   freesound opensnd
+   freesound nextsnd
+   freesound buysnd
+   freesound quitsnd
+   freesound sellsnd
+
+   ;GUIs Beenden
+   guiquit lade
+   guiquit anzahl
+   guiquit titlebar
+   guiquit HiScoreTable
+   GuiQuit #This
+
+   ;Bildschirm schliessen
+   killscreen EUROTRADE
+
+   ;Zuweisung entfernen
+   assign ETrade: remove
+
+;Image Buttons
+image 18 10 nobuy
+   ;Kaufen
+   gadid 1
+
+image 118 10 nosell
+   ;Verkaufen
+   gadid 2
+
+image 455 10 next1
+   ;Weiter
+   gadid 3
+
+image 553 10 quit1
+   ;Ende
+   gadid 4
+
+image 290 10 hiscores1
+   ;Hi-Scores
+   gadid 5
+
+;HiScore Tabelle Öffnen, und mit Rechter Maustaste schliessen
+xarea 296 10 126 32 none
+   gadkey h
+   ifexists window HiScoreTable
+      ;Falls die HiScore Tabelle schon geöffnet ist - Stoppen!!!
+      stop
+   endif
+   playsound reqsnd
+   guiwindow #this wait
+   guiwindow titlebar wait
+   changeimage #this 5 -1 -1 hiscores2
+   delay 15
+   changeimage #this 5 -1 -1 hiscores1
+   delay 15
+   guiopen HiScoreTable
+
+;Ändere Kaufen-Button
+xroutine setbutton1
+   if $betrag <= $geld
+   and $($aktien + $anzahl) <= 100
+      x = $($geld - $betrag)
+      k = 0
+      if $x < 0
+         x = $($betrag - $geld)
+         k = 0
+      endif
+   else
+      k = 1
+   endif
+
+   if $k = 0
+      if $button1 != 0
+         button1 = 0
+         changeimage #this 1 -1 -1 buy1     ;<= Button ist inkraft
+      endif
+   else
+      if $button1 != 1
+         button1 = 1
+         changeimage #this 1 -1 -1 nobuy    ;<= Button ist außerkaft
+      endif
+   endif
+
+;Ändere Verkaufen-Button
+xroutine setbutton2
+   if $aktien <= 100
+   and $aktien >= 0
+   and $aktien >= $anzahl
+      v = 0
+   else
+      v = 1
+   endif
+
+   if $v = 0
+      if $button2 != 0
+         button2 = 0
+         changeimage #this 2 -1 -1 sell1    ;<= Button ist inkraft
+      endif
+   else
+      if $button2 != 1
+         button2 = 1
+         changeimage #this 2 -1 -1 nosell   ;<= Button ist außerkraft
+      endif
+   endif
+
+;Zufällige Ereignisse
+xroutine random_events
+   ifexists variable ~oldev
+      oldev = 0
+   endif
+   gosub #this new_randev
+
+xroutine new_randev
+   randev = $$RAND.24
+   if $randev != $oldev
+      oldev = $randev
+      gosub #this set_random_events
+   else
+      gosub #this new_randev
+   endif
+
+xroutine set_random_events
+   docase $randev
+     case = 1
+            ezreq "Sie haben 50000 Euro geerbt!" "Fein!" ""
+            playsound selectsnd
+            geld = $($geld + 50000)
+            break
+     case = 2
+            if $($geld - 50000) >= 0
+               ezreq "Sie haben sich ein Auto\nfür 50000 Euro gekauft!" "Brum!" ""
+               playsound selectsnd
+               geld = $($geld - 50000)
+            endif
+            break
+     case = 3
+            if $($aktien + 10) <= 100
+               ezreq "Durch einen Absturz des Börsen-Computer\nhaben Sie nun 10% Aktien mehr!" "Juppi!" ""
+               playsound selectsnd
+               aktien = $($aktien + 10)
+            endif
+            break
+     case = 4
+            if $($aktien - 10) >= 0
+               ezreq "Durch einen Absturz des Börsen-Computer\nhaben Sie nun 10% Aktien weniger!" "Oh, nöh!" ""
+               playsound selectsnd
+               aktien = $($aktien - 10)
+            endif
+            break
+     case = 5
+            ezreq "Sie bekommen 5000 Euro Steuern zurückgezahlt!" "Super!" ""
+            playsound selectsnd
+            geld = $($geld + 5000)
+            break
+     case = 6
+            if $($geld - 5000) >= 0
+               ezreq "Sie müssen 5000 Euro Steuern nachzahlen!" "Mist!" ""
+               playsound selectsnd
+               geld = $($geld - 5000)
+            endif
+            break
+     case = 7
+            if $($geld - 250) >= 0
+               ezreq "Beim letzten Aktienkauf wurde\nIhnen 250 Euro zuviel abgebucht!" "Was!" ""
+               playsound selectsnd
+               geld = $($geld - 250)
+            endif
+            break
+     case = 8
+            ezreq "Beim letzten Aktienverkauf wurde\nIhnen 250 Euro zuviel aufgezahlt!" "Stark!" ""
+            playsound selectsnd
+            geld = $($geld + 250)
+            break
+     case = 9
+            if $($geld - 25000) >= 0
+               ezreq "Ihr Fahrer hat bei einer Spritztour einen Unfall gebaut,\nSie müssen 25000 Euro an das Unfallopfer zahlen!" "Au, Backe!" ""
+               playsound selectsnd
+               geld = $($geld - 25000)
+            endif
+            break
+     case = 10
+            ezreq "Beim joggen wurden Sie von einem Auto angefahren,\nSie bekommen 25000 Euro Schadenserzatz!" "Autsch!" ""
+            playsound selectsnd
+            geld = $($geld + 25000)
+            break
+     case = 11
+            if $($aktien - 25) >= 0
+               ezreq "Ihr Börsenmarkler hat 25% Ihres Depots mitgehen lassen!" "Dieser Mistkerl!" ""
+               playsound selectsnd
+               aktien = $($aktien - 25)
+            endif
+            break
+     case = 12
+            if $($aktien + 25) <= 100
+               ezreq "Die Polizei hat Ihren Börsenmarkler mit 25% Ihres Depots geschnappt!" "Ab in den Knast mit ihm!" ""
+               playsound selectsnd
+               aktien = $($aktien + 25)
+            endif
+            break
+   endcase
+
+;Kaufen-Button
+xarea 18 10 92 32 none
+   gadkey +
+   if $button1 = 1
+      ;Wenn Button außerkraftgesetzt ist, stoppen
+      stop
+   endif
+   guiwindow #this wait
+   guiwindow titlebar wait
+   changeimage #this 1 -1 -1 buy2
+   playsound buysnd
+   delay 15
+   changeimage #this 1 -1 -1 buy1
+   delay 15
+   if $geld >= $kurs
+   and $aktien != 100
+      menge = $($anzahl * $kurs)
+      if $menge <= $geld
+         w = $($geld - $menge)
+         if $w < 0
+           w = $($menge - $geld)
+         endif
+         geld = $w
+      else
+         geld = $menge
+      endif
+      aktien = $($aktien + $anzahl)
+      gosub #this title
+   endif
+   gosub #this setbutton1
+   gosub #this setbutton2
+   guiwindow #this resume
+   guiwindow titlebar resume
+
+;Verkaufen-Button
+xarea 118 10 130 32 none
+   gadkey -
+   if $button2 = 1
+      ;Wenn Button außerkraftgesetzt ist, stoppen
+      stop
+   endif
+   guiwindow #this wait
+   guiwindow titlebar wait
+   changeimage #this 2 -1 -1 sell2
+   playsound sellsnd
+   delay 15
+   changeimage #this 2 -1 -1 sell1
+   delay 15
+   if $aktien >= 0
+      geld = $($geld + ($anzahl * $kurs))
+      aktien = $($aktien - $anzahl)
+      gosub #this title
+   endif
+   gosub #this setbutton1
+   gosub #this setbutton2
+   guiwindow #this resume
+   guiwindow titlebar resume
+
+;Weiter-Button
+xarea 455 10 90 32 none
+   gadkey #13
+   guiwindow #this wait
+   guiwindow titlebar wait
+   changeimage #this 3 -1 -1 next2
+   playsound nextsnd
+   delay 15
+   changeimage #this 3 -1 -1 next1
+   delay 15
+   ezreq "Wollen Sie diese Runde beenden?" Weiter|Abbrechen weiter
+   playsound selectsnd
+   guiwindow #this resume
+   guiwindow titlebar resume
+   if $weiter = 1
+      if $geld >= 500000
+         guiwindow #this wait
+         guiwindow titlebar wait
+            while $counter < 10
+               flash
+               delay 15
+               ++counter
+            endwhile
+            playsound reqsnd
+               ezreq "Herzlichen Glückwunsch!\nSie haben in $runde Runden $geld Euro verdient!" Nochmal|ENDE ende
+                  guiwindow #this resume
+                  guiwindow titlebar resume
+                  playsound selectsnd
+                     lvuse HiScoreTable 1
+                     lvgo last
+                     if $geld > $%Geld
+                        guiopen Name
+                     else
+                        gosub #this neues_spiel
+                     endif
+                  stop
+      endif
+      if $runde < $maxrunden
+         guiwindow #this wait
+         guiwindow titlebar wait
+            runde = $($runde + 1)
+            kurs  = $($$Rand.998 + 1)
+            gosub #this random_events
+               gosub #this title
+               gosub anzahl check
+                  gosub #this setbutton1
+                  gosub #this setbutton2
+                     guiwindow #this resume
+                     guiwindow titlebar resume
+      else
+         guiwindow #this wait
+         guiwindow titlebar wait
+            ezreq "Das Spiel ist nun zu Ende!\nIch hoffe, es hat Ihnen Spaß gemacht." Neu|Beenden ende
+               playsound selectsnd
+                  guiwindow #this resume
+                  guiwindow titlebar resume
+                     gosub #this neues_spiel
+      endif
+   endif
+
+;Neues Spiel anfangen
+xroutine neues_spiel
+   if $ende = 1
+      gosub #this start_game
+      delvar ende
+   else
+      gosub #this bye
+   endif
+
+;Ende-Button
+xarea 553 10 70 32 none
+   gadkey #27
+   guiwindow #this wait
+   guiwindow titlebar wait
+   changeimage #this 4 -1 -1 quit2
+   playsound quitsnd
+   delay 15
+   changeimage #this 4 -1 -1 quit1
+   delay 15
+   ezreq 'Wollen Sie \"Euro Trade\" wirklich beenden?' "Ja|Neues Spiel|Nein" quit
+   playsound selectsnd
+      guiwindow #this resume
+      guiwindow titlebar resume
+         if $quit = 1
+            gosub #this bye
+         elseif $quit = 2
+            gosub #this start_game
+         endif
+
+;Outro
+xroutine bye
+   guiwindow #this wait
+   guiwindow titlebar wait
+      setpointer #this hide
+      setpointer titlebar hide
+         changeimage #this 1 -1 -1 nobuy
+         changeimage #this 2 -1 -1 nosell
+            gosub #this move down
+               update titlebar 1 "Auf Wiedersehen!"
+               redraw titlebar
+                  gosub #this move up
+                  delay 75
+                     gosub #this move out
+                     delay 20
+                        guiwindow #this resume
+                        guiwindow titlebar resume
+                           setpointer #this default
+                           setpointer titlebar default
+                              guiclose #this
+
+;Titelzeile scrollen
+xroutine move direction
+   if $direction = down
+      t = 0
+      while $t <= 13
+         playsound reqsnd
+         changegad titlebar 1 0 $t 640 13 ""
+         redraw titlebar
+         ++t
+         delay 2
+      endwhile
+   elseif $direction = up
+      t =  13
+      while $t >= 0
+         playsound movesnd
+         changegad titlebar 1 0 $t 640 13 ""
+         redraw titlebar
+         --t
+         delay 2
+      endwhile
+   elseif $direction = in
+      l = 500
+      while $l >= 0
+         playsound reqsnd
+         changegad titlebar 1 $l 0 640 13 ""
+         redraw titlebar
+         delay 1
+         l = $($l - 2)
+      endwhile
+   elseif $direction = out
+      l = 0
+      while $l < 400
+         playsound reqsnd
+         changegad titlebar 1 $l 0 640 13 ""
+         redraw titlebar
+         delay 1
+         l = $($l + 2)
+      endwhile
+   endif
+
+
+;xxxxxxxxxxxxxxxxxxxxxxxxxx
+      newfile titlebar
+;xxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+winbig 0 11 0 13 ""
+wintype 00001100
+winbackground image tbar 0
+winfont ApplePL.font 8 000
+screen EUROTRADE
+varpath "EuroTrade"
+
+xonopen
+   setscreentitle #this $scrtitle
+
+xonRMB
+   guiopen anzahl
+
+xonkey #R
+   gosub EuroTrade help
+
+xtextbox 640 0 640 13 "" ""
+   attr tbstyle 1/28/shadow/center
+   attr tbox 2/1/-1/none
+      gadid 1
+
+
+;xxxxxxxxxxxxxxxxxxxxxxxxxx
+      newfile anzahl
+;xxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+winbig -1 35 300 16 " "
+wintype 00000000
+winfont ApplePL.font 13 000
+screen EUROTRADE
+varpath "EuroTrade"
+
+xonopen
+   attr sound opensnd
+   gosub #this changetitle
+   delay 10
+   setscreentitle #this $scrtitle
+   guiwindow EuroTrade wait
+   guiwindow titlebar wait
+   if $anzahl = 1
+   and $id != 1
+      id = 1
+   endif
+   gosub #this set_gads
+
+xonclose
+   attr sound closesnd
+   guiwindow EuroTrade resume
+   guiwindow titlebar resume
+
+xonrmb
+   guiclose #this
+
+xonkey #32
+   guiclose anzahl
+
+xroutine check
+   betrag = $($geld - ($geld - ($kurs * $anzahl)))
+   gosub #this changetitle
+   gosub EuroTrade setbutton1
+   gosub EuroTrade setbutton2
+
+xroutine changetitle
+   setwintitle #this "$anzahl\% á $kurs Euro = $betrag Euro"
+
+xroutine set_gads
+   ifexists variable old_id
+      setgad #this $old_id on
+   endif
+   setgad #this $id off
+   old_id = $id
+
+xbutton 0 0 55 0 "+/- 1"
+playsound selectsnd
+anzahl = 1
+id = 1
+gosub #this set_gads
+gosub #this check
+gadkey 1
+gadid 1
+
+xbutton 55 0 55 0 "+/- 5"
+playsound selectsnd
+anzahl = 5
+id = 2
+gosub #this set_gads
+gosub #this check
+gadkey 2
+gadid 2
+
+xbutton 110 0 60 0 "+/- 10"
+playsound selectsnd
+anzahl = 10
+id = 3
+gosub #this set_gads
+gosub #this check
+gadkey 3
+gadid 3
+
+xbutton 170 0 60 0 "+/- 50"
+playsound selectsnd
+anzahl = 50
+id = 4
+gosub #this set_gads
+gosub #this check
+gadkey 4
+gadid 4
+
+xbutton 230 0 70 0 "+/- 100"
+playsound selectsnd
+anzahl = 100
+id = 5
+gosub #this set_gads
+gosub #this check
+gadkey 5
+gadid 5
+
+
+;xxxxxxxxxxxxxxxxxxxxxxxxxx
+      newfile lade
+;xxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+winbig -1 -1 300 60 ""
+wintype 00001000
+winfont Apple.font 22 000
+winbackground solid 3 0
+screen Workbench
+
+xonopen
+   guiwindow #this wait
+   setpointer #this hide
+   
+
+xonclose
+   guiwindow #this resume
+   setpointer #this default
+
+xonactive
+   setpointer #this hide
+
+xoninactive
+   setpointer #this default
+
+box -1 -1 0 0 out button
+box -1 -1 292 56 in icondrop
+box -1 31 270 2 out ridge
+
+gauge -1 38 250 14 in button 2 3 0
+attr title "2/1/shadow/center/above/Lade Euro Trade ..."
+   gadid 1

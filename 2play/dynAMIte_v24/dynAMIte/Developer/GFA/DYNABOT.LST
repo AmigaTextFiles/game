@@ -1,0 +1,265 @@
+' This is dynabot translated to GFA (GeFAhr) Basic
+' GFA-Basic suxx big time but anyway.. maybe someone has usage for this one.
+'
+' offsets/structures are as follows
+'
+'
+'(----) OBJECT dynamitesemaphore
+'(   0)   sema:ss (or ARRAY OF ss)
+'(  46)   opencnt:LONG
+'(  50)   quit:LONG
+'(  54)   gamerunning:LONG
+'(  58)   frames:LONG
+'(  62)   walk:LONG
+'(  66)   drop:LONG
+'(  70)   dropkick:LONG
+'(  74)   thisplayer:LONG
+'(  78)   player:PTR TO LONG
+'(  82)   mapwidth:LONG
+'(  86)   mapheight:LONG
+'(  90)   grid:PTR TO LONG
+'(  94)   bonusgrid:PTR TO LONG
+'(  98)   addbubble:PTR TO CHAR
+'( 102)   serverdata:PTR TO serverdata
+'( 106)   explosiongrid:PTR TO LONG
+'( 110)   version:LONG
+'( 114)   botinfo:PTR TO LONG
+'(----) ENDOBJECT     /* SIZEOF=118 */
+'
+'(----) OBJECT player
+'(   0)   num:INT
+'(   2)   status:LONG
+'(   6)   dead:INT
+'(   8)   x:INT
+'(  10)   y:INT
+'(  12)   px:INT
+'(  14)   py:INT
+'(  16)   bombc:INT
+'(  18)   maxkickbombs:INT
+'(  20)   bomblist:PTR TO mlh
+'(  24)   remotebomb:PTR TO tempbomb
+'(  28)   kickbomb:PTR TO tempbomb
+'(  32)   maxrange:INT
+'(  34)   maxbombs:INT
+'(  36)   fuselen:INT
+'(  38)   speed:INT
+'(  40)   speedc:INT
+'(  42)   swaprlc:INT
+'(  44)   swapudc:INT
+'(  46)   nodropc:INT
+'(  48)   shieldc:INT
+'(  50)   standstillc:INT
+'(  52)   invisiblec:INT
+'(  54)   afterburnerc:INT
+'(  56)   b2bc:INT
+'(  58)   flamethrowerc:INT
+'(  60)   flamethrowerdir:INT
+'(  62)   flamethrowerr:INT
+'(  64)   magnetc:INT
+'(  66)   magnetdir:INT
+'(  68)   name[34]:ARRAY OF CHAR
+'( 102)   system[64]:ARRAY OF CHAR
+'(----) ENDOBJECT     /* SIZEOF=166 */
+'
+'(----) OBJECT tempbomb
+'(   0)   ln:mln (or ARRAY OF mln)
+'(   8)   x:INT
+'(  10)   y:INT
+'(  12)   x1:INT
+'(  14)   y1:INT
+'(  16)   fuse:INT
+'(  18)   range:LONG
+'(  22)   dir:INT
+'(  24)   originx:INT
+'(  26)   originy:INT
+'(  28)   type:INT
+'(----) ENDOBJECT     /* SIZEOF=30 */
+'
+'(----) OBJECT serverdata
+'(   0)   servername[34]:ARRAY OF CHAR
+'(  34)   sysopname[18]:ARRAY OF CHAR
+'(  52)   maxslots:INT
+'(  54)   maxobservers:INT
+'(----) ENDOBJECT     /* SIZEOF=56 */
+'
+'
+'ENUM  PA_NONE=0, -> no player
+'      PA_VISI,   -> player is visitor
+'      PA_LOGGEDIN, -> player just logged in/after a game
+'      PA_PLAYING,  -> player is in game (no matter if he's dead)
+'      PA_COUNTDOWN, -> this is of no use. players only have this status if they logged in.
+'      PA_DEAD, -> this is of no use, it's not meant to see if a player is
+'               -> actually dead.  use player.dead instead.  it's only set
+'               -> after a successfull login for the other players
+'      PA_WON -> a player has this status if he won the last round
+'
+'-> dynasema.gamerunning
+'ENUM  GAME_CLOSEGAME=0, -> transitional state to GAME_NOTCONNECTED after connection got closed
+'      GAME_MENU,        -> game is in menu eg: login screen
+'      GAME_ENDGAME,     -> transitional state to GAME_MENU after effect has been drawn
+'      GAME_EFFECT,      -> game draws effect after a match
+'      GAME_COUNTDOWN,   -> game is doing the countdown
+'      GAME_GAME,        -> game is running
+'      GAME_HURRYUP,     -> game is running and is in hurry up mode
+'      GAME_NOTCONNECTED -> game is not connected (startscreen)
+'
+'ENUM  DIR_NONE=-1,
+'      DIR_DOWN,
+'      DIR_RIGHT,
+'      DIR_LEFT,
+'      DIR_UP
+'
+'CONST SPEED_NORMAL=4,
+'      SPEED_SLOW=3,
+'      SPEED_FAST=6
+'
+'CONST BLOCK_FAKEBLOCK=-1,    -> used for remote/kick bombs which are placed into the map
+'      BLOCK_NOBLOCK=0,       -> empty field
+'      BLOCK_HARDBLOCK=1,     -> non-destroyable block
+'      BLOCK_DESTROYABLE=2,   -> destroyable block
+'      BLOCK_BOMB=3,          -> normal bomb
+'      BLOCK_BORDERWALL1=4,   -> borderblocks are equal to hardblock
+'      BLOCK_BORDERWALL2=5,
+'      BLOCK_BORDERWALL3=6,
+'      BLOCK_BORDERWALL4=7,
+'      BLOCK_BORDERWALL5=8,
+'      BLOCK_BORDERWALL6=10,
+'      BLOCK_BORDERWALL7=11,
+'      BLOCK_BORDERWALL8=12,
+'      BLOCK_BORDERWALL9=13,
+'      BLOCK_BORDERWALL10=14,
+'      BLOCK_BORDERWALL11=15,
+'      BLOCK_BORDERWALL12=16,
+'
+'      BLOCK_ADDBOMB=19    -> block which contains a bomb
+'
+'ENUM  BO_EXPANDFLAME=1, -> types for bonusgrid
+'      BO_ADDBOMB,
+'      BO_FLAMEMAX,
+'      BO_BOMBMAX,
+'      BO_RANDOMWALL,  -> 5
+'      BO_BOMBS2BLOCKS,
+'      BO_DROPALL,
+'      BO_EXPLALL,
+'      BO_FASTER,
+'      BO_SLOWER,      -> 10
+'      BO_SHORTERFUSE,
+'      BO_LONGERFUSE,
+'      BO_SHORTERFLAME,
+'      BO_SWAPCONTROLSRL,
+'      BO_FEWERBOMBS,  -> 15
+'      BO_NODROP,
+'      BO_SHIELD,
+'      BO_STANDSTILL,
+'      BO_TELEPORT,
+'      BO_REMOTEBOMB,  -> 20
+'      BO_BACK2BASIC,
+'      BO_KICKBOMB,
+'      BO_SABER,
+'      BO_SWAPCONTROLSUD,
+'      BO_MAGNET,      -> 25
+'      BO_PHOENIX,
+'      BO_DOHURRYUP,
+'      BO_INVISIBLE,
+'      BO_DUELL,
+'      BO_AFTERBURNER,  -> 30
+'      BO_FLAG,
+'      BO_TELEPORTALL,
+'      BO_MAPJUMP,
+'      BO_RESTARTMAP,
+'      BO_SWAPPOSITIONS, -> 35
+'      BO_MAX
+'
+'-> types for tempbomb.type
+'ENUM  BOMB_NORMAL=0,  -> normal bomb
+'      BOMB_GEN,       -> predefined bomb (map)
+'      BOMB_REMOTE,    -> remote bomb
+'      BOMB_KICK       -> kick bomb
+'
+'
+RESERVE 80000
+DIM m68%(15)
+DATA "$VER:dynabot 0.1 (17.07.2001) translated by Ingo Musquinier"
+~Forbid()
+sema$="dynAMIte.0"+CHR$(0)
+sema%=FN findsemaphore(V:sema$)
+IF sema%
+  @stdout("dynAMIte is running")
+  LONG{sema%+46}=LONG{sema%+46}+1
+  ~Permit()
+  @main
+ELSE
+  @stdout("dynAMIte is NOT running")
+  ~Permit()
+ENDIF
+SYSTEM
+> PROCEDURE main
+  LOCAL ourplayer%,thisplayer&,done!,delay!
+  done!=FALSE
+  delay!=FALSE
+  WHILE done!=FALSE
+    IF FN checksignal(&H1000)
+      delay!=FALSE
+      done!=TRUE
+    ELSE
+      delay!=TRUE
+      ~FN obtainsemaphore(sema%)
+      IF LONG{sema%+50}=1
+        delay!=FALSE
+        done!=TRUE
+        @stdout("dynAMIte is about to quit")
+      ELSE
+        IF (LONG{sema%+54}=6) OR (LONG{sema%+54}=7)
+          thisplayer&=LONG{sema%+74}
+          IF thisplayer&<8
+            ourplayer%=LONG{{sema%+78}+thisplayer&}
+            IF WORD{ourplayer%+6}>0
+              delay!=FALSE
+              @dostuff
+            ENDIF
+          ENDIF
+        ENDIF
+      ENDIF
+      ~FN releasesemaphore(sema%)
+    ENDIF
+    IF delay!
+      ~Delay(10)
+    ENDIF
+  WEND
+  ~FN obtainsemaphore(sema%)
+  LONG{sema%+62}=-1
+  LONG{sema%+46}=LONG{sema%+46}-1
+  ~FN releasesemaphore(sema%)
+RETURN
+> FUNCTION obtainsemaphore(a%)
+m68%(8)=a%
+m68%(14)={4}
+RCALL {4}-564,m68%()
+RETURN m68%(0)
+ENDFUNC
+> FUNCTION releasesemaphore(a%)
+m68%(8)=a%
+m68%(14)={4}
+RCALL {4}-570,m68%()
+RETURN m68%(0)
+ENDFUNC
+> FUNCTION findsemaphore(a%)
+m68%(9)=a%
+m68%(14)={4}
+RCALL {4}-594,m68%()
+RETURN m68%(0)
+ENDFUNC
+> FUNCTION checksignal(a%)
+m68%(1)=a%
+m68%(14)=_DosBase
+RCALL _DosBase-792,m68%()
+RETURN m68%(0)
+ENDFUNC
+> PROCEDURE stdout(txt$)
+txt$=txt$+CHR$(10)+CHR$(0)
+~Write(Output(),V:txt$,LEN(txt$))
+RETURN
+> PROCEDURE dostuff
+' do your AI-Stuff here..
+LONG{sema%+62}=RAND(4)
+RETURN

@@ -1,0 +1,581 @@
+; setup
+
+(working "Initializing")
+
+(set #iwversion "1.6")
+(set #year "2000")
+(set #sourcedir "source")
+(set #iconsdir "icons")
+(set #bindir "binary")
+(set #readmedir "readme")
+(set #inspartsdir "installer-parts")
+
+; work variables
+
+(set #sedcommand "binary/sed")
+(set #sedfile "T:sedfile")
+
+; get environment variables
+
+(set #authorname (getenv "INSW/AUTHORNAME"))
+(set #authoremail (getenv "INSW/AUTHOREMAIL"))
+(set #editor (getenv "INSW/EDITOR"))
+(set #installroot (getenv "INSW/INSTALLROOT"))
+(set #loaderdevroot (getenv "INSW/LOADERDEVROOT"))
+
+; check for authorname, compulsory
+
+(if (= #authorname "")
+    (abort "The environment variable AUTHORNAME is empty!")
+)
+
+(if (= #authoremail "")
+    (set #authoremail "no email")
+)
+
+(set #srcsubdir "")
+(set #subdir "")
+(set #indextype 0)
+(set #indexascii 49)
+
+; user prompts
+
+(set #gamename
+    (askstring (prompt "What's the name of the game/demo you want\nto create an install for ?")
+    (help "This name will be used to set the game name, not the game directory\n"
+          "so you can include spaces in it")
+    (default "")
+    )
+)
+
+(set #srctype
+     (askchoice (prompt ("What kind of media %s is originally stored on?" #gamename ))
+                (help "The install procedure will be different depending on the\n"
+                      "source (files/diskfiles, etc...)")
+                (choices
+                  "Standard files (CD-ROM)"
+                  "Standard files (floppies)"
+                  "Standard diskfiles (disk2file, DIC)"
+                  "Non standard disk files (custom disk ripper)"
+                  "Non standard files (custom file ripper)"
+                )
+             1
+      )
+)
+
+(set #nbdisks 1)
+
+(if (NOT (= 0 #srctype))
+(
+  (set #nbdisks
+    (asknumber (prompt "How many disks does the game come with")
+               (help "This number will be used in the install-script"
+                     "and maybe in the loader")
+               (range 1 9)
+    )
+
+  )
+
+(if (> #nbdisks 1)
+(
+  (set #indextype
+     (askchoice (prompt "What's the first disk index?")
+                (help "If the disks do not have a incremental disk index\n"
+                      "then you'll do it by hand later!")
+                (choices
+                  "1"
+                  "A"
+                  "a"
+                )
+             0
+      )
+  )
+
+  (if (= 1 #indextype)
+    (set #indexascii 65)
+  )
+
+  (if (= 2 #indextype)
+    (set #indexascii 97)
+  )
+
+
+)
+
+)
+)
+)
+
+(set #gamedir
+    (askstring (prompt "What should the drawer name be called ?\n\n"
+	               "(don't put the HD suffix)?")
+               (help "The user and developper install drawer names\n"
+                     "will be computed accordingly")
+               (default #gamename)
+    )
+)
+
+(set #osemu
+     (askbool (prompt "Will the loader use OS emulation module ?")
+                (help "OS emulation module was written by Harry\n"
+                      "and allows to run many games by emulating the Amiga OS\n"
+                      "which ensures OS-independance, WB startup, clean quit...")
+                (choices
+                  "Yes"
+                  "No"
+                )
+                (default 1)
+      )
+)
+
+(set #osblast 1)
+
+; if osemu is active, the OS won't be active, else, ask
+
+(if (= 0 #osemu)
+(set #osblast
+     (askbool (prompt "Does the launching process overtakes the system ?")
+                (help "If you write a JST loader, it will overtake the system\n"
+                      "but if you use JST as a degrader only, then it won't")
+                (choices
+                  "Yes"
+                  "No"
+                )
+                (default 1)
+      )
+)
+)
+
+; if OS is to be disabled, ask chipmem size
+
+(set #chipsize 0)
+(set #extsize 0)
+
+(if (= 1 #osblast)
+(
+(set #chipsize
+     (askchoice (prompt "Which amount of chip memory will the game use")
+                (help "If it's an old ECS game, it will probably use only 512K\n"
+                      "If it's AGA, it often demands 1 or 2megs\n\n"
+                      "If you need to specify another size, do it manually\n"
+                      "in the asm source. The 'any will do' choice tells\n"
+                      "JST to save the actual maxchip size of the computer\n"
+                      "the loader is beign run on\n")
+                (choices
+                  "any will do"
+                  "512K ($80000 bytes)"
+                  "1024K ($100000 bytes)"
+                  "1536K ($180000 bytes)"
+                  "2048K ($200000 bytes)"
+                )
+             2
+      )
+)
+(set #extsize
+     (askchoice (prompt "Which amount of expansion memory will the game use")
+                (help "If it's an old ECS game, it will probably use only 512K\n"
+                      "If it's AGA, it often demands 1 or 2megs\n\n"
+                      "If you need to specify another size, do it manually\n"
+                      "in the asm source")
+                (choices
+                  "none"
+                  "512K ($80000 bytes)"
+                  "1024K ($100000 bytes)"
+                )
+             1
+      )
+)
+
+(set #chipsize (* #chipsize $80000))
+(set #extsize (* #extsize $80000))
+
+(set #noaga
+     (askbool (prompt "Is the game AGA or ECS ?")
+                (help "If you specify AGA, the loader will display\nan error on a ECS computer")
+                (choices
+                  "ECS"
+                  "AGA"
+                )
+                (default 1)
+      )
+)
+
+(if (AND (= 0 #noaga) (NOT (= $200000 #chipsize)))
+  (message "Warning!\nyou selected AGA\n"
+           "with a chipmem size different of 2Megs")
+)
+
+(if (OR (= 2 #srctype) (= 3 #srctype))
+  (set #diskfile
+    (askstring (prompt "What should be the prefix of the diskfiles ?")
+               (help "This string will be used in the install-script"
+                     "and in the loader")
+               (default ("%s.d" #gamedir))
+    )
+
+  )
+)
+
+(set #fromfiles 0)
+
+(if (OR (= 4 #srctype) (= 1 #srctype) (= 0 #srctype))
+ (
+  (set #fromfiles 1)
+  (set #subdir
+    (askstring (prompt "If you want to store the files in a subdir\n"
+                       "enter the subdir name here")
+               (help "Leave empty if you don't want a subdir")
+               (default "")
+    )
+
+  )
+
+  (set #sizelimit
+    (asknumber (prompt "What's the max size file limit for HDLOAD")
+               (help "This number will be used in the loader for\n"
+                     "the argument of LoadSmallFiles()")
+               (range 100 500000)
+               (default 10000)
+    )
+  )
+ )
+
+)
+
+
+); end osblast
+
+); end non-osblast 
+
+(set #readmefile
+   (askstring (prompt "What should be the name of the readme ?")
+              (help "Name of the readme file, should be the same as user install dir")
+              (default ("%shd.readme" #gamedir))
+    )
+)
+
+
+(if (OR (= 0 #srctype) (AND (= 1 #srctype) (= 1 #nbdisks) ) )
+(
+(set #noindex 1)
+(set #disklabel
+   (askstring (prompt "What's the label of the disk/CDROM\n")
+              (help "The label is also the volume name")
+              (default #gamedir)
+    )
+)
+(set #srcsubdir
+  (askstring (prompt "If the base directory is not the root of the volume,\n"
+                     "enter the subdir name here, else leave empty")
+             (help "Leave empty if the source is the root directory")
+             (default "")
+  )
+
+)
+
+)
+)
+
+(if (AND (= 1 #srctype) (> #nbdisks 1) )
+(
+(set #noindex 0)
+(set #disklabel
+   (askstring (prompt "What's the label prefix of the disks\n"
+                      "(without the number if there are more than one disk) ?")
+              (help "If the game has more than one disk,\n"
+                    "the program assumes that the disks are labelled\n"
+                    "like this <disklabel>1, <disklabel>2, etc...")
+              (default #gamedir)
+    )
+)
+)
+)
+
+
+(set #installdir (tackon #installroot ("%sHD" #gamedir)) )
+(set #loaderdevdir (tackon #loaderdevroot ("%sHDDev" #gamedir)) )
+
+(makedir #installdir (infos) )
+(makedir #loaderdevdir (infos) )
+
+; only on installs with 1 disk, or else could be too strict
+
+(if (AND (= 2 #srctype) (= 1 #nbdisks))
+  (set #srarg
+     (askbool (prompt "Is the disk protected by Rob Northern Copylock (track 0 head 1)")
+                (help "If you're not sure of this, answer no, you'll add SKIPROB\n"
+                      "by hand in the generated install if disk2file reports an error")
+                (choices
+                  "No"
+                  "Yes"
+                )
+                (default 1)
+      )
+  )
+)
+
+; working...
+
+(working "Creating files")
+
+(if (= 1 #srarg)
+   (set #skiprob "SKIPROB")
+)
+
+; loader name
+
+(set #loaderfile ("%sHD" #gamedir))
+
+; build the sed command file
+
+(textfile (dest #sedfile) (append ("s#%%gamename%%#%s#g\n" #gamename)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%authorname%%#%s#g\n" #authorname)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%authoremail%%#%s#g\n" #authoremail)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%authorname%%#%s#g\n" #authorname)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%year%%#%s#g\n" #year)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%iwversion%%#%s#g\n" #iwversion)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%diskfile%%#%s#g\n" #diskfile)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%nbdisks%%#%ld#g\n" #nbdisks)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%skiprob%%#%s#g\n" #skiprob)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%readmefile%%#%s#g\n" #readmefile)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%loaderfile%%#%s#g\n" #loaderfile)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%gamedir%%#%s#g\n" #gamedir)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%disklabel%%#%s#g\n" #disklabel)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%extsize%%#$%lx#g\n" #extsize)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%chipsize%%#$%lx#g\n" #chipsize)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%sizelimit%%#%ld#g\n" #sizelimit)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%subdir%%#%s#g\n" #subdir)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%srcsubdir%%#%s#g\n" #srcsubdir)) )
+(textfile (dest #sedfile) (include #sedfile) (append ("s#%%indexascii%%#%ld#g\n" #indexascii)) )
+(if (= 2 #srctype)
+  (textfile (dest #sedfile) (include #sedfile) (append "s#%disksize%#STD_DISK_SIZE#g\n") )
+)
+
+(if (= 1 #osblast)
+(
+
+(if (= #fromfiles 1)
+  (textfile (dest #sedfile) (include #sedfile) (append "/!diskload/d\n") )  ; then
+  (textfile (dest #sedfile) (include #sedfile) (append "/!fileload/d\n") )  ; else
+)
+
+(if (= 0 #osemu)
+  (textfile (dest #sedfile) (include #sedfile) (append "/!osemu/d\n") )
+)
+
+(if (= 1 #noaga)
+  (textfile (dest #sedfile) (include #sedfile) (append "/!aga/d\n") )
+)
+
+(if (= 0 #extsize)
+  (textfile (dest #sedfile) (include #sedfile) (append "/!expmem/d\n") )
+)
+
+(if (= "" #subdir)
+  (textfile (dest #sedfile) (include #sedfile) (append "/!subdir/d\n") )
+)
+
+; anyway remove all ! comments
+
+(textfile (dest #sedfile) (include #sedfile) (append "s#[	 ]*; ![a-z].*##\n") )
+
+; copy the binary loader template
+
+(copyfiles (source (tackon #bindir "TestHD")) (dest #loaderdevdir) (newname #loaderfile))
+(copyfiles (source (tackon #iconsdir "TestHD.info")) (dest #loaderdevdir) (newname ("%s.info" #loaderfile)) )
+(copyfiles (source (tackon #bindir "TestHD")) (dest #installdir) (newname #loaderfile))
+(copyfiles (source (tackon #iconsdir "TestHD.info")) (dest #installdir) (newname ("%s.info" #loaderfile)) )
+
+; copy the Build file+icon
+
+(copyfiles (source (tackon #sourcedir "Build")) (dest #loaderdevdir))
+(copyfiles (source (tackon #iconsdir "Build.info")) (dest #loaderdevdir))
+
+; generate the Makefile source
+
+(run ("%s -f %s %s > %s" 
+       #sedcommand
+       #sedfile
+      (tackon #sourcedir "Makefile")
+      (tackon #loaderdevdir "Makefile") )
+)
+
+(set #srcname ("%s.asm" #loaderfile) )
+
+; copy the Makefile and source icon
+
+(copyfiles (source (tackon #iconsdir "Makefile.info")) (dest #loaderdevdir) )
+(copyfiles (source (tackon #iconsdir "hd.asm.info")) (dest #loaderdevdir) (newname ("%s.info" #srcname)) )
+
+; sets default tool $EDITOR for both asm file and Makefile
+
+(tooltype (dest (tackon #loaderdevdir "Makefile")) (setdefaulttool #editor))
+(tooltype (dest (tackon #loaderdevdir #srcname)) (setdefaulttool #editor))
+
+; generate the asm source file template
+
+(run ("%s -f %s %s > %s" 
+       #sedcommand
+       #sedfile
+      (tackon #sourcedir "hd.asm")
+      (tackon #loaderdevdir #srcname) )
+)
+
+; add loadseg utility subroutine
+
+(if (= 1 #osemu)
+  (textfile (dest (tackon #loaderdevdir #srcname) )
+            (include (tackon #loaderdevdir #srcname) )
+            (include (tackon #sourcedir "loadseg.asm") )
+  )
+)
+
+) ; end of osblast
+
+; OS is used, create an empty script
+
+(
+(copyfiles (source (tackon #iconsdir "RunGame.info") ) (dest #installdir) (newname "RunGame.icon") )
+(textfile (dest (tackon #installdir "RunGame")) (append (";; JST %s EXECUTE") #gamedir) )
+)
+
+) ; end of not osblast
+
+; generate the specific readme
+
+(set #fullreadme (tackon #installdir #readmefile) )
+
+(run ("%s -f %s %s > %s" 
+       #sedcommand
+       #sedfile
+      (tackon #readmedir "gamehd.readme")
+      #fullreadme )
+)
+
+; include OSEmu text if is used
+
+(if (= 1 #osemu)
+(textfile (dest #fullreadme) (include #fullreadme) (include (tackon #readmedir "osemu.readme")) )
+)
+
+; processes the icons
+
+(copyfiles (source (tackon #iconsdir "gamehd.readme.info") )
+           (dest #installdir)
+           (newname ("%s.info" #readmefile) )
+)
+
+(set #installiconname ("Install-%s.info" #gamedir) )
+
+(copyfiles (source (tackon #iconsdir "Install-game.info"))
+           (dest #installdir)
+           (newname #installiconname)
+)
+
+; generates the install script
+
+(set #installdest ("Install-%s" #gamedir) )
+(set #tmpinstall (tackon "T:" #installdest) )
+
+(set #installicon (tackon #installdir #installiconname) )
+(set #finalicon (tackon #installdir #installdest) )
+
+; sets the tooltypes
+
+(tooltype (dest #finalicon) (settooltype "APPNAME" #gamename) )
+(tooltype (dest #finalicon) (settooltype "MINUSER" "expert") )
+
+(if (> #srctype 1)
+  (tooltype (dest #finalicon) (settooltype "PRETEND" "FALSE") )
+)
+
+; appends files to main file
+
+(textfile (dest #tmpinstall) (include (tackon #inspartsdir "Install-init")) )
+
+(if (= 1 #osemu)
+(
+(textfile (dest #tmpinstall) (include #tmpinstall) (include (tackon #inspartsdir "Copy-osemu")) )
+(copyfiles (source (tackon #bindir "OSEmu.400")) (dest #installdir))
+)
+)
+(if (= 1 #osblast)
+(textfile (dest #tmpinstall) (include #tmpinstall) (include (tackon #inspartsdir "Copy-loader")) )
+)
+
+(if (> #srctype 1)
+(textfile (dest #tmpinstall) (include #tmpinstall) (include (tackon #inspartsdir "Choose-drive")) )
+)
+
+(if (NOT (= "" #subdir))
+  (textfile (dest #tmpinstall) (include #tmpinstall) (append ("\n(set #subdir \"%s\")\n\n" #subdir)) )
+)
+
+;; loop to make disk images/copy files
+
+(if (> #srctype 0)
+(
+(set #diskno 1)
+(while
+  (<= #diskno #nbdisks)
+  (
+
+    (if (= 2 #srctype)
+     (textfile (dest #tmpinstall) (include #tmpinstall) (include (tackon #inspartsdir "Make-diskimage")) )
+    )
+
+     (if (= 1 #srctype)
+      (
+       (if (= #noindex 0)
+         (textfile (dest #tmpinstall) (include #tmpinstall) (append "(set #currentdisk (\"%disklabel%%lc\" #diskno))\n") )
+         (textfile (dest #tmpinstall) (include #tmpinstall) (append "(set #currentdisk \"%disklabel%\")\n") )
+       )
+         (textfile (dest #tmpinstall) (include #tmpinstall) (include (tackon #inspartsdir "Copy-floppy")) )
+       )
+     )
+
+     (if (> #srctype 2)
+        (textfile (dest #tmpinstall) (include #tmpinstall) (append "(run \"any ripper command\")\n") )
+     )
+   (textfile (dest #tmpinstall) (include #tmpinstall) (append "(set #diskno (+ #diskno 1))\n") )
+   )
+
+   (set #diskno (+ #diskno 1))
+  )
+
+)
+;; CD-ROM source (srctype = 0)
+(textfile (dest #tmpinstall) (include #tmpinstall) (include (tackon #inspartsdir "Copy-cdrom")) )
+)
+
+(if (= #osblast 0)
+(textfile (dest #tmpinstall) (include #tmpinstall) (include (tackon #inspartsdir "Copy-startup")) )
+)
+
+; generate the specific install-script
+
+(run ("%s -f %s %s > %s" 
+       #sedcommand
+       #sedfile
+       #tmpinstall
+       #finalicon)
+)
+
+; cleanup
+
+(delete #tmpinstall)
+;;(delete #sedfile)
+
+; optionnal readme edition
+
+(if (= 1 
+(askbool (prompt "Do you want to edit the readme file now?")
+   (help "You'll be able to edit it later anyway")
+   (choices "Yes" "No")
+   (default 0)
+)
+)
+(run ("%s %s" #editor (tackon #installdir #readmefile) ))
+)
+
+; install-script generated

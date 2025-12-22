@@ -1,0 +1,543 @@
+G4C ;$VER: KILL_EM!!! V1.45 (21.02.2002)
+
+
+WinBig -1 -1 320 256 ""
+WinType 00001000
+WinBackGround Solid 1 0
+
+
+xOnLoad
+	set tbmargins 5/4
+
+	makescreen KILL_EM 320/256/6/0x21000/newtopaz.font/8 "KILL_EM Screen"
+
+	setscreen #this KILL_EM
+
+	movescreen #this 10000 0
+
+	guiopen #this
+
+	SetColor #this 0 9 9 9
+	SetColor #this 1 0 0 0
+	SetColor #this 2 15 15 15
+	SetColor #this 3 2 6 10
+
+	setpointer #this hide
+
+	loadimage $$this.path\GFX/BACKDROP backdrop *
+
+	changeimage #this 200 -1 -1 backdrop
+
+	cli "sys:prefs/sound $$this.path\DATA/SilentBeep use"
+
+	loadimage $$this.path\GFX/BADGUY1  badguy1  *
+	loadimage $$this.path\GFX/BADGUY2  badguy2  *
+
+	loadimage $$this.path\GFX/COP      cop      *
+	loadimage $$this.path\GFX/LADY     lady     *
+
+	loadimage $$this.path\GFX/RIP      rip      *
+	loadimage $$this.path\GFX/SURPRISE surprise *
+
+	loadimage $$this.path\GFX/+500     plus500  *
+	loadimage $$this.path\GFX/-500     minus500 *
+	loadimage $$this.path\GFX/TIME+    moretime *
+	loadimage $$this.path\GFX/TIME-    lesstime *
+
+	loadimage $$this.path\GFX/RMB      rmb      noremap
+	loadimage $$this.path\GFX/POINTER  pointer  noremap
+
+	loadsound $$this.path\SFX/Scream.smp     scream
+	loadsound $$this.path\SFX/Pistol.smp     pistol
+	loadsound $$this.path\SFX/Ricochet.smp   ricochet
+	loadsound $$this.path\SFX/EvilLaugh.smp  evillaugh
+	loadsound $$this.path\SFX/Explosion1.smp explosion
+	loadsound $$this.path\SFX/Collect.smp    collect
+	loadsound $$this.path\SFX/GlassSmash.smp glasssmash
+
+	hiscore = 0
+	time    = 0
+
+	gosub #this show_title
+
+	delay 25
+
+	setpointer #this #rmb
+
+
+xonclose
+	guiquit #this
+
+
+xonquit
+	cli "sys:prefs/sound envarc:sys/sound.prefs use"
+
+	setpointer #this default
+
+	freeimage backdrop
+	freeimage badguy1
+	freeimage badguy2
+	freeimage lady
+	freeimage rmb
+	freeimage rip
+	freeimage cop
+	freeimage surprise
+	freeimage pointer
+	freeimage plus500
+	freeimage minus500
+	freeimage moretime
+	freeimage lesstime
+	
+
+	freesound scream
+	freesound pistol
+	freesound ricochet
+	freesound evillaugh
+	freesound explosion
+	freesound collect
+	freesound glasssmash
+
+	killscreen KILL_EM
+
+	quit
+
+
+
+image 0 0 ""
+	gadid 200
+
+
+image 94 79 ""
+	gadid 1
+
+
+xarea 94 79 40 50 none
+	if $game != 0
+		playsound pistol
+		hit = 1
+		gosub #this shoot
+	endif
+	gadid 2
+
+
+
+xonrmb
+	if $game != 0
+	or $quit != 0
+		stop
+	endif
+
+	gosub #this clear_title
+
+	playsound evillaugh
+
+	setpointer #this #pointer
+
+	time    = 90
+	game    = 1
+	run     = 1
+	hit     = 0
+	score   = 0
+
+	maxtime = $time
+
+	setgad #this 10 on
+
+	update #this 99 "Hi-Score: $hiscore - Score: $score - Time: $time secs"
+
+	partredraw #this 0 0 0 0
+
+	gosub #this newpos
+
+
+
+xonclick
+	gosub #this missed
+
+xondoubleclick
+	gosub #this missed
+
+
+xroutine missed
+	if $game = 1
+		playsound pistol
+		hit = 0
+		gosub #this shoot
+		playsound ricochet
+	endif
+
+
+
+xroutine shoot
+	flash
+
+	if $hit = 1
+		if $obj = badguy1
+			playsound scream
+			score = $(($score + $pts) + 25)
+			changeimage #this 1 $x $y rip
+		elseif $obj = badguy2
+			playsound scream
+			score == $score + $pts
+			changeimage #this 1 $x $y rip
+		else
+			changeimage #this 1 $x $y $obj
+		endif
+
+		if $obj = lady
+			playsound scream
+			score = 0
+			changeimage #this 1 $x $y rip
+		elseif $obj = cop
+			playsound scream
+			changeimage #this 1 $x $y rip
+			time = 0
+			gosub #this timer
+			stop
+		endif
+
+		if $obj = plus500
+			playsound collect
+			score == $score + 500
+		endif
+
+		if $obj = minus500
+		and $score >= 500
+			playsound glasssmash
+			score == $score - 500
+		elseif $obj = minus500
+		and $score >= 500
+			playsound glasssmash
+			score = 0
+		endif
+
+		if $obj = moretime
+		and $time <= $($maxtime - 10)
+			playsound collect
+			time == $time + 10
+			score == $score + 250
+		elseif $obj = moretime
+		and $time > $($maxtime - 10)
+			playsound collect
+			score == $score + 250
+			time = $maxtime
+		endif
+
+		if $obj = lesstime
+		and $time >= 10
+			playsound glasssmash
+			time == $time - 10
+		elseif $obj = lesstime
+		and $time >= 10
+			playsound glasssmash
+			if $score >= 100
+				score == $score - 250
+			endif
+			time = 0
+		endif
+	elseif $hit = 0
+	and $score >= 100
+		score == $score - 100
+	elseif $hit = 0
+	and $score < 100
+		score = 0
+	endif
+
+
+	if $hit = 1
+		setgad #this 2 hide
+		partredraw #this 0 0 0 0
+
+		delay 10
+
+		setgad #this 1 hide
+		partredraw #this 0 0 0 0
+	endif
+
+	update #this 99 "Hi-Score: $hiscore - Score: $score - Time: $time secs"
+	partredraw #this 0 0 0 0
+
+
+xroutine newpos
+	setgad #this 1/2 hide
+	partredraw #this 0 0 0 0
+
+	randpos = $$rand.3
+	randobj = $$rand.27
+
+	if $randpos = 0
+		x = 94
+		y = 79
+		pts = 100
+	elseif $randpos = 1
+		x = 12
+		y = 185
+		pts = 125
+	elseif $randpos = 2
+		x = 250
+		y = 103
+		pts = 150
+	elseif $randpos = 3
+		x = 204
+		y = 175
+		pts = 175
+	endif
+
+	if $randobj <= 10
+		obj = badguy1
+	elseif $randobj >= 11
+	and $randobj < 21
+		obj = badguy2
+	elseif $randobj = 22
+		obj = plus500
+	elseif $randobj = 23
+		obj = minus500
+	elseif $randobj = 24
+		obj = moretime
+	elseif $randobj = 25
+		obj = lesstime
+	elseif $randobj = 26
+		obj = lady
+	elseif $randobj = 27
+		obj = cop
+	endif
+
+	if $obj = badguy1
+	or $obj = badguy2
+	or $obj = lady
+	or $obj = cop
+		changeimage #this 1 $x $y $obj
+	else
+		changeimage #this 1 $x $y surprise
+	endif
+
+	changegad #this 2 $x $y 40 50 ""
+
+	setgad #this 1/2 show
+
+	partredraw #this 0 0 0 0
+
+
+
+xtimer repeat 0:0:1 off
+	gosub #this timer
+		gadid 10
+
+
+xroutine timer
+	if $time = 0
+		gosub #this game_over
+
+		delay 300
+
+		gosub #this clear_title
+
+		delay 50
+
+		gosub #this show_title
+
+		delay 25
+
+		setpointer #this #rmb
+	else
+		--time
+
+		gosub #this newpos
+
+		update #this 99 "Hi-Score: $hiscore - Score: $score - Time: $time secs"
+
+		partredraw #this 0 0 0 0
+	endif
+
+
+
+xtextbox -1 240 320 16 "" ""
+	attr tbstyle 14/42/shadow/center
+	attr tbox 2/1/-1/none
+		gadfont times.font 13 000
+			gadid 99
+
+
+xtextbox -1 -1 320 44 "" ""
+	attr tbstyle 44/47/shadow/center
+	attr tbox 2/1/-1/none
+		gadfont adel.font 32 000
+			gadid 100
+
+
+xtextbox -1 150 320 22 "" ""
+	attr tbstyle 32/20/outline/center
+	attr tbox 2/1/-1/none
+		gadfont baselcb.font 16 000
+			gadid 101
+
+
+
+xroutine show_title
+	run  = 0
+	game = 0
+	quit = 0
+
+	delay 20
+	update #this 100 "KILL_EM!!!"
+	playsound explosion
+
+	delay 40
+	update #this 101 "Press <RMB> to start!"
+	playsound explosion
+
+	delay 40
+	setgad #this 99 show
+	update #this 99 "©2001/2002 by Nightshade (thenightshade@freenet.de)"
+	playsound explosion
+
+	partredraw #this 0 0 0 0
+
+
+xroutine clear_title
+	if $game = 1
+		setgad #this 99 hide
+	elseif $game = 0
+		update #this 99 ""
+	endif
+
+	update #this 100 ""
+	update #this 101 ""
+
+	partredraw #this 0 0 0 0
+
+
+xroutine game_over
+	setgad #this 10 off
+
+	setgad #this 99 hide
+
+	partredraw #this 0 0 0 0
+
+	if $score > $hiscore
+		hiscore = $score
+	endif
+
+	setpointer #this hide
+
+	playsound evillaugh
+
+	update #this 100 "GAME OVER!"
+
+	update #this 101 "Your Score: $score"
+
+	setgad #this 1/2 hide
+
+	setgad #this 100/101 show
+
+	partredraw #this 0 0 0 0
+
+
+
+xonkey p
+	if $run = 1
+		if $game = 1
+			playsound explosion
+
+			setgad #this 10 off
+
+			setgad #this 99 hide
+
+			gosub #this clear_title
+
+			setgad #this 100/101 show
+
+			update #this 100 "GAME PAUSED!"
+
+			update #this 101 "Press <P> again!"
+
+			partredraw #this 0 0 0 0
+
+			game = 0
+		else
+			setgad #this 100/101 hide
+
+			setgad #this 99 show
+
+			partredraw #this 0 0 0 0
+
+			setgad #this 10 on
+
+			game = 1
+		endif
+	endif
+
+
+xonkey q
+	if $game = 0
+	and $time = 0
+		if $quit = 1
+			stop
+		endif
+
+		playsound explosion
+
+		setpointer #this hide
+
+		update #this 100 ""
+		update #this 101 ""
+
+		update #this 99 "Really quit? (y/n)"
+
+		partredraw #this 0 0 0 0
+
+		quit = 1
+	elseif $game = 1
+		time = 0
+		gosub #this timer
+	endif
+
+
+xonkey n
+	if $quit = 1
+	and $game = 0
+		update #this 99 ""
+
+		partredraw #this 0 0 0 0
+
+		gosub #this show_title
+
+		setpointer #this #rmb
+
+		quit = 0
+	endif
+
+
+xonkey y
+	if $quit = 1
+	and $game = 0
+		gosub #this clear_title
+
+		setpointer #this hide
+
+		playsound explosion
+		update #this 100 "THE END!!!"
+		partredraw #this 0 0 0 0
+
+		delay 40
+		playsound explosion
+		update #this 101 "Good bye..."
+		partredraw #this 0 0 0 0
+
+		delay 40
+
+		playsound explosion
+		if $hiscore > 0
+			update #this 99 "Your Hi-Score: $hiscore"
+		else
+			update #this 99 "See you later!!!"
+		endif
+
+		partredraw #this 0 0 0 0
+
+		delay 200
+
+		playsound scream
+
+		guiclose #this
+	endif

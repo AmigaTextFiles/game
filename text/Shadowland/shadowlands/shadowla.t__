@@ -1,0 +1,6198 @@
+#include <lgnd.t>
+#include <instruct.t>
+
+die: function;
+scoreRank: function;
+init: function;
+terminate: function;
+pardon: function;
+sleepDaemon: function;
+eatDaemon: function;
+darkTravel: function;
+monstersDaemon: function;
+ally:function;
+preparse:function;
+combat:function;
+enemyangry:function;
+addally:function;
+addenemy:function;
+subally:function;
+subenemy:function;
+unconscious:function;
+checkspell:function;
+fakedam:function;
+kick:function;
+checkFall:function;
+ask:function;
+tell:function;
+following:function;
+noise:function;
+invoke:function;
+checklimits:function;
+fatigue: function;
+goFirst:function;
+checkDodge: function;
+here:function;
+proneCheck: function;
+hurl:function;
+checkThrow:function;
+order:function;
+pickup:function;
+regreg:function;
+
+regreg: function
+{
+    local i;
+    i:=true;
+	
+
+"\bYou may:";
+"\nEnter your registration code.";
+ "\nStart a NEW game without registering. ";
+	 
+    while ( i )
+    {
+        local resp;
+
+        "\bPlease enter your code  or NEW: >";
+        resp := upper(input());     /* get input, convert to uppercase */
+        if ( resp = 'NEW' )
+        {
+            global.reg:=nil;
+	i:=nil;
+        }
+        else if ( resp = 'SHADOWLAND' )
+        {
+            global.reg:=true;
+	"\b\tRegistered User Features Enabled.\b\b";
+	
+	i:=nil;
+	"\bSaving game as:  \"shadowgame\"\b";
+	save('shadowgame');
+	"\bYou may \"RESTORE\" this saved game after starting a \"NEW\" game.\b";
+	"\n(Press RETURN to continue)\b"; input();
+        }
+    }
+	return;
+}
+
+order:function
+{
+	local i, y;
+	Me.distance:=1;
+	i:=1; y:=20; 
+	global.monsterlist:=[];
+	while (y>0)
+	{
+	i:=firstobj (monster);
+		while(i<> nil)
+		{
+		i.distance:=1;
+		if (i.dex = y) {global.monsterlist:=global.monsterlist+i;}
+		i:=nextobj (i, monster);
+		}
+	y--;
+	}
+	return;
+}
+
+pickup:function (actor)
+{
+	local y;
+	if (global.trace){"\nChecking Pickup.";}
+	y:=actor.location.contents;
+	while (car(y))
+	{
+	if (car(y).isweapon){return(car(y));}
+	y := cdr( y );
+	}
+	return(nil);
+
+}
+
+commandPrompt:function (num)
+{
+"\b";
+if (Me.attacker<>nil)
+	{
+	if (Me.attacker.isalive)
+		{
+		"<<Me.distance+Me.attacker.distance = 0 ? "E" : "D" >>";
+		}
+	else {Me.attacker:=nil;  "<<Me.distance = 0 ? "E" : "D">>";}
+	}
+else {"<<Me.distance = 0 ? "E" : "D">>";}
+">";
+return;
+}
+
+hurl:function (actor, target, missile)
+{
+	local thisroll,  box, dice, sides;
+	if (not target.isalive){return;}
+	actor.done:=true;
+	thisroll:=Me.hitroll;
+	dice:=missile.tdice;
+	sides:=missile.tsides;
+	target.isangry:=5;
+	ally();
+	
+	if (target.allytome and not target.charmed and actor=Me)
+	{target.turncoat;}
+	
+	if (thisroll<=actor.dex+actor.atmod-target.dfmod)
+		{
+"\b\^<<actor.thedesc>> throw<<actor.adds>> <<missile.adesc>>, hitting <<target.thedesc>> ";
+ "(<<thisroll>>)";
+		if (thisroll=1){"\nCritical!"; }
+		actor.dam:=Me.damage( dice, sides,  0, 0  );
+		if (target.stop+target.block+target.tempmod+target.skin<>0 and thisroll<>1)
+		{
+		"\b\^<<target.mydesc>> armor stops ";
+		"<<target.stop+target.block+target.tempmod+target.skin>>.";
+actor.dam:=actor.dam-(target.stop+target.block+target.tempmod+target.skin);
+		}
+
+		if (actor.dam<0) {actor.dam:=0;}
+		box:=fakedam(target, actor.dam);
+		actor.dam:=box;
+		target.str:=target.str-actor.dam;
+		if (actor=Me){incscore(actor.dam);}
+		actor.damreport;
+		if (actor.dam>0 and target<>Me) {target.healthmsg;}  
+		checkFall(actor.dam, target.maxstr, target);
+           	if ( target.str+ target.tempstr< 1 ) {target.killer:=actor; kick(target); }
+		}
+	else
+		{
+"\b\^<<actor.thedesc>> throw<<actor.adds>> <<missile.adesc>>, missing <<target.thedesc>> ";
+ "(<<thisroll>>)";
+		}
+	missile.moveInto(actor.location);
+	if (actor.ready = missile){actor.ready := hands;}
+	return;
+}
+
+proneCheck: function (actor)
+{
+	if (actor.location.isbed or actor.location.ischair){return(true);}
+	else return (nil);
+}
+
+here:function (mstr)
+{
+	if (global.trace){"\nChecking Here()...<<mstr.sdesc>>";}
+	if (mstr.location=Me.location){return (true);}
+	else if (find(mstr.location.reachable, mstr.location)<>nil){return(true);}
+	else if (find( Me.location.reachable, mstr ) <> nil){return (true);}
+	else return (nil);
+}
+
+checkDodge:function (actor)
+{
+	if (global.trace){"\nStart dodge...";}
+	if (proneCheck(actor) or not actor.isalive) {return;}
+           actor.ddge:= actor.ddge+(actor.dex/2);
+	notify (actor, &ddgezero,1);
+	"\n\^<<actor.thedesc>> dodge<<actor.adds>>.";
+	if (global.trace){"\nEnd dodge...";}
+	return;
+}
+
+goFirst: function
+{
+     local cur,e,a, num, num2, num3, div, x, act;
+    if (global.trace){"\nBegin goFirst."; "\nAdding you to ally list.";}
+
+    cur := global.monsterlist;
+    if (Me.str+Me.tempstr>0){Me.alist:=Me.alist+Me;}
+    Me.fatThisTurn:=nil;
+			
+    while ( car( cur ) )
+    {
+	car(cur).fatThisTurn:=nil;
+	act:=car(cur);
+	if (not here(act)){act.distance:=1;}
+	if (here(act) and car(cur).isalive and car(cur).enemy)
+	{
+	addenemy(car(cur));
+	if (global.trace) {"\nAdded <<car(cur).sdesc>> to enemy list.";}
+	}
+	if (here(act) and car(cur).isalive and car(cur).allytome)
+	{
+	addally(car(cur)); 
+	if (global.trace)"\nAdded <<car(cur).sdesc>> to ally list.";
+	}
+
+            cur := cdr( cur );
+    }
+
+	cur:=global.monsterlist;
+	if (length(Me.elist)=0 and length(Me.alist)=1){Me.distance:=1;}
+    while ( car( cur ) )
+    {
+	
+        if ( here (car(cur)) and car (cur).isalive) 
+	{
+	
+            global.heal := 0;
+		
+        	if (car(cur).faster and car(cur).isangry=5) 
+        	/*has faster monster attacked?*/
+        		{
+        		car( cur ).move;  
+		car(cur).done:=true;           
+        		"\n";
+        		}
+        	}
+               cur := cdr( cur );
+    }
+	if(global.trace) {"\nEnd goFirst.";}
+
+}
+
+fatigue: function (actor, cost)
+{
+	if (actor.fat>actor.maxstr)
+		{
+		if (actor=Me)
+			{
+		"\nYou are too tired.";
+		
+			}
+		else 	
+			{
+			"\n\^<<actor.thedesc>> looks exhausted.";
+			}
+		return (true);
+		}
+	else {actor.fat:=actor.fat+cost; actor.fatThisTurn:=true; return (nil);}
+}
+
+invoke: function (at, df)
+{	
+	local choice, num, notself, cur, st, x;
+	if (at.int<9){return;}
+	if (at.int=9){choice:=4;}
+	if (at.int>=10){choice:=7;}
+	x:=1;
+	if (at.dex>11){x:=2;}
+	if (at.dex>15){x:=3;}
+	num:=at.splist[rand(length(at.splist))];
+	if (at.allytome){cur:=Me.alist;}
+	else {cur:=Me.elist;}
+	if (length(cur)=1 and num=1){num:=rand(choice-1)+1;}
+	st:=at.int+rand(x)-9;
+	if (at.str-st<5 or st>6){st:=st/2;}
+	if (num>4){st:=st-1;}
+	if (st=0){st:=1;}
+	"\b\^<<at.thedesc>> casts ";
+	if (at.enemy){ally();}
+	switch (num)
+		{
+		
+		case 1:
+			while (car(cur))
+				{
+			if (car(cur)<>at){notself:=car(cur);}
+			cur:=cdr(cur);
+				}
+		"Strengthen.";
+		notself.doStrengthenWith(at, st);
+			break;
+		case 2:
+		if (at.allytome)
+			{
+		"Harden.";
+		Me.alist[rand(length(Me.alist))].doHardenWith(at, st);
+			}
+		else
+			{
+		"Harden.";
+		Me.elist[rand(length(Me.elist))].doHardenWith(at, st);
+			}
+			break;
+		case 3:
+		if (at.allytome)
+			{
+		"Quicken.";
+		Me.alist[rand(length(Me.alist))].doQuickenWith(at, st);
+			}
+		else
+			{
+		"Quicken.";
+		Me.elist[rand(length(Me.elist))].doQuickenWith(at, st);
+			}
+			break;
+		case 4:
+		"Harm.";
+		df.doHarmWith(at, st);
+			break;
+		case 5:
+		"Charm.";
+		df.doCharm(at);
+			break;
+		case 6:
+		"Summon.";
+		fury.doSummonWith(at, (rand(3)+2));
+			break;
+		case 7:
+		"Soften.";
+		df.doSoftenWith(at, st);
+			break;
+		}
+	return;
+}
+
+ask: function (actor, obj)
+{
+	local propPtr;
+	propPtr:=actor.askPropPtr;
+	if (defined(obj,propPtr))
+	{
+		obj.(propPtr);
+	}
+	else
+	{
+	actor.dontKnow;
+	}
+}
+
+tell: function (actor, obj)
+{
+	local propPtr;
+	propPtr:=actor.tellPropPtr;
+	if (defined(obj,propPtr))
+	{
+		obj.(propPtr);
+	}
+	else
+	{
+	actor.dontCare;
+	}
+}
+
+following: function (actor, obj)
+{
+	local propPtr;
+	actor.distance:=1; //reset distance
+	propPtr:=actor.follPropPtr;
+	if (defined(obj,propPtr))
+	{
+		obj.(propPtr);
+	}
+	else
+	{
+	"\b\^<<actor.thedesc>> "; 
+	say(actor.follmsg[rand(length(actor.follmsg))]);
+	}
+	return;
+}
+
+noise: function (actor, obj)
+{
+	local propPtr;
+	propPtr:=&sound;
+	if (defined(obj,propPtr))
+	{
+		"\n\^<<actor.thedesc>> hear%s% ";
+		obj.(propPtr);
+	}
+	else if (library.deactivated)
+	{
+	"It seems strangely quiet.";
+	}
+	else
+	{
+"\n\^<<actor.thedesc>> hear%s% nothing except the low rumbling of the ventilation system.";
+	}
+}
+
+checkFall:function (dmg, strng, df)
+{
+if (dmg>strng/2)
+	{
+	"\b\^<<df.thedesc>> fall<<df.adds>> from the force of the blow."; 
+	if (not proneCheck(df))
+	{
+	df.moveInto(df.location.myfloor);
+	df.engaging:=nil;
+	df.awaiting:=nil;
+	}
+	if(df<>Me){df.fellThisTurn:=true;}
+	}
+	return;
+}
+
+kick:function (df)
+{
+	if (df=Me) 
+	{
+	"\bEverything goes black... "; 
+	Me.isalive:=nil; 
+	Me.isangry:=3; 
+	subally(Me);
+	df.killer.distance:=1;
+	}
+                    	else  {
+			if (global.trace){"\nKilling <<df.thedesc>>.";}
+			df.isalive:= nil;
+			if (df.location.isbed or df.location.ischair)
+			{df.moveInto(df.location.location);}
+			df.killer.distance:=1;
+			df.dead; 
+		        }
+
+}
+
+
+fakedam:function (victim, amount)
+{
+	if (global.trace){"\nStarting fakedam...";}
+	if (amount=0){return(0);}
+	victim.hitThisTurn:=true; victim.disp:=victim.isangry;//stay angry
+	if (victim.tempstr=0){return(amount);}
+	if (amount<=victim.tempstr)
+		{
+	{"\b\^<<victim.mydesc>> magic absorbs <<amount>> damage.";} 
+		victim.temp := victim.tempstr - amount;
+		return (0);
+		}
+	else
+		{
+		if (victim.tempstr>0)
+		{"\b\^<<victim.mydesc>> magic absorbs <<victim.tempstr>> damage.";}
+		if (victim.tempstr<0)
+		{"\bHostile magic adds <<amount>> damage.";}
+		amount:=amount-victim.tempstr;
+		if (victim.tempstr<0){victim.getsback:=(-victim.tempstr);}
+		victim.tempstr:=0;
+		return (amount);
+		}
+	
+}
+
+combat:function(at,df)
+{
+        local thisroll, proll, pflag, diff, less,  dir, len,  pran;
+        if (not at.isalive){return;}
+	if (not here(df)){"\nThere's no <<df.sdesc>> in the room."; return;}
+        if (not df.isalive){at.isangry:=at.disp; at.attacker:=nil;return;}
+        thisroll :=0;
+        proll:= 0;
+        pflag:= nil;
+        diff:= 0;
+        less:=0;
+        pran:=0;
+        ally();
+
+if (global.trace) {"\nAttacker is <<at.sdesc>> and defender is <<df.sdesc>>.";}
+if (global.trace){"\natmod=<<at.atmod>> and dfmod=<<df.dfmod>>";}
+	thisroll := Me.hitroll;	/*creature's to hit*/
+            at.lastroll := thisroll;
+            at.dam := nil;
+	df.isangry:=5;
+	at.done:= true;
+	if (fatigue (at, 2)) return;
+if ( thisroll<= at.dex+at.atmod-df.dfmod) /*MAIN TO HIT ROUTINE*/
+{
+at.dam:=Me.damage( at.ready.weapdice, at.ready.weapsides,  at.handdice, at.handsides  );
+                if (thisroll<= (at.dex -10)) /*critical check*/
+		{
+		diff:= (at.dex-9)-thisroll;
+		at.dam:= at.dam + Me.critdam (diff);
+		}
+	
+
+	proll:= Me.hitroll;		/*get player's parry*/
+		if (proll<= df.parry and thisroll<>1 and not proneCheck(df) and not df.charmed) 
+		{
+		pran:= df.dex/3;
+		less:= Me.critdam (pran);
+			if(proll<=df.dex/5){less:=less+Me.critdam (pran);}
+		at.dam := at.dam - less;
+		if (at.dam < 0) {at.dam := 0;}
+		pflag := true;
+		}
+	at.hit;
+	if (thisroll=1) {at.dam:=at.dam+df.stop+df.block+df.skin; "\nCritical Hit!";}
+		if (pflag)
+		{"\n\^<<df.mydesc>> parry (<<proll>>) stops <<less>>.";}
+	if (df.stop+df.block+df.tempmod+df.skin<>0)
+	{
+		at.dam:=at.dam-(df.stop+df.block+df.tempmod+df.skin);
+		if (at.dam < 0 ) {at.dam:=0;}
+		if (thisroll<>1)
+		{
+	"\n\^<<df.mydesc>> armor stops <<df.stop+df.block+df.tempmod+df.skin>>.";
+		}
+	}
+	fakedam(df, at.dam); /*checks is Strengthen spell is in effect*/
+	df.str := df.str - at.dam;
+	if (at=Me){incscore(at.dam);}
+	at.damreport;
+	if (at.dam>0 and at.attacker<>Me) {df.healthmsg;}
+
+	checkFall(at.dam, df.maxstr, df);
+
+            if ( df.str+ df.tempstr< 1) 
+		{
+		df.killer:=at;
+		kick(df);
+		}
+	if (length(Me.alist)=0 and at.enemy){at.isangry:=at.disp;}
+      }
+            else at.missed;
+}
+
+preparse : function (command)
+{
+	if (global.trace){"\nBeginning Preparse...";}
+
+	if(Me.charmed)
+	{return(Me.orders[rand(6)]);}
+
+	else {return (true);}
+}
+
+ally:function
+{	local cur;
+	if (global.trace) {"\nChecking for MY allies.";}
+	cur :=Me.alist;
+    	while ( car( cur ) )
+    	{
+		if (car(cur)<>Me)
+		{
+		car(cur).isangry := 5;
+		if(global.trace){"\n<<car(cur).sdesc>> gets angry.";}
+		}
+        	cur := cdr( cur );
+    	}
+return;
+}
+
+enemyangry:function (caller)
+{	local cur;
+	
+	cur :=Me.elist;
+	if (global.trace){"\nCaller is <<caller.sdesc>>.";}
+    	while ( car( cur ) )
+    	{
+	if (car(cur)<>caller)
+		{
+if (global.trace) 
+{"\n<<car(cur).sdesc>> sides with <<caller.sdesc>>.";}
+		car(cur).isangry := 5;
+		}
+        	cur := cdr( cur );
+    	}
+return;
+}
+
+addally:function(newally)
+{
+Me.alist:=Me.alist+newally;
+return;
+}
+
+subally:function(lessally)
+{
+Me.alist:=Me.alist-lessally;
+return;
+}
+
+
+addenemy:function(newenemy)
+{
+Me.elist:=Me.elist+newenemy;
+return;
+}
+
+subenemy:function(lessenemy)
+{
+Me.elist:=Me.elist-lessenemy;
+return;
+}
+
+goToSleep: function
+{
+}
+
+unconscious:function
+{
+	if (Me.str+Me.tempstr>0){return;}
+	if (Me.str+Me.tempstr< (-Me.maxstr/2)){"\bYou sink into oblivion... ";die(); abort;}
+	if (Me.str+Me.tempstr=0 and length(Me.alist)=0 and length(Me.elist)=0)
+	{
+	local num, i;
+	"\nSome time passes..."; 
+	num:=Me.hitroll; i:=1;
+	while (i<num)
+		{
+		turncount ();
+		i:=i+1;
+		}
+	Me.str:=1; "\bYou drift back to consciousness. Lucky you."; 
+	return;
+	}
+
+	if (Me.str+Me.tempstr<0 and length(Me.alist)=0 and length(Me.elist)=0)
+	{"\bYou sink into oblivion... "; die(); abort;}
+
+	if (Me.str+Me.tempstr<1){Me.str:=Me.str-1; "\bYou're dying...(<<Me.str>>)";}
+
+	if (Me.str+Me.tempstr<1 and length (Me.alist)>=1 and length (Me.elist)=0)
+	{
+	"\b\^<<Me.alist[1].thedesc>> bandages your wounds.\n";
+	Me.str:=1; Me.isalive:=true; addally(Me);
+	return;
+	}
+	
+	if (Me.str+Me.tempstr<1 and length(Me.alist)=0 and not car(Me.elist).willsaveme)
+	{
+	"\b\t\^You are slaughtered while you're unconscious.";
+	Me.str:=-10; die(); abort;
+	}
+
+	if (Me.str+Me.tempstr<1 and length (Me.alist)=0 and car(Me.elist).willsaveme)
+	{
+	"\b\^Your wounds are bandaged.";
+	Me.str:=1; Me.isalive:=true; addally(Me);
+	Me.elist[1].isangry:=3;
+		if (Me.elist[1].steal and not Me.elist[1].issummoned)
+		{
+    		local i,  tot, list, cur;
+		if (global.trace){"\nStarting steal routine...";}
+    		list := Me.contents;
+    		tot := length( list );
+  		i := 1;
+  
+    		while ( i <= tot )
+    		{
+        		cur := list[i];
+            
+	if (cur.isweapon and Me.ready=cur and cur<>hands)
+	{Me.ready:=hands; }
+	if (global.trace){"\nExecuting take <<cur.sdesc>>"; "<<length(list)>>";}
+             if (cur<>hands and cur<>metalplate){"\n"; cur.doTake(Me.elist[1]);}
+	if (global.trace){"\nChecking isarmor and isweapon.";}
+	if (cur.isarmor and not Me.elist[1].hasarmor and cur.location=Me.elist[1])
+	{ 
+	"\n"; cur.doWear(Me.elist[1]);
+	}
+	if (cur.isring and cur.location=Me.elist[1])
+	{ 
+	"\n"; cur.doWear(Me.elist[1]);
+	}
+	if (cur.isweapon and cur<>hands and Me.elist[1].ready=hands)
+	{Me.elist[1].ready:=cur;}
+        	i := i + 1;
+    		}
+	Me.elist[1].isangry:=5;
+	"\bYou regain consciousness.";
+	Me.moveInto(cell); "\b";
+	cellDoor.isopen:=nil; cellDoor.islocked:=true;
+	cell.lookAround(true);
+		}
+	}
+	return;
+}
+
+checkspell:function (mage, spell)
+{
+    	local i,  tot, list, cur, flag;
+    	list := mage.knownspells;
+    	tot := length( list );
+  	 i := 1; flag:= nil;
+  
+    	while ( i <= tot )
+    		{
+        	cur := list[i];
+	if (cur=spell){flag:=true;}
+            if (global.trace){"Checking spells";}
+        	i := i + 1;
+    		}
+	return(flag);	
+}
+
+checkThrow:function (actor)
+{
+    	local i,  tot, list, cur;
+    	list := actor.contents;
+    	tot := length( list );
+  	 i := 1; 
+  
+    	while ( i <= tot )
+    		{
+        	cur := list[i];
+	if (cur.throwable){return (cur);}
+            if (global.trace){"Checking throwable items";}
+        	i := i + 1;
+    		}
+	return(nil);	
+}
+
+checklimits:function (actor, rm)
+{
+    	local i,  tot, list, cur, flag;
+	if (global.trace){"Checking limits";}
+    	list := actor.limits;
+    	tot := length( list );
+	if (tot=0) {return(true);}
+  	 i := 1; flag:= nil;
+  
+    	while ( i <= tot )
+    		{
+        	cur := list[i];
+	if (cur=rm){flag:=true;}
+            i := i + 1;
+    		}
+	return(flag);	
+}
+
+
+die: function
+{
+    "\b*** You have died ***\b";
+    scoreRank();
+
+    "\bYou may restore a saved game, start over, or quit. ";
+    while ( 1 )
+    {
+        local resp;
+
+        "\nPlease enter RESTORE, RESTART, or QUIT: >";
+        resp := upper(input());     /* get input, convert to uppercase */
+        if ( resp = 'RESTORE' )
+        {
+            resp := askfile( 'File to restore' );       /* find filename */
+            if ( resp = nil ) "Restore failed. ";
+            else if ( restore( resp )) "Restore failed. ";
+            else
+            {
+                setscore( global.score, global.turnsofar );
+                abort;
+            }
+        }
+        else if ( resp = 'RESTART' )
+        {
+            setscore( 0, 0 );
+            restart();
+        }
+        else if ( resp = 'QUIT' )
+        {
+            terminate();
+            quit();
+            abort;
+        }
+    }
+}
+
+scoreRank: function
+{
+    local s;
+    
+    s := global.score;
+    
+    "In a total of "; say( global.turnsofar );
+    " turns, you have achieved a score of ";
+    say( s ); " points out of a possible "; say( global.maxscore ); ".";
+    /*", which gives you a rank of ";
+    if ( s = 0 ) "coward. ";
+    else "hero. ";*/ 
+}
+
+init: function
+{
+     randomize();
+    
+    setdaemon( turncount, nil );               // start the turn counter daemon
+    setdaemon( sleepDaemon, nil );                    // start the sleep daemon
+    setdaemon( eatDaemon, nil );                     // start the hunger daemon
+    setdaemon( monstersDaemon, nil );            // start the monsters daemon
+    Me.location := startroom;                // move player to initial location
+    "\b\tSHADOWLAND ( I ) :  The Tower of Iron\b";
+    
+   	 version.sdesc;                // display the game's name and version number
+   	 "\b";
+
+	instructionsVerb.action(Me);
+
+  // if (restore('shadowgame' )) {regreg();"\b";} - user registration off
+	
+
+    "\b\tYou awaken strapped to a steel operating table, feeling vaguely nauseous.  Pain shoots through your hands.  As you struggle to recall the events that brought you here you realize you can't remember anything about your past.  What's more disturbing, the absence of any memories seems too complete to be accidental...\b";
+
+startroom.lookAround( true );                    // show player where he is
+}
+
+monstersDaemon: function( parm )
+{
+    local cur, e,a;
+    cur := global.monsterlist;
+    e:=Me.elist;
+    a:=Me.alist;
+    if (global.trace) {"\nBegin monsterDaemon.";}
+    while ( car( cur ) )
+    {
+if (car(cur).followme and not here (car(cur)) and car(cur).isalive and Me.isalive)
+	{
+	if (car(cur).location<> shadowland)
+		{
+	car(cur).moveInto(Me.location); 
+	following(car(cur), Me.location);
+		}
+	}
+       	if (not car(cur).done  and car(cur).isalive)
+		{car( cur ).move; car(cur).done:=true;}
+/*move slower monsters*/
+/*awaiting means faster*/
+	if (car(cur).awaiting <> nil and car(cur).isalive and not proneCheck(car(cur)))
+	{
+	if (car(cur).distance = 1 or car(cur).awaiting.distance = 1)
+		{car(cur).awaiting:=nil;}
+	else
+	{car(cur).done:=nil; combat (car(cur), car(cur).awaiting); car(cur).done:=true;}
+	}
+ 	
+
+		if (Me.awaiting = car(cur) and not proneCheck(Me))
+		{
+		if (not here(car(cur))){Me.awaiting:=nil;}
+		if (not car(cur).isalive){Me.awaiting:=nil;}
+		else if (Me.distance = 1 or car(cur).distance = 1)
+			{Me.awaiting:=nil;}
+		else if (Me.location.isbed or Me.location.ischair)
+			{Me.awaiting:=nil;}
+		else 
+			{
+			Me.done:=nil; Me.awaiting:=nil;
+			combat(Me, car(cur));
+			}
+		}
+
+		if (car(cur).engaging<>nil and not proneCheck(car(cur)))
+		{
+		if (car(cur).engaging.retreating){car(cur).done:=true;}
+		else
+		{car(cur).done:=nil; combat(car(cur), car(cur).engaging); }
+		}
+
+		if (Me.engaging = car(cur) and not proneCheck(Me))
+		{
+		if (not here(car(cur))){Me.engaging:=nil;}
+		if (not car(cur).isalive){Me.engaging:=nil;}
+		else if (car(cur).retreating){Me.engaging:=nil;}
+		else if (Me.distance = 1 or car(cur).distance = 1)
+			{Me.awaiting:=nil;}
+		/*else if (Me.location.isbed or Me.location.ischair)
+			{Me.awaiting:=nil;}*/
+		else 
+			{
+			Me.done:=nil; Me.engaging:=nil;
+			combat(Me, car(cur));
+			}
+		}
+
+
+        if ( here (car(cur)) and car (cur).isalive and car(cur).enemy) 
+        {
+            global.heal := 0;
+        }
+        else 
+        {
+           
+            global.heal := global.heal + 1;
+            if ( global.heal = 10 )
+            	{
+                global.heal := 0;
+      
+      if ( Me.cast>0 and Me.maxstr> Me.str) {Me.str := Me.str + 1; Me.cast:=Me.cast-1;}
+      if (car(cur).cast>0 and car(cur).maxstr>car(cur).str and car(cur).isalive)
+		{car(cur).str := car(cur).str + 1; car(cur).cast:=car(cur).cast-1;}
+            	}
+        }
+	cur := cdr( cur );
+    }
+
+	
+
+	cur:=global.monsterlist;
+	while ( car( cur ) )
+	{
+	car(cur).done:= nil;   /*reset done flag at end of turn*/
+	car(cur).fellThisTurn:=nil;
+	car(cur).hitThisTurn:=nil;
+     	car(cur).awaiting:=nil;
+	car(cur).engaging:=nil;
+	car(cur).retreating:=nil;
+	if (not car(cur).fatThisTurn){car(cur).fat:=car(cur).fat-1;}
+	if (car(cur).fat<0){car(cur).fat:=0;}
+	cur := cdr( cur );
+	}
+
+	
+	unconscious();
+	Me.done:=nil;
+	Me.hitThisTurn:=nil;
+     	Me.awaiting:=nil;
+ 	Me.engaging:=nil;
+ 	Me.retreating:=nil;
+	if (not Me.fatThisTurn){Me.fat:=Me.fat-1;}
+	if (Me.fat<0){Me.fat:=0;}
+	if(length(Me.elist)=0) {Me.isangry:=3;}
+	
+	if ((Me.points-30)*(Me.points-30)<=global.score/25)
+		{
+		"\b\tYou've gained experience.";
+		Me.points:=Me.points+1;
+		}
+
+		/*clear enemy list and ally list made during preparse*/
+	while (length(e)<>0)
+	{
+	subenemy(car(e));
+	if (global.trace){"\nClearing <<car(e).sdesc>> from enemy list.";}
+	e:=cdr(e);
+	}
+	
+	while (length(a)<>0)
+	{
+	subally(car(a));
+	if (global.trace)"\nClearing <<car(a).sdesc>> from ally list.";
+	a:=cdr(a);
+	}
+	if (Me.str+Me.tempstr>0){Me.alist:=Me.alist-Me;}
+
+        if (global.trace) {"\nEnd monsterDaemon.";}
+}
+
+preinit: function
+{
+    local o;
+
+    initSearch();
+    
+    global.lamplist := [];
+    global.monsterlist := [];
+    o := firstobj();
+    while( o <> nil )
+    {
+        if ( o.islamp ) global.lamplist := global.lamplist + o;
+        if ( o.ismonster ) global.monsterlist := global.monsterlist + o;
+        o := nextobj( o );
+    }
+		
+	
+}
+
+terminate: function
+{
+}
+
+/*
+ *   The pardon() function is called any time the player enters a blank
+ *   line.
+ */
+pardon: function
+{
+    "The ignorant are better served by silence.";
+}
+
+sleepDaemon: function( parm )
+{
+    local a, s;
+
+    global.awakeTime := global.awakeTime + 1;
+    a := global.awakeTime;
+    s := global.sleepTime;
+
+    if ( a = s or a = s+10 or a = s+20 )
+        "\bYou're feeling a bit drowsy; you should find a
+        comfortable place to sleep. ";
+    else if ( a = s+25 or a = s+30 )
+        "\bYou really should find someplace to sleep soon, or
+        you'll probably pass out from exhaustion. ";
+    else if ( a >= s+35 )
+    {
+      global.awakeTime := 0;
+      if ( Me.location.isbed or Me.location.ischair )
+      {
+        "\bYou find yourself unable to stay awake any longer.
+        Fortunately, you are ";
+        if ( Me.location.isbed ) "on "; else "in ";
+        Me.location.adesc; ", so you gently slip off into
+        unconsciousness.
+        \b* * * * *
+        \bYou awake some time later, feeling refreshed. ";
+      }
+      else
+      {
+        local itemRem, thisItem;
+        "\bYou find yourself unable to stay awake any longer.
+        You pass out, falling to the ground.
+        \b* * * * *
+        \bYou awaken, feeling somewhat the worse for wear.
+        You get up and dust yourself off. ";
+        itemRem := Me.contents;
+        while (car( itemRem ))
+        {
+            thisItem := car( itemRem );
+            if ( not thisItem.isworn ) thisItem.moveInto( Me.location );
+            itemRem := cdr( itemRem );
+        }
+      }
+    }
+}
+
+darkTravel: function
+{
+    "You stumble around in the dark, and don't get anywhere. ";
+}
+
+eatDaemon: function( parm )
+{
+    local e, l;
+
+    global.lastMealTime := global.lastMealTime + 1;
+    e := global.eatTime;
+    l := global.lastMealTime;
+
+    if ( l = e or l = e+5 or l = e+10 )
+        "\bYou're feeling a bit peckish. Perhaps it would be a good
+        time to find something to eat. ";
+    else if ( l = e+15 or l = e+20 or l = e+25 )
+        "\bYou're feeling really hungry. You should find some food
+        soon or you'll collapse. ";
+    else if ( l=e+30 or l = e+35 )
+        "\bYou really can't go much longer without food. ";
+    else if ( l >= e+40 )
+    {
+        "\bYou simply can't go on any longer without food. You perish from
+        lack of nutrition. ";
+        die();
+    }
+}
+
+numObj: basicNumObj;
+
+strObj: basicStrObj;
+
+global: object
+    turnsofar = 0                            // no turns have transpired so far
+    score = 0                            // no points have been accumulated yet
+    maxscore = 1000                                     // maximum possible score
+    verbose = nil                             // we are currently in TERSE mode
+    awakeTime = 0               // time that has elapsed since the player slept
+    sleepTime = 600  // interval between sleeping times (longest time awake)
+    lastMealTime = 0              // time that has elapsed since the player ate
+    eatTime = 250         // interval between meals (longest time without food)
+    lamplist = []              // list of all known light providers in the game
+    monsterlist = []              // list of all known monsters in the game
+    heal = 0
+    isHostile = nil
+    trace = nil
+    reg = true 		//registered user flag
+;
+
+version: object
+    sdesc = "SHADOWLAND
+     \nInteractive Role-Playing System
+     \bRelease 1.0
+     \nCopyright (c) 1993 by Tom Claburn. All Rights Reserved.
+     \nDeveloped with TADS: The Text Adventure Development System. "
+;
+
+
+Me: basicMe
+    mydesc = "your"
+    thedesc = "you"
+    ldesc = "You look about as you'd expect, except for your hands."
+    posdesc = "your"
+    adds = ""
+    done = nil
+    cast = 0
+    str = 10
+    maxstr = 10
+    dex = 12
+    maxdex = 12
+    int = 10
+    maxint = 10
+    points = 32
+    fat = 0
+    fatThisTurn = nil
+    maxweight =
+    {
+     local num;
+     num:= (Me.maxstr+Me.tempstr)*10;
+     return (num);
+     }
+    maxbulk = 15 
+    knowsmagic = true
+    knownspells =[]
+    lastroll = 0
+    isalive = true
+    killer = nil
+    awaiting = nil
+    engaging = nil
+    retreating = nil
+    prone = nil
+    hitThisTurn = nil
+    allytome = true
+    enemy = nil
+    distance = 1
+    handdice = 1
+    handsides = 
+    {
+	local num;
+	num := (Me.maxstr+Me.tempstr)/2;
+	return (num);
+     }
+    ready = hands
+    hasarmor = nil
+    ringcount = 0
+    attacker = nil
+    isangry = 3
+    skin = 0
+    elist = []
+    alist = []
+    parry =
+    {
+     	local num;
+     	num := Me.dex-Me.ready.pvalue;
+       	return (num);
+     }
+    stop = 0
+    block = 0
+    tempmod = 0
+    lostdex = 0
+    qdex = 0
+    tempmodzero={"\bArmor modification (<<self.tempmod>>) wears off."; self.tempmod:=0;}
+    tempstr = 0
+    tempstrzero = 
+	{
+	"\bStrengthen (<<self.tempstr>>) wears off."; 
+	if (self.getsback>0 and self.str>-1){self.str:=self.str+self.getsback;}
+	self.getsback:=0;
+	self.tempstr:=0;
+	}
+    getsback = 0
+    chrm=0
+    chrmzero={"\bCharm (<<self.chrm>>) wears off."; self.chrm:=0; self.charmed:=nil;}
+    atmod = 
+	{
+	local num;
+	num:=0;
+	return(num);
+	}
+    ddge=0
+    ddgezero={"\bDodge modifier (<<self.ddge>>) wears off."; self.ddge:=0;}
+    pronemod = {
+		if (self.location.isbed){return(-4);}
+		else if (self.location.ischair){return(-3);}
+		else return(0);
+		}
+    dfmod = 
+	{
+	local num;
+	num:=self.ddge+self.chrm+self.pronemod;
+	return(num);
+	}
+
+   charmed = nil
+   tied = true
+   turncoat = {self.charmed:=not self.charmed;}
+   orders = ['wait' 'dance' 'drop all' 'remove all' 'lie on floor' 'wait']
+    mvt =
+	{
+	local num, a, b;
+	a:=(Me.str+1+Me.tempstr)/2+(Me.maxstr+1)/2;
+	b:=addweight(Me.contents)/20;
+	num:=(a-b)/2;
+	if (num<1){num:=1;}
+	return (num);
+	}
+    feintfix = 
+	{
+	self.dex:=self.dex+self.lostdex;
+	self.lostdex:=0;
+	if (Me.str+Me.tempstr>0){"\n\^You regain your footing.";}
+	}
+    quickfix = 
+	{
+	self.dex:=self.dex-self.qdex;
+	self.qdex:=0;
+	if (Me.str+Me.tempstr>0){"\n\^You feel a bit less agile.";}
+	}
+
+    verDoAttackWith( actor, io ) = { "There's no need to get suicidal. "; }
+    attackmsg = 
+    [ 
+        'You swing at ' 
+        'You lunge at '
+        'You stab at '
+    ]
+    missed = 
+    {
+        "\b"; 
+        say( self.attackmsg [ rand( length( self.attackmsg ) ) ] ); 
+        "<<Me.attacker.thedesc>> but miss (<<Me.lastroll>>). ";
+    }
+    hit = 
+    {
+        "\b"; 
+        say( self.attackmsg [ rand( length( self.attackmsg ) ) ] ); 
+        "<<Me.attacker.thedesc>> and hit  (<<Me.lastroll>>).";
+    }
+     damreport = 
+     {
+	"\bYou do <<Me.dam>> damage. ";
+     }
+
+    hitroll =
+    {
+        local roll;
+        roll := rand( 20 );
+        return( roll );
+    }
+    damage( wd, ws, hd, hs ) =
+    {
+        local rolls,total, rolltwo;
+        total := 0;
+        rolls:= 1;
+        rolltwo := 1;
+        while ( rolls <= wd )
+        {
+            total := total + rand( ws );
+            rolls := rolls + 1;
+        }
+         while ( rolltwo <= hd )
+	{
+	total := total + rand (hs);
+	rolltwo := rolltwo +1;
+	}
+        return( total );
+    }
+     critdam(diff) = 
+     {
+	local roll;
+	roll:= 0;
+	roll:= rand ( diff);
+	return (roll);
+     }
+    adc = 1
+   askDoctor=
+	{
+	switch (self.adc)
+		{
+		case 1:
+	"\"You've volunteered to be dissected,\" says the doctor, \"for which we're all quite appreciative.  Try to think about something pleasant, you won't feel a thing.\"";
+		self.adc:=self.adc+1;
+		if (doctor.state=3){doctor.state:=2;}
+		break;
+		case 2:
+	"The doctor says, \"You certainly are curious for someone about to die.  The fact is your unusually high magical aptitude makes your genetic material too valuable to squander on a life of adventuring.  I hope you realize what an honor it is to give your life for the benefit of General Ir.\"";
+		self.adc:=self.adc+1;
+		if (doctor.state=3){doctor.state:=2;}
+		break;
+		default:
+	"The doctor doesn't answer.";
+		break;
+		}
+	}
+   tellDoctor = "The doctor just smiles and nods."
+   askTroll = "\"You're asking me?\" says the Troll."
+   tellTroll = "The Troll grumbles, \"Look, you wanna talk about your problems, call a shrink.\""
+   verDoQuicken( actor ) = {}
+    doQuicken( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoQuickenWith( actor, io ) = 
+	{if (not checkspell (actor, 'quicken')){"%You% can't cast that spell.";}}
+    doQuickenWith( actor, io ) =
+	{
+	local thisroll, level, dur, cost, lost, val, diffic, adj;
+	actor.done:=true;
+	if (not self.isalive){return;}
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast..."; return;}  
+	thisroll:=Me.hitroll;
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	level:=val;
+	adj:=(val+9)-actor.int; //min IQ 9
+	if (adj<1){adj:=1;}
+	adj:=adj*adj;
+	dur:= 3+(actor.int-8);
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	if (thisroll<=actor.dex-adj)
+		{
+	"\b\^<<actor.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+	"\n\^<<self.mydesc>> dexterity increases by <<level>> for <<dur>> turns.";
+		self.dex:=self.dex+level; self.qdex:=self.qdex+level;
+		lost:= fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me and actor.isangry=5){incscore(cost*diffic);}
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if (getfuse(self, &quickfix)){unnotify(self, &quickfix);}
+		notify (self, &quickfix, dur);
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	else
+		{
+		"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(actor,1);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	}
+	
+   verDoHarden( actor ) = {}
+    doHarden( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoHardenWith( actor, io ) = 
+	{if (not checkspell (actor, 'harden')){"%You% can't cast that spell.";}}
+    doHardenWith( actor, io ) =
+	{
+	local thisroll, level, dur, cost, lost, val, diffic, adj;
+	actor.done:=true;
+	if (not self.isalive){return;}
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	thisroll:=Me.hitroll;
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	level:=val;
+	adj:=(val+9)-actor.int; //min IQ 9
+	if (adj<1){adj:=1;}
+	adj:=adj*adj;
+	dur:= 3+(actor.int-8);
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	if (thisroll<=actor.dex-adj)
+		{
+	"\b\^<<actor.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+	"\n\^<<self.mydesc>> armor increases by <<level>> for <<dur>> turns.";
+		self.tempmod:=self.tempmod+level;
+		lost:= fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me and actor.isangry=5){incscore(cost*diffic);}
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if (getfuse(self, &tempmodzero)){unnotify(self, &tempmodzero);}
+		notify (self, &tempmodzero, dur);
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		incscore(diffic);
+		}
+	else
+		{
+		"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(actor,1);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	}
+
+    verDoSoften( actor ) = {}
+    doSoften( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoSoftenWith( actor, io ) = 
+	{if (not checkspell (actor, 'soften')){"%You% can't cast that spell.";}}
+    doSoftenWith( actor, io ) =
+	{
+	local thisroll, level, dur, cost, lost, val, diffic, adj;
+	actor.done:=true;
+	if (not self.isalive){return;}
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	thisroll:=Me.hitroll;
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	level:=val;
+	adj:=(val+10)-actor.int;
+	if (adj<1){adj:=1;}
+	adj:=adj*adj;
+	dur:= 3+(actor.int-9);
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	if (thisroll<=actor.dex-adj)
+		{
+	"\b\^<<actor.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+	"\n\^<<self.mydesc>> armor decreases by <<level>> for <<dur>> turns.";
+		self.tempmod:=actor.tempmod-level;
+		lost:= fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if (getfuse(self, &tempmodzero)){unnotify(self, &tempmodzero);}
+		notify (self, &tempmodzero, dur);
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	else
+		{
+		"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(actor,1);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	}
+
+    verDoStrengthen( actor ) = {}
+    doStrengthen( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoStrengthenWith( actor, io ) = 
+	{if (not checkspell (actor, 'strengthen')){"%You% can't cast that spell.";}}
+    doStrengthenWith( actor, io ) =
+	{
+	local thisroll, level, dur, cost, lost, val, diffic, adj;
+	actor.done:=true;
+	if (not self.isalive){return;}
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	thisroll:=Me.hitroll;
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	level:=val;
+	adj:=(val+9)-actor.int;
+	if (adj<1){adj:=1;}
+	adj:=adj*adj;
+	dur:= 3+(actor.int-8);
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	
+	if (thisroll<=actor.dex-adj)
+		{
+"\b\^<<actor.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+"\b\^<<actor.thedesc>> increase<<actor.adds>> <<self.mydesc>> Strength by <<val>> ";
+"at a cost of <<cost>>.";
+		lost:= fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me and actor.isangry=5){incscore(cost*diffic);}
+		self.tempstr:=self.tempstr+val;
+		if (getfuse(self, &tempstrzero)){unnotify(self, &tempstrzero);}
+		notify (self, &tempstrzero, dur);
+		if(actor=Me){"\bYour Strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	else
+		{
+	"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(actor,1);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	}
+
+   verDoCharm (actor) = 
+	{
+	if (not checkspell (actor, 'charm')){"%You% can't cast that spell.";}
+	}
+    doCharm (actor)= 
+	{
+	local thisroll, saveroll, caster, target, cost, dur, diff, lost;
+	if (global.trace){"\nExecuting charm.";}
+	if(not self.isalive){return;}
+	actor.done:=true;
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	caster:=actor; target:=self;
+	if (target.charmed){"\n\^<<target.thedesc>>%are% not affected."; return;}
+	thisroll:=Me.hitroll;
+	saveroll:=Me.hitroll;
+	dur:=(caster.int/3);
+	if (caster=Me){dur:=dur+1;}
+	cost:=3;
+	target.isangry:=5;
+	ally();
+	if (thisroll<=caster.dex and saveroll> target.int)
+	{
+"\b\^<<caster.thedesc>> charm<<caster.adds>> <<target.thedesc>> (<<thisroll>>/<<saveroll>>).";
+		target.turncoat;
+		target.charmed:=true;
+		notify (target,&turncoat,dur);
+		target.chrm:=target.chrm-3;
+		notify (target,&chrmzero, dur);
+		lost:=fakedam(caster, cost);
+		caster.str:=caster.str-lost;
+		caster.cast:=caster.cast+lost;
+		
+		if (caster=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=target; kick(actor);}
+	}
+	else if (thisroll<=caster.dex and saveroll<= target.int + (target.int-caster.int))
+		{
+"\b\^<<target.thedesc>> resist<<target.adds>> the spell (<<thisroll>>/<<saveroll>>).";
+		lost:=fakedam (caster, cost);
+		caster.str:=caster.str-lost;
+		caster.cast:=caster.cast+lost;
+		if (caster=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		lost:=fakedam(target, 1);
+		target.str:=target.str-lost;
+		target.cast:=target.cast+lost;
+		if (target=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=target; kick(actor);}
+		}
+	else  	{
+		"\b\^<<caster.mydesc>> spell fails (<<thisroll>>/<<saveroll>>).";
+		lost:=fakedam(caster, 1);
+		caster.str:=caster.str-lost;
+		caster.cast:=caster.cast+lost;
+		if (caster=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=target; kick(actor);}
+		}
+	}
+
+   verDoHarm( actor ) = {}
+    doHarm( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoHarmWith( actor, io ) = 
+	{if (not checkspell (actor, 'harm')){"%You% can't cast that spell.";}}
+    doHarmWith( actor, io ) =
+	{
+	local thisroll, level, dur, cost, lost, val, diffic, adj, box, dice, caster, target;
+	actor.done:=true;
+	if (not self.isalive){return;}
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	thisroll:=Me.hitroll;
+	caster:=actor; target:=self;
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	level:= 3 +((caster.int-8)/2);
+	if (level<3){level:=3;}
+	adj:=(val+9)-actor.int;
+	if (adj<1){adj:=1;}
+	adj:=adj*adj;
+
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	dice:=val;
+	
+	
+	if (thisroll<=actor.dex+caster.atmod-(target.dfmod+adj))
+		{
+"\b\^<<actor.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+
+		lost:= fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		caster.dam:=Me.damage( dice, level,  0, 0  );
+		if (self.stop+self.block+self.tempmod+self.skin<>0)
+		{
+		"\b\^<<self.mydesc>> armor stops ";
+		"<<self.stop+self.block+self.tempmod+self.skin>>.";
+		}
+caster.dam:=caster.dam-(target.stop+target.block+target.tempmod+target.skin);
+		if (caster.dam<0) {caster.dam:=0;}
+		box:=fakedam(target, caster.dam);
+		caster.dam:=box;
+		target.str:=target.str-caster.dam;
+		caster.damreport;
+		if (caster.dam>0 and target<>Me) {target.healthmsg;}  
+		if(actor=Me){"\bYour Strength is now <<Me.str+Me.tempstr>>.";}
+		
+		checkFall(caster.dam, target.maxstr, target);
+           	if ( self.str+ self.tempstr< 1 ) {self.killer:=actor; kick(self);}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	else
+		{
+	"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	}
+	
+    verDoTrip(actor)={
+			if (not global.reg)
+			{"This command is available only to registered users.";}
+			}
+    doTrip(actor)=
+    {
+	local a,d;
+	a:=Me.hitroll;
+	d:=Me.hitroll;
+	if (a<=actor.dex and d>self.dex)
+	{
+	"\^<<actor.thedesc>> trip%s% <<self.thedesc>> (<<a>>/<<d>>).";
+	self.moveInto(self.location.myfloor);
+	}
+	else "\^<<actor.thedesc>> fail%s% to trip <<self.thedesc>> (<<a>>/<<d>>).";
+    }
+
+    verDoShootWith( actor, io ) = {}
+     doShootWith( actor, io ) =
+    {
+	local thisroll, box;
+	if (not actor.isalive){return;}
+     	self.isangry := 5;
+         	Me.attacker := actor;
+         	Me.dam := nil;
+	actor.done:=true;
+         	thisroll := Me.hitroll;
+         	Me.lastroll:= thisroll;
+	if (io.ammo=0)
+	{
+	"\bClick...<<actor.mydesc>> gun is out of ammunition.";
+	return;
+	}
+        
+	if (thisroll+self.dfmod<=actor.dex)
+	{
+	"\bBang...<<actor.mydesc>> shot strikes <<self.thedesc>> (<<thisroll>>).";
+	actor.dam:=Me.damage( io.gundice, io.gunsides,  0, 0  );
+		if (self.stop+self.block+self.tempmod+self.skin<>0)
+		{
+		"\b\^<<self.mydesc>> armor stops ";
+		"<<self.stop+self.block+self.tempmod+self.skin>>.";
+		}
+actor.dam:=actor.dam-(self.stop+self.block+self.tempmod+self.skin);
+		if (actor.dam<0) {actor.dam:=0;}
+		box:=fakedam(self, actor.dam);
+		actor.dam:=box;
+		self.str:=self.str-actor.dam;
+		actor.damreport;
+		if (actor.dam>0 and self<>Me) {self.healthmsg;}  
+		io.ammo--;
+		checkFall(actor.dam, self.maxstr, self);
+           	if ( self.str+ self.tempstr< 1 ) {self.killer:=actor; kick(self); }
+		
+	}
+	else 
+		{
+		"\bBang...<<actor.mydesc>> shot misses <<self.thedesc>> (<<thisroll>>).";
+		io.ammo--;
+		}
+    }
+    verDoAwait (actor) = {}
+    doAwait (actor) = 
+		{
+		"\b\^<<actor.thedesc>> wait<<actor.adds>> for <<self.thedesc>>.";
+		actor.awaiting:=self; actor.attacker:=self;
+		}
+   verDoLeave (actor) = {
+		if (actor=Me) "You're insane.";
+			}
+   doLeave (actor) = 
+	{
+	actor.followme:=nil; actor.randMove:=true;
+	"Okay, <<actor.thedesc>> is no longer following <<self.thedesc>>.";
+	}
+
+      actorAction( v, d, p, i ) =
+	{
+	if (global.trace){"\nStarting actor action...";}
+	
+	
+	if (v.issysverb){return;}
+	if (v.isTravelVerb){order();}
+	if (v=dodgeVerb){checkDodge(Me);}
+	goFirst();
+	if (Me.str+Me.tempstr<1){"\nYou're unconscious..."; exit;}
+	if (self.done){"\n"; exit;}
+	
+	if (straps.tied and not v.whileProne)
+	{
+	"\nYou can't, you're strapped to the table."; exit;
+	}
+
+	if (proneCheck(Me) and not v.whileProne)
+		{
+		"\nYou'll have to stand first."; exit;
+		}
+
+	if (cord.isattached and not v.whileProne)
+		{
+		"\nYou'll have to disconnect the cord first."; exit;
+		}
+
+	if (length(Me.elist)<>0 and v.isTravelVerb)
+	{
+	if (self.distance = 0){"\bYou'll have to retreat first."; exit;}
+else if (car(Me.elist).dex > Me.dex and car(Me.elist).isangry=5 )
+		{
+		"\b\^<<car(Me.elist).thedesc>> is too fast to escape."; 
+		exit;
+		}
+	else 		//leave ally behind?
+		{
+		if (length(Me.alist)>1 and Me.elist[1].isangry=5)
+			{
+	"\n\^<<Me.elist[1].thedesc>> slaughters <<Me.alist[2].thedesc>> as you try to flee.\n";
+			Me.alist[2].str:=0;
+			 Me.alist[2].killer:=Me.elist[1];
+			kick(Me.alist[2]);"\b";
+			}
+		return;
+		}
+	}
+
+if (global.trace) {"\nExiting actor action...<<length(Me.elist)>>"; }
+	
+	}
+;
+
+
+
+
+
+hands: weapon, fixeditem, keyItem
+  sdesc = "%your% hands"
+  thedesc = "%your% hands"
+  adesc = "%your% hands"
+  ldesc = {"Your hands look much as you'd expect, except that each one ";
+               " has a small circular metal plate implanted just behind the thumb.";}
+  noun = 'hands' 'hand'
+  adjective = 'my' 'left' 'right'
+  placement = "your wrists"
+  isListed = nil
+  nonun = true
+  location = Me
+   weapsides = 0
+   weapdice = 0
+   pvalue = 15
+   verIoAttachTo(actor)={}
+   ioAttachTo(actor,dobj)={dobj.doAttachTo(actor, self);}
+   verIoDetachFrom (actor)={}
+   ioDetachFrom (actor,dobj)={dobj.doDetachFrom(actor, self);}
+   verDoDrop (actor)= {"\nYour hands can't be dropped.";}
+   verIoUnscrewWith( actor ) = 
+    {
+	"Your hands just aren't the right tool for this job. ";
+    }
+    ioUnscrewWith( actor, dobj ) = { dobj.doUnscrewWith( actor, self ); }
+;
+
+metalplate: fixeditem
+   sdesc = "metal plate"
+   ldesc = "It's a metal plate with three holes.  Printed on the plate in
+   tiny letters are the words \"HMI Port.\""
+   noun = 'plate'
+   adjective = 'metal'
+   isListed = nil
+   location = Me
+   verIoAttachTo(actor)={}
+   ioAttachTo(actor,dobj)={dobj.doAttachTo(actor, self);}
+   verIoDetachFrom (actor)={}
+   ioDetachFrom (actor,dobj)={dobj.doDetachFrom(actor, self);}
+   verDoTake ( actor ) =
+  {
+      "\nThe metal plate cannot be removed from your hand.";
+  }
+;
+
+class armor: clothingItem
+    sdesc = "armor"
+    noun = 'armor'
+    ldesc = "It's your average suit of armor. "
+    isarmor = true
+    doWear (actor) = 
+   {
+    if (actor.hasarmor) {"%You're% already wearing armor.";}
+    else
+    	{
+    	actor.hasarmor := true;
+    	actor.stop:= actor.stop+self.stop;
+    	actor.dex:=actor.dex-self.lessdex;
+    	pass doWear;
+	}
+    }
+    verDoUnwear (actor) = 
+    {
+	if (self.location<>actor and self.location.isalive and not self.location.charmed)
+	{"\b\^<<self.location.thedesc>> won't let you remove it.";}
+	if ( not self.isworn)
+        	{
+            "No one's wearing "; self.thedesc; ". ";
+        	}
+    }
+    doUnwear (actor) = 
+    {
+    self.location.hasarmor := nil;
+    self.location.stop:=self.location.stop-self.stop;
+    self.location.dex:=self.location.dex+self.lessdex;
+    pass doUnwear;
+    }
+    checkDrop =
+    {
+                    if (self.isworn){"%You% should take it off first."; exit;}
+     }
+     doDrop( actor ) =
+    {
+        self.checkDrop;
+        pass doDrop;
+    }
+     doTake ( actor ) =
+	{
+	if (self.isworn and self.location<>actor)
+		{self.doUnwear (actor);}
+	pass doTake;
+	}
+;
+
+class background: fixeditem
+    locationOK = true
+    location = {Me.location;}
+;
+
+Ulrich: background
+    noun = 'Ulrich'
+    askTroll = "\"Ahh, Ulrich the Unwashed...therein lies a tale, \" murmurs the Troll, \"Ulrich was born in the Fetid Swamp, not far from here actually.  Unlike the rest of my kindred, Ulrich possessed absolutely no olfactory organs and hence never stooped to taking the yearly bath most trolls grudgingly endure out of social necessity.  At the age of forty, having never bathed, Ulrich left the swamp to fight against the human sorceror Balthazar the Mediocre.  Though superior in strength and number, the opposing army could not bear the smell of Ulrich and the troll war party quickly vanquished the sorceror's nauseous soldiers.  Even the mighty Balthazar was overcome by the stench of Ulrich.  His deeds are renowned among trolls.  As we Trolls say \"The answer is in the air\".\""
+;
+
+General:background
+   noun = 'general' 'general ir' 'ir'
+   askWarrior = "\"General Ir is the master of this place.  You cannot leave without his permission.  I myself have never seen him, but he's said to be aware of all that goes on here.\" the Warrior replies."
+;
+
+goldring : ring
+   sdesc = "gold ring"
+   noun = 'ring' 
+   adjective = 'gold'
+   isring = true
+   isworn = true
+   location = wizard
+   weight = 0
+   bulk = 1
+   stop = 2
+   lessdex = 0
+;
+
+class ring : clothingItem
+   sdesc = "ring"
+   noun = 'ring' 
+   adjective = 'silver'
+   isring = true
+   isworn = nil
+   location = nil
+   weight = 0
+   bulk = 1
+   stop = 0
+   lessdex = 0
+   doWear (actor) = 
+   {
+    	
+    	actor.stop:= actor.stop+self.stop;
+    	actor.dex:=actor.dex-self.lessdex;
+    	pass doWear;
+    }
+    verDoUnwear (actor) = 
+    {
+	if (self.location<>actor and self.location.isalive and not self.location.charmed)
+	{"\b\^<<self.location.thedesc>> won't let you remove it.";}
+	if ( not self.isworn)
+        	{
+            "No one's wearing "; self.thedesc; ". ";
+        	}
+    }
+    doUnwear (actor) = 
+    {
+    
+    self.location.stop:=self.location.stop-self.stop;
+    self.location.dex:=self.location.dex+self.lessdex;
+    pass doUnwear;
+    }
+    checkDrop =
+    {
+                    if (self.isworn){"%You% should take it off first."; exit;}
+     }
+     doDrop( actor ) =
+    {
+        self.checkDrop;
+        pass doDrop;
+    }
+     doTake ( actor ) =
+	{
+	if (self.isworn and self.location<>actor)
+		{self.doUnwear (actor);}
+	pass doTake;
+	}
+
+;
+
+cloth : armor
+   sdesc = "cloth armor"
+   adesc = "a suit of cloth armor"
+   thedesc = "the cloth armor"
+   noun = 'cloth' 'cloth armor'
+   ldesc = "It's a suit of cloth armor that's just about your size."
+   location = soldier
+   isworn = true
+   weight = 10
+   bulk = 1
+   stop = 1
+   lessdex = 1
+;
+
+leather : armor
+   sdesc = "leather armor"
+   adesc = "a suit of leather armor"
+   thedesc = "the leather armor"
+   noun = 'leather' 'leather armor'
+   ldesc = "It's a suit of leather armor that's just about your size."
+   location = storage
+   isworn = nil
+   weight = 15
+   bulk = 1
+   stop = 2
+   lessdex = 2
+  ;
+
+chainmail : armor
+   sdesc = "chainmail"
+   adesc = "a suit of chainmail"
+   thedesc = "the chainmail"
+   noun = 'chainmail' 'chain' 'mail'
+   ldesc = "It's a suit of chainmail that's just about your size."
+   location = mutant
+   isworn = true
+   weight = 30
+   bulk = 2
+   stop = 3
+   lessdex = 3
+
+;
+
+platemail : armor
+   sdesc = "platemail "
+   adesc = "a suit of platemail "
+   thedesc = "the platemail "
+   noun = 'platemail ' 
+   ldesc = "It's a suit of platemail  that's just about your size."
+   location = tunnel3
+   isworn = nil
+   weight = 50
+   bulk = 4
+   stop = 5
+   lessdex = 6
+
+;
+
+class gun: weapon
+   sdesc = "gun"
+   noun = 'gun'
+   ldesc = "It's a gun."
+   ammo = 1
+   isgun = true
+   weapdice = 1
+   weapsides = 2
+   gundice = 3
+   gunsides = 5
+   ioAttackWith( actor, dobj ) = { dobj.doShootWith( actor, self ); }
+   verIoShootWith (actor) = 
+    {
+	if ( self.location <> actor ) "You should be holding it first. ";
+	else if ( actor.ready <> self ) "It's not ready. "; 
+    }
+   ioShootWith (actor, dobj) = { dobj.doShootWith( actor, self ); }
+;
+
+pistol: gun
+   sdesc="pistol"
+   noun = 'pistol' 'beretta'
+   ldesc = 
+	{"It's a 9mm Beretta pistol.  It seems to have <<self.ammo>> shot"; 
+	"<<self.ammo = 1 ? "" : "s">>";
+		" left.";}
+   ammo = 4
+   location = startroom
+;
+
+class weapon: item
+    sdesc = "weapon"
+    noun = 'weapon'
+    ldesc = "It's your average instrument of death. "
+    specialTarget = nil
+    isweapon = true
+    weapdice = 0
+    weapsides = 0
+    verIoAttackWith( actor ) = 
+    {
+	if ( self.location <> actor ) "You should be holding it first. ";
+	else if ( actor.ready <> self ) "It's not ready. "; 
+    }
+    ioAttackWith( actor, dobj ) = { dobj.doAttackWith( actor, self ); }
+
+    verDoWield( actor ) = 
+    {
+        if ( actor.ready = self ) "%You're% already wielding it. "; 
+        else if ( self.location <> actor ) "%You% should be holding it first. ";
+    }
+    doWield( actor ) =
+    { 
+        if ( actor.ready <> hands) { "(unwielding <<actor.ready.thedesc>> first)\n"; }
+        actor.ready := self;
+        "Wielded. ";
+    }
+    verDoUnwield( actor ) = 
+	{ 
+	if ( actor.ready <> self ) "%You're% not wielding it. "; 
+	else if (actor.ready = hands) "Like it or not, %your% hands will always be ready.";
+	}
+    doUnwield( actor ) =
+    { 
+        actor.ready := hands;
+        "Unwielded. ";
+    }
+    doDrop (actor) =
+    {
+        if ( actor.ready = self )
+        {
+            actor.ready := hands;
+            pass doDrop;
+        }
+        else pass doDrop;
+    }
+    doThrowAt( actor, io ) =
+    {
+       if (self.specialTarget=io){self.tdice:=self.tdice*5;}
+       hurl (actor, io, self);
+	if (self.specialTarget=io and not io.isalive){self.moveInto(nil);}
+	
+    }
+;
+
+wieldVerb: deepverb
+    sdesc = "wield"
+    verb = 'wield' 'ready'
+    doAction = 'Wield'
+    doDefault( actor, prep, io ) =
+    {
+        local ret, rem;
+        ret := [];
+        rem := actor.contents;
+        rem := rem - Me.ready;
+        ret := ret + rem;
+        return( ret );
+    }
+;
+
+unwieldVerb: deepverb
+    sdesc = "unwield"
+    verb = 'unwield' 'unready'
+    doAction = 'Unwield'
+    doDefault( actor, prep, io ) =
+    {
+        local ret;
+        ret := [];
+        ret := ret + Me.ready;
+        return( ret );
+    }
+;
+
+class shield: weapon
+    sdesc = "shield" 
+    ldesc = "It's a shield."
+    isShield = true
+    block = 1
+    weight = 7
+    weapdice = 1
+    weapsides = 2
+    verDoWield( actor ) = 
+    {
+       if ( self.location <> actor ) "%You% should be holding it first. ";
+    }
+    doWield( actor ) =
+    { 
+        
+        actor.block := self.block;
+        "Wielded. ";
+    }
+    verDoUnwield( actor ) = 
+	{ 
+	if ( self.location <> actor ) "%You% should be holding it first. ";
+	}
+    doUnwield( actor ) =
+    { 
+        actor.block := 0;
+
+        "Unwielded. ";
+    }
+    doDrop (actor) =
+    {
+        if (actor.block<>0)
+        {
+            self.doUnwield(actor);
+        }
+       pass doDrop;
+    }
+;
+
+smallshield: shield
+   sdesc = "shield"
+   noun = 'shield'
+   adjective = 'small'
+   location = storage
+   ldesc = "It's a small shield."
+;
+
+sword: weapon
+    sdesc = "sword" 
+    ldesc = "It's an unremarkable longsword."
+    noun = 'sword'
+    location = check
+   weight = 5
+    weapdice = 1
+    weapsides = 
+    {
+	local num;
+	num:= (self.location.maxstr+1+self.location.tempstr)/2;
+	return (num);
+    }
+    pvalue = 8
+;
+
+broadsword: weapon
+    sdesc = "broadsword" 
+    ldesc = "It's a well-balanced broadsword."
+    noun = 'broadsword'
+    location = soldier
+   weight = 5
+    weapdice = 1
+    weapsides = 
+    {
+	local num;
+	num:= (self.location.maxstr+1+self.location.tempstr)/2;
+	return (num);
+    }
+    pvalue = 7
+;
+
+staff: weapon
+    sdesc = "staff" 
+    ldesc = "It's a sturdy oak staff."
+    noun = 'staff'
+    location = wizard
+   weight = 2
+    weapdice = 1
+    weapsides = 
+    {
+	local num;
+	num:= (self.location.maxstr+self.location.tempstr)/2;
+	return (num);
+    }
+    pvalue = {
+		if (self.location = wizard){return(0);}
+		else return (6);
+		}
+;
+
+mace: weapon
+    sdesc = "mace"
+    ldesc = "It's a heavy spiked club."
+    thedesc = "a mace"
+    noun = 'mace'
+    location = mutant
+    weight = 6
+    weapdice = 1
+    weapsides = 
+    {
+	local num;
+	num:= (self.location.maxstr+1+self.location.tempstr)/2;
+	return (num);
+    }
+    pvalue = 9
+;
+
+bar: fooditem
+    sdesc = "energy bar"
+    ldesc = "It's an energy bar, the sort used by athletes, though this one smells medicinal."
+    noun = 'bar'
+    adjective = 'energy'
+    adesc = "an energy bar"
+    location = goblin
+    healvalue = 5
+;
+
+scalpel: weapon
+    sdesc = "scalpel"
+    ldesc = "It's a typical razor-sharp scalpel.  Be careful with it."
+    thedesc = "a scalpel"
+    noun = 'scalpel'
+    location = operatingtable
+    weight = 0
+    weapdice = 1
+    weapsides = 2
+    pvalue = 14
+    verIoUnscrewWith( actor ) = 
+    {
+	if ( self.location <> actor ) "You should be holding it first. ";
+	 
+    }
+    ioUnscrewWith( actor, dobj ) = { dobj.doUnscrewWith( actor, self ); }
+;
+
+dagger: weapon
+    sdesc = "dagger"
+    ldesc = "It's a typical dagger."
+    noun = 'dagger'
+    location = mutant
+    throwable = true
+    weight = 0
+    weapdice = 1
+    weapsides = 2
+    tdice = 2
+    tsides =
+	 {
+	local num;
+	num:= (self.location.maxstr+1+self.location.tempstr)/3;
+	return (num);
+    	}
+    pvalue = 12
+;
+
+sphere: weapon
+    sdesc = "sphere"
+    ldesc = "It's a strange green sphere marked \"Terminus Diabolis\"."
+    noun = 'sphere'
+    location = nil
+    throwable = true
+    specialTarget = demon
+    weight = 0
+    weapdice = 1
+    weapsides = 2
+    tdice = 2
+    tsides =
+	 {
+	local num;
+	num:= (self.location.maxstr+1+self.location.tempstr)/3;
+	return (num);
+    	}
+    pvalue = 15
+;
+
+needle: keyItem
+   sdesc = "surgical needle"
+   ldesc = "It's a curved needle used for sewing stitches and other delicate work."
+   noun = 'needle'
+   adjective = 'surgical' 'curved'
+   location = operatingtable
+   weight = 0
+   pickValue = 15
+;
+
+fury: monster
+    sdesc = "fury"
+    thedesc = "the fury"
+    adesc = 
+	{
+	if (self.isalive)
+	"a fury";
+	else "A dead fury";
+	}
+    noun = 'fury'
+    mydesc = "the fury's"
+    posdesc = "his"
+    ldesc = 
+    {
+	if (self.isalive){"The fury is difficult to see clearly.  It seems to fade in and out of view.";}
+	else {"The fury is dead.  It seems to be fading away.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+            caps();
+            self.thedesc; " has ";
+            listcont( self );
+            ". ";
+	}
+	else {caps(); self.thedesc; " is empty-handed.";}
+     }
+    knowsmagic = nil
+    str = 10
+    maxstr = 10
+    dex = 16
+    maxdex = 16
+    int = 6
+    maxint = 6
+    points = 32
+    lastroll = 0
+    location = shadowland
+    disappear = 
+	{
+	"\bThe fury fades into nothingness..."; 
+	self.str:=self.maxstr;
+	self.moveInto(shadowland);
+	} 
+    isangry = 5
+    allytome = true
+    disp = 5
+    enemy = nil
+    ready = hands
+    oldweap = hands
+    handdice = 2
+    hasarmor = nil
+    dfmod = 
+	{
+	local num;
+	num:=self.chrm+self.ddge+4;
+	return(num);
+	}
+    issummoned = true
+    skin = 1
+    stop = 0
+    block = 0
+    tempmod = 0
+    distance = 1
+    follPropPtr = &follFury
+    askPropPtr = &askFury
+    tellPropPtr=&tellFury
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = []
+    frommsg = 
+    [ 
+        'flys in from the ' 
+        'floats in from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The fury claws  ' 
+        'The fury tears  ' 
+        'The fury rips  '
+    ]
+    missmsg = 
+    [ 
+        'The fury slashes wildly,  missing ' 
+        'The fury swoops, missing  '
+    ]
+
+   verDoSummon( actor ) = {}
+    doSummon( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoSummonWith( actor, io ) = 
+	{if (not checkspell (actor, 'summon')){"%You% can't cast that spell.";}}
+    doSummonWith( actor, io ) =
+    {
+	local dur, cost, thisroll, lost, val;
+	actor.done:=true;
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	dur:= val;
+	thisroll:=Me.hitroll;
+	fury.maxstr:= actor.int+rand(4)-rand(4);
+	fury.str:=fury.maxstr;
+	cost:= val;
+ fury.followme:=nil;
+	if (fury.location=shadowland)
+	{
+	if (actor=Me or actor.allytome)
+		{fury.allytome:=true; fury.enemy:=nil; fury.followme:=true;}
+	if (actor.enemy)
+		{fury.allytome:=nil; fury.enemy:=true;}
+	}
+	if (thisroll<=actor.dex)
+		{
+		if (here(self))
+		{
+		if (fury.enemy<>actor.enemy)
+			{
+			"\n\^<<actor.thedesc>> take%s% control of the fury!";
+			 fury.allytome:=actor.allytome;
+			 fury.enemy:=actor.enemy;
+			}
+		else 	
+		{"\n\^<<actor.thedesc>> strengthen%s% the fury."; self.str:=self.str+dur;}
+		 unnotify (fury, &disappear); notify (fury, &disappear, dur);
+		}
+		else 
+		{
+	if (self.allytome){addally(self);}
+	else {addenemy(self);}
+	"\n\tA fury appears to fight for <<actor.thedesc>> (<<thisroll>>).";
+	fury.isalive:=true;
+	fury.moveInto (actor.location);
+     	notify (fury, &disappear, dur);
+		}
+	lost:=fakedam(actor, cost);
+	actor.str:=actor.str-lost;
+	actor.cast:=actor.cast+lost;
+		}
+	else if (thisroll=20)
+		{
+		if (here(self) and fury.isalive)
+		{
+			if (fury.enemy=actor.enemy)
+			{
+		"\^<<actor.thedesc>> dispel%s% the fury (<<thisroll>>).";
+		unnotify (fury, &disappear); fury.disappear;
+			}
+			else
+			{
+		unnotify (fury, &disappear); notify (fury, &disappear, dur);
+		"The fury laughs at <<actor.mydesc>> attempt to control it (<<thisroll>>).";
+			}
+		}
+		else
+		{
+	fury.moveInto (actor.location); 
+	fury.isalive:=true;
+	if (self.allytome){addenemy(self);}
+	else {addally(self);}
+	"\n\tA fury appears and breaks from <<actor.mydesc>> control (<<thisroll>>).";
+	fury.allytome:=not fury.allytome;
+	fury.enemy:=not fury.enemy;
+     	notify (fury, &disappear, dur);
+		}
+	lost:=fakedam(actor, cost);
+	actor.str:=actor.str-lost;
+	actor.cast:=actor.cast+lost;
+		}
+	else
+		{
+		"\n\^<<actor.mydesc>> summons goes unanswered (<<thisroll>>).";
+		lost:=fakedam(actor, 1);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		}
+	if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+	}
+;
+
+
+soldier: monster
+    //myfollower = soldierShadow
+    sdesc = "soldier"
+    thedesc = "the soldier"
+    adesc = 
+	{
+	if (self.isalive)
+	"a soldier";
+	else "A dead soldier";
+	}
+    noun = 'soldier'
+    mydesc = "the soldier's"
+    posdesc = "his"
+    ldesc = 
+    {
+	if (self.isalive){"The soldier is muscular and rather humorless in demeanor.";}
+	else {"The soldier has been hacked to pieces.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+            caps();
+            self.thedesc; " has ";
+            listcont( self );
+            ". ";
+	}
+	else {caps(); self.thedesc; " is empty-handed.";}
+     }
+    knowsmagic = nil
+    str = 13
+    maxstr = 13
+    dex = 10
+    maxdex = 11
+    int = 8
+    maxint = 8
+    points = 32
+    lastroll = 0
+    location = check 
+    isangry = 4
+    ready = broadsword
+    oldweap = broadsword
+    hasarmor = true
+    skin = 0
+    stop = 1
+    block = 0
+    tempmod = 0
+    distance = 1
+    askPropPtr = &askSoldier
+    tellPropPtr=&tellSoldier
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = [ check ]
+    frommsg = 
+    [ 
+        'comes from the ' 
+        'strides in from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The soldier slashes  ' 
+        'The soldier cuts  ' 
+        'The soldier thrusts at  '
+    ]
+    missmsg = 
+    [ 
+        'The soldier swings wildly,  missing ' 
+        'The soldier hacks, missing  '
+    ]
+     suspect=
+	{
+	if (here (self) and gown.isIn(Me) and gown.isworn)
+		{
+		switch (self.state)
+			{
+		case 1:
+		"\bThe soldier nods as you approach.";
+		self.state++; break;
+		case 2:
+    		self.state++; break;
+		case 3:
+    		"\bThe soldier looks at you curiously.";
+		default:
+		break;
+			}
+		}
+	else if (here(self) and self.charmed)
+		{"\bThe soldier smiles pleasantly.";}
+	else
+		{"\bThe soldier charges you."; self.isangry:=5;}
+	}
+;
+
+golem: monster
+    //myfollower = golemShadow
+    sdesc = "golem"
+    thedesc = "the golem"
+    adesc = 
+	{
+	if (self.isalive)
+	"a golem";
+	else "A dead golem";
+	}
+    noun = 'golem'
+    mydesc = "the golem's"
+    posdesc = "his"
+    ldesc = 
+    {
+	if (self.isalive){"The golem is a fearsome conglomeration of flesh, metal, and stone.";}
+	else {"The golem has been hacked to pieces.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+            caps();
+            self.thedesc; " has ";
+            listcont( self );
+            ". ";
+	}
+	else {caps(); self.thedesc; " is empty-handed.";}
+     }
+    knowsmagic = nil
+    str = 25
+    maxstr = 25
+    dex = 7
+    maxdex = 7
+    int = 6
+    maxint = 6
+    points = 38
+    lastroll = 0
+    location = library 
+    willsaveme = nil
+    isangry = 5
+    ready = hands
+    oldweap = hands
+    hasarmor = nil
+    skin = 4
+    stop = 0
+    block = 0
+    tempmod = 0
+    distance = 1
+    askPropPtr = &askGolem
+    tellPropPtr=&tellGolem
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = [ library corridor2 ]
+    frommsg = 
+    [ 
+        'thunders in from the ' 
+        'crashes in from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The golem bludgeons  ' 
+        'The golem crushes  ' 
+        'The golem pounds  '
+    ]
+    missmsg = 
+    [ 
+        'The golem swings wildly,  missing ' 
+        'The golem hacks, missing  '
+    ]
+     
+;
+
+goblin: monster
+    //myfollower = goblinShadow
+    sdesc = "goblin"
+    thedesc = "the goblin"
+    adesc = 
+	{
+	if (self.isalive)
+	"a goblin";
+	else "A dead goblin";
+	}
+    noun = 'goblin'
+    mydesc = "the goblin's"
+    posdesc = "his"
+    ldesc = 
+    {
+	if (self.isalive){"The goblin is a twisted, greenish humanoid.";}
+	else {"The goblin has been slain.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+            caps();
+            self.thedesc; " has ";
+            listcont( self );
+            ". ";
+	}
+	else {caps(); self.thedesc; " is empty-handed.";}
+     }
+    knowsmagic = true
+    str = 10
+    maxstr = 10
+    dex = 10
+    maxdex = 10
+    int = 10
+    maxint = 10
+    points = 30
+    lastroll = 0
+    location = tunnel1 
+    willsaveme = nil
+    isangry = 5
+    ready = hands
+    oldweap = hands
+    hasarmor = nil
+    skin = 1
+    stop = 0
+    block = 0
+    tempmod = 0
+    distance = 1
+    askPropPtr = &askGoblin
+    tellPropPtr=&tellGoblin
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = [ tunnel1 tunnel2 tunnel3 ]
+    frommsg = 
+    [ 
+        'thunders in from the ' 
+        'crashes in from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The goblin claws  ' 
+        'The goblin bites  ' 
+        'The goblin rakes  '
+    ]
+    missmsg = 
+    [ 
+        'The goblin swings wildly,  missing ' 
+        'The goblin hacks, missing  '
+    ]
+     
+;
+
+rat: monster
+    //myfollower = ratShadow
+    sdesc = "rat"
+    thedesc = "the rat"
+    adesc = 
+	{
+	if (self.isalive)
+	"a rat";
+	else "A dead rat";
+	}
+    noun = 'rat'
+    mydesc = "the rat's"
+    posdesc = "his"
+    ldesc = 
+    {
+	if (self.isalive){"The rat is a small and furry.";}
+	else {"The rat has been slain.";}
+	"\n";
+	
+     }
+    knowsmagic = nil
+    str = 6
+    maxstr = 6
+    dex = 14
+    maxdex = 14
+    int = 5
+    maxint = 5
+    points = 25
+    lastroll = 0
+    location = tunnel2 
+    willsaveme = nil
+    isangry = 5
+    ready = hands
+    oldweap = hands
+    hasarmor = nil
+    skin = 1
+    stop = 0
+    block = 0
+    tempmod = 0
+    distance = 1
+    askPropPtr = &askRat
+    tellPropPtr=&tellRat
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = []
+    frommsg = 
+    [ 
+        'scurries in from the ' 
+        'pads in from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The rat claws  ' 
+        'The rat bites  ' 
+        'The rat rakes  '
+    ]
+    missmsg = 
+    [ 
+        'The rat lunges wildly,  missing ' 
+        'The rat snaps, missing  '
+    ]
+     
+;
+
+mutant: monster
+    //myfollower = mutShadow
+    sdesc = "mutant"
+    thedesc = "the mutant"
+    adesc = 
+	{
+	if (self.isalive)
+	"a mutant";
+	else "A dead mutant";
+	}
+    noun = 'mutant'
+    mydesc = "the mutant's"
+    posdesc = "his"
+    ldesc = 
+    {
+	if (self.isalive){"The mutant looks like some weird perversion of man and machine.  Silvery wires have been woven into the poor creature's mottled flesh.";}
+	else {"The mutant is dead.  It's not the most appealing sight.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+            caps();
+            self.thedesc; " has ";
+            listcont( self );
+            ". ";
+	}
+	else {caps(); self.thedesc; " is empty-handed.";}
+     }
+    knowsmagic = true
+    str = 10
+    maxstr = 10
+    dex = 9
+    maxdex = 12
+    int = 10
+    maxint = 10
+    points = 32
+    lastroll = 0
+    location = check 
+    isangry = 4
+    ready = mace
+    oldweap = mace
+    hasarmor = true
+    skin = 0
+    stop = 3
+    block = 0
+    tempmod = 0
+    distance = 1
+    askPropPtr = &askMutant
+    tellPropPtr=&tellMutant
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = [waiting check]
+    frommsg = 
+    [ 
+        'comes from the ' 
+        'lumbers in from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The mutant slams  ' 
+        'The mutant bashes  ' 
+        'The mutant smashes  '
+    ]
+    missmsg = 
+    [ 
+        'The mutant swings wildly,  missing ' 
+        'The mutant hacks, missing  '
+    ]
+     suspect=
+	{
+	if (here (self) and gown.isIn(Me) and gown.isworn)
+		{
+		switch (self.state)
+			{
+		case 1:
+		"\bThe mutant nods as you approach.";
+		self.state++; break;
+		case 2:
+    		self.state++; break;
+		case 3:
+    		"\bThe mutant looks at you curiously.";
+		default:
+		break;
+			}
+		}
+	else 
+		{"\bThe mutant charges you."; self.isangry:=5;}
+	}
+;
+
+demon: monster
+    sdesc = "demon"
+    thedesc = "the demon"
+    adesc = 
+	{
+	if (self.isalive)
+	"a demon";
+	else "A dead demon";
+	}
+    noun = 'demon'
+    mydesc = "the demon's"
+    posdesc = "his"
+    willsaveme = nil
+    ldesc = 
+    {
+	if (self.isalive){"The demon has razor-sharp claws and a rough metallic hide.";}
+	else {"The demon is dead.  Some powerful hero must've been here before you.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+            caps();
+            self.thedesc; " has ";
+            listcont( self );
+            ". ";
+	}
+	else {caps(); self.thedesc; " is empty-handed.";}
+     }
+    knowsmagic = true
+    str = 18
+    maxstr = 18
+    dex = 18
+    maxdex = 18
+    int = 16
+    maxint = 16
+    points = 52
+    lastroll = 0
+    location = cave 
+    isangry = 4
+    ready = hands
+    oldweap = hands
+    handdice = 2
+    hasarmor = nil
+    skin = 4
+    stop = 0
+    block = 0
+    tempmod = 0
+    distance = 1
+    askPropPtr = &askDemon
+    tellPropPtr=&tellDemon
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = [cave]
+    frommsg = 
+    [ 
+        'comes from the ' 
+        'lumbers in from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The demon rips  ' 
+        'The demon rakes  ' 
+        'The demon tears  '
+    ]
+    missmsg = 
+    [ 
+        'The demon swings wildly,  missing ' 
+        'The demon hacks, missing  '
+    ]
+     askTroll = "\"He'll tear you to shreds...that's all you need to know, \" rasps the Troll."
+     askWarrior = "\"The wizard's imprisioned him in a cave as a guard, \" says the Warrior."
+;
+
+
+
+troll: monster
+    //myfollower=troShadow
+    sdesc = "troll"
+    thedesc = "the troll"
+    adesc = 
+	{
+	if (self.isalive)
+	"a troll";
+	else "A dead troll";
+	}
+    noun = 'troll' 
+    mydesc = "the troll's"
+    posdesc = "his"
+    ldesc = 
+    {
+	if (self.isalive){"The troll is huge and smells horrible.";}
+	else {"The troll is dead.  It's covered in its nasty brownish blood.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+            caps();
+            self.thedesc; " has ";
+            listcont( self );
+            ". ";
+	}
+	else {caps(); self.thedesc; " is empty-handed.";}
+     }
+    
+    str = 16
+    maxstr = 16
+    dex = 14
+    maxdex = 14
+    int = 8
+    maxint = 8
+    points = 38
+    lastroll = 0
+    location = cave
+    allytome = true
+    followme = nil
+    disp = 2
+    enemy = nil
+    isangry = 2
+    ready = hands
+    hasarmor = nil
+    skin = 4
+    stop = 0
+    block = 0
+    tempmod = 0
+    distance = 1
+    follPropPtr = &follTroll
+    askPropPtr = &askTroll
+    tellPropPtr=&tellTroll
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = []
+    frommsg = 
+    [ 
+        'comes from the ' 
+        'lumbers in from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The troll slams ' 
+        'The troll bashes ' 
+        'The troll smashes '
+    ]
+    missmsg = 
+    [ 
+        'The troll swings, but misses ' 
+        'The troll hacks wildly and misses  '
+    ]
+    fmsg = 
+    [
+	'nods at you'
+	'goes about his business'
+    ]
+    nmsg = 
+    [
+	'looks around suspiciously'
+	'watches quietly'
+    ]
+    activity = 
+    {
+	if (self.location = storage and coin.isIn(troll))
+	{"\b\^<<self.thedesc>> plays with a gold coin.";}
+	return;
+    }
+;
+ 
+warrior: monster
+    //myfollower=warShadow
+    sdesc = "warrior"
+    thedesc = "the warrior"
+    adesc = 
+	{
+	if (self.isalive)
+	"a warrior";
+	else "A dead warrior";
+	}
+    noun = 'warrior' 
+    mydesc = "the warrior's"
+    posdesc = "his"
+    ldesc = 
+    {
+	if (self.isalive and self.str<>self.maxstr){"The warrior looks a bit under the weather.";}
+	else if (self.isalive){"The warrior looks healthy, if a bit in need of a bath...";}
+	else {"The warrior is dead.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+            caps();
+            self.thedesc; " has ";
+            listcont( self );
+            ". ";
+	}
+	else {caps(); self.thedesc; " is empty-handed.";}
+     }
+    
+    str = 7
+    maxstr = 12
+    dex = 13
+    maxdex = 13
+    int = 12
+    maxint = 12
+    points = 37
+    lastroll = 0
+    location = cell
+    allytome = true
+    followme = nil
+    disp = 2
+    enemy = nil
+    isangry = 2
+    ready = hands
+    hasarmor = nil
+    knowsmagic = true
+    splist = [ 1 2 3 ]
+    skin = 0
+    stop = 0
+    block = 0
+    tempmod = 0
+    distance = 1
+    follPropPtr = &follWarrior
+    askPropPtr = &askWarrior
+    tellPropPtr=&tellWarrior
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    askWarrior = "\"The Wizard threw me in here two weeks ago because I was insubordinate,\" mutters the Warrior.  \"He hates being beaten in Scrabble.\""
+    limits = []
+    frommsg = 
+    [ 
+        'comes from the ' 
+        'wanders in from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The warrior slams ' 
+        'The warrior bashes ' 
+        'The warrior smashes '
+    ]
+    missmsg = 
+    [ 
+        'The warrior swings, but misses ' 
+        'The warrior hacks wildly and misses  '
+    ]
+    fmsg = 
+    [
+	'nods at you'
+	'goes about his business'
+    ]
+    nmsg = 
+    [
+	'looks around suspiciously'
+	'watches quietly'
+    ]
+    activity = 
+    {
+	if (self.location = cell and rand(4)=1)
+	{"\b\^<<self.thedesc>> twitches.";}
+	return;
+    }
+;
+
+
+doctor: monster
+   //myfollower = docShadow
+    sdesc = "doctor"
+    thedesc = "the doctor"
+    adesc = 
+	{
+	if (self.isalive)
+	"a doctor";
+	else "A dead doctor";
+	}
+    noun = 'doctor' 'doctor jest' 'jest'
+    mydesc = "the doctor's"
+    posdesc = "his"
+    ldesc = 
+    {	
+	if (self.isalive){"The doctor is stern, about fifty, and rather wiry. ";}
+	else {"The doctor appears to have been beaten to death.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+           "He has ";
+            listcont( self );
+            ". ";
+	}
+	else {"He's empty-handed.";}
+     }
+    
+    str = 8
+    maxstr = 8
+    dex = 12
+    maxdex = 12
+    int = 13
+    maxint = 13
+    points = 33
+    lastroll = 0
+    location = startroom
+    allytome = nil
+    randMove = nil
+    disp = 2
+    enemy = true
+    isangry = 2
+    ready = hands
+    hasarmor = nil
+    skin = 0
+    stop = 0
+    block = 0
+    tempmod = 0
+    distance = 1
+    askPropPtr = &askDoctor
+    tellPropPtr=&tellDoctor
+    askDoctor="The doctor replies, \"My name is Doctor Jest and I'll be dissecting you today.\""
+    askTroll=
+	{ if (doctor.isalive)
+		{"\"He's no friend of mine, \" the Troll says with disdain.";}
+	else
+ {"\"I'm glad he's dead, though he's not as dangerous as the Wizard, \" the Troll replies.";}
+	}
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = [startroom ]
+    frommsg = 
+    [ 
+        'comes from the ' 
+        'enters from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The doctor punches ' 
+        'The doctor kicks ' 
+        'The doctor slashes '
+    ]
+    missmsg = 
+    [ 
+        'The doctor swings, but misses ' 
+        'The doctor flails wildly and misses  '
+    ]
+    fmsg = 
+    [
+	'nods at you'
+	'goes about his business'
+    ]
+    nmsg = 
+    [
+	'looks around suspiciously'
+	'watches quietly'
+    ]
+    activity = 
+    {
+	if (self.location = startroom and straps.tied and Me.location = startroom)
+	{
+	switch (self.state)
+		{
+
+		case 1:
+"\b\"Well, you seem to be a fine specimen,\" says the doctor as he slips on his surgical gloves.";
+			latexgloves.isworn:=true;
+			self.state:=self.state+1; break;
+		case 2:
+"\bThe doctor thumbs through a brand new copy of \"Surgery in 3 E-Z Steps.\"";
+			self.state:=self.state+1; break;
+		case 3:
+		"\bThe doctor picks up the scalpel while humming to himself.";
+		scalpel.moveInto (self); self.ready:=scalpel;
+			self.state:=self.state+1; break;
+		case 4:
+		"\bThe doctor grins. \"This will hurt you more than it hurts me.\""; 
+			self.state:=self.state+1; break;
+		default:
+			"\bThe doctor begins his dissection..."; Me.str:=-10;
+			break;
+		}
+	}
+	else 
+	{
+"\bThe doctor shakes his head and mutters, \"They just don't make sedatives like they used to...\""; 
+	if (scalpel.isIn(doctor))
+	{"\bSuddenly, the doctor lunges at you with the scalpel.";}
+	self.isangry:=5; self.hatesMe:=true;
+	}
+	return;
+    }
+;
+
+wizard: monster
+   //myfollower = wizShadow
+    sdesc = "wizard"
+    thedesc = "the wizard"
+    adesc = 
+	{
+	if (self.isalive)
+	"a wizard";
+	else "A dead wizard";
+	}
+    noun = 'wizard' 'wizard jest' 'jest'
+    mydesc = "the wizard's"
+    posdesc = "his"
+    ldesc = 
+    {	
+	if (self.isalive){"The wizard is rather intimidating. ";}
+	else {"The wizard is dead.";}
+	"\n";
+	if (length(self.contents)<>0)
+	{
+           "He has ";
+            listcont( self );
+            ". ";
+	}
+	else {"He's empty-handed.";}
+     }
+    
+    str = 12
+    maxstr = 12
+    dex = 13
+    maxdex = 13
+    int = 14
+    maxint = 14
+    points = 39
+    lastroll = 0
+    location = library
+    allytome = nil
+    randMove = nil
+    disp = 2
+    enemy = true
+    isangry = 2
+    ready = staff
+    hasarmor = nil
+    knowsmagic = true
+    splist = [ 2 3 4 5 6 7 ]
+    willsaveme = nil
+    skin = 0
+    stop = 2
+    block = 0
+    tempmod = 0
+    distance = 1
+    askPropPtr = &askWizard
+    tellPropPtr=&tellWizard
+    askWizard="The wizard replies, \"Read my biography if you really want to know.\""
+    askTroll=
+	{ if (wizard.isalive)
+		{"\"He's real bastard if you ask me, \" the Troll spits.";}
+	else
+ {"\"Franky, my dear, I don't give a damn now that he's dead, \" the Troll replies.";}
+	}
+    parry =
+    {
+     	local num;
+     	num := self.dex-self.ready.pvalue;
+       	return (num);
+       }
+    
+    limits = [startroom ]
+    frommsg = 
+    [ 
+        'comes from the ' 
+        'enters from the ' 
+    ]
+    hitmsg = 
+    [ 
+        'The wizard punches ' 
+        'The wizard kicks ' 
+        'The wizard slashes '
+    ]
+    missmsg = 
+    [ 
+        'The wizard swings, but misses ' 
+        'The wizard flails wildly and misses  '
+    ]
+    fmsg = 
+    [
+	'nods at you'
+	'goes about his business'
+    ]
+    nmsg = 
+    [
+	'looks around suspiciously'
+	'watches quietly'
+    ]
+    activity = 
+    {
+	
+	"\bThe wizard looks at you and hisses, \"You're supposed to be dead!\"";
+	self.isangry:=5; self.hatesMe:=true;
+	
+	return;
+    }
+;
+
+class monster: Actor, obstacle
+    sdesc = "monster"
+    ldesc = "It looks pretty mean. "
+    noun = 'monster'
+    adds = "s"
+    faster = 
+ 	{
+	if (self.dex >= Me.dex){ return (true);}
+	else {return (nil);}
+	}
+    done = nil
+    state = 1
+    attacker = nil
+    allytome = nil
+    enemy = true
+    hatesMe = nil
+    followme = nil
+    randMove = true
+    knowsmagic = nil
+    splist =[3 4 5 ]
+    cast = 0
+    str = 10
+    maxstr = 10
+    dex = 10
+    maxdex = 10
+    int = 8
+    maxint = 8
+    fat = 0
+    fatThisTurn = nil
+    points = 28
+    flee = {
+if (self.randMove and self.isangry=5 and self.isalive and self.str<4 and self.distance = 1)
+		{
+		return(true);
+		}
+		else return(nil);
+	  }
+    maxweight =
+    {
+     local num;
+     num:= (self.maxstr+self.tempstr)*10;
+     return (num);
+     }
+    maxbulk = 15
+    lastroll = 0
+    skin = 0
+    stop = 0
+    block = 0
+    tempstr = 0
+    tempmod = 0
+    tempmodzero={self.tempmod:=0; "\bArmor modification wears off."; }
+    ready = hands
+    oldweap = hands
+    disarmed = nil
+    hasarmor = nil
+    ringcount = 0
+    turndisarmed = 0
+    lostdex = 0
+    qdex = 0
+    chrm = 0
+    chrmzero={"\bCharm wears off."; self.chrm:=0; self.charmed:=nil;}
+    atmod = 
+	{
+	local num;
+	num:=0;
+	return(num);
+	}
+    ddge=0
+    ddgezero={"\bDodge modifier wears off."; self.ddge:=0;}
+    pronemod = 
+		{
+		if (self.location.isbed){return(-4);}
+		else if (self.location.ischair){return(-3);}
+		else return(0);
+		}
+    dfmod = 
+	{
+	local num;
+	num:=self.chrm+self.ddge+self.pronemod;
+	return(num);
+	}
+
+    handdice = 1
+    handsides = 
+    {
+	local num;
+	num:= (self.maxstr+self.tempstr)/2;
+	return (num);
+    }
+    mvt =
+    {
+	local num, a, b;
+	a:=(self.str+1+self.tempstr)/2+(self.maxstr+1)/2;
+	b:=addweight(self.contents)/20;
+	num:=(a-b)/2;
+	if (num<1){num:=1;}
+	return (num);
+    }
+    weapdice = 0
+    weapsides = 0
+    ismonster = true
+    ismoving = true
+    charmed = nil
+    dontKnow = "\n\^<<self.thedesc>> doesn't know anything about it."
+    dontCare = "\n\^<<self.thedesc>> doesn't seem interested."
+    feintfix = 
+	{
+	self.dex:=self.dex+self.lostdex;
+	self.lostdex:=0;
+	if (self.isalive){"\n\^<<self.thedesc>> regains his footing.";}
+	}
+    quickfix = 
+	{
+	self.dex:=self.dex-self.qdex;
+	self.qdex:=0;
+	if (self.isalive){"\n\^<<self.thedesc>> looks a bit less agile.";}
+	}
+    
+		
+    isalive = true
+    prone = nil
+    fellThisTurn = nil
+    hitThisTurn = nil
+    killer = nil
+    awaiting = nil
+    engaging = nil
+    retreating = nil
+    capture = nil
+    caploc = nil
+    steal = true
+    issummoned = nil
+    disp = 4
+    stat = 
+    {
+     if (self.isalive) {"";}
+     else {"dead";}
+     }
+    follmsg = [' follows you.']
+    frommsg = [ 'comes from the ' ]
+    hitmsg = [ 'The monster hits  ' ]
+    missmsg = [ 'The monster misses  ' ]
+    finemsg = [' screams with rage.' ' does not seem pleased.']
+    sosomsg = [' staggers.' ' looks dazed.']
+    hurtmsg = [' looks hurt.' ' is obviously in pain.']
+    dyingmsg = [' is bleeding badly.' ' looks weak from loss of blood.']
+    lmsg = ['nods courteously' 'seems friendly' 'behaves with deference']
+    fmsg = ['pays no attention to you' 'goes about his business' 'seems curious about you']
+    nmsg = ['looks around suspiciously' 'watches quietly' 'seems alert']
+    hmsg = 
+['stares at you menacingly' 'looks nervous' 'glares at you' 'looks wary' 'seems unfriendly']
+    healthmsg = 
+    {	
+	if (self.str+self.tempstr>0)
+	{
+	"\n\^<<self.thedesc>>";
+	if (self.str+self.tempstr>=15) 
+		{say(self.finemsg[rand(length(self.finemsg))]);}
+	if(self.str+self.tempstr<15 and self.str+self.tempstr>=10 ) 				
+		{say(self.sosomsg[rand(length(self.sosomsg))]);}
+	if(self.str+self.tempstr<10 and self.str+self.tempstr>=5 )
+		{say(self.hurtmsg[rand(length(self.hurtmsg))]);}
+	if(self.str+self.tempstr<5 and self.str+self.tempstr>0 )
+		{say(self.dyingmsg[rand(length(self.dyingmsg))]);}
+	}
+	else return;
+     }
+    comefrom = 
+    { 
+        "\b\^<<self.adesc>> ";
+        say( self.frommsg [ rand( length( self.frommsg ) ) ] ); 
+        "<<self.from>>. ";
+    }
+    hit = 
+    {
+        "\b"; 
+        say( self.hitmsg[ rand( length( self.hitmsg) ) ] ); " <<self.attacker.thedesc>> ";
+                "(<<self.lastroll>>).";
+    }
+     damreport = 
+	{
+	"\b\^<<self.attacker.thedesc>> take<<self.attacker.adds>> ";
+	say( self.dam );
+       	"  damage.";
+	if (self.attacker = Me)
+{"\b\^<<self.attacker.mydesc>> strength is now <<self.attacker.str+Me.tempstr>>.";}
+            
+	}
+    missed = { "\b"; say( self.missmsg[ rand( length( self.missmsg) ) ] ); 
+	    	"<<self.attacker.thedesc>> ";			
+		"(<<self.lastroll>>).";}
+    willsaveme = true
+    dead = 
+    {
+        "\b\^<<self.thedesc>> screams in anguish and dies. ";
+        if (self.killer=Me){incscore( self.points );}
+        self.isalive := nil;
+        if (global.trace) {"\nDead.";}
+        if (self.ready.weapsides<>0 and self.ready.isIn(self))
+	{self.ready.moveInto (self.location);}
+        if(self.enemy) {subenemy(self);}
+        if (self.allytome){subally(self);}
+	if (self.issummoned){unnotify (self, &disappear); self.disappear;}
+       
+    }
+    
+    turncoat = 
+	{
+	if (not self.isalive){return;}
+	if (self.allytome and self.willsaveme){self.willsaveme:=nil;}
+	self.allytome:=not self.allytome;
+	self.enemy:=not self.enemy;
+	"\n\t\^<<self.thedesc>> changes sides!";
+	if (self.followme){self.followme:=nil; self.randMove:=true;}
+	if (self.allytome){addally(self);subenemy(self);}
+	if (self.enemy){addenemy(self);subally(self); self.isangry:=5;}
+	}
+
+    move = 
+    {
+        local  dirnum, dir, tries, newloc,  turns, cur, df, behmod, frm, num, thr;
+        num:=rand(100);
+        if (global.trace){"\nBeginning <<self.sdesc>> move.";}
+            if (not self.isalive){return;}
+	if (self.done){return;}
+        if (self.issummoned and not here (self)){return;}
+        if (global.trace and self.allytome and not self.enemy){"\n<<self.sdesc>> is ally<<num>>.";}
+     if (global.trace and self.enemy and not self.allytome){"\n<<self.sdesc>> is enemy<<num>>.";}
+
+	if (self.hatesMe){self.isangry:=5;}
+	if (self.enemy and length(Me.elist)>1 and self.isangry=5) {enemyangry (self);}
+
+	if (proneCheck(self))
+	{
+		if (not self.fellThisTurn)
+		{
+		"\b\^<<self.thedesc>> stands up.";  
+		self.moveInto(self.location.location); return;
+		}
+		else "\b\^<<self.thedesc>> looks stunned.";
+		 self.fellThisTurn:=nil;
+		return;
+	}
+	
+if (not here(self) and self.randMove or self.flee or num<=25 and self.randMove)
+        {       
+	for (tries:=1; tries<50; tries++)
+	{
+	dirnum:=rand(6);
+	dir:=[&north &south &east &west &up &down][dirnum];
+	frm:=['the south' 'the north' 'the west' 'the east' 'below' 'above'][dirnum];
+	if (proptype(self.location, dir)=2)
+		{
+		newloc:=self.location.(dir);
+		if (not isclass(newloc, room)) continue;
+		if (self.issummoned) continue;
+		if (not checklimits(self, newloc)) continue;
+
+		if (here (self))
+			{
+		"\b\^<<self.adesc>> leaves heading ";
+		"<<['north' 'south' 'east' 'west' 'up' 'down'][dirnum]>>.";
+			if (self.allytome){subally(self);}
+			else {subenemy(self);}
+			}
+		self.moveInto(newloc);
+		if (here (self))
+			{
+		"\b\^<<self.adesc>> enters from ";
+		"<<['the south' 'the north' 'the west' 'the east' 'below' 'above'][dirnum]>>.";
+			}
+		}
+	break;
+	}
+        }
+
+        if (here (self) and self.isalive and self.isangry=5 )
+        {
+	
+	Me.isangry:=5;
+
+	
+            if (global.trace) {"\n<<self.thedesc>> is looking for allies.";}
+	if (length(Me.alist)=0){return;}//removed not angry
+	
+	
+
+	if (self.enemy)
+	{
+	self.attacker:=Me.alist[ rand( length( Me.alist) ) ];
+	 if (global.trace) {"\nPicked <<self.attacker.sdesc>>.";}
+	ally();
+	}
+	
+	if(self.allytome and length(Me.elist)<>0)
+	{
+	self.attacker:=Me.elist[ rand( length( Me.elist) ) ];
+	if (global.trace){"\nPicked <<self.attacker.sdesc>>.";}
+	}
+
+	if (length(Me.elist)=0 ){self.isangry:=self.disp;return;}
+	if (not here (self)){return;}
+	
+	if (self.attacker = nil){"\nStopped move...no attacker..."; return;}
+ 	df:=self.attacker;
+	
+	
+             if (self.attacker and global.trace)
+	{"\n<<self.sdesc>> selected <<self.attacker.sdesc>>";}
+	else if (global.trace){"\nNo one selected.";}
+
+	if (self.str<4 and rand(20)<= self.int and self.distance = 0 and not self.issummoned)
+	{
+	moveback(self); 
+	if (self.enemy){self.randMove:=true;}
+	return;
+	}
+
+if (global.trace){"\nEvaluating distance.";}	
+
+	if (df.awaiting = self and self.awaiting = df) { return;}
+	
+	if (self.awaiting and df.distance+self.distance<>0) {return;}
+	if (self.distance = 1 or self.attacker.distance = 1)
+		{	
+		if (global.trace){"\nEvaluating engagement.";}
+
+		if (rand(20)<=self.int and self.knowsmagic and self.str>5) 
+		{invoke(self, df); return;}
+		if(checkThrow(self)<>nil)
+		{
+		thr:=checkThrow(self); hurl (self, df, thr); return;
+		}
+		else if (rand (3) = 1 and self.awaiting = nil)
+			{
+			self.attacker.doAwait(self);
+			return;
+			}
+		else if (df.retreating){return;}
+		else
+			{
+			
+			moveall(self, self.attacker);
+			return;
+			}
+		}
+	
+if (self = rat){combat (self, self.attacker); return;}
+
+if(global.trace){"\nEvaluating pick up weapon option.";}
+if (self.oldweap<>self.ready and self.oldweap.location=self.location and global.turnsofar >self.turndisarmed)
+	{
+		
+		self.oldweap.doTake(self);
+		if (self.oldweap.location<>self){return;}
+		"\b\^<<self.thedesc>> recovers his <<self.oldweap.sdesc>>.";
+		self.ready:=self.oldweap; return;
+	}
+if (global.trace){"\nEvaluating take opponent's weapon.";}
+	if(self.disarmed<>nil)
+	{
+	if (self.disarmed.location=self.location)
+		{
+		
+		self.disarmed.doTake(self);
+		if(self.disarmed.location<>self){return;}
+		"\b\^<<self.thedesc>> takes the <<self.disarmed.sdesc>>.\n";
+		self.ready:=self.disarmed;
+		self.disarmed:=nil;
+		return;
+		}
+	}
+
+	if (self.ready=hands and pickup(self)<>nil and self.int<=rand(20))
+	{
+	local x;
+	x:=pickup(self);
+	x.doTake(self);
+	if(x.location<>self){return;}
+	"\b\^<<self.thedesc>> grabs the <<x.sdesc>>.\n";
+	self.ready:=x;
+	return;
+	}
+
+if(global.trace){"\nEvaluating disarm option.";}
+if(self.str+self.tempstr>df.str+df.tempstr and df.ready<>hands and df.ready.isweapon)
+	{
+	if (rand(8)<=2)
+	{self.doDisarm(self);return;}
+	}
+if(global.trace){"\nEvaluating feint option.";}
+	if (self.dex<self.attacker.dex)
+	{
+	turns:= global.turnsofar;
+	if (rand(8)<=2)
+	{self.doFeint (self); return;}
+	}
+
+	if (rand(20)<=5 and self.knowsmagic and self.str>4) 
+	{invoke(self, df); return;}
+
+if (global.trace){"\n<<self.thedesc>> going to combat routine";}
+
+	if (self.ready.isgun)
+	{
+	if (self.ready.ammo>0){self.attacker.doShootWith( self, self.ready ); return;}
+	else {"\b\^<<self.thedesc>> changes weapons."; self.ready:=hands; return;}
+	}
+
+	combat (self, self.attacker);
+	
+	if(global.trace) {"\nBack from combat.";}
+
+        }
+
+if (here (self) and self.isalive and self.isangry>0 and not self.done)
+	{
+	if (global.trace){"Checking activity messages...";}
+	
+	behmod:=self.isangry;
+	if (length(Me.elist)>0 and self.allytome){behmod:=3;}
+	switch (behmod)
+		{
+		
+		case 1:
+		"\b"; "\^<<self.thedesc>> "; say( self.lmsg[ rand( length( self.lmsg) ) ] );".";
+			break;
+		case 2:
+		if (defined(self, &activity)) {self.activity;}
+		else
+			{
+		"\b"; "\^<<self.thedesc>> "; say( self.fmsg[ rand( length( self.fmsg) ) ] );".";
+			}
+			break;
+		case 3:
+		"\b"; "\^<<self.thedesc>> "; say( self.nmsg[ rand( length( self.nmsg) ) ] );".";
+			break;
+		case 4:
+		if (defined(self, &suspect)) { self.suspect;}
+		else
+			{
+		"\b"; "\^<<self.thedesc>> "; say( self.hmsg[ rand( length( self.hmsg) ) ] );".";
+			}
+			break;
+		default:
+			break;
+		}
+	}
+    /*global.maze := nil;*/
+    
+    }
+
+    verDoTrip(actor)={
+			if (not global.reg)
+			{"This command is available only to registered users.";}
+			}
+    doTrip(actor)=
+    {
+	local a,d;
+	a:=Me.hitroll;
+	d:=Me.hitroll;
+	if (a<=actor.dex and d>self.dex)
+	{
+	"\^<<actor.thedesc>> trip%s% <<self.thedesc>> (<<a>>/<<d>>).";
+	self.moveInto(self.location.myfloor); self.fellThisTurn:=true;
+	
+	}
+	else "\^<<actor.thedesc>> fail%s% to trip <<self.thedesc>> (<<a>>/<<d>>).";
+    }
+    		
+    verDoAskAbout( actor, io ) = {}
+    doAskAbout( actor, io ) =
+    {
+	if (self.isalive){ask(self, io);}
+	else "\nThe dead aren't known for their conversational skills.";
+    }
+    verDoTellAbout(actor, io)={}
+    doTellAbout(actor, io) =
+	{
+	tell (self, io);
+	}
+    verIoGiveTo( actor ) = {}
+    ioGiveTo( actor, dobj ) =
+    {
+        if ( dobj.isIn(actor) )
+           {
+	if (dobj.isworn){dobj.doUnwear(actor);}
+	if (dobj.isweapon and dobj=actor.ready){dobj.doUnwield(actor);}
+	dobj.moveInto(self);
+	"\^<<self.thedesc>> accepts <<dobj.thedesc>>.\n";
+	if (defined(dobj, &healvalue) and self.str<self.maxstr)
+	{"\^<<self.thedesc>> eats <<dobj.thedesc>>.\n"; dobj.doEat(self);}
+	if (dobj.isweapon){dobj.doWield(self);}
+	if (dobj.isarmor or dobj.isring){dobj.doWear(self);}
+	}
+        else
+            "\^<<self.thedesc>> doesn't appear interested. ";
+    }
+    verDoSearch(actor) = {}
+    doSearch(actor) ={self.ldesc;}
+    verDoAdvance (actor) = {}
+    doAdvance (actor) = 
+			{
+			actor.attacker:=self;
+			moveall(actor, self);
+			}
+    verDoAwait (actor) = {}
+    doAwait (actor) = 
+		{
+		"\b\^<<actor.thedesc>> wait<<actor.adds>> for <<self.thedesc>>.";
+		actor.awaiting:=self; actor.attacker:=self;
+		
+		}
+    verDoAssess (actor) = {}
+    doAssess (actor) = 
+	{
+	local st, dx, iq, mv, a,b,c,d,z;
+	z:=(20-actor.int)/3;
+	a:=rand(2); b:=rand(2); c:=rand(2); d:=rand(2);
+	if (a=2){a:=-1;}
+	if (b=2){b:=-1;}
+	if (c=2){c:=-1;}
+	if (d=2){d:=-1;}
+	st:=((rand(z)-1)*a)+self.str;
+	 dx:=((rand(z)-1)*b)+self.dex; 
+	 iq:=((rand(z)-1)*c)+self.int;
+	mv:=((rand((z+1)/2)-1)*d)+self.mvt;
+	"\b\^You rate <<self.thedesc>> at ";
+	"STR <<st>>, ";
+	"DEX <<dx>>, ";
+	"INT <<iq>>, ";
+	"MVT <<mv>>.";
+/*	"\bStop=<<self.stop>>, ST<<self.str>>, DX <<self.dex>>.";
+	"\nTempmod = <<self.tempmod>>, <<self.stop>>, <<self.block>>, <<self.skin>>.";
+	"\nTempstr =<<self.tempstr>>.";
+	"\nAngry = <<self.isangry>>.";
+	"\nFatigue = <<self.fat>>"; 
+	"\tMe dist = <<Me.distance>>, <<actor.sdesc>> = <<actor.distance>>.";*/
+    	}
+    
+    verDoFeint (actor) = {if (self.distance=1 or actor.distance = 1)
+				{"\b\^<<self.thedesc>> is too far away.";}}
+    doFeint (actor) = 
+	{ 
+	local loss, thisroll, saveroll, at, df;
+	self.isangry:=5;
+	if (actor=Me){Me.attacker:=self;}
+       	if (not self.isalive){return;}
+	at:=actor; 
+	df:=actor.attacker;
+	df.isangry:=5;
+	at.done:=true;
+	loss:=at.maxint/2;
+	thisroll:=Me.hitroll;  
+	saveroll:=Me.hitroll;
+	if (thisroll<=at.dex and saveroll > df.int)
+		{
+"\b\^<<at.mydesc>> feint catches <<df.thedesc>> off-guard (<<thisroll>>/<<saveroll>>).";
+	if (df=Me) {notify (df,&feintfix, 1);}
+	else if (df.faster){notify (df, &feintfix, 2);}
+	else {notify (df, &feintfix,1);}
+	df.dex:=df.dex-loss;
+	df.lostdex:=df.lostdex+loss;
+	"\n\^<<df.mydesc>> Dexterity drops by <<loss>>.";
+		}
+	else 
+	{"\b\^<<at.mydesc>> feint doesn't fool <<df.thedesc>> (<<thisroll>>/<<saveroll>>).";}
+	}
+
+    verDoDisarm (actor) = 
+	{
+	if (self.ready = hands)
+		{"\n\^<<self.thedesc>> has no weapon.";}
+	if (self.distance=1 or actor.distance =1)
+		{"\n\^<<self.thedesc>> is too far away.";}
+	}
+    doDisarm (actor) = 
+	{
+	local thisroll, saveroll, dam, wd,ws,hd,hs, strtot, box;
+	if (global.trace){"\nExecuting disarm.";}
+	if (actor=Me){Me.attacker:=self;}
+	actor.done:=true;
+	actor.attacker.isangry:=5;
+	if (not actor.attacker.isalive){return;}
+	thisroll:=Me.hitroll; saveroll:=Me.hitroll;
+	/*strtot:=(actor.tempstr+actor.str)-(actor.attacker.tempstr+actor.attacker.str);*/
+if (thisroll<=actor.dex and saveroll>actor.attacker.str+actor.attacker.tempstr)
+		{
+"\b\^<<actor.thedesc>> disarm<<actor.adds>> <<actor.attacker.thedesc>>.";
+"\n\^<<actor.attacker.thedesc>> drop<<actor.attacker.adds>> ";
+"<<actor.attacker.posdesc>> <<actor.attacker.ready.sdesc>> (<<thisroll>>/<<saveroll>>).";
+	actor.attacker.done:=true;
+	actor.attacker.awaiting:=nil; actor.attacker.engaging:=nil;
+	actor.disarmed:=actor.attacker.ready;
+	actor.attacker.ready.moveInto(actor.location);
+	actor.attacker.ready:=hands;
+	if (actor.attacker<>Me and actor.attacker.faster)
+	{actor.attacker.turndisarmed:=global.turnsofar;}
+	if( actor.attacker<>Me and not actor.attacker.faster)
+	{actor.attacker.turndisarmed:=global.turnsofar+1;}/*can't take same turn*/
+		}
+          else 
+		{
+"\b\^<<actor.sdesc>> fail<<actor.adds>> to disarm <<actor.attacker.thedesc>> (<<thisroll>>/<<saveroll>>).";
+		if (actor.ready=hands)
+			{
+			thisroll:=Me.hitroll;
+			if (thisroll<=actor.attacker.dex)
+				{
+				wd:=actor.attacker.ready.weapdice;
+				ws:=actor.attacker.ready.weapsides;
+				hd:=actor.attacker.handdice;
+				hs:=actor.attacker.handsides;
+				dam:=Me.damage ( wd, ws, hd,hs  );
+				dam:=dam-(actor.stop+actor.block+actor.tempmod);
+				box:=fakedam(actor,dam);
+				dam:=box;
+				if (dam<1) {return;}
+			"\n\t\^<<actor.thedesc>> take<<actor.adds>> <<dam>> damage ";
+			"from <<actor.attacker.mydesc>> <<actor.attacker.ready.sdesc>>.";
+				
+				actor.str:=actor.str-dam;
+	if (actor=Me){"\b\^<<Me.mydesc>> strength is now <<Me.str+Me.tempstr>>.";}
+				}
+			}
+		}	
+	}
+
+    verDoQuicken( actor ) = {}
+    doQuicken( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoQuickenWith( actor, io ) = 
+	{if (not checkspell (actor, 'quicken')){"%You% can't cast that spell.";}}
+    doQuickenWith( actor, io ) =
+	{
+	local thisroll, level, dur, cost, lost, val, diffic, adj;
+	actor.done:=true;
+	if (not self.isalive){return;}
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	thisroll:=Me.hitroll;
+	val:=numObj.value; 
+	if (actor<>Me){val:=io;}
+	level:=val;  
+	adj:=(val+9)-actor.int; //min IQ 9
+	if (adj<1){adj:=1;} 
+	adj:=adj*adj;
+	dur:= 3+(actor.int-8);
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	if (thisroll<=actor.dex-adj)
+		{
+	"\b\^<<actor.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+	"\n\^<<self.mydesc>> dexterity increases by <<level>> for <<dur>> turns.";
+		self.dex:=self.dex+level; self.qdex:=self.qdex+level;
+		lost:= fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me and actor.isangry=5){incscore(cost*diffic);}
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if (getfuse(self, &quickfix)){unnotify(self, &quickfix);}
+		notify (self, &quickfix, dur);
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	else
+		{
+		"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(actor,1);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	}
+
+    verDoHarm( actor ) = {}
+    doHarm( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoHarmWith( actor, io ) = 
+	{if (not checkspell (actor, 'harm')){"%You% can't cast that spell.";}}
+    doHarmWith( actor, io ) =
+	{
+	local thisroll, level, dur, cost, lost, val, diffic, adj, box, dice, caster, target;
+	if (not self.isalive){return;}
+	actor.done:=true;
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	thisroll:=Me.hitroll;
+	caster:=actor; target:=self;
+	self.isangry:=5;
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	level:= 3 +((caster.int-8)/2);
+	if (level<3){level:=3;}
+	adj:=(val+9)-actor.int;
+	if (adj<1){adj:=1;}
+	adj:=adj*adj;
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	dice:=val;
+	if (self.allytome and not self.charmed and actor=Me)
+	{self.turncoat;}
+	
+	
+	if (thisroll<=actor.dex+caster.atmod-(target.dfmod+adj))
+		{
+"\b\^<<actor.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+
+		lost:= fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		caster.dam:=Me.damage( dice, level,  0, 0  );
+		if (self.stop+self.block+self.tempmod+self.skin<>0)
+		{
+		"\b\^<<self.mydesc>> armor stops ";
+		"<<self.stop+self.block+self.tempmod+self.skin>>.";
+		}
+caster.dam:=caster.dam-(target.stop+target.block+target.tempmod+target.skin);
+		if (caster.dam<0) {caster.dam:=0;}
+		box:=fakedam(target, caster.dam);
+		caster.dam:=box;
+		target.str:=target.str-caster.dam;
+		if (caster=Me and caster.isangry=5){incscore(cost*diffic);}
+		caster.damreport;
+		if (caster.dam>0 and target<>Me) {target.healthmsg;}  
+		if(actor=Me){"\bYour Strength is now <<Me.str+Me.tempstr>>.";}
+		checkFall(caster.dam, target.maxstr, target);
+           	if ( self.str+ self.tempstr< 1 ) {self.killer:=actor; kick(self); }
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}		
+		}
+	else
+		{
+	"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	}
+
+    verDoHarden( actor ) = {}
+    doHarden( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoHardenWith( actor, io ) = 
+	{if (not checkspell (actor, 'harden')){"%You% can't cast that spell.";}}
+    doHardenWith( actor, io ) =
+	{
+	local thisroll, level, dur, cost, lost, val, diffic, adj;
+	actor.done:=true;
+	if (not self.isalive){return;}
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	thisroll:=Me.hitroll;
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	level:=val;
+	adj:=(val+9)-actor.int;
+	if (adj<1){adj:=1;}
+	adj:=adj*adj;
+	dur:= 3+(actor.int-8);
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	if (thisroll<=actor.dex-adj)
+		{
+	"\b\^<<actor.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+	"\n\^<<self.mydesc>> armor increases by <<level>> for <<dur>> turns.";
+		self.tempmod:=self.tempmod+level;
+		lost:= fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me and actor.isangry=5){incscore(cost*diffic);}
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if (getfuse(self, &tempmodzero)){unnotify(self, &tempmodzero);}
+		notify (self, &tempmodzero, dur);
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	else
+		{
+		"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(actor,1);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	}
+
+   verDoSoften( actor ) = {}
+    doSoften( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoSoftenWith( actor, io ) = 
+	{if (not checkspell (actor, 'soften')){"%You% can't cast that spell.";}}
+    doSoftenWith( actor, io ) =
+	{
+	local thisroll,  level, dur, cost, diffic, caster, target, lost, adj, val;
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	if (actor=Me){Me.attacker:=self;}
+	caster:=actor; target:=actor.attacker;
+	if(not target.isalive){return;}
+	actor.done:=true;
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	self.isangry:=5;
+	if (self.allytome and not self.charmed and actor=Me)
+	{self.turncoat;}
+	
+
+	thisroll:=Me.hitroll;
+	level:=val;
+	adj:=(val+10)-actor.int;
+	if (adj<1){adj:=1;}
+	adj:=adj*adj;
+	dur:= 3+(actor.int-9);
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	if (thisroll<=caster.dex-adj)
+		{
+	"\b\^<<caster.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+	"\n\^<<target.mydesc>> armor decreases by <<level>> for <<dur>> turns.";
+		target.tempmod:=target.tempmod-level;
+		lost:=fakedam(caster, cost);
+		caster.str:=caster.str-lost;
+		caster.cast:=caster.cast+lost;
+		if (caster=Me and caster.isangry=5){incscore(cost*diffic);}
+		if (caster=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if (getfuse(target, &tempmodzero)){unnotify(target, &tempmodzero);}
+		notify (target, &tempmodzero, dur);
+		if ( actor.str+ actor.tempstr< 1 ) {caster.killer:=target; kick(caster);}
+		
+		}
+		else
+		{
+		"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(caster, 1);
+		caster.str:=caster.str-lost;
+		caster.cast:=caster.cast+lost;
+		if (caster=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		}
+			if ( actor.str+ actor.tempstr< 1 ) {caster.killer:=target; kick(caster);}
+			if ( target.str+ target.tempstr< 1 ) {target.killer:=caster; kick(target); }
+	}
+
+    verDoStrengthen( actor ) = {}
+    doStrengthen( actor ) =
+    {
+        askio(withPrep );
+    }
+    verDoStrengthenWith( actor, io ) = 
+	{if (not checkspell (actor, 'strengthen')){"%You% can't cast that spell.";}}
+    doStrengthenWith( actor, io ) =
+	{
+	local thisroll, level, dur, cost, lost, val, diffic, adj;
+	actor.done:=true;
+	if (not self.isalive){return;}
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	thisroll:=Me.hitroll;
+	val:=numObj.value;
+	if (actor<>Me){val:=io;}
+	level:=val;
+	adj:=(val+9)-actor.int;
+	if (adj<1){adj:=1;}
+	adj:=adj*adj;
+	dur:= 3+(actor.int-8);
+	cost:=val;
+	diffic:= adj; if (diffic=1){adj:=0;}
+	
+	if (thisroll<=actor.dex-adj)
+		{
+"\b\^<<actor.mydesc>> spell suceeds at difficulty <<diffic>>! (<<thisroll>>)";
+"\b\^<<actor.thedesc>> increase<<actor.adds>> <<self.mydesc>> Strength by <<val>> ";
+"at a cost of <<cost>>.";
+		lost:= fakedam(actor,cost);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		self.tempstr:=self.tempstr+val;
+		if (actor=Me and actor.isangry=5){incscore(cost*diffic);}
+		if (getfuse(self, &tempstrzero)){unnotify(self, &tempstrzero);}
+		notify (self, &tempstrzero, dur);
+		if(actor=Me){"\bYour Strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	else
+		{
+	"\b\^<<actor.mydesc>> spell fails at difficulty <<diffic>> (<<thisroll>>).";
+		lost:=fakedam(actor,1);
+		actor.str:=actor.str-lost;
+		actor.cast:=actor.cast+lost;
+		if (actor=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		if ( actor.str+ actor.tempstr< 1 ) {actor.killer:=self; kick(actor);}
+		}
+	}
+
+    verDoCharm (actor) = 
+	{
+	if (self.allytome){"\n\^<<self.thedesc>>'s already your friend.";}
+	if (not checkspell (actor, 'charm')){"%You% can't cast that spell.";}
+	}
+    doCharm (actor)= 
+	{
+	local thisroll, saveroll, caster, target, cost, dur, diff, lost;
+	if (global.trace){"\nExecuting charm.";}
+	if(not self.isalive){return;}
+	actor.done:=true;
+	if (actor.hitThisTurn)
+	{"\n\^<<actor.thedesc>> can't concentrate enough to cast...";return;}
+	caster:=actor; target:=self;
+	if (target.charmed){"\n\^<<target.thedesc>> %are% not affected."; return;}
+	thisroll:=Me.hitroll;
+	saveroll:=Me.hitroll;
+	dur:=(caster.int/3);
+	if (caster=Me){dur:=dur+1;}
+	cost:=3;
+	target.isangry:=5;
+
+	if (thisroll<=caster.dex and saveroll> target.int)
+	{
+"\b\^<<caster.thedesc>> charm<<caster.adds>> <<target.thedesc>> (<<thisroll>>/<<saveroll>>).";
+		target.turncoat;
+		target.charmed:=true;
+		notify (target,&turncoat,dur);
+		target.chrm:=target.chrm-3;
+		notify (target,&chrmzero, dur);
+		lost:=fakedam(caster, cost);
+		caster.str:=caster.str-lost;
+		caster.cast:=caster.cast+lost;
+		if (caster=Me and caster.isangry=5){incscore(cost+saveroll);}
+		if (caster=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+	}
+	else if (thisroll<=caster.dex and saveroll<= target.int + (target.int-caster.int))
+		{
+"\b\^<<target.thedesc>> resist<<target.adds>> the spell (<<thisroll>>/<<saveroll>>).";
+		lost:=fakedam (caster, cost);
+		caster.str:=caster.str-lost;
+		caster.cast:=caster.cast+lost;
+		if (caster=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		lost:=fakedam(target, 1);
+		target.str:=target.str-lost;
+		target.cast:=target.cast+lost;
+		if (target=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		}
+	else  	{
+		"\b\^<<caster.mydesc>> spell fails (<<thisroll>>/<<saveroll>>).";
+		lost:=fakedam(caster, 1);
+		caster.str:=caster.str-lost;
+		caster.cast:=caster.cast+lost;
+		if (caster=Me){"\nYour strength is now <<Me.str+Me.tempstr>>.";}
+		}
+		
+		if ( actor.str+ actor.tempstr< 1 ) {caster.killer:=target; kick(caster);}
+		if ( target.str+ target.tempstr< 1 ) {target.killer:=caster; kick(target); }
+	}
+
+     verDoShootWith( actor, io ) = {}
+     doShootWith( actor, io ) =
+    {
+	local thisroll, box;
+	if (not actor.isalive){return;}
+     	self.isangry := 5;
+         	Me.attacker := self;
+         	Me.dam := nil;
+         	thisroll := Me.hitroll;
+         	Me.lastroll:= thisroll;
+	if (io.ammo=0)
+	{
+	"\bClick...<<actor.mydesc>> gun is out of ammunition.";
+	return;
+	}
+        
+         if (self.allytome and not self.charmed and actor.allytome)
+	{
+	self.turncoat;
+	}
+	if (self.isalive = nil)
+		{
+		"The <<self.sdesc>>'s dead.  Leave it alone.";
+		return;
+		}
+	ally();
+	if (thisroll+self.dfmod<=actor.dex)
+	{
+	"\bBang...<<actor.mydesc>> shot strikes <<self.thedesc>> (<<thisroll>>).";
+	actor.dam:=Me.damage( io.gundice, io.gunsides,  0, 0  );
+		if (self.stop+self.block+self.tempmod+self.skin<>0)
+		{
+		"\b\^<<self.mydesc>> armor stops ";
+		"<<self.stop+self.block+self.tempmod+self.skin>>.";
+		}
+actor.dam:=actor.dam-(self.stop+self.block+self.tempmod+self.skin);
+		if (actor.dam<0) {actor.dam:=0;}
+		box:=fakedam(self, actor.dam);
+		actor.dam:=box;
+		self.str:=self.str-actor.dam;
+		if (actor = Me){incscore(actor.dam);}
+		actor.damreport;
+		if (actor.dam>0 and self<>Me) {self.healthmsg;}  
+		io.ammo--;
+		checkFall(actor.dam, self.maxstr, self);
+           	if ( self.str+ self.tempstr< 1 ) {self.killer:=actor; kick(self); }
+		
+	}
+	else 
+		{
+		"\bBang...<<actor.mydesc>> shot misses <<self.thedesc>> (<<thisroll>>).";
+		io.ammo--;
+		}
+    }
+
+
+    verDoAttackWith( actor, io ) = {}
+    doAttackWith( actor, io ) =
+    {
+         local thisroll;
+         self.isangry := 5;
+         Me.attacker := self;
+         Me.dam := nil;
+         thisroll := Me.hitroll;
+         Me.lastroll:= thisroll;
+         if (Me.attacker.retreating){return;}
+         if (self.allytome and not self.charmed)
+	{
+	self.turncoat;
+	}
+
+         if (self.distance=1 or actor.distance = 1)
+	{
+	moveall(actor, self); 
+	return;
+	 }   
+
+	if (self.isalive = nil)
+		{
+		"The <<self.sdesc>>'s dead.  Leave it alone.";
+		return;
+		}
+	if (global.trace and not self.done){"\n<<self.sdesc>> not done.";}
+	if (global.trace and self.done){"\n<<self.sdesc>> is done.";}
+        	
+        	combat (Me, Me.attacker);
+	
+    }
+   verDoLeave (actor) = {}
+   doLeave (actor) = 
+	{
+	self.followme:=nil; self.randMove:=true;
+	"Okay, <<self.thedesc>> is no longer following <<actor.thedesc>>.";
+	}
+
+    actorAction( v, d, p, i ) =
+	{
+	if (not self.isalive){exit;}
+	else if (proneCheck(self) and v<>standVerb){exit;}
+	else if (v=dropVerb and self.allytome){return;}
+	else if (self.charmed) {return;}
+	else if (self.isangry=1 and self.allytome){return;}
+	else if (self.allytome and v=leaveVerb and d=Me){return;}
+	else if (self.allytome  and v=followVerb and d=Me)
+	{
+	self.followme:=true; self.randMove:=nil; 
+	"\n\"Lead on,\" says <<self.thedesc>>."; return;
+	}
+	else {
+		"\n\^<<self.thedesc>> ignores you.";
+		exit;
+	       }
+	}
+;
+
+statusVerb: deepverb
+    verb = 'status' 'diagnose'
+    action( actor ) =
+    {
+	local i, list, tot, count;
+	count:=0;
+	i:=1;list:=Me.knownspells; tot:=length(Me.knownspells);
+            "Strength:\t\t\t<<Me.str+Me.tempstr>>/<<Me.maxstr>>. ";
+        "\nDexterity:\t\t\t<<Me.dex>>/<<Me.maxdex>>.";
+        "\nIntelligence:\t\t<<Me.int>>/<<Me.maxint>>. ";
+        "\bWeight carried:\t<<addweight (Me.contents)>> lbs.";
+        "\nMovement:\t\t\t<<Me.mvt>> per turn.";
+        if (Me.cast>0){"\bYou've expended \t\t<<Me.cast>> Strength on magic.";}
+	if (tot>0)
+	{	"\bYou know: ";
+	while (car(list))
+		{ 
+		 	if ( count > 0 )
+            		{
+                		if ( count+1 < tot )
+                    		", ";
+                		else if (count = 1)
+                    		" and ";
+                		else
+                    		", and ";
+            		}
+		"\^<<car(list)>>";
+            		count := count + 1;
+		list:=cdr(list);
+		}
+	".";
+	}
+	if (not global.reg){return;}
+	"\b";
+if (Me.tempstr<>0){"\nStrength modifier:\t\t<<Me.tempstr>>.";}
+if(Me.qdex<>0){"\nDexterity modifier:\t\t<<Me.qdex>>.";}
+if (Me.ready.isweapon)
+	{
+	"\nReady weapon:\t\t\^<<Me.ready.sdesc>> ";
+	"(<<Me.handdice+Me.ready.weapdice>>-";
+ 	"<<Me.handsides+Me.ready.weapsides>> damage).";
+	}
+"\b";
+"Chance to hit:\t\t<<Me.dex*5>>%";
+if (Me.parry>0){"\nChance to parry:\t<<Me.parry*5>>%";}
+
+"\nProtection:\t\t<<Me.stop+Me.block+Me.tempmod+Me.skin>> per attack.";
+if (not Me.ready.isweapon)
+{
+"\nPick lock:\t\t\t";
+if (Me.ready.pickValue=0){"0%";}
+else {"<<Me.ready.pickValue+Me.dex-10>>%.";}
+}
+if (proneCheck(Me)){"\nYou are prone.";}
+"\bPoint total:\t\t<<Me.points>>.";
+}  
+;
+
+selftraceVerb: sysverb
+    verb = 'selftrace'
+    action( actor ) =
+    {
+           global.trace:=not global.trace;
+    }
+;
+
+
+danceVerb: deepverb
+    verb = 'dance'
+    action( actor ) =
+    {	if (actor.isalive and not proneCheck(actor))
+           {"\^<<actor.sdesc>> dance%s% joyously, oblivious to %your% surroundings.";}
+    }
+;
+
+listenVerb: deepverb
+    whileProne = true
+    verb = 'listen'
+    action( actor ) =
+    {	
+	noise(actor, actor.location);
+    }
+;
+
+
+assessVerb: deepverb
+    whileProne = true
+    verb = 'assess'
+    sdesc = "assess"
+    doAction = 'Assess'
+;
+
+feintVerb: deepverb
+    verb = 'feint'
+    sdesc = "feint"
+    doAction = 'Feint'
+;
+
+disarmVerb: deepverb
+    verb = 'disarm'
+    sdesc = "disarm"
+    doAction = 'Disarm'
+;
+
+dodgeVerb:deepverb
+    verb = 'dodge'
+    sdesc = "dodge"
+    action( actor ) =
+    {
+    }
+
+;
+
+shootVerb: deepverb
+    whileProne = true
+    verb = 'shoot' 
+    sdesc = "shoot"
+    prepDefault = withPrep
+    ioAction( withPrep ) = 'ShootWith'
+    ioDefault( actor, prep ) = 
+    {
+	local ret;
+	ret:= [];
+	if( Me.ready <> nil ) ret:= ret + Me.ready;
+	return( ret );
+    }
+;
+
+advanceVerb: deepverb
+    verb = 'advance' 'engage'
+    sdesc = "advance"
+    doAction = 'Advance'
+    doDefault( actor) =
+    {
+        return( car(Me.elist ) );
+    }
+;
+
+retreatVerb: deepverb
+   verb = 'retreat'
+   sdesc = "retreat"
+   action (actor) = 
+	{
+	moveback (actor);
+	}
+;
+
+awaitVerb:deepverb
+   verb = 'await'
+   sdesc = "await"
+   doAction = 'Await'
+;
+
+leaveVerb:deepverb
+   verb = 'leave'
+   sdesc = "leave"
+   doAction = 'Leave'
+;
+
+
+trip:deepverb
+   verb = 'trip'
+   sdesc = "trip"
+   doAction = 'Trip'
+;
+
+charm:deepverb
+   verb = 'charm'
+   sdesc = "charm"
+   doAction = 'Charm'
+   action(actor) = 
+	{
+	"Syntax: \"Charm (direct object)\".";
+	}
+;
+
+harm:deepverb
+   verb = 'harm'
+   sdesc = "harm"
+   ioAction(withPrep) = 'HarmWith'
+   doAction = 'Harm'
+   action(actor) = 
+	{
+	"Syntax: \"Harm (direct object) with (number of strength points spent)\".";
+	}
+;
+
+quicken:deepverb
+   verb = 'quicken'
+   sdesc = "quicken"
+   ioAction(withPrep) = 'QuickenWith'
+   doAction = 'Quicken'
+   action(actor) = 
+	{
+	"Syntax: \"Quicken (direct object) with (number of strength points spent)\".";
+	}
+;
+
+
+harden:deepverb
+   verb = 'harden'
+   sdesc = "harden"
+   ioAction(withPrep) = 'HardenWith'
+   doAction = 'Harden'
+   action(actor) = 
+	{
+	"Syntax: \"Harden (direct object) with (number of strength points spent)\".";
+	}
+;
+
+soften:deepverb
+   verb = 'soften'
+   sdesc = "soften"
+   ioAction(withPrep) = 'SoftenWith'
+   doAction = 'Soften'
+   action(actor) = 
+	{
+	"Syntax: \"Soften (direct object) with (number of strength points spent)\".";
+	}
+;
+
+summon:deepverb
+   verb = 'summon'
+   sdesc = "summon"
+   ioAction (withPrep) = 'SummonWith'
+   doAction = 'Summon'
+   validDo( actor, obj, seqno ) =
+    {
+        return( true);
+    }
+   action(actor) = 
+	{
+	"Syntax: \"Summon fury with (number of strength points spent)\".";
+	}
+;
+
+strengthenVerb: deepverb
+    verb = 'strengthen' 
+    sdesc = "strengthen"
+    ioAction(withPrep) = 'StrengthenWith'
+    doAction = 'Strengthen'
+   action(actor) = 
+	{
+	"Syntax: \"Strengthen (direct object) with (number of strength points spent)\".";
+	}
+;
+
+
+
+startroom: room
+    sdesc = "Laboratory"
+    ldesc = "You're in a modern laboratory, located in an oddly antiquated room, 
+      with exits to the north and south.
+      The walls are huge blocks of rough hewn granite 
+      buttressed by iron crossbeams in the ceiling.  Torch brackets on the wall suggest the 
+      age of this structure, yet the room is illuminated by crudely hung light bulbs 
+       which dangle from the ceiling. "
+     follTroll = "\bThe troll cautiously follows behind you."
+     south = storage
+     north = waiting
+     myfloor = startFloor
+;
+
+startFloor:theFloor
+   reachable = { return( self.location.contents); }
+   location = startroom
+;
+
+
+wall:decoration
+  sdesc = "wall"
+  noun = 'wall' 'walls'
+  adjective = 'granite' 'blocks'
+  ldesc = "The walls, while admirably crafted, reveal nothing of interest."
+  location = {return(Me.location);}
+  locationOK = true
+;
+
+ceiling: decoration
+   sdesc = "ceiling"
+   noun = 'ceiling' 'crossbeam' 'crossbeams'
+   adjective = 'iron'
+   ldesc = "It's 6 meters high and won't be falling anytime soon. The only feature worthy of note is the ventilation duct."
+   location = {return(Me.location);}
+   locationOK = true
+;
+
+duct:decoration
+   sdesc = "ventilation duct"
+   noun = 'duct'
+   adjective = 'ventilation'
+   ldesc = "It's circular and somewhat disturbing."
+   location = ceiling
+;
+
+brackets:decoration
+   sdesc = "torch brackets"
+   noun = 'bracket' 'brackets'
+   adjective = 'torch'
+   ldesc = "The torch brackets are empty, but aesthetically pleasing nonetheless."
+   location = startroom
+;
+
+bulbs:decoration
+   sdesc = "light bulbs"
+   noun = 'bulb' 'bulbs'
+   adjective = 'light'
+   ldesc = "Leave the light bulbs alone.  At least they're working..."
+   location = startroom
+;
+
+docbook:readable
+   sdesc = "textbook"
+   noun = 'textbook'
+   ldesc = "It's called \"Surgery in 3 E-Z Steps\" and it looks brand new."
+   location = doctor
+   readdesc = "The three brief chapters, accompanied by gruesome pictures, discuss power saws, kinetic anesthesia, vulnerable arteries, and the like.  Notably absent is any discussion of bedside manner."
+;
+
+coin: item
+    sdesc = "gold coin"
+    noun = 'coin' 
+    adjective = 'gold' 
+    location = troll
+    ldesc = "It's a shiny gold coin, bearing the likeness of Ulrich the Unwashed, a hero among trolls."
+    askTroll = "\"It's a coin,\" says the troll, \"and don't think for a moment that I have any sympathy for the financially impaired.\""
+;
+
+operatingtable: beditem, fixeditem
+   sdesc = "operating table"
+   adesc = "an operating table"
+   adjective = 'operating' 'steel'
+   noun = 'table' 
+   reachable = { return( self.location.contents); }
+   location = startroom
+   ldesc = "It's a steel operating table, complete with restraints.  It looks particularly cold and uncomfortable."
+   heredesc = 
+	{
+	if (straps.tied)
+{"In the center of the room stands the operating table where you're currently strapped down. ";}
+	else {"In the center of the room stands an operating table. ";}
+	}
+   
+    doSiton( actor ) =
+    {
+        "\nIt's rather cold.\n";
+	pass doLieon;
+    }
+    doLieon( actor ) =
+    {
+	"\nIt's rather cold.\n";
+	pass doLieon;
+    }
+    verDoTake(actor)={"\nHave you considered treatment for kleptomania?";}
+;
+
+straps: fixeditem
+   sdesc = "straps"
+   noun = 'straps' 'restraints' 'strap'
+   adjective = 'leather'
+   location = operatingtable
+   try = 0
+   tied = true
+   ldesc = {
+		if (self.tied)
+		{
+		"The leather straps are firmly attached to the operating table. ";
+		"They're quite uncomfortable, even though they're not that tight.";
+		}
+		else "The leather straps attached to the operating table have been torn.";
+	   }
+   verDoUnfasten(actor) = {}
+   doUnfasten (actor) = {
+			if (not self.tied){"\nThe restraints aren't fastened.";}
+			else if (rand(20)>actor.str and self.try=0)
+				{"\nYou can feel the straps loosening..."; self.try:=self.try+1;}
+			else	{
+				"\nWith considerable effort, you tear free of your restraints.";
+				self.tied:=nil;
+				}
+			}
+   verDoFasten(actor) = {"\nYou can't.";}
+   doFasten (actor) = {}
+   verDoUnwear(actor)={}
+   doUnwear(actor)={self.doUnfasten(actor);}
+;
+
+display:fixeditem, hiddenItem
+   sdesc = "liquid crystal display"
+   location = nil
+   searchLoc = stoneslab
+   noun = 'display'
+   adjective = 'liquid' 'crystal'
+   ldesc = 
+	{
+	local total, a,b,c, w;
+	a:=Me.maxstr; b:=Me.maxdex; c:=Me.maxint;
+	total:=a+b+c;
+	if (total=Me.points){w:='=';}
+	if (total<Me.points){w:='<';}
+	if  (total>Me.points){w:='>';}
+
+	if (cord.isattached and Me.isIn(self))
+		{
+		"The liquid crystal display reads:\t";
+		"<<w>>*<< a >= 8 ? "1":"0">>*<< b >= 8 ? "1":"0">>*<< c >= 8 ? "1":"0">>";
+		}
+	else {"The liquid crystal display reads:\t?*?*?*?";}
+	}
+;
+
+cord: fixeditem
+    sdesc = "cord"
+    noun = 'cord' 'cable' 'connector'
+    adjective = 'electrical'
+    location = startroom
+    ldesc = 
+	{
+	"It's an electrical cable.  One end is attached firmly to the stone slab. ";
+	if (self.isattached){"The other end is attached to a metal plate in your hand.";}
+	else "The other end terminates in a three pin connector.";
+	}
+
+    isattached = nil
+    dyingcount = 1
+    dying = nil
+    dyingmsg =
+		[
+		'You feel strangely bloated'
+		'Horrible pain fills your body and your eyes start watering'
+		'The veins in your body convulse and swell' 
+		'It feels like you are going to burst'
+		'Your skin begins to bubble'
+		'You scream in agony and pass out'
+		]
+    reminder = 
+	{
+	local total, a,b,c;
+	a:=Me.maxstr; b:=Me.maxdex; c:=Me.maxint;
+	total:=a+b+c;
+	if(total<=Me.points and a>=8 and b>=8 and c>=8)
+		{unnotify (self,&overload); unnotify (self, &reminder); 
+		self.dyingcount:=1; self.dying:=nil;}
+	else
+		{
+	"\b<<self.dyingmsg[self.dyingcount]>>."; self.dyingcount:=self.dyingcount+1;
+		}
+	}
+    overload = {"\bYou sink into oblivion... "; die(); abort;}
+    verDoAttachTo (actor, io)= {}
+    doAttachTo (actor,io) = 
+	{
+	"\nYou connect the cord to the metal plate in your hand.";
+	self.isattached:=true;
+	}
+    verDoDetachFrom(actor,io)=
+	{
+	if(not self.isattached)
+		{"\nThe end that can be detached is already free."; }
+	}
+    doDetachFrom(actor,io)=
+	{
+	self.doDetach (actor);
+	}
+    verDoDetach (actor)=
+	{
+	if(not self.isattached)
+		{"\nThe end that can be detached is already free."; }
+	}
+    doDetach (actor) = 
+	{
+	"\nYou disconnect the cord."; self.isattached:=nil;
+	if (Me.maxstr+Me.maxdex+Me.maxint>Me.points and not self.dying)
+		{
+		self.dying:=true;
+		notify (self,&overload, 6);
+		notify (self,&reminder,0);
+		}
+
+	else if (Me.maxstr < 8 or Me.maxdex < 8 or Me.maxint < 8)
+		{
+		if (not self.dying)
+			{
+		self.dying:=true;
+		notify (self,&overload, 6);
+		notify (self,&reminder,0);
+			}
+		}
+	
+	}
+    verDoTake (actor) = 
+	{"\nDespite its appearance, the cord is amazingly tough and quite firmly
+                affixed to the stone slab.";}
+ ;   
+
+reddial:dialItem
+    maxsetting = 20
+    setting = 10  
+    noun = 'dial'
+    adjective = 'red'
+    thedesc = "the red dial"
+    location = stoneslab
+    ldesc =
+    {
+        caps(); self.thedesc; " can be turned to settings
+        numbered from 1 to << self.maxsetting >>. It's
+        currently set to << self.setting >>. ";
+    }
+    verDoTurn( actor ) = {}
+    doTurn( actor ) =
+    {
+        askio( toPrep );
+    }
+    verDoTurnTo( actor, io ) = {}
+    doTurnTo( actor, io ) =
+    {
+        if ( io = numObj )
+        {
+            if ( numObj.value < 1 or numObj.value > self.maxsetting )
+            {
+                "There's no such setting! ";
+            }
+            else 
+            {
+                self.setting := numObj.value;
+                "Okay, it's now turned to "; say( self.setting ); ". ";
+		if (not Me.isIn(stoneslab) or not cord.isattached){"Nothing happens.";}
+
+	     	else if (Me.maxstr<self.setting or Me.str<self.setting)
+		{
+		"\nYou feel stronger";
+		Me.maxstr:=self.setting;
+		Me.str:=Me.maxstr;
+		Me.cast:=0;
+		Me.tempstr:=0;
+		}
+		
+		else if (Me.maxstr>self.setting)
+		{
+		"\nYou feel weaker.";
+		Me.maxstr:=self.setting;
+		Me.str:=Me.maxstr;
+		Me.cast:=0;
+		Me.tempstr:=0;
+		}
+		
+		else "\nNothing happens.";
+            }
+            
+        }
+        else
+        {
+            "I don't know how to turn "; self.thedesc;
+            " to that. ";
+        }
+    }
+;
+
+bluedial:dialItem
+    maxsetting = 20
+    setting = 10  
+    noun = 'dial'
+    adjective = 'blue'
+    thedesc = "the blue dial"
+    location = stoneslab
+    ldesc =
+    {
+        caps(); self.thedesc; " can be turned to settings
+        numbered from 1 to << self.maxsetting >>. It's
+        currently set to << self.setting >>. ";
+    }
+    verDoTurn( actor ) = {}
+    doTurn( actor ) =
+    {
+        askio( toPrep );
+    }
+    verDoTurnTo( actor, io ) = {}
+    doTurnTo( actor, io ) =
+    {
+        if ( io = numObj )
+        {
+            if ( numObj.value < 1 or numObj.value > self.maxsetting )
+            {
+                "There's no such setting! ";
+            }
+            else 
+            {
+                self.setting := numObj.value;
+                "Okay, it's now turned to "; say( self.setting ); ". ";
+		if (not Me.isIn(stoneslab) or not cord.isattached){"Nothing happens.";}
+
+	     	else if (Me.maxdex<self.setting)
+		{
+		local diff;
+		diff:=Me.maxdex-(Me.dex-Me.qdex);
+		"\nYou feel more agile";
+		Me.maxdex:=self.setting;
+		Me.dex:=Me.maxdex-diff;
+		}
+		
+		else if (Me.maxdex>self.setting)
+		{
+		local diff;
+		diff:=Me.maxdex-(Me.dex-Me.qdex);
+		"\nYou feel less agile.";
+		Me.maxdex:=self.setting;
+		Me.dex:=Me.maxdex-diff;
+		}
+		
+		else "\nNothing happens.";
+            }
+            
+        }
+        else
+        {
+            "I don't know how to turn "; self.thedesc;
+            " to that. ";
+        }
+    }
+;
+
+greendial:dialItem
+    maxsetting = 20
+    setting = 10  
+    noun = 'dial'
+    adjective = 'green'
+    thedesc = "the green dial"
+    location = stoneslab
+    ldesc =
+    {
+        caps(); self.thedesc; " can be turned to settings
+        numbered from 1 to << self.maxsetting >>. It's
+        currently set to << self.setting >>. ";
+    }
+    verDoTurn( actor ) = {}
+    doTurn( actor ) =
+    {
+        askio( toPrep );
+    }
+    verDoTurnTo( actor, io ) = {}
+    doTurnTo( actor, io ) =
+    {
+        if ( io = numObj )
+        {
+            if ( numObj.value < 1 or numObj.value > self.maxsetting )
+            {
+                "There's no such setting! ";
+            }
+            else 
+            {
+                self.setting := numObj.value;
+                "Okay, it's now turned to "; say( self.setting ); ". ";
+		if (not Me.isIn(stoneslab) or not cord.isattached){"Nothing happens.";}
+
+	     	else if (Me.maxint<self.setting)
+		{
+		local diff;
+		diff:=Me.maxint-Me.int;
+		"\nYou feel more intelligent";
+		Me.maxint:=self.setting;
+		Me.int:=Me.maxint-diff;
+		}
+		
+		else if (Me.maxint>self.setting)
+		{
+		local diff;
+		diff:=Me.maxint-Me.int;
+		"\nYou feel less intelligent.";
+		Me.maxint:=self.setting;
+		Me.int:=Me.maxint-diff;
+		}
+		
+		else "\nNothing happens.";
+            }
+            
+        }
+        else
+        {
+            "I don't know how to turn "; self.thedesc;
+            " to that. ";
+        }
+    }
+;
+
+
+class scroll: readable
+   sdesc="scroll"
+   thedesc = "the scroll"
+   noun = 'scroll'
+    plural = 'scrolls'
+    ldesc = "It's a scroll."
+    readdesc = "It's blank."
+    miniq = 8
+    isscroll = true
+    aTrollCount = 0
+    askTroll = 
+		{
+		self.aTrollCount:=self.aTrollCount+1;
+		switch (self.aTrollCount)
+			{
+			case 1:
+		"\"Well, \" says the troll, \"there's quite a bit to say on the subject...";
+			break;
+			case 2:
+		"\"First, \" says the troll, \"you\'ve got to be clever to use magic...";
+			break;
+			default:
+		"\"Oh, \" says the troll, \"figure it out yourself...";
+			break;
+			}
+		}
+;
+
+blackscroll: scroll
+   sdesc = "black scroll"
+   adjective = 'black'
+   thedesc = "the black scroll"
+   ldesc = "It's a black scroll."
+   miniq = 10
+   location = metalbox
+   readdesc = 
+	{
+	if (checkspell(self.location, 'charm'))
+{"\b%You% already know<<self.location.adds>> the Charm spell."; self.moveInto(nil);}
+	else
+		{
+	"\b%You% learn<<self.location.adds>> the Charm spell.";
+	self.location.knownspells:=self.location.knownspells+'charm';
+	if(not self.location.knowsmagic){self.location.knowsmagic:=true;}
+	"\nThe scroll vanishes.\n";
+	self.moveInto(nil);
+		}
+	}
+;
+
+redscroll: scroll
+   sdesc = "red scroll"
+   adjective = 'red'
+   thedesc = "the red scroll"
+   ldesc = "It's a red scroll."
+   miniq = 9
+   location = metalbox
+   readdesc = 
+	{
+	if (checkspell(self.location, 'harden'))
+{"\b%You% already know<<self.location.adds>> the Harden spell."; self.moveInto(nil);}
+	else
+		{
+	"\b%You% learn<<self.location.adds>> the Harden spell.";
+	self.location.knownspells:=self.location.knownspells+'harden';
+	if(not self.location.knowsmagic){self.location.knowsmagic:=true;}
+	"\nThe scroll vanishes.\n";
+	self.moveInto(nil);
+		}
+	}
+;
+
+bluescroll: scroll
+   sdesc = "blue scroll"
+   adjective = 'blue'
+   thedesc = "the blue scroll"
+   ldesc = "It's a blue scroll."
+   miniq = 9
+   location = metalbox
+   readdesc = 
+	{
+	if (checkspell(self.location, 'harm'))
+{"\b%You% already know<<self.location.adds>> the Harm spell."; self.moveInto(nil);}
+	else
+		{
+	"\b%You% learn<<self.location.adds>> the Harm spell.";
+	self.location.knownspells:=self.location.knownspells+'harm';
+	if(not self.location.knowsmagic){self.location.knowsmagic:=true;}
+	"\nThe scroll vanishes.\n";
+	self.moveInto(nil);
+		}
+	}
+;
+
+brownscroll: scroll
+   sdesc = "brown scroll"
+   adjective = 'brown'
+   thedesc = "the brown scroll"
+   ldesc = "It's a brown scroll."
+   miniq = 10
+   location = metalbox
+   readdesc = 
+	{
+	if (checkspell(self.location, 'soften'))
+{"\b%You% already know<<self.location.adds>> the Soften spell."; self.moveInto(nil);}
+	else
+		{
+	"\b%You% learn<<self.location.adds>> the Soften spell.";
+	self.location.knownspells:=self.location.knownspells+'soften';
+	if(not self.location.knowsmagic){self.location.knowsmagic:=true;}
+	"\nThe scroll vanishes.\n";
+	self.moveInto(nil);
+		}
+	}
+;
+
+azurescroll: scroll
+   sdesc = "azure scroll"
+   adjective = 'azure'
+   thedesc = "the azure scroll"
+   ldesc = "It's a azure scroll."
+   miniq = 10
+   location = metalbox
+   readdesc = 
+	{
+	if (checkspell(self.location, 'summon'))
+{"\b%You% already know<<self.location.adds>> the Summon spell."; self.moveInto(nil);}
+	else
+		{
+	"\b%You% learn<<self.location.adds>> the Summon spell.";
+	self.location.knownspells:=self.location.knownspells+'summon';
+	if(not self.location.knowsmagic){self.location.knowsmagic:=true;}
+	"\nThe scroll vanishes.\n";
+	self.moveInto(nil);
+		}
+	}
+;
+
+greenscroll: scroll
+   sdesc = "green scroll"
+   adjective = 'green'
+   thedesc = "the green scroll"
+   ldesc = "It's a green scroll."
+   miniq = 9
+   location = metalbox
+   readdesc = 
+	{
+	if (checkspell(self.location, 'strengthen'))
+{"\b%You% already know<<self.location.adds>> the Strengthen spell."; self.moveInto(nil);}
+	else
+		{
+	"\b%You% learn<<self.location.adds>> the Strengthen spell.";
+	self.location.knownspells:=self.location.knownspells+'strengthen';
+	if(not self.location.knowsmagic){self.location.knowsmagic:=true;}
+	"\nThe scroll vanishes.\n";
+	self.moveInto(nil);
+		}
+	}
+;
+
+whitescroll: scroll
+   sdesc = "white scroll"
+   adjective = 'white'
+   thedesc = "the white scroll"
+   ldesc = "It's a white scroll."
+   miniq = 9
+   location = metalbox
+   readdesc = 
+	{
+	if (checkspell(self.location, 'quicken'))
+{"\b%You% already know<<self.location.adds>> the Quicken spell."; self.moveInto(nil);}
+	else
+		{
+	"\b%You% learn<<self.location.adds>> the Quicken spell.";
+	self.location.knownspells:=self.location.knownspells+'quicken';
+	if(not self.location.knowsmagic){self.location.knowsmagic:=true;}
+	"\nThe scroll vanishes.\n";
+	self.moveInto(nil);
+		}
+	}
+;
+
+latexgloves: clothingItem
+   sdesc = "surgical gloves"
+   adesc = "a pair of surgical gloves"
+   ldesc = "It's a pair of latex surgical gloves."
+   noun = 'glove' 'gloves'
+   adjective = 'surgical' 'latex'
+   location = doctor
+;
+
+mask: clothingItem
+   sdesc = "surgical mask"
+   ldesc = "It's a surgical mask."
+   noun = 'mask'
+   adjective = 'surgical'
+   location = doctor
+   isworn=true
+;
+
+gown: clothingItem
+   sdesc = "surgical gown"
+   ldesc = "It's a green surgical gown."
+   noun = 'gown'
+   adjective = 'surgical' 'green'
+   location = doctor
+   isworn = true
+;
+
+logo: fixeditem, readable
+   sdesc="plaque"
+   thedesc = "the plaque"
+   location = stoneslab
+   noun = 'logo' 'plaque'
+   ldesc = "It's a metal plaque identifying the manufacturer as HMI and warning against misuse of the machine."
+   readdesc = "\tHuman Machine Interface - Genetic Redistributor.\n
+Warning: Use by untrained personnel can lead to severe genetic damage.\n
+Keep out of reach of children.\bFor repair service, dial 1-800-555-9871."
+;
+
+stoneslab: beditem, searchHider //surface, fixeditem
+   sdesc = "stone slab"
+   adesc = "a stone slab"
+   thedesc = "the stone slab"
+   adjective = 'stone' 'genetic'
+   noun = 'slab' 'machine' 'redistributor'
+   reachable = { return( self.location.contents); }
+   onslab = nil
+   autoTake = nil
+   location = startroom
+   ldesc = 
+	{
+   "It's a stone slab about the size of a double bed, though 
+   not quite so comfortable.  On the side of the slab you see
+    a red dial, a blue dial,  a green dial, and some sort of electrical cord.
+     A plaque is visible just below the cord. ";
+	if (length(self.searchCont)=0)
+		{
+		"A small liquid crystal display is also visible. ";
+		}
+	}
+   heredesc = "A stone slab rests against the back wall. "
+    verDoTake(actor)={"\nYou might as well have typed \"Take 747 jet.\"";}
+   doSiton( actor ) =
+    {
+        "\nIt's quite warm to the touch.\n";
+	pass doLieon;
+    }
+    doLieon( actor ) =
+    {
+	"\nIt's quite warm to the touch.\n";
+	pass doLieon;
+    }
+   
+;
+
+storage: room
+    sdesc = "Storage Room"
+    myfloor = storageFloor
+    ldesc = 
+	{
+	"You are inside a storage room that seems quite poorly kept. You can go north";
+	if (metalbox.moved){" or down through a trap door";}
+	". ";
+	}
+    sound = 
+	{
+	if (troll.location=cave) {"the muffled sound of digging nearby.";}
+	else {"nothing except the low rumbling of the ventilation system.";}
+	}	
+    north = startroom
+    dcount = 0
+    down =
+	{	if (self.dcount=0 and troll.isalive and troll.location=storage)
+		{
+		"As you start to descend, the Troll grabs you by the shoulder and whispers,  \"I wouldn't go down there if I were you.  There's a rather unpleasant Demon living below.\"";
+		self.dcount++;
+		return (nil);
+		}
+		else return(storageDoor);
+	}
+;
+
+storageFloor:theFloor
+   reachable = { return( self.location.contents); }
+   location = storage
+;
+
+manycrates: fixeditem
+   sdesc = "crates"
+   adesc = "an assortment of wooden crates"
+   noun =  ['crates' 'crate']
+   adjective = 'wooden'
+   location = storage
+   heredesc = "Various wooden crates are strewn about the room. "
+   boxlist=[crate1 crate2 crate3]
+   ldesc = 
+	{
+	"The wooden crates seem to have once contained supplies of all sorts." ;
+	}
+  verDoTake(actor)=
+	{
+	if (length(self.boxlist)=0)
+	{"The remaining crates are more or less the same as the ones you've examined.";}
+	}
+   doTake(actor)=
+	{
+	local selection;
+	selection:=self.boxlist[1];
+	self.boxlist:=cdr(self.boxlist);
+	selection.moveInto(actor);
+	"Rumaging around, you pick up <<selection.adesc>>.";
+	}
+;
+
+crate1: openable, qcontainer, readable
+   sdesc="fruit crate"
+   noun = 'crate'
+   adjective = 'fruit'
+   location = nil
+   bulk = 10
+   ldesc = "This crate evidently once contained some fruit."
+   readdesc = "It says \"FRUIT.\"";
+;
+   
+crate2: openable, qcontainer, readable
+   sdesc="filter crate"
+   noun = 'crate'
+   adjective = 'filter'
+   location = nil
+   bulk = 10
+   ldesc = "This crate evidently once contained some sort of air filters."
+   readdesc = "It says \"AIR FILTERS.\"";
+;
+
+crate3: openable, qcontainer, readable
+   sdesc="fragile crate"
+   noun = 'crate'
+   adjective = 'fragile'
+   location = nil
+   bulk = 10
+   ldesc = "This crate evidently once contained something fragile."
+   readdesc = "It says \"FRAGILE.\"";
+;
+
+metalbox: qcontainer, keyedLockable, underHider
+   sdesc = "metal box"
+   noun = 'box'
+   adjective = 'metal'
+   weight = 150
+   autoTake = nil
+   moved = nil
+   isopen= nil
+   pickLock = true
+   exp = nil
+   ldesc = 
+	{
+	"The metal box, currently <<self.isopen ? "open" : "closed" >>, is marked \"Neuro-Enchancement Codices.\" ";
+if (length(self.contents)>0 and self.isopen) {"\nThe box contains "; listcont(self); ".";}
+	}
+   heredesc = 	{
+		"A metal box sits in the center of the room";
+		if (self.moved) {" beside a trap door";}
+		".";
+		}
+   islocked = true
+   mykey = nil
+   location = storage
+   verDoMove( actor ) ={}
+   doMove(actor)=
+		{
+		self.moved:=not self.moved;
+		if (not self.exp){incscore(50); self.exp:=true;}
+		if (self.moved){self.underCont := self.searchObj(actor, self.underCont);}
+		else 
+			{
+			"\nYou move the box back on top of the trap door.";
+			storageDoor.moveInto(nil);
+    			self.underCont:=[storageDoor];
+			}
+		}
+    verDoLookunder(actor) = {}
+    doLookunder(actor) =
+    {
+	if (self.moved) {"There's nothing else under the box.";}
+	else self.doMove(actor);
+    }
+     verDoShootWith( actor, io ) = {}
+     doShootWith( actor, io ) ={
+		if (self.islocked){"\nYou shoot the lock off."; self.islocked:=nil;}
+		else {"\nBang!";}
+				}
+;
+
+storageDoor: lockableDoorway, hiddenItem
+  sdesc = "door"
+  ldesc = 
+	{
+	if (self.isopen)
+		{
+"\nThe trap door leads down into a cave.";
+"  Judging from the lock, it would seem that this door was meant to keep something out.";
+		}
+	else
+		{
+	"\nThe trap door is closed.";
+		}
+	}
+  noun = 'door'
+  adjective = 'trap'
+  underLoc = metalbox
+  mykey = copperKey
+  pickLock = true
+  trollFound = nil
+  otherside = caveDoor
+  doordest = cave
+  doOpen( actor ) =
+    {
+        "Opened. ";
+        self.isopen := true;
+        if ( self.otherside ) self.otherside.isopen := true;
+        if (troll.location=cave and not self.trollFound)
+	{
+	"\nAs soon as you open the trap door, a huge troll emerges with a roar."; 
+	troll.moveInto(storage); self.trollFound:=true;
+	}
+    }
+;
+
+caveDoor: lockableDoorway
+  sdesc = "door"
+  noun = 'door'
+  adjective = 'cave' 
+  location = cave
+  mykey = copperKey
+  pickLock = true
+  otherside = storageDoor
+  doordest = storage
+;
+
+cave:room
+   sdesc = "Cave"
+   ldesc = "You're in a vast cave.  The floor is rough and quite damp.  Set in the opposite wall some twelve feet above the ground is a steel grate which covers a hole of some kind.  A trap door in the ceiling leads up."
+    follTroll = "\bThe Troll follows timidly."
+   up = caveDoor
+   myfloor = caveFloor
+   reachable = { 
+	local z;
+	if (pileofstones.moved){z:=self.contents;}
+	else {z:=self.contents-shaft; z:=z-grate;}
+	return(z ); 
+		}
+;
+
+caveFloor:theFloor
+   reachable = { return( self.location.contents); }
+   location = cave
+;
+
+pileofstones: fixeditem
+   sdesc = "pile of stones"
+   noun = 'pile' 'stones' 'pile of stones'
+   ldesc = {
+	"It's a pile of large stones, ";
+
+	if (not pileofstones.moved)
+		{
+		"located at the far side of the cave.";
+		}
+	else {"located underneath the steel grate.";}
+	" Just looking at them makes your back hurt.";
+	}
+    heredesc = {
+	"  A pile of large stones ";
+
+	if (not pileofstones.moved)
+		{
+		"sits at the far side of the cave.";
+		}
+	else {"sits underneath the steel grate.";}
+	}
+  moved = nil
+  location = cave
+  verDoMove (actor) = {}
+  doMove(actor) = 
+	{
+	self.moved:=not self.moved;
+	if (self.moved)
+		{
+	"With tremendous effort, you manage to move the pile of stones underneath the grate.";
+		}
+	else "You move the stones back away from the grate.";
+	}
+;
+
+grate: fixeditem
+   sdesc = "grate"
+   noun = 'grate'
+   adjective = 'steel'
+   location = cave
+   ldesc=
+	{
+"The steel grate seems to be designed to protect the air intake shaft from foreign objects. ";
+	if (not self.damaged)
+		{
+  		"It's bolted to the wall quite securely.";
+		}
+	else "There's a small gap where the grating has been torn away from the wall.";
+	}
+   damaged = nil
+  verDoUnscrew(actor)={if (not pileofstones.moved){"%You% can't reach "; self.thedesc; ".";}}
+   doUnscrew(actor) = {hands.verIoUnscrewWith(actor);}
+   verDoUnscrewWith(actor, iobj)=
+	{
+		if (not pileofstones.moved)
+		{
+		"%You% can't reach "; self.thedesc; ".";
+		}
+	}
+   doUnscrewWith(actor, iobj)=
+	{
+	if (not self.damaged)
+		{
+	"You manage to remove only one of the bolts, though this allows you pull the grating away from the wall sufficiently to gain partial access to the air shaft.";
+		bolt.moveInto(cave);
+		}
+	else {"You're unable to remove any more of the bolts.";}
+	self.damaged:=true; 
+	}
+;
+
+bolt: item
+   sdesc = "bolt"
+   ldesc = "It's an iron bolt."
+   adesc = "an iron bolt"
+   noun = 'bolt'
+   adjective = 'iron'
+   location = nil
+;
+
+shaft: container, fixeditem
+   sdesc = "air intake shaft"
+   noun = 'shaft' 'hole'
+   adjective = 'air' 'intake'
+   location = cave
+   ldesc = "The hole, which is only about one foot in diameter, seems to be some sort of air intake shaft, perhaps for this complex's ventilation. "
+   contentsReachable = {return(pileofstones.moved);}
+   contentsVisible = {return(pileofstones.moved);}
+   verIoPutIn( actor ) = 
+	{
+	if (not pileofstones.moved) "You can't reach the air shaft!";
+	}
+   ioPutIn( actor, dobj ) =
+    {
+        if (addbulk( self.contents ) + dobj.bulk > self.maxbulk )
+        {
+            "%You% can't fit that in "; self.thedesc; ". ";
+        }
+        else if (not grate.damaged)
+	{
+	"It won't fit through the steel grate.";
+	}
+        else
+        {
+            "\n(climbing up the pile of stones to reach the air shaft)\n";
+            dobj.doPutIn( actor, self );
+        }
+    }
+;
+
+raft: vehicle
+   location = cell
+   sdesc = "inflatable rubber raft"
+   adesc = "an inflatable rubber raft"
+   noun = 'raft'
+   exp = nil
+   adjective = 'inflatable' 'rubber'
+   isinflated = nil
+   ldesc = "It's an inflatable rubber raft.  Currently, it's <<self.isinflated ? "inflated" : "not inflated">>. "
+  remcount = 0
+  reminder = 
+	{
+	self.remcount++; "\n";
+		switch (self.remcount)
+		{
+		case 1:
+		"You hear a low, humming sound.";
+		break;
+
+		case 2:
+		"The humming becomes louder.";
+		break;
+
+		default:
+     		"There's a slight rumbling noise and suddenly it's quiet.";
+		library.deactivated:=true;
+		if (not self.exp){incscore(50); self.exp:=true;}
+		break;
+		}
+	}
+   overload = {unnotify (self, &reminder);}
+   verDoTake(actor) = 
+	{
+	if (self.isinflated) "You'll have to deflate it first.";
+	else pass doTake;
+	}
+   verDoInflateWith(actor, iobj) = 
+	{
+	if (self.isinflated)"It's already inflated!";
+	}
+   doInflateWith (actor, iobj) = 
+	{
+	if (self.isIn(actor)) "You'll have to drop it first.";
+	else if (self.isIn(shaft))
+		{
+		self.isinflated:=true;
+		"After a few minutes of work, you manage to inflate the raft.";
+		notify (self, &reminder, 0);
+		notify (self, &overload, 3);
+		}
+	else
+		{
+		"With some work, you manage to inflate the raft. ";
+		self.isinflated:=true;
+		}
+	}
+   verDoDeflate (actor) = 
+	{
+	if (not self.isinflated) "It's already deflated.";
+	}
+   doDeflate (actor) = 
+	{
+"You hear a hissing sound as the air escapes and the raft collapses into a neat little bundle.";
+	self.isinflated:=nil;
+		if (self.remcount >0 and self.remcount < 3)
+		{
+		unnotify (self, &reminder); unnotify (self, &overload);
+		self.remcount:=0;
+		"\bThe strange noises stop.";
+		}
+	}
+    doBoard(actor) = 
+	{
+ 	if (self.isinflated) pass doBoard;
+	else "You'll want to inflate the raft before you board it.";
+	}
+    verDoPutIn(actor, iobj) =
+	{
+	if (self.isinflated) "You'll have to deflate it first.";
+	else pass verDoPutIn;
+	}
+    doPutIn( actor, io ) =
+    {
+        self.moveInto( io );
+        "Done. ";
+    }
+;
+
+inflateVerb : deepverb
+   sdesc = "inflate"
+   verb = 'inflate' 'blow up'
+   ioAction (withPrep) = 'InflateWith'
+   prepDefault= withPrep
+;
+
+deflateVerb : deepverb
+   sdesc = "deflate"
+   verb = 'deflate'
+   doAction = 'Deflate'
+;
+
+pump : item
+   sdesc = "pump"
+   adjective = 'air'
+   ldesc = "It's an air pump."
+   adesc = "an air pump"
+   location = nil
+   noun = 'pump'
+   verIoInflateWith(actor) = {}
+   ioInflateWith (actor, dobj) = {dobj.doInflateWith(actor, self);}
+;
+
+tunnel1:room
+   sdesc = "Tunnel"
+   ldesc = "You're in a winding passage running east-west.  The condition of the passage suggests that this tunnel isn't used very frequently."
+   west = waiting
+   east = tunnel2
+   myfloor = tunnel1Floor
+;
+
+tunnel1Floor:theFloor
+   reachable = { return( self.location.contents); }
+   location = tunnel1
+;
+
+tunnel2:room
+   sdesc = "Tunnel"
+   ldesc = "You're in a winding passage running east-west.  The floor littered with debris."
+   west = tunnel1
+   east = tunnel3
+   myfloor = tunnel2Floor
+;
+
+tunnel2Floor:theFloor
+   reachable = { return( self.location.contents); }
+   location = tunnel2
+   exp = nil
+   verDoSearch(actor) = {}
+    doSearch(actor) =
+    {
+        if (pump.location = nil){pump.moveInto(tunnel2); "\nYou find a pump buried under the debris!"; incscore(50); self.exp:=true;}
+                    else
+            "There's nothing else to find here.";
+    }
+;
+
+tunnel3:room
+   sdesc = "Tunnel"
+   ldesc = "The tunnel dead-ends here in solid rock."
+   west = tunnel2
+   //east = tunnel4
+   myfloor = tunnel3Floor
+;
+
+tunnel3Floor:theFloor
+   reachable = { return( self.location.contents); }
+   location = tunnel3
+;
+
+waiting: room
+   sdesc = "Waiting Room"
+   ldesc = "You're in a drab waiting room.  There's a small hole in the east wall. You can also go west or south. "
+   south = startroom
+   west = check
+   east = {
+	"\nYou squeeze through the hole in the wall.";
+	return (tunnel1);
+	}
+   myfloor = waitingFloor
+;
+
+waitingFloor:theFloor
+   reachable = { return( self.location.contents); }
+   location = waiting
+;
+
+waitChair: chairitem
+    location = waiting
+    noun = ['seat' 'chair']
+    adjective = 'tacky'
+    reachable = { return( self.location.contents); }
+    sdesc = "tacky chair"
+    heredesc = " A tacky chair rests near the north wall."
+    ldesc = "It's a tremendously offensive plastic chair."
+;
+
+check: room
+   sdesc = "Check Point"
+   ldesc = "This small unremarkable room seems to be used as a checkpoint or guard room. "
+   east = waiting
+   south=corridor2
+   north = corridor1
+   myfloor = checkFloor
+   sound = {
+	if (golem.isalive and golem.location = corridor2) {"something heavy lumbering around to the south.";}
+	else "some sort of humming noise coming from the south.";
+		}
+;
+
+checkFloor:theFloor
+   reachable = { return( self.location.contents); }
+   location = check
+;
+
+corridor1: room
+   sdesc = "Dark Corridor"
+   ldesc = "You're in a dark, rough hewn corridor running north-south, ending with << cor1Door.isopen ? "an open" : "a closed" >> door to the north."
+   south = check
+   north = cor1Door
+   myfloor = cor1Floor
+;
+
+cor1Floor:theFloor
+   reachable = { return( self.location.contents); }
+   location = corridor1
+;
+
+corridor2: room
+   sdesc = "Dark Corridor"
+   ldesc = "You're in a dark, rough hewn corridor running north-south.  A small passage leads west."
+   south = library
+   north =check
+   west = {
+	if (not library.deactivated){return(irRoom);}
+	else 	{
+	"\nThere's too much smoke in the room to the west for you to enter."; return(nil);
+		}
+	}
+   myfloor = cor2Floor
+   sound = {
+	if (golem.isalive and golem.location = library) {"You hear something heavy lumbering around to the south.";}
+	else "The ventilation system seems louder here.";
+		}
+;
+
+cor2Floor:theFloor
+   reachable = { return( self.location.contents); }
+   location = corridor2
+;
+
+cell: room
+   sdesc = "Forgotten Cell"
+   ldesc = "You're in a foul, cramped cell with a small steel door in the south wall."
+   south = cellDoor
+   myfloor = cellFloor
+;
+
+cellFloor:theFloor
+   reachable = { return( self.location.contents); }
+   location = cell
+;
+
+skeleton: qcontainer, keyedLockable, underHider
+   sdesc = "skeleton"
+   noun = 'skeleton'
+   adjective = 'metal'
+   weight = 20
+   broken = nil
+   ldesc = 
+	{
+	"The <<self.broken ? "broken" : "" >> skeleton stares mournfully back at you.";
+        	
+	}
+   heredesc = 	{
+" A <<self.broken ? "broken" : "" >> skeleton leaning against the back wall suggests the fate of a former occupant of this room.";
+	}
+   location = cell
+   verDoAttackWith( actor, io ) ={}
+   doAttackWith(actor, io)=
+		{
+		"The brittle bones of the skeleton shatter!";
+		self.broken:=true;
+		bone3.moveInto(self.location);
+		}
+;
+
+bone3: keyItem
+   sdesc = "bone splinter"
+   ldesc = "It's a tiny splinter of bone."
+   noun = 'splinter'
+   adjective = 'bone'
+   location = nil
+   weight = 0
+   pickValue = 15
+;
+
+cellDoor: lockableDoorway
+  sdesc = "door"
+  noun = 'door'
+  adjective = 'cell'
+  location = cell
+  mykey = copperKey
+  pickLock = true
+  otherside = cor1Door
+  doordest = corridor1
+  verDoAttackWith( actor, io ) ={}
+  doAttackWith(actor, io)=
+		{
+		if (not self.pickLock)
+		{"\nYou seem to have unjammed the lock."; self.pickLock:=true;}
+		
+		else if (soldier.isalive)
+		{"\nSomeone shouts \"Shut up in there!\" from the other side of the door.";}
+		else 	{
+		"\nOr I'll huff and I'll puff and blow your house down...";
+		"\nFace it, brute force isn't going to get you out of here.";
+			}
+		}
+;
+
+cor1Door: lockableDoorway
+  sdesc = "door"
+  noun = 'door'
+  adjective = 'corridor'
+  location = corridor1
+  mykey = copperKey
+  pickLock = true
+  otherside = cellDoor
+  doordest = cell
+;
+
+copperKey: keyItem
+   sdesc = "copper key"
+   ldesc = "It's a copper key."
+   noun = 'key'
+   adjective = 'copper'
+   location = mutant
+;
+
+stairs: fixeditem
+   sdesc = "stairs"
+   noun = 'stairs'
+   location = library
+   adjective = 'metal'
+   ldesc = "The metal stairs lead up to a hatch in the ceiling, passing beneath the ventilation duct.  The stairs are blackened as if burned."
+   askTroll = "\"I wouldn't go up there, but that's just my opinion.\", says the Troll."
+;
+
+library:room
+   sdesc="Wizard's Room"
+   ldesc="This room seems to be someone's home.  There's a bed here and a small desk with a stool.  The room is clean and well-kept.  You can go north or up some stairs."
+    deactivated = nil
+   north=corridor2
+   up = {
+	if (self.deactivated)
+		{
+		if (troll.isalive and troll.followme)
+		{
+		"\nThe Troll waves as you leave.";
+		troll.followme:=nil; self.randMove:=true;
+		}
+		"\bYou climb the stairs, up onto a windswept plain of tall grass.!";
+		"\b\tCongratulations!  You've escaped The Tower of Iron!\b ";
+		
+		"\bYou've achieved a score of <<global.score>>."; 
+		"\nBasically, this means you killed a lot of things.";
+		"\b\t(To Be Continued?  It depends on whether or not anyone's interested)";
+	"\bIf you enjoyed this adventure, please E-mail to <TCJ SF@aol.com>.";
+"\nAlso, source code for this TADS Adventure is available on request.  \nContact me via AOL.";
+		terminate();
+            	quit();
+            	abort;
+		
+		}
+	else 
+		{
+		local z;
+    		z:=rand(10);
+"\nAs you set foot on the metal stairway, the ventilation duct overhead belches a torrent of flames which drives you back down the stairs.";
+		"\nYou take <<z>> damage.\b";
+		Me.str:=Me.str-z;
+		checkFall(z, Me.maxstr, Me);
+           	if ( Me.str+ Me.tempstr< 1 ) {Me.killer:=Me; kick(Me); }
+		if (troll.followme and troll.isalive)
+		{
+	"\b\"You should've asked me about the trap on the stairs,\" the Troll quips smugly.";
+		}
+		return (nil);
+		}
+	}
+   myfloor = libraryFloor
+;
+
+libraryFloor:theFloor
+   reachable = { return( self.location.contents); }
+   location = library
+;
+
+wizChair: chairitem
+    location = library
+    noun = 'stool'
+    adjective = 'wooden'
+    weight = 7
+    reachable = { return( self.location.contents); }
+    sdesc = "wooden stool"
+    ldesc = "It's a small wooden stool."
+;
+
+wizbed : beditem
+   location = library
+   sdedc = "bed"
+   ldesc = "It's an extraordinarily uncomfortable bed, but then again this isn't The Ritz."
+   noun = 'bed'
+   reachable = { return( self.location.contents); }
+   verDoSearch(actor) = {}
+    doSearch(actor) =
+    {
+        if (sphere.location = nil){sphere.moveInto(library); "\nYou find a strange sphere about the size of a softball tucked behind the pillow on the bed!";}
+                    else
+            "There's nothing else to find here.";
+    }
+;
+
+wizDesk: surface
+   location = library
+   noun = 'desk'
+   adjective = 'small'
+   weight = 60
+   sdesc = "small desk"
+   ldesc = "It's a small but functional desk."
+;
+
+shadowland:room
+  sdesc="shadowland"
+  ldesc = "You are in shadowland."
+  myfloor = shadowFloor
+;
+
+shadowFloor:theFloor
+   reachable = { return( self.location.contents); }
+   location = shadowland
+;
+
+irRoom: room
+   sdesc = "Machine Room"
+   ldesc = "This room is dominated by a huge machine sprouting various ducts that connect to the walls and ceiling.  The room is exceedingly hot and filled with an acrid, greasy smoke that severely limits the amount of time you can spend here without passing out."
+    moveout={
+	"\bThe smoke forces you back out of the room.\b";
+	Me.travelTo(corridor2); "\b";
+	corridor2.lookAround(( true ));
+	}
+   myfloor = irFloor
+   enterRoom( actor ) =    // sent to room as actor is entering it
+    {
+        self.lookAround(( true ));
+        if ( self.islit )
+        {
+            if (not self.isseen) self.firstseen;
+            self.isseen := true;
+        }
+	if (not getfuse(self, &moveout)){notify (self, &moveout, 2);}
+    }
+   east = corridor2
+;
+
+machine: fixeditem
+   sdesc = "machine"
+   ldesc = "It's a strange machine that reminds you of an octopus because of the number of ducts leading from the machine into the walls and ceiling.  On its side you notice the words  \"General *ir.\""
+   noun = 'machine'
+   location = irRoom
+;
+
+irFloor:theFloor
+      reachable = { return( self.location.contents); }
+      location = irRoom
+;

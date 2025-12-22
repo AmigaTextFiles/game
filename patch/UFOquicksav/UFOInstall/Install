@@ -1,0 +1,160 @@
+;----------------------------
+; Unofficial install for UFO CD남
+
+(set #osv (getversion))
+(set #ver (/ #osv 65536))
+(if (< #ver 39)
+    (abort "OS to lame!")
+)
+(set #icov (getversion "libs:icon.library"))
+(set #icover (/ #icov 65536))
+
+(if
+    (patmatch "AGNUS|ECS" (database "chiprev"))
+    (abort "This computer's chipset is posivitely incapable of running UFO CD남 properly.")
+)
+(complete 0)
+(if
+  (exists "UFOSAV:")
+  (if
+    (= @user-level 2)
+    (message "The assign UFOSAV: is present, indicating the install may not be needed. Continue install?")
+    (set #installexist
+      (askbool
+        (prompt #prompt)
+        (default 1)
+        (choices "Install" "Skip")
+        (help @askbool-help)
+      )
+    )
+  )
+    (abort "It appears UFO Enemy Unknown is already installed.")
+)
+
+(welcome
+    "This is an unofficial install for UFO Enemy Unknown CD남.\n"
+    "No actual bugs are fixed, but an alternate method is provided for saving the game."
+)
+
+(set #disc "UFO CD남")
+(askdisk
+    (assigns)
+    (prompt "Insert your UFO CD남 disc into your CD compatible drive.")
+    (help @askdisk-help)
+    (newname "ucd")
+    (dest #disc)
+)
+
+(set #dest
+    (askdir
+        (default @default-dest)
+        (prompt "Where should " @app-name " be installed? Directory called \"UFO\" will be created.")
+        (help
+        "The game, including the intro, and a replacement startup script, are copied to the place indicated in the text field."
+        "If you are not sure where this should be, try what the program is suggesting, or the drive Work:\n"
+        @askdir-help
+        )
+    )
+)
+(complete 2)
+(if
+    (= @user-level 2)
+        (set #Iconch
+            (askchoice
+                (prompt "Which icon do you wish to install?")
+                (help
+                "If you have OS 3.5 or later, you can choose the "OS 3.5+" option."
+                "Otherwise the rather crude default one is used.\n"
+                @askoptions-help
+                )
+                (choices "Compatible" "OS 3.5+")
+                (default 0)
+            )
+        )
+)
+(if
+    (< @user-level 2)
+        (if (< #icover 44)
+            (set #Iconch 0)
+        )
+        (if (>= #icover 44)
+            (set #Iconch 1)
+        )
+)
+(complete 3)
+(makedir #dest)
+(set #copyto (tackon #dest "UFO"))
+(set @default-dest #copyto)
+(set #saved (cat #copyto "/savedata"))
+(makedir #saved)
+(if
+    (= @user-level 2)
+        (startup "UFO savegame" (help "The installer is modifying the script S:User-startup so that you need not set the assign yourself every time you boot up.\n" @startup-help)
+        (prompt "Adding an assign to S:User-startup.")
+        (confirm) (command "Assign UFOSAVE: " #saved)
+        )
+)
+(if
+    (< @user-level 2)
+        (startup "UFO savegame" (help "The installer is modifying the script S:User-startup so that you need not set the assign yourself every time you boot up.\n" @startup-help)
+        (prompt "Adding an assign to S:User-startup.")
+        (command "Assign UFOSAVE: " #saved)
+        )
+)
+(run "assign UFOSAVE: " #saved
+    (help "Assign made for saving a game.")
+)
+(complete 6)
+; Copy Intro (and all music)
+(copyfiles
+    (help @copyfiles-help)
+    (source (cat #disc ":"))
+    (dest #copyto)
+    (choices "UFOIntro" "Music" "Intro")
+)
+; End Copy Intro
+(complete 52)
+; Copy program
+(copyfiles
+    (help @copyfiles-help)
+    (source (cat #disc ":"))
+    (dest #copyto)
+    (choices "GEO" "Geoscape.files" "Maps.cat" "MousePtr.cel" "Routes.pak" "Tactical" "Tactical.files" "Fonts" "GeoData" "GeoGraph" "Terrain" "UFOGraph" "Units")
+)
+; End Copy program
+(complete 97)
+; Copy run script and icons
+(copyfiles
+    (help @copyfiles-help)
+    (source "ufoscript")
+    (dest #copyto)
+    (newname "UFO Enemy Unknown")
+)
+(complete 98)
+(if (= #Iconch 0)
+    (set #isrc "ufo.icon")
+
+)
+(if (= #Iconch 1)
+    (set #isrc "ufo.gicon")
+)
+(copyfiles
+    (help @copyfiles-help)
+    (source #isrc)
+    (dest #copyto)
+    (newname "UFO Enemy Unknown.info")
+)
+(if
+    (exists "ENVARC:sys/def_drawer.info")
+    (copyfiles
+        (help @copyfiles-help)
+        (source "ENVARC:sys/def_drawer.info")
+        (dest #dest)
+        (newname "UFO.info")
+    )
+)
+; End Copy runsc..
+(complete 100)
+(exit)
+
+

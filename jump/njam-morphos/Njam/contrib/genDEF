@@ -1,0 +1,126 @@
+#!/usr/bin/perl -w
+
+# Programmed by:	Jalal A. Elhusseini
+# Date:			DEC 8, 2003
+
+# Perl script to Convert a '.COOP' file used by NJAM 
+# to a '.DEF' level definition file.
+
+$ARGC = $#ARGV + 1; # Get number of arguments.
+
+$WORLD_HEADER = "";
+$LEVEL_END = "[EndEndEnd]";
+
+$Row_START   = 0;
+$Row_END     = 23;
+$Col_START   = 0;
+$Col_END     = 27;
+$World_START = 0;
+$World_END   = 19;
+
+$WORLD_COUNT = 0;
+$WORLDS_MAX  = 20;
+
+$BLOCK        = 0x0;
+$EMPTY        = 0x1;
+$GHOST_HOME   = 0x2;
+$DOOR         = 0x3;
+$POWER        = 0x4;
+$COOKIE       = 0x5;
+$FREEZE       = 0x6;
+$TRAP         = 0x7;
+$WARP         = 0x8;
+$INVISIBILITY = 0x9;
+
+%Elements = ();		#clear hash 1st
+%Elements = (	   0	=>	B,
+	     	   1	=>	E,
+	     	   2	=>	G,
+	     	   3	=>	D,
+	     	   4	=>	P,
+	     	   5	=>	C,
+	     	   6	=>	F,
+	     	   7	=>	T,
+	     	   8	=>	W,
+	     	   9	=>	I, );
+
+@Init28 = (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+
+# ARGUMENT ERROR Message
+if ($ARGC < 2 )
+{
+	print "\n\n\n";
+	print "Usage: genDEF INPUT_FILE (OUTPUT_FILE)\n";
+	print "Do NOT include a file extension on the command line.\n";
+	print "Default extension for Input  file is .COOP\n";
+	print "Default extention for Output file is .DEF\n";
+	print "If OUTPUT_FILE not entered then OUTPUT_FILE = INPUT_FILE'\n";
+	print "File names will be capitalized.\n";
+	print "\n\n\n";
+}
+
+# Open Input and output files
+if ($ARGC >= 1)
+{
+	$INPUT_FILE_TEMP = $ARGV[0];
+	$_ = $INPUT_FILE_TEMP; tr/a-z/A-Z/; $INPUT_FILE_TEMP = $_;
+	$INPUT_FILE = "$INPUT_FILE_TEMP".".COOP";
+	open (D_IN, $INPUT_FILE) || die "Sorry, I can't open $INPUT_FILE.\n";
+	binmode D_IN;
+	print "Input File = $INPUT_FILE.\n";
+
+	if ( $ARGC == 1 ) { $OUTPUT_FILE = "$INPUT_FILE_TEMP".".DEF"; }
+	else
+	{ $OUTPUT_FILE = $ARGV[1];
+	  $_ = $OUTPUT_FILE; tr/a-z/A-Z/; $OUTPUT_FILE = $_.".DEF";
+	}
+	open (D_OUT,">$OUTPUT_FILE") || die "Sorry, I can't create $OUTPUT_FILE.\n";
+	print "Output File = $OUTPUT_FILE.\n";
+
+# Create a 2D array
+        for ( $Row_count = $Row_START ; $Row_count <= $Row_END  ; $Row_count++ )
+        { $World[$Row_count] = [@Init]; }
+
+# Read 20 Worlds from Input file
+        for ( $World_count = $World_START ; $World_count <= $World_END  ; $World_count++ )
+        {
+
+# Read a World data into a temp 2D array.
+         for ( $LOOP0 = $Col_START ; $LOOP0 <= $Col_END  ; $LOOP0++ )
+         {
+	  for ( $LOOP1 = $Row_START ; $LOOP1 <= $Row_END  ; $LOOP1++ )
+	  { 
+	   read D_IN, $Data0, 1;
+	   $Data1 = ord($Data0);	   
+	   print "$Data1,";
+	   $World[$LOOP1][$LOOP0] = $Elements{$Data1};
+	  }
+	  print "\n";
+         }
+
+# Write World to the output file.
+	 # Generate a World name
+	 $WORLD_HEADER = "[".$INPUT_FILE_TEMP."_".$World_count."]\n";
+	 printf D_OUT "%s", "$WORLD_HEADER";
+	 print "Writing World $WORLD_HEADER";
+         for ( $LOOP0 = $Row_START ; $LOOP0 <= $Row_END  ; $LOOP0++ )
+         {
+	  for ( $LOOP1 = $Col_START ; $LOOP1 <= $Col_END  ; $LOOP1++ )
+	  { 
+	   printf D_OUT "%s", $World[$LOOP0][$LOOP1];
+	   if ( $LOOP1 <  $Col_END) { printf D_OUT "%s", ","; }
+	  }
+	  printf D_OUT "%s", "\n";
+	 }
+
+# next World
+	 printf D_OUT "%s", "\n";
+        } # next World
+
+# Write TAG for the end of the .DEF file
+	printf D_OUT "%s", "$LEVEL_END\n";
+
+# close opened files
+	close (D_IN);
+	close (D_OUT);
+}

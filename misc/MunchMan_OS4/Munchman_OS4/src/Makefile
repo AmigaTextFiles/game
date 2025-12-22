@@ -1,0 +1,1 @@
+gcc -DUSE_C_ONLY mm.c -o mm -lSDL

@@ -1,0 +1,184 @@
+/* ScummVM - Graphic Adventure Engine
+ *
+ * ScummVM is the legal property of its developers, whose names
+ * are too numerous to list here. Please refer to the COPYRIGHT
+ * file distributed with this source distribution.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * $URL: https://scummvm.svn.sourceforge.net/svnroot/scummvm/scummvm/tags/release-0-11-1/engines/parallaction/parser.cpp $
+ * $Id: parser.cpp 30944 2008-02-23 22:50:18Z sev $
+ *
+ */
+
+#include "parallaction/parallaction.h"
+
+
+namespace Parallaction {
+
+char			_tokens[20][40];
+
+Script::Script(Common::ReadStream *input, bool disposeSource) : _input(input), _disposeSource(disposeSource), _line(0) {
+}
+
+Script::~Script() {
+	if (_disposeSource)
+		delete _input;
+}
+
+char *Script::readLine(char *buf, size_t bufSize) {
+
+	uint16 _si;
+	char v2 = 0;
+	for ( _si = 0; _si<bufSize; _si++) {
+
+		v2 = _input->readSByte();
+
+		if (v2 == 0xA || v2 == 0xD || _input->eos()) break;
+		if (!_input->eos() && _si < bufSize) buf[_si] = v2;
+	}
+
+	_line++;
+
+	if (_si == 0 && _input->eos())
+		return 0;
+
+	buf[_si] = 0xA;
+	buf[_si+1] = '\0';
+
+	return buf;
+
+}
+
+
+
+void Script::clearTokens() {
+
+	for (uint16 i = 0; i < 20; i++)
+		_tokens[i][0] = '\0';
+
+	return;
+
+}
+
+void Script::skip(const char* endToken) {
+
+	while (scumm_stricmp(_tokens[0], endToken)) {
+		readLineToken(true);
+	}
+
+}
+
+//
+//	Scans 's' until one of the stop-chars in 'brk' is found, building a token.
+//	If the routine encounters quotes, it will extract the contained text and
+//  make a proper token. When scanning inside quotes, 'brk' is ignored and
+//  only newlines are considered stop-chars.
+//
+//	The routine returns the unparsed portion of the input string 's'.
+//
+char *parseNextToken(char *s, char *tok, uint16 count, const char *brk, bool ignoreQuotes) {
+
+	enum STATES { NORMAL, QUOTED };
+
+	STATES state = NORMAL;
+
+	while (count > 0) {
+
+		switch (state) {
+		case NORMAL:
+			if (*s == '\0') {
+				*tok = '\0';
+				return s;
+			}
+
+			if (strchr(brk, *s)) {
+				*tok = '\0';
+				return ++s;
+			}
+
+			if (*s == '"') {
+				if (ignoreQuotes) {
+					*tok++ = *s++;
+					count--;
+				} else {
+					state = QUOTED;
+					s++;
+				}
+			} else {
+				*tok++ = *s++;
+				count--;
+			}
+			break;
+
+		case QUOTED:
+			if (*s == '\0') {
+				*tok = '\0';
+				return s;
+			}
+			if (*s == '"' || *s == '\n' || *s == '\t') {
+				*tok = '\0';
+				return ++s;
+			}
+
+			*tok++ = *s++;
+			count--;
+			break;
+		}
+
+	}
+
+	*tok = '\0';
+	// TODO: if execution flows here, make *REALLY* sure everything has been parsed
+	// out of the input string. This is what is supposed to happen, but never ever
+	// allocated time to properly check.
+
+	return tok;
+
+}
+
+uint16 Script::fillTokens(char* line) {
+
+	uint16 i = 0;
+	while (strlen(line) > 0 && i < 20) {
+		line = parseNextToken(line, _tokens[i], 40, " \t\n");
+		line = Common::ltrim(line);
+		i++;
+	}
+
+	return i;
+}
+
+uint16 Script::readLineToken(bool errorOnEOF) {
+
+	clearTokens();
+
+	char buf[200];
+	char *line = NULL;
+	do {
+		line = readLine(buf, 200);
+		if (line == NULL) {
+			if (errorOnEOF)
+				error("unexpected end of file while parsing");
+			else
+				return 0;
+		}
+		line = Common::ltrim(line);
+	} while (strlen(line) == 0 || line[0] == '#');
+
+	return fillTokens(line);
+}
+
+} // namespace Parallaction

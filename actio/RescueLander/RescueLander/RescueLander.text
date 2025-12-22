@@ -1,0 +1,1846 @@
+;-> RescueLander by Stefano Maria Regattin
+;d> 27 May 2022 from RescueLander.bb (Blitz3D for Windows)
+;m> 16,19,20,24,25,26,27,28,29,30 June 2022
+;m> 1,2,3,4,7,11,12,13,15,17,19,22,27,29,30 luglio 2022
+;m> 5,6,7,9,10,11,12,15 agosto 2022
+;m> 11 gennaio 2023
+;m> 8,11,12,22 aprile 2023
+;m> 10,15,22,23,25 maggio 2023
+;m> 13,20,25 giugno 2023
+;m> 15,17 agosto 2023
+;m> 24,25 ottobre 2023
+;m> 6 dicembre 2023
+;m> 28,29 gennaio 2024
+;m> 24 febbraio 2024
+;m> 12,13 aprile 2024
+;m> 17,18 dicembre 2024
+;-----------------------
+!version{"RescueLander 1.9 (\\__DATE__GER__)"}
+
+;screen width
+#LarghezzaSchermo=640
+
+
+;Esc key ascii
+#TastoEscASCII=27
+
+;cursor down ascii key
+#TastoGiuASCII=29
+
+;cursor right ascii key
+#TastoDestraASCII=30
+
+;cursor left ascii key
+#TastoSinistraASCII=31
+
+;One key ascii
+#TastoUnoASCII=49
+
+;Two key ascii
+#TastoDueASCII=50
+
+;Three key ascii
+#TastoTreASCII=51
+
+
+;maximum number allowed of men
+#MassimoOminiDaSalvare=10
+
+;maximum number allowed of men
+#MassimoCannoniOstili=20
+
+
+;sky object's number for Earth
+#Terra=1
+
+;sky object's number for Moon
+#Luna=2
+
+;sky object's number for Mars
+#Marte=3
+
+
+;Black colour
+#Nero=0
+
+;red colour
+#Rosso=1
+
+;orange colour
+#Arancione=2
+
+;yellow colour
+#Giallo=3
+
+;green colour
+#Verde=4
+
+;aqua colour
+#Acquamarina=5
+
+;blue colour
+#Blu=6
+
+;purple colour
+#Viola=7
+
+
+;left mouse button's identifier number
+#TastoSinistroDelTopo=1
+
+;right mouse button's identifier number
+#TastoDestroDelTopo=2
+
+
+;top right drop
+#AltoDestra=3
+
+;top left drop
+#AltoSinistra=2
+
+;bottom left drop
+#BassoSinistra=1
+
+;bottom right drow
+#BassoDestra=0
+
+
+;lander graphics area
+#AreaNavetta=0
+
+;engine jets graphics area
+#AreaGetto=1
+
+;men graphics area
+#AreaOmino=3
+
+;hostile cannon graphics area
+#AreaCannone=5
+
+;hostile rock graphics area
+#AreaRoccia=6
+
+;sky object landscape graphics area
+#AreaSfondo=7
+
+;sky object landscape inner graphics area
+#AreaDentroSfondo=8
+
+;medium size lander graphics area
+#AreaNavettaMedia=9
+
+;great size lander graphics area
+#AreaNavettaGrande=10
+
+;visible screen graphics area
+#AreaSchermo=11
+
+;screen first graphics area
+#AreaSchermoUno=12
+
+;screen second graphics area
+#AreaSchermoDue=13
+
+
+;Data70 font height
+#AltezzaFonteData70=52
+
+;Data70 font referring number
+#FonteData70=0
+
+;main screen
+#Schermo=0
+
+;main window
+#FinPrincipale=0
+
+;message window
+#FinMessaggi=0
+
+;shapes buffer
+#MemoriaForme=0
+
+;colours palette
+#TavolozzaColori=0
+
+;you have pressed a key event flag
+#HaiPremutoUnTasto=1024
+
+;screen mode
+#ModoSchermo=-1
+
+;window mode
+#ModoFinestra=0
+
+;medium size lander shape scale
+#ScalaNavettaMedia=5
+
+;great size lander shape scale
+#ScalaNavettaGrande=10
+
+;program can be launched clicking its icon
+WBStartup
+
+;simply shapes are drawn as normal
+BlitMode CookieMode
+
+;shapes are drawn as normal
+BBlitMode CookieMode
+
+;PAL or NTSC screen height
+AltezzaSchermo.w=DispHeight*2
+ 
+;landing zones available
+ZoneDAtterraggio.b=#LarghezzaSchermo/15
+
+;full landscape width
+LarghezzaPaesaggio.w=ZoneDAtterraggio*15
+
+;landing zone available limited
+ZoneDAtterraggio=LarghezzaPaesaggio/15
+
+;landing zones' array
+Dim ZonaDAtterraggio.w(ZoneDAtterraggio-1)
+
+
+;man to save
+NEWTYPE .Omino
+
+;man to save current image
+ Immagine.b
+
+;man to save x position
+ XPosizione.w
+
+;man to save y position
+ YPosizione.w
+
+;man to save image's duration
+ DurataImmagine.w
+
+;man to save image's duration counter
+ ContatoreDurataImmagine.w
+
+End NEWTYPE
+
+Dim List Omini.Omino(#MassimoOminiDaSalvare-1)
+
+;hostile cannon
+NEWTYPE .CannoneOstile
+
+;hostile cannon X position
+ XPosizione.w
+
+;hostile cannon Y position
+ YPosizione.w
+
+;hit fired status
+ ColpoSparato.b
+
+;hit fired's y position
+ YPosizioneColpoSparato.w
+
+End NEWTYPE
+
+Dim List CannoniOstili.CannoneOstile(#MassimoCannoniOstili-1)
+
+DEFTYPE .w XMessaggioUno,XMessaggioDue,XMessaggioTre,YMessaggioUno,YMessaggioDue,YMessaggioTre
+
+;main screen title
+TitoloSchermo$="RescueLander 1.9 made in Italy by Stefano Maria Regattin on Wed 18 Dec 2024"
+
+;sets the text border colours
+Function.b ColoreBordo{Colore.b}
+ Select Colore
+ Case #Rosso
+  Colore=#Verde
+ Case #Arancione
+  Colore=#Acquamarina
+ Case #Giallo
+  Colore=#Blu
+ Case #Verde
+  Colore=#Viola
+ Case #Acquamarina
+  Colore=#Rosso
+ Case #Blu
+  Colore=#Arancione
+ Case #Viola
+  Colore=#Giallo
+ Default
+  Colore=Rnd(6)+1
+ End Select
+ Function Return Colore
+End Function
+
+;drop procedure
+Statement Goccia{XGoccia.w,YGoccia.w,LarghezzaGoccia.w,DirezioneGoccia.b,Colore.b}
+ For Goccia=LarghezzaGoccia To 1 Step -1
+  WColour Colore
+  Select DirezioneGoccia
+  Case #AltoSinistra
+;top right
+
+   WCircle XGoccia-Goccia+1,YGoccia-Goccia+1,Goccia,Colore
+  Case #AltoDestra
+;top left
+
+   WCircle XGoccia+Goccia+1,YGoccia-Goccia+1,Goccia,Colore
+  Case #BassoDestra
+;bottom left
+
+   WCircle XGoccia+Goccia+1,YGoccia+Goccia+1,Goccia,Colore
+  Case #BassoSinistra
+;bottom right
+
+   WCircle XGoccia-Goccia+1,YGoccia+Goccia+1,Goccia,Colore
+  End Select
+ Next
+End Statement
+
+;draws the cyan rectangles background
+Statement Sfondo{}
+SHARED AltezzaSchermo
+ LarghezzaMinima.w=#LarghezzaSchermo-(AltezzaSchermo-11)
+ LarghezzaFinale.w=(#LarghezzaSchermo-LarghezzaMinima)/2
+ For Sfondo.w=0 To LarghezzaFinale-1 Step 2
+  Wline Sfondo,Sfondo,#LarghezzaSchermo-1-Sfondo,Sfondo,#Acquamarina
+  Wline #LarghezzaSchermo-1-Sfondo,Sfondo,#LarghezzaSchermo-1-Sfondo,(AltezzaSchermo-11)-Sfondo,#Acquamarina
+  Wline Sfondo,(AltezzaSchermo-11)-Sfondo,#LarghezzaSchermo-1-Sfondo,(AltezzaSchermo-11)-Sfondo,#Acquamarina
+  Wline Sfondo,Sfondo,Sfondo,(AltezzaSchermo-11)-Sfondo,#Acquamarina
+ Next
+ WBox Sfondo,Sfondo,Sfondo+1+LarghezzaMinima-1,Sfondo+1,#Acquamarina
+End Statement
+
+;draw stars
+Statement DisegnaLeStelle{AltezzaAreaStelle.w,ModoSchermo.b}
+SHARED AltezzaSchermo
+SHARED LarghezzaPaesaggio
+ If ModoSchermo=#ModoSchermo
+  For Stelle.w=0 To AltezzaSchermo-AltezzaAreaStelle-1
+   Plot 5+Rnd(LarghezzaPaesaggio-1),AltezzaAreaStelle+Rnd(AltezzaSchermo-AltezzaAreaStelle-1),Rnd(7)+1
+   If Stelle MOD 5=0
+    ColoreStella.b=Rnd(6)+1:XStella.w=15+Rnd(LarghezzaPaesaggio-1-15):YStella.w=7+AltezzaAreaStelle+Rnd(AltezzaSchermo-AltezzaAreaStelle-1-7)
+    Circlef XStella,YStella,3,ColoreStella
+    Line XStella,YStella-5,XStella,YStella+5,ColoreStella
+    Line XStella-5,YStella,XStella+5,YStella,ColoreStella
+   EndIf
+  Next
+ Else
+  For Stelle=0 To AltezzaSchermo-AltezzaAreaStelle-1
+   WPlot 5+Rnd(LarghezzaPaesaggio-1),AltezzaAreaStelle+Rnd(AltezzaSchermo-AltezzaAreaStelle-1),Rnd(7)+1
+   If Stelle MOD 5=0
+    ColoreStella.b=Rnd(6)+1:XStella.w=15+Rnd(LarghezzaPaesaggio-1-15):YStella.w=7+AltezzaAreaStelle+Rnd(AltezzaSchermo-AltezzaAreaStelle-1-7)
+    WEllipse XStella,YStella,3,1,ColoreStella
+    WEllipse XStella,YStella,3,2,ColoreStella
+    WEllipse XStella,YStella,3,3,ColoreStella
+    Wline XStella,YStella-5,XStella,YStella+5,ColoreStella
+    Wline XStella-5,YStella,XStella+5,YStella,ColoreStella
+   EndIf
+  Next
+ EndIf
+End Statement
+
+;sets the shapes buffer for BBlit/UnBuffer
+Buffer #MemoriaForme,16384
+
+
+;opens the game screen
+Screen #Schermo,0,0,#LarghezzaSchermo,AltezzaSchermo,3,$8004,Centre$(TitoloSchermo$,78),#Giallo,#Verde
+
+;sets the visible screen graphics area
+ScreensBitMap #Schermo,#AreaSchermo
+
+
+;initialize the colours palette
+InitPalette #TavolozzaColori,8
+
+;sets first colour
+PalRGB #TavolozzaColori,#Nero,0,0,0
+
+;sets second colour
+PalRGB #TavolozzaColori,#Rosso,15,0,0
+
+;sets third colour
+PalRGB #TavolozzaColori,#Arancione,15,7,0
+
+;sets fourth colour
+PalRGB #TavolozzaColori,#Giallo,15,15,0
+ 
+;sets fifth colour
+PalRGB #TavolozzaColori,#Verde,0,15,0
+
+;sets sixth colour
+PalRGB #TavolozzaColori,#Acquamarina,0,15,15
+
+;sets seventh colour
+PalRGB #TavolozzaColori,#Blu,0,0,15
+
+;sets eighth colour
+PalRGB #TavolozzaColori,#Viola,15,0,15
+
+;activates the selected colours
+Use Palette #TavolozzaColori
+
+
+;sets the first screen graphics area
+;BitMap #AreaSchermoUno,640,AltezzaSchermo,3
+
+;activates the selected colours
+;Use Palette #TavolozzaColori
+
+
+;sets the first screen graphics area
+;BitMap #AreaSchermoDue,640,AltezzaSchermo,3
+
+;activates the selected colours
+;Use Palette #TavolozzaColori
+
+
+;creates the lander graphics area
+BitMap #AreaNavetta,11,30,3
+
+;draws a cyan circle
+Circlef 5,5,6,#Acquamarina
+
+;draws an empty blue circle
+Circle 5,5,6,#Blu
+
+;draws a blue line
+Line 3,0,7,0,#Blu
+
+;draws a blue line
+Line 0,3,0,7,#Blu
+ 
+;draws a blue line
+Line 5,0,5,10,#Blu
+
+;draws a blue line
+Line 10,2,10,7,#Blu
+ 
+;draws the red lander centre
+Boxf 0,11,10,20,#Rosso
+
+;draws the purple left propulsor
+Boxf 0,13,2,18,#Viola
+
+;draws the purple right propulsor
+Boxf 8,13,10,18,#Viola
+
+;draws the purple bottom propulsor
+Line 3,21,7,21,#Viola
+
+;draws the left green leg
+Line 2,21,0,29,#Verde
+
+;draws the centre green leg
+Line 5,21,5,29,#Verde
+
+;draws the right green leg
+Line 8,21,10,29,#Verde
+
+;grabs the lander shape
+GetaShape #AreaNavetta,0,0,11,30
+
+;sets the lander referring point as centre and bottom
+Handle #AreaNavetta,5,29
+
+;deletes the lander graphics area
+Free BitMap #AreaNavetta
+
+
+;copies the lander shape to the magnified lander shape
+CopyShape #AreaNavetta,#AreaNavettaMedia
+
+;scales the magnified lander to five times greater
+Scale #AreaNavettaMedia,#ScalaNavettaMedia,#ScalaNavettaMedia
+
+;copies the lander shape to the magnified lander shape
+CopyShape #AreaNavetta,#AreaNavettaGrande
+
+;scales the magnified lander to ten times greater
+Scale #AreaNavettaGrande,#ScalaNavettaGrande,#ScalaNavettaGrande
+
+
+;creates the engine jet graphics area
+BitMap #AreaGetto,11,11,3
+
+;sets the drawing colour as cyan
+Circlef 5,5,5,#Acquamarina
+
+;grabs the first jet shape
+GetaShape #AreaGetto,0,0,11,11
+
+;sets the referring point of the engine jet to the centre of the cyan circle
+MidHandle #AreaGetto
+
+;clears the graphics area
+Cls
+
+;engine's jet second image
+Circlef 5,5,4,#Giallo
+
+;grabs the second jet shape
+GetaShape #AreaGetto+1,0,0,11,11
+
+;sets the referring point of the engine jet to the centre of the cyan circle
+MidHandle #AreaGetto+1
+
+Free BitMap #AreaGetto
+
+
+;creates the men graphics area
+BitMap #AreaOmino,5,5,3
+
+;draws the men's right leg
+Line 0,4,2,2,#Giallo
+
+;draws the men's left leg
+Line 4,4,2,2,#Giallo
+
+;draws the men's arms
+Line 0,2,4,2,#Giallo
+
+;draws the men's head
+Circlef 2,1,1,1,#Giallo
+
+;grabs the first men shape
+GetaShape #AreaOmino,0,0,5,5
+
+;sets the referring point of the men to centre bottom
+Handle #AreaOmino,2,4
+
+;clears the graphics area
+Cls
+
+;draws the men's right leg
+Line 0,4,2,2,#Giallo
+
+;draws the men's left leg
+Line 4,4,2,2,#Giallo
+
+;draws the men's right arm
+Line 2,2,0,0,#Giallo
+
+;draws the men's left arm
+Line 2,2,4,0,#Giallo
+
+;draws the men's head
+Circlef 2,1,1,1,#Giallo
+
+;grabs the second men shape
+GetaShape #AreaOmino+1,0,0,5,5
+
+;sets the referring point of the men to centre bottom
+Handle #AreaOmino+1,2,4
+
+Free BitMap #AreaOmino
+
+
+;creates the images for the hostile cannons
+BitMap #AreaCannone,15,5,3
+
+;draws the hostile cannon's base
+Boxf 0,2,15,3,#Blu
+
+;draws the hostile cannon's beam
+Line 5,1,9,1,#Blu
+
+;draws the hostile cannon's beam
+Line 6,0,8,0,#Rosso
+
+;grabs the hostile cannon shape
+GetaShape #AreaCannone,0,0,15,5
+
+;sets the referring points of the hostile cannon to centre bottom
+Handle #AreaCannone,7,5
+
+Free BitMap #AreaCannone
+
+;creates the images for the hostile rock
+BitMap #AreaRoccia,17,17,3
+
+;draws the top left yellow hostile rock
+Circlef 7,7,7,#Giallo
+
+;draws the bottom right blue hostile rock
+Circlef 9,9,7,#Blu
+
+;draws the centred orange hostile rock
+Circlef 8,8,7,#Arancione
+
+;grabs the hostile rock shape
+GetaShape #AreaRoccia,0,0,17,17
+
+;centers the referring points of the hostile rock
+MidHandle #AreaRoccia
+
+Free BitMap #AreaRoccia
+
+;uses the visible screen bitmap
+Use BitMap #AreaSchermo
+
+;loads the Data70Quad characters
+LoadFont #FonteData70,"Data70Quad.font",#AltezzaFonteData70
+
+;frees the right mouse button
+MenusOff
+
+;opens the main window
+Window #FinPrincipale,0,11,#LarghezzaSchermo,AltezzaSchermo-11,$1C00,"",#Giallo,#Verde
+
+;sets the Data70 font for the main window
+WindowFont #FonteData70
+
+;text writing mode with no background
+WJam 0
+
+;in game hostile cannons
+CannoniOstiliInCampo.b=0
+
+;men to save
+OminiDaSalvare.b=0
+
+;saved men
+OminiSalvati.w=0
+
+;hostile cannons counter
+NumeroCannoniOstili.b=0
+
+;men to save counter
+NumeroOminiDaSalvare.b=1
+
+;all the men saved
+SalvataggioCompletato.b=False
+
+;sky object choice
+SceltaCorpoCeleste.b=True
+
+;you have exited by the Esc key
+SeiUscitoColTastoFuga.b=False
+
+
+;game introduction
+Sfondo{}
+Delay_ 100
+Goccia{#LarghezzaSchermo/2-32,(AltezzaSchermo-11)/2-32,96,#AltoSinistra,4}
+Delay_ 100
+Goccia{#LarghezzaSchermo/2+32,(AltezzaSchermo-11)/2-32,96,#AltoDestra,3}
+Delay_ 100
+Goccia{#LarghezzaSchermo/2+32,(AltezzaSchermo-11)/2+32,96,#BassoDestra,6}
+Delay_ 100
+Goccia{#LarghezzaSchermo/2-32,(AltezzaSchermo-11)/2+32,96,#BassoSinistra,1}
+Delay_ 100
+
+;draws the magified lander
+WBlit #AreaNavettaGrande,(#LarghezzaSchermo-11*#ScalaNavettaGrande)/2,WindowHeight-30*#ScalaNavettaGrande
+Delay_ 100
+
+MessaggioUno$="EsseEmmeErre":ColoreMessaggioUno.b=#Acquamarina
+MessaggioDue$="Software":ColoreMessaggioDue.b=#Verde
+MessaggioTre$="Solutions":ColoreMessaggioTre.b=#Giallo
+XMessaggioUno=0
+YMessaggioUno=#AltezzaFonteData70-1
+Gosub MessaggioDiGioco
+Delay_ 100
+
+MessaggioUno$="Presents...":ColoreMessaggioUno=#Arancione
+MessaggioDue$="* Rescue *":ColoreMessaggioDue=#Rosso
+MessaggioTre$="* Lander *":ColoreMessaggioTre=#Viola
+XMessaggioUno=0
+YMessaggioUno=AltezzaSchermo-11-#AltezzaFonteData70*5-1
+Gosub MessaggioDiGioco
+
+MessaggioUno$="Press a key to continue.":ColoreMessaggioUno=#Blu
+MessaggioDue$=""
+MessaggioTre$=""
+XMessaggioUno=0
+YMessaggioUno=AltezzaSchermo-11-#AltezzaFonteData70-1
+Gosub MessaggioDiGioco
+ 
+Repeat
+
+ VWait
+
+;waits for a key pressed
+ TastoPremuto$=Inkey$
+
+;exits if a key has been pressed
+Until TastoPremuto$<>""
+
+Punteggio.l=0
+
+Repeat
+
+;chooses the landscape by player
+ If SceltaCorpoCeleste=True
+
+;uses the visible screen bitmap
+  Use BitMap #AreaSchermo
+ 
+;clears the window
+  VWait
+  WCls
+  Wline 0,0,#LarghezzaSchermo-1,0,#Nero
+
+;draw stars
+  DisegnaLeStelle{0,#ModoFinestra}
+
+  MessaggioUno$="Type 1 to land on Earth.":ColoreMessaggioUno.b=#Verde
+  MessaggioDue$="Type 2 to land on Moon.":ColoreMessaggioDue.b=#Giallo
+  MessaggioTre$="Type 3 to land on Mars.":ColoreMessaggioTre.b=#Rosso
+  XMessaggioUno=0
+  YMessaggioUno=0
+  Gosub MessaggioDiGioco
+
+  MessaggioUno$="Controls by cursor keys.":ColoreMessaggioUno=#Blu
+  MessaggioDue$="Press Esc to leave ever.":ColoreMessaggioDue=#Blu
+  MessaggioTre$=""
+  XMessaggioUno=0
+  YMessaggioUno=AltezzaSchermo-11-#AltezzaFonteData70*2-2
+  Gosub MessaggioDiGioco
+
+;choosen sky object sets to none
+  CorpoCelesteScelto.b=0
+
+  Repeat
+
+   VWait
+
+;waits for a key pressed
+   TastoPremuto$=Inkey$
+
+;selects the sky object and the related number of landers available
+   Select TastoPremuto$
+   Case Chr$(#TastoEscASCII)
+    SeiUscitoColTastoFuga=True
+   Case Chr$(#TastoUnoASCII)
+    CorpoCelesteScelto=#Terra
+    If Navette=0 Then Navette=5
+   Case Chr$(#TastoDueASCII)
+    CorpoCelesteScelto=#Luna
+    If Navette=0 Then Navette=3
+   Case Chr$(#TastoTreASCII)
+    CorpoCelesteScelto=#Marte
+    If Navette=0 Then Navette=4
+   End Select
+
+;exits if the sky object has been selected or the Esc key has been pressed
+  Until CorpoCelesteScelto>0 OR SeiUscitoColTastoFuga=True
+
+;if you have exited by the Esc key
+  If SeiUscitoColTastoFuga=False
+
+   VWait
+   WCls
+
+;draws the stars
+   DisegnaLeStelle{111,#ModoSchermo}
+
+;chooses the colour for the landscape
+   Select CorpoCelesteScelto
+   Case #Terra
+    ColoreTerreno.b=#Verde
+   Case #Luna
+    ColoreTerreno=#Giallo
+   Case #Marte
+    ColoreTerreno=#Rosso
+   End Select
+
+;first landing zone number
+   NumeroZonaDAtterraggio.b=0
+ 
+;creates a new sky object landscape
+   For XTerrenoCorpoCeleste.w=5 To 5+LarghezzaPaesaggio-1 Step 15
+
+;sets the first sky object landscape rectangle
+    If XTerrenoCorpoCeleste=5
+     YTerrenoCorpoCeleste.w=Rnd(191)-64
+
+;sets the following sky object landscape rectangle's height relative to
+; the previously drawed
+    Else
+     YTerrenoCorpoCeleste+Rnd(191)-64
+    EndIf
+
+    If YTerrenoCorpoCeleste>AltezzaSchermo/2 Then YTerrenoCorpoCeleste=AltezzaSchermo/2
+    If YTerrenoCorpoCeleste<10 Then YTerrenoCorpoCeleste=10
+
+;landing zone height
+    AltezzaZonaDAtterraggio.w=AltezzaSchermo-1-YTerrenoCorpoCeleste
+
+;sets the landing zone
+    ZonaDAtterraggio(NumeroZonaDAtterraggio)=AltezzaZonaDAtterraggio
+
+;if exists the sky object landscape rectangle draw it
+    Boxf XTerrenoCorpoCeleste,AltezzaZonaDAtterraggio,XTerrenoCorpoCeleste+14,AltezzaSchermo-1,ColoreTerreno
+
+    For Riga.b=0 To 14
+     XRiga.w=XTerrenoCorpoCeleste+Riga
+     Y0Riga.w=AltezzaZonaDAtterraggio+Rnd(YTerrenoCorpoCeleste-1)
+     Y1Riga.w=AltezzaZonaDAtterraggio+Rnd(YTerrenoCorpoCeleste-1)
+     Line XRiga,Y0Riga,XRiga,Y1Riga,ColoreTerreno+2
+    Next
+
+;next landing zone
+    If NumeroZonaDAtterraggio<ZoneDAtterraggio-1 Then NumeroZonaDAtterraggio+1
+   Next
+
+
+;first landing zone number
+   NumeroZonaDAtterraggio=0
+ 
+;positions the men or the hostile cannons
+   For XTerrenoCorpoCeleste=5 To 5+LarghezzaPaesaggio-1 Step 15
+
+    If ZonaDAtterraggio(NumeroZonaDAtterraggio)<AltezzaSchermo
+
+;chooses to put or not a man
+     AggiungiOmino.b=Rnd(127) MOD 3
+ 
+     If NumeroOminiDaSalvare-OminiDaSalvare>ZoneDAtterraggio-NumeroZonaDAtterraggio AND AggiungiOmino=0
+      AggiungiOmino=2
+     EndIf
+
+;puts a man if men maximum has not reached
+     If OminiDaSalvare<NumeroOminiDaSalvare
+      If AggiungiOmino=2
+       AddItem Omini()
+       Omini()\XPosizione=XTerrenoCorpoCeleste+7
+       Omini()\YPosizione=ZonaDAtterraggio(NumeroZonaDAtterraggio)-1
+       Omini()\Immagine=Rnd(127) MOD 2
+       Omini()\DurataImmagine=(Rnd(8)+2)*10
+       Blit #AreaOmino+Omini()\Immagine,Omini()\XPosizione,Omini()\YPosizione
+       OminiDaSalvare+1
+      EndIf
+
+;otherwise puts a cannon
+     Else
+      If CannoniOstili<NumeroCannoniOstili
+       AddItem CannoniOstili()
+       CannoniOstili()\XPosizione=XTerrenoCorpoCeleste
+       CannoniOstili()\YPosizione=ZonaDAtterraggio(NumeroZonaDAtterraggio)-1
+
+;increases by one the hostile cannons number
+       CannoniOstili+1
+      EndIf
+
+;creates the men to save or the hostile cannons
+     EndIf
+
+;check if there is a landing zone
+    EndIf
+
+;next landing zone
+    If NumeroZonaDAtterraggio<ZoneDAtterraggio-1 Then NumeroZonaDAtterraggio+1
+
+   Next
+
+;if the sky object has been drawn
+   If SceltaCorpoCeleste=True
+
+;deletes and draws the sky object landscape
+    Free Shape #AreaSfondo
+    GetaShape #AreaSfondo,5,111,LarghezzaPaesaggio,AltezzaSchermo-111
+
+    SceltaCorpoCeleste=False
+   EndIf
+  EndIf
+ EndIf
+
+;if you have exited by the Esc key
+ If SeiUscitoColTastoFuga=False
+
+;draws the sky object landscape
+  VWait
+  WCls
+  WBlit #AreaSfondo,5,100
+
+  MessaggioUno$="You have "+Str$(OminiDaSalvare):ColoreMessaggioUno.b=#Viola
+  If OminiDaSalvare=1 Then MessaggioUno$+" man to save." Else MessaggioUno$+" men to save."
+  MessaggioDue$="You have "+Str$(Navette):ColoreMessaggioDue.b=#Acquamarina
+  If Navette=1 Then MessaggioDue$+" lander." Else MessaggioDue$+" landers."
+  MessaggioTre$="Press a key to begin.":ColoreMessaggioTre.b=#Blu
+  XMessaggioUno=0
+  YMessaggioUno=0
+  Gosub MessaggioDiGioco
+
+;eliminates the men from the landscape
+  ShapesBitMap #AreaSfondo,#AreaDentroSfondo
+  ResetList Omini()
+  While NextItem(Omini())=True
+   Boxf Omini()\XPosizione-5-2,Omini()\YPosizione-4-111,Omini()\XPosizione-5+2,Omini()\YPosizione-111,#Nero
+  Wend
+  Free BitMap #AreaDentroSfondo
+ 
+  Repeat
+
+;waits for a key pressed
+   TastoPremuto$=Inkey$
+
+;check until a key is pressed
+  Until TastoPremuto$<>""
+
+;if you press th Esc key, you exits from the main loop
+  If TastoPremuto$=Chr$(#TastoEscASCII) Then SeiUscitoColTastoFuga=True
+ EndIf
+
+;if you have exited by Esc key
+ If SeiUscitoColTastoFuga=False
+
+;selected sky object's gravity and vertical engine power
+  Select CorpoCelesteScelto
+  Case #Terra
+   Gravita.f=0.1962
+   SpintaMotore=6000
+  Case #Luna
+   Gravita.f=0.03242
+   SpintaMotore=2000
+  Case #Marte
+   Gravita.f=0.07454
+   SpintaMotore=4000
+  End Select
+
+;sets the in game drawing area for swap
+; AreaDiDisegno.b=-1
+
+;lander's fuel initial value
+  If Carburante.l=0 Then Carburante=1000
+
+;lander's fuel before use
+  CarburantePrima.l=Carburante
+
+;lander's x increment
+  DeltaXNavetta.f=0
+
+;lander's y increment
+  DeltaYNavetta.f=0
+
+;lander's initial weigth
+  PesoNavetta.l=1000+Carburante
+
+;explosion images start
+  Esplosione.b=0
+
+;explosion: if true draw the lander's explosion
+  EsplosioneNavetta.b=False
+
+;end of the game
+  FineDellaPartita.b=False
+
+;scalation value
+  Scala.f=100
+
+;you have not crashed yet
+  TiSeiSfracellato.b=False
+
+;lander's initiai x
+  XNavetta.f=5+LarghezzaPaesaggio/2
+
+;lander's initial y
+  YNavetta.f=40
+
+;closes the main window
+  CloseWindow #FinPrincipale
+
+;opens the message window
+  Window #FinMessaggi,0,16,5+LarghezzaPaesaggio,#AltezzaFonteData70,$1900,"",#Giallo,#Verde
+
+;sets the Data70 font for the main window
+  WindowFont #FonteData70
+
+;sets the text output to the message window
+  WindowOutput #FinMessaggi
+
+;text writing mode with no background
+  WJam 0
+
+
+;sets the current graphics area to the main screen
+  Use BitMap #AreaSchermo
+
+;redraws the sky object landscape
+  Blit #AreaSfondo,5,111
+
+;sets the current graphics area to the first hidden
+;  Use BitMap #AreaSchermoUno
+
+;redraws the sky object landscape
+;  Blit #AreaSfondo,5,111
+
+;sets the current graphics area to the second hidden
+;  Use BitMap #AreaSchermoDue
+
+;redraws the sky object landscape
+;  Blit #AreaSfondo,5,111
+
+;draws ingame message
+  MessaggioDiGioco$="Score>"+Str$(Punteggio)+" Fuel left>"+Str$(Carburante)
+  WLocate 0,0:WColour #Blu:Print MessaggioDiGioco$
+
+  Repeat
+   DeltaXNavetta+SpintaLaterale
+
+   DeltaYNavetta+Gravita-SpintaVersoLAlto.f
+
+   XNavetta+DeltaXNavetta/Scala
+
+   YNavetta+DeltaYNavetta/Scala
+
+;set the x velocity meter
+   LunghezzaIndicatore.w=DeltaXNavetta*3
+
+;set the x velocity meter
+   If LunghezzaIndicatore<-320 Then LunghezzaIndicatore=-320
+   If LunghezzaIndicatore>320 Then LunghezzaIndicatore=320
+
+   If Abs(LunghezzaIndicatore)<15
+    ColoreVelocita.b=#Acquamarina
+   Else
+    If Abs(LunghezzaIndicatore)<63
+     ColoreVelocita=#Verde
+    Else
+     If Abs(LunghezzaIndicatore)<99
+      ColoreVelocita=#Giallo
+     Else
+      ColoreVelocita=#Rosso
+     EndIf
+    EndIf
+   EndIf
+
+;clears the velocity x meter
+   Boxf 0,11,#LarghezzaSchermo-6,15,#Nero
+
+;draws the x velocity meter
+   Boxf #LarghezzaSchermo/2+LunghezzaIndicatore,11,#LarghezzaSchermo/2,15,ColoreVelocita
+
+;sets the y velocity meter
+   LunghezzaIndicatore=DeltaYNavetta*3
+
+;sets the y velocity meter
+   LunghezzaIndicatore=Min(Max(LunghezzaIndicatore,0),AltezzaSchermo-1)
+   If Abs(LunghezzaIndicatore)<15
+    ColoreVelocita=#Acquamarina
+   Else
+    If Abs(LunghezzaIndicatore)<63
+     ColoreVelocita=#Verde
+    Else
+     If Abs(LunghezzaIndicatore)<99
+      ColoreVelocita=#Giallo
+     Else
+      ColoreVelocita=#Rosso
+     EndIf
+    EndIf
+   EndIf
+
+;clears the y velocity meter
+   Boxf #LarghezzaSchermo-5,16,#LarghezzaSchermo-1,AltezzaSchermo-1,#Nero
+
+;draws the y velocity meter
+   Boxf #LarghezzaSchermo-5,16,#LarghezzaSchermo-1,16+LunghezzaIndicatore,ColoreVelocita
+
+;lander image position
+   XImmagineNavetta.w=Int(XNavetta):YImmagineNavetta.w=Int(YNavetta)
+ 
+   If YImmagineNavetta>29 AND YImmagineNavetta<AltezzaSchermo-1
+    If XImmagineNavetta>8 AND XImmagineNavetta<#LarghezzaSchermo-8
+
+;draws the lander's image in the screen
+     BBlit #MemoriaForme,#AreaNavetta,XImmagineNavetta,YImmagineNavetta
+    EndIf
+   EndIf
+ 
+;animates the men to save
+   ResetList Omini()
+   While NextItem(Omini())=True
+    BBlit #MemoriaForme,#AreaOmino+Omini()\Immagine,Omini()\XPosizione,Omini()\YPosizione
+    If Omini()\ContatoreDurataImmagine=0
+     If Omini()\Immagine=0 Then Omini()\Immagine=1 Else Omini()\Immagine=0
+     Omini()\ContatoreDurataImmagine=Omini()\DurataImmagine
+    Else
+     Omini()\ContatoreDurataImmagine-1
+    EndIf
+   Wend
+
+;animates the hostile cannons
+   ResetList CannoniOstili()
+   While NextItem(CannoniOstili())=True
+
+    BBlit #MemoriaForme,#AreaCannone,CannoniOstili()\XPosizione,CannoniOstili()\YPosizione
+    If CannoniOstili()\ColpoSparato<0
+     CannoniOstili()\ColpoSparato=CannoniOstili()\ColpoSparato+1
+    Else
+     If CannoniOstili()\ColpoSparato=0
+      CannoniOstili()\ColpoSparato=1
+     Else
+      If CannoniOstili()\YPosizioneColpoSparato<MassimaAltezzaColpiSparati
+       CannoniOstili()\YPosizioneColpoSparato=CannoniOstili()\YPosizioneColpoSparato+1
+       Plot CannoniOstili()\XPosizione+7,CannoniOstili()\YPosizione-5-CannoniOstili()\YPosizioneColpoSparato,3
+       If XImmagineNavetta/15=CannoniOstili()\XPosizione/15
+        DistanzaColpoSparato=CannoniOstili()\YPosizione-5-CannoniOstili()\YPosizioneColpoSparato-YImmagineNavetta
+        If DistanzaColpoSparato<10
+         FineDellaPartita=True
+        Else
+         If YImmagineNavetta+30>=CannoniOstili()\YPosizione AND XImmagineNavetta>=CannoniOstili()\XPosizione AND XImmagineNavetta+15<CannoniOstili()\XPosizione
+          EsplosioneNavetta=True
+         EndIf
+        EndIf
+       Else
+        If YImmagineNavetta+30>=CannoniOstili()\YPosizione AND XImmagineNavetta>=CannoniOstili()\XPosizione AND XImmagineNavetta+15<CannoniOstili()\XPosizione
+         EsplosioneNavetta=True
+        EndIf
+       EndIf
+      Else
+       CannoniOstili()\YPosizioneColpoSparato=0
+       CannoniOstili()\ColpoSparato=-Rnd(250)
+      EndIf
+     EndIf
+    EndIf
+   Wend
+
+;if lander's fuel values have changed
+   If CarburantePrima>Carburante
+
+;clears ingame message
+    MessaggioDiGioco$="Score>"+Str$(Punteggio)+" Fuel left>"+Str$(CarburantePrima)
+    WLocate 0,0:WColour #Nero:Print MessaggioDiGioco$
+
+;draws ingame message
+    MessaggioDiGioco$="Score>"+Str$(Punteggio)+" Fuel left>"+Str$(Carburante)
+    WLocate 0,0:WColour #Blu:Print MessaggioDiGioco$
+
+;equates the lander's fuel values
+    CarburantePrima=Carburante
+   EndIf
+
+;retrieve the key pressed
+   TastoPremuto$=Inkey$
+
+;if you press the Esc key, you exits from the main loop
+   If TastoPremuto$=Chr$(#TastoEscASCII)
+
+;waits for five seconds
+    Delay_ 250
+
+    SeiUscitoColTastoFuga=True
+   EndIf
+
+;sets to zero the vertical engine thrust
+   SpintaVersoLAlto=0
+
+;if the down arrow key has been pressed
+   If TastoPremuto$=Chr$(#TastoGiuASCII)
+
+;if there is the lander's fuel
+    If Carburante>0
+
+     If YImmagineNavetta>29 AND YImmagineNavetta<AltezzaSchermo-1
+      If XImmagineNavetta-6>4 AND XImmagineNavetta<#LarghezzaSchermo-5
+       BBlit #MemoriaForme,#AreaGetto+ContatoreFiamma.b,XImmagineNavetta,YImmagineNavetta-3
+      EndIf
+     EndIf
+
+;the lander's engine thrusts upward
+     SpintaVersoLAlto=SpintaMotore*1.0/PesoNavetta
+     Carburante-1
+     PesoNavetta=1000+Carburante
+     TastoFrecciaInGiuPremuto=True
+    EndIf
+   EndIf
+
+   SpintaLaterale=0
+
+;if the left arrow key has been pressed
+   If TastoPremuto$=Chr$(#TastoSinistraASCII)
+
+;if there is the lander's fuel
+    If Carburante>0
+
+     If YImmagineNavetta>14 AND YImmagineNavetta<AltezzaSchermo-11
+      If XImmagineNavetta-16>0 AND XImmagineNavetta-16<#LarghezzaSchermo-1
+       BBlit #MemoriaForme,#AreaGetto+ContatoreFiamma,XImmagineNavetta-11,YImmagineNavetta-15
+      EndIf
+     EndIf
+
+;the lander's left side engine thrusts rightward
+     SpintaLaterale=1
+     Carburante-1
+     PesoNavetta=1000+Carburante
+     TastoFrecciaASinistraPremuto=True
+    EndIf
+   EndIf
+
+;if the right arrow key has been pressed
+   If TastoPremuto$=Chr$(#TastoDestraASCII)
+
+;if there is the lander's fuel
+    If Carburante>0
+
+     If YImmagineNavetta>14 AND YImmagineNavetta<AltezzaSchermo-11
+      If XImmagineNavetta+16>0 AND XImmagineNavetta+16<#LarghezzaSchermo-1
+       BBlit #MemoriaForme,#AreaGetto+ContatoreFiamma,XImmagineNavetta+11,YImmagineNavetta-15
+      EndIf
+     EndIf
+
+;the lander's right side engine thrusts leftward
+     SpintaLaterale=-1
+     Carburante-1
+     PesoNavetta=1000+Carburante
+     TastoFrecciaADestraPremuto=True
+    EndIf
+   EndIf
+
+   RitardoMovimentoRoccia.w=500+Rnd(500)
+
+;sets the hostile rock movement
+   If MovimentoRoccia.b=0
+    If RitardoMovimentoRoccia>0
+     RitardoMovimentoRoccia-1
+    Else
+     MovimentoRoccia=Rnd(127) MOD 2:YRoccia.w=Rnd(AltezzaSchermo/2-9)+9
+     If MovimentoRoccia=1 Then XRoccia.w=9:XFinRoccia.w=#LarghezzaSchermo-10
+     If MovimentoRoccia=0 Then MovimentoRoccia=-1:XRoccia=#LarghezzaSchermo-10:XFinRoccia=9
+    EndIf
+   Else
+    BBlit #MemoriaForme,#AreaRoccia,XRoccia,YRoccia
+    XRoccia+MovimentoRoccia:If XRoccia=XFinRoccia Then MovimentoRoccia=0
+    If XImmagineNavetta<XRoccia+8 AND XImmagineNavetta>XRoccia-9
+     If YImmagineNavetta-15<YRoccia+8 AND YImmagineNavetta-15>YRoccia-9
+      FineDellaPartita=True:TiSeiSfracellato=True
+     EndIf
+    EndIf
+   EndIf
+
+
+;engine's jet drawing counter
+   ContatoreFiamma+1:If ContatoreFiamma=2 Then ContatoreFiamma=0
+
+
+   If XImmagineNavetta>5+LarghezzaPaesaggio Then XNavetta=5
+   If XImmagineNavetta<5 Then XNavetta=5+LarghezzaPaesaggio
+
+;lander's x zone
+   ZonaXNavetta.b=XImmagineNavetta/15
+   ZonaXNavetta=Min(Max(ZonaXNavetta,0),ZoneDAtterraggio-1)
+   ZonaYNavetta.w=ZonaDAtterraggio(ZonaXNavetta)
+
+;if the x velocity is suitable for landing
+   If Abs(DeltaXNavetta)<21
+
+;finds the landing zone to the lander left side
+    If ZonaXNavetta=0
+     ZonaASinistra.b=ZoneDAtterraggio-1
+    Else
+     ZonaASinistra=ZonaXNavetta-1
+    EndIf
+
+    If YImmagineNavetta>ZonaDAtterraggio(ZonaASinistra)
+     If NavettaBloccataASinistra.b=False Then XNavetta+1
+     NavettaBloccataASinistra=True
+    Else
+     NavettaBloccataASinistra=False
+    EndIf
+
+;finds the landing zone to the lander right side
+    If ZonaXNavetta=ZoneDAtterraggio-1
+     ZonaADestra.b=0
+    Else
+     ZonaADestra=ZonaXNavetta+1
+    EndIf
+
+    If YImmagineNavetta>ZonaDAtterraggio(ZonaADestra)
+     If NavettaBloccataADestra.b=False Then XNavetta-1
+     NavettaBloccataADestra=True
+    Else
+     NavettaBloccataADestra=False
+    EndIf
+
+    If NavettaBloccataASinistra=True AND DeltaXNavetta<0 Then DeltaXNavetta=0
+    If NavettaBloccataADestra=True AND DeltaXNavetta>0 Then DeltaXNavetta=0
+
+   Else
+    NavettaBloccataASinistra=False
+    NavettaBloccataADestra=False
+   EndIf
+
+;if the lander y velocity is suitable for landing
+   If Abs(DeltaYNavetta)<33
+
+    DistanzaNavetta.w=ZonaYNavetta-YImmagineNavetta
+
+;if the lander has landed
+    If DistanzaNavetta<2 AND DistanzaNavetta>-1
+     YImmagineNavetta=ZonaYNavetta
+     FineDellaPartita=True
+    EndIf
+
+;if the lander velocity is too high
+   Else
+    If YImmagineNavetta>ZonaYNavetta
+     FineDellaPartita=True
+    EndIf
+   EndIf
+
+;waits the video blanking
+   VWait
+
+;frees the backdrops for the shapes
+   UnBuffer #MemoriaForme
+ 
+;   Select AreaDiDisegno
+;   Case 0
+;    CopyBitMap #AreaSchermoUno,#AreaSchermo
+;    Use BitMap #AreaSchermoDue
+;   Case -1
+;    CopyBitMap #AreaSchermoDue,#AreaSchermo
+;    Use BitMap #AreaSchermoUno
+;   End Select
+;   AreaDiDisegno=NOT AreaDiDisegno
+
+;till the end of the game
+  Until SeiUscitoColTastoFuga=True OR FineDellaPartita=True
+
+;close the message window
+  CloseWindow #FinMessaggi
+
+;opens the main window
+  Window #FinPrincipale,0,11,#LarghezzaSchermo,AltezzaSchermo-11,$1C00,"",#Giallo,#Verde
+
+;sets the Data70 font for the main window
+  WindowFont #FonteData70
+
+;text writing mode with no background
+  WJam 0
+
+;sets the text output tothe main window
+  WindowOutput #FinPrincipale
+
+  MovimentoRoccia=0
+
+;if you have exited by Esc key
+  If SeiUscitoColTastoFuga=False AND TiSeiSfracellato=False
+ 
+;draws the sky object landscape
+   VWait
+   WCls
+   WBlit #AreaSfondo,5,100
+
+   If Abs(DeltaXNavetta)<21 AND DeltaYNavetta<21
+    If Abs(YImmagineNavetta-ZonaYNavetta)<2 Then WBlit #AreaNavetta,XImmagineNavetta,YImmagineNavetta-11
+    PuntiGuadagnati=(ZonaYNavetta-AltezzaSchermo/2+2)*2
+    If PuntiGuadagnati=1 Then Plurale$="" Else Plurale$="s"
+
+    MessaggioUno$="LANDER SAFETLY LANDED!":ColoreMessaggioUno.b=#Verde
+    MessaggioDue$=Str$(PuntiGuadagnati)+" point"+Plurale$+" gained.":ColoreMessaggioDue.b=#Arancione
+    MessaggioTre$=""
+    XMessaggioUno=0
+    YMessaggioUno=0
+    Gosub MessaggioDiGioco
+    Gosub ControllaSeHaiSalvatoUnOmino
+   Else
+    If Abs(DeltaXNavetta)<33 AND DeltaYNavetta<33
+     If Abs(YImmagineNavetta-ZonaYNavetta)<2 Then WBlit #AreaNavetta,XImmagineNavetta,YImmagineNavetta-11
+     PuntiGuadagnati=ZonaYNavetta-AltezzaSchermo/2+2
+     If PuntiGuadagnati>1 Then Plurale$="s" Else Plurale$=""
+
+     MessaggioUno$="LANDER ROUGHLY LANDED!":ColoreMessaggioUno.b=#Arancione
+     MessaggioDue$=Str$(PuntiGuadagnati)+" point"+Plurale$+" gained.":ColoreMessaggioDue.b=#Arancione
+     MessaggioTre$=""
+     Gosub MessaggioDiGioco
+     Gosub ControllaSeHaiSalvatoUnOmino
+
+    Else
+     MessaggioUno$="LANDER HAS CRASHED!":ColoreMessaggioUno.b=#Viola
+     MessaggioDue$="YOU HAVE GAINED NO POINTS!":ColoreMessaggioDue.b=#Arancione
+     MessaggioTre$=""
+     XMessaggioUno=0
+     YMessaggioUno=0
+     Gosub MessaggioDiGioco
+     TiSeiSfracellato=True
+    EndIf
+   EndIf
+
+   If Navette>0 AND TiSeiSfracellato=False
+
+;draws the sky object landscape
+    VWait
+    WCls
+    WBlit #AreaSfondo,5,100
+
+    Punteggio+PuntiGuadagnati
+    MessaggioUno$=Str$(PuntiGuadagnati)+" points gained.":ColoreMessaggioUno=#Arancione
+    MessaggioDue$=Str$(Punteggio)+" points made.":ColoreMessaggioDue=#Arancione
+    MessaggioTre$="Do you land again? (y/n)":ColoreMessaggioTre=#Acquamarina
+    XMessaggioUno=0
+    YMessaggioUno=0
+    Gosub MessaggioDiGioco
+
+    Repeat
+     VWait
+     TastoPremuto$=LCase$(Inkey$)
+     If TastoPremuto$="y" Then SeiUscitoColTastoFuga=False
+     If TastoPremuto$="n" Then SeiUscitoColTastoFuga=True
+    Until TastoPremuto$<>""
+   EndIf
+  EndIf
+
+  If TiSeiSfracellato=True
+
+;draws the sky object landscape
+   VWait
+   WCls
+   WBlit #AreaSfondo,5,100
+
+   MessaggioUno$="YOU HAVE LOST A LANDER!":ColoreMessaggioUno=#Viola
+   MessaggioDue$=""
+   MessaggioTre$=""
+   XMessaggioUno=0
+   YMessaggioUno=0
+   Gosub MessaggioDiGioco
+   Carburante=0
+   Navette-1:If Navette=0 Then SeiUscitoColTastoFuga=True
+  EndIf
+
+;if you play again
+  If SeiUscitoColTastoFuga=False AND TiSeiSfracellato=False
+
+;if your score is equal or greater than 500
+   If Punteggio>=500
+
+;draws the sky object landscape
+    VWait
+    WCls
+    WBlit #AreaSfondo,5,100
+
+    MessaggioUno$="Add left fuel...":ColoreMessaggioUno=#Viola
+    MessaggioDue$="for 500 points (y/n)?":ColoreMessaggioDue=#Arancione
+    MessaggioTre$=""
+    XMessaggioUno=0
+    YMessaggioUno=0
+    Gosub MessaggioDiGioco
+
+    AggiungiCarburante$=""
+    Repeat
+     VWait
+     TastoPremuto$=LCase$(Inkey$)
+     AggiungiCarburante$=TastoPremuto$
+    Until AggiungiCarburante$<>""
+
+    If AggiungiCarburante$="y" Then Carburante+1000:Punteggio-500 Else Carburante=0
+   EndIf
+
+;if you have saved all the men
+   If OminiDaSalvare=0
+
+;draws the sky object landscape
+    VWait
+    WCls
+    WBlit #AreaSfondo,5,100
+
+    MessaggioUno$="CONGRATULATIONS!":ColoreMessaggioUno=#Blu
+    MessaggioDue$="Salvation turn completed!":ColoreMessaggioDue=#Acquamarina
+    MessaggioTre$=""
+    XMessaggioUno=0
+    YMessaggioUno=0
+    Gosub MessaggioDiGioco
+
+;draws the sky object landscape
+    VWait
+    WCls
+    WBlit #AreaSfondo,5,100
+
+;sets the medium lander shapes start position
+    XImmagineNavetta=0:YImmagineNavetta=0
+
+    WBlit #AreaNavettaMedia,XImmagineNavetta,YImmagineNavetta
+    Messaggio$="x"+Str$(Navette):ColoreBordoMessaggio.b=ColoreBordo{#Blu}
+    XMessaggio.w=ShapeWidth(#AreaNavettaMedia)+10
+    YMessaggio.w=(ShapeHeight(#AreaNavettaMedia)-#AltezzaFonteData70)/2
+    WColour ColoreBordoMessaggio
+    WLocate XMessaggio-1,YMessaggio
+    Print Messaggio$
+    WLocate XMessaggio,YMessaggio-1
+    Print Messaggio$
+    WLocate XMessaggio+1,YMessaggio
+    Print Messaggio$
+    WLocate XMessaggio,YMessaggio+1
+    Print Messaggio$
+    WColour #Blu
+    WLocate XMessaggio,YMessaggio
+    Print Messaggio$
+    Delay_ 200
+
+    BonusNavetteRimaste.l=Navette*250
+
+    MessaggioUno$="You have "+Str$(Navette)+" lander":ColoreMessaggioUno=#Acquamarina
+    If Navette=1 Then MessaggioUno$+"." Else MessaggioUno$+"s."
+    MessaggioDue$="You have gained 200 points...":ColoreMessaggioDue=#Arancione
+    MessaggioTre$="for each one!":ColoreMessaggioTre=#Arancione
+    XMessaggioUno=0
+    YMessaggioUno=0
+    Gosub MessaggioDiGioco
+
+;draws the sky object landscape
+    VWait
+    WCls
+    WBlit #AreaSfondo,5,100
+
+    MessaggioUno$=Str$(BonusNavetteRimaste)+ " points gained."
+    MessaggioDue$=""
+    MessaggioTre$=""
+    ColoreMessaggioUno=#Arancione
+    XMessaggioUno=0
+    YMessaggioUno=0
+    Gosub MessaggioDiGioco
+    Punteggio+BonusNavetteRimaste
+    Delay_ 200
+   EndIf
+
+;if your score is equal or greater than 1000
+   If Punteggio>=1000
+
+;draws the sky object landscape
+    VWait
+    WCls
+    WBlit #AreaSfondo,5,100
+
+    MessaggioUno$="Do you want a lander...":ColoreMessaggioUno=#Viola
+    MessaggioDue$="for 1000 points? (y/n)?":ColoreMessaggioDue=#Arancione
+    MessaggioTre$=""
+    XMessaggioUno=0
+    YMessaggioUno=0
+    Gosub MessaggioDiGioco
+
+    AggiungiNavetta$=""
+    Repeat
+     VWait
+     TastoPremuto$=LCase$(Inkey$)
+     If TastoPremuto$="y" Then AggiungiNavetta$="y"
+     If TastoPremuto$="n" Then AggiungiNavetta$="n"
+    Until AggiungiNavetta$<>""
+
+    If AggiungiNavetta$="y" Then Navette+1:Punteggio-1000
+   EndIf
+
+; don't change the sky's object landscape if there are men to save
+   If OminiDaSalvare=0
+
+;men to save's counter increasing by one
+    NumeroOminiDaSalvare+1
+
+;if the men to save are more than the maximum allowed reset the men number
+; and add the hostile cannons
+    If NumeroOminiDaSalvare>#MassimoOminiDaSalvare
+     ResetList Omini()
+     While NextItem(Omini())=True
+      KillItem Omini()
+     Wend
+     NumeroOminiDaSalvare=1
+     CannoniOstiliInCampo=True
+    EndIf
+
+    If CannoniOstiliInCampo=True
+
+;hostile cannons' counter increasing by one
+     NumeroCannoniOstili+1
+     If NumeroCannoniOstili>#MassimoCannoniOstili
+      ResetList CannoniOstili()
+      While NextItem(CannoniOstili())=True
+       KillItem CannoniOstili()
+      Wend
+
+      NumeroCannoniOstili=1
+     EndIf
+    EndIf
+
+    If NumeroCannoniOstili=1
+
+;maximum cannon hits fired's height
+     MassimaAltezzaColpiSparati=MassimaAltezzaColpiSparati+10
+    Else
+     If NumeroOminiDaSalvare+NumeroCannoniOstili>#MassimoCannoniOstili
+      NumeroOminiDaSalvare=MassimoCannoniOstili-NumeroCannoniOstili
+      If NumeroOminiDaSalvare=1 Then SalvataggioCompletato=True
+     EndIf
+    EndIf
+
+;changes the landscape if all the men has been saved
+    SceltaCorpoCeleste=True
+   EndIf
+  EndIf
+ EndIf
+Until SeiUscitoColTastoFuga=True
+
+;stops BBlit
+FlushBuffer #MemoriaForme
+
+;frees the hidden screen graphic areas
+Free BitMap #AreaSchermoDue:Free BitMap #AreaSchermoUno
+
+If CorpoCelesteScelto>0
+
+;draws the sky object landscape
+ VWait
+ WCls
+ WBlit #AreaSfondo,5,100
+
+;if you have not saved all the men
+ If SalvataggioCompletato=False
+  MessaggioUno$="You have saved "
+  If OminiSalvati=0
+   MessaggioUno$+"no man."
+  Else
+   If OminiSalvati=1
+    MessaggioUno$+Str$(OminiSalvati)+" man."
+   Else
+    MessaggioUno$+Str$(OminiSalvati)+" men."
+   EndIf
+  EndIf
+ Else
+  MessaggioUno$="YOU HAVE SAVED ALL MEN!"
+ EndIf
+
+ If Navette=0
+  MessaggioDue$="You have lost all landers!"
+ Else
+  MessaggioDue$="You have left "+Str$(Navette)+" lander"
+  If Navette=1 Then MessaggioDue$+"." Else MessaggioDue$+"s."
+ EndIf
+
+ MessaggioTre$="You have made "+Str$(Punteggio)+" point"
+ If Punteggio=1 Then MessaggioTre$+"s" Else MessaggioTre$+"."
+
+ ColoreMessaggioUno=#Blu:ColoreMessaggioDue=#Blu:ColoreMessaggioTre=#Blu
+ XMessaggioUno=0
+ YMessaggioUno=0
+ Gosub MessaggioDiGioco
+EndIf
+
+;shows the goodbye message
+WCls
+
+Sfondo{}
+Delay_ 100
+Goccia{#LarghezzaSchermo/2-32,(AltezzaSchermo-11)/2-32,96,#AltoSinistra,4}
+Delay_ 100
+Goccia{#LarghezzaSchermo/2+32,(AltezzaSchermo-11)/2-32,96,#AltoDestra,3}
+Delay_ 100
+Goccia{#LarghezzaSchermo/2+32,(AltezzaSchermo-11)/2+32,96,#BassoDestra,6}
+Delay_ 100
+Goccia{#LarghezzaSchermo/2-32,(AltezzaSchermo-11)/2+32,96,#BassoSinistra,1}
+Delay_ 100
+
+If Navette>0
+;draws the magified lander
+ WBlit #AreaNavettaGrande,(#LarghezzaSchermo-11*#ScalaNavettaGrande)/2,WindowHeight-30*#ScalaNavettaGrande
+ Delay_ 100
+EndIf
+Free Shape #AreaNavettaGrande
+
+MessaggioUno$="YOUR RESCUE IS OVER!":ColoreMessaggioUno=#Viola
+MessaggioDue$=""
+MessaggioTre$=""
+XMessaggioUno=0
+YMessaggioUno=0
+Gosub MessaggioDiGioco
+
+;program end
+End
+
+;checks if you have saved a man
+.ControllaSeHaiSalvatoUnOmino
+
+;no man saved
+ OminoSalvato.b=0
+
+
+ ResetList Omini()
+ While NextItem(Omini())=True
+  If Abs(Omini()\XPosizione-XImmagineNavetta)<8
+   If Omini()\YPosizione-YImmagineNavetta<6
+    Boxf Omini()\XPosizione-2,Omini()\YPosizione-4,Omini()\XPosizione+2,Omini()\YPosizione,#Nero
+    KillItem Omini()
+
+;man saved
+    OminoSalvato=2:OminiDaSalvare-1:Pop While
+
+   Else
+
+;too high to save the man
+    OminoSalvato=1:Pop While
+   EndIf
+  EndIf
+ Wend
+
+;draws the sky object landscape
+ VWait
+ WCls
+ WBlit #AreaSfondo,5,100
+ If YImmagineNavetta=ZonaYNavetta Then WBlit #AreaNavetta,XImmagineNavetta,YImmagineNavetta-11
+ 
+
+ Select OminoSalvato
+ Case 2
+;man saved!
+
+  If Abs(DeltaXNavetta)<15 AND Abs(DeltaYNavetta)<15
+   PuntiGuadagnati+100
+   MessaggioUno$="CONGRATULATIONS!":ColoreMessaggioUno=#Blu
+   MessaggioDue$="For your extreme skill...":ColoreMessaggioDue=#Acquamarina
+   MessaggioTre$="you have gained "+Str$(PuntiGuadagnati)+" points.":ColoreMessaggioTre=#Arancione
+   XMessaggioUno=0
+   YMessaggioUno=0
+   Gosub MessaggioDiGioco
+  EndIf
+
+;draws the sky object landscape
+  VWait
+  WCls
+  WBlit #AreaSfondo,5,100
+  If YImmagineNavetta=ZonaYNavetta Then WBlit #AreaNavetta,XImmagineNavetta,YImmagineNavetta-11
+ 
+  PuntiGuadagnati+200
+  MessaggioUno$="CONGRATULATIONS!":ColoreMessaggioUno=#Blu
+  MessaggioDue$="You save a man!":ColoreMessaggioDue=#Acquamarina
+  MessaggioTre$=Str$(PuntiGuadagnati)+" points gained.":ColoreMessaggioTre=#Arancione
+  XMessaggioUno=0
+  YMessaggioUno=0
+  Gosub MessaggioDiGioco
+  OminiSalvati+1
+ Case 1
+;too high to save the man!
+
+  MessaggioUno$="I AM SORRY!":ColoreMessaggioUno=#Blu
+  MessaggioDue$="Too high to save a man!":ColoreMessaggioDue=#Viola
+  MessaggioTre$="No points gained.":ColoreMessaggioTre=#Arancione
+  XMessaggioUno=0
+  YMessaggioUno=0
+  Gosub MessaggioDiGioco
+ Case 0
+;no man saved!
+
+  MessaggioUno$="I AM SORRY!":ColoreMessaggioUno=#Blu
+  MessaggioDue$="You save no man!":ColoreMessaggioDue=#Viola
+  MessaggioTre$="No points gained.":ColoreMessaggioTre=#Arancione
+  XMessaggioUno=0
+  YMessaggioUno=0
+  Gosub MessaggioDiGioco
+ End Select
+ Carburante=0
+Return
+
+.MessaggioDiGioco
+
+;messages counter
+ ContoMessaggi.b=0
+
+;first message
+ If MessaggioUno$<>"" Then ContoMessaggi+1
+ If XMessaggioUno=0 Then XMessaggioUno.w=(#LarghezzaSchermo-TextLength_(RastPort(#FinPrincipale),MessaggioUno$,Len(MessaggioUno$)))/2
+
+;second message
+ If MessaggioDue$<>"" Then XMessaggioDue=(#LarghezzaSchermo-TextLength_(RastPort(#FinPrincipale),MessaggioDue$,Len(MessaggioDue$)))/2:ContoMessaggi+1
+
+;third message
+ If MessaggioTre$<>"" Then XMessaggioTre=(#LarghezzaSchermo-TextLength_(RastPort(#FinPrincipale),MessaggioTre$,Len(MessaggioTre$)))/2:ContoMessaggi+1
+
+;shows the message
+ Select ContoMessaggi
+ Case 1
+  If YMessaggioUno=0 Then YMessaggioUno=(AltezzaSchermo-12-#AltezzaFonteData70)/2
+  ColoreBordoUno.b=ColoreBordo{ColoreMessaggioUno}
+  If ColoreMessaggioUno=0 Then ColoreBordoUno=0
+  WColour ColoreBordoUno
+  WLocate XMessaggioUno-1,YMessaggioUno
+  Print MessaggioUno$
+  WLocate XMessaggioUno,YMessaggioUno-1
+  Print MessaggioUno$
+  WLocate XMessaggioUno+1,YMessaggioUno
+  Print MessaggioUno$
+  WLocate XMessaggioUno,YMessaggioUno+1
+  Print MessaggioUno$
+  WColour ColoreMessaggioUno
+  WLocate XMessaggioUno,YMessaggioUno
+  Print MessaggioUno$
+  Delay_ 50
+ Case 2
+  If YMessaggioUno=0 Then YMessaggioUno=(AltezzaSchermo-12-#AltezzaFonteData70*2+1)/2
+  YMessaggioDue=YMessaggioUno+#AltezzaFonteData70+1
+  ColoreBordoUno=ColoreBordo{ColoreMessaggioUno}
+  ColoreBordoDue.b=ColoreBordo{ColoreMessaggioDue}
+  WColour ColoreBordoUno
+  WLocate XMessaggioUno-1,YMessaggioUno
+  Print MessaggioUno$
+  WLocate XMessaggioUno,YMessaggioUno-1
+  Print MessaggioUno$
+  WLocate XMessaggioUno+1,YMessaggioUno
+  Print MessaggioUno$
+  WLocate XMessaggioUno,YMessaggioUno+1
+  Print MessaggioUno$
+  WColour ColoreMessaggioUno
+  WLocate XMessaggioUno,YMessaggioUno
+  Print MessaggioUno$
+  Delay_ 250
+  WColour ColoreBordoDue
+  WLocate XMessaggioDue-1,YMessaggioDue
+  Print MessaggioDue$
+  WLocate XMessaggioDue,YMessaggioDue-1
+  Print MessaggioDue$
+  WLocate XMessaggioDue+1,YMessaggioDue
+  Print MessaggioDue$
+  WLocate XMessaggioDue,YMessaggioDue+1
+  Print MessaggioDue$
+  WColour ColoreMessaggioDue
+  WLocate XMessaggioDue,YMessaggioDue
+  Print MessaggioDue$
+  Delay_ 50
+ Case 3
+  If YMessaggioUno=0 Then YMessaggioUno=(AltezzaSchermo-12-#AltezzaFonteData70*3+2)/2
+  YMessaggioDue=YMessaggioUno+#AltezzaFonteData70+1
+  YMessaggioTre=YMessaggioDue+#AltezzaFonteData70+1
+  ColoreBordoUno=ColoreBordo{ColoreMessaggioUno}
+  ColoreBordoDue=ColoreBordo{ColoreMessaggioDue}
+  ColoreBordoTre.b=ColoreBordo{ColoreMessaggioTre}
+  WColour ColoreBordoUno
+  WLocate XMessaggioUno-1,YMessaggioUno
+  Print MessaggioUno$
+  WLocate XMessaggioUno,YMessaggioUno-1
+  Print MessaggioUno$
+  WLocate XMessaggioUno+1,YMessaggioUno
+  Print MessaggioUno$
+  WLocate XMessaggioUno,YMessaggioUno+1
+  Print MessaggioUno$
+  WColour ColoreMessaggioUno
+  WLocate XMessaggioUno,YMessaggioUno
+  Print MessaggioUno$
+  Delay_ 250
+  WColour ColoreBordoDue
+  WLocate XMessaggioDue-1,YMessaggioDue
+  Print MessaggioDue$
+  WLocate XMessaggioDue,YMessaggioDue-1
+  Print MessaggioDue$
+  WLocate XMessaggioDue+1,YMessaggioDue
+  Print MessaggioDue$
+  WLocate XMessaggioDue,YMessaggioDue+1
+  Print MessaggioDue$
+  WColour ColoreMessaggioDue
+  WLocate XMessaggioDue,YMessaggioDue
+  Print MessaggioDue$
+  Delay_ 250
+  WColour ColoreBordoTre
+  WLocate XMessaggioTre-1,YMessaggioTre
+  Print MessaggioTre$
+  WLocate XMessaggioTre,YMessaggioTre-1
+  Print MessaggioTre$
+  WLocate XMessaggioTre+1,YMessaggioTre
+  Print MessaggioTre$
+  WLocate XMessaggioTre,YMessaggioTre+1
+  Print MessaggioTre$
+  WColour ColoreMessaggioTre
+  WLocate XMessaggioTre,YMessaggioTre
+  Print MessaggioTre$
+  Delay_ 50
+ End Select
+
+;forgets every key pressed
+ FlushEvents #HaiPremutoUnTasto
+Return

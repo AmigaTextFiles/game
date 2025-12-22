@@ -1,0 +1,144 @@
+/* stupid.empfe - This ARexx macro will look over all sectors and try
+   to find sectors that need to be taken care of. There may be several
+   reasons for this. We produce all output on the printer device.
+
+   This file is placed in the Public Domain, do what you want with it
+   and use it at your own risk!!!
+   Written by Håkan Thörngren 1989    */
+
+
+/*trace ?r*/
+
+n = get_country('sector',get_country('my'))
+r=0
+c=0
+rowmax = max_row()
+colmax = max_column()
+string = out_fix_coordinate(0,0)
+
+bad = 0
+
+if open('prt','prt:','W') ~= 1 then do
+  say "Can't open the printer"
+  return 10
+  end
+
+call print_header
+
+do i=0 to n
+  string = my_next_sector(r,c)
+  parse var string r','c
+  bad = bad+examine_sector(r,c)
+end
+writeln('prt','')
+writeln('prt', bad*100/n'% bad sectors.')
+close('prt')
+return 0
+
+print_header: procedure
+  writeln('prt','***************************************************************************')
+  writeln('prt',' Stupid sectors for country' get_country('name',1))
+/*  writeln('prt',' Time 'get_time())*/
+  writeln('prt','***************************************************************************')
+  return 1
+
+get_time: procedure
+  h = time('h')
+  m = time('m')-60*h
+  temp = fix2(h) + ':' + fix2(m) + '  ' + date()
+  return temp
+
+fix2: procedure
+  arg n
+  return right(n,2,'0')
+
+
+/* examine_sector(row,column) - examine a sector for stupid things. Return
+   1 if listed as stupid or 0 if not listed. */
+examine_sector: procedure expose rowmax colmax
+  arg r,c
+  ret=0
+  des = get_sector('type',r,c)
+  mob = get_sector('mobility',r,c)
+  civ = get_sector('civilian',r,c)
+  mil = get_sector('military',r,c)
+  eff = get_sector('efficiency',r,c)
+  ore = get_sector('ore',r,c)
+  bar = get_sector('bar',r,c)
+  shell = get_sector('shell',r,c)
+  gun = get_sector('gun',r,c)
+  gold = get_sector('gold',r,c)
+  prod = get_sector('production',r,c)
+  string = out_fix_coordinate(r,c)
+  parse var string row','col
+  if gold<5 & des ='g' then do
+    writeln('prt','Sector 'row','col' is a gold mine with very little gold left.')
+    ret = 1
+    end
+  if des='g' & mob>80 & bar>8 then do
+    writeln('prt','Sector 'row','col' is a gold mine with poor delivery.')
+    ret=1
+    end
+
+  if des='u' & civ>1200 & ore>10 & mob>50 then do
+    writeln('prt','Sector 'row','col' is an urban with many many people.')
+    ret = 1
+    end
+
+  if des='m' & ore>100 & mob>50 then do
+    writeln('prt','Sector 'row','col' is a mine with poor delivery.')
+    ret = 1
+    end
+
+  if des='f' & mil=127 & eff=100 & civ>0 then do
+    writeln('prt','Sector 'row','col' is a fortress which could do better without civilians.')
+    ret = 1
+    end
+
+  if civ-mil>60 | (civ=127 & mil<127) then do
+    writeln('prt','Sector 'row','col' has civilians that should be enlisted.')
+    ret=1
+    end
+
+  if des='f' & eff>59 & gun<7 then do
+    writeln('prt', 'Sector 'row','col' is a fortress that needs more guns.')
+    ret=1
+    end
+
+  if des='f' & eff>59 & shell<20 then do
+    writeln('prt', 'Sector 'row','col' is a fortress that needs more shells.')
+    ret=1
+    end
+
+  if des='-' & (civ>1 | mil>1) then do
+    writeln('prt','Sector 'row','col' is a wilderness that may want to be designated.')
+    ret=1
+    end
+
+  if des='i' & eff>59 & shell>100 & mob>50 then do
+    writeln('prt', 'Sector 'row','col' is an industry with poor delivery.')
+    ret=1
+    end
+
+  if des='d' & eff>59 & gun>20 & mob>50 then do
+    writeln('prt', 'Sector 'row','col' is a defense plant with poor delivery.')
+    ret=1
+    end
+
+  if des='b' & bar>40 & (gun<7 | shell<20| mil<50) then do
+    writeln('prt', 'Sector 'row','col' is a bank that needs more defense.')
+    ret=1
+    end
+
+  if des='b' & bar>480 then do
+    writeln('prt', 'Sector 'row','col' is a bank with trouble storing more bars.')
+    ret=1
+    end
+
+  if des='c' & (gun<7 | shell<20 | mil<50) then do
+    writeln('prt', 'Sector 'row','col' is a capital that needs more defense.')
+    ret=1
+    end
+
+  return ret
+

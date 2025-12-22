@@ -1,0 +1,131 @@
+<html>
+<head>
+<title>Skeleton - FPS comes to the 2600</title>
+</head>
+<body background="skelback.png" bgcolor="white" text="black">
+
+<p>I've tried to go back and document what went into creating Skeleton.  I may have some details wrong.  Also, the timing wasn't as sequential as it appears.  Many times ideas came in the middle of doing something else, or required more attempts and refinement than I've given here.  And needless to say, there is stuff which I haven't mentioned here.
+
+<h2>Concept</h2>
+
+<p>Sometimes the most difficult thing is coming up with an idea.  Fortunately, there is the time honoured tradition of reusing old ideas.  The inspiration for Skeleton is the Color Computer game <a href="http://nitros9.stg.net/phantomslayer.html">Phantom Slayer</a>.  Phantom Slayer was an early first-person game where you hunted Phantoms through a maze.  It also featured a spooky "proximity detector" sound (along with a game over sound which tended to make you jump).  Obviously there are differences between Phantom Slayer and Skeleton, but I think I managed to capture some of what made Phantom Slayer good enough that I remembered it nearly twenty years later.
+
+<h2>Initial Design</h2>
+
+<p>The first question was - how the heck can I program the 2600 to draw a first person view of a maze?  This really comes down to - how can the drawing process be simplified enough so it can be squeezed into a 2600 display kernel?
+
+<p>My original idea was to encode the maze view into the maze data.  So a lookup for grid #10,10 south facing would return that the right and ahead walls are open in the current square and only the left wall is open in the next square.  That then could be used by the display kernel to do another lookup and draw the actual screen.
+
+<p>I spent a bunch of time trying to enumerate the various possible views along with trying to figure out some kind of encoding scheme or pattern.  But then it became obvious that the storage space required for the maze view lookup tables and the display lookup tables would be immense and unworkable.  Back to the drawing board.
+
+<h2>Success on the Second Try</h2>
+
+<p>I started drawing some maze views and I realized:
+
+<ol>
+<li>Since the screen is drawn line by line from top to bottom, only one set of walls changes on each line.  
+
+<li>If I made the walls the same size (i.e. ignored perspective) each wall could be made 16 pixels or 4 playfield bits wide.  This would mean that only two playfield register updates would have to be done each line.
+
+<li>There were only three wall variations : closed, T and Y.  The playfield graphics for these could be easily stored in a lookup table.
+
+<li>If a reflected playfield was used, the lookup tables would be automatically mirrored.
+
+<li>Only three lookup tables were required.  The other playfield registers could be hardcoded.
+</ol>
+
+<p>So the kernel would be unrolled into chunks with each chunk handling a pair of walls.  The walls would be eight address pointers and the lookup tables could be easily accessed via LDA (ZP),Y.  Toss in a byte for the centre wall distance, and the kernel practically writes itself. (hah!)
+
+<h2>Lost in the Maze</h2>
+
+<p>Because the 2600 has only 128 bytes, I knew that a randomly generated maze was out of the question.  Then an idea hit me:
+
+<ol>
+<li>A 16x16 maze could be easily stored in a single 256 byte page of ROM.  That would make is easy to use simple indexing to access the maze.  The player's (and Skeleton's) location is then just a single byte.
+
+<li>Additionally, the maze would naturally wrap around left to right & top to bottom using simple adds.  No edges!
+
+<li>Actually, the wrap around from left to right would change the row.  Mapping the maze would be very difficult.
+
+<li>Since I only needed one bit to indicate whether a location was open or wall, 8 separate mazes could be put into the same page of ROM.  A simple AND or BIT instruction could be used to pull out the right maze.  This would also make it more difficult to extract the maze from the binary image.
+</ol>
+
+<p>I cackled with delight at my fiendish plan.  The player would get disoriented & lost.  Mapping would be useless.  Looking at the binary image wouldn't get you anywhere either.  And the code would be elegant and efficient.  
+
+<p>I dubbed the structure a crueller (after the donut), 'cause as you travelled up and down through the maze, you stayed in the same column and would eventually end up where you started (around the plane of the donut).  But if you travelled left to right, you changed which row you were in and wouldn't get back to the start unless you went through the whole page (spiral around the whole donut).
+
+<p>The next task was to create one of these mazes.  The first stop was Google to see if I could find the source code for a random maze generator that I could adapt to my needs.  Unfortunately, all of the code I found was based on removing walls between squares rather than creating open squares.  Not what I wanted, although I thought I might be able to use some of the concepts.
+
+<p>So I turned to my programming language of choice (QuickBasic) and started thumping out code.  The first thing I decided was to have two independent generating paths.  One starting at 0, the other at the middle.  These would be the starting (and regeneration) points for the player and the Skeleton.  This way there wouldn't be any problems with those squares not being usable.  It would hopefully also make the maze less starting point centric.  The basic logic for the program was:
+
+<ol>
+<li>Figure out what directions were available to move.  The trick was to not create an open area.
+
+<li>Pick one of the directions, update the maze & the current location
+
+<li>If there were no directions available, then find a new starting point.
+
+<li>If no new starting point exists, exit.
+</ol>
+
+<p>My only major mistake was opening the new starting point, which sometimes created an open area.  Once I figured out that problem, I could generate mazes at will.  I later fiddled with some of the decision criteria and found I could create mazes which had more or less intersections.  This was used later to make each of the eight mazes more unique.
+
+<p>The maze generator understood that the maze had no edges and would happily wrap around.  I tried to select mazes which didn't appear to have a centre.  I also looked for other properties like dead ends and other things I thought would make the final game more interesting.
+
+<h2>A Skeleton is born!</h2>
+
+<p>I don't know where I came up with the idea of having the enemy be a skeleton.  I think part of the reason is I knew that I only had one colour to draw the image and that the background would show through everywhere else.  Once I thought of a skeleton, it became the logical choice.  It also provided a great title for the game and an easy title screen, since SKELETON could be written using the playfield registers.
+
+<p>Drawing the Skeleton was a different matter.  Again, the idea was to store the graphics in a lookup table and have the kernel draw each line.  The ability of the TIA to draw double and quad width would be used to make the Skeleton wider (although separate tables would be needed for height).  The TIA's ability to mirror the player graphics register would mean that the same lookup table could be used for the left and right sides (or left & right side views).
+
+<p>I knew roughly the size of the smallest Skeleton, so I figured I could draw that, then just duplicate the lines to make the larger versions.  Back to Google, this time to use the image search to find a picture of a real skeleton to use as a basis or model.  Found a basic medical frontal picture, tried to shrink it, gave up and drew it myself using Paint at 8x zoom.  The back was just a slight modification to the front view to remove the eyes, nose & mouth and add shoulder blades.  The side view was similarly derived from the front view, to keep the proportions the same if nothing else.  The only thing I wasn't 100% happy with was the arms & hands.  I couldn't figure out how to make it look like the Skeleton had it's arms out from the front.
+
+<p>One happy accident was when I first was positioning the player graphics, I ended up overlapping the left and right graphics by one pixel, making the Skeleton 15 pixels wide instead of 16.  However, this made the Skeleton's spine (mouth...) only 1 pixel wide, which looked much better.  I hadn't thought of this when I was writing the code, and could have easily overlooked the possibility.
+
+<h2>Skeleton gets a Brain</h2>
+
+<p>The development of the Skeleton's AI went fairly quickly, with a few refinements being added on the way.  The basic logic goes something like this:
+
+<ol>
+<li>If the player shot the Skeleton (and the Skeleton didn't die), turn towards the player.
+
+<li>If the Skeleton turned last move, then step forward.  This prevents the Skeleton from spinning around at an intersection.
+
+<li>If the player is "ahead" of the Skeleton (in the same row or column, including wrap around), step forward if possible.  The Skeleton has the ability to see through walls!
+
+<li>Otherwise figure out which directions the Skeleton can move in (forward, right, left) and randomly pick one, giving preference to moving forward if all three are possible.
+
+<li>Turn around if the Skeleton is at a dead end.
+</ol>
+
+<p>This seems to work fairly well.  The Skeleton wanders around randomly, and although it doesn't seek out the player, it does hunt the player to a certain extent.  The only funny thing is if the player is behind the Skeleton in the same column of the maze, the Skeleton will walk straight ahead.
+
+<h2>Stereo Sound 2600?</h2>
+
+<p>One of the most memorable things about Phantom Slayer was the "proximity detector" sound it made.  Hearing it get steadily louder as the phantom got closer increased the tension.  In Skeleton I wanted to capture that feeling and make it better if possible.
+
+<p>Going through the back postings of the <a href="http://www.biglist.com/lists/stella/archives/">Stella mailing list</a> I had seen a reference to modifying the 2600 to produce stereo sound (the TIA has two audio channels with individual output pins) and it occurred to me that I could use this to create a proximity detector which would provide both distance and direction clues.  Every time the Skeleton took a step the player would hear a sound, with the right & left channel volume based on the direction and distance.
+
+<p>Unfortunately, it appears very few people have modified their 2600 for stereo.  But even in mono, there are definite volume differences depending on whether the Skeleton is in front, to the side, or (especially) behind the player.  There were a few complaints from people, and it was difficult to track & find the Skeleton using sound only.  This resulted in the addition of the direction indicator in the final version.
+
+<h2>PAL version saga</h2>
+
+<p>The PAL version of Skeleton posed some interesting problems, mostly due to the additional 38 lines onscreen and the impact that had on the size of the lookup tables used to draw the maze and the Skeleton itself.  The easy way to convert the NTSC version to PAL would have been to simply add additional blank lines to the top & bottom of the screen and leave as much as possible otherwise the same.  But I was insistent (pig headed?) that the PAL version fill the screen, just like the NTSC version, to give as immersive an experience as possible.
+
+<p>The problem was I had discovered when I added the title & ending screens that I was rapidly running out of space in the standard 4K ROM.  I didn't have any empty pages left (which was quite disappointing to me, because I wanted to have title screen music).  I knew that the PAL lookup tables were going to be 20% larger, so fitting them in was going to be tricky.
+
+<p>But the larger problem was the position of the lookup tables.  In order to prevent the LDA (ZP),Y indexing from crossing page boundaries, the maze lookup tables had to start at the beginning of the page, while the Skeleton lookup tables had to be put at the end of the page.  In the NTSC version the the two lookup table varieties shared pages.  Unfortunately, with the PAL version the extra size of the tables meant that some of the Skeleton lookup tables had to be moved onto additional pages.
+
+<p>In the NTSC version I had created separate code & data segments for the application.  Unfortunately, in the PAL version I couldn't do this anymore.  Some of the code had to be moved to free up space for the Skeleton lookup tables.  This was tricky because the original code had very few subroutines or other small pieces of code which could be moved easily.
+
+<p>One benefit of creating the PAL version is it forced me to go back through the code (the kernel in particular) and look for ways of doing things in a more space efficient manner.  The code which "draws" the wall in front of the player became a subroutine instead of multiple versions for each distance.
+
+<h3>Trivia</h3>
+
+<ul>
+<li>The Skeleton in the PAL version has an extra rib.
+<li>The PAL version only has one lookup table for the Skeleton's outstreched arm, so it doesn't change thickness with distance.
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,349 @@
+TITLE:  Printer Escape Sequences (LONG)
+
+AmigaDOS provides 3 "handlers" which can be used to do I/O to a 
+printer. These are "par:", "ser:", and "prt:", referring to
+parallel, serial, and printer respectively.  If you want to do 
+output to the printer using the file system routines, you will 
+Open() one of these and do Write() calls to it.  The CLI commands 
+also expect you to use these strings as file parameters.  For 
+instance, you can send a file to the printer handler with the 
+command  "copy myfile to prt:".  Similarly, you use these handler 
+names when trying to write to the printer from languages like 
+ABasiC.  (For compatability, Microsoft's Amiga Basic also defines 
+LPT1 to be the same as prt:.)
+
+An AmigaDOS "handler" is simply a piece of interface code that 
+translates the device independent file system calls like Write() 
+into the appropriate message traffic to the "devices" implemented 
+in Exec, the multi-tasking kernel of the Amiga.  The "par:"
+handler uses the device "parallel.device" which is the Exec code 
+that manages the parallel port connector on the back of your Amiga.
+The "ser:" handler uses the device "serial.device" which manages 
+the serial port connector.
+
+Simply put, when you do output to par: or ser: you are talking 
+straight through to the hardware -- with no intervening levels 
+of interpretation. If you have an Okimate 20 printer connected to 
+your parallel port, then escape sequences sent to par: will reach 
+it directly and will have whatever effect they are defined to have 
+by OkiData.
+
+Printing to par: or ser: is pretty straightforward.  Keep in mind 
+that a standard AmigaDOS text file uses LF as a line separator 
+(not CR or CR-LF), and that a file may or may not have an LF at 
+the end. You may want to add a carriage-return character to the 
+ends of your lines (in a simple program you create), or, if your 
+printer offers this option, flip the switch that automatically 
+gives you a CR when the printer receives an LF.
+
+[NOTE: Input from par: and ser: is somewhat more complex, since 
+they do "buffered" I/O -- but I digress.]
+
+If you are writing a program, you can avoid all this handler stuff 
+by doing an OpenDevice() directly on the Exec device you are 
+interested in talking to. You then pass I/O request blocks to the 
+device using the I/O calls provided by Exec (DoIO() and friends). 
+The advantage of talking directly to the device is that you get a 
+lot more flexibility, including things like asynchronous I/O and 
+the ability to set device parameters such as serial baud rate.  
+For more information on how you call the system library and device 
+routines, and just what functions are available, please look in 
+the Amiga ROM Kernel Manual [WHICH WILL BE IN THE STORES SHORTLY!].
+
+Note that the Preferences tool printer settings have NO EFFECT on 
+the function of the par: and ser: handlers!  [Preferences IS, 
+however, used to set the default baud rate used by ser:.]  Any 
+special function you want your printer to do is UP TO YOU when you 
+use par: or ser:.  YOU must choose the correct escape sequences to 
+send to do even initialization style functions -- such as setting 
+the margins.  Obviously, this obliges you to KNOW what style 
+printer is connected to your Amiga and whether it is connected to 
+the serial or to the parallel port.
+
+Which brings us to prt:.  The prt: handler uses the Exec device 
+"printer.device".  The printer device uses the information it 
+finds in the Preferences settings to understand the type of 
+printer you have connected and how you want it to be used.  On 
+the basis of the printer port setting you've made in Preferences, 
+the printer device talks to either the serial or the parallel 
+device to reach the printer.
+
+The printer device understands ONLY ITS OWN, PRINTER INDEPENDENT, 
+ESCAPE SEQUENCES.  It converts these escape sequences into the 
+printer specific escape sequences appropriate for the printer 
+currently selected in Preferences.  In addition, the Initialize 
+funcition (which is invoked when you open the printer device or 
+when you send it the Initialise escape sequence) causes the 
+appropriate escapes to be sent to your printer to configure it 
+according to the options you have selected in Preferences.  This, 
+for instance, is how your margin settings get sent to the printer.
+
+If you use the printer device (or prt:) you can write code which 
+is largely independent of the type of printer your customers have 
+on their Amigas.  The tables below show the escape sequences 
+understood by the printer device and the ones that it knows how 
+to translate for each supported printer type.
+
+Note that when using the printer device (or prt:), you should 
+TURN-OFF any option on your printer providing for an automatic 
+CR , LF, or CR-LF to be generated whenever the printer receives an 
+LF.  The printer device will provide end of line CR-LFs as needed.
+
+Also note that, in addition to the alphnumeric printing described 
+here, the printer device provides for black and white, grey-scale, 
+and full color, raster-graphics printing.  This function is only 
+available when talking directly to the printer device (not from 
+prt:).
+
+------------------------Known Bugs:
+
+The V1.0 Serial Device (and, thus ser:) does not read reliably at 
+the higher baud rates.  Writes work just fine.  The serial device 
+uses CTRL-S / CTRL-Q (XON/XOFF) flow control ONLY for V1.0.
+
+The V1.0 Printer Device does not correctly interpret length=-1, 
+which is supposed to indicate that you've given the printer a 
+null terminated string.  Prt: is not affected by this, since the 
+handler code always feeds the printer device the correct length.
+
+-------------------Printer Device Command Definitions:
+
+The table below shows the escape sequences understood by V1.0 
+printer.device. The command names or numbers may be used instead 
+when sending commands to printer.device. Only the escape 
+sequences are useful when talking to prt:.  Note that not all 
+printers will implement all commands.  Any unimplemented commands 
+are treated as NO-OPs.
+
+In the escape sequences, n, n1, and n2 are numeric parameters 
+which should appear in your escape sequence as a string of ASCII 
+digits (e.g., "123"), NOT as the equivalent binary value!
+
+     #define aRIS     0  /* ESCc  reset                      ISO */
+     #define aRIN     1  /* ESC#1 initialize                 +++ */
+     #define aIND     2  /* ESCD  lf                         ISO */
+     #define aNEL     3  /* ESCE  return,lf                  ISO */
+     #define aRI      4  /* ESCM  reverse lf                 ISO */
+     #define aSGR0    5  /* ESC[0m normal char set           ISO */
+     #define aSGR3    6  /* ESC[3m italics on                ISO */
+     #define aSGR23   7  /* ESC[23m italics off              ISO */
+     #define aSGR4    8  /* ESC[4m underline on              ISO */
+     #define aSGR24   9  /* ESC[24m underline off            ISO */
+     #define aSGR1   10  /* ESC[1m boldface on               ISO */
+     #define aSGR22  11  /* ESC[22m boldface off             ISO */
+     #define aSFC    12  /* SGR30-39  set foreground color   ISO */
+     #define aSBC    13  /* SGR40-49  set background color   ISO */
+     #define aSHORP0 14  /* ESC[0w normal pitch              DEC */
+     #define aSHORP2 15  /* ESC[2w elite on                  DEC */
+     #define aSHORP1 16  /* ESC[1w elite off                 DEC */
+     #define aSHORP4 17  /* ESC[4w condensed fine on         DEC */
+     #define aSHORP3 18  /* ESC[3w condensed off             DEC */
+     #define aSHORP6 19  /* ESC[6w enlarged on               DEC */
+     #define aSHORP5 20  /* ESC[5w enlarged off              DEC */
+     #define aDEN6   21  /* ESC[6"z shadow print on          DEC */
+     #define aDEN5   22  /* ESC[5"z shadow print off         DEC */
+     #define aDEN4   23  /* ESC[4"z doublestrike on          DEC */
+     #define aDEN3   24  /* ESC[3"z doublestrike off         DEC */
+     #define aDEN2   25  /* ESC[2"z  NLQ on                  DEC */
+     #define aDEN1   26  /* ESC[1"z  NLQ off                 DEC */
+     #define aSUS2   27  /* ESC[2v superscript on            +++ */
+     #define aSUS1   28  /* ESC[1v superscript off           +++ */
+     #define aSUS4   29  /* ESC[4v subscript on              +++ */
+     #define aSUS3   30  /* ESC[3v subscript off             +++ */
+     #define aSUS0   31  /* ESC[0v normalize the line        +++ */
+     #define aPLU    32  /* ESCL  partial line up            ISO */
+     #define aPLD    33  /* ESCK  partial line down          ISO */
+     #define aFNT0   34  /* ESC(B US char set                DEC */
+     #define aFNT1   35  /* ESC(R French char set            DEC */
+     #define aFNT2   36  /* ESC(K German char set            DEC */
+     #define aFNT3   37  /* ESC(A UK char set                DEC */
+     #define aFNT4   38  /* ESC(E Danish I char set          DEC */
+     #define aFNT5   39  /* ESC(H Sweden char set            DEC */
+     #define aFNT6   40  /* ESC(Y Italian char set           DEC */
+     #define aFNT7   41  /* ESC(Z Spanish char set           DEC */
+     #define aFNT8   42  /* ESC(J Japanese char set          +++ */
+     #define aFNT9   43  /* ESC(6 Norweign char set          DEC */
+     #define aFNT10  44  /* ESC(C Danish II char set         +++ */
+     #define aPROP2  45  /* ESC[2p  proportional on          +++ */
+     #define aPROP1  46  /* ESC[1p  proportional off         +++ */
+     #define aPROP0  47  /* ESC[0p  proportional clear       +++ */
+     #define aTSS    48  /* ESC[n E set proportional offset  ISO */
+     #define aJFY5   49  /* ESC[5 F auto left justify        ISO */
+     #define aJFY7   50  /* ESC[7 F auto right justify       ISO */
+     #define aJFY6   51  /* ESC[6 F auto full justify        ISO */
+     #define aJFY0   52  /* ESC[0 F auto justify off         ISO */
+     #define aJFY3   53  /* ESC[3 F letter space (justify)   ISO */
+     #define aJFY1   54  /* ESC[1 F word fill(auto center)   ISO */
+     #define aVERP0  55  /* ESC[0z  1/8" line spacing        +++ */
+     #define aVERP1  56  /* ESC[1z  1/6" line spacing        +++ */
+     #define aSLPP   57  /* ESC[nt  set form length n        DEC */
+     #define aPERF   58  /* ESC[nq  perf skip n (n>0)        +++ */
+     #define aPERF0  59  /* ESC[0q  perf skip off            +++ */
+     #define aLMS    60  /* ESC#9   Left margin set          +++ */
+     #define aRMS    61  /* ESC#0   Right margin set         +++ */
+     #define aTMS    62  /* ESC#8   Top margin set           +++ */
+     #define aBMS    63  /* ESC#2   Bottom marg set          +++ */
+     #define aSTBM   64  /* ESC[Pn1;Pn2r  T&B margins        DEC */
+     #define aSLRM   65  /* ESC[Pn1;Pn2s  L&R margin         DEC */
+     #define aCAM    66  /* ESC#3   Clear margins            +++ */
+     #define aHTS    67  /* ESCH    Set horiz tab            ISO */
+     #define aVTS    68  /* ESCJ    Set vertical tabs        ISO */
+     #define aTBC0   69  /* ESC[0g  Clr horiz tab            ISO */
+     #define aTBC3   70  /* ESC[3g  Clear all h tab          ISO */
+     #define aTBC1   71  /* ESC[1g  Clr vertical tabs        ISO */
+     #define aTBC4   72  /* ESC[4g  Clr all v tabs           ISO */
+     #define aTBCALL 73  /* ESC#4   Clr all h & v tabs       +++ */
+     #define aTBSALL 74  /* ESC#5   Set default tabs         +++ */
+     #define aEXTEND 75  /* ESC[Pn"x extended commands       +++ */
+
+----------------------Printer Functions Implemented:
+
+The following tables tell which of the printer device escape 
+sequences are implemented for each of the printers supported in 
+the V1.0 release.  Any unimplemented escape sequence is ignored.
+
+
+NAME: Alphacom AlphaPro101
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aRI, aSGR0, aSGR4, aSGR24, aSGR1, aSGR22, 
+	aSHORP0, aSHORP1, aSHORP2, aSHORP3, aSHORP4, aDEN3, aDEN4, 
+	aDEN5, aDEN6, aVERP0, aVERP1, aSLPP, aLMS, aRMS, aTMS, aBMS 
+
+	special functions implemented:
+
+	aRIN, aSUS0, aSUS1, aSUS2, aSUS3, aSUS4, aSLRM, aSFC, aCAM
+
+
+NAME: Brother_HL-15XL 
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aRI, aSGR0, aSGR4, aSGR24, aSGR1, aSGR22, 
+	aSHORP0, aSHORP1, aSHORP2, aSHORP3, aSHORP4, aDEN3, aDEN4, 
+	aDEN5, aDEN6, aPROP0, aPROP1, aPROP2, aTSS, aVERP0, aVERP1, 
+	aSLPP, aLMS, aRMS, aTMS, aBMS, aCAM, aHTS, aVTS, aTBC0, 
+	aTBC3, aTBC4, aTBCALL, aTBSALL
+
+	special functions implemented:
+
+	aRIN, aSUS0, aSUS1, aSUS2, aSUS3, aSUS4, aPLU, aPLD, aSLRM
+
+
+NAME: CBM MPS-1000 
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aSGR0, aSGR4, aSGR24, aSGR1,aSGR22, 
+	aSHORP0, aSHORP1, aSHORP2, aSHORP3, aSHORP4,aSHORP5, 
+	aSHORP6, aDEN1, aDEN2, aDEN3, aDEN4, aSUS0, aSUS1,aSUS2, 
+	aSUS3, aSUS4, aFNT0, aFNT1, aFNT2, aFNT3, aFNT4, aFNT5, 
+	aFNT6, aFNT7, aFNT8 aFNT9, aFNT10, aPROP1, aPROP2,aJFY6, 
+	aJFY0, aVERP0, aVERP1, aSLPP, aPERF, aPERF0, aTBC3, 
+	aTBC4, aTBCALL, aTBSALL 
+
+	special functions implemented:
+
+	aRIN, aSUS0, aSUS1, aSUS2, aSUS3, aSUS4, aCAM, aPLU, aPLD, 
+	aVERP0, aVERP1, aSLRM, aIND
+
+
+NAME: Diablo 630 
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aRI, aSGR0, aSGR4, aSGR24, aSGR1, aSGR22, 
+	aSHORP0, aSHORP1, aSHORP2, aSHORP3, aSHORP4, aDEN3, aDEN4, 
+	aDEN5, aDEN6, aPLU, aPLDaPROP0, aPROP1, aPROP2, aTSS, aJFY5, 
+	aJFY0, aJFY1, aVERP0, aVERP1, aSLPP, aLMS, aRMS, aTMS, aBMS, 
+	aCAM, aHTS, aVTS, aTBC0, aTBC3, aTBC1, aTBCALL, aTBSALL
+
+	special functions implemented:
+
+	aRIN, aSUS0, aSUS1, aSUS2, aSUS3, aSUS4,aSLRM, aSFC
+
+
+NAME: Diablo Advantage D25 
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aRI, aSGR0, aSGR4, aSGR24, aSGR1, aSGR22, 
+	aSHORP0, aSHORP1, aSHORP2, aSHORP3, aSHORP4, aDEN3, aDEN4, 
+	aDEN5, aDEN6, aPLU, aPLD,aPROP0, aPROP1, aPROP2, aTSS, 
+	aJFY5, aJFY0, aVERP0, aVERP1, aSLPP, aLMS, aRMS, aTMS, 
+	aBMS, aCAM, aHTS, aVTS, aTBC0, aTBC3, aTBC1, aTBCALL, 
+	aTBSALL
+
+	special functions implemented:
+
+	aRIN, aSUS0, aSUS1, aSUS2, aSUS3, aSUS4, aPLU, aPLD, aSLRM, aSFC
+
+
+NAME: Diablo C-150 
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aSLPP, aLMS, aRMS,aHTS, aTBC0, aTBC3, 
+	aTBCALL, aTBSALL
+
+	special functions implemented:
+
+	aRIN, aSLRM, aSFC
+
+
+NAME: Epson X-80 
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aSGR0, aSGR3, aSGR23, aSGR4, aSGR24, 
+	aSGR1, aSGR22, aSHORP0, aSHORP1, aSHORP2, aSHORP3, 
+	aSHORP4, aSHORP5, aSHORP6, aDEN1, aDEN2, aDEN3, aDEN4, 
+	aSUS0, aSUS1, aSUS2, aSUS3, aSUS4,aFNT0, aFNT1, aFNT2, 
+	aFNT3, aFNT4, aFNT5, aFNT6, aFNT7, aFNT8, aFNT9, aFNT10,
+	aPROP1, aPROP2, aJFY5, aJFY7, aJFY6, aJFY0, aJFY3, aJFY2,
+	aVERP0, aVERP1, aSLPP, aPERF, aPERF0, aTBC3, aTBC4, 
+	aTBCALL, aTBSALL 
+
+	special functions implemented:
+
+	aRIN, aSUS0, aSUS1, aSUS2, aSUS3, aSUS4, aPLU, aPLD, aVERP0, 
+	aVERP1, aSLRM, aIND, aCAM
+
+
+NAME: Epson JX-80 
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aSGR0, aSGR3, aSGR23, aSGR4, aSGR24, 
+	aSGR1, aSGR22, aSHORP0, aSHORP1, aSHORP2, aSHORP3, 
+	aSHORP4, aSHORP5, aSHORP6, aDEN1, aDEN2, aDEN3, aDEN4, 
+	aSUS0, aSUS1, aSUS2, aSUS3, aSUS4,aFNT0, aFNT1, aFNT2, 
+	aFNT3, aFNT4, aFNT5, aFNT6, aFNT7, aFNT8, aFNT9, aFNT10, 
+	aPROP1, aPROP2, aJFY5, aJFY7, aJFY6, aJFY0, aJFY3, aJFY2,
+	aVERP0, aVERP1, aSLPP, aPERF, aPERF0, aTBC3,aTBC4, 
+	aTBCALL, aTBSALL
+
+	special functions implemented:
+
+	aRIN, aRI, aSUS0, aSUS1, aSUS2, aSUS3, aSUS4, aCAM aPLU, 
+	aPLD, aVERP0, aVERP1, aSLRM, aIND, aSFC
+
+
+NAME: Okimate 20 
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aSGR0, aSGR3, aSGR23, aSGR4, aSGR24, 
+	aSHORP0, aSHORP1, aSHORP2, aSHORP3, aSHORP4, aSHORP5, 
+	aSHORP6, aDEN1, aDEN2, aSUS0, aSUS1, aSUS2, aSUS3, 
+	aSUS4, aVERP0, aVERP1, aSLPP, aPERF, aPERF0
+
+	special functions implemented:
+
+	aRIN, aSUS0, aSUS1, aSUS2, aSUS3, aSUS4, aPLU, aPLD
+
+
+NAME: Qume LetterPro 20 
+	functions implemented: 
+
+	aRIS, aIND, aNEL, aRI, aSGR0, aSGR4, aSGR24, aSGR1, aSGR22, 
+	aSHORP0, aSHORP1, aSHORP2, aSHORP3, aSHORP4, aDEN3, aDEN4, 
+	aDEN5, aDEN6, aPLU, aPLD,aPROP0, aPROP1, aPROP2, aTSS, 
+	aVERP0, aVERP1, aSLPP, aLMS, aRMS, aCAM
+
+	special functions implemented:
+
+	aRIN, aSUS0, aSUS1, aSUS2, aSUS3, aSUS4, aPLU, aPLD, aSLRM, 
+	aSLPP, aSFC

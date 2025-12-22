@@ -1,0 +1,213 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.51
+     from ahidev.texinfo on 31 October 1997 -->
+
+<TITLE>Ahi Developers's Guide - Making Noise</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="ahidev_1.html">first</A>, <A HREF="ahidev_9.html">previous</A>, <A HREF="ahidev_11.html">next</A>, <A HREF="ahidev_21.html">last</A> section, <A HREF="ahidev_toc.html">table of contents</A>.
+<P><HR><P>
+
+
+<H2><A NAME="SEC19" HREF="ahidev_toc.html#TOC19">Making Noise</A></H2>
+
+<P>
+<A NAME="IDX78"></A>
+<A NAME="IDX79"></A>
+
+</P>
+<P>
+After you have allocated the sound hardware and declared all your sounds,
+you're ready to start playback.  This is done with a call to
+<CODE>AHI_ControlAudioA()</CODE>, with the <CODE>AHIC_Play</CODE> tag set to
+<CODE>TRUE</CODE>.  When this function returns the <STRONG>PlayerFunc</STRONG> (see
+<CODE>AHI_AllocAudioA()</CODE>) is active, and the audio driver is feeding
+silence to the sound hardware.
+
+</P>
+
+
+<H3><A NAME="SEC20" HREF="ahidev_toc.html#TOC20">Playing A Sound</A></H3>
+
+<P>
+<A NAME="IDX80"></A>
+<A NAME="IDX81"></A>
+<A NAME="IDX82"></A>
+
+</P>
+<P>
+All you have to do now is to set the desired sound, it's frequency and
+volume.  This is done with <CODE>AHI_SetSound()</CODE>, <CODE>AHI_SetFreq()</CODE> and
+<CODE>AHI_SetVol()</CODE>.  Make sure the <CODE>AHISF_IMM</CODE> flag is set for all
+these function's <VAR>flag</VAR> argument.  And don't try to modify a channel
+that is out of range!  If you have allocated 4 channels you may only modify
+channels 0-3.
+
+</P>
+<P>
+The sound will not start until both <CODE>AHI_SetSound()</CODE> and
+<CODE>AHI_SetFreq()</CODE> has been called.  The sound will play even if
+<CODE>AHI_SetVol()</CODE> was not called, but it will play completely silent.  If
+you wish to temporary stop a sound, set its frequency to 0.  When you
+change the frequency again, the sound will continue where it were.
+
+</P>
+<P>
+<A NAME="IDX83"></A>
+
+</P>
+<P>
+When the sound has been started it will play to the end and then repeat.
+In order to play a one-shot sound you have use the <CODE>AHI_PlayA()</CODE>
+function, or install a sound interrupt using the <CODE>AHIA_SoundFunc</CODE> tag
+with <CODE>AHI_AllocAudioA()</CODE>.  For more information about using sound
+interrupts, see below.
+
+</P>
+<P>
+A little note regarding <CODE>AHI_SetSound()</CODE>:  <VAR>Offset</VAR> is the first
+sample that will be played, both when playing backwards and forwards.  This
+means that if you call <CODE>AHI_SetSound()</CODE> with <VAR>offset</VAR> 0 and
+<VAR>length</VAR> 4, sample 0,1,2 and 3 will be played.  If you call
+<CODE>AHI_SetSound()</CODE> with <VAR>offset</VAR> 3 and <VAR>length</VAR> -4,
+sample 3,2,1 and 0 will be played.
+
+</P>
+<P>
+Also note that playing very short sounds will be very CPU intensive, since
+there are many tasks that must be done each time a sound has reached its
+end (like starting the next one, calling the <STRONG>SoundFunc</STRONG>, etc.).
+Therefore, it is recommended that you "unroll" short sounds a couple of
+times before you play them.  How many times you should unroll?  Well, it
+depends on the situation, of course, but try making the sound a thousand
+samples long if you can. Naturally, if you need your <STRONG>SoundFunc</STRONG> to
+be called, you cannot unroll.
+
+</P>
+
+
+<H3><A NAME="SEC21" HREF="ahidev_toc.html#TOC21">Playing One-shot Sounds And Advanced Loops</A></H3>
+
+<P>
+<A NAME="IDX84"></A>
+
+</P>
+<P>
+ Some changes has been made since earlier releases.  One-shot sounds and
+sounds with only one loop segment can now be played without using sample
+interrupts.  This is possible because one of the restrictions regarding the
+<CODE>AHISF_IMM</CODE> flag has been removed.
+
+</P>
+<P>
+ The <CODE>AHISF_IMM</CODE> flag determines if <CODE>AHI_SetSound()</CODE>,
+<CODE>AHI_SetFreq()</CODE> and <CODE>AHI_SetVol()</CODE> should take effect immediately
+or when the current sound has reached its end.  The rules for this flags
+are:
+
+</P>
+
+<UL>
+
+<LI>
+
+If used inside a sample interrupt (<STRONG>SoundFunc</STRONG>):  Must be cleared.
+
+<LI>
+
+If used inside a player interrupt (<STRONG>PlayerFunc</STRONG>):  May be set or
+cleared.
+
+<LI>
+
+If used elsewhere:  Must be set.
+
+</UL>
+
+<P>
+ What does this mean?  It means that if all you want to do is to play a
+one-shot sound from inside a <STRONG>PlayerFunc</STRONG>, you can do that by first
+calling <CODE>AHI_SetSound()</CODE>, <CODE>AHI_SetFreq()</CODE> and <CODE>AHI_SetVol()</CODE>
+with <CODE>AHISF_IMM</CODE> set, and then use <CODE>AHI_SetSound(ch, AHI_NOSOUND,
+0, 0, actrl, 0L)</CODE> to stop the sound when it has reached the end.  You can
+also set one loop segment this way.
+
+</P>
+<P>
+ <CODE>AHI_PlayA()</CODE> was added in AHI version 4, and combines
+<CODE>AHI_SetSound()</CODE>, <CODE>AHI_SetFreq()</CODE> and <CODE>AHI_SetVol()</CODE> into
+one tag-based function.  It also allows you to set one loop and play
+one-shot sounds.
+
+</P>
+<P>
+ To play a sound with more than one loop segment or ping-pong looping, a
+sample interrupt needs to be used.  AHI's <STRONG>SoundFunc</STRONG> works like Paula's
+interrupts and is very easy to use.
+
+</P>
+<P>
+ The <STRONG>SoundFunc</STRONG> hook will be called with an <CODE>AHIAudioCtrl</CODE>
+structure as object and an <CODE>AHISoundMessage</CODE> structure as message.
+<CODE>ahism_Channel</CODE> indicates which channel caused the hook to be called.
+
+</P>
+<P>
+ An example <STRONG>SoundFunc</STRONG> which handles the repeat part of an instrument
+can look like this (SAS/C code):
+
+</P>
+
+<PRE>
+__asm __saveds ULONG SoundFunc(register __a0 struct Hook *hook,
+    register __a2 struct AHIAudioCtrl *actrl,
+    register __a1 struct AHISoundMessage *chan)
+{
+  if(ChannelDatas[chan-&#62;ahism_Channel].Length)
+    AHI_SetSound(chan-&#62;ahism_Channel, 0,
+        (ULONG) ChannelDatas[chan-&#62;ahism_Channel].Address,
+        ChannelDatas[chan-&#62;ahism_Channel].Length,
+        actrl, NULL);
+  else
+    AHI_SetSound(chan-&#62;ahism_Channel, AHI_NOSOUND,
+        NULL, NULL, actrl, NULL);
+  return NULL;
+}
+</PRE>
+
+<P>
+ This example is from an old version of the AHI NotePlayer for
+<STRONG>DeliTracker 2</STRONG>.  <CODE>ChannelDatas</CODE> is an array where the start and
+length of the repeat part is stored.  Here, a repeat length of zero
+indicates a one-shot sound.  Note that this particular example only uses
+one sound (0).  For applications using multiple sounds, the sound number
+would have to be stored in the array as well.
+
+</P>
+<P>
+ Once again, note that the <CODE>AHISF_IMM</CODE> flag should <STRONG>never</STRONG> be
+set in a <STRONG>SoundFunc</STRONG> hook!
+
+</P>
+
+
+
+<H3><A NAME="SEC22" HREF="ahidev_toc.html#TOC22">Tricks With The Volume</A></H3>
+
+<P>
+<A NAME="IDX85"></A>
+
+</P>
+<P>
+ Starting with V4, <CODE>AHI_SetVol()</CODE> can take both negative volume and
+pan parameters.  If you set the volume to a negative value, the sample
+will, if the audio mode supports it, invert each sample before playing.  If
+pan is negative, the sample will be encoded to go to the surround speakers.
+
+</P>
+
+<P><HR><P>
+Go to the <A HREF="ahidev_1.html">first</A>, <A HREF="ahidev_9.html">previous</A>, <A HREF="ahidev_11.html">next</A>, <A HREF="ahidev_21.html">last</A> section, <A HREF="ahidev_toc.html">table of contents</A>.
+</BODY>
+</HTML>

@@ -1,0 +1,1281 @@
+'
+' *************************************************************************
+'
+' Amiga Atoms - (C) 1992 Halibut software
+'
+' CREDITS:
+' Difficult technical bits that no-one else understood, late nights etc. by Girv
+' "Lovely wee drawings" by Judith
+' Crap drawings by Dave
+' Purple consultant - Catherine Thompson
+' Deep thoughts provided (at reasonable rates) by Gav
+'
+' CONTACTING HALIBUT:
+' Contact us (bugs, ideas, postcards, parties, anything) at:
+'
+'               25 Moorgate Street,
+'               Belfast BT5 5BZ,
+'               County Down,
+'               Northern Ireland.
+'
+' DISTRIBUTION:
+' Atoms may be freely distributed so long as...
+' (a) The program code (source & executable) and documentation are not changed
+'     in any way.
+' (b) No money is charged for the game (except _REASONABLE_ copying charges).
+' (c) The associated documentation is included in any distribution.
+'
+'
+' PHILOSOPHY:
+' Party on !
+'
+' *************************************************************************
+'
+'
+RANDOMIZE TIMER
+DEFWRD "a-z"
+f$="topaz.font"+CHR$(0)
+t$="Atoms V1.0..."
+@setup
+'
+ON MENU GOSUB whatismess
+REPEAT
+  ' Process keypress (2-6 to start game)
+  k$=INKEY$
+  IF INSTR("23456",k$)<>0
+    nplayers&=VAL(k$)
+    ngames&=-1
+    @newgame
+  ENDIF
+  '
+  SLEEP
+  @intproc
+  IF gameon! AND MOUSEK<>0
+    @fixtitle
+    FOR x&=0 TO xmax&             ! Copy current position to undo buffer
+      FOR y&=0 TO ymax&
+        oldpat|(x&,y&)=pat|(x&,y&)
+        oldnoat|(x&,y&)=noat|(x&,y&)
+      NEXT y&
+    NEXT x&
+    FOR i&=1 TO maxp&
+      oldscore&(i&)=score&(i&)
+    NEXT i&
+    oldplayer&=cplayer&
+    @add_atom
+    IF nleft&=1
+      @gameover
+    ENDIF
+  ENDIF
+UNTIL exit!=TRUE
+'
+@cleanup
+~OpenWorkBench()        ! Hey - its an offical Commodore programming guideline
+END
+'
+> PROCEDURE setup
+OPTION BASE 0
+blen&=5744
+llen&=28948
+boom%=MALLOC(blen&,2)
+IF boom%=0
+  @nomem
+ENDIF
+laugh%=MALLOC(llen&,2)
+IF laugh%=0
+  @nomem
+ENDIF
+check&=1+2+8+16+64+256
+nocheck&=check&-256
+on&=2+16+64
+off&=on&-16
+w&=28          ! block width
+h&=28          ! block height
+xmax&=9        ! width in blocks
+ymax&=6        ! height in blocks
+maxp&=6        ! max no of players
+xorg&=20       ! origin of playing grid
+yorg&=33
+pxmax&=xorg&+w&+xmax&*w&
+pymax&=yorg&+h&+ymax&*h&
+mx1&=xorg&+w&+4  ! Corners of message box
+my1&=yorg&+10
+mx2&=pxmax&-w&-6
+my2&=pymax&-h&-15
+mbtx&=ADD(SHL(w&,3),xorg&)
+mbty&=ADD(MUL(h&,5),yorg&)
+logox&=98
+goverx&=111
+halibx&=122
+boxcorpt!=TRUE
+DIM pat|(xmax&,ymax&),noat|(xmax&,ymax&),lim|(xmax&,ymax&),atom$(maxp&,4),oldatom%(maxp&,4)
+DIM oldpat|(xmax&,ymax&),oldnoat|(xmax&,ymax&),oldscore&(maxp&)
+DIM tnme$(maxp&),nme$(maxp&),score&(maxp&),expl&(1,xmax&*ymax&),games&(maxp&)
+'
+' Add menus
+RESTORE menudata
+n&=@getdatlen
+DIM menu$(n&)
+prev$="*"
+FOR i&=0 TO n&
+  READ menu$(i&)
+  IF LEFT$(prev$,1)<>"*"
+    menu$(i&)=menu$(i&)+"   "
+  ENDIF
+  prev$=menu$(i&)
+  IF LEFT$(menu$(i&),1)="*"
+    menu$(i&)=""
+  ENDIF
+NEXT i&
+'
+RESTORE attrtext
+nattr&=@getdatlen
+DIM attr$(nattr&)
+FOR i&=0 TO nattr&
+  READ attr$(i&)
+NEXT i&
+'
+' Set default values
+cstart!=FALSE         ! Random start grid
+nratoms&=5             ! 5 random squares each
+slength&=5             ! 5 games in a fixed series
+firstto&=3             ! 3 is winning score in first to... series
+gtype&=1               ! Single games
+indest!=FALSE         ! Only normal blocks
+nindest&=5             ! 5 indestructable blocks
+id&=255                ! special player number to mark indestructable sqaures
+corder!=TRUE          ! Change playing order
+noisy!=TRUE           ! Use sounds
+FOR i&=1 TO maxp&
+  nme$(i&)="Player "+TRIM$(STR$(i&))
+NEXT i&
+@fixnames
+'
+cplayer&=1
+oldplayer&=1
+ngames&=-1
+t1&=0
+t2&=0
+'
+@readpics
+@setup_screen
+'
+RETURN
+> PROCEDURE readpics
+LOCAL i&,p&,n&,d$
+'
+d$=""                         ! Search probable locations for atoms drawer
+IF NOT EXIST(d$+"AtomsData")
+d$=":"
+IF NOT EXIST(d$+"AtomsData")
+  d$=":Atoms/"
+  IF NOT EXIST(d$+"AtomsData")
+    d$="SYS:"
+    IF NOT EXIST(d$+"AtomsData")
+      d$="SYS:Atoms/"
+      IF NOT EXIST(d$+"AtomsData")
+        REPEAT
+          FILESELECT "Locate Atoms drawer","Got it!","",d$
+        UNTIL EXIST(d$+"AtomsData") OR d$=""
+        IF d$=""
+          ' Cleanup & abort if user did not select a directory
+          ' for the Atompics file
+          @cleanup
+          ~OpenWorkBench()
+          END
+        ENDIF
+      ENDIF
+    ENDIF
+  ENDIF
+ENDIF
+ENDIF
+'
+IF RIGHT$(d$,8)="AtomsData"
+d$=LEFT$(d$,SUB(LEN(d$),8))
+ENDIF
+'
+OPEN "i",#1,d$+"AtomsData"
+blank$=INPUT$(547,#1)
+boom$=INPUT$(547,#1)
+indest$=INPUT$(547,#1)
+logo$=INPUT$(2647,#1)
+gameover$=INPUT$(2317,#1)
+halibut$=INPUT$(707,#1)
+FOR p&=1 TO maxp&
+FOR n&=1 TO 4
+  atom$(p&,n&)=INPUT$(547,#1)
+NEXT n&
+NEXT p&
+'
+' Now load samples
+BGET #1,laugh%,llen&
+BGET #1,boom%,blen&
+'
+CLOSE #1
+'
+RETURN
+> PROCEDURE setup_screen
+LOCAL i&,p&,p$
+' Open the main screen
+OPENS 1,0,0,320,256,5,0
+TITLES #1,t$+"Game over"
+' Set colours
+RESTORE palette
+FOR i&=0 TO 31
+READ p$
+SETCOLOR i&,VAL("&H"+p$)
+NEXT i&
+OPENW #0,0,16,320,240,0,&H1810,1
+screen%=SCREEN(1)
+wadd%=WINDOW(0)
+RASTPORT {wadd%+50}
+' Select Topaz-80 for all text
+@setup_textattr
+@redraw_grid
+@printplayers
+' Add menu strips & keys to menus
+MENU menu$()
+@fixmenu
+@attractmode
+RETURN
+> PROCEDURE setup_textattr
+' Setup TextAttr Structure to give topaz 80
+INLINE tattr%,8
+fontname%=V:f$
+LONG{tattr%+0}=fontname%       !pointer to name
+WORD{tattr%+4}=8               !y size
+BYTE{tattr%+6}=0               !style (normal)
+BYTE{tattr%+7}=&X1000001       !flags (romfont,designed)
+textfont%=OpenFont(tattr%)
+~SetFont(LONG{wadd%+50},textfont%)
+~SetFont(screen!+84,textfont%)
+RETURN
+> PROCEDURE fixmenu
+LOCAL i&,a&,b&
+' Sets checkmarks and disables menu items according to various flags
+'
+IF gameon!
+a&=off&
+b&=on&
+ELSE
+a&=on&
+b&=off&
+ENDIF
+'
+MENU 1,a&              ! Instructions
+MENU 2,a&              ! About
+MENU 18,b&             ! Stop current
+MENU 22,a&             ! Setup series game
+FOR i&=24 TO 27
+MENU i&,OR(a&,BCLR(nocheck&,4))
+NEXT i&
+MENU gtype&+23,OR(a&,BCLR(check&,4))
+MENU 28,b&             ! Undo last
+'
+@setcheck(cstart!,6)  ! Clear/random start
+@setcheck(NOT cstart!,7)
+@setcheck(corder!,8)  ! Playing order
+@setcheck(indest!,9)  ! Use indestructable blocks
+@setcheck(noisy!,10)  ! Play samples
+'
+' Add keys
+MENU KEY 1,&H49       ! Instuctions
+MENU KEY 2,&H41       ! About
+MENU KEY 3,&H51       ! Quit
+MENU KEY 6,&H43       ! Clear start grid
+MENU KEY 7,&H52       ! Random start grid
+MENU KEY 8,&H4F       ! Change playing order
+MENU KEY 10,&H53      ! Sound on/off
+MENU KEY 13,&H32      ! 2-6 player start
+MENU KEY 14,&H33
+MENU KEY 15,&H34
+MENU KEY 16,&H35
+MENU KEY 17,&H36
+MENU KEY 18,&H58      ! Stop current
+MENU KEY 21,&H4E      ! Change player names
+MENU KEY 28,&H55      ! Undo
+'
+RETURN
+> PROCEDURE setcheck(f!,m&)
+IF f!
+MENU m&,check&
+ELSE
+MENU m&,nocheck&
+ENDIF
+RETURN
+'
+> PROCEDURE intproc
+INC t1&
+IF t1&>15
+t1&=1
+t2&=AND(SUCC(t2&),255)
+IF NOT gameon!
+' Cycle title pages if game over
+@attractmode
+ENDIF
+ENDIF
+RETURN
+> PROCEDURE fixtitle
+IF gameon!
+IF gtype&=1
+e$="Game in progress"
+ELSE
+e$="Game "+STR$(SUCC(ngames&))+" in progress"
+ENDIF
+ELSE
+e$="Game over"
+ENDIF
+TITLES #1,t$+e$
+RETURN
+> PROCEDURE attractmode
+LOCAL a&,a$
+@mbox
+boxcorpt!=FALSE
+PUT logox&,ADD(my1&,5),logo$
+PUT halibx&,ADD(my1&,45),halibut$
+IF EVEN(t2&)
+a$=attr$(SHR(t2&,1) MOD nattr&)
+a&=SHR(SUB(26,LEN(a$)),1)
+a$=STRING$(a&,32)+a$+STRING$(a&,32)
+@print(a$,SUCC(t2& MOD 5),15)
+ELSE
+@print(SPACE$(26),0,15)
+ENDIF
+@print("Select from menu or press",17,19)
+@print("2-6 to start playing !",17,20)
+RETURN
+'
+> PROCEDURE cleanup
+@stop
+CLOSEW #0
+CLOSES 1
+@free(boom%,blen&)
+@free(laugh%,llen&)
+RETURN
+> PROCEDURE nomem
+@cleanup
+ALERT 0,"Not enough memory!",0,"Yarrgh!!",c%
+END
+RETURN
+> PROCEDURE free(s%,l&)
+IF s%<>0
+~MFREE(s%,l&)
+ENDIF
+RETURN
+'
+> PROCEDURE fixnames
+' Pad/truncate player names to 8 chars
+FOR i&=1 TO maxp&
+n$=nme$(i&)
+l&=LEN(n$)
+IF l&<8
+n$=n$+STRING$(8-l&," ")
+ELSE
+n$=LEFT$(n$,8)
+ENDIF
+nme$(i&)=n$
+NEXT i&
+RETURN
+'
+> PROCEDURE redraw_grid
+LOCAL x&,y&,xx&,yy&,p&,n&
+' Completely redraw the grid
+FOR x&=0 TO xmax&
+FOR y&=0 TO ymax&
+p&=pat|(x&,y&)
+n&=noat|(x&,y&)
+xx&=@convx(x&)
+yy&=@convy(y&)
+IF p&<>id&
+IF p&<>0 AND n&<>0
+PUT xx&,yy&,atom$(p&,n&)
+ELSE
+PUT xx&,yy&,blank$
+ENDIF
+ELSE
+PUT xx&,yy&,indest$
+ENDIF
+NEXT y&
+NEXT x&
+RETURN
+> PROCEDURE printplayers
+LOCAL i&,j&,t$,s$,s&,x&
+FOR i&=0 TO maxp&-1
+j&=SUCC(i&)
+' Clear & update graph
+x&=MUL(i&,3)
+COLOR 0,0
+VSYNC
+PBOX x&,pymax&,ADD(x&,2),MAX(yorg&,SUB(pymax&,oldscore&(j&)))
+IF score&(j&)<>0
+COLOR ADD(i&,2),ABS(j&=cplayer&)
+PBOX x&,pymax&,ADD(x&,2),MAX(yorg&,SUB(pymax&,score&(j&)))
+ENDIF
+COLOR ADD(i&,2),ABS(j&=cplayer&)
+' Print name&score/gameover/nothing
+IF j&<=nplayers& AND (firstgo! OR score&(j&)<>0) AND gameon!
+s$=TRIM$(STR$(score&(j&)))
+s&=LEN(s$)
+IF s&<3
+s$=SPACE$(SUB(3,s&))+s$
+ENDIF
+t$=nme$(j&)+" "+s$
+ELSE
+IF j&<=nplayers& AND gameon!
+t$=" GAME OVER! "
+ELSE
+COLOR 0,0
+t$=SPACE$(12)
+ENDIF
+ENDIF
+TEXT SHL(MUL((i& MOD 3),14),3),SHL(ADD((i& DIV 3),2),3),t$
+NEXT i&
+COLOR 0,0
+RETURN
+> PROCEDURE printseries
+LOCAL i&
+FOR i&=1 TO nplayers&
+@print(nme$(i&)+"  "+STR$(games&(i&)),SUCC(i&),ADD(15,i&))
+NEXT i&
+RETURN
+'
+> PROCEDURE whatismess
+LOCAL x&,y&,menu&
+'
+' Process menu selection
+menu&=MENU(0)
+'
+SELECT menu&
+CASE 1                ! Instructions
+@instructions
+CASE 2                ! About atoms
+@about
+CASE 3                ! quit
+@stop
+exit!=TRUE
+gameon!=FALSE
+CASE 6                ! Clear start
+cstart!=TRUE
+CASE 7                ! Random start
+cstart!=FALSE
+CASE 8
+corder!=NOT corder!
+CASE 9
+indest!=NOT indest!
+CASE 10
+noisy!=NOT noisy!
+CASE 13,14,15,16,17   ! Start game
+nplayers&=menu&-11
+ngames&=-1
+@newgame
+CASE 18               ! Stop current game
+gameon!=FALSE
+boxcorpt!=TRUE
+@printplayers
+@fixtitle
+@intproc
+CASE 21               ! Player setup
+@setup_players
+CASE 22               ! Series setup
+@setup_series
+CASE 23               ! Misc setup
+@setup_misc
+CASE 24,25,26,27      ! Set game type
+gtype&=menu&-23
+CASE 28               ! Undo
+SWAP score&(),oldscore&()
+SWAP pat|(),oldpat|()
+SWAP noat|(),oldnoat|()
+SWAP cplayer&,oldplayer&
+@redraw_grid
+@printplayers
+CASE 29
+nleft&=1
+ENDSELECT
+'
+IF NOT exit!
+@fixmenu
+ENDIF
+RETURN
+'
+> PROCEDURE newgame
+' Set variables, flags & display for a new game
+@stop
+ARRAYFILL score&(),0
+ARRAYFILL oldscore&(),0
+@setup_grid
+'
+IF gtype&<>1 AND ngames&<0
+ngames&=0
+ARRAYFILL games&(),0
+ENDIF
+cplayer&=1
+oldplayer&=1
+nleft&=nplayers&
+firstgo!=TRUE
+gameon!=TRUE
+over!=FALSE
+@redraw
+IF corder!            ! Change playing order if needed
+TITLES #1,t$+"Changing order !!"
+n&=ADD(RAND(20),10)
+FOR i&=1 TO n&
+a&=SUCC(RAND(nplayers&))
+b&=SUCC(RAND(nplayers&))
+SWAP nme$(a&),nme$(b&)
+SWAP games&(a&),games&(b&)
+@printplayers
+IF noisy!
+SOUND 600,2,255
+ENDIF
+NEXT i&
+ENDIF
+@printplayers
+TITLES #1,t$+e$
+@restart
+RETURN
+> PROCEDURE setup_grid
+LOCAL i&,j&,x&,y&,n&
+' Setup inital playing grid, with random/indestructable squares if required
+ARRAYFILL noat|(),0
+ARRAYFILL pat|(),0
+ARRAYFILL oldnoat|(),0
+ARRAYFILL oldpat|(),0
+'
+IF indest!
+' Add indestructable squares (uses player maxp+1)
+FOR i&=1 TO nindest&
+REPEAT
+x&=RAND(xmax&)
+y&=RAND(ymax&)
+UNTIL pat|(x&,y&)=0 AND noat|(x&,y&)=0
+pat|(x&,y&)=id&
+oldpat|(x&,y&)=id&
+NEXT i&
+ENDIF
+'
+' Calculate max number of atoms allowed in each grid square & store
+FOR x&=0 TO xmax&
+FOR y&=0 TO ymax&
+lim|(x&,y&)=ADD(ADD(ADD(@sqok(PRED(x&),y&),@sqok(SUCC(x&),y&)),@sqok(x&,PRED(y&))),@sqok(x&,SUCC(y&)))
+NEXT y&
+NEXT x&
+'
+IF NOT cstart!
+' Random startup grid
+FOR i&=1 TO nplayers&
+FOR j&=1 TO nratoms&
+REPEAT
+x&=RAND(SUCC(xmax&))
+y&=RAND(SUCC(ymax&))
+UNTIL pat|(x&,y&)=0 AND noat|(x&,y&)=0
+n&=RAND(lim|(x&,y&))
+IF n&>0
+pat|(x&,y&)=i&
+oldpat|(x&,y&)=i&
+noat|(x&,y&)=n&
+oldnoat|(x&,y&)=n&
+ADD score&(i&),n&
+ADD oldscore&(i&),n&
+ENDIF
+NEXT j&
+NEXT i&
+ENDIF
+'
+RETURN
+> FUNCTION sqok(a&,b&)
+' Returns 0 if a,b is outside grid or has an indest square there, 1 otherwise
+IF a&<0 OR b&<0 OR a&>xmax& OR b&>ymax&
+RETURN 0
+ELSE
+IF pat|(a&,b&)=id&
+RETURN 0
+ELSE
+RETURN 1
+ENDIF
+ENDIF
+ENDFUNC
+> PROCEDURE add_atom
+LOCAL x&,y&
+' Add an atom of current players colour at mouse coords
+x&=MOUSEX
+y&=MOUSEY
+IF x&>=xorg& AND x&<=pxmax& AND y&>=yorg& AND y&<=pymax&
+x&=DIV(SUB(x&,xorg&),w&)    ! Convert pixel coords into square coords
+y&=DIV(SUB(y&,yorg&),h&)
+p&=pat|(x&,y&)
+IF p&=cplayer& OR p&=0 ! Only place atoms on empty squares or squares of
+INC score&(cplayer&) ! your own colour
+pat|(x&,y&)=cplayer&
+INC noat|(x&,y&)
+IF noisy!
+SOUND 600,2,255
+ENDIF
+PUT @convx(x&),@convy(y&),atom$(cplayer&,noat|(x&,y&))
+DEFMOUSE STRING$(68,0)
+@do_explode
+'
+@nextplayer
+@printplayers
+DEFMOUSE 8
+ENDIF
+ENDIF
+RETURN
+> PROCEDURE do_explode
+LOCAL i&,j&,x&,y&,xx&,yy&
+' Check grid to see if any explosions are necessary, and then do the explosions
+' Keeps going until no more explosions are needed
+REPEAT
+' Build explosion list
+nexp&=0
+FOR x&=0 TO xmax&
+FOR y&=0 TO ymax&
+' Add coords of this square to explosion list if it is overloaded
+IF noat|(x&,y&)>=lim|(x&,y&)
+expl&(0,nexp&)=x&
+expl&(1,nexp&)=y&
+INC nexp&
+ENDIF
+NEXT y&
+NEXT x&
+' Now animate explosions & update grid/no of players left
+IF nexp&<>0
+FOR i&=1 TO 6
+FOR j&=0 TO PRED(nexp&)
+' Draw explosions
+x&=expl&(0,j&)
+y&=expl&(1,j&)
+xx&=@convx(x&)
+yy&=@convy(y&)
+IF ODD(i&)
+PUT xx&,yy&,boom$
+ELSE
+PUT xx&,yy&,blank$
+ENDIF
+'
+IF i&=6
+' Empty exploding square & update score
+SUB score&(cplayer&),noat|(x&,y&)
+noat|(x&,y&)=0
+pat|(x&,y&)=0
+' Move exploding atoms to surrounding squares (if possible)
+@doexpl2(x&,PRED(y&))
+@doexpl2(x&,SUCC(y&))
+@doexpl2(SUCC(x&),y&)
+@doexpl2(PRED(x&),y&)
+@printplayers
+ENDIF
+NEXT j&
+IF i&=1
+@playsamp(boom%,blen&,&H100,20)
+ELSE
+VSYNC
+VSYNC
+ENDIF
+NEXT i&
+ENDIF
+UNTIL nexp&=0 OR nleft&=1
+RETURN
+> PROCEDURE doexpl2(xx&,yy&)
+LOCAL p&
+' Check to see if this square is on the grid
+IF xx&>=0 AND xx&<=xmax& AND yy&>=0 AND yy&<=ymax&
+' Yes - change any counters there to counters of current players colour
+p&=pat|(xx&,yy&)
+IF p&<>id&
+n&=noat|(xx&,yy&)
+SUB score&(p&),n&
+n&=MIN(SUCC(n&),4)
+ADD score&(cplayer&),n&
+pat|(xx&,yy&)=cplayer&
+noat|(xx&,yy&)=n&
+PUT @convx(xx&),@convy(yy&),atom$(cplayer&,n&)
+IF p&<>0 AND (NOT firstgo!) AND score&(p&)<=0 AND p&<>cplayer&
+DEC nleft&
+@printplayers
+@playsamp(laugh%,llen&,&HB0,70)
+ENDIF
+ENDIF
+ENDIF
+RETURN
+> PROCEDURE nextplayer
+' Moves on to next player, skipping dead ones
+REPEAT
+INC cplayer&
+IF cplayer&>nplayers&
+cplayer&=1
+firstgo!=FALSE
+ENDIF
+UNTIL firstgo! OR score&(cplayer&)<>0
+RETURN
+> PROCEDURE gameover
+' Print messages, reset flags etc. for when a game is won
+@stop
+gameon!=FALSE
+boxcorpt!=TRUE
+@fixtitle
+@mbox
+PUT goverx&,ADD(my1&,2),gameover$
+IF gtype&<>1
+' Update series scores
+INC games&(cplayer&)
+INC ngames&
+' Check if series has ended
+IF gtype&=3              ! 3=fixed length series
+over!=(ngames&>=slength&)
+ELSE IF gtype&=4         ! 4=first to... series
+FOR i&=1 TO nplayers&
+IF games&(i&)>=firstto&
+over!=TRUE
+ENDIF
+NEXT i&
+ENDIF
+gameon!=NOT over!
+IF over!
+' Series is over, so print final scores
+@print(">>> SERIES COMPLETE <<<",17,12)
+@print("Final scores",1,14)
+@printseries
+@waitclick
+@attractmode
+ELSE
+@print("Game "+STR$(ngames&)+" won by "+TRIM$(nme$(cplayer&)),17,12)
+@print("Games won so far",1,14)
+@printseries
+@waitclick
+@newgame
+ENDIF
+ELSE
+' For single game just print gameover & winner
+@print(TRIM$(nme$(cplayer&))+" wins",SUCC(cplayer&),14)
+@waitclick
+@attractmode
+ENDIF
+t2&=0
+@restart
+RETURN
+> PROCEDURE waitclick
+PAUSE 80
+@print("Click to continue",1,23)
+WHILE MOUSEK=0
+WEND
+RETURN
+'
+> PROCEDURE setup_players
+' Enter new player names
+LOCAL cancel!,i&
+cancel!=FALSE
+i&=1
+@stop
+boxcorpt!=TRUE
+@mbox
+@print("Player name entry",17,8)
+@print("below (max 8 letters)",1,12)
+@print("Enter nothing to cancel",2,13)
+REPEAT
+@print("Enter name of player "+STR$(i&),1,10)
+@print("(Currently "+nme$(i&)+")",1,11)
+@print(">>>          <<<",5,15)
+LOCATE 17,15
+PCOLOR 4,0
+tnme$(i&)=""
+FORM INPUT 8 AS tnme$(i&)
+cancel!=(tnme$(i&)="")
+INC i&
+UNTIL i&>maxp& OR cancel!
+IF NOT cancel!
+FOR i&=1 TO maxp&
+nme$(i&)=tnme$(i&)
+NEXT i&
+ENDIF
+@fixnames
+@redraw
+@restart
+RETURN
+> PROCEDURE setup_series
+' Get series type & end conditions
+@stop
+LOCAL tempgt&,tempft&,tempsl&
+boxcorpt!=TRUE
+@mbox
+@print("Series game setup",17,8)
+@print("Choose series type",1,10)
+@print("Press 1 for continual play",2,12)
+@print("Press 2 for fixed number",2,14)
+@print("of games",2,15)
+@print("Press 3 for 'First to ??'",2,17)
+@print("Press 0 to cancel",2,19)
+tempgt&=SUCC(@getnum(1,3,21))
+IF tempgt&<>1
+'
+@mbox
+@print("Series game setup",17,8)
+@print("Set number of games needed",1,10)
+@print("to win 'First to ??'",1,11)
+@print("series",1,12)
+@print("Press 2-9 or 0 to cancel",2,14)
+tempft&=@getnum(2,9,16)
+IF tempft&<>0
+'
+@mbox
+@print("Series game setup",17,8)
+@print("Set number of games played",1,10)
+@print("in a fixed length series",1,11)
+@print("Press 2-9 or 0 to cancel",2,14)
+tempsl&=@getnum(2,9,16)
+IF tempsl&<>0
+slength&=tempsl&
+firstto&=tempft&
+gtype&=tempgt&
+ENDIF
+ENDIF
+ENDIF
+'
+@restart
+@attractmode
+RETURN
+> PROCEDURE setup_misc
+' Set number of random squares each
+LOCAL tempnr&,tempni&
+@stop
+boxcorpt!=TRUE
+@mbox
+@print("Miscellaneous setup",17,8)
+@print("Set max number of squares",1,10)
+@print("given to each player in",1,11)
+@print("random initial grid",1,12)
+@print("Press 1-5 or 0 to cancel",2,14)
+tempnr&=@getnum(1,5,16)
+IF tempnr&<>0
+' Set number of indestructable blocks
+@mbox
+@print("Miscellaneous setup",17,8)
+@print("Set number of",1,10)
+@print("indestructable squares in",1,11)
+@print("initial grid",1,12)
+@print("Press 1-5 or 0 to cancel",2,14)
+tempni&=@getnum(1,5,16)
+IF tempni&<>0
+nratoms&=tempnr&
+nindest&=tempni&
+ENDIF
+ENDIF
+'
+@redraw
+@restart
+RETURN
+> PROCEDURE instructions
+RESTORE insttext
+@clickprint("Instructions")
+RETURN
+> PROCEDURE about
+RESTORE abouttext
+@clickprint("About Atoms")
+RETURN
+> PROCEDURE clickprint(b$)
+LOCAL y&,a$
+@stop
+boxcorpt!=TRUE
+@mbox
+@print(b$,17,7)
+y&=9
+REPEAT
+READ a$
+IF a$="*"
+@waitclick
+@mbox
+y&=9
+@print(b$,17,7)
+ELSE IF a$<>"**"
+@print(a$,3,y&)
+INC y&
+ENDIF
+UNTIL a$="**"
+@waitclick
+@restart
+@attractmode
+RETURN
+'
+> PROCEDURE mbox
+LOCAL i&,m$
+' Draw a box for messages to be printed in
+IF boxcorpt!
+COLOR 0
+PBOX mx1&,my1&,mx2&,my2&
+ENDIF
+FOR i&=0 TO 3
+COLOR 8
+LINE mx1&-i&,my1&-i&,mx1&-i&,my2&+i&
+LINE mx1&-i&,my2&+i&,mx2&+i&,my2&+i&
+COLOR 16
+LINE mx2&+i&,my2&+i&,mx2&+i&,my1&-i&
+LINE mx2&+i&,my1&-i&,mx1&-i&,my1&-i&
+NEXT i&
+RETURN
+> PROCEDURE print(t$,p&,y&)
+LOCAL l&
+' Centralises t$, in colour p at row y
+COLOR p&
+TEXT SHR((320-SHL(LEN(t$),3)),1),SHL(y&,3)-2,t$
+RETURN
+> PROCEDURE stop
+MENU KILL
+'  EVERY STOP
+RETURN
+> PROCEDURE restart
+MENU menu$()
+@fixmenu
+@fixtitle
+'  EVERY 30 GOSUB intproc
+RETURN
+> PROCEDURE redraw
+IF gameon!
+CLEARW #0
+@redraw_grid
+@printplayers
+ENDIF
+RETURN
+> PROCEDURE playsamp(s%,l&,p&,w&)
+LOCAL k$,t&,i&,custom%
+IF noisy!
+custom%=&HDFF000
+~Forbid()
+~Disable()
+'
+WORD{custom%+&HA4}=l&            !Length
+LONG{custom%+&HA0}=s%           !address
+WORD{custom%+&HA8}=64           !vol
+WORD{custom%+&HA6}=p&            !period
+WORD{custom%+&H96}=&H8201       !Enable aud0 dma
+'
+t&=0
+REPEAT
+i&=BYTE{&HBFE801}
+REPEAT
+UNTIL i&<>BYTE{&HBFE801}
+INC t&
+UNTIL t&>w&
+'
+WORD{custom%+&H9C}=&H80          !Clear aud0 interrupt
+WORD{custom%+&H96}=1             !Disable aud0 dma
+~Enable()
+~Permit()
+REPEAT
+k$=INKEY$
+UNTIL k$=""
+ENDIF
+RETURN
+'
+> FUNCTION getnum(lo&,hi&,y&)
+LOCAL a$
+@print(">>>   <<<",5,y&)
+REPEAT
+REPEAT
+a$=INKEY$
+UNTIL INSTR("1234567890",a$)<>0
+a&=VAL(a$)
+UNTIL (a&>=lo& AND a&<=hi&) OR (a&=0)
+@print(a$,4,y&)
+IF a&<>0
+PAUSE 50
+ENDIF
+RETURN a&
+ENDFUNC
+> FUNCTION convx(a&)
+RETURN xorg&+a&*w&
+ENDFUNC
+> FUNCTION convy(a&)
+RETURN yorg&+a&*h&
+ENDFUNC
+> FUNCTION getdatlen
+LOCAL d%,n&,a$
+d%=_DATA
+n&=-1
+REPEAT
+INC n&
+READ a$
+UNTIL a$="**"
+_DATA= d%
+RETURN n&
+ENDFUNC
+'
+palette:
+DATA 000,FFF,D44,4D4,D74,C4D,46D,888
+DATA 666,444,A22,3A3,A53,93A,35A,555
+DATA 999,0FF,FF0,F00,F90,000,EEE,777
+DATA 888,999,AAA,BBB,CCC,DDD,00F,FFF
+menudata:
+DATA Atoms ,Instructions,About atoms,Quit,*
+DATA Prefs ,  Clear start grid,  Random start grid,  Change playing order
+DATA "  Indestructable blocks",  Sound,*
+DATA Start ,2 players,3 players,4 players,5 players,6 players,Stop current,*
+DATA Game options,Change names..,Series setup..,Misc. setup..,  Single game,  Continual
+DATA "  Fixed length",  First to...,Undo last move,*
+DATA **
+attrtext:
+DATA Welcome to Atoms,(C) 1992 Halibut software
+DATA Hard work by Girv
+DATA Graphics by Judith & Dave
+DATA Complex techy bits: Girv
+DATA Tested by Geoff & Norwin
+DATA Purple consultant: Cath
+DATA Late nights by Girv
+DATA Caffeine hangovers: Girv
+DATA Deep thoughts by Gav
+DATA Original game from Mark
+DATA Version 1.0
+DATA 27th October 1992
+DATA Use menus for instructions
+DATA or more information
+DATA Press 2-6 to start
+DATA Come on (everybody)...,...don't hang about...,...play the game...
+DATA ...you never know...
+DATA ...you might even like it!,""
+DATA **
+insttext:
+DATA Players take turns to
+DATA place atoms of their
+DATA colour in the grid using
+DATA the mouse. If too many
+DATA atoms are placed in one
+DATA square they will explode
+DATA "into surrounding squares,"
+DATA changing the colour of
+DATA any atoms there to that
+DATA of the current player.
+'
+DATA In this way you can wipe
+DATA out other players' atoms
+DATA and WIN !
+DATA *
+DATA Corner squares explode if
+DATA 2 atoms are placed there.,""
+DATA Other edge squares explode
+DATA with 3 or more atoms.,""
+DATA All other sqaures need 4
+DATA atoms to explode.,*
+DATA You may only place atoms
+DATA in empty squares or those
+DATA already containing atoms
+DATA of your colour.,""
+DATA Indestructable squares
+DATA (the filled in ones) may
+DATA not have atoms placed in
+DATA "them, and any atoms"
+DATA entering them from
+DATA explosions will be lost.,*
+DATA The winner is the last
+DATA player left with atoms
+DATA still in the grid.,""
+DATA Any player who loses all
+DATA their atoms is removed
+DATA from the game.,*
+DATA You can choose between
+DATA "playing a single game,"
+DATA a series of games with
+DATA "no fixed end, a series"
+DATA "with a fixed number of"
+DATA games or a series that
+DATA ends when one player
+DATA reaches a certain score.,""
+DATA You can also choose to
+DATA have a blank start grid
+DATA or to give each player
+DATA a random number of atoms.,*
+DATA And that's about it. All
+DATA will become clear when you
+DATA start to play - its not as
+DATA as hard as it sounds ;-)
+DATA "",Enjoy !
+DATA **
+abouttext:
+DATA Atoms by Halibut Software
+DATA ""
+DATA 'The story of Atoms'
+DATA ""
+DATA "Once upon a time there
+DATA was this bloke Mark.
+DATA Mark was a fairly sensible
+DATA "person, except for one"
+DATA thing - he had an ST.
+DATA ""
+DATA Oh Dear.,*
+DATA But all was not doom and
+DATA "16 colours, for Mark had"
+DATA one good game. It was a
+DATA strange PD effort by the
+DATA name of (guessed?) ATOMS !
+DATA ""
+DATA Mark would invite all his
+DATA friends round and they
+DATA would spend many a happy
+DATA hour trying to exterminate
+DATA each others atoms (sounds
+DATA painful!). All was well
+DATA with the world.,*
+DATA But all was not well for
+DATA "very long, for Mark was"
+DATA called away to serve a
+DATA higher purpose - working
+DATA for British Rail.
+DATA ""
+DATA What could Mark's friends
+DATA do ? How could they get
+DATA an Atoms fix when they
+DATA couldn't use Mark's ST ?
+DATA (They were all sensible
+DATA people and had Amigas)
+DATA And the people wailed and
+DATA gnashed their teeth.,*
+DATA ""
+DATA Then from the chaos a
+DATA "voice rose. Verily, it"
+DATA was Dave and he said:
+DATA ""
+DATA 'Why don't we get Girv
+DATA to write Atoms for the
+DATA Amiga ? Then we can play
+DATA it anytime we like.'
+DATA ""
+DATA Was there a hope yet ?
+DATA *
+DATA So Girv (me!) was told
+DATA of their plight and asked
+DATA if he could provide a
+DATA remedy. To this he replied
+DATA ""
+DATA ""
+DATA "'Yeah, probably.'"
+DATA ""
+DATA ""
+DATA "And the people rejoiced !"
+DATA *
+DATA But Girv couldn't perform
+DATA this mighty task on his
+DATA "own, hence Halibut"
+DATA Software was born.
+DATA ""
+DATA With Judith & Dave
+DATA DPainting for all their
+DATA "worth, Cath pronouncing"
+DATA "'The purple is wrong', Gav"
+DATA thinking deeply and Girv
+DATA dealing with all the
+DATA bits nobody else could
+DATA "understand, the task was"
+DATA soon complete.
+DATA *
+DATA "But being kindly souls,"
+DATA HalibutSoft realised they
+DATA couldn't keep their
+DATA creation for themselves.
+DATA And so they decided to
+DATA share it with fellow
+DATA "Amigans everywhere, in"
+DATA order that they too
+DATA could know the joy that
+DATA is winning a round of
+DATA A T O M S ..."
+DATA ""
+DATA (Extract from 'The book
+DATA of Halibut')
+DATA *
+DATA And this is where you
+DATA join the story.
+DATA ""
+DATA You are now playing the
+DATA very same game as
+DATA created by Halibut
+DATA Software. We hope you
+DATA like it.
+DATA ""
+DATA Enjoy !
+DATA *
+DATA "Atoms is (C) 1992 Halibut"
+DATA "Software, but it may be"
+DATA freely distributed about
+DATA the cosmos so long as the
+DATA following rules are
+DATA obeyed...
+DATA *
+DATA "--- RULE 1 ---"
+DATA ""
+DATA "No files are to be altered"
+DATA "in any way whatsoever."
+DATA ""
+DATA "This means the program"
+DATA "code, the data files and"
+DATA "the doc files."
+DATA ""
+DATA "LEAVE THEM ALONE !"
+DATA *
+DATA "--- RULE 2 ---"
+DATA ""
+DATA "No large wods of dosh"
+DATA "are exchanged for Atoms."
+DATA "*Reasonable* copying"
+DATA "charges are OK though, but"
+DATA "keep them down to sensible"
+DATA "levels."
+DATA ""
+DATA "We leave it to your"
+DATA "conscience as to what"
+DATA "you charge IF ANYTHING."
+DATA ""
+DATA "BE NICE"
+DATA *
+DATA "--- RULE 3 ---"
+DATA ""
+DATA "There is","","","*NO*","","","rule 3"
+DATA *
+DATA "--- RULE 4 ---"
+DATA ""
+DATA "The documentation must"
+DATA "be included in any"
+DATA "distribution."
+DATA *
+DATA The Atoms team were:
+DATA ""
+DATA John Girvin   (Girv [me!])
+DATA   - hard bits
+DATA ""
+DATA Judith Irwin
+DATA David Ewing   (Dave)
+DATA   - arty bits
+DATA ""
+DATA Catherine Thompson
+DATA Gavin Beattie (Gav)
+DATA   - general bits
+DATA *
+DATA Honourable mention goes
+DATA "to Mark Sayers, since it"
+DATA was he who introduced us
+DATA to Atoms.
+DATA ""
+DATA "A big YO goes to Norwin"
+DATA "and Geoff for beta testing"
+DATA "services rendered. Oh, and"
+DATA "for useful comments too."
+DATA *
+DATA Contact us for anything
+DATA (bugs,ideas,parties...) at
+DATA ""
+DATA "25 Moorgate Street,"
+DATA "Belfast BT5 5BZ,"
+DATA "Northern Ireland."
+DATA ""
+DATA Atoms is 'NoPressureWare'
+DATA - we're not asking for
+DATA "any cash, but donations"
+DATA are *most* appreciated ;) !
+DATA ""
+DATA *
+DATA "There. All done."
+DATA ""
+DATA "Now you can go and"
+DATA "play the game."
+DATA ""
+DATA "Have fun!"
+DATA ""
+DATA "(Girv, 27-10-92 02:54)"
+DATA **

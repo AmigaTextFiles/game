@@ -1,0 +1,1916 @@
+
+
+                                PART THREE
+
+
+NAME
+	TRAP -- Initiate processor trap
+
+SYNOPSIS
+	TRAP	#<number>
+
+FUNCTION
+	Processor starts an exception process. TRAP number is pointed
+	out by 4 bits into the instruction. 16 vectors are free to
+	be used for TRAP (vectors from 32 to 47).
+	So the <number> can go from 0 to 15.
+	PC and SR are stored to SSP, and Vector is written to PC.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|---|---|---------------|
+	| 0 | 1 | 0 | 0 | 1 | 1 | 1 | 0 | 0 | 1 | 0 | 0 |  N° of TRAP   |
+	-----------------------------------------------------------------
+
+RESULT
+	None.
+
+SEE ALSO
+	TRAPCC
+
+***********************************************************
+
+
+NAME
+	TRAPcc -- Conditional trap		(68020+)
+
+SYNOPSIS
+	TRAPcc
+	TRAPcc.w	#<data>
+	TRAPcc.l	#<data>
+
+FUNCTION
+	If "cc CONDITION" is true then there's generation of a level 7
+	exception, else execution continue normally.
+	Immediate data is optional, if given, the exception sub-routine can
+	use it.
+
+	Condition code 'cc' specifies one of the following:
+0000 F  False            Z = 1      1000 VC oVerflow Clear   V = 0
+0001 T  True             Z = 0      1001 VS oVerflow Set     V = 1
+0010 HI HIgh             C + Z = 0  1010 PL PLus             N = 0
+0011 LS Low or Same      C + Z = 1  1011 MI MInus            N = 1
+0100 CC Carry Clear      C = 0      1100 GE Greater or Equal N (+) V = 0
+0101 CS Carry Set        C = 1      1101 LT Less Than        N (+) V = 1
+0110 NE Not Equal        Z = 0      1110 GT Greater Than     Z + (N (+) V) = 0
+0111 EQ EQual            Z = 1      1111 LE Less or Equal    Z + (N (+) V) = 1
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---------------|---|---|---|---|---|-----------|
+	| 0 | 1 | 0 | 1 | cc CONDITION  | 1 | 1 | 1 | 1 | 1 |  OP-MODE  |
+	|---------------------------------------------------------------|
+	|                OPTIONAL 16 BITS IMMEDIATE DATA                |
+	|---------------------------------------------------------------|
+	|                OPTIONAL 32 BITS IMMEDIATE DATA                |
+	-----------------------------------------------------------------
+
+OP-MODE
+	010-> instruction followed of 16 bits.
+	011-> instruction followed of 32 bits.
+	100-> instruction with no immediate operand.
+
+RESULT
+	None.
+
+SEE ALSO
+	TRAP
+
+***********************************************************
+
+
+NAME
+
+	TRAPv  -- Trap on overflow
+
+SYNOPSIS
+	TRAPV
+
+FUNCTION
+	If overflow capacity condition is true (V = 1) then there's
+	generation of a level 7 exception, else execution continue
+	normally.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+	| 0 | 1 | 0 | 0 | 1 | 1 | 1 | 0 | 0 | 1 | 1 | 1 | 0 | 1 | 1 | 0 |
+	-----------------------------------------------------------------
+
+RESULT
+	None.
+
+SEE ALSO
+	TRAPCC TRAP
+
+***********************************************************
+
+
+NAME
+	TST -- Test operand for zero
+
+SYNOPSIS
+	TST	<ea>
+
+	Size = (Byte, Word, Long)
+
+FUNCTION
+	Operand is compared with zero. Flags are set according to the result.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|-------|-----------|-----------|
+	| 0 | 1 | 0 | 0 | 1 | 0 | 1 | 0 | SIZE  |   MODE    |  REGISTER |
+	----------------------------------------=========================
+                                                          <ea>
+
+SIZE
+	00->one Byte operation
+	01->one Word operation
+	10->one Long operation
+
+REGISTER
+	<ea> is destination, if size is 16 or 32 bits then all addressing
+	modes are allowed. If size is 8 bits, allowed addressing modes are:
+	--------------------------------- -------------------------------
+	|Addressing Mode|Mode| Register | |Addressing Mode|Mode|Register|
+	|-------------------------------| |-----------------------------|
+	|      Dn       |000 |N° reg. Dn| |    Abs.W      |111 |  000   |
+	|-------------------------------| |-----------------------------|
+	|      An       | -  |    -     | |    Abs.L      |111 |  001   |
+	|-------------------------------| |-----------------------------|
+	|     (An)      |010 |N° reg. An| |   (d16,PC)    |111 |  010   |
+	|-------------------------------| |-----------------------------|
+	|     (An)+     |011 |N° reg. An| |   (d8,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    -(An)      |100 |N° reg. An| |   (bd,PC,Xi)  |111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|    (d16,An)   |101 |N° reg. An| |([bd,PC,Xi],od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (d8,An,Xi)  |110 |N° reg. An| |([bd,PC],Xi,od)|111 |  011   |
+	|-------------------------------| |-----------------------------|
+	|   (bd,An,Xi)  |110 |N° reg. An| |    #data      | -  |   -    |
+	|-------------------------------| -------------------------------
+	|([bd,An,Xi]od) |110 |N° reg. An|
+	|-------------------------------|
+	|([bd,An],Xi,od)|110 |N° reg. An|
+	---------------------------------
+
+RESULT
+	X - Not affected.
+	N - Set if the result is negative. Cleared otherwise.
+	Z - Set if the result is zero. Cleared otherwise.
+	V - Always cleared.
+	C - Always cleared.
+
+SEE ALSO
+	BTST	BFTST
+
+***********************************************************
+
+
+NAME
+	UNLK -- Free stack frame created by LINK
+
+SYNOPSIS
+	UNLK	An
+
+FUNCTION
+	This instruction does the inverse process of LINK instruction.
+	Address register specified is moved in SP.
+	Contents of SP is moved into address register.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|---|---|---|---|---|---|---|---|---|-----------|
+	| 0 | 1 | 0 | 0 | 1 | 1 | 1 | 0 | 0 | 1 | 0 | 1 | 1 | REGISTER  |
+	-----------------------------------------------------------------
+
+	"REGISTER" indicates the number of address register, used as area
+	pointer.
+
+RESULT
+	None.
+
+SEE ALSO
+	LINK
+
+***********************************************************
+
+
+NAME
+	UNPK -- Unpack binary coded decimal	(68020+)
+
+SYNOPSIS
+	UNPK	-(Ax),-(Ay),#<adjustment>
+	UNPK	Dx,Dy,#<adjustment>
+
+	No size specs
+
+FUNCTION
+	Convert packed two-digit-per-byte BCD to byte-per-digit
+	unpacked BCD.
+
+FORMAT
+	-----------------------------------------------------------------
+	|15 |14 |13 |12 |11 |10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	|---|---|---|---|-----------|---|---|---|---|---|---|-----------|
+	| 1 | 0 | 0 | 0 |   Dy/Ay   | 1 | 1 | 0 | 0 | 0 |R/M|   Dx/Ax   |
+	|---------------------------------------------------------------|
+	|                    16 BITS ADJUSTMENT                         |
+	-----------------------------------------------------------------
+
+	R/M = 0 -> data register.
+	R/M = 1 -> Memory by pre-decrementing.
+	Register Dy/Ay specifies destination register.
+	Register Dx/Ax specifies source register.
+	"16 BITS ADJUSTMENT" is an immediate value added to source operand.
+
+RESULT
+	None.
+
+SEE ALSO
+	PACK
+
+***********************************************************
+##*********************************************************
+
+
+
+These following two tables indicate the number of clock periods for the move
+instruction. This data includes instruction fetch, operand reads, and operand
+writes. The number of bus read and write cycles is shown in parenthesis 
+as (r/w).
+
+
+		Move Byte and Word Instruction Execution Times
+
+     	 Dn	 An	 (An)	 (An)+	-(An)	 d(An)	d(An,ix) xxx.W	|xxx.L
+
+Dn	 4(1/0)	 4(1/0)	 8(1/1)	 8(1/1)  8(1/1)	12(2/1) 14(2/1) 12(2/1) 16(3/1)
+An	 4(1/0)	 4(1/0)	 8(1/1)	 8(1/1)	 8(1/1)	12(2/1) 14(2/1) 12(2/1) 16(3/1)
+(An)	 8(2/0)	 8(2/0)	12(2/1) 12(2/1) 12(2/1) 16(3/1) 18(3/1) 16(3/1) 20(4/1)
+(An)+	 8(2/0)	 8(2/0) 12(2/1) 12(2/1) 12(2/1) 16(3/1) 18(3/1) 16(3/1) 20(4/1)
+-(An)	10(2/0) 10(2/0) 14(2/1) 14(2/1) 14(2/1) 18(3/1) 20(4/1) 18(3/1) 22(4/1)
+d(An)	12(3/0) 12(3/0) 16(3/1) 16(3/1) 16(3/1) 20(4/1) 22(4/1) 20(4/1) 24(5/1)
+d(An,ix)14(3/0) 14(3/0) 18(3/1) 18(3/1) 18(3/1) 22(4/1) 24(4/1) 22(4/1) 26(5/1)
+xxx.W	12(3/0) 12(3/0) 16(3/1) 16(3/1) 16(3/1) 20(4/1) 22(4/1) 20(4/1) 24(5/1)
+xxx.L	16(4/0) 16(4/0) 20(4/1) 20(4/1) 20(4/1) 24(5/1) 26(5/1) 24(5/1) 28(6/1)
+d(PC)	12(3/0) 12(3/0) 16(3/1) 16(3/1) 16(3/1) 20(4/1) 22(4/1) 20(4/1) 24(5/1)
+d(PC,ix)14(3/0) 14(3/0) 18(3/1) 18(3/1) 18(3/1) 22(4/1) 24(4/1) 22(4/1) 26(5/1)
+#xxx	 8(2/0)	 8(2/0) 12(2/1) 12(2/1) 12(2/1) 16(3/1) 18(3/1) 16(3/1) 20(4/1)
+
+The size of the index register (ix) does not affect execution time
+
+
+		Move Long Instruction Execute Times 
+
+     	 Dn	 An	 (An)	 (An)+	-(An)	 d(An)	d(An,ix) xxx.W	|xxx.L
+
+Dn	 4(1/0)	 4(1/0)	12(1/2)	12(1/2)	12(1/2)	16(2/2)	18(2/2)	16(2/2)	20(3/2)
+An	 4(1/0)	 4(1/0)	12(1/2)	12(1/2)	12(1/2)	16(2/2)	18(2/2)	16(2/2)	20(3/2)
+(An)	12(3/0)	12(3/0)	20(3/2)	20(3/2)	20(3/2)	24(4/2)	26(4/2)	24(4/2)	28(5/2)
+(An)+	12(3/0)	12(3/0)	20(3/2)	20(3/2)	20(3/2)	24(4/2)	26(4/2)	24(4/2)	28(5/2)
+-(An)	14(3/0)	14(3/0)	22(3/2)	22(3/2)	22(3/2)	26(4/2)	28(4/2)	26(4/2)	30(5/2)
+d(An)	16(4/0)	16(4/0)	24(4/2)	24(4/2)	24(4/2)	28(5/2)	30(5/2)	28(5/2)	32(6/2)
+d(An,ix)18(4/0)	18(4/0)	26(4/2)	26(4/2)	26(4/2)	30(5/2)	32(5/2)	30(5/2)	34(6/2)
+xxx.W	16(4/0)	16(4/0)	24(4/2)	24(4/2)	24(4/2)	28(5/2)	30(5/2)	28(5/2)	32(6/2)
+xxx.L	20(5/0)	20(5/0)	28(5/2)	28(5/2)	28(5/2)	32(6/2)	34(6/2)	32(6/2)	36(7/2)
+d(PC)	16(4/0)	16(4/0)	24(4/2)	24(4/2)	24(4/2)	28(5/2)	30(5/2)	28(5/2)	32(5/2)
+d(PC,ix)18(4/0)	18(4/0)	26(4/2)	26(4/2)	26(4/2)	30(5/2)	32(5/2)	30(5/2)	34(6/2)
+#xxx	12(3/0)	12(3/0)	20(3/2)	20(3/2)	20(3/2)	24(4/2)	26(4/2)	24(4/2)	28(5/2)
+
+The size of the index register (ix) does not affect execution time
+
+
+
+
+The number of clock periods shown in this table indicates the time required
+to perform the operations, store the results and read the next instruction.
+The number of bus read and write cycles is shown in parenthesis as (r/w).
+The number of clock periods and the number of read and write cycles must be
+added respectively to those of the effective address calculation where 
+indicated.
+
+In the following table the headings have the following meanings: 
+An = address register operand, Dn = data register operand, ea = an operand
+specified by an effective address, and M = memory effective address operand.
+
+
+		Standard Instruction Execution Times
+
+instruction	Size		op<ea>,An ^	op<ea>,Dn	op Dn,<M>
+
+ADD		byte,word	8(1/0) +	  4(1/0) +	 8(1/1) +
+		  long		6(1/0) +**	  6(1/0) +**	12(1/2) +
+AND		byte,word	   -		  4(1/0) +	 8(1/1) +
+		  long		   -		  6(1/0) +**	12(1/2) +
+CMP		byte,word	6(1/0) +	  4(1/0) +	   -
+		  long		6(1/0) +	  6(1/0) +	   -
+DIVS		    -		   -		158(1/0) +*	   -
+DIVU		    -		   -		140(1/0) +*	   -
+EOR		byte,word	   -		  4(1/0) ***	 8(1/1) +
+		  long		   -		  8(1/0) ***	12(1/2) +
+MULS		    -		   -		 70(1/0) +*	   -
+MULU		    -		   -		 70(1/0) +*	   -
+OR		byte,word	   -		  4(1/0) +**	 8(1/1) +
+		  long		   -		  6(1/0) +**	12(1/2) +
+SUB		byte,word	8(1/0) +	  4(1/0) +	 8(1/1) +
+		  long		6(1/0) +**	  6(1/0) +**	12(1/2) +
+
+notes:	+ Add effective address calculation time
+	^ Word or long only
+	* Indicates maximum value
+       ** The base time of six clock periods is increased to eight		
+	  if the effective address mode is register direct or 
+	  immediate (effective address time should also be added)
+      *** Only available effective address mode is data register direct
+	  
+	DIVS,DIVU - The divide algorithm used by the MC68000 provides less
+		    than 10% difference between the best and the worst case
+		    timings.
+	MULS,MULU - The multiply algorithm requires 38+2n clocks where
+		    n is defined as:
+		MULU: n = the number of ones in the <ea>
+		MULS: n = concatanate the <ea> with a zero as the LSB;
+			  n is the resultant number of 10 or 01 patterns
+			  in the 17-bit source; i.e., worst case happens
+			  when the source is $5555
+
+
+
+The number of clock periods periods shown in this table includes the time to
+fetch immediate operands, perform the operations, store the results and read 
+the next operation. The number of bus read and write cycles is shown in
+parenthesis as (r/w). The number of clock periods and the number of read and 
+write cycles must be added respectively to those of the effective address
+calculation where indicated.
+
+
+		Immediate Instruction Execution Times
+
+instruction	size		op #,Dn		op #,An		op #,M
+
+ADDI		byte,word	 8(2/0)		  -		12(2/1) +
+		  long		16(3/0)		  -		20(3/2) +
+ADDQ		byte,word	 4(1/0)		8(1/0) *	 8(1/1) +
+		  long		 8(1/0)		8(1/0)		12(1/2) +
+ANDI		byte,word	 8(2/0)		  -		12(2/1) +
+		  long		16(3/0)		  -		20(3/1) +
+CMPI		byte,word	 8(2/0)		  -		 8(2/0) +
+		  long		14(3/0)		  -		12(3/0) +
+EORI		byte,word	 8(2/0)		  -		12(2/1) +
+		  long		16(3/0)		  -		20(3/2) +
+MOVEQ		  long		 4(1/0)		  -		   -
+ORI		byte,word	 8(2/0)		  -		12(2/1) +
+		  long		16(3/0)		  -		20(3/2) +
+SUBI		byte,word	 8(2/0)		  -		12(2/1) +
+		  long		16(3/0)		  -		20(3/2) +
+SUBQ		byte,word	 4(1/0)		8(1/0) *	 8(1/1) +
+		  long		 8(1/0)		8(1/0)		12(1/2) +
+
+	+ Add effective address calculation time
+	* word only
+
+
+
+
+This table indicates the number of clock periods for the single operand
+instructions. The number of bus read and write cycles is shown in parenthesis
+as (r/w). The number of clock periods and the number of read and write cycles
+must be added respectively to those of the effective address calculation
+where indicated.
+
+
+		Single Operand Instruction Execution Times
+
+instruction	size		register	 memory
+
+CLR		byte,word	4(1/0)		 8(1/1) +
+		  long		6(1/0)		12(1/2) +
+NBCD		  byte		6(1/0)		 8(1/1) +
+NEG		byte,word	4(1/0)		 8(1/1) +
+		  long		6(1/0)		12(1/2) +
+NEGX		byte,word	4(1/0)		 8(1/1) +
+		  long		6(1/0)		12(1/2) +
+NOT		byte,word	4(1/0)		 8(1/1) +
+		  long		6(1/0)		12(1/2) +
+Scc		byte,false	4(1/0)		 8(1/1) +
+		byte,true	6(1/0)		 8(1/1) +
+TAS #		  byte		4(1/0)		10(1/1) +
+TST		byte,word	4(1/0)		 4(1/0) +
+		  long		4(1/0)		 4(1/0) +
+
+	+ add effective address calculation time
+        # This instruction should never be used on the Amiga as its invisiable
+          read/write cycle can disrupt system DMA. 
+
+
+
+
+This table indicates the number of clock periods for the shift and rotate
+instructions. The number of read and write cycles is shown in parenthesis
+as (r/w). The number of clock periods and the number of read and write
+cycles must be added respectively to those of the effective address
+calculation where indicated.
+
+
+		Shift/Rotate Instruction Execution Times
+
+instruction	size		register	memory
+
+ASR,ASL		byte,word	6+2n(1/0)	8(1/1) +
+		  long		8+2n(1/0)	  -
+LSR,LSL		byte,word	6+2n(1/0)	8(1/1) +
+		  long		8+2n(1/0)	  -
+ROR,ROL		byte,word	6+2n(1/0)	8(1/1) +
+		  long		8+2n(1/0)	  -
+ROXR,ROXl	byte,word	6+2n(1/0)	8(1/1) +
+		  long		8+2n(1/0)	  -
+
+	+ add effective address calculation time
+	n is the shift or rotate count
+
+
+
+This table indicates the number of clock periods required for the bit
+manipulation instructions. The number of read and write cycles is shown in 
+parenthesis as (r/w). The number of clock periods and the number of read and 
+write cycles must be added respectively to those of the effective address
+calculation where indicated.
+
+
+		Bit Manipulation Instruction Execution Times
+
+instruction	size		dynamic			static
+			register   memory	register   memory	
+BCHG		byte	   -	   8(1/1) +	   -	   12(2/1) +
+		long	 8(1/0) *    -		12(2/0) *     -
+BCLR		byte	   -	   8(1/1) +	   -	   12(2/1) +
+		long	10(1/0) *    -		14(2/0) *     -
+BSET		byte	   -	   8(1/1) +	   -	   12(2/1) +
+		long	 8(1/0) *    -		12(2/0) *     -
+BTST		byte	   -  	   4(1/0) +	   -	    8(2/0) +
+		long	 6(1/0)	     -		10(2/0)       -
+
+	+ add effective address calculation time
+	* indicates maximum value
+
+
+
+This table indicates the number of clock periods for the conditional
+instructions. The number of read and write cycles is shown in parenthesis
+as (r/w). The number of clock periods and the number of read and write
+cycles must be added respectively to those of the effective address
+calculation where indicated.
+
+
+		Conditional Instruction Execution Times
+
+instruction	displacement	branch		 branch
+				taken		not taken
+
+Bcc		byte		10(2/0)		 8(1/0)
+		word		10(2/0)		12(1/0)
+BRA		byte		10(2/0)		   -
+		word		10(2/0)		   -
+BSR		byte		18(2/2)		   -
+		word		18(2/2)		   -
+DBcc		CC true		   -		12(2/0)
+		CC false	10(2/0)		14(3/0)
+
+
+
+This Table indicates the number of clock periods required for the jump,
+jump-to-subroutine, load effective address, push effective address and
+move multiple registers instructions. The number of bus read and write 
+cycles is shown in parenthesis as (r/w).
+
+
+	JMP, JSR, LEA, PEA and MOVEM Instruction Execution Times
+
+instr	size	(An)		(An)+		-(An)	d(An)	
+JMP	-	  8(2/0)	   -		  -	10(2/0)
+JSR	-	 16(2/2)	   -		  -	18(2/2)
+LEA	-	  4(1/0)	   -		  -	 8(2/0)
+PEA	-	 12(1/2)	   -		  -	16(2/2)
+MOVEM	word	   12+4n	   12+4n	  -	  16+4n
+M->R		 (3+n/0)	 (3+n/0)	  -	(4+n/0)
+	long	   12+8n	   12+8n	  -	  16+8n
+		(3+2n/0)	(3+2n/0)	  -    (4+2n/0)
+MOVEM	word	    8+4n	   -		  8+4n	  12+4n
+R->M		   (2/n)	   -		 (2/n)	  (3/n)
+	long	    8+8n	   -		  8+8n	  12+8n
+		  (2/2n)	   -		(2/2n)	 (3/2n)
+
+instr	size	d(An,ix)+   xxx.W      xxx.L      d(PC)      d(PC,ix)*
+JMP	 -	 14(3/0)    10(2/0)    12(3/0)	  10(2/0)    14(3/0)
+JSR	 -	 22(2/2)    18(2/2)    20(3/2)	  18(2/2)    22(2/2)
+LEA	 -	 12(2/0)     8(2/0)    12(3/0)	   8(2/0)    12(2/0)
+PEA	 -	 20(2/2)    16(2/2)    20(3/2)	  16(2/2)    20(2/2)
+MOVEM	word	   18+4n      16+4n      20+4n	    16+4n      18+4n
+M->R		 (4+n/0)    (4+n/0)    (5+n/0)	  (4+n/0)    (4+n/0)
+	long	   18+8n      16+8n      20+8n	    16+8n      18+8n
+		(4+2n/0)   (4+2n/0)   (5+2n/0)	 (4+2n/0)   (4+2n/0)
+MOVEM	word	   14+4n      12+4n      16+4n	    -		-
+R->M		   (3/n)      (3/n)      (4/n)	    -		-
+	long	   14+8n      12+8n      16+8n	    -		-
+		  (3/2n)     (3/2n)     (4/2n)	    -		-
+
+n is the number of registers to move
+* is the size of the index register (ix) does not affect the instruction's
+  execution time
+
+
+
+This table indicates the number of clock periods for the multi-precision
+instructions. The number of clock periods includes the time to fetch both
+operands, perform the operations, store the results and read the next 
+instructions. The number of read and write cycles is shown in parenthesis 
+as (r/w).
+
+The headings have the following meanings: Dn = data register operand and
+M = memory operand.
+
+
+		Multi-Presicion Instruction Execution Times
+
+instruction	size		op Dn,Dn	op M,M
+
+ADDX		byte,word	4(1/0)		18(3/1)
+		  long		8(1/0)		30(5/2)
+CMPM		byte,word	  -		12(3/0)
+		  long		  -		20(5/0)
+SUBX		byte,word	4(1/0)		18(3/1)
+		  long		8(1/0)		30(5/2)
+ABCD		  byte		6(1/0)		18(3/1)
+SBCD		  byte		6(1/0)		18(3/1)
+
+
+
+This table indicates the number of clock periods for the following 
+miscellaneous instructions. The number of bus read and write cycles is shown 
+in parenthesis as (r/w). The number of clock periods and plus the number
+of read and write cycles must be added to those of the effective address
+calculation where indicated.
+
+
+		Miscellaneous Instruction Execution Times
+
+instruction	size	register	memory
+
+ANDI to CCR	byte	 20(3/0)	   -
+ANDI to SR	word	 20(3/0)	   -
+CHK		 -	 10(1/0) +	   -
+EORI to CCR	byte	 20(3/0)	   -
+EORI to SR	word	 20(3/0)	   -
+ORI to CCR	byte	 20(3/0)	   -
+ORI to SR	word	 20(3/0)	   -
+MOVE from SR	 -	  6(1/0)	 8(1/1)+
+MOVE to CCR	 -	 12(1/0)	12(1/0)+
+MOVE to SR	 -	 12(1/0)	12(1/0)+
+EXG		 -	  6(1/0)	   -
+EXT		word	  4(1/0)	   -
+		long	  4(1/0)	   -
+LINK		 -	 16(2/2)	   -
+MOVE from USP	 -	  4(1/0)	   -
+MOVE to USP	 -	  4(1/0)	   -
+NOP		 -	  4(1/0)	   -
+RESET		 -	132(1/0)	   -
+RTE		 -	 20(5/0)	   -
+RTR		 -	 20(5/0)	   -
+RTS		 -	 16(4/0)	   -
+STOP		 -	  4(0/0)	   -
+SWAP		 -	  4(1/0)	   -
+TRAPV (No Trap)	 -	  4(1/0)	   -
+UNLK		 -	 12(3/0)	   -
+
+	+ add effective address calculation time
+
+
+
+instruction	size	register->memory	memory->register
+
+MOVEP		word	16(2/2)			16(4/0)	
+		long	24(2/4)			24(6/0)
+
+
+
+This table indicates the number of clock periods for exception processing.
+The number of clock periods includes the time for all stacking, the vector
+fetch and the fetch of the first two instruction words of the handler routine.
+The number of bus read and write cycles is shown in parenthesis as (r/w).
+
+
+		Exception Processing Execution Times
+
+	exception			periods
+
+	address error			50(4/7)
+	bus error			50(4/7)
+	CHK instruction (trap taken)	44(5/3)+
+	Divide by Zero			42(5/3)
+	illegal instruction		34(4/3)
+	interrupt			44(5/3)*
+	privilege violation		34(4/3)
+        _____
+	RESET **			40(6/0)
+	trace				34(4/3)
+	TRAP instruction		38(4/3)
+	TRAPV instruction (trap taken)	34(4/3)
+
+	+ add effective address calculation time
+	* the interrupt acknowledge cycle is assumed to take four
+	  clock periods
+                                       _____     ____
+       ** indicates the time from when RESET and HALT are first
+	  sampled as negated to when instruction execution starts
+
+##*************************************************************************
+
+
+
+                              ASP68K PROJECT
+
+                              Sixth Edition
+
+                             by Michael Glew
+                        mglew@aurel.ocs.mq.edu.au
+                      Technophilia BBS +61-2-8073563
+
+                               January 1994
+
+
+---------------------------------------------------------------------------
+			  C O N T R I B U T O R S
+---------------------------------------------------------------------------
+
+
+Erik Bakke, Robert Barton, Bernd Blank, Kasimir Blomstedt, Frans Bouma,
+David Carson, Nicolas Dade, Aaron Digulla, Irmen de Jong, Andy Duplain,
+Denis Duplan, Steven Eker, Calle Englund, Alexander Fritsch, Charlie Gibbs,
+Kurt Haenen, Jon Hudson, Kjetil Jacobsen, Olav Kalgraf, Makoto Kamada,
+Markku Kolkka, John Lane, Jonathan Mahaffy, Dave Mc Mahan, Lindsay Meek,
+Walter Misar, Boerge Noest, Gunnar Rxnning, Jay Scott, Olaf Seibert,
+Peter Simons.
+
+
+---------------------------------------------------------------------------
+			  I N T R O D U C T I O N
+---------------------------------------------------------------------------
+
+
+A while back, I was quite interested to find that there was an electronic
+magazine called "howtocode" that included lots of interesting hints and
+tips of coding.  In the fifth edition, there was a list of optimizations
+that really got be thinking.  "What if there was a proggy that you could
+put an assembler program through, that would speed it up, taking out all
+the stupid things output by compilers, and over-tired coders?" 8).  I
+started combing the networks, and came across one such program, called
+the "SELCO Source Optimizer".  It only had four optimizations, so I set
+to writing my own.
+
+Step one was to collect as many optimization ideas as I could.  I posted
+to Usenet and got an impressive response, and the contributors are listed
+above.  I promised a report on the optimizations recieved, and here it
+is.  My aim now is to write a program to make these optimizations, and
+to distribute it.  Contributers will recieve a copy of the final archive,
+to thank them for their time and energy.  Further contributions will be
+welcomed, so rather than making changes yourself tell me what you want
+changed, and i'll distribute it with the next update.
+
+
+---------------------------------------------------------------------------
+			       C H A N G E S
+---------------------------------------------------------------------------
+
+
+2nd Edition
+
+The second edition incorporated a hell of a lot of corrections.  Double
+copies of some optimizations were incorporated in to just one copy, and
+a few additions were made.  Sorry that the first edition was not sent
+out to all contributors, but I was a tad busy. 8)
+
+
+3rd Edition
+
+Due to the distribution of the second edition document, many comments were
+recieved and a couple of the "optimizations" were found to be incorrect.
+Analysis of the mul/div optimizations ended in a few modifications for
+safety.  They still save a huge number of clock cycles, so it is better to
+be safe than sorry.
+
+Also, I have made it so that the number of words of space saved or
+increased is shown.  Space savings are positive, increases are negative.
+Zero means no change.
+
+
+4th Edition
+
+Some minor changes and additions as well as the addition of columns for
+'030 and '040 CPUs - whole new format was required...
+
+
+5th Edition
+
+Eric Bakke released his docs on 020+ CPUs and 881/882 FPUs.  I have been
+given premission to use these docs to further the capabilities of asp68k.
+Thanks Eric...  I really would like to get a hold of the 020,030,040
+Programmer Reference Cards or manuals, so if anyone has any copies they
+wanna send me, let me know...  Local Motorola Distributers are not too
+helpful.
+
+
+6th Edition
+
+Aaron Digulla advised that it would be helpful if the optimizations were
+sorted somehow.  I will sort by the the first letters of the first line
+of the optimizations.  Also a special thanks to Makoto Kamada for his
+detailed contributions, without such this text would have died long ago..
+
+
+---------------------------------------------------------------------------
+			 O P T I M I Z A T I O N S
+---------------------------------------------------------------------------
+
+
+Note:-
+
+    m?	    = memory operand
+    dx	    = data register
+    ds	    = data register (scratch)
+    ax	    = address register
+    rx	    = either a data or address register
+    #n	    = immediate operand
+    ??,?1,?2= address label
+    *	    = anything
+    .x	    = any size
+    b<cc>   = branch commands
+
+    Opt     = optimization
+    Notes   = notes about where optimization is valid, and misc notes
+    Speed   = are clock periods saved? ("Y" = yes
+					"y" = in some cases
+					"N" = no
+					"*" = increase
+					"-" = cannot be used on this cpu
+					"!" = must be used on this cpu)
+    Size    = how many bytes are saved?
+
+-------------------------------------------------------------
+Opt					    Speed	 Size
+				     000 010 020 030 040
+------------------------------------+---+---+---+---+---+----
+* ??* -> * n(pc)*		    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ n = ??-pc, n < 32768
+------------------------------------+---+---+---+---+---+----
+*0(ax)* -> *(ax)*		    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+add*.x #0,dx -> tst.x dx	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+add.x #n,* -> addq.x #n,*	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+ if 1 <= n <= 8
+------------------------------------+---+---+---+---+---+----
+add.x #n,* -> subq.x #-n,*	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+ -8 <= n <= -1
+------------------------------------+---+---+---+---+---+----
+add.x #n,ax -> lea n(ax),ax	    | Y | Y | ? | ? | ? | 0/2
+------------------------------------+---+---+---+---+---+----
+ -32767 <= n <= -9, 9 <= n <= 32767
+------------------------------------+---+---+---+---+---+----
+addq.l #n,ax -> addq.w #n,ax	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+addq.l #n,ry -> add.l #(n+m),ry     | Y | Y | ? | ? | ? | -2
+addq.l #m,ry			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+addq.x #2,ax   -> move.w *,(ax)     | Y | Y | ? | Y | ? | 2
+move.w *,-(ax)                      |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+------------------------------------+---+---+---+---+---+----
+addq.x #4,ax   -> move.l *,(ax)     | Y | Y | ? | Y | ? | 2
+move.l *,-(ax)                      |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+------------------------------------+---+---+---+---+---+----
+addq.x #6,ax    -> move.w *1,4(ax)  | Y | Y | ? | ? | ? | 0
+move.w *1,-(ax)    move.l *2,(ax)   |   |   |   |   |   |
+move.l *2,-(ax)                     |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+ *1 and *2 do not contain ax
+------------------------------------+---+---+---+---+---+----
+addq.x #6,ax    -> move.l *1,2(ax)  | Y | Y | ? | ? | ? | 0
+move.l *1,-(ax)    move.w *2,(ax)   |   |   |   |   |   |
+move.w *2,-(ax)                     |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+ *1 and *2 do not contain ax
+------------------------------------+---+---+---+---+---+----
+addq.x #8,ax    -> move.l *1,4(ax)  | Y | Y | ? | ? | ? | 0
+move.l *1,-(ax)    move.l *2,(ax)   |   |   |   |   |   |
+move.l *2,-(ax)                     |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+ *1 and *2 do not contain ax
+------------------------------------+---+---+---+---+---+----
+addq.x #4,sp -> move.l ax,(sp)      | Y | Y | ? | Y | ? | 2
+pea (ax)                            |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+ ax,ay are not a7(=sp)
+------------------------------------+---+---+---+---+---+----
+addq.x #6,sp   -> move.w *,4(sp)    | Y | Y | ? | ? | ? | 0
+move.w *,-(sp)    move.l ax,(sp)    |   |   |   |   |   |
+pea (ax)                            |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+ ax,ay are not a7(=sp)
+------------------------------------+---+---+---+---+---+----
+addq.x #6,sp   -> move.l ax,2(sp)   | Y | Y | ? | ? | ? | 0
+pea (ax)          move.w *,(sp)     |   |   |   |   |   |
+move.w *,-(sp)                      |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+ ax,ay are not a7(=sp)
+------------------------------------+---+---+---+---+---+----
+addq.x #8,sp   -> move.l *,4(sp)    | Y | Y | ? | ? | ? | 0
+move.l *,-(sp)    move.l ax,(sp)    |   |   |   |   |   |
+pea (ax)                            |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+ ax,ay are not a7(=sp)
+------------------------------------+---+---+---+---+---+----
+addq.x #8,sp   -> move.l ax,4(sp)   | Y | Y | ? | ? | ? | 0
+pea (ax)          move.l *,(sp)     |   |   |   |   |   |
+move.l *,-(sp)                      |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+ ax,ay are not a7(=sp)
+------------------------------------+---+---+---+---+---+----
+addq.x #8,sp -> move.l ax,4(sp)     | Y | Y | ? | ? | ? | 0
+pea (ax)        move.l ay,(sp)      |   |   |   |   |   |
+pea (ay)                            |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ .x is .w or .l
+ ax,ay are not a7(=sp)
+------------------------------------+---+---+---+---+---+----
+and.l #n,dx -> bclr.l #b,dx	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+not(n) = 2^b (only 1 bit off)
+------------------------------------+---+---+---+---+---+----
+asl.b #2,dy -> add.b dy,dy	    | Y | Y | ? | ? | ? | -2
+	       add.b dy,dy	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+asl.b #n,dx -> clr.b dx 	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=8
+------------------------------------+---+---+---+---+---+----
+asl.l #16,dx -> swap dx 	    | Y | Y | ? | ? | ? | -2
+		clr.w dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+asl.l #n,dx -> asl.w #(n-16),dx     | Y | Y | ? | ? | ? | -4
+	       swap dx		    |	|   |	|   |	|
+	       clr.w dx 	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, 16<n<32
+------------------------------------+---+---+---+---+---+----
+asl.l #n,dx -> moveq #0,dx	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=32
+------------------------------------+---+---+---+---+---+----
+asl.w #2,dy -> add.w dy,dy	    | Y | Y | ? | ? | ? | -2
+	       add.w dy,dy	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+asl.w #n,dx -> clr.w dx 	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=16
+------------------------------------+---+---+---+---+---+----
+asl.x #1,dy -> add.x dy,dy	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+asr.b #n,dx -> clr.b dx 	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=8
+------------------------------------+---+---+---+---+---+----
+asr.l #16,dx -> swap dx 	    | Y | Y | ? | ? | ? | -2
+		ext.l dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+asr.l #n,dx -> moveq #0,dx	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=32
+------------------------------------+---+---+---+---+---+----
+asr.l #n,dx -> swap dx		    | Y | Y | ? | ? | ? | -4
+	       asr.w #(n-16),dx     |	|   |	|   |	|
+	       ext.l dx 	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, 16<n<32
+------------------------------------+---+---+---+---+---+----
+asr.w #n,dx -> clr.w dx 	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=16
+------------------------------------+---+---+---+---+---+----
+b<cc>.w ?? -> b<cc>.s ??	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ abs(??-pc)<128
+------------------------------------+---+---+---+---+---+----
+bclr.l #n,dx -> and.w #m,dx         | Y | Y | ? | Y | ? | 0
+------------------------------------+---+---+---+---+---+----
+ 0 <= n <= 15, m = 65535-(2^n)
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+bra ?? -> (nothing)		    | Y | Y | Y | ? | ? | 2/4
+??	  ??			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ remove null branches, but keep the label
+------------------------------------+---+---+---+---+---+----
+bset.b #7,m? -> tas m?              | y | y | ? | ? | ? | 2
+beq ??          bpl ??              |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ m? must be address allowing read-modify-write transfer.
+ Status flags are wrong
+------------------------------------+---+---+---+---+---+----
+bset.b #7,m? -> tas m?              | y | y | ? | ? | ? | 2
+bne ??          bmi ??              |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ m? must be address allowing read-modify-write transfer.
+ Status flags are wrong
+------------------------------------+---+---+---+---+---+----
+bset.b #7,m? -> tas m?              | y | y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ m? must be address allowing read-modify-write transfer.
+ Status flags are wrong
+------------------------------------+---+---+---+---+---+----
+bset.l #7,dx -> tas dx              | Y | Y | ? | Y | ? | 2
+beq ??          bpl ??              |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+bset.l #7,dx -> tas dx              | Y | Y | ? | Y | ? | 2
+bne ??          bmi ??              |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+bset.l #7,dx -> tas dx              | Y | Y | ? | Y | ? | 2
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+bset.l #n,dx -> or.w #m,dx          | Y | Y | ? | Y | ? | 0
+------------------------------------+---+---+---+---+---+----
+ 0 <= n <= 15, m = 2^n
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+bsr ?? -> bra ??		    | Y | Y | ? | ? | ? | 2
+rts				    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ different stack depth
+------------------------------------+---+---+---+---+---+----
+btst.b #7,m? -> tst.b m?            | Y | Y | ? | ? | ? | 2
+beq ??          bpl ??              |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ Status flags are wrong.  Not valid for Dn, d16(PC), d8(PC,Xn)
+ dest address modes.
+------------------------------------+---+---+---+---+---+----
+btst.b #7,m? -> tst.b m?            | Y | Y | ? | ? | ? | 2
+bne ??          bmi ??              |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ Status flags are wrong.  Not valid for Dn, d16(PC), d8(PC,Xn)
+ dest address modes.
+------------------------------------+---+---+---+---+---+----
+btst.l #7,dx -> tst.b dx            | Y | Y | ? | Y | ? | 2
+beq ??          bpl ??              |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ Status flags are wrong.
+------------------------------------+---+---+---+---+---+----
+btst.l #7,dx -> tst.b dx            | Y | Y | ? | Y | ? | 2
+bne ??          bmi ??              |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ Status flags are wrong.
+------------------------------------+---+---+---+---+---+----
+btst.l #15,dx -> tst.w dx           | Y | Y | ? | Y | ? | 2
+beq ??           bpl ??             |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ Status flags are wrong.
+------------------------------------+---+---+---+---+---+----
+btst.l #15,dx -> tst.w dx           | Y | Y | ? | Y | ? | 2
+bne ??           bmi ??             |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ Status flags are wrong.
+------------------------------------+---+---+---+---+---+----
+btst.l #31,dx -> tst.l dx           | Y | Y | ? | Y | ? | 2
+beq ??           bpl ??             |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ Status flags are wrong.
+------------------------------------+---+---+---+---+---+----
+btst.l #31,dx -> tst.l dx           | Y | Y | ? | Y | ? | 2
+bne ??           bmi ??             |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+clr.b mn   -> clr.w mn		    | Y | Y | ? | ? | ? | 2/4/6
+clr.b mn+1			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ best if mn is longword aligned
+------------------------------------+---+---+---+---+---+----
+clr.l dx -> moveq #0,dx 	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+clr.w mn   -> clr.l mn		    | Y | Y | ? | ? | ? | 2/4/6
+clr.w mn+2			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ best if mn is longword aligned
+------------------------------------+---+---+---+---+---+----
+clr.x -(ax) -> move.x ds,-(ax)	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ ds must equal zero
+------------------------------------+---+---+---+---+---+----
+clr.x n(ax,rx) -> move.x ds,n(ax,rx)| Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ ds must equal zero
+------------------------------------+---+---+---+---+---+----
+cmp.x #0,ax -> move.x ax,ds	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+ move ax to scratch register
+------------------------------------+---+---+---+---+---+----
+cmp.x #0,ax -> tst.x ax             | - | - | ? | ? | ? | ?
+------------------------------------+---+---+---+---+---+----
+for .w and .l
+------------------------------------+---+---+---+---+---+----
+cmp.x #0,dx -> tst.x dx 	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+cmp.x #0,m? -> tst.x m? 	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+may not be legal on some early '000 CPUs
+------------------------------------+---+---+---+---+---+----
+divu.l #n,dx -> lsr.l #m,dx	    | ! | ! | ? | ? | ? | 4
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 1 <= m <= 8
+------------------------------------+---+---+---+---+---+----
+divu.l #n,dx -> moveq #0,dx	    | ! | ! | ? | ? | ? | 4
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, m>=32
+------------------------------------+---+---+---+---+---+----
+divu.l #n,dx -> moveq #m,ds	    | ! | ! | ? | ? | ? | 2
+		lsr.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 8<m<32
+------------------------------------+---+---+---+---+---+----
+divu.w #n,dx -> lsr.l #m,dx	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 1 <= m <= 8, ignore remainder
+------------------------------------+---+---+---+---+---+----
+divu.w #n,dx -> moveq #0,dx	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, m>=32
+------------------------------------+---+---+---+---+---+----
+divu.w #n,dx -> moveq #m,ds	    | Y | Y | ? | ? | ? | 0
+		lsr.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 8<m<32, ignore remainder
+------------------------------------+---+---+---+---+---+----
+eor.x #-1,* -> not.x *		    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+ext.w dx -> extb.l dx		    | - | - | ? | ? | ? | 2
+ext.l dx			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+jmp ?? -> bra.w ??		    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ abs(??-pc) < 32768, same section
+------------------------------------+---+---+---+---+---+----
+jsr * -> jmp *			    | Y | Y | ? | ? | ? | 2
+rts				    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ different stack depth
+------------------------------------+---+---+---+---+---+----
+jsr ?1 -> pea ?2		    | y | y | ? | ? | ? | 0
+jmp ?2    jmp ?1		    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ same time if jsr is abs.l
+------------------------------------+---+---+---+---+---+----
+jsr ?? -> bsr.w ??		    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ abs(??-pc) < 32768, same section
+------------------------------------+---+---+---+---+---+----
+lea (ax),ax -> (nothing)	    | Y | Y | Y | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ delete
+------------------------------------+---+---+---+---+---+----
+lea 0.w,ax -> sub.l ax,ax	    | Y | Y | - | - | - | 2
+------------------------------------+---+---+---+---+---+----
+lea n(ax),ax -> addq.w #n,ax	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ if 1 <= n <= 8
+------------------------------------+---+---+---+---+---+----
+lea n(ax),ax -> subq.w #-n,ax	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ if -8 <= n <= -1
+------------------------------------+---+---+---+---+---+----
+lsl.b #2,dy -> add.b dy,dy	    | Y | Y | ? | ? | ? | -2
+	       add.b dy,dy	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+lsl.b #n,dx -> clr.b dx 	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=8
+------------------------------------+---+---+---+---+---+----
+lsl.l #16,dx -> swap dx 	    | Y | Y | ? | ? | ? | -2
+		clr.w dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+lsl.l #n,dx -> lsl.w #(n-16),dx     | Y | Y | ? | ? | ? | -4
+	       swap dx		    |	|   |	|   |	|
+	       clr.w dx 	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, 16<n<32
+------------------------------------+---+---+---+---+---+----
+lsl.l #n,dx -> moveq #0,dx	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=32
+------------------------------------+---+---+---+---+---+----
+lsl.w #2,dy -> add.w dy,dy	    | Y | Y | ? | ? | ? | -2
+	       add.w dy,dy	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+lsl.w #n,dx -> clr.w dx 	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=16
+------------------------------------+---+---+---+---+---+----
+lsl.x #1,dy -> add.x dy,dy	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+lsr.b #n,dx -> clr.b dx 	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=8
+------------------------------------+---+---+---+---+---+----
+lsr.l #16,dx -> clr.w dx	    | Y | Y | ? | ? | ? | -2
+		swap dx 	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+lsr.l #n,dx -> clr.w dx 	    | Y | Y | ? | ? | ? | -4
+	       swap dx		    |	|   |	|   |	|
+	       lsr.w #(n-16),dx     |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, 16<n<32
+------------------------------------+---+---+---+---+---+----
+lsr.l #n,dx -> moveq #0,dx	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=32
+------------------------------------+---+---+---+---+---+----
+lsr.w #n,dx -> clr.w dx 	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong, n>=16
+------------------------------------+---+---+---+---+---+----
+move.b #-1,(ax) -> st (ax)	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+move.b #-1,(ax)+ -> st (ax)+	    | N | N | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+move.b #-1,-(ax) -> st -(ax)	    | N | N | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+move.b #-1,?? -> st ??		    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+move.b #-1,dx -> st dx		    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+move.b #-1,n(ax) -> st n(ax)	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+move.b #-1,n(ax,rx) -> st n(ax,rx)  | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ status flags are wrong
+------------------------------------+---+---+---+---+---+----
+move.b #x,mn   -> move.w #xy,mn     | Y | Y | ? | ? | ? | 4/6/8
+move.b #y,mn+1			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ best if mn is longword aligned
+------------------------------------+---+---+---+---+---+----
+move.l #n,-(sp) -> pea n.w	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ -32767 <= n <= 32767
+------------------------------------+---+---+---+---+---+----
+move.l #n,ax -> move.w #n,ax	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ -32767 <= n <= 32767
+------------------------------------+---+---+---+---+---+----
+move.l #n,dx -> moveq #-128,dx	    | Y | Y | ? | N | * | 2
+		subq.l #n+128,dx    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ -136 <= n <= -129
+------------------------------------+---+---+---+---+---+----
+move.l #n,dx -> moveq #m,dx	    | Y | Y | ? | ? | ? | 2
+		not.b dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ 128 <= n <= 255, m = 255-n
+------------------------------------+---+---+---+---+---+----
+move.l #n,dx -> moveq #m,dx	    | Y | Y | ? | ? | ? | 2
+		not.w dx	    |	|   |	|   |	|
+				    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ 65534 <= n <= 65408 or -65409 <= n <= -65536, m = 65535-abs(n)
+------------------------------------+---+---+---+---+---+----
+move.l #n,dx -> moveq #m,dx	    | Y | Y | ? | ? | ? | 2
+		swap dx 	    |	|   |	|   |	|
+				    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ -8323073 <= n <= -65537 or 4096 <= n <= 8323072, n = m*65536
+------------------------------------+---+---+---+---+---+----
+move.l #n,dx -> moveq #n,dx	    | Y | Y | ? | ? | ? | 4
+------------------------------------+---+---+---+---+---+----
+ if -128 <= n <= 127
+------------------------------------+---+---+---+---+---+----
+move.l #n,dx -> moveq #y,dx	    | * | * | ? | ? | ? | 2
+		lsl.l #z,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n = y * 2^z
+------------------------------------+---+---+---+---+---+----
+move.l #n,dx -> moveq #m,dx         | Y | Y | ? | N | ? | 2
+                add.b dx,dx         |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ (128 <= n <= 254 or -256 <= n <= -130) and n is even, m = n/2
+------------------------------------+---+---+---+---+---+----
+move.l #n,dx -> moveq #m,dx         | Y | Y | ? | * | ? | 2
+                bchg.l dx,dx        |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ n = -32881 -> m = -113
+ n = -32849 -> m = -81
+ n = -32817 -> m = -49
+ n = -32785 -> m = -17
+ n = -16498 -> m = -114
+ n = -16466 -> m = -82
+ n = -16434 -> m = -50
+ n = -16402 -> m = -18
+ n = -8307 -> m = -115
+ n = -8275 -> m = -83
+ n = -8243 -> m = -51
+ n = -8211 -> m = -19
+ n = -4212 -> m = -116
+ n = -4180 -> m = -84
+ n = -4148 -> m = -52
+ n = -4116 -> m = -20
+ n = -2165 -> m = -117
+ n = -2133 -> m = -85
+ n = -2101 -> m = -53
+ n = -2069 -> m = -21
+ n = -1142 -> m = -118
+ n = -1110 -> m = -86
+ n = -1078 -> m = -54
+ n = -1046 -> m = -22
+ n = -631 -> m = -119
+ n = -599 -> m = -87
+ n = -567 -> m = -55
+ n = -535 -> m = -23
+ n = -376 -> m = -120
+ n = -344 -> m = -88
+ n = -312 -> m = -56
+ n = -280 -> m = -24
+ n = 264 -> m = 8
+ n = 296 -> m = 40
+ n = 328 -> m = 72
+ n = 360 -> m = 104
+ n = 521 -> m = 9
+ n = 553 -> m = 41
+ n = 585 -> m = 73
+ n = 617 -> m = 105
+ n = 1034 -> m = 10
+ n = 1066 -> m = 42
+ n = 1098 -> m = 74
+ n = 1130 -> m = 106
+ n = 2059 -> m = 11
+ n = 2091 -> m = 43
+ n = 2123 -> m = 75
+ n = 2155 -> m = 107
+ n = 4108 -> m = 12
+ n = 4140 -> m = 44
+ n = 4172 -> m = 76
+ n = 4204 -> m = 108
+ n = 8205 -> m = 13
+ n = 8237 -> m = 45
+ n = 8269 -> m = 77
+ n = 8301 -> m = 109
+ n = 16398 -> m = 14
+ n = 16430 -> m = 46
+ n = 16462 -> m = 78
+ n = 16494 -> m = 110
+ n = 32783 -> m = 15
+ n = 32815 -> m = 47
+ n = 32847 -> m = 79
+ n = 32879 -> m = 111
+------------------------------------+---+---+---+---+---+----
+move.l #n,dx -> moveq #m,dx         | N | N | ? | * | ? | 2
+                bchg.l dx,dx        |   |   |   |   |   |
+------------------------------------+---+---+---+---+---+----
+ n = -2147483617 -> m = 31
+ n = -2147483585 -> m = 63
+ n = -2147483553 -> m = 95
+ n = -2147483521 -> m = 127
+ n = -1073741922 -> m = -98
+ n = -1073741890 -> m = -66
+ n = -1073741858 -> m = -34
+ n = -1073741826 -> m = -2
+ n = -536871011 -> m = -99
+ n = -536870979 -> m = -67
+ n = -536870947 -> m = -35
+ n = -536870915 -> m = -3
+ n = -268435556 -> m = -100
+ n = -268435524 -> m = -68
+ n = -268435492 -> m = -36
+ n = -268435460 -> m = -4
+ n = -134217829 -> m = -101
+ n = -134217797 -> m = -69
+ n = -134217765 -> m = -37
+ n = -134217733 -> m = -5
+ n = -67108966 -> m = -102
+ n = -67108934 -> m = -70
+ n = -67108902 -> m = -38
+ n = -67108870 -> m = -6
+ n = -33554535 -> m = -103
+ n = -33554503 -> m = -71
+ n = -33554471 -> m = -39
+ n = -33554439 -> m = -7
+ n = -16777320 -> m = -104
+ n = -16777288 -> m = -72
+ n = -16777256 -> m = -40
+ n = -16777224 -> m = -8
+ n = -8388713 -> m = -105
+ n = -8388681 -> m = -73
+ n = -8388649 -> m = -41
+ n = -8388617 -> m = -9
+ n = -4194410 -> m = -106
+ n = -4194378 -> m = -74
+ n = -4194346 -> m = -42
+ n = -4194314 -> m = -10
+ n = -2097259 -> m = -107
+ n = -2097227 -> m = -75
+ n = -2097195 -> m = -43
+ n = -2097163 -> m = -11
+ n = -1048684 -> m = -108
+ n = -1048652 -> m = -76
+ n = -1048620 -> m = -44
+ n = -1048588 -> m = -12
+ n = -524397 -> m = -109
+ n = -524365 -> m = -77
+ n = -524333 -> m = -45
+ n = -524301 -> m = -13
+ n = -262254 -> m = -110
+ n = -262222 -> m = -78
+ n = -262190 -> m = -46
+ n = -262158 -> m = -14
+ n = -131183 -> m = -111
+ n = -131151 -> m = -79
+ n = -131119 -> m = -47
+ n = -131087 -> m = -15
+ n = -65648 -> m = -112
+ n = -65616 -> m = -80
+ n = -65584 -> m = -48
+ n = -65552 -> m = -16
+ n = 65552 -> m = 16
+ n = 65584 -> m = 48
+ n = 65616 -> m = 80
+ n = 65648 -> m = 112
+ n = 131089 -> m = 17
+ n = 131121 -> m = 49
+ n = 131153 -> m = 81
+ n = 131185 -> m = 113
+ n = 262162 -> m = 18
+ n = 262194 -> m = 50
+ n = 262226 -> m = 82
+ n = 262258 -> m = 114
+ n = 524307 -> m = 19
+ n = 524339 -> m = 51
+ n = 524371 -> m = 83
+ n = 524403 -> m = 115
+ n = 1048596 -> m = 20
+ n = 1048628 -> m = 52
+ n = 1048660 -> m = 84
+ n = 1048692 -> m = 116
+ n = 2097173 -> m = 21
+ n = 2097205 -> m = 53
+ n = 2097237 -> m = 85
+ n = 2097269 -> m = 117
+ n = 4194326 -> m = 22
+ n = 4194358 -> m = 54
+ n = 4194390 -> m = 86
+ n = 4194422 -> m = 118
+ n = 8388631 -> m = 23
+ n = 8388663 -> m = 55
+ n = 8388695 -> m = 87
+ n = 8388727 -> m = 119
+ n = 16777240 -> m = 24
+ n = 16777272 -> m = 56
+ n = 16777304 -> m = 88
+ n = 16777336 -> m = 120
+ n = 33554457 -> m = 25
+ n = 33554489 -> m = 57
+ n = 33554521 -> m = 89
+ n = 33554553 -> m = 121
+ n = 67108890 -> m = 26
+ n = 67108922 -> m = 58
+ n = 67108954 -> m = 90
+ n = 67108986 -> m = 122
+ n = 134217755 -> m = 27
+ n = 134217787 -> m = 59
+ n = 134217819 -> m = 91
+ n = 134217851 -> m = 123
+ n = 268435484 -> m = 28
+ n = 268435516 -> m = 60
+ n = 268435548 -> m = 92
+ n = 268435580 -> m = 124
+ n = 536870941 -> m = 29
+ n = 536870973 -> m = 61
+ n = 536871005 -> m = 93
+ n = 536871037 -> m = 125
+ n = 1073741854 -> m = 30
+ n = 1073741886 -> m = 62
+ n = 1073741918 -> m = 94
+ n = 1073741950 -> m = 126
+ n = 2147483551 -> m = -97
+ n = 2147483583 -> m = -65
+ n = 2147483615 -> m = -33
+ n = 2147483647 -> m = -1
+------------------------------------+---+---+---+---+---+----
+move.l #n,m? -> moveq  #n,ds	    | Y | Y | ? | ? | ? | 2
+		move.l ds,m?	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ -128 <= n <= 127
+------------------------------------+---+---+---+---+---+----
+move.l (ax),ay -> move.x ([ax],n),dz| - | - | ? | ? | ? | ?
+move.x n(ay),dz 		    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l (ax),ay -> move.x ([ax]),dz  | - | - | ? | ? | ? | ?
+move.x (ay),dz			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l (bd.x,ax),dy ->		    | - | - | ? | ? | ? | ?
+		     move.l bd.x,dy |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l (n.w,ax),dy ->		    | - | - | ? | ? | ? | ?
+		    move.l n(ax),dy |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l (sp),(n,sp) -> rtd #n	    | - | - | ? | ? | ? | ?
+lea (n,sp),sp			    |	|   |	|   |	|
+rts				    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l (sp),0(dx,sp) -> rtd dx	    | - | Y | ? | ? | ? | 6
+lea 0(dx,sp),sp			    |	|   |	|   |	|
+rts				    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l 12(ax),12(ay) -> move16	    | - | - | - | - | ? | ?
+move.l 8(ax),8(ay)	(ax)+,(ay)+ |	|   |	|   |	|
+move.l 4(ax),4(ay)		    |	|   |	|   |	|
+move.l (ax)+,(ay)+		    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l ax,-(sp) -> link ax,#n	    | Y | Y | ? | ? | ? | 4
+move.l sp,ax			    |	|   |	|   |	|
+add.w #n,sp			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ -32767 <= n <= 32767
+------------------------------------+---+---+---+---+---+----
+move.l ax,-(sp) -> pea -n(ax)	    | Y | Y | ? | ? | ? | 0/4
+sub*.l #n,(sp)			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l ax,-(sp) -> pea n(ax)	    | Y | Y | ? | ? | ? | 0/4
+add*.l #n,(sp)			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l ax,az -> lea n(ax.l*4),az    | - | - | ? | ? | ? | ?
+asl.l #2,az			    |	|   |	|   |	|
+add.x #n,az			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ az=n+4*ax, -128<=n<=127
+------------------------------------+---+---+---+---+---+----
+move.l ax,az -> lea n(ax.l*8),az    | - | - | ? | ? | ? | ?
+asl.l #3,az			    |	|   |	|   |	|
+add.x #n,az			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ az=n+8*ax, -32767<=n<=32767
+------------------------------------+---+---+---+---+---+----
+move.l ax,sp -> unlk ax 	    | Y | Y | ? | ? | ? | 2
+move.l (sp)+,ax 		    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.l ay,az -> lea n(ax,ay.l*4),az | - | - | ? | ? | ? | ?
+asl.l #2,az			    |	|   |	|   |	|
+add.l ax,az			    |	|   |	|   |	|
+add.x #n,az			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ az=n+ax+4*ay, -32767<=n<=32767
+------------------------------------+---+---+---+---+---+----
+move.l ay,az -> lea n(ax,ay.l*8),az | - | - | ? | ? | ? | ?
+asl.l #3,az			    |	|   |	|   |	|
+add.l ax,az			    |	|   |	|   |	|
+add.x #n,az			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ az=n+ax+8*ay, -32767<=n<=32767
+------------------------------------+---+---+---+---+---+----
+move.w #x,mn   -> move.l #xy,mn     | Y | Y | ? | ? | ? | 2/4/6
+move.w #y,mn+2			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ best if mn is longword aligned
+------------------------------------+---+---+---+---+---+----
+move.x #0,ax -> sub.l ax,ax	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+move.x #n,ax -> lea n,ax	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+ n <> 0
+------------------------------------+---+---+---+---+---+----
+move.x (rx,ay),az -> move.x ay,az   | Y | Y | ? | ? | ? | 0
+		     add.x rx,az    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+move.x ax,ay -> lea n(ax),ay	    | Y | Y | ? | ? | ? | 2/4
+add.x #n,ay			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ -32767 <= n <= 32767
+------------------------------------+---+---+---+---+---+----
+move.x ax,az -> lea -n(ax,ay),az    | Y | Y | ? | ? | ? | 2
+sub.x #n,az			    |	|   |	|   |	|
+add.x ay,az			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ az=n+ax+ay, n<=32767
+------------------------------------+---+---+---+---+---+----
+move.x ax,az -> lea n(ax,ay),az     | Y | Y | ? | ? | ? | 2
+add.x #n,az			    |	|   |	|   |	|
+add.x ay,az			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ az=n+ax+ay, n<=32767
+------------------------------------+---+---+---+---+---+----
+movem.l (ax)+,registers 	    | * | * | ? | ? | Y | *
+		 -> move.l (ax)+,ry |	|   |	|   |	|
+		       for each reg |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+movem.w *,dx -> move.w *,dx	    | Y | Y | ? | ? | ? | 0
+		ext.l dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+movem.x *,@-> move.x *,@    | Y | Y | ? | ? | ? | 2
+				    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ @= a single register, not (@dx & .x=.w)
+------------------------------------+---+---+---+---+---+----
+movem.x @* -> move.x @*	    | Y | Y | ? | ? | ? | 2
+				    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ @= a single register, status flags are wrong
+------------------------------------+---+---+---+---+---+----
+moveq #n,az -> lea n(ax,ay.l*2),az  | - | - | ? | ? | ? | ?
+add.x ay,az			    |	|   |	|   |	|
+add.x ax,az			    |	|   |	|   |	|
+add.x ay,az			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ az=n+ax+2*ay, -128<=n<=127
+------------------------------------+---+---+---+---+---+----
+mul*.l #1,dx -> (nothing)           | ! | ! | Y | Y | Y | 6
+------------------------------------+---+---+---+---+---+----
+ delete
+------------------------------------+---+---+---+---+---+----
+mul*.l #10,dx -> add.l dx,dx	    | ! | ! | ? | ? | ? | -2
+		 move.l dx,ds	    |	|   |	|   |	|
+		 asl.l #2,dx	    |	|   |	|   |	|
+		 add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mul*.l #12,dx -> asl.l #2,dx	    | ! | ! | ? | ? | ? | -2
+		 move.l dx,ds	    |	|   |	|   |	|
+		 add.l dx,dx	    |	|   |	|   |	|
+		 add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mul*.l #2,dx -> add.l dx,dx	    | ! | ! | ? | ? | ? | 4
+------------------------------------+---+---+---+---+---+----
+mul*.l #3,dx -> move.l dx,ds	    | ! | ! | ? | ? | ? | 0
+		add.l dx,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mul*.l #5,dx -> move.l dx,ds	    | ! | ! | ? | ? | ? | 0
+		asl.l #2,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mul*.l #6,dx -> add.l dx,dx	    | ! | ! | ? | ? | ? | -2
+		move.l dx,ds	    |	|   |	|   |	|
+		add.l dx,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mul*.l #7,dx -> move.l dx,ds	    | ! | ! | ? | ? | ? | 0
+		asl.l #3,dx	    |	|   |	|   |	|
+		sub.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mul*.l #9,dx -> move.l dx,ds	    | ! | ! | ? | ? | ? | 0
+		asl.l #3,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mul*.l #n,dx -> moveq #m,ds 	    | ! | ! | ? | ? | ? | 2
+		asl.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 8<m<14
+------------------------------------+---+---+---+---+---+----
+muls.l #0,dx -> moveq #0,dx	    | ! | ! | ? | ? | ? | 4
+------------------------------------+---+---+---+---+---+----
+muls.l #n,dx -> asl.l #m,dx	    | ! | ! | ? | ? | ? | 4
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 1 <= m <= 8
+------------------------------------+---+---+---+---+---+----
+muls.w #0,dx -> moveq #0,dx	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+muls.w #1,dx -> ext.l dx	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+muls.w #10,dx -> ext.l dx	    | Y | Y | ? | ? | ? | -6
+		 add.l dx,dx	    |	|   |	|   |	|
+		 move.l dx,ds	    |	|   |	|   |	|
+		 asl.l #2,dx	    |	|   |	|   |	|
+		 add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+muls.w #11,dx -> ext.l dx	    | Y | Y | ? | ? | ? | -8
+		 move.l dx,ds	    |	|   |	|   |	|
+		 add.l dx,dx	    |	|   |	|   |	|
+		 add.l dx,ds	    |	|   |	|   |	|
+		 asl.l #3,dx	    |	|   |	|   |	|
+		 add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+muls.w #12,dx -> ext.l dx	    | Y | Y | ? | ? | ? | -6
+		 asl.l #2,dx	    |	|   |	|   |	|
+		 move.l dx,ds	    |	|   |	|   |	|
+		 add.l dx,dx	    |	|   |	|   |	|
+		 add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+muls.w #2,dx -> ext.l dx	    | Y | Y | ? | ? | ? | 0
+		add.l dx,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+muls.w #3,dx -> ext.l dx	    | Y | Y | ? | ? | ? | -4
+		move.l dx,ds	    |	|   |	|   |	|
+		add.l dx,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+muls.w #5,dx -> ext.l dx	    | Y | Y | ? | ? | ? | -4
+		move.l dx,ds	    |	|   |	|   |	|
+		asl.l #2,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+muls.w #6,dx -> ext.l dx	    | Y | Y | ? | ? | ? | -6
+		add.l dx,dx	    |	|   |	|   |	|
+		move.l dx,ds	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+muls.w #7,dx -> ext.l dx	    | Y | Y | ? | ? | ? | -4
+		move.l dx,ds	    |	|   |	|   |	|
+		asl.l #3,dx	    |	|   |	|   |	|
+		sub.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+muls.w #9,dx -> ext.l dx	    | Y | Y | ? | ? | ? | -4
+		move.l dx,ds	    |	|   |	|   |	|
+		asl.l #3,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+muls.w #n,dx -> ext.l dx	    | Y | Y | ? | ? | ? | 0
+		asl.l #m,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 1 <= m <= 8
+------------------------------------+---+---+---+---+---+----
+muls.w #n,dx -> moveq #m,ds	    | Y | Y | ? | ? | ? | -2
+		ext.l dx	    |	|   |	|   |	|
+		asl.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 8<m<14
+------------------------------------+---+---+---+---+---+----
+muls.w #n,dx -> swap dx		    | Y | Y | ? | ? | ? | -2
+		clr.w dx	    |	|   |	|   |	|
+		asr.l #(16-m),dx    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 8 <= m <= 15
+------------------------------------+---+---+---+---+---+----
+mulu.l #0,dx -> moveq #0,dx	    | ! | ! | ? | ? | ? | 4
+------------------------------------+---+---+---+---+---+----
+mulu.l #n,dx -> lsl.l #m,dx	    | ! | ! | ? | ? | ? | 4
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 1 <= m <= ?
+------------------------------------+---+---+---+---+---+----
+mulu.w #0,dx -> moveq #0,dx	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+mulu.w #1,dx -> swap dx		    | Y | Y | ? | ? | ? | -2
+		clr.w dx	    |	|   |	|   |	|
+		swap dx		    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mulu.w #12,dx -> swap dx	    | Y | Y | ? | ? | ? | -10
+		 clr.w dx	    |	|   |	|   |	|
+		 swap dx	    |	|   |	|   |	|
+		 asl.l #2,dx	    |	|   |	|   |	|
+		 move.l dx,ds	    |	|   |	|   |	|
+		 add.l dx,dx	    |	|   |	|   |	|
+		 add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mulu.w #2,dx -> swap dx 	    | Y | Y | ? | ? | ? | -4
+		clr.w dx	    |	|   |	|   |	|
+		swap dx 	    |	|   |	|   |	|
+		add.l dx,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mulu.w #3,dx -> swap dx 	    | Y | Y | ? | ? | ? | -8
+		clr.w dx	    |	|   |	|   |	|
+		swap dx 	    |	|   |	|   |	|
+		move.l dx,ds	    |	|   |	|   |	|
+		add.l dx,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mulu.w #5,dx -> swap dx 	    | Y | Y | ? | ? | ? | -8
+		clr.w dx	    |	|   |	|   |	|
+		swap dx 	    |	|   |	|   |	|
+		move.l dx,ds	    |	|   |	|   |	|
+		asl.l #2,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mulu.w #6,dx -> swap dx 	    | Y | Y | ? | ? | ? | -10
+		clr.w dx	    |	|   |	|   |	|
+		swap dx 	    |	|   |	|   |	|
+		add.l dx,dx	    |	|   |	|   |	|
+		move.l dx,ds	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mulu.w #7,dx -> swap dx 	    | Y | Y | ? | ? | ? | -8
+		clr.w dx	    |	|   |	|   |	|
+		swap dx 	    |	|   |	|   |	|
+		move.l dx,ds	    |	|   |	|   |	|
+		asl.l #3,dx	    |	|   |	|   |	|
+		sub.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mulu.w #9,dx -> swap dx 	    | Y | Y | ? | ? | ? | -8
+		clr.w dx	    |	|   |	|   |	|
+		swap dx 	    |	|   |	|   |	|
+		move.l dx,ds	    |	|   |	|   |	|
+		asl.l #3,dx	    |	|   |	|   |	|
+		add.l ds,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+mulu.w #n,dx -> swap dx		    | Y | Y | ? | ? | ? | -4
+		clr.w dx	    |	|   |	|   |	|
+		swap dx		    |	|   |	|   |	|
+		lsl.l #m,dx	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 1 <= m <= 8
+------------------------------------+---+---+---+---+---+----
+mulu.w #n,dx -> swap dx		    | Y | Y | ? | ? | ? | -2
+		clr.w dx	    |	|   |	|   |	|
+		lsr.l #(16-m),dx    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, 8 <= m <= 15
+------------------------------------+---+---+---+---+---+----
+neg.x dx    -> add.x dx,dy	    | Y | Y | Y | ? | ? | 2
+sub.x dx,dy			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ dx is trashed
+------------------------------------+---+---+---+---+---+----
+neg.x dx    -> eor.x #n-1,dx	    | Y | Y | ? | ? | ? | 2
+add.x #n,dx			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ n is 2^m, dx<n
+------------------------------------+---+---+---+---+---+----
+neg.x dx    -> sub.x dx,dy	    | Y | Y | Y | ? | ? | 2
+add.x dx,dy			    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ dx is trashed
+------------------------------------+---+---+---+---+---+----
+nop -> (nothing)		    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ remove nops
+------------------------------------+---+---+---+---+---+----
+or.l #n,dx -> bset.l #b,dx	    | Y | Y | ? | ? | ? | 2
+------------------------------------+---+---+---+---+---+----
+ n = 2^b (only 1 bit set)
+------------------------------------+---+---+---+---+---+----
+sub*.x #0,dx -> tst.x dx	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+sub.x #n,* -> addq.x #-n,*	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+ -8 <= n <= -1
+------------------------------------+---+---+---+---+---+----
+sub.x #n,* -> subq.x #n,*	    | Y | Y | ? | ? | ? | 2/4
+------------------------------------+---+---+---+---+---+----
+ if 1 <= n <= 8
+------------------------------------+---+---+---+---+---+----
+sub.x #n,ax -> lea -n(ax),ax	    | Y | Y | ? | ? | ? | 0/2
+------------------------------------+---+---+---+---+---+----
+ -32767 <= n <= -9, 9 <= n <= 32767
+------------------------------------+---+---+---+---+---+----
+subq.l #n,ax -> subq.w #n,ax	    | Y | Y | ? | ? | ? | 0
+------------------------------------+---+---+---+---+---+----
+subq.w #1,dx -> db<cc> dx,??	    | y | y | ? | ? | ? | -2
+b<cc> ??	b<cc> ??	    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ if dx=0 then will be slower
+------------------------------------+---+---+---+---+---+----
+subq.w #1,dx -> dbf dx,??	    | Y | Y | ? | ? | ? | -2
+bra ??		bra ??		    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ if dx=0 then will be slower
+------------------------------------+---+---+---+---+---+----
+tst.w dx -> dbra dx,??		    | y | y | ? | ? | ? | 2
+bne ??				    |	|   |	|   |	|
+------------------------------------+---+---+---+---+---+----
+ dx will be trashed
+------------------------------------+---+---+---+---+---+----
+
+
+---------------------------------------------------------------------------
+			  H I N T S   &   T I P S
+---------------------------------------------------------------------------
+
+
+This new section is for stuff that cannot be included in the above tables.
+This can include pipelining optimizations and other stuff.
+
+020+	Sequential memory accesses can cause pipeline stalls, so try and
+	rearrange code so memory accesses do not immediately follow each
+	other.  The same problem occurs if an address register updated
+	in one line is accessed in the next line.
+
+ALL	Include small routines as macros, because inline routines will
+	be much faster, and in extreme cases smaller.
+
+ALL	If a subroutine is only called from one position, either move
+	it inline, or only use jmp/bra commands.
+
+
+---------------------------------------------------------------------------
+			    C O N C L U S I O N
+---------------------------------------------------------------------------
+
+
+There are the optimizations i've come up with so far.  If you could check
+what i've done, and report any errors, that would make this list better.  I
+only have so much time to spend on this, and many hands make light work.
+Also, stats (and more optimizations) for 68020+ CPU's would be welcomed.
+Currently this list is only for simple peephole optimization stuff, but I
+will hopefully get around to more extensive optimizations.  Pipeline
+optimization is on the way, so look out.  Any info on the 68020+ pipelines
+would be appreciated.
+
+Optimizations with ?question-marks? in the boxes next to them, I do not
+have the data to check yet.
+
+The latest version of the asp68k archive is available by anonymous ftp from
+ftp.mq.edu.au in the /home/mglew/ directory or by calling Technophilia BBS
+on +61 2 807 3563 (or (02) 807 3563 in Australia).
+
+
+===========================================================================
+EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF EOF
+===========================================================================
+
+##************************************************************************
+
+
+
+TO		Specify output filename
+WITH		Specify a file that contains a list of options to be
+used.  There may only be one WITH file per assembly, and this option may
+only be used on the command line.  Such files may be created using the
+editor's command for saving an assembler settings file.  Be careful when
+using this as any main file that is set via the editor will be included
+in the WITH file.
+-.		(or QUIER) disable assembly messages
+-B		No binary file will be created.
+-C		Caseinsensitve labels (OPT NOCASE)
+-D		Debug (OPT DEBUG)
+-E		allows labels to be set; assignements must be separated
+by commas.  Labels will be set as if they were on line 2 of the main
+source file.
+-H		(or HEADER) specify the pre-assembled header files that
+are to be loaded before assembly starts.  Multiple files may be
+separated with a comma.
+-I		(or INCDIR) specify include directories to be searched
+(follow _immediatly_ with path).  These directories will be searched
+when the assembler is opening include files.  These should normally be
+terminated with a slash.
+-L		Amiga® linkable code (OPT ALINK)
+-L6		output Motorola S-records (OPT SREC)
+-M		use low memory (slower) assemlby mode.  See the section
+on integrated options in the previous chapter.  _Not_ the same as OPT M+.
+-O		specify output filename.
+-P		specify listing filename, defaults to source filename
+with extension of .LST
+-Q		pasue for key press after assembly.
+-S		include a symbol table at the end oflisting
+-T		specifies tab setting for listing
+-V		specify options as if they were specified using OPT on
+the second line of the main source file.
+-X		use just exported labels in debugging (OPT XDEBUG)
+-Z		enable listing on pass 1.  The information in the code
+filed may be incorrect but this can be used to find mistakes when
+omitting an ENDC (OPT LIST1).  This is provided for backwards
+compatibility; OPT TRACEIF can normally be used to find such errors more
+quickly.
+
+                                    END
+
+
+

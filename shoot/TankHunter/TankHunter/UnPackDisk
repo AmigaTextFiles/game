@@ -1,0 +1,85 @@
+.Key  ""
+set src1  "TankHunter.lha"
+set dst  "TankHunter"
+
+echo ""
+echo "This script will unpack the following lha archives to create a game disk:"
+echo ""
+echo "  $src1 => $dst"
+echo ""
+
+lab GETDRIVE
+echo "Which drive do you want to unpack to? [0,1,2,3] "  NOLINE
+failat 20
+skip >NIL: ? 
+
+lab 0
+  set drive "DF0:"
+  skip HAVEDRIVE
+;
+lab 1
+  set drive "DF1:"
+  skip HAVEDRIVE
+;
+lab 2
+  set drive "DF2:"
+  skip HAVEDRIVE
+;
+lab 3
+  set drive "DF3:"
+  skip HAVEDRIVE
+;
+
+lab HAVEDRIVE
+ask "Do you have a blank unformatted disk in drive $drive?"
+if not WARN
+	echo ""
+	echo "Try again when you do ..."
+	echo "All Done.  Click close gadget to get rid of window."
+	endcli
+endif
+
+echo ""
+echo "==> sys:system/format drive $drive name $dst NOICONS FFS"
+sys:system/format drive $drive name $dst NOICONS FFS
+echo "==> :c/lha -axm x $src1 $dst:"
+:c/lha -axm x $src1 $dst:
+
+echo ""
+echo "If you like, you can try to make the game disk bootable.  This requires"
+echo "copying various files from your currently running system onto the game"
+echo "disk.  This may fail if there is insufficient room on the game disk,"
+echo "however even if it does, you should still be able to run the game"
+echo "directly from the disk without rebooting."
+echo ""
+ask "Try to make the game disk bootable?"
+
+if WARN
+	echo ""
+	echo "Installing $drive"
+	sys:c/install $drive
+
+	echo "Copying selected proprietary files from your system ..."
+
+	makedir $dst:c
+	if exists c:Type
+		copy c:Type $dst:c/Type
+	endif
+
+	makedir $dst:devs
+	if exists devs:system-configuration
+		copy devs:system-configuration $dst:devs/system-configuration
+	endif
+
+	makedir $dst:libs
+	if exists libs:diskfont.library
+		copy libs:diskfont.library $dst:libs/diskfont.library
+	endif
+endif
+
+echo "All Done.  Click close gadget to get rid of window."
+endcli
+
+endskip
+echo "Invalid Drive Selection, Please try again!"
+skip back GETDRIVE

@@ -1,0 +1,952 @@
+
+                             Prince of Persia
+                               File Formats
+                              Specifications
+
+Table of Contents
+~~~~~ ~~ ~~~~~~~~
+1. Preamble ............................................................ 43
+2. Introduction ........................................................ 52
+3. Primitives .......................................................... 77
+3.1. DAT reading and writing primitives ................................ 84
+3.2. DAT reading primitives ............................................ 96
+3.3. DAT writing primitives ........................................... 105
+4. DAT v1.0 Format Specifications ..................................... 114
+4.1. General file specs, index and checksums .......................... 117
+4.2. Images ........................................................... 201
+4.2.1 Headers ......................................................... 205
+4.2.2 Algorithms ...................................................... 230
+4.2.2.1 Run length encoding (RLE) ..................................... 246
+4.2.2.2 LZ variant (LZG) .............................................. 258
+4.3. Palettes ......................................................... 369
+4.4. Levels ........................................................... 376
+4.4.1 Unknown blocks .................................................. 407
+4.4.2 Room mapping .................................................... 425
+4.4.2.1 Wall drawing algorithm ........................................ 562
+4.4.3 Room linking .................................................... 630
+4.4.4 Guard handling .................................................. 646
+4.4.5 Starting Position ............................................... 693
+4.4.6 Door events ..................................................... 707
+4.5. Digital Waves .................................................... 751
+4.6. Midi music ....................................................... 768
+4.7. Internal PC Speaker .............................................. 771
+4.8. Binary files ..................................................... 776
+5. PLV v1.0 Format Specifications ..................................... 783
+5.1. User data ........................................................ 809
+5.2. Allowed Date format .............................................. 839
+6. The SAV v1.0 format ................................................ 853
+7. The HOF v1.0 format ................................................ 899
+8. Credits ............................................................ 922
+9. License ............................................................ 942
+
+
+1. Preamble
+   ~~~~~~~~
+
+ This file was written thanks to the hard work on reverse engineering made
+ by several people, see the credits section. In case you find any mistake
+ in the text please report it. A copy of this document should be available
+ in our official site at http://www.princed.com.ar.
+
+
+2. Introduction
+   ~~~~~~~~~~~~
+
+ There are two versions of the DAT file format: DAT v1.0 used in POP 1.x
+ and DAT v2.0 used in POP 2. In this document we will specify DAT v1.0.
+
+ DAT files were made to store levels, images, palettes, wave, midi and
+ internal speaker sounds. Each type has its own format as described below
+ in the following sections.
+
+ As the format is very old and the original game was distributed in disks,
+ it is normal to think that the file format uses some kind of checksum
+ validation to detect file corruptions.
+
+ DAT files are indexed, this means that there is an index and you can
+ access each resource through an ID that is unique for the resource inside
+ the file.
+
+ Images store their height and width but not their palette, so the palette
+ is another resource and must be shared by a group of images.
+
+ PLV files use the extension defined to support a format with only one
+ level inside.
+
+
+3. Primitives
+   ~~~~~~~~~~
+
+ This section shows how the PR dat handling primitives works, this library
+ is useful to access resources without having to worry about the format.
+ Here you can find the primitive chart of the dat.h library.
+
+3.1. DAT reading and writing primitives
+ Opening a dat file for RW mode
+ Syntax:
+ int mRWBeginDatFile(
+  const char* vFile, /* the name of the file to be open */
+  unsigned short int *numberOfItems, /* saves the total items count */
+  int optionflag /* see optionflag appendix */
+ );
+ Return values are:
+
+ int mRWCloseDatFile(dontSave);
+
+3.2. DAT reading primitives
+ int  mReadBeginDatFile(unsigned short int *numberOfItems,
+      const char* vFile);
+ int  mReadFileInDatFile(int indexNumber,unsigned char** data,
+      unsigned long int *size);
+ int  mReadInitResource(tResource** res,const unsigned char* data,
+      long size);
+ void mReadCloseDatFile();
+
+3.3. DAT writing primitives
+ int  mWriteBeginDatFile(const char* vFile, int optionflag);
+ void mWriteFileInDatFile(const unsigned char* data, int size);
+ void mWriteFileInDatFileIgnoreChecksum(unsigned char* data,int size);
+ void mWriteInitResource(tResource** res);
+ void mWriteCloseDatFile(tResource* r[],int dontSave,int optionflag, const
+      char* backupExtension);
+
+
+4. DAT v1.0 Format Specifications
+   ~~~ ~~~~ ~~~~~~ ~~~~~~~~~~~~~~
+
+4.1. General file specs, index and checksums
+ All DAT files have an index, this index has a number of items count and
+ a list of items.
+ The index is stored at the very end of the file.
+ The first 6 bytes are reserved to locate the index and know the file size.
+
+ Let's define the numbers as:
+  US - Unsigned Short: Little endian, 16 bits, storing two groups of 8 bits
+       ordered from the less representative to the most representative
+       without sign.
+       i.e. 65534 is FFFE in hex and is stored FE FF (1111 1110  1111 1111)
+       Range: 0 to 65535
+       2 bytes
+  UL - Unsigned long: Little endian, 32 bits, storing four groups of 8 bits
+       each ordered from the less representative to the most representative
+       without sign.
+       i.e. 65538 is 00010002 in hex and is stored 02 00 01 00
+       (0000 0010  0000 0000  0000 0001  0000 0000)
+       Range: 0 to 2^32-1
+       4 bytes
+  SC - Signed char: 8 bits, the first bit is for the sign and the 7 last
+       for the number. If the first bit is a 0, then the number is
+       positive, if not the number is negative, in that case invert all
+       bits and add 1 to get the positive number.
+       i.e. -1 is FF (1111 1111), 1 is 01 (0000 0001)
+       Range: -128 to 127
+       1 byte
+  UC - Unsigned char: 8 bits that represent the number.
+       i.e. 32 is 20 (0010 0000)
+       Range: 0 to 255
+       1 byte
+
+ Note: Sizes are allways in bytes unless another unit is specified.
+
+ Index structures:
+
+ The DAT header: Size = 6 bytes
+  - Offset 0, size 4, type UL: IndexOffset
+           (the location where the index begins)
+  - Offset 4, size 2, type US: IndexSize
+           (the number of bytes the index has)
+           Note that IndexSize is 8*numberOfItems+2
+           Note that IndexOffset+IndexSize=file size
+
+ The DAT index: Size = IndexSize bytes
+  - Offset IndexOffset,   size 2, type US: NumberOfItems
+           (resources count)
+  - Offset IndexOffset+2, size NumberOfItems*8: The index
+           (a list of NumberOfItems blocks of 8-bytes-length index record)
+
+ The 8-bytes-length index record (one per item): Size = 8 bytes
+  - Relative offset 0, size 2, type US: Item ID
+  - Relative offset 2, size 4, type UL: Resource start
+           (absolute offset in file)
+  - Relative offset 6, size 2, type US: Size of the item
+           (not including the checksum byte)
+
+ Note:
+  POP1 doesn't validate a DAT file checking:
+  IndexOffset+IndexSize=FileSize
+  this means you can append data at the end of the file.
+
+  PR validates that IndexOffset+IndexSize<=FileSize.
+ It also compares IndexSize with 8*numberOfItems+2 to determine if a file
+  is a valid POP1 DAT file.
+
+ Checksum byte:
+ There is a checksum byte for each item (resource), this is the first byte
+ of the item, the rest of the bytes are the item data. The item type is not
+ stored and may only be determined by reading the data and applying some
+ filters, unfortunately this method may fail. When you extract an item you
+ should know what kind of item you are extracting.
+
+ If you add (sum) the whole item data including checksum and take the less
+ representative byte (modulus 256) you will get the sum of the file. This
+ sum must be FF in hex (255 in UC or -1 in SC). If the sum is not FF, then
+ adjust the checksum in order to set this value to the sum. The best way
+ to do that is adding all the bytes in the item data (excluding the
+ checksum) and inverting all the bits. The resulting byte will be the
+ right checksum.
+
+ From now on the specification are special for each data type (that means
+ we won't include the checksum byte anymore).
+
+4.2. Images
+ Images are stored compressed and have a header and a compressed data area.
+ Each image only one header with 6 bytes in it as follows
+
+4.2.1 Headers
+ The 6-bytes-image header: 6 bytes
+  Relative offset 0, size 2, type US: Height
+  Relative offset 2, size 2, type UL: Width
+  Relative offset 4, size 2: Information
+
+ Information is a set of bits where:
+  the first 8 are zeros
+  the next 4 are the resolution:
+   if it is 1011 (B in hex) then the image has 16 colours
+   if it is 0000 (0 in hex) then the image has 2 colours
+   so to calculate the bits per pixel there are in the image, just take the
+   last 2 bits and add 1. e. g. 11 is 4 (2^4=16 colours) and
+  00 is 1 (2^1=2 colours).
+  the last 4 bits are the 5 compression types:
+   from 0 to 4:
+   0 RAW_LR (0000)
+   1 RLE_LR (0001)
+   2 RLE_UD (0010)
+   3 LZG_LR (0011)
+   4 LZG_UD (0100)
+
+ The following data in the resource is the image compressed with the
+ algorithm specified by those 4 bits.
+
+4.2.2 Algorithms
+ RAW_LR means that the data wasn't compressed, it is used for small images.
+        The format is saved from left to right (LR) serialising a line to
+        the next integer byte if necessary. In case the image was 16
+        colours, two pixels per byte (4bpp) will be used. In case the image
+        was 2 colours, 8 pixels per byte (1bpp) will be used.
+ RLE_LR has a Run length encoding (RLE) algorithm, after uncompressed the
+        image can be read as a RAW_LR.
+ RLE_UD is the same as RLE_LR except that after uncompressed the bytes in
+     the image must be drawn from up to down and then from left to right.
+ LZG_LR has some kind of variant of the LZ77 algorithm (the sliding windows
+        algorithm), here we named it LZG in honour of Lance Groody, the
+        original coder.
+        After uncompressed it may be handled as RAW_LR.
+ LZG_UD Uses LZG compression but is drawn from top to bottom as RLE_UD
+
+4.2.2.1 Run length encoding (RLE)
+ The first byte is allways a control byte, the format is SC. If the control
+ byte is negative, then the next byte must be repeated n times as the bit
+ inverted control byte says, after the next byte (the one that was
+ repeated)
+ another control byte is stored.
+ If the control byte is positive or zero just copy textual the next n bytes
+ where n is the control byte plus one. After that, the next byte is the
+ following control byte.
+ If you reach a control byte but the image size is passed, then you have
+ completed the image.
+
+4.2.2.2 LZ variant (LZG)
+ This is a simplified algorithm explanation:
+
+ Definition: "print" means to commit a byte into the current location
+             of the output stream.
+
+ The output stream is a slide window initialised with zeros.
+ The first byte of the input stream is a maskbyte.
+ For each of the 8 bits in the maskbyte the next actions must be performed:
+  If the bit is 1 print the next unread byte to the slide window
+  If the bit is a zero read the next two bytes as control bytes with the
+  following format (RRRRRRSS SSSSSSSS):
+   - 6  bits for the copy size number (R). Add 3 to this number.
+        Range: 2 to 66
+   - 10 bits for the slide position (S). Add 66 to this number.
+        Range: 66 to 1090
+   Then print in the slide window the next R bytes that are the same slide
+   window starting with the S'th byte.
+
+ After all the maskbyte is read and processed, the following input byte is
+ another maskbyte. Use the same procedure to finish uncompressing the file.
+
+ This version of the algorithm is limited to 1024 bytes due to the slide
+ window size. In case you want to know the full algorithm and see how it
+ works for bigger images you should use the source, Luke.
+
+ This is the full uncompression function source. Note that this is part of
+ PR that is under the GPL license. The variables «R» and «S» are «rep» and
+ «loc» respectively. The array output is the output stream and oCursor is
+ the current location. The input array and iCursor variable had the same
+ meaning for the input stream. The algorithm ends when the full input has
+ been processed. The maskbyte must remain with 0 for the unexistent bytes,
+ so if you find the maskbyte not null, it is possible that the input array
+ wasn't a LZG compressed stream. In that case that non-zero value is going
+ to be returned. This is the only internal way to detect an error in the
+ compression layer. All the data that has the latest maskbyte without this
+ issue will be detected as valid and unpacked normally.
+
+                   Algorithm 4.1: LZG
+                   ~~~~~~~~~~~~~~~~~~
+  
+  /* A big number (the output must be less that that) */
+  #define LZG_MAX_MEMSIZE    32001
+  
+  /* modulus to be used in the 10 bits of the algorithm */
+  #define LZG_WINDOW_SIZE    0x400 /* =1024=1<<10 */
+  
+  /* LZG expansion algorithm sub function */
+  unsigned char popBit(unsigned char *byte) {
+    register unsigned char bit=(*byte)&1;
+    (*byte)>>=1;
+    return bit;
+  }
+  
+  /* Expands LZ Groody algorithm. This is the core of PR.
+   * returns 0 on success, non-zero on possible data corruption
+   */
+  int expandLzg(const unsigned char* input, int inputSize, 
+                unsigned char* output, int *outputSize) {
+  
+    int           loc, oCursor=0, iCursor=0;
+    unsigned char maskbyte=0, rep, k;
+  
+    /* clean output garbage */
+    for(loc=LZG_MAX_MEMSIZE;loc--;output[loc]=0);
+  
+    /* main loop */
+    while (iCursor<inputSize) {
+      maskbyte=input[iCursor++];
+      for (k=8;k&&(iCursor<inputSize);k--) {
+        if (popBit(&maskbyte)) {
+          output[oCursor++]=input[iCursor++]; /* copy input to output */
+        } else {
+          /*
+           * loc:
+           *  10 bits for the slide iCursorition (S). Add 66 to this number.
+           * rep:
+           *  6 bits for the repetition number (R). Add 3 to this number.
+           */
+          loc= 66 + ((input[iCursor] & 0x03 /*00000011*/) <<8) + input[iCursor+1];
+          rep= 3  + ((input[iCursor] & 0xfc /*11111100*/) >>2);
+          
+          iCursor+=2;
+          
+          while (rep--) { /* repeat pattern in output */
+            loc=loc%LZG_WINDOW_SIZE; /* loc is in range 0-1023 */
+  
+            /*
+             * delta is ((loc-oCursor)%LZG_WINDOW_SIZE)
+             * this is the offset where the bytes will be looked for
+             * in the simple algorithm it is allways negative
+             * in bigger images it can be iCursoritive
+             * 
+             * this value is inside the range -1023 to 1023.
+             * if loc>oCursor the result is iCursoritive
+             * if loc<oCursor the result is negative
+             */
+            
+            output[oCursor]=output[oCursor+((loc-oCursor)%LZG_WINDOW_SIZE)];
+  
+            oCursor++;
+            loc++;
+          }
+        }
+      }
+    }
+    
+    *outputSize=oCursor;
+    return maskbyte;
+  }
+  
+4.3. Palettes
+ Palettes have 100 bytes allways, after 4 bytes from the beginning the
+ first 16 records of 3 bytes are the VGA colours stored in the RGB-18 bits
+ format (6 bits for each colour). Each colour is a number from 0 to 63.
+ Remember to shift the colour bytes by two to get the colour number from 0
+ to 256.
+
+4.4. Levels
+ This table has a summary of the blocks to be used in this section,
+ you can referr it from the text below.
+
+                   Table 4.1: Level blocks
+                   ~~~~~~~~~~~~~~~~~~~~~~~
+
+  Length Offset  Block Name
+  ~~~~~~ ~~~~~~  ~~~~~~~~~~
+  720    0       wall
+  720    720     background
+  256    1440    door I
+  256    1696    door II
+  96     1952    links
+  64     2048    unknown I
+  3      2112    start_position
+  3      2115    unknown II
+  1      2116    unknown III
+  24     2119    guard_location
+  24     2143    guard_direction
+  24     2167    unknown VI (a)
+  24     2191    unknown VI (b)
+  24     2215    guard_skill
+  24     2239    unknown VI (c)
+  24     2263    guard_colour
+  16     2287    unknown VI (d)
+  2      2303    0F 09 (2319)
+
+ All levels has a size of 2305, except in the original game, that the
+ potion level has a size of 2304 (may be it was wrong trimmed).
+
+4.4.1 Unknown blocks
+ Blocks described in this section are: Unknown from I to IV.
+
+ Unknown III and VI blocks doesn't affect the level if changed, if you find
+ out what they are used to we will welcome your specification text.
+
+ Unknown I may corrupt the level if edited.
+
+ We believe unknown II has something to do with the start position, but we
+ don't know about it.
+
+ As unknown II were all zeros for each level in the original set, it was a
+ team decision to use those bytes for format extension. If one of them is
+ not the default 00 00 00 hex then the level was extended by the team.
+ Those extensions are only supported by RoomShaker at this  moment. To see
+ how those extensions were defined read the appendix I'll write some day.
+ For the moment you may contact us if you need to know that.
+
+4.4.2 Room mapping
+ This section explains how the main walls and objects are stored. The
+ blocks involved here are "wall" and "background"
+
+ In a level you can store a maximum of 24 screens (also called rooms) of 30
+ tiles each, having three stages of 10 tiles each. Screens are numbered
+ from 1 to 24 (not 0 to 23) because the 0 was reserved special cases.
+
+ The wall and background blocks have 24 sub-blocks inside. Those sub-blocks
+ has a size of 30 bytes each and has a screen associated. So, for example,
+ the sub-block staring in 0 corresponds to the screen 1 and the sub-block
+ starting in 690 corresponds to the screen 24.
+ It is reserved 1 byte from the wall block and one from the background
+ block for each tile. To locate the appropriate tile you have to do the
+ following calculation: tile=(screen-1)*30+tileOffset where tileOffset is a
+ number
+ from 0 to 29 that means a tile from 0 to 9 if in the upper stage, from
+ 10 to 19 if in the middle stage and 20 to 29 if in the bottom stage.
+ We define this as the location format and will be used also in the start
+ position.
+ Allways looking from the left to the right.
+ So there is a wall and background byte for each tile in the level and this
+ is stored this way.
+
+ The wall part of the tile stores the main tile form according to the table
+ below. Note that those are just a limited number of tiles, each code has a
+ tile in the game. The tiles listed are all the ones needed to make a level
+ so the missing tiles have an equivalent in this list.
+
+ Each tile has a code id, as some codes are repeated this is how you have
+ to calculate the codes. A tile in the wall part has 8 bits in this format
+ rrmccccc, where rr are random bits and can be ignored. m is a modifier of
+ the tile. For example modified loose floors do not fall down. The rest
+ ccccc is the code of the tile tabled below. Tile names are the same as the
+ ones used by RoomShaker to keep compatibility.
+
+                   Table 4.2: Foreground Walls
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Hex  Binary Group  Description
+  ~~~~ ~~~~~~ ~~~~~  ~~~~~~~~~~~
+  0x00 00000  free   Empty
+  0x01 00001  free   Floor
+  0x02 00010  spike  Spikes
+  0x03 00011  none   Pillar
+  0x04 00100  gate   Gate
+  0x05 00101  none   Stuck Button
+  0x06 00110  event  Drop Button
+  0x07 00111  tapest Tapestry
+  0x08 01000  none   Top Big-pillar
+  0x09 01001  none   Bottom Big-pillar
+  0x0A 01010  potion Potion
+  0x0B 01011  none   Loose Floor
+  0x0C 01100  ttop   Tapestry Top
+  0x0D 01101  none   Mirror
+  0x0E 01110  none   Debris
+  0x0F 01111  event  Raise Button
+  0x10 10000  none   Exit Left
+  0x11 10001  none   Exit Right
+  0x12 10010  chomp  Chopper
+  0x13 10011  none   Torch
+  0x14 10100  wall   Wall
+  0x15 10101  none   Skeleton
+  0x16 10110  none   Sword
+  0x17 10111  none   Balcony Left
+  0x18 11000  none   Balcony Right
+  0x19 11001  none   Lattice Pillar
+  0x1A 11010  none   Lattice Support
+  0x1B 11011  none   Small Lattice
+  0x1C 11100  none   Lattice Left
+  0x1D 11101  none   Lattice Right
+  0x1E 11110  none   Torch with Debris
+  0x1F 11111  none   Null
+
+ The background part of the tile stores a modifier or attribute of the
+ wall part of the tile. This works independently of the modifier bit in the
+ code. The tile  modifier depends on the group the tile belongs which are
+ wall, chomp, event, ttop, potion, tapp, gate, spike and free.
+ The group event allows the 256 modifiers and will be described in 4.4.6.
+ Note + means allowed for the dungeon environment, - means allowed for the
+ palace environment.
+
+                   Table 4.3: Background modifiers by group
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Group  Code Description
+  ~~~~~  ~~~~ ~~~~~~~~~~~
+  none   0x00 This value is used allways for this group
+  free   0x00 +Nothing -Blue line
+  free   0x01 +Spot1   -No blue line
+  free   0x02 +Spot2   -Diamond
+  free   0x03 Window
+  free   0xFF +Spot3   -Blue line?
+  spike  0x00 Normal (allows animation)
+  spike  0x01 Barely Out
+  spike  0x02 Half Out
+  spike  0x03 Fully Out
+  spike  0x04 Fully Out
+  spike  0x05 Out?
+  spike  0x06 Out?
+  spike  0x07 Half Out?
+  spike  0x08 Barely Out?
+  spike  0x09 Disabled
+  gate   0x00 Closed
+  gate   0x01 Open
+  tapest 0x00 -With Lattice
+  tapest 0x01 -Alternative Design
+  tapest 0x02 -Normal
+  tapest 0x03 -Black
+  potion 0x00 Empty
+  potion 0x01 Health point
+  potion 0x02 Life
+  potion 0x03 Feather Fall
+  potion 0x04 Invert
+  potion 0x05 Poison
+  potion 0x06 Open
+  ttop   0x00 -With lattice
+  ttop   0x01 -Alernative design
+  ttop   0x02 -Normal
+  ttop   0x03 -Black
+  ttop   0x04 -Black
+  ttop   0x05 -With alternative design and bottom
+  ttop   0x06 -With bottom
+  ttop   0x07 -With window
+  chomp  0x00 Normal
+  chomp  0x01 Half Open
+  chomp  0x02 Closed
+  chomp  0x03 Partially Open
+  chomp  0x04 Extra Open
+  chomp  0x05 Stuck Open
+  wall   0x00 +Normal  -Blue line
+  wall   0x01 +Normal  -No Blue line
+
+ Note: Some modifiers have not been tested, there may be any other unknown
+       tile type we didn't discover.
+
+
+4.4.2.1 Wall drawing algorithm
+ This section doesn't have a direct relation with the format because it
+ describes how the walls must be drawn on the screen. However, as this
+ information should be usefull to recreate a cloned screen read from the
+ format we decided to include this section to the document.
+
+ Wall drawing depends on what is in the right panel. If the right panel
+ is not a wall (binary code ends in 10100) a base wall will be drawn and
+ other random seed will be used. If the right panel is a wall then the main
+ base wall will be drawn and the described seed will be used.
+
+ When the base wall is drawn, the modifiers should be blitted over it.
+ There are 53 different types of walls using the same base image.
+ We will call the seed array to the one having the modifier information of
+ those 53 panels. This array has indexes from 1 to 53 included.
+
+ To calculate what value take from the array this calculation must be
+ performed: panelInfo=seedArray[screenNumber+wallPosition]
+ where panelInfo is the result modifier information that will be applied to
+ the base image; seedArray is this array that will be described above as a
+ table; screenNumber is the number of the screen the wall is (from 1 to 24)
+ and wallPosition is the position the wall is (from 0 to 29), using the
+ location format specified in section 4.4.2. This means the first value is
+ 1 (screenNumber=1 and wallPosition=0) and the last is 53 (screenNumber=24
+ and wallPosition=29).
+
+ Modifiers affects the corners of a stone. There are three stone rows per
+ wall. If the modifier is activated this corner will appear different
+ (seems to be darker). Another modifier is the gray stone.
+
+                   Table 4.4: Stone modifiers on seed position
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Modifier       Seed Positions
+  ~~~~~~~~       ~~~~ ~~~~~~~~~
+     (First row modifiers)
+  Gray stone     2, 5, 14, 17, 26, 32, 35, 50
+  Left, bottom   2, 11, 36, 45
+  Left, top      37
+  Right, bottom  27, 33
+  Right, up      4, 10, 31, 37
+
+     (second row)
+  Gray stone     none 
+  Left, bottom   34, 47
+  Left, top      9, 10
+  Right, bottom  2, 8, 25, 35
+  Right, top     6, 12, 23, 29, 39
+
+     (third row)
+  Gray stone     none 
+  Left, bottom   none
+  Left, top      16
+  Right, bottom  none
+  Right, top     none
+
+ Another modifiers are saved in the seed too. Those modifiers are not
+ boolean values, they are offsets and sizes. As each stone has a different
+ size the stone separation offset is saved in the seed.
+ For the first row, the stones are all the same size and the seed is not
+ needed.
+ For the second row we've got the first 20 values, ordered from 1 to 20. 
+ position        1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20
+ offsets:        5,4,3,3,1,5,4,2,1, 1, 5, 3, 2, 1, 5, 4, 3, 2, 5, 4
+ separator size: 0,1,1,0,0,0,1,1,0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0
+
+ We'll be adding the next values as soon as we count the pixels ;)
+ This information can be found in walls.conf file from FreePrince.
+
+4.4.3 Room linking
+ This section describes the links block.
+
+ Each screen is linked to another by each of the four sides. Each link
+ is stored. There is no screen mapping, just screen linking.
+
+ The links block has 24 sub-blocks of 4 bytes each. All those sub-blocks
+ has its own correspondence with a screen (the block starting at 0 is
+ related to the screen 1 and the block starting at with 92 is related to
+ screen 24).
+ Each block of 4 bytes stores the links this screen links to reserving one
+ byte per each side in the order left (0), right (1), up (2), down (3).
+ The number 0 is used when there is no screen there.
+ Cross links should be made to allow the kid passing from a screen to
+ another and then coming back to the same screen but it's not a must.
+
+4.4.4 Guard handling
+ This section specifies the blocks: guard_location, guard_direction,
+ guard_skill and guard_colour.
+
+ Each guard section has 24 bytes, each byte of them corresponds to a screen
+ so byte 0 is related to screen 1 and byte 13 is related to screen 24.
+ This screen is where the guard is located. The format only allows one
+ guard per screen. Each block describes a part of the guard.
+
+ The guard_location part of a guard describes where in the screen the guard
+ is located, this is a number from 0 to 29 if the guard is in the screen or
+ 30 if there is no guard in this screen. Other values are allowed but are
+ equivalent to 30. The number from 0 to 29 is in the location format
+ specified in section 4.4.2
+
+ The guard_direction part describes where the guard looks at. If the value
+ is 0, then the guard looks to the right, if the value is the hex FF (-1 or
+ 255) then he looks left. This is the direction format, and will be used in
+ the start position too.
+
+ The guard_skill is how the guard fights, style and lives. Note that the
+ lives also depends on the level you are. Allowed numbers are from 0 to 9.
+
+ TODO: add a skill table
+
+ The guard_colour is the palette the guard has (see 4.8).
+ The default colours are in this table:
+
+                   Table 4.4: Default Guard colours
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Code Pants     Cape
+  ~~~~ ~~~~~     ~~~~
+  0x00 Light     Blue Pink
+  0x01 Red       Purple
+  0x02 Orange    Yellow
+  0x03 Green     Yellow
+  0x04 Dark Blue Beige
+  0x05 Purple    Beige
+  0x06 Yellow    Orange
+
+ Other codes may generate random colours because the game is reading
+ the palette from trashed memory. This may also cause a game crash.
+ It should (never tested) be possible to add new colours in the guard
+ palette resource (see 4.8) avoiding the crash due to this reason.
+
+
+4.4.5 Starting Position
+ This section describes the start_position block.
+
+ This block stores where and how the kid starts in the level. Note that all
+ level doors that are on the starting screen will be closed in the moment
+ the level starts.
+
+ This block has 3 bytes.
+ The first byte is the screen, allowed values are from 1 to 24.
+ The second byte is the location, see the section 4.4.2 for the location
+ format specifications.
+ The third byte is the direction, see 4.4.4 for the direction format
+ specifications.
+
+4.4.6 Door events
+ This section explains how the doors are handled and specifies the blocks
+ door I and II.
+
+ First of all he have to define what an event line is in this file. An
+ event line is a link to a door that will be activated. If the event was
+ triggered with the action close, then the event will close the door, if
+ the action was open then the event will open the door. An event line has
+ also a flag to trigger the next event line or not.
+ An event is defined as a list of event lines, from the first to the last.
+ The last must have the trigger-next-event-line flag off. This is like a
+ list of doors that performs an action.
+ An event performs the action that it was called to do: open those doors or
+ close them. This action is defined by the type of tile pressed.
+ Each event line has an ID from 0 to 255. An event has the ID of the first
+ event line in it.
+
+ In section 4.4.2 it is explained how a door trigger is associated to an
+ event ID. Those are the tiles that starts the event depending on what are
+ them: closers or openers.
+
+ How events are stored:
+ Each door block has 256 bytes, one per event line. Each event line is
+ located in an offset that is the event line ID, so event line 30 is
+ located in the byte 30 of each block.
+ There is a door I part of an event line and a door II part of it. We'll
+ define them as byte I and byte II.
+ You can find there: the door screen, the door location, and the
+ trigger-next flag. The format is the following:
+
+ Let's define:
+  Screen as S and it is a number from 1 to 24 (5 bits)
+   S = s1 s2 s3 s4 s5
+    where sn is the bit n of the binary representation of S
+  Location as L and is a number from 0 to 29 (5 bits)
+   L = l1 l2 l3 l4 l5
+    where ln is the bit n of the binary representation of L
+   This number is according to the location format specifications.
+  Trigger-next as T and is a 1 for "on" or a 0 for "off" (1 bit)
+   T = t1
+
+ Byte I  has the form: t1 s4 s5 l1 l2 l3 l4 l5
+ Byte II has the form: s1 s2 s3  0  0  0  0  0
+
+4.5. Digital Waves
+ Read them as raw digital wave sound using the following specifications:
+
+                   Table 4.4: Wave Specifications
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Size of Format: 16
+  Format:         PCM
+  Attributes:     8 bit, mono, unsigned
+  Channels:       1
+  Sample rate:    11025
+  Bytes/Second:   11025
+  Block Align:    1
+
+ GNU/Linux users can play the raw waves just dropping them inside /dev/dsp
+ As dat headers are very small it is valid to type in a shell console with
+ dsp write access: cat digisnd?.dat>/dev/dsp to play the whole wave files.
+
+4.6. Midi music
+ Standard midi files
+
+4.7. Internal PC Speaker
+ We are not so sure about it, but we think it is:
+  2 unique bytes for headers
+  3 bytes per note (2 for frequency and 1 for duration)
+
+4.8. Binary files
+ Some binary files contains relevant information
+ The resource number 10 in prince.dat has the VGA guard palettes in it
+ saving n records of a 16-colour-palette of 3 bytes in the specified
+ palette format.
+
+
+5. PLV v1.0 Format Specifications
+   ~~~ ~~~~ ~~~~~~ ~~~~~~~~~~~~~~
+
+ PLV v1.0 files are defined in this table:
+
+                   Table 5.1: PLV blocks
+                   ~~~~~~~~~~~~~~~~~~~~~
+
+   Size Offset Description                  Type   Content
+   ~~~~ ~~~~~~ ~~~~~~~~~~~                  ~~~~   ~~~~~~~
+      7      0 Magic identifier             text   "POP_LVL"
+      1      7 POP version                  UC     0x01
+      1      8 PLV version                  UC     0x01
+      1      9 Level Number                 UC
+      4     10 Number of fields             UL
+      4     14 Block 1: Level size (B1)     UL     2306/2305
+     B1     18 Block 1: Level code          -
+      4  18+B1 Block 2: User data size (B2) UL
+     B2  22+B1 Block 2: User data           -
+
+ Level code is the exact level as described in 4.4 including the checksum
+ byte. Note that Level size also includes the checksum byte in the count.
+ POP version is 1 for POP1 and 2 for POP2.
+ PLV version is 1 for PLV v1.0.
+ Only one level may be saved in a PLV, the level number is saved inside.
+
+5.1. User data
+
+ User data is a block of extensible information, Number of fields is the
+ count of each field/value information pair. A pair is saved in the
+ following format:
+  field_name\0value\0
+ where \0 is the null byte (0x00) and field_name and value are strings.
+
+ There are mandatory pairs that must be included in all PLV files.
+ Those are:
+
+                   Table 5.2: Mandatory Fields
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  Field name              Description
+  ~~~~~~~~~~              ~~~~~~~~~~~
+  Editor Name             The name of the editor used to save the file
+  Editor Version          The version of the editor used to save the file
+  Level Author            The author of the file
+  Level Title             A title for the level
+  Level Description       A description
+  Time Created            The time when the file was created
+  Time Last Modified      The time of the last modification to the file
+  Original Filename       The name of the original file name (levels.dat)
+  Original Level Number   Optional. The level number it has when it was
+                          first exported
+ 
+ The content values may be empty. There is no need to keep an order within
+ the fields.
+
+5.2. Allowed Date format
+ To make easy time parsing the time format must be very strict.
+ There are only two allowed formats: with seconds and without.
+ With seconds the format is "YYYY-MM-DD HH:II:SS"
+ Without seconds the format is "YYYY-MM-DD HH:II"
+ Where YYYY is the year in 4 digits, MM is the month in numbers, MM the
+ months, DD the days, HH the hour, II the minute and SS the second in the
+ military time: HH is a number from 00 to 23.
+
+ If the month, day, hour or second have only one digit, the other digit
+ must be completed with 0.
+ i.e. 2002-11-26 22:16:39
+
+
+6. The SAV v1.0 format
+   ~~~ ~~~ ~~~~ ~~~~~~
+
+ SAV v1.0 saves kid level, lives and remaining time information in order to
+ restart the game from this position.
+
+ SAV files are 8 bytes length in the following format:
+
+                   Table 6.1: SAV blocks
+                   ~~~~~~~~~~~~~~~~~~~~~
+
+   Size Offset Description                  Type
+   ~~~~ ~~~~~~ ~~~~~~~~~~~                  ~~~~
+      2      0 Remaining minutes            US   (i)
+      2      2 Remaining ticks              US   (ii)
+      2      4 Current level                US   (iii)
+      2      6 Current hit points           US   (iv)
+
+ Remaining minutes (i)
+  Range values:
+   0     to 32766 for minutes
+   32767 to 65534 for NO TIME (but the time is stored)
+   65535 for game over
+
+ Remaining ticks (ii)
+  Seconds are stored in ticks, a tick is 1/12 seconds. To get the time in
+  seconds you have to divide the integer "Remaining ticks" by 12.
+
+  Range values:
+   0.000 to 59.916 seconds
+                   (rounded by units of 83 milliseconds or 1/12 seconds)
+   0     to 719    ticks
+
+ Level (iii)
+  Range values:
+   1  to 12 for normal levels
+   13 for 12bis
+   14 for princess level
+   15 for potion level
+
+ Hit points (iv)
+  Range values:
+   0 for an immediate death
+   1 to 65535 lives
+
+
+7. The HOF v1.0 format
+   ~~~ ~~~ ~~~~ ~~~~~~
+ HOF files are used to save the Hall of Fame information.
+
+ All HOF v1.0 files have a size of 176 bytes. The first 2 bytes belongs to
+ the record count. The format is US. The maximum number of records allowed
+ is 6, so the second byte is allways 0x00.
+ Following those bytes there is an array of records. This array has a full
+ size of 29 bytes distributed according to the following table.
+
+                   Table 7.1: HOF blocks
+                   ~~~~~~~~~~~~~~~~~~~~~
+
+   Size Offset Description                  Type
+   ~~~~ ~~~~~~ ~~~~~~~~~~~                  ~~~~
+     25      0 Player name                  text
+      2     25 Remaining minutes            US (similar to SAV format)
+      2     27 Remaining ticks              US (similar to SAV format)
+
+ In case there is no record, the 29 bytes spaces must be filled with zeros
+ in order to complete the whole file and give it the size of 2+29*6 = 176.
+
+
+8. Credits
+   ~~~~~~~
+
+ This document:
+  Writing . . . . . . . . . . . . . . . . . . . . . . . . . Enrique Calot
+  Corrections . . . . . . . . . . . . . . . . . . . . .  Patrik Jakobsson
+
+ Reverse Engineering:
+  Indexes . . . . . . . . . . . . . . . . . . . . . . . . . Enrique Calot
+  Levels . . . . . . . . . . . . . . . . . . . . . . . . .  Enrique Calot
+                                                            Brendon James
+  Images . . . . . . . . . . . . . . . . . . . . . . .  Tammo Jan Dijkema
+  RLE Compression . . . . . . . . . . . . . . . . . . . Tammo Jan Dijkema
+  LZG Compression . . . . . . . . . . . . . . . . . . . . . Anke Balderer
+  Sounds . . . . . . . . . . . . . . . . . . . . . . . Christian Lundheim
+
+ PLV v1.0:
+  Definition . . . . . . . . . . . . . . . . . . . . . . .  Brendon James
+                                                            Enrique Calot
+
+9. License
+   ~~~~~~~
+
+      Copyright (c)  2004, 2005 The Princed Project Team
+      Permission is granted to copy, distribute and/or modify this document
+      under the terms of the GNU Free Documentation License, Version 1.2
+      or any later version published by the Free Software Foundation;
+      with no Invariant Sections, no Front-Cover Texts, and no Back-Cover
+      Texts.  A copy of the license is included in the section entitled
+      "GNU Free Documentation License".
+

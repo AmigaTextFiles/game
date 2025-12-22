@@ -1,0 +1,7943 @@
+
+;                             CYBER-DRAW LIBRARY              27 Mar 1993
+
+	bra.w	SET_UP		; Call SCREEN & set registers
+	bra.w	CYBER_DRAW	; All to CALCULATE/DISPLAY scenario
+
+;	bra.w	OBJECT		; X,Y,R,INK,Addr MASK,Addr OBJ
+;	lea	$dff000,a6	;SPECIALE ClearScreen per OBJ_MAKER
+;	bra.w	BACK_NORTH
+
+; END of CYBER-DRAW library
+****************************************************************************
+****************************************************************************
+; DEF_TAB.asm                                                 20 Mar 1993
+;
+; indirizzi TABELLE usate da CYBER-MAN
+
+BLIMIT0		= $0000		;.B (BDIST)
+BLIMIT1		= $0010		;.B (BDIST)
+L5		= $0090		;.B = L5 (RLINE)
+L4		= $0490		;.B = L4 (RLINE)
+L3		= $0890		;.B = L3 (RLINE)
+L2		= $0c90		;.B = L2 (RLINE) non usato!
+L1		= $1090		;.B = L1 (RLINE)
+L0		= $1490		;.B = L0 (RLINE) non usato!
+PX		= $1890		;.W = PX  (BRX,RLINE)
+BORDER0		= $5890		;.B = Usato per ricavare BCODE / PR= 0..31
+BORDER1		= $5990		;.B = Usato per ricavare BCODE / PR=32..63
+WAVE_LIST	= $5a90		;.B ( wave 0,1,2,3 )
+MASK_LEFT	= $5ad0		;.W = MASK_LEFT  per RECTANGLE AFWM
+MASK_RIGHT	= $5af0		;.W = MASK_RIGHT per RECTANGLE ALWM
+
+; $5b10		= VAR.asm	; vedi il FILE 'VAR.asm'
+; $5e00		= VAR_INT.asm	; vedi il FILE 'VAR_INT.asm'
+
+WHICH_LEVEL	= $6000		;.B = MAP localizzazione 4K
+; $7000-$7400	= COPPER	;|||||| PER LO SVILUPPO COPPERLIST ||||||
+Mul_Y		= $7400		;.W = Addr_Y*44 (Y)
+OBJ_E		= $7650		; Rotate 4 Bits...
+OBJ_S		= $7660		; Rotate 4 Bits...
+OBJ_W		= $7670		; Rotate 4 Bits...
+HIGH_SKY	= $7680		;.B = TAB(H) altezza CYBER/16 per SKY
+; $7780-$7800	=  ---Empty!---	; 288 bytes ($120)
+ENEMYes_BAK	= $7800		; 25/32 GHOST STRUCT SetUp
+ENEMYes		= $7A80		; 25/32 GHOST STRUCT Game
+JUMP_SHORT	= $7D00		; 128 bytes
+JUMP_MID	= $7D80		; 256 bytes
+JUMP_LONG	= $7E80		; 384 bytes
+;PY		= $8000		;.W = (H,RLINE) --- H=64..255 / DIST=0..255
+; END of DEF_TAB.asm
+****************************************************************************
+; VAR.asm                                                     18 Mar 1993
+;  dichiarazione VARIABILI usate da CYBER_MAN
+;   default = .W
+
+BUFFER		= $5b10	; usato da POLYGON & da PYRAMID , 128 bytes
+X0		= $5b90
+X1		= $5b92
+Y0		= $5b94
+Y1		= $5b96
+INK		= $5b98
+X		= $5b90	; per OBJECT (come X0)
+Y		= $5b92	; per OBJECT (come X1)
+R		= $5b94	; per OBJECT (come Y0)
+SCREEN_DRAW	= $5b9c	; LONG WORD!
+SCREEN_SHOW	= $5ba0	; LONG WORD!
+BACK_NORTH_PT	= $5ba8	; ( indirizzo sfondo NORD 4 plane )
+BACK_EAST_PT	= $5bac	; ( indirizzo sfondo EST 4 plane )
+BACK_SOUTH_PT	= $5bb0	; ( indirizzo sfondo SUD 4 plane )
+BACK_WEST_PT	= $5bb4	; ( indirizzo sfondo OVEST 4 plane )
+SHAPES		= $5bb8	; ( indirizzo base OBJ 32 pixel )
+Copper_LIST_0	= $5bbc	; indirizzo COPPERLIST Screen=$68000
+Copper_LIST_1	= $5bc0	; indirizzo COPPERLIST Screen=$74000
+Copper_LIST_HAM	= $5bc4	; indirizzo COPPERLIST Schermo titoli HAM
+Copper_LIST_2_3	= $5bc8	; indirizzo COPPERLIST Schermi INFO/SELECT
+PAGE_0		= $5bcc	; LONG! --- $68000
+PAGE_1		= $5bd0	; LONG! --- $74000
+CURRENT_COPLIST	= $5bd4	; LONG! -Puntatore copperlist visualizzata-
+HIDE_COPLIST	= $5bd8	; LONG! -Puntatore copperlist prossima DBF-
+FILLBLIT	= $5c30	; LONG! -Puntatore FILL buffer
+
+ALPHA		= $5bdc	;0=NORTH / 1=EAST / 2=SOUTH / 3=WEST
+H		= $5bde	; ( JUMP ) - 0..31 Altezza
+VX		= $5be0	; Coordinata X corrente di PAC (0..4095)
+VY		= $5be2	; Coordinata Y corrente di PAC (0..4095)
+BPOSX		= $5be4
+BPOSY		= $5be6
+BX		= $5be8
+BY		= $5bea
+BLIMIT		= $5bec
+BRX		= $5bee
+BRY		= $5bf0
+RY		= $5bf2
+V0		= $5bf4
+V1		= $5bf6
+V2		= $5bf8
+V3		= $5bfa
+V4		= $5bfc
+V5		= $5bfe
+V6		= $5c00
+V7		= $5c02
+PR		= $5c04	;Posizione relativa dentro il BLOCCO
+PR_K		= $5c06
+PR_FLAG		= $5c08
+BPROF		= $5c0a	;Livello BLOCCHI profondita' --( 0..14 )
+WAVS		= $5c0c	;usato da WAVE 0..3
+TYPE		= $5c0e
+OBJ		= $5c10	;WORD --- ruotato
+INFO_N0		= $5c12
+INFO_N1		= $5c14
+INFO_E0		= $5c16
+INFO_E1		= $5c18
+INFO_S0		= $5c1a
+INFO_S1		= $5c1c
+INFO_W0		= $5c1e
+INFO_W1		= $5c20
+INFO_TP		= $5c22
+INFO_BT		= $5c24
+EXT		= $5c26 ; Att! viene ruotato come gli INFO e OBJ
+AUX		= $5c28
+BCODE		= $5c2a
+LAST_ALPHA	= $5c2c	;WORD  --- usato da TURN
+;!!!! FILLBLIT	= $5c30	; LONG! -Puntatore FILL buffer
+OBJ2		= $5c34	;WORD --- non ruotato
+WIRE		= $5c36	;BYTE --- FLAG (se=0 allora TUBI pieni,se=1 WIRE frame)
+BACKGROUND	= $5c37	;BYTE --- FLAG (se=0 allora no sfondo,se=1 da FAST RAM)
+GHOSTSEE	= $5c38	;BYTE --- FLAG (se=0 allora no GHOSTs,se=1 visibili)
+TURNING		= $5c39	;BYTE ---- FLAG (usato internamente)
+BLEEDING	= $5c3a	;BYTE ---- FLAG (usato internamente)
+RADAR		= $5c3b	; BYTE! ---- FLAG (1=RADAR acceso)
+RADAR_PT	= $5c3c	; LONG! -Puntatore dati RADAR e sprite
+HUD		= $5c40	;BYTE! ---- Head Up Display visibile?
+AUDPAUSE	= $5c41	;BYTE!
+CHEAT_E		= $5c42	;WORD!
+CHEAT_L		= $5c44	;WORD!
+CHEATED		= $5c46	;BYTE!
+WELL_DONE_CNT	= $5c47	;BYTE! ---- Messaggio alla fine del livello,5 sec.
+
+RG_STRUCT	= $5e80
+GDRAW		= $5eb0
+;OFFSET rispetto a RG_STRUCT
+RGVX		= 0	;WORD! =GVX
+RGVY		= 2	;WORD! =GVY
+RGALPHA		= 4	;BYTE! =GALPHA
+RGBAD		= 5	;BYTE! =BAD
+RGFACE		= 6	;BYTE! =per GHOST DRAW
+RGCTRL		= 7	;BYTE! =GCONTROL
+
+; ---- ESTERNI ----
+ADDRESS_MAP	= $5ba4	;LONG WORD!   --- COMUNE A CYBER INT (!!!)
+TURNSPEED	= $5e4d	;BYTE! --- usato da TURN --- comune a CYBER INT (!!!)
+INT_ALPHA	= $5e18	;WORD! ALPHA di CYBER_INT
+ENERGY		= $5e3c	;WORD! usato da DRAW_ENERGY
+SCORE		= $5e38	;LONG! usato da DRAW_SCORE
+VB		= $5e34	;LONG! usato da DRAW_TIME
+SUPERPILL	= $5e2c	;WORD!
+POWERJUMP	= $5e3e	;WORD!
+VELOCITY	= $5e42	;WORD!
+LEVEL		= $5e46	;WORD!
+GAMEOVER	= $5e54	;BYTE!
+ENDGAME		= $5e55	;BYTE!
+
+; END of VAR.asm
+****************************************************************************
+****************************************************************************
+; SET_UP routine                                              13 Mar 1993
+;
+
+SET_UP:
+	LEA	$DFF000,A6	; CUSTOM
+	MOVE.L	Copper_LIST_0(A0),A1
+	MOVE.L	PAGE_0(A0),D0
+	MOVE.W	D0,$6(A1)
+	SWAP	D0
+	MOVE.W	D0,$2(A1)
+	SWAP	D0
+	ADD.L	#$3000,D0
+	MOVE.W	D0,$e(A1)
+	SWAP	D0
+	MOVE.W	D0,$a(A1)
+	SWAP	D0
+	ADD.L	#$3000,D0
+	MOVE.W	D0,$16(A1)
+	SWAP	D0
+	MOVE.W	D0,$12(A1)
+	SWAP	D0
+	ADD.L	#$3000,D0
+	MOVE.W	D0,$1e(A1)
+	SWAP	D0
+	MOVE.W	D0,$1a(A1)
+
+	MOVE.L	RADAR_PT(A0),D0
+	ADD.W	#$2898,D0
+	MOVE.W	D0,50(A1)
+	SWAP	D0
+	MOVE.W	D0,46(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,58(A1)
+	SWAP	D0
+	MOVE.W	D0,54(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,66(A1)
+	SWAP	D0
+	MOVE.W	D0,62(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,74(A1)
+	SWAP	D0
+	MOVE.W	D0,70(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,82(A1)
+	SWAP	D0
+	MOVE.W	D0,78(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,90(A1)
+	MOVE.W	D0,98(A1)
+	SWAP	D0
+	MOVE.W	D0,86(A1)
+	MOVE.W	D0,94(A1)
+
+	MOVE.L	Copper_LIST_1(A0),A1
+	MOVE.L	PAGE_1(A0),D0
+	MOVE.W	D0,$6(A1)
+	SWAP	D0
+	MOVE.W	D0,$2(A1)
+	SWAP	D0
+	ADD.L	#$3000,D0
+	MOVE.W	D0,$e(A1)
+	SWAP	D0
+	MOVE.W	D0,$a(A1)
+	SWAP	D0
+	ADD.L	#$3000,D0
+	MOVE.W	D0,$16(A1)
+	SWAP	D0
+	MOVE.W	D0,$12(A1)
+	SWAP	D0
+	ADD.L	#$3000,D0
+	MOVE.W	D0,$1e(A1)
+	SWAP	D0
+	MOVE.W	D0,$1a(A1)
+
+	MOVE.L	RADAR_PT(A0),D0
+	ADD.W	#$2898,D0
+	MOVE.W	D0,50(A1)
+	SWAP	D0
+	MOVE.W	D0,46(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,58(A1)
+	SWAP	D0
+	MOVE.W	D0,54(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,66(A1)
+	SWAP	D0
+	MOVE.W	D0,62(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,74(A1)
+	SWAP	D0
+	MOVE.W	D0,70(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,82(A1)
+	SWAP	D0
+	MOVE.W	D0,78(A1)
+	SWAP	D0
+	ADD.W	#24,D0
+	MOVE.W	D0,90(A1)
+	MOVE.W	D0,98(A1)
+	SWAP	D0
+	MOVE.W	D0,86(A1)
+	MOVE.W	D0,94(A1)
+
+	MOVE.L	A1,$80(A6)	;copLC 1
+	MOVE.W	#0,$88(A6)	;copJUMP 1
+	MOVE.W	#$4204,$100(A6)
+	MOVE.W	#$0000,$102(A6)	;bplcon1 (playfield scroll)
+	MOVE.W	#$003F,$104(A6)	;bplcon2 (playfield priority)
+	MOVE.W	#0,$108(A6)	;bpl1mod
+	MOVE.W	#0,$10A(A6)	;bpl2mod
+	MOVE.W	#$30,$92(A6)	;ddfstrt
+	MOVE.W	#$D8,$94(A6)	;ddfstop
+	MOVE.W	#$1E71,$8E(A6)	;diwstrt
+	MOVE.W	#$33D1,$90(A6)	;diwstop (-1 per TURNED RIGHT)
+
+	MOVE.W	#$666,$182(A6)
+	MOVE.W	#$888,$184(A6)
+	MOVE.W	#$AAA,$186(A6)
+	MOVE.W	#$900,$188(A6)
+	MOVE.W	#$A00,$18A(A6)
+	MOVE.W	#$B00,$18C(A6)
+	MOVE.W	#$C00,$18E(A6)
+	MOVE.W	#$080,$190(A6)
+	MOVE.W	#$0C0,$192(A6)
+	MOVE.W	#$A08,$194(A6)
+	MOVE.W	#$D0A,$196(A6)
+	MOVE.W	#$0A0,$198(A6)
+	MOVE.W	#$00B,$19A(A6)
+	MOVE.W	#$00D,$19C(A6)
+	MOVE.W	#$00F,$19E(A6)
+
+	MOVE.W	#$000,$1A0(A6)	;SPRITEs colors
+	MOVE.W	#$0F0,$1A2(A6)	;CYBER
+	MOVE.W	#$F00,$1A4(A6)	;Empty
+	MOVE.W	#$000,$1A6(A6)
+	MOVE.W	#$000,$1A8(A6)
+	MOVE.W	#$000,$1AA(A6)	;Mack
+	MOVE.W	#$FF0,$1AC(A6)	;JoyPad
+	MOVE.W	#$000,$1AE(A6)
+	MOVE.W	#$000,$1B0(A6)
+	MOVE.W	#$FFF,$1B2(A6)	;STupid
+	MOVE.W	#$F0F,$1B4(A6)	;Pitagoras
+	MOVE.W	#$000,$1B6(A6)
+	MOVE.W	#$000,$1B8(A6)
+	MOVE.W	#$000,$1BA(A6)
+	MOVE.W	#$FFF,$1BC(A6)
+	MOVE.W	#$F00,$1BE(A6)
+
+	ST.B	BACKGROUND(A0)
+	ST.B	GHOSTSEE(A0)
+
+	MOVE.L	PAGE_0(A0),SCREEN_DRAW(A0)
+	MOVE.W	#1,ALPHA(A0)
+	MOVE.W	#1,LAST_ALPHA(A0)
+	MOVE.W	#512,VX(A0)
+	MOVE.W	#320,VY(A0)
+	MOVE.W	#40,H(A0)
+	RTS
+; END of SET_UP routine
+;******************************************************************************
+; RECT routine                                                13 Mar 1993
+;
+
+RECT:
+	move.w	X0(A0),D0
+	move.w	X1(A0),D1
+	move.w	Y0(A0),D2
+	move.w	Y1(A0),D3
+	cmp.w	D1,D0
+	ble.b	RECT_L2
+	exg	D0,D1
+RECT_L2:
+	cmp.w	D3,D2
+	ble.b	RECT_L3
+	exg	D2,D3
+RECT_L3:
+	cmp.w	#175,D0
+	ble.b	RECT_L4
+	rts
+RECT_L4:
+	cmp.w	#-176,D1
+	bge.b	RECT_L5
+	rts
+RECT_L5:
+	cmp.w	#277,D2
+	ble.b	RECT_L6
+	rts
+RECT_L6:
+	tst.w	D3
+	bge.b	RECT_L7
+	rts
+RECT_L7:
+	cmp.w	#-176,D0	;Clipping X0
+	bge.b	RECT_L8
+	move.w	#-176,D0
+RECT_L8:
+	cmp.w	#175,D1		;Clipping X1
+	ble.b	RECT_L9
+	move.w	#175,D1
+RECT_L9:
+	tst.w	D2		;Clipping Y0
+	bge.b	RECT_L10
+	clr.w	D2
+RECT_L10:
+	cmp.w	#277,D3		;Clipping Y1
+	ble.b	RECT_L11
+	move.w	#277,D3
+RECT_L11:
+	addi.w	#176,D0		;d0=x0 : d1=x1
+	addi.w	#176,D1		;d2=y0 : d3=y1
+
+	move.l	SCREEN_DRAW(A0),a1	;PAGE
+	move.w	D0,D4
+	lsr.w	#3,D4
+	andi.w	#$fffe,D4
+	move.w	#Mul_Y,D5
+	add.w	D2,D5
+	add.w	D2,D5
+	add.w	(A0,D5.w),D4
+	add.w	D4,A1		;a1=PAGE+(x0/8)+(y0*52)
+
+	move.w	D0,D4
+	andi.w	#$000f,D4
+	add.w	D4,D4
+	addi.w	#MASK_LEFT,D4
+	move.w	(A0,D4.w),D4
+	swap	d4
+	move.w	D1,D4
+	andi.w	#$000f,D4
+	add.w	D4,D4
+	addi.w	#MASK_RIGHT,D4
+	move.w	(A0,D4.w),D4	;d4=AFWM/ALWM .l
+
+	move.w	D0,D6
+	move.w	D1,D7
+	lsr.w	#4,D6
+	lsr.w	#4,D7
+	sub.w	D6,D7
+	addq.w	#1,D7		;d7=(x1/16)-(x0/16)+1 = SIZEX
+	move.w	D3,D6
+	move.w	D2,D5		;d5=y0
+	sub.w	D5,D6
+	addq.w	#1,D6
+	lsl.w	#6,D6		;d6=(y1-y0+1)*64 = SIZEY
+	add.w	D7,D6		;d6=SIZE
+	add.w	D7,D7
+	move.w	#44,D5
+	sub.w	D7,D5		;d5=52-SIZEX*2 = MOD
+RECT_WB_0:
+	btst.b	#6,2(A6)
+	bne.b	RECT_WB_0
+	move.w	#$030a,$40(A6)	;bltCON0 =030a=CLR / 03fa=SET
+	btst.b	#0,INK+1(a0)	;INK
+	beq.b	RECT_C0
+	move.w	#$03fa,$40(A6)	;bltCON0
+RECT_C0:
+	move.w	#$0000,$42(a6)	;bltCON1
+	move.w	#$ffff,$74(A6)	;bltADAT
+	move.l	D4,$44(a6)	;bltAFWM & ALWM
+	move.w	D5,$60(A6)	;bltCMOD
+	move.w	D5,$66(A6)	;bltDMOD
+	move.l	A1,$48(A6)	;bltCPT ( PLANE 0 )
+	move.l	A1,$54(A6)	;bltDPT
+	move.w	D6,$58(A6)	;bltSIZE & START
+	add.l	#$3000,a1	;a1=PLANE1
+RECT_WB_1:
+	btst.b	#6,2(a6)
+	bne.b	RECT_WB_1
+	move.w	#$030a,$40(A6)	;bltCON0
+	btst.b	#1,INK+1(a0)	;INK
+	beq.b	RECT_C1
+	move.w	#$03fa,$40(A6)	;bltCON0
+RECT_C1:
+	move.l	A1,$48(A6)	;bltCPT ( PLANE 1 )
+	move.l	A1,$54(A6)	;bltDPT
+	move.w	D6,$58(A6)	;bltSIZE & START
+	add.l	#$3000,a1	;a1=PLANE2
+RECT_WB_2:
+	btst.b	#6,2(a6)
+	bne.b	RECT_WB_2
+	move.w	#$030a,$40(A6)	;bltCON0
+	btst.b	#2,INK+1(a0)	;INK
+	beq.b	RECT_C2
+	move.w	#$03fa,$40(A6)	;bltCON0
+RECT_C2:
+	move.l	A1,$48(A6)	;bltCPT ( PLANE 2 )
+	move.l	A1,$54(A6)	;bltDPT
+	move.w	D6,$58(A6)	;bltSIZE & START
+	add.l	#$3000,a1	;a1=PLANE3
+RECT_WB_3:
+	btst.b	#6,2(a6)
+	bne.b	RECT_WB_3
+	move.w	#$030a,$40(A6)	;bltCON0
+	btst.b	#3,INK+1(a0)	;INK
+	beq.b	RECT_C3
+	move.w	#$03fa,$40(A6)	;bltCON0
+RECT_C3:
+	move.l	A1,$48(A6)	;bltCPT ( PLANE 3 )
+	move.l	A1,$54(A6)	;bltDPT
+	move.w	D6,$58(A6)	;bltSIZE & START
+RECT_EXIT:
+	rts
+; END of RECT routine
+;******************************************************************************
+; HLINE routine                                               29 Mar 1993
+;
+
+HLINE:	MOVE.W	X0(A0),D0
+	MOVE.W	X1(A0),D1
+	MOVE.W	Y0(A0),D2
+	BMI.W	HLINE_EXIT
+
+	CMP.W	D1,D0
+	BLE.B	HLINE_1A
+	EXG	D0,D1
+HLINE_1A:
+	CMP.W	#-176,D0	;Clipping X0
+	BGE.B	HLINE_1B
+	MOVE.W	#-176,D0
+HLINE_1B:
+	CMP.W	#175,D1		;Clipping X1
+	BLE.B	HLINE_1C
+	MOVE.W	#175,D1
+HLINE_1C:
+	CMP.W	#277,D2	;Clipping Y
+	BGT.W	HLINE_EXIT
+	ADDI.W	#176,D0
+	ADDI.W	#176,D1
+	MOVEA.L	SCREEN_DRAW(A0),A1
+	MOVE.W	D0,D4
+	LSR.W	#3,D4
+	ANDI.W	#$FFFE,D4
+	MOVE.W	#Mul_Y,D5
+	ADD.W	D2,D5
+	ADD.W	D2,D5
+	ADD.W	0(A0,D5.W),D4
+	ADDA.W	D4,A1
+	MOVE.W	D0,D4
+	ANDI.W	#15,D4
+	ADD.W	D4,D4
+	ADDI.W	#MASK_LEFT,D4
+	MOVE.W	0(A0,D4.W),D4
+	SWAP	D4
+	MOVE.W	D1,D4
+	ANDI.W	#15,D4
+	ADD.W	D4,D4
+	ADDI.W	#MASK_RIGHT,D4
+	MOVE.W	0(A0,D4.W),D4
+	MOVE.W	D0,D6
+	MOVE.W	D1,D7
+	LSR.W	#4,D6
+	LSR.W	#4,D7
+	SUB.W	D6,D7
+	ADDQ.W	#1,D7
+	MOVE.W	D7,D6
+	ADDI.W	#$40,D6
+	ADD.W	D7,D7
+	MOVE.W	#$2C,D5
+	SUB.W	D7,D5
+HLINE_WB0:
+	BTST	#6,2(A6)
+	BNE.S	HLINE_WB0
+	MOVE.W	#$30A,$40(A6)
+	BTST.B	#0,INK+1(A0)
+	BEQ.S	HLINE_2
+	MOVE.W	#$3FA,$40(A6)
+HLINE_2:
+	MOVE.W	#0,$42(A6)
+	MOVE.W	#$FFFF,$74(A6)
+	MOVE.L	D4,$44(A6)
+	MOVE.W	D5,$60(A6)
+	MOVE.W	D5,$66(A6)
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D6,$58(A6)
+	ADDA.L	#$3000,A1
+HLINE_WB1:
+	BTST	#6,2(A6)
+	BNE.S	HLINE_WB1
+	MOVE.W	#$30A,$40(A6)
+	BTST	#1,INK+1(A0)
+	BEQ.S	HLINE_3
+	MOVE.W	#$3FA,$40(A6)
+HLINE_3:
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D6,$58(A6)
+	ADDA.L	#$3000,A1
+HLINE_WB2:
+	BTST	#6,2(A6)
+	BNE.S	HLINE_WB2
+	MOVE.W	#$30A,$40(A6)
+	BTST	#2,INK+1(A0)
+	BEQ.S	HLINE_4
+	MOVE.W	#$3FA,$40(A6)
+HLINE_4:
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D6,$58(A6)
+	ADDA.L	#$3000,A1
+HLINE_WB3:
+	BTST	#6,2(A6)
+	BNE.S	HLINE_WB3
+	MOVE.W	#$30A,$40(A6)
+	BTST	#3,INK+1(A0)
+	BEQ.S	HLINE_5
+	MOVE.W	#$3FA,$40(A6)
+HLINE_5:
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D6,$58(A6)
+HLINE_EXIT:
+	RTS
+
+; END of HLINE routine
+;******************************************************************************
+; VLINE routine                                               29 Mar 1993
+;
+
+VLINE:
+	MOVE.W	X0(A0),D0
+	MOVE.W	Y0(A0),D1
+	MOVE.W	Y1(A0),D2
+	CMP.W	D1,D2
+	BGT.B	VLINE_1
+	EXG	D2,D1
+VLINE_1:
+	CMP.W	#277,D1
+	BGT.W	VLINE_EXIT
+	CMP.W	#277,D2
+	BLE.B	VLINE_2
+	MOVE.W	#277,D2
+VLINE_2:
+	ADDI.W	#176,D0
+	BMI.B	VLINE_EXIT
+	CMP.W	#351,D0
+	BHI.B	VLINE_EXIT
+	MOVE.W	D0,D3
+	SUB.W	D1,D2
+	LSR.W	#3,D0
+	MOVE.L	SCREEN_DRAW(A0),A3
+	ADDA.W	D0,A3
+	ADD.W	D1,D1
+	ADD.W	#Mul_Y,D1
+	ADDA.W	(A0,D1.W),A3
+	NOT.W	D3
+	AND.W	#7,D3
+	MOVE.W	INK(A0),D0
+	MOVEQ	#0,D4		;K=Plane 0
+	MOVEQ	#1,D5		;K=Plane 1
+	MOVEQ	#2,D6		;K=Plane 2
+	MOVEQ	#3,D7		;K=Plane 3
+	MOVE.L	#$9000,D1
+VLINE_LOOP:
+	BTST.L	D4,D0
+	BEQ.B	VLINE_C0
+	BSET.B	D3,(A3)
+	BRA.B	VLINE_B1
+VLINE_C0:
+	BCLR.B	D3,(A3)
+
+VLINE_B1:
+	BTST.L	D5,D0
+	BEQ.B	VLINE_C1
+	BSET.B	D3,$3000(A3)
+	BRA.B	VLINE_B2
+VLINE_C1:
+	BCLR.B	D3,$3000(A3)
+
+VLINE_B2:
+	BTST.L	D6,D0
+	BEQ.B	VLINE_C2
+	BSET.B	D3,$6000(A3)
+	BRA.B	VLINE_B3
+VLINE_C2:
+	BCLR.B	D3,$6000(A3)
+
+VLINE_B3:
+	BTST.L	D7,D0
+	BEQ.B	VLINE_C3
+	BSET.B	D3,(A3,D1.L)
+	BRA.B	VLINE_D
+VLINE_C3:
+	BCLR.B	D3,(A3,D1.L)
+VLINE_D:
+	ADDA.W	#$2C,A3
+	DBRA	D2,VLINE_LOOP
+VLINE_EXIT:
+	RTS
+; END of VLINE routine
+;******************************************************************************
+; LINE routine                                                12 Mar 1993
+;
+
+LINE:
+	CMPI.W	#277,Y0(A0)
+	BLE.B	LINE_1
+	RTS
+LINE_1:
+	MOVE.W	X1(A0),D1
+	MOVE.W	Y1(A0),D3
+	CMP.W	#277,D3
+	BLE.B	LINE_2
+	MOVE.W	D1,D0
+	SUB.W	X0(A0),D0
+	MOVE.W	#277,D1
+	SUB.W	Y1(A0),D1
+	MULS.W	D1,D0
+	MOVE.W	Y1(A0),D1
+	SUB.W	Y0(A0),D1
+	DIVS.W	D1,D0
+	ADD.W	X1(A0),D0
+	MOVE.W	D0,D1
+	MOVE.W	#277,D3
+LINE_2:
+	MOVEQ	#0,D0
+	MOVE.W	X0(A0),D0
+	MOVE.W	Y0(A0),D2
+	MOVE.W	INK(A0),D4
+	ADD.W	#176,D0
+	ADD.W	#176,D1
+	MOVEA.L	SCREEN_DRAW(A0),A1
+	SUB.W	D0,D1
+	BMI.B	LINE_6
+	SUB.W	D2,D3
+	BMI.B	LINE_4
+	CMP.W	D3,D1
+	BMI.B	LINE_3
+	MOVEQ	#$11,D5
+	BRA.B	LINE_10
+LINE_3:
+	EXG	D1,D3
+	MOVEQ	#1,D5
+	BRA.B	LINE_10
+LINE_4:
+	NEG.W	D3
+	CMP.W	D3,D1
+	BMI.B	LINE_5
+	MOVEQ	#$19,D5
+	BRA.B	LINE_10
+LINE_5:
+	EXG	D1,D3
+	MOVEQ	#5,D5
+	BRA.B	LINE_10
+LINE_6:
+	NEG.W	D1
+	SUB.W	D2,D3
+	BMI.B	LINE_8
+	CMP.W	D3,D1
+	BMI.B	LINE_7
+	MOVEQ	#$15,D5
+	BRA.B	LINE_10
+LINE_7:
+	EXG	D1,D3
+	MOVEQ	#9,D5
+	BRA.B	LINE_10
+LINE_8:
+	NEG.W	D3
+	CMP.W	D3,D1
+	BMI.B	LINE_9
+	MOVEQ	#$1D,D5
+	BRA.B	LINE_10
+LINE_9:
+	EXG	D1,D3
+	MOVEQ	#13,D5
+LINE_10:
+	ADD.W	D2,D2
+	ADDI.W	#Mul_Y,D2
+	MOVE.W	0(A0,D2.W),D2
+	ANDI.L	#$FFFF,D2
+	ROR.L	#4,D0
+	ADD.W	D0,D0
+	ADDA.L	D2,A1
+	ADDA.W	D0,A1
+	SWAP	D0
+	ORI.W	#$B0A,D0
+	LSL.W	#2,D3
+	ADD.W	D1,D1
+	MOVE.W	D1,D2
+	LSL.W	#5,D2
+	ADDI.W	#$42,D2
+	BTST.B	#6,2(A6)
+LINE_11:
+	BTST.B	#6,2(A6)
+	BNE.B	LINE_11
+	MOVE.W	#$8000,$74(A6)
+	MOVE.L	#$FFFFFFFF,$44(A6)
+	MOVE.W	#$2C,$60(A6)
+	MOVE.W	#$2C,$66(A6)
+	MOVE.W	D3,$62(A6)
+	SUB.W	D1,D3
+	EXT.L	D3
+	MOVEA.L	D3,A2
+	MOVE.L	D3,$50(A6)
+	BPL.B	LINE_12
+	ORI.W	#$40,D5
+LINE_12:
+	SUB.W	D1,D3
+	MOVE.W	D3,$64(A6)
+	MOVE.W	D5,$42(A6)
+	MOVE.W	D0,D5
+	ORI.W	#$F0,D5
+	MOVE.W	D0,$40(A6)
+	BTST.L	#0,D4
+	BEQ.B	LINE_13
+	MOVE.W	D5,$40(A6)
+LINE_13:
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D2,$58(A6)
+LINE_14:
+	BTST.B	#6,2(A6)
+	BNE.B	LINE_14
+	MOVE.W	D0,$40(A6)
+	BTST.L	#1,D4
+	BEQ.B	LINE_15
+	MOVE.W	D5,$40(A6)
+LINE_15:
+	ADDA.L	#$3000,A1
+	MOVE.L	A2,$50(A6)
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D2,$58(A6)
+LINE_16:
+	BTST.B	#6,2(A6)
+	BNE.B	LINE_16
+	MOVE.W	D0,$40(A6)
+	BTST.L	#2,D4
+	BEQ.B	LINE_17
+	MOVE.W	D5,$40(A6)
+LINE_17:
+	ADDA.L	#$3000,A1
+	MOVE.L	A2,$50(A6)
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D2,$58(A6)
+LINE_18:
+	BTST.B	#6,2(A6)
+	BNE.B	LINE_18
+	MOVE.W	D0,$40(A6)
+	BTST.L	#3,D4
+	BEQ.B	LINE_19
+	MOVE.W	D5,$40(A6)
+LINE_19:
+	ADDA.L	#$3000,A1
+	MOVE.L	A2,$50(A6)
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D2,$58(A6)
+	RTS
+LINE_EXIT:
+	RTS
+; END of LINE routine
+;******************************************************************************
+; POLYGON routine                                             29 Mar 1993
+;
+
+POLYGON:
+	MOVEA.L	A0,A1
+	ADDA.W	#BUFFER,A1
+	MOVE.W	(A1)+,D0
+	MOVE.W	(A1)+,D1
+	MOVE.W	(A1)+,D2
+	MOVE.W	(A1),D3
+	CMP.W	D0,D1
+	BLE.W	POLY_EXIT
+	CMP.W	D2,D3
+	BEQ.W	POLY_EXIT
+	CMP.W	#277,D3
+	BLE.B	POLY_01A
+	MOVE.W	#277,D3
+	MOVE.W	D3,(A1)
+POLY_01A:
+	ADDQ.W	#2,A1
+	ADD.W	#176,D0
+	ADD.W	#176,D1
+	MOVE.W	D3,D4
+	ADD.W	D3,D3
+	ADD.W	#Mul_Y,D3
+	MOVE.W	0(A0,D3.W),D3
+	MOVEA.L	FILLBLIT(A0),A2
+	ADDA.W	D3,A2
+	MOVE.W	D1,D3
+	LSR.W	#4,D3
+	ADD.W	D3,D3
+	ADDA.W	D3,A2
+	LSR.W	#4,D0
+	LSR.W	#4,D1
+	ADDQ.W	#1,D1
+	SUB.W	D0,D1
+	SUB.W	D2,D4
+	ADDQ.W	#1,D4
+	LSL.W	#6,D4
+	ADD.W	D1,D4
+	ADD.W	D1,D1
+	MOVE.W	#$2C,D0
+	SUB.W	D1,D0
+POLY_058:
+	BTST.B	#6,2(A6)
+	BNE.B	POLY_058
+	MOVE.W	#$100,$40(A6)
+	MOVE.W	#2,$42(A6)
+	MOVE.W	D0,$60(A6)
+	MOVE.W	D0,$64(A6)
+	MOVE.W	D0,$66(A6)
+	MOVE.L	A2,$54(A6)
+	MOVE.W	D4,$58(A6)
+	MOVE.W	D0,BUFFER+$7C(A0)
+	MOVE.W	D4,BUFFER+$7E(A0)
+POLY_088:
+	MOVE.W	(A1)+,X0(A0)
+	MOVE.W	(A1)+,X1(A0)
+	MOVE.W	(A1)+,Y0(A0)
+	MOVE.W	(A1)+,Y1(A0)
+	BMI.B	POLY_0A0
+	BSR.W	POLY_1B8
+	BRA.B	POLY_088
+POLY_0A0:
+	BTST.B	#6,2(A6)
+	BNE.B	POLY_0A0
+	MOVE.W	#10,$42(A6)
+	BTST.B	#0,Y1+1(A0)
+	BEQ.B	POLY_0BC
+	MOVE.W	#14,$42(A6)
+POLY_0BC:
+	MOVE.L	A2,$50(A6)
+	MOVE.L	A2,$54(A6)
+	MOVE.W	BUFFER+$7C(A0),D0
+	MOVE.W	BUFFER+$7E(A0),D1
+	MOVE.W	D0,$64(A6)
+	MOVE.W	D0,$66(A6)
+	MOVE.W	D0,$60(A6)
+	MOVE.W	#$9F0,$40(A6)
+	MOVE.W	D1,$58(A6)
+	MOVE.W	INK(A0),D2
+POLY_0E6:
+	BTST.B	#6,2(A6)
+	BNE.B	POLY_0E6
+	MOVE.W	#2,$42(A6)
+	MOVE.W	#$B0A,$40(A6)
+	BTST.L	#0,D2
+	BEQ.B	POLY_106
+	MOVE.W	#$BFA,$40(A6)
+POLY_106:
+	MOVEA.L	A2,A1
+	SUBA.L	FILLBLIT(A0),A1
+	ADDA.L	SCREEN_DRAW(A0),A1
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.L	A2,$50(A6)
+	MOVE.W	D1,$58(A6)
+POLY_122:
+	BTST.B	#6,2(A6)
+	BNE.B	POLY_122
+	MOVE.W	#$B0A,$40(A6)
+	BTST.L	#1,D2
+	BEQ.B	POLY_13C
+	MOVE.W	#$BFA,$40(A6)
+POLY_13C:
+	MOVE.L	A2,$50(A6)
+	ADDA.L	#$3000,A1
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D1,$58(A6)
+POLY_152:
+	BTST.B	#6,2(A6)
+	BNE.B	POLY_152
+	MOVE.W	#$B0A,$40(A6)
+	BTST.L	#2,D2
+	BEQ.B	POLY_16C
+	MOVE.W	#$BFA,$40(A6)
+POLY_16C:
+	MOVE.L	A2,$50(A6)
+	ADDA.L	#$3000,A1
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D1,$58(A6)
+POLY_182:
+	BTST.B	#6,2(A6)
+	BNE.B	POLY_182
+	MOVE.W	#$B0A,$40(A6)
+	BTST.L	#3,D2
+	BEQ.B	POLY_19C
+	MOVE.W	#$BFA,$40(A6)
+POLY_19C:
+	MOVE.L	A2,$50(A6)
+	ADDA.L	#$3000,A1
+	MOVE.L	A1,$48(A6)
+	MOVE.L	A1,$54(A6)
+	MOVE.W	D1,$58(A6)
+	RTS
+POLY_1B8:
+	CMPI.W	#277,Y0(A0)
+	BGT.W	POLY_EXIT
+	MOVE.W	X0(A0),D0
+	CMP.W	X1(A0),D0
+	BEQ.W	POLY_2DA
+	CMPI.W	#277,Y1(A0)
+	BLE.B	POLY_1F2
+	MOVE.W	X1(A0),D0
+	SUB.W	X0(A0),D0
+	MOVE.W	#277,D1
+	SUB.W	Y1(A0),D1
+	MULS.W	D1,D0
+	MOVE.W	Y1(A0),D1
+	SUB.W	Y0(A0),D1
+	DIVS.W	D1,D0
+	ADD.W	X1(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	#277,Y1(A0)
+POLY_1F2:
+	MOVEQ	#0,D0
+	MOVEQ	#0,D1
+	MOVEQ	#0,D2
+	MOVEQ	#0,D3
+	MOVE.W	X0(A0),D0
+	MOVE.W	X1(A0),D1
+	MOVE.W	Y0(A0),D2
+	MOVE.W	Y1(A0),D3
+	ADDI.W	#176,D0
+	ADDI.W	#176,D1
+	MOVEA.L	FILLBLIT(A0),A3
+	SUB.W	D0,D1
+	BMI.B	POLY_23E
+	SUB.W	D2,D3
+	BMI.B	POLY_22E
+	CMP.W	D3,D1
+	BMI.B	POLY_228
+	MOVEQ	#$13,D4
+	BRA.B	POLY_260
+POLY_228:
+	EXG	D1,D3
+	MOVEQ	#3,D4
+	BRA.B	POLY_260
+POLY_22E:
+	NEG.W	D3
+	CMP.W	D3,D1
+	BMI.B	POLY_238
+	MOVEQ	#$1B,D4
+	BRA.B	POLY_260
+POLY_238:
+	EXG	D1,D3
+	MOVEQ	#7,D4
+	BRA.B	POLY_260
+POLY_23E:
+	NEG.W	D1
+	SUB.W	D2,D3
+	BMI.B	POLY_252
+	CMP.W	D3,D1
+	BMI.B	POLY_24C
+	MOVEQ	#$17,D4
+	BRA.B	POLY_260
+POLY_24C:
+	EXG	D1,D3
+	MOVEQ	#11,D4
+	BRA.B	POLY_260
+POLY_252:
+	NEG.W	D3
+	CMP.W	D3,D1
+	BMI.B	POLY_25C
+	MOVEQ	#$1F,D4
+	BRA.B	POLY_260
+POLY_25C:
+	EXG	D1,D3
+	MOVEQ	#15,D4
+POLY_260:
+	ADD.W	D2,D2
+	ADDI.W	#Mul_Y,D2
+	MOVE.W	0(A0,D2.W),D2
+	ANDI.L	#$FFFF,D2
+	ROR.L	#4,D0
+	ADD.W	D0,D0
+	ADDA.L	D2,A3
+	ADDA.W	D0,A3
+	SWAP	D0
+	ORI.W	#$BFA,D0
+	LSL.W	#2,D3
+	ADD.W	D1,D1
+	MOVE.W	D1,D2
+	LSL.W	#5,D2
+	ADDI.W	#$42,D2
+POLY_28A:
+	BTST.B	#6,2(A6)
+	BNE.B	POLY_28A
+	MOVE.W	#$8000,$74(A6)
+	MOVE.L	#$FFFFFFFF,$44(A6)
+	MOVE.W	#$2C,$60(A6)
+	MOVE.W	#$2C,$66(A6)
+	MOVE.W	D3,$62(A6)
+	SUB.W	D1,D3
+	EXT.L	D3
+	MOVE.L	D3,$50(A6)
+	BPL.B	POLY_2BE
+	ORI.W	#$40,D4
+POLY_2BE:
+	SUB.W	D1,D3
+	MOVE.W	D3,$64(A6)
+	MOVE.W	D0,$40(A6)
+	MOVE.W	D4,$42(A6)
+	MOVE.L	A3,$48(A6)
+	MOVE.L	A3,$54(A6)
+	MOVE.W	D2,$58(A6)
+	RTS
+POLY_2DA:
+	MOVE.W	Y0(A0),D1
+	MOVE.W	Y1(A0),D2
+	CMP.W	D1,D2
+	BGT.B	POLY_2E8
+	EXG	D2,D1
+POLY_2E8:
+	CMP.W	#277,D1
+	BLE.B	POLY_2F0
+	RTS
+POLY_2F0:
+	CMP.W	#277,D2
+	BLE.B	POLY_2FA
+	MOVE.W	#277,D2
+POLY_2FA:
+	ADDI.W	#176,D0
+	MOVE.W	D0,D3
+	SUB.W	D1,D2
+	LSR.W	#3,D0
+	MOVE.L	FILLBLIT(A0),A3
+	ADDA.W	D0,A3
+	ADD.W	D1,D1
+	ADD.W	#Mul_Y,D1
+	ADDA.W	0(A0,D1.W),A3
+	NOT.W	D3
+	AND.W	#7,D3
+POLY_31C:
+	BTST.B	#6,2(A6)
+	BNE.B	POLY_31C
+POLY_324:
+	BSET	D3,(A3)
+	ADDA.W	#$2C,A3
+	DBRA	D2,POLY_324
+	RTS
+POLY_EXIT:
+	RTS
+
+; END of POLYGON routine
+;******************************************************************************
+; PX_PY routine                                               13 Mar 1993
+;
+
+PX_PY:
+	MOVEQ	#0,D0
+	MOVE.W	H(A0),D0	; altezza 64..255
+	MOVE.W	BRX(A0),D1
+	BGE.B	PX_PY_1
+	NEG.W	D1
+	LSL.W	#8,D1
+	ADD.W	D1,D1
+	ADD.W	D1,D1
+	ADD.W	D7,D1
+	ADD.W	D1,D1
+	ADD.W	#PX,D1
+	MOVE.W	0(A0,D1.W),D1
+	NEG.W	D1
+	BRA.B	PX_PY_2
+
+PX_PY_1:
+	LSL.W	#8,D1
+	ADD.W	D1,D1
+	ADD.W	D1,D1
+	ADD.W	D7,D1
+	ADD.W	D1,D1
+	ADD.W	#PX,D1
+	MOVE.W	0(A0,D1.W),D1
+PX_PY_2:
+	CMP.W	#256,D7
+	BGE.B	PX_PY_3
+	LSL.W	#8,D0
+	ADD.W	D7,D0
+	ADD.L	D0,D0
+	MOVE.W	(A0,D0.L),D0
+	RTS
+PX_PY_3:
+	SWAP	D0
+	DIVU	D7,D0
+	LSR.W	#8,D0
+	LSR.W	#2,D0
+	ADD.W	#74,D0
+	RTS
+; END of PX_PY routine
+;******************************************************************************
+; LEGO routine                                                13 Mar 1993
+;
+
+LEGO:	TST.B	0.W		;INHIBIT
+	BNE.W	LEGO_EXIT
+
+	MOVE.W	BCODE(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	LEGO_TAB(PC,D0.W),D0
+	JMP	LEGO_TAB(PC,D0.W)
+LEGO_TAB:
+PC	set	*
+	DC.W	LEGO0-PC
+	DC.W	LEGO1-PC
+	DC.W	LEGO2-PC
+	DC.W	LEGO3-PC
+	DC.W	LEGO4-PC
+	DC.W	LEGO5-PC
+	DC.W	LEGO6-PC
+	DC.W	LEGO7-PC
+	DC.W	LEGO8-PC
+
+LEGO_EXIT:
+	RTS
+; END of LEGO routine
+****************************************************************************
+LEGO0	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)
+	MOVE.W	D1,V1(A0)
+	MOVE.W	D0,V2(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V0(A0)
+	ADD.W	D0,V1(A0)
+	SUB.W	D4,V2(A0)
+	MOVE.W	RY(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V4(A0)
+	MOVE.W	D1,V5(A0)
+	MOVE.W	D0,V6(A0)
+	MOVE.W	D0,V7(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V4(A0)
+	ADD.W	D0,V5(A0)
+	SUB.W	D4,V6(A0)
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	CMP.W	D6,D2
+	BGE.B	LEGO0_094
+	MOVE.W	INFO_TP(A0),INK(A0)
+	LEA	BUFFER(A0),A1
+	MOVE.W	V4(A0),(A1)+
+	MOVE.W	V5(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V0(A0),(A1)+
+	MOVE.W	V4(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	V5(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	#$8000,BUFFER+$1E(A0)
+	BSR.W	POLYGON
+LEGO0_094:
+	BTST.B	#2,OBJ+1(A0)
+	BNE.B	LEGO0_09E
+	RTS
+
+LEGO0_09E:
+	MOVE.W	V4(A0),X0(A0)
+	MOVE.W	V5(A0),X1(A0)
+	MOVE.W	V6(A0),Y0(A0)
+	MOVE.W	V7(A0),Y1(A0)
+	MOVE.W	INFO_S0(A0),INK(A0)
+	BSR.W	RECT
+	RTS
+; END of LEGO0 routine
+****************************************************************************
+LEGO1	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)
+	MOVE.W	D1,V1(A0)
+	MOVE.W	D0,V2(A0)
+	MOVE.W	D0,V3(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V0(A0)
+	ADD.W	D0,V1(A0)
+	SUB.W	D4,V2(A0)
+	MOVE.W	RY(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V4(A0)
+	MOVE.W	D1,V5(A0)
+	MOVE.W	D0,V6(A0)
+	MOVE.W	D0,V7(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V4(A0)
+	ADD.W	D0,V5(A0)
+	SUB.W	D4,V6(A0)
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	CMP.W	D6,D2
+	BGE.B	LEGO1_098
+	MOVE.W	INFO_TP(A0),INK(A0)
+	LEA	BUFFER(A0),A1
+	MOVE.W	V4(A0),(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V0(A0),(A1)+
+	MOVE.W	V4(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	V5(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	#$8000,BUFFER+$1E(A0)
+	BSR.W	POLYGON
+LEGO1_098:
+	BTST.B	#1,OBJ+1(A0)
+	BEQ.B	LEGO1_118
+	MOVE.W	INFO_E0(A0),INK(A0)
+	MOVE.W	V5(A0),D5
+	MOVE.W	V1(A0),D1
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	LEA	BUFFER(A0),A1
+	MOVE.W	D2,BUFFER+$4(A0)
+	CMP.W	D2,D6
+	BGE.B	LEGO1_0C6
+	MOVE.W	D6,BUFFER+$4(A0)
+LEGO1_0C6:
+	MOVE.W	D5,(A1)+
+	MOVE.W	D1,(A1)+
+	ADDQ.W	#2,A1
+	MOVE.W	V7(A0),(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	D5,(A1)+
+	MOVE.W	D5,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V7(A0),(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D5,(A1)
+	ADDQ.W	#1,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	V7(A0),(A1)+
+	CMP.W	BUFFER+$4(A0),D2
+	BEQ.B	LEGO1_104
+	MOVE.W	D1,(A1)+
+	MOVE.W	D5,(A1)
+	ADDQ.W	#1,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	BRA.B	LEGO1_10E
+
+LEGO1_104:
+	MOVE.W	D5,(A1)+
+	MOVE.W	D1,(A1)
+	SUBQ.W	#1,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	D2,(A1)+
+LEGO1_10E:
+	ADDQ.W	#6,A1
+	MOVE.W	#$8000,(A1)
+	BSR.W	POLYGON
+LEGO1_118:
+	BTST.B	#2,OBJ+1(A0)
+	BNE.B	LEGO1_122
+	RTS
+
+LEGO1_122:
+	MOVE.W	V4(A0),X0(A0)
+	MOVE.W	V5(A0),X1(A0)
+	MOVE.W	V6(A0),Y0(A0)
+	MOVE.W	V7(A0),Y1(A0)
+	MOVE.W	INFO_S0(A0),INK(A0)
+	BSR.W	RECT
+	RTS
+; END of LEGO1 routine
+****************************************************************************
+LEGO2	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)
+	MOVE.W	D1,V1(A0)
+	MOVE.W	D0,V2(A0)
+	MOVE.W	D0,V3(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V0(A0)
+	ADD.W	D0,V1(A0)
+	SUB.W	D4,V2(A0)
+	MOVE.W	RY(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V4(A0)
+	MOVE.W	D1,V5(A0)
+	MOVE.W	D0,V6(A0)
+	MOVE.W	D0,V7(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V4(A0)
+	ADD.W	D0,V5(A0)
+	SUB.W	D4,V6(A0)
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	CMP.W	D6,D2
+	BGE.B	LEGO2_098
+	MOVE.W	INFO_TP(A0),INK(A0)
+	LEA	BUFFER(A0),A1
+	MOVE.W	V0(A0),(A1)+
+	MOVE.W	V5(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V0(A0),(A1)+
+	MOVE.W	V4(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	V5(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	#$8000,BUFFER+$1E(A0)
+	BSR.W	POLYGON
+LEGO2_098:
+	BTST.B	#3,OBJ+1(A0)
+	BEQ.B	LEGO2_118
+	MOVE.W	INFO_W0(A0),INK(A0)
+	MOVE.W	V0(A0),D0
+	MOVE.W	V4(A0),D4
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	LEA	BUFFER(A0),A1
+	MOVE.W	D2,BUFFER+$4(A0)
+	CMP.W	D2,D6
+	BGE.B	LEGO2_0C6
+	MOVE.W	D6,BUFFER+$4(A0)
+LEGO2_0C6:
+	MOVE.W	D0,(A1)+
+	MOVE.W	D4,(A1)+
+	ADDQ.W	#2,A1
+	MOVE.W	V7(A0),(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	D4,(A1)+
+	MOVE.W	D4,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V7(A0),(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D4,(A1)
+	SUBQ.W	#1,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	V7(A0),(A1)+
+	CMP.W	BUFFER+$4(A0),D2
+	BEQ.B	LEGO2_104
+	MOVE.W	D0,(A1)+
+	MOVE.W	D4,(A1)
+	SUBQ.W	#1,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	BRA.B	LEGO2_10E
+
+LEGO2_104:
+	MOVE.W	D4,(A1)+
+	MOVE.W	D0,(A1)
+	ADDQ.W	#1,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	D2,(A1)+
+LEGO2_10E:
+	ADDQ.W	#6,A1
+	MOVE.W	#$8000,(A1)
+	BSR.W	POLYGON
+LEGO2_118:
+	BTST.B	#2,OBJ+1(A0)
+	BNE.B	LEGO2_122
+	RTS
+
+LEGO2_122:
+	MOVE.W	V4(A0),X0(A0)
+	MOVE.W	V5(A0),X1(A0)
+	MOVE.W	V6(A0),Y0(A0)
+	MOVE.W	V7(A0),Y1(A0)
+	MOVE.W	INFO_S0(A0),INK(A0)
+	BSR.W	RECT
+	RTS
+; END of LEGO2 routine
+****************************************************************************
+LEGO3	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)
+	MOVE.W	D1,V1(A0)
+	MOVE.W	D0,V2(A0)
+	MOVE.W	D0,V3(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V0(A0)
+	ADD.W	D0,V1(A0)
+	SUB.W	D4,V2(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	PR_K(A0),D7
+	ADD.W	PR(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D0,V4(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D4,V4(A0)
+	MOVE.W	RY(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V5(A0)
+	MOVE.W	D0,V6(A0)
+	MOVE.W	D0,V7(A0)
+	BSR.W	LEGO_PH
+	ADD.W	D0,V5(A0)
+	SUB.W	D4,V6(A0)
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	CMP.W	D6,D2
+	BGE.B	LEGO3_0AE
+	MOVE.W	INFO_TP(A0),INK(A0)
+	LEA	BUFFER(A0),A1
+	MOVE.W	#-176,(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V0(A0),(A1)+
+	MOVE.W	#-176,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	V4(A0),(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	V5(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	#$8000,BUFFER+$1E(A0)
+	BSR.W	POLYGON
+LEGO3_0AE:
+	BTST.B	#1,OBJ+1(A0)
+	BEQ.B	LEGO3_12C
+	MOVE.W	INFO_E0(A0),INK(A0)
+	MOVE.W	V1(A0),D1
+	MOVE.W	V2(A0),D2
+	MOVE.W	V5(A0),D5
+	MOVE.W	V6(A0),D6
+	MOVE.W	V7(A0),D7
+	LEA	BUFFER(A0),A1
+	MOVE.W	D2,BUFFER+$4(A0)
+	CMP.W	D2,D6
+	BGE.B	LEGO3_0E0
+	MOVE.W	D6,BUFFER+$4(A0)
+LEGO3_0E0:
+	MOVE.W	D5,(A1)+
+	MOVE.W	D1,(A1)+
+	ADDQ.W	#2,A1
+	MOVE.W	D7,(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	D5,(A1)+
+	MOVE.W	D5,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	D7,(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D5,(A1)
+	ADDQ.W	#1,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	D7,(A1)+
+	CMP.W	BUFFER+$4(A0),D2
+	BEQ.B	LEGO3_118
+	MOVE.W	D1,(A1)+
+	MOVE.W	D5,(A1)
+	ADDQ.W	#1,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	BRA.B	LEGO3_122
+
+LEGO3_118:
+	MOVE.W	D1,(A1)
+	SUBQ.W	#1,(A1)+
+	MOVE.W	D5,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+LEGO3_122:
+	ADDQ.W	#6,A1
+	MOVE.W	#$8000,(A1)
+	BSR.W	POLYGON
+LEGO3_12C:
+	BTST.B	#2,OBJ+1(A0)
+	BNE.B	LEGO3_136
+	RTS
+
+LEGO3_136:
+	MOVE.W	#-176,X0(A0)
+	MOVE.W	V5(A0),X1(A0)
+	MOVE.W	V6(A0),Y0(A0)
+	MOVE.W	V7(A0),Y1(A0)
+	MOVE.W	INFO_S0(A0),INK(A0)
+	BSR.W	RECT
+	RTS
+; END of LEGO3 routine
+****************************************************************************
+LEGO4	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)
+	MOVE.W	D1,V1(A0)
+	MOVE.W	D0,V2(A0)
+	MOVE.W	D0,V3(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V0(A0)
+	ADD.W	D0,V1(A0)
+	SUB.W	D4,V2(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	PR_K(A0),D7
+	ADD.W	PR(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D0,V4(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D4,V4(A0)
+	MOVE.W	RY(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V5(A0)
+	MOVE.W	D0,V6(A0)
+	MOVE.W	D0,V7(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V5(A0)
+	SUB.W	D4,V6(A0)
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	CMP.W	D6,D2
+	BGE.B	LEGO4_0C4
+	MOVE.W	INFO_TP(A0),INK(A0)
+	LEA	BUFFER(A0),A1
+	MOVE.W	V0(A0),(A1)+
+	MOVE.W	#175,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V0(A0),(A1)+
+	MOVE.W	V5(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	#175,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	V4(A0),(A1)+
+	CMP.W	V4(A0),D6
+	BLE.B	LEGO4_0BA
+	MOVE.W	#175,(A1)+
+	MOVE.W	#175,(A1)+
+	MOVE.W	V4(A0),(A1)
+	ADDQ.W	#1,(A1)+
+	MOVE.W	D6,(A1)+
+LEGO4_0BA:
+	ADDQ.W	#6,A1
+	MOVE.W	#$8000,(A1)
+	BSR.W	POLYGON
+LEGO4_0C4:
+	BTST.B	#3,OBJ+1(A0)
+	BEQ.B	LEGO4_148
+	MOVE.W	INFO_W0(A0),INK(A0)
+	MOVE.W	V0(A0),D0
+	MOVE.W	V2(A0),D2
+	MOVE.W	V5(A0),D5
+	MOVE.W	V6(A0),D6
+	MOVE.W	V7(A0),D7
+	LEA	BUFFER(A0),A1
+	MOVE.W	D2,BUFFER+$4(A0)
+	CMP.W	D2,D6
+	BGE.B	LEGO4_0F6
+	MOVE.W	D6,BUFFER+$4(A0)
+LEGO4_0F6:
+	MOVE.W	D0,(A1)+
+	MOVE.W	D5,(A1)+
+	ADDQ.W	#2,A1
+	MOVE.W	D7,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	D5,(A1)+
+	MOVE.W	D5,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	D7,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D5,(A1)
+	SUBQ.W	#1,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	D7,(A1)+
+	CMP.W	D2,D6
+	BEQ.B	LEGO4_13E
+	CMP.W	BUFFER+$4(A0),D2
+	BEQ.B	LEGO4_132
+	MOVE.W	D0,(A1)+
+	MOVE.W	D5,(A1)
+	SUBQ.W	#1,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	BRA.B	LEGO4_13E
+
+LEGO4_132:
+	MOVE.W	D0,(A1)
+	ADDQ.W	#1,(A1)+
+	MOVE.W	D5,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)
+	SUBQ.W	#1,(A1)+
+LEGO4_13E:
+	ADDQ.W	#6,A1
+	MOVE.W	#$8000,(A1)
+	BSR.W	POLYGON
+LEGO4_148:
+	BTST.B	#2,OBJ+1(A0)
+	BNE.B	LEGO4_152
+	RTS
+
+LEGO4_152:
+	MOVE.W	V5(A0),X0(A0)
+	MOVE.W	#175,X1(A0)
+	MOVE.W	V6(A0),Y0(A0)
+	MOVE.W	V7(A0),Y1(A0)
+	MOVE.W	INFO_S0(A0),INK(A0)
+	BSR.W	RECT
+	RTS
+; END of LEGO4 routine
+****************************************************************************
+LEGO5	RTS
+; END of LEGO5 routine
+****************************************************************************
+LEGO6	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V1(A0)
+	MOVE.W	D0,V2(A0)
+	MOVE.W	D0,V3(A0)
+	BSR.W	LEGO_PH
+	ADD.W	D0,V1(A0)
+	SUB.W	D4,V2(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	PR_K(A0),D7
+	ADD.W	PR(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D0,V6(A0)
+	MOVE.W	D0,V7(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D4,V6(A0)
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	CMP.W	#277,D2
+	BLE.B	LEGO6_054
+	RTS
+
+LEGO6_054:
+	CMP.W	D6,D2
+	BGE.B	LEGO6_084
+	MOVE.W	INFO_TP(A0),INK(A0)
+	LEA	BUFFER(A0),A1
+	MOVE.W	#-176,(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	#-176,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	ADDQ.W	#6,A1
+	MOVE.W	#$8000,(A1)
+	BSR.W	POLYGON
+LEGO6_084:
+	BTST.B	#1,OBJ+1(A0)
+	BEQ.B	LEGO6_0F6
+	MOVE.W	INFO_E0(A0),INK(A0)
+	MOVE.W	#-176,D0
+	MOVE.W	V1(A0),D1
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	LEA	BUFFER(A0),A1
+	MOVE.W	D2,BUFFER+$4(A0)
+	CMP.W	D2,D6
+	BGE.B	LEGO6_0B2
+	MOVE.W	D6,BUFFER+$4(A0)
+LEGO6_0B2:
+	MOVE.W	D0,(A1)+
+	MOVE.W	D1,(A1)+
+	ADDQ.W	#2,A1
+	MOVE.W	V7(A0),(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	V7(A0),(A1)+
+	CMP.W	BUFFER+$4(A0),D2
+	BEQ.B	LEGO6_0E2
+	MOVE.W	D1,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	BRA.B	LEGO6_0EC
+
+LEGO6_0E2:
+	MOVE.W	D1,(A1)
+	SUBQ.W	#1,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+LEGO6_0EC:
+	ADDQ.W	#6,A1
+	MOVE.W	#$8000,(A1)
+	BSR.W	POLYGON
+LEGO6_0F6:
+	RTS
+; END of LEGO6 routine
+****************************************************************************
+LEGO7	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,V1(A0)
+	MOVE.W	D0,V2(A0)
+	MOVE.W	D0,V3(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D0,V1(A0)
+	SUB.W	D4,V2(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	PR_K(A0),D7
+	ADD.W	PR(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D0,V6(A0)
+	MOVE.W	D0,V7(A0)
+	BSR.W	LEGO_PH
+	SUB.W	D4,V6(A0)
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	CMP.W	#277,D2
+	BLE.B	LEGO7_054
+	RTS
+
+LEGO7_054:
+	CMP.W	D6,D2
+	BGE.B	LEGO7_084
+	MOVE.W	INFO_TP(A0),INK(A0)
+	LEA	BUFFER(A0),A1
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	#175,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V1(A0),(A1)+
+	MOVE.W	#175,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	ADDQ.W	#6,A1
+	MOVE.W	#$8001,(A1)
+	BSR.W	POLYGON
+LEGO7_084:
+	BTST.B	#3,OBJ+1(A0)
+	BEQ.W	LEGO7_11E
+	MOVE.W	INFO_W0(A0),INK(A0)
+	MOVE.W	#175,D0
+	MOVE.W	V1(A0),D1
+	MOVE.W	V2(A0),D2
+	MOVE.W	V6(A0),D6
+	LEA	BUFFER(A0),A1
+	MOVE.W	D2,BUFFER+$4(A0)
+	CMP.W	D2,D6
+	BGE.B	LEGO7_0B4
+	MOVE.W	D6,BUFFER+$4(A0)
+LEGO7_0B4:
+	MOVE.W	D1,(A1)+
+	MOVE.W	D0,(A1)+
+	ADDQ.W	#2,A1
+	MOVE.W	V7(A0),(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	CMP.W	BUFFER+$4(A0),D2
+	BEQ.B	LEGO7_0F0
+	MOVE.W	D0,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	V7(A0),(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	#$AE,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	V7(A0),(A1)+
+	BRA.B	LEGO7_114
+
+LEGO7_0F0:
+	MOVE.W	D0,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D6,(A1)
+	ADDQ.W	#1,(A1)+
+	MOVE.W	V7(A0),(A1)+
+	MOVE.W	D1,(A1)+
+	MOVE.W	#$AE,(A1)+
+	MOVE.W	V3(A0),(A1)+
+	MOVE.W	V7(A0),(A1)+
+	MOVE.W	D1,(A1)
+	ADDQ.W	#1,(A1)+
+	MOVE.W	D0,(A1)+
+	MOVE.W	D2,(A1)+
+	MOVE.W	D6,(A1)+
+LEGO7_114:
+	ADDQ.W	#6,A1
+	MOVE.W	#$8000,(A1)
+	BSR.W	POLYGON
+LEGO7_11E:
+	RTS
+; END of LEGO7 routine
+****************************************************************************
+LEGO8	RTS
+; END of LEGO8 routine
+****************************************************************************
+LEGO_PH	MOVE.W	#L5,D0
+	MOVE.W	#L4,D1
+	MOVE.W	#L3,D2
+	MOVE.W	#L2,D3
+	ADD.W	D7,D0
+	ADD.W	D7,D1
+	ADD.W	D7,D2
+	ADD.W	D7,D3
+	MOVE.B	0(A0,D0.W),D0
+	MOVE.B	0(A0,D1.W),D1
+	MOVE.B	0(A0,D2.W),D2
+	MOVE.B	0(A0,D3.W),D3
+	MOVE.W	#$FF,D4
+	AND.W	D4,D0
+	AND.W	D4,D1
+	AND.W	D4,D2
+	AND.W	D4,D3
+	MOVE.W	TYPE(A0),D4
+	SUBQ.W	#8,D4
+	ADD.W	D4,D4
+	MOVE.W	LEGO_PH_TAB(PC,D4.W),D4
+	JMP	LEGO_PH_TAB(PC,D4.W)
+
+LEGO_PH_TAB:
+PC	set	*
+
+	dc.w	LEGO_PH0-PC
+	dc.w	LEGO_PH1-PC
+	dc.w	LEGO_PH2-PC
+	dc.w	LEGO_PH3-PC
+	dc.w	LEGO_PH4-PC
+	dc.w	LEGO_PH5-PC
+	dc.w	LEGO_PH6-PC
+	dc.w	LEGO_PH7-PC
+
+LEGO_PH0
+	MOVE.W	D2,D4
+	RTS
+LEGO_PH1
+	MOVE.W	D2,D4
+	ADD.W	D3,D4
+	RTS
+LEGO_PH2
+	MOVE.W	D1,D4
+	RTS
+LEGO_PH3
+	MOVE.W	D1,D4
+	ADD.W	D3,D4
+	RTS
+LEGO_PH4
+	MOVE.W	D1,D4
+	ADD.W	D2,D4
+	RTS
+LEGO_PH5
+	MOVE.W	D0,D4
+	SUB.W	D3,D4
+	RTS
+LEGO_PH6
+	MOVE.W	D0,D4
+	RTS
+LEGO_PH7
+	MOVE.W	D0,D4
+	ADD.W	D3,D4
+	RTS
+; END of LEGO_PH routine
+****************************************************************************
+; END of LEGO routines
+****************************************************************************
+****************************************************************************
+; WAVE0 routine                                               13 Mar 1993
+WAVE0	MOVE.W	#WAVE_LIST,D0
+	ADD.W	WAVS(A0),D0
+	MOVE.B	0(A0,D0.W),TYPE+1(A0)
+	BRA.W	LEGO
+; END of WAVE0 routine
+****************************************************************************
+; WAVE1 routine                                               13 Mar 1993
+WAVE1	MOVE.W	#WAVE_LIST+$10,D0
+	ADD.W	WAVS(A0),D0
+	MOVE.B	0(A0,D0.W),TYPE+1(A0)
+	BRA.W	LEGO
+; END of WAVE1 routine
+****************************************************************************
+; WAVE2 routine                                               13 Mar 1993
+WAVE2	MOVE.W	#WAVE_LIST+$20,D0
+	ADD.W	WAVS(A0),D0
+	MOVE.B	0(A0,D0.W),TYPE+1(A0)
+	BRA.W	LEGO
+; END of WAVE2 routine
+****************************************************************************
+; WAVE3 routine                                               13 Mar 1993
+WAVE3	MOVE.W	#WAVE_LIST+$30,D0
+	ADD.W	WAVS(A0),D0
+	MOVE.B	0(A0,D0.W),TYPE+1(A0)
+	BRA.W	LEGO
+; END of WAVE3 routine
+****************************************************************************
+; TUBY & PYRAMID routines                                     13 Mar 1993
+;
+;
+
+TUBI_PYRAMID:
+	TST.B	1.W		;INHIBIT
+	BNE.W	TUBI_EXIT
+
+	MOVE.W	BCODE(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	TP_TAB(PC,D0.W),D0
+	JMP	TP_TAB(PC,D0.W)
+TP_TAB:
+PC	set	*
+	DC.W	TP-PC
+	DC.W	TP-PC
+	DC.W	TP-PC
+	DC.W	TP3-PC
+	DC.W	TP4-PC
+	DC.W	TP5-PC
+	DC.W	TP6-PC
+	DC.W	TP7-PC
+	DC.W	TP8-PC
+
+TUBI_EXIT:
+	RTS
+; END of TUBI_PYRAMID routine
+****************************************************************************
+TP	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER(A0)
+	MOVE.W	D1,BUFFER+$2(A0)
+	MOVE.W	D0,BUFFER+$4(A0)
+	MOVE.W	D0,BUFFER+$6(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER(A0)
+	ADD.W	D0,BUFFER+$2(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$4(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$8(A0)
+	MOVE.W	RY(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$A(A0)
+	MOVE.W	D1,BUFFER+$C(A0)
+	MOVE.W	D0,BUFFER+$E(A0)
+	MOVE.W	D0,BUFFER+$10(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$A(A0)
+	ADD.W	D0,BUFFER+$C(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$E(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$12(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	#$20,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$14(A0)
+	MOVE.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L3,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$18(A0)
+	BTST.B	#0,OBJ+1(A0)
+	BEQ.B	TP_14A
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_N0(A0),INK(A0)
+	BSR.W	NEON_RECT
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_N1(A0),INK(A0)
+	BSR.W	NEON_RECT
+TP_14A:
+	BTST.B	#0,TYPE+1(A0)
+	BEQ.B	TP_1A6
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	NEON_LINE
+TP_1A6:
+	BTST.B	#0,EXT+1(A0)
+	BEQ.B	TP_1DA
+	MOVE.W	BUFFER(A0),D0
+	MOVE.W	D0,X0(A0)
+	ADD.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP_1DA:
+	BTST.B	#1,EXT+1(A0)
+	BEQ.B	TP_20E
+	MOVE.W	BUFFER+$2(A0),D0
+	MOVE.W	D0,X0(A0)
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP_20E:
+	BTST.B	#3,OBJ+1(A0)
+	BEQ.B	TP_26A
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_W0(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_W1(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+TP_26A:
+	BTST.B	#1,OBJ+1(A0)
+	BEQ.B	TP_2C6
+	MOVE.W	BUFFER+$2(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_E0(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$2(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_E1(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+TP_2C6:
+	BSR.W	THING_TP
+
+	BTST.B	#0,TYPE+1(A0)
+	BEQ.B	TP_322
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+TP_322:
+	BTST.B	#2,OBJ+1(A0)
+	BEQ.B	TP_376
+	MOVE.W	BUFFER+$A(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$E(A0),D0
+	MOVE.W	D0,Y1(A0)
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	INFO_S0(A0),INK(A0)
+	BSR.W	NEON_RECT
+	MOVE.W	BUFFER+$A(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$10(A0),D0
+	MOVE.W	D0,Y1(A0)
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	INFO_S1(A0),INK(A0)
+	BSR.W	NEON_RECT
+TP_376:
+	BTST.B	#3,EXT+1(A0)
+	BEQ.B	TP_3AA
+	MOVE.W	BUFFER+$A(A0),D0
+	MOVE.W	D0,X0(A0)
+	ADD.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$E(A0),D0
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP_3AA:
+	BTST.B	#2,EXT+1(A0)
+	BEQ.B	TP_3DE
+	MOVE.W	BUFFER+$C(A0),D0
+	MOVE.W	D0,X0(A0)
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$E(A0),D0
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP_3DE:
+	RTS
+; END of TP routine
+****************************************************************************
+TP3	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER(A0)
+	MOVE.W	D1,BUFFER+$2(A0)
+	MOVE.W	D0,BUFFER+$4(A0)
+	MOVE.W	D0,BUFFER+$6(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER(A0)
+	ADD.W	D0,BUFFER+$2(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$4(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$8(A0)
+	MOVE.W	RY(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$A(A0)
+	MOVE.W	D1,BUFFER+$C(A0)
+	MOVE.W	D0,BUFFER+$E(A0)
+	MOVE.W	D0,BUFFER+$10(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$A(A0)
+	ADD.W	D0,BUFFER+$C(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$E(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$12(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	#$20,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$14(A0)
+	MOVE.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L3,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$18(A0)
+	BTST.B	#0,OBJ+1(A0)
+	BEQ.B	TP3_14A
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_N0(A0),INK(A0)
+	BSR.W	NEON_RECT
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_N1(A0),INK(A0)
+	BSR.W	NEON_RECT
+TP3_14A:
+	BTST.B	#0,TYPE+1(A0)
+	BEQ.B	TP3_1A6
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	NEON_LINE
+TP3_1A6:
+	BTST.B	#0,EXT+1(A0)
+	BEQ.B	TP3_1DA
+	MOVE.W	BUFFER(A0),D0
+	MOVE.W	D0,X0(A0)
+	ADD.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP3_1DA:
+	BTST.B	#1,EXT+1(A0)
+	BEQ.B	TP3_20E
+	MOVE.W	BUFFER+$2(A0),D0
+	MOVE.W	D0,X0(A0)
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP3_20E:
+	BTST.B	#3,OBJ+1(A0)
+	BEQ.B	TP3_272
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_W0(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	CLIP_LEFT
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_W1(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	CLIP_LEFT
+	BSR.W	NEON_LINE
+TP3_272:
+	BTST.B	#1,OBJ+1(A0)
+	BEQ.B	TP3_2CE
+	MOVE.W	BUFFER+$2(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_E0(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$2(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_E1(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+TP3_2CE:
+	BSR.W	THING_TP
+
+	BTST.B	#0,TYPE+1(A0)
+	BEQ.B	TP3_32E
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	CLIP_LEFT
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+TP3_32E:
+	BTST.B	#2,OBJ+1(A0)
+	BEQ.B	TP3_382
+	MOVE.W	#-176,X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$E(A0),D0
+	MOVE.W	D0,Y1(A0)
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	INFO_S0(A0),INK(A0)
+	BSR.W	NEON_RECT
+	MOVE.W	#-176,X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$10(A0),D0
+	MOVE.W	D0,Y1(A0)
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	INFO_S1(A0),INK(A0)
+	BSR.W	NEON_RECT
+TP3_382:
+	BTST.B	#2,EXT+1(A0)
+	BEQ.B	TP3_3B6
+	MOVE.W	BUFFER+$C(A0),D0
+	MOVE.W	D0,X0(A0)
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$E(A0),D0
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP3_3B6:
+	RTS
+; END of TP3 routine
+****************************************************************************
+TP4	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER(A0)
+	MOVE.W	D1,BUFFER+$2(A0)
+	MOVE.W	D0,BUFFER+$4(A0)
+	MOVE.W	D0,BUFFER+$6(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER(A0)
+	ADD.W	D0,BUFFER+$2(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$4(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$8(A0)
+	MOVE.W	RY(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$A(A0)
+	MOVE.W	D1,BUFFER+$C(A0)
+	MOVE.W	D0,BUFFER+$E(A0)
+	MOVE.W	D0,BUFFER+$10(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$A(A0)
+	ADD.W	D0,BUFFER+$C(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$E(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$12(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	#$20,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$14(A0)
+	MOVE.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L3,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$18(A0)
+	BTST.B	#0,OBJ+1(A0)
+	BEQ.B	TP4_14A
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_N0(A0),INK(A0)
+	BSR.W	NEON_RECT
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_N1(A0),INK(A0)
+	BSR.W	NEON_RECT
+TP4_14A:
+	BTST.B	#0,TYPE+1(A0)
+	BEQ.B	TP4_1A6
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	NEON_LINE
+TP4_1A6:
+	BTST.B	#0,EXT+1(A0)
+	BEQ.B	TP4_1DA
+	MOVE.W	BUFFER(A0),D0
+	MOVE.W	D0,X0(A0)
+	ADD.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP4_1DA:
+	BTST.B	#1,EXT+1(A0)
+	BEQ.B	TP4_20E
+	MOVE.W	BUFFER+$2(A0),D0
+	MOVE.W	D0,X0(A0)
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP4_20E:
+	BTST.B	#3,OBJ+1(A0)
+	BEQ.B	TP4_26A
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_W0(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_W1(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+TP4_26A:
+	BTST.B	#1,OBJ+1(A0)
+	BEQ.B	TP4_2CE
+	MOVE.W	BUFFER+$2(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_E0(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	CLIP_RIGHT
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$2(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_E1(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	CLIP_RIGHT
+	BSR.W	NEON_LINE
+TP4_2CE:
+	BSR.W	THING_TP
+
+	BTST.B	#0,TYPE+1(A0)
+	BEQ.B	TP4_32E
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$14(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$16(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$18(A0),D6
+	MOVE.W	BUFFER+$8(A0),D7
+	BSR.W	CLIP_RIGHT
+	BSR.W	NEON_LINE
+TP4_32E:
+	BTST.B	#2,OBJ+1(A0)
+	BEQ.B	TP4_382
+	MOVE.W	BUFFER+$A(A0),X0(A0)
+	MOVE.W	#175,X1(A0)
+	MOVE.W	BUFFER+$E(A0),D0
+	MOVE.W	D0,Y1(A0)
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	INFO_S0(A0),INK(A0)
+	BSR.W	NEON_RECT
+	MOVE.W	BUFFER+$A(A0),X0(A0)
+	MOVE.W	#175,X1(A0)
+	MOVE.W	BUFFER+$10(A0),D0
+	MOVE.W	D0,Y1(A0)
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	INFO_S1(A0),INK(A0)
+	BSR.W	NEON_RECT
+TP4_382:
+	BTST.B	#2,EXT+1(A0)
+	BEQ.B	TP4_3B6
+	MOVE.W	BUFFER+$A(A0),D0
+	MOVE.W	D0,X0(A0)
+	ADD.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$E(A0),D0
+	SUB.W	BUFFER+$12(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP4_3B6:
+	RTS
+; END of TP4 routine
+****************************************************************************
+TP5	RTS
+; END of TP5 routine
+****************************************************************************
+TP6	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER(A0)
+	MOVE.W	D1,BUFFER+$2(A0)
+	MOVE.W	D0,BUFFER+$4(A0)
+	MOVE.W	D0,BUFFER+$6(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER(A0)
+	ADD.W	D0,BUFFER+$2(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$4(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$8(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	PR(A0),D7
+	ADD.W	PR_K(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$A(A0)
+	MOVE.W	D1,BUFFER+$C(A0)
+	MOVE.W	D0,BUFFER+$E(A0)
+	MOVE.W	D0,BUFFER+$10(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$A(A0)
+	ADD.W	D0,BUFFER+$C(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$E(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$12(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	#$20,D7
+	CMP.W	#$14,D7
+	BGE.B	TP6_0C2
+	MOVE.W	#$14,D7
+TP6_0C2:
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$14(A0)
+	MOVE.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L3,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$18(A0)
+	BTST.B	#0,OBJ+1(A0)
+	BEQ.B	TP6_15C
+	MOVE.W	#-176,X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_N0(A0),INK(A0)
+	BSR.W	NEON_RECT
+	MOVE.W	#-176,X0(A0)
+	MOVE.W	BUFFER+$2(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_N1(A0),INK(A0)
+	BSR.W	NEON_RECT
+TP6_15C:
+	BTST.B	#0,TYPE+1(A0)
+	BEQ.B	TP6_192
+	MOVE.W	BUFFER+$2(A0),X0(A0)
+	MOVE.W	BUFFER+$14(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$16(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$18(A0),D7
+	BSR.W	CLIP_LEFT
+	BSR.W	NEON_LINE
+TP6_192:
+	BTST.B	#1,EXT+1(A0)
+	BEQ.B	TP6_1C6
+	MOVE.W	BUFFER+$2(A0),D0
+	MOVE.W	D0,X0(A0)
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP6_1C6:
+	BSR.W	THING_TP
+
+	BTST.B	#1,OBJ+1(A0)
+	BEQ.B	TP6_22A
+	MOVE.W	BUFFER+$2(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_E0(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	CLIP_LEFT
+	BSR.W	NEON_LINE
+	MOVE.W	BUFFER+$2(A0),X0(A0)
+	MOVE.W	BUFFER+$C(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_E1(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	CLIP_LEFT
+	BSR.W	NEON_LINE
+TP6_22A:
+	RTS
+; END of TP6 routine
+****************************************************************************
+TP7	MOVE.W	RY(A0),D7
+	ADD.W	#$40,D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER(A0)
+	MOVE.W	D1,BUFFER+$2(A0)
+	MOVE.W	D0,BUFFER+$4(A0)
+	MOVE.W	D0,BUFFER+$6(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER(A0)
+	ADD.W	D0,BUFFER+$2(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$4(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$8(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	PR(A0),D7
+	ADD.W	PR_K(A0),D7
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$A(A0)
+	MOVE.W	D1,BUFFER+$C(A0)
+	MOVE.W	D0,BUFFER+$E(A0)
+	MOVE.W	D0,BUFFER+$10(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$A(A0)
+	ADD.W	D0,BUFFER+$C(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$E(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$12(A0)
+	MOVE.W	RY(A0),D7
+	ADD.W	#$20,D7
+	CMP.W	#$14,D7
+	BGE.B	TP7_0C2
+	MOVE.W	#$14,D7
+TP7_0C2:
+	BSR.W	PX_PY
+	MOVE.W	D1,BUFFER+$14(A0)
+	MOVE.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L3,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	SUB.W	D0,BUFFER+$16(A0)
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BUFFER+$18(A0)
+	BTST.B	#0,OBJ+1(A0)
+	BEQ.B	TP7_15C
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	#175,X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$4(A0),Y1(A0)
+	MOVE.W	INFO_N0(A0),INK(A0)
+	BSR.W	NEON_RECT
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	#175,X1(A0)
+	MOVE.W	BUFFER+$6(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_N1(A0),INK(A0)
+	BSR.W	NEON_RECT
+TP7_15C:
+	BTST.B	#0,TYPE+1(A0)
+	BEQ.B	TP7_192
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$14(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$16(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$18(A0),D7
+	BSR.W	CLIP_RIGHT
+	BSR.W	NEON_LINE
+TP7_192:
+	BTST.B	#0,EXT+1(A0)
+	BEQ.B	TP7_1C6
+	MOVE.W	BUFFER(A0),D0
+	MOVE.W	D0,X0(A0)
+	ADD.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	BUFFER+$4(A0),D0
+	SUB.W	BUFFER+$8(A0),D0
+	MOVE.W	D0,Y0(A0)
+	MOVE.W	BUFFER+$6(A0),Y1(A0)
+	MOVE.W	INFO_TP(A0),INK(A0)
+	BSR.W	NEON_VERT
+TP7_1C6:
+	BSR.W	THING_TP
+
+	BTST.B	#3,OBJ+1(A0)
+	BEQ.B	TP7_22A
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$4(A0),Y0(A0)
+	MOVE.W	BUFFER+$E(A0),Y1(A0)
+	MOVE.W	INFO_W0(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	CLIP_RIGHT
+	BSR.B	NEON_LINE
+	MOVE.W	BUFFER(A0),X0(A0)
+	MOVE.W	BUFFER+$A(A0),X1(A0)
+	MOVE.W	BUFFER+$6(A0),Y0(A0)
+	MOVE.W	BUFFER+$10(A0),Y1(A0)
+	MOVE.W	INFO_W1(A0),INK(A0)
+	MOVE.W	BUFFER+$8(A0),D6
+	MOVE.W	BUFFER+$12(A0),D7
+	BSR.W	CLIP_RIGHT
+	BSR.B	NEON_LINE
+TP7_22A:
+	RTS
+; END of TP7 routine
+****************************************************************************
+TP8	RTS
+; END of TP8 routine
+****************************************************************************
+; NEON_VERT routine                                                28 Mar 1993
+;
+
+NEON_VERT:
+	TST.B	WIRE(A0)
+	BNE.B	NEON_VERT_WIRE
+	BRA.W	RECT
+NEON_VERT_WIRE:
+	BSR.W	VLINE
+	MOVE.W	X1(A0),X0(A0)
+	BRA.W	VLINE
+; END of NEON_VERT routine
+****************************************************************************
+****************************************************************************
+; NEON_RECT routine                                                28 Mar 1993
+;
+
+NEON_RECT:
+	TST.B	WIRE(A0)
+	BEQ.B	NEON_RECT0
+	BSR.W	HLINE
+	MOVE.W	Y1(A0),Y0(A0)
+	BRA.W	HLINE
+NEON_RECT0:
+	BRA.W	RECT
+; END of NEON_RECT routine
+****************************************************************************
+****************************************************************************
+; NEON_LINE routine                                                28 Mar 1993
+;
+
+NEON_LINE:
+	TST.B	WIRE(A0)
+	BEQ.B	NEON_LINE0
+	BSR.W	LINE
+	SUB.W	D6,Y0(A0)
+	SUB.W	D7,Y1(A0)
+	BSR.W	LINE
+	BRA.B	NEON_LINE_EXIT
+NEON_LINE0:
+	SUB.W	D6,Y0(A0)
+	SUB.W	D7,Y1(A0)
+NEON_LINE_1:
+	BSR.W	LINE
+	TST.W	D6
+	BEQ.B	NEON_LINE_2
+	SUBQ.W	#1,D6
+	ADDQ.W	#1,Y0(A0)
+NEON_LINE_2:
+	TST.W	D7
+	BEQ.B	NEON_LINE_EXIT
+	SUBQ.W	#1,D7
+	ADDQ.W	#1,Y1(A0)
+	BRA.B	NEON_LINE_1
+
+NEON_LINE_EXIT:
+	RTS
+; END of NEON_LINE routine
+****************************************************************************
+; CLIP_LEFT routine                                           13 Mar 1993
+;
+
+CLIP_LEFT:
+	CMPI.W	#-176,X1(A0)
+	BGE.B	CLIP_LEFT_EXIT
+	MOVE.W	Y1(A0),D0
+	SUB.W	Y0(A0),D0
+	MOVE.W	#-176,D1
+	SUB.W	X1(A0),D1
+	MULS.W	D1,D0
+	MOVE.W	X1(A0),D1
+	SUB.W	X0(A0),D1
+	BEQ.B	CLIP_LEFT_EXIT		;evita l'exception 5
+	DIVS.W	D1,D0
+	ADD.W	D0,Y1(A0)
+	MOVE.W	#-176,X1(A0)
+CLIP_LEFT_EXIT:
+	RTS
+; END of CLIP_LEFT routine
+****************************************************************************
+; CLIP_RIGHT routine                                          13 Mar 1993
+;
+
+CLIP_RIGHT:
+	CMPI.W	#175,X1(A0)
+	BLE.B	CLIP_RIGHT_EXIT
+	MOVE.W	Y1(A0),D0
+	SUB.W	Y0(A0),D0
+	MOVE.W	#175,D1
+	SUB.W	X1(A0),D1
+	MULS.W	D1,D0
+	MOVE.W	X1(A0),D1
+	SUB.W	X0(A0),D1
+	BEQ.B	CLIP_RIGHT_EXIT		;evita l'exception 5
+	DIVS.W	D1,D0
+	ADD.W	D0,Y1(A0)
+	MOVE.W	#175,X1(A0)
+CLIP_RIGHT_EXIT:
+	RTS
+; END of CLIP_RIGHT routine
+****************************************************************************
+; END of TUBI_PYRAMID routines
+****************************************************************************
+****************************************************************************
+; NULL routine                                                28 Mar 1993
+;
+;
+
+NULL:
+	BSR.W	ROAD_UP
+	BSR.W	THING
+	BSR.W	ROAD_DW
+NULL_EXIT:
+	RTS
+; END of NULL routine
+****************************************************************************
+; ROAD routine                                                28 Mar 1993
+;
+;
+
+ROAD:
+	BSR.W	MAKE_GDRAW
+	MOVE.W	ALPHA(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	ROAD_NESW(PC,D0.W),D0
+	JMP	ROAD_NESW(PC,D0.W)
+ROAD_NESW:
+PC	set	*
+	DC.W	ROAD_NORTH-PC
+	DC.W	ROAD_EAST-PC
+	DC.W	ROAD_SOUTH-PC
+	DC.W	ROAD_WEST-PC
+****************************************
+ROAD_NORTH:
+	BSR.W	ROAD_UP		;RY=63
+	BSR.W	ROAD_OBJ	;RY=18
+********
+	LEA	GDRAW(A0),A2
+.loop	MOVE.L	A2,V6(A0)
+	MOVE.W	(A2),D6		;RGVX
+	BMI.B	.exit
+	MOVE.W	2(A2),D7	;RGVY
+	SUB.W	VY(A0),D7
+	SUB.W	VX(A0),D6
+	CMP.W	#32,D7
+	BMI.W	.exit
+	BSR.W	GHOST_PX_PY
+	MOVE.W	D6,X(A0)
+	MOVE.W	D0,Y(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	MOVE.W	D0,R(A0)
+	SUB.W	D0,Y(A0)
+	BSR.W	DRAW_GHOST
+	MOVE.L	V6(A0),A2
+	ADD.W	#8,A2
+	BRA.B	.loop
+.exit
+********
+	BSR.W	ROAD_DW		;RY=0
+	RTS
+****************************************
+ROAD_EAST:
+	BSR.W	ROAD_UP		;RY=63
+	BSR.W	ROAD_OBJ	;RY=18
+********
+	LEA	GDRAW(A0),A2
+.loop	MOVE.L	A2,V6(A0)
+	MOVE.W	(A2),D7		;RGVX
+	BMI.B	.exit
+	MOVE.W	VY(A0),D6	;RGVY
+	SUB.W	VX(A0),D7
+	SUB.W	2(A2),D6
+	CMP.W	#32,D7
+	BMI.W	.exit
+	BSR.W	GHOST_PX_PY
+	MOVE.W	D6,X(A0)
+	MOVE.W	D0,Y(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	MOVE.W	D0,R(A0)
+	SUB.W	D0,Y(A0)
+	BSR.W	DRAW_GHOST
+	MOVE.L	V6(A0),A2
+	ADD.W	#8,A2
+	BRA.B	.loop
+.exit
+********
+	BSR.W	ROAD_DW		;RY=0
+	RTS
+****************************************
+ROAD_SOUTH:
+	BSR.W	ROAD_UP		;RY=63
+	BSR.W	ROAD_OBJ	;RY=18
+********
+	LEA	GDRAW(A0),A2
+.loop	MOVE.L	A2,V6(A0)
+	MOVE.W	(A2),D0		;RGVX
+	BMI.B	.exit
+	MOVE.W	VY(A0),D7	;RGVY
+	SUB.W	2(A2),D7
+	MOVE.W	VX(A0),D6
+	SUB.W	D0,D6
+	CMP.W	#32,D7
+	BMI.W	.exit
+	BSR.W	GHOST_PX_PY
+	MOVE.W	D6,X(A0)
+	MOVE.W	D0,Y(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	MOVE.W	D0,R(A0)
+	SUB.W	D0,Y(A0)
+	BSR.W	DRAW_GHOST
+	MOVE.L	V6(A0),A2
+	ADD.W	#8,A2
+	BRA.B	.loop
+.exit
+********
+	BSR.W	ROAD_DW		;RY=0
+	RTS
+****************************************
+ROAD_WEST:
+	BSR.W	ROAD_UP		;RY=63
+	BSR.W	ROAD_OBJ	;RY=18
+********
+	LEA	GDRAW(A0),A2
+.loop	MOVE.L	A2,V6(A0)
+	MOVE.W	(A2),D0		;RGVX
+	BMI.B	.exit
+	MOVE.W	VX(A0),D7	;RGVY
+	MOVE.W	2(A2),D6
+	SUB.W	D0,D7
+	SUB.W	VY(A0),D6
+	CMP.W	#32,D7
+	BMI.W	.exit
+	BSR.W	GHOST_PX_PY
+	MOVE.W	D6,X(A0)
+	MOVE.W	D0,Y(A0)
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	MOVE.W	D0,R(A0)
+	SUB.W	D0,Y(A0)
+	BSR.W	DRAW_GHOST
+	MOVE.L	V6(A0),A2
+	ADD.W	#8,A2
+	BRA.B	.loop
+.exit
+********
+	BSR.W	ROAD_DW		;RY=0
+	RTS
+****************************************************************************
+; MAKE_GDRAW routine                                           1 Apr 1993
+
+MAKE_GDRAW:
+	LEA	RG_STRUCT(A0),A1
+	LEA	GDRAW(A0),A2
+	MOVEQ	#4,D7
+.loop	MOVE.W	RGVX(A1),D0
+	LSR.W	#6,D0
+	MOVE.W	RGVY(A1),D1
+	LSR.W	#6,D1
+	CMP.W	BX(A0),D0
+	BNE.B	.over
+	CMP.W	BY(A0),D1
+	BNE.B	.over
+	MOVE.W	RGVX(A1),(A2)+
+	MOVE.W	RGVY(A1),(A2)+
+	MOVE.B	RGALPHA(A1),(A2)+
+	MOVE.B	RGBAD(A1),(A2)+
+	MOVE.B	RGFACE(A1),(A2)+
+	MOVE.B	RGCTRL(A1),(A2)+
+.over	ADD.W	#8,A1
+	DBRA	D7,.loop
+	MOVE.W	#$FFFF,(A2)+	;END LIST code
+	RTS
+; END of MAKE_GDRAW routine
+****************************************************************************
+; ROAD_UP  routine                                            31 Mar 1993
+
+ROAD_UP:
+	TST.W	INFO_N0(A0)
+	BNE.B	.go
+	TST.W	INFO_E0(A0)
+	BNE.B	.go
+	BRA.W	ROAD_UP_EXIT
+
+.go	MOVE.W	RY(A0),D7	;ROAD_UP section
+	ADD.W	#63,D7
+	CMP.W	#28,D7
+	BMI.W	ROAD_UP_EXIT
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)	;X
+	MOVE.W	D1,V1(A0)	;X
+	MOVE.W	D0,V2(A0)	;Y
+	MOVE.W	D0,V3(A0)	;Y
+	MOVE.W	#$FF,D6
+	MOVE.W	#L5,D2
+	ADD.W	D7,D2
+	MOVE.B	(A0,D2.W),D2
+	AND.W	D6,D2
+	SUB.W	D2,V0(A0)	;=X-L5
+	ADD.W	D2,V1(A0)	;=X+L5
+	SUB.W	D2,V3(A0)	;=Y-L5
+	MOVE.W	#L2,D2
+	ADD.W	D7,D2
+	MOVE.B	(A0,D2.W),D2
+	AND.W	D6,D2		;D2=L2
+	MOVE.W	D2,V4(A0)
+	MOVE.W	V3(A0),V7(A0)
+	ADD.W	D2,V7(A0)
+	ADD.W	D2,V7(A0)
+	MOVE.W	#L0,D3
+	ADD.W	D7,D3
+	MOVE.B	(A0,D3.W),D3
+	AND.W	D6,D3
+	LSR.W	#1,D3		;D3=L0/2
+	MOVE.W	D3,V6(A0)
+
+	TST.W	INFO_N0(A0)
+	BEQ.W	ROAD_UP_E
+
+	MOVE.W	ALPHA(A0),D6	;D6=ALPHA
+	MOVE.W	D6,D7
+	BCHG.L	#1,D7		;D7=COMPLEMENTO ad ALPHA
+
+	CMP.W	INFO_N1(A0),D7
+	BEQ.B	.ok
+	CMP.W	INFO_N1(A0),D6
+	BEQ.B	.ok
+	BRA.W	ROAD_UP_E
+.ok	MOVE.W	V0(A0),X0(A0)
+	SUB.W	D3,X0(A0)
+	MOVE.W	V0(A0),X1(A0)
+	ADD.W	D3,X1(A0)
+	MOVE.W	V3(A0),Y0(A0)
+	MOVE.W	V2(A0),Y1(A0)
+	MOVE.W	#2,INK(A0)
+	BSR.W	RECT
+
+	MOVE.W	ALPHA(A0),D6	;D6=ALPHA
+	MOVE.W	D6,D7
+	BCHG.L	#1,D7		;D7=COMPLEMENTO ad ALPHA
+
+	MOVE.W	V0(A0),X(A0)
+	MOVE.W	V3(A0),Y(A0)
+	MOVE.W	V4(A0),R(A0)
+	MOVE.W	INFO_N0(A0),D0
+	CMP.W	INFO_N1(A0),D7
+	BNE.B	.Nover
+	MOVEQ	#0,D1		;allora e' visibile bene
+	BSR.W	SIGNAL
+	BTST.B	#0,EXT+1(A0)
+	BEQ.B	ROAD_UP_E
+	MOVE.W	V7(A0),Y(A0)
+	MOVE.W	AUX(A0),D0
+	MOVEQ	#0,D1
+	BSR.W	SIGNAL
+	BRA.B	ROAD_UP_E
+.Nover	CMP.W	INFO_N1(A0),D6
+	BNE.B	ROAD_UP_E
+	MOVEQ	#1,D1		;allora e' visibile solo posteriormente	
+	BSR.W	SIGNAL
+	BTST.B	#0,EXT+1(A0)
+	BEQ.B	ROAD_UP_E
+	MOVE.W	V7(A0),Y(A0)
+	MOVE.W	AUX(A0),D0
+	MOVEQ	#1,D1
+	BSR.W	SIGNAL
+
+ROAD_UP_E:
+	MOVE.W	V6(A0),D3
+
+	MOVE.W	ALPHA(A0),D6	;D6=ALPHA
+	MOVE.W	D6,D7
+	BCHG.L	#1,D7		;D7=COMPLEMENTO ad ALPHA
+
+	TST.W	INFO_E0(A0)
+	BEQ.W	ROAD_UP_EXIT
+	CMP.W	INFO_E1(A0),D7
+	BEQ.B	.ok
+	CMP.W	INFO_E1(A0),D6
+	BEQ.B	.ok
+	BRA.W	ROAD_UP_EXIT
+.ok	MOVE.W	V1(A0),X0(A0)
+	SUB.W	D3,X0(A0)
+	MOVE.W	V1(A0),X1(A0)
+	ADD.W	D3,X1(A0)
+	MOVE.W	V3(A0),Y0(A0)
+	MOVE.W	V2(A0),Y1(A0)
+	MOVE.W	#2,INK(A0)
+	BSR.W	RECT
+
+	MOVE.W	ALPHA(A0),D6	;D6=ALPHA
+	MOVE.W	D6,D7
+	BCHG.L	#1,D7		;D7=COMPLEMENTO ad ALPHA
+
+	MOVE.W	V1(A0),X(A0)
+	MOVE.W	V3(A0),Y(A0)
+	MOVE.W	V4(A0),R(A0)
+	MOVE.W	INFO_E0(A0),D0
+	CMP.W	INFO_E1(A0),D7
+	BNE.B	.Eover
+	MOVEQ	#0,D1		;allora e' visibile bene
+	BSR.W	SIGNAL
+	BTST.B	#1,EXT+1(A0)
+	BEQ.B	ROAD_UP_EXIT
+	MOVE.W	V7(A0),Y(A0)
+	MOVE.W	AUX(A0),D0
+	MOVEQ	#0,D1
+	BSR.W	SIGNAL
+	BRA.B	ROAD_UP_EXIT
+.Eover	CMP.W	INFO_E1(A0),D6
+	BNE.B	ROAD_UP_EXIT
+	MOVEQ	#1,D1		;allora e' visibile solo posteriormente	
+	BSR.W	SIGNAL
+	BTST.B	#1,EXT+1(A0)
+	BEQ.B	ROAD_UP_EXIT
+	MOVE.W	V7(A0),Y(A0)
+	MOVE.W	AUX(A0),D0
+	MOVEQ	#1,D1
+	BSR.W	SIGNAL
+
+ROAD_UP_EXIT:
+	RTS
+; END of ROAD_UP routine
+****************************************************************************
+; ROAD_DW  routine                                            31 Mar 1993
+
+ROAD_DW:
+	TST.W	INFO_W0(A0)
+	BNE.B	.go
+	TST.W	INFO_S0(A0)
+	BNE.B	.go
+	BRA.W	ROAD_DW_EXIT
+
+.go	MOVE.W	RY(A0),D7	;ROAD_DW section
+	CMP.W	#28,D7
+	BMI.W	ROAD_DW_EXIT
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)	;X
+	MOVE.W	D1,V1(A0)	;X
+	MOVE.W	D0,V2(A0)	;Y
+	MOVE.W	D0,V3(A0)	;Y
+	MOVE.W	#$FF,D6
+	MOVE.W	#L5,D2
+	ADD.W	D7,D2
+	MOVE.B	(A0,D2.W),D2
+	AND.W	D6,D2
+	SUB.W	D2,V0(A0)	;=X-L5
+	ADD.W	D2,V1(A0)	;=X+L5
+	SUB.W	D2,V3(A0)	;=Y-L5
+	MOVE.W	#L2,D2
+	ADD.W	D7,D2
+	MOVE.B	(A0,D2.W),D2
+	AND.W	D6,D2		;D2=L2
+	MOVE.W	D2,V4(A0)
+	MOVE.W	V3(A0),V7(A0)
+	ADD.W	D2,V7(A0)
+	ADD.W	D2,V7(A0)
+	MOVE.W	#L0,D3
+	ADD.W	D7,D3
+	MOVE.B	(A0,D3.W),D3
+	AND.W	D6,D3
+	LSR.W	#1,D3		;D3=L0/2
+	MOVE.W	D3,V6(A0)
+
+	TST.W	INFO_W0(A0)
+	BEQ.W	ROAD_DW_S
+
+	MOVE.W	ALPHA(A0),D6	;D6=ALPHA
+	MOVE.W	D6,D7
+	BCHG.L	#1,D7		;D7=COMPLEMENTO ad ALPHA
+
+	CMP.W	INFO_W1(A0),D7
+	BEQ.B	.ok
+	CMP.W	INFO_W1(A0),D6
+	BEQ.B	.ok
+	BRA.W	ROAD_DW_S
+.ok	MOVE.W	V0(A0),X0(A0)
+	SUB.W	D3,X0(A0)
+	MOVE.W	V0(A0),X1(A0)
+	ADD.W	D3,X1(A0)
+	MOVE.W	V3(A0),Y0(A0)
+	MOVE.W	V2(A0),Y1(A0)
+	MOVE.W	#2,INK(A0)
+	BSR.W	RECT
+
+	MOVE.W	ALPHA(A0),D6	;D6=ALPHA
+	MOVE.W	D6,D7
+	BCHG.L	#1,D7		;D7=COMPLEMENTO ad ALPHA
+
+	MOVE.W	V0(A0),X(A0)
+	MOVE.W	V3(A0),Y(A0)
+	MOVE.W	V4(A0),R(A0)
+	MOVE.W	INFO_W0(A0),D0
+	CMP.W	INFO_W1(A0),D7
+	BNE.B	.Wover
+	MOVEQ	#0,D1		;allora e' visibile bene
+	BSR.W	SIGNAL
+	BTST.B	#3,EXT+1(A0)
+	BEQ.B	ROAD_DW_S
+	MOVE.W	V7(A0),Y(A0)
+	MOVE.W	AUX(A0),D0
+	MOVEQ	#0,D1
+	BSR.W	SIGNAL
+	BRA.B	ROAD_DW_S
+.Wover	CMP.W	INFO_W1(A0),D6
+	BNE.B	ROAD_DW_S
+	MOVEQ	#1,D1		;allora e' visibile solo posteriormente	
+	BSR.W	SIGNAL
+	BTST.B	#3,EXT+1(A0)
+	BEQ.B	ROAD_DW_S
+	MOVE.W	V7(A0),Y(A0)
+	MOVE.W	AUX(A0),D0
+	MOVEQ	#1,D1
+	BSR.W	SIGNAL
+
+ROAD_DW_S:
+	MOVE.W	V6(A0),D3
+
+	MOVE.W	ALPHA(A0),D6	;D6=ALPHA
+	MOVE.W	D6,D7
+	BCHG.L	#1,D7		;D7=COMPLEMENTO ad ALPHA
+
+	TST.W	INFO_S0(A0)
+	BEQ.W	ROAD_DW_EXIT
+	CMP.W	INFO_S1(A0),D7
+	BEQ.B	.ok
+	CMP.W	INFO_S1(A0),D6
+	BEQ.B	.ok
+	BRA.W	ROAD_DW_EXIT
+.ok	MOVE.W	V1(A0),X0(A0)
+	SUB.W	D3,X0(A0)
+	MOVE.W	V1(A0),X1(A0)
+	ADD.W	D3,X1(A0)
+	MOVE.W	V3(A0),Y0(A0)
+	MOVE.W	V2(A0),Y1(A0)
+	MOVE.W	#2,INK(A0)
+	BSR.W	RECT
+
+	MOVE.W	ALPHA(A0),D6	;D6=ALPHA
+	MOVE.W	D6,D7
+	BCHG.L	#1,D7		;D7=COMPLEMENTO ad ALPHA
+
+	MOVE.W	V1(A0),X(A0)
+	MOVE.W	V3(A0),Y(A0)
+	MOVE.W	V4(A0),R(A0)
+	MOVE.W	INFO_S0(A0),D0
+	CMP.W	INFO_S1(A0),D7
+	BNE.B	.Sover
+	MOVEQ	#0,D1		;allora e' visibile bene
+	BSR.W	SIGNAL
+	BTST.B	#2,EXT+1(A0)
+	BEQ.B	ROAD_DW_EXIT
+	MOVE.W	V7(A0),Y(A0)
+	MOVE.W	AUX(A0),D0
+	MOVEQ	#0,D1
+	BSR.W	SIGNAL
+	BRA.B	ROAD_DW_EXIT
+.Sover	CMP.W	INFO_S1(A0),D6
+	BNE.B	ROAD_DW_EXIT
+	MOVEQ	#1,D1		;allora e' visibile solo posteriormente	
+	BSR.W	SIGNAL
+	BTST.B	#2,EXT+1(A0)
+	BEQ.W	ROAD_UP_EXIT
+	MOVE.W	V7(A0),Y(A0)
+	MOVE.W	AUX(A0),D0
+	MOVEQ	#1,D1
+	BSR.W	SIGNAL
+
+ROAD_DW_EXIT:
+	RTS
+; END of ROAD_DW routine
+****************************************************************************
+; ROAD_OBJ routine                                            31 Mar 1993
+
+ROAD_OBJ:
+	MOVE.W	RY(A0),D7
+	ADD.W	#$12,D7
+	CMP.W	#$8,D7
+	BMI.W	ROAD_OBJ_EXIT
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)	;X
+	MOVE.W	D0,V1(A0)	;Y
+
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$FF,D0		;D0=L1
+
+	MOVE.W	#L2,D1
+	ADD.W	D7,D1
+	MOVE.B	(A0,D1.W),D1
+	AND.W	#$FF,D1		;D1=L2
+
+	MOVE.W	OBJ2(A0),D6
+	ADD.W	D6,D6
+	MOVE.W	ROAD_OBJ_TAB(PC,D6.W),D6
+	JSR	ROAD_OBJ_TAB(PC,D6.W)
+	BRA.W	ROAD_OBJ_EXIT
+ROAD_OBJ_TAB:
+PC	set	*
+	DC.W	ROAD_OBJ_EXIT-PC
+	DC.W	ROAD_PILL-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+	DC.W	ROAD_BONUS-PC
+
+*********************
+ROAD_PILL:
+	MOVE.W	V0(A0),X(A0)
+	MOVE.W	V1(A0),Y(A0)
+;	ADDQ.W	#1,D0
+	MOVE.W	D0,R(A0)	;L1+1
+	LEA	ROAD_PILL_TAB(PC),A1
+	BSR.W	OBJECT
+ROAD_PILL_EXIT:
+	RTS
+
+ROAD_PILL_TAB:
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$FC		;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+
+	DC.B	0	;per allineare a WORD
+
+***************
+ROAD_BONUS:
+	MOVE.W	V0(A0),X(A0)
+	MOVE.W	V1(A0),Y(A0)
+;	ADDQ.W	#1,D1
+	MOVE.W	D1,R(A0)	;L2+1
+	LEA	ROAD_BONUS_TAB(PC),A1
+	MOVE.W	OBJ2(A0),D0
+	SUBQ.W	#2,D0
+	LSL.W	#5,D0
+	ADD.W	D0,A1
+	BSR.W	OBJECT
+ROAD_BONUS_EXIT:
+	RTS
+
+ROAD_BONUS_TAB:
+;SUPERPILL
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$F7		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;GHOST STOP
+	DC.L	$1900		;MASK
+	DC.L	$6700		;PLANE 0
+	DC.L	$6700		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$C3		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;FULL ENERGY
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$FD00		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$B3		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;DEVIL
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$FA		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;ANGEL
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$FA		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;L_JUMP
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$FC		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;M_JUMP
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$F7		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;NO_CUBE
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$E400		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$B3		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;L_SPEED
+	DC.L	0		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$F7		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;M_SPEED
+	DC.L	0		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$F9		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;NO_TUBE
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$E400		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$B3		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;5000
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$13		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;10000
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$03		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+;20000
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$63		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 bytes
+
+ROAD_OBJ_EXIT:
+	RTS
+; END of ROAD_OBJ routine
+****************************************************************************
+; END of ROAD routines
+****************************************************************************
+****************************************************************************
+; THING routines                                            28 Mar 1993
+;
+;
+
+THING:
+	MOVE.W	AUX(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	THING_TAB(PC,D0.W),D0
+	JMP	THING_TAB(PC,D0.W)
+THING_TAB:
+PC	set	*
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	TREE-PC
+	DC.W	TREE-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+	DC.W	THING_EXIT-PC
+
+THING_EXIT:
+	RTS
+**************
+THING_TP:
+	MOVE.W	AUX(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	THING_TP_TAB(PC,D0.W),D0
+	JMP	THING_TP_TAB(PC,D0.W)
+THING_TP_TAB:
+PC	set	*
+	DC.W	THING_TP_EXIT-PC
+	DC.W	ARCO_N-PC
+	DC.W	ARCO_E-PC
+	DC.W	ARCO_S-PC
+	DC.W	ARCO_W-PC
+	DC.W	TREE-PC
+	DC.W	TREE-PC
+	DC.W	THING_TP_EXIT-PC
+	DC.W	THING_TP_EXIT-PC
+	DC.W	THING_TP_EXIT-PC
+	DC.W	THING_TP_EXIT-PC
+	DC.W	THING_TP_EXIT-PC
+	DC.W	THING_TP_EXIT-PC
+	DC.W	THING_TP_EXIT-PC
+	DC.W	THING_TP_EXIT-PC
+	DC.W	THING_TP_EXIT-PC
+
+THING_TP_EXIT:
+	RTS
+; END of THING routines
+****************************************************************************
+; PINO routines                                            22 Mar 1993
+;
+
+TREE:
+	MOVE.W	RY(A0),D7
+	ADD.W	#$20,D7
+	CMP.W	#$18,D7
+	BMI.W	TREE_EXIT
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)	;X
+	MOVE.W	D1,V1(A0)	;X
+	MOVE.W	D1,V2(A0)	;X
+	MOVE.W	D0,V3(A0)	;Y
+	MOVE.W	D0,V4(A0)	;Y
+	MOVE.W	D0,V5(A0)	;Y
+
+	MOVE.W	#$FF,D6
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	D6,D0		;D0=L5
+
+	MOVE.W	#L3,D2
+	ADD.W	D7,D2
+	MOVE.B	(A0,D2.W),D2
+	AND.W	D6,D2		;D2=L3
+
+	MOVE.W	#L2,D3
+	ADD.W	D7,D3
+	MOVE.B	(A0,D3.W),D3
+	AND.W	D6,D3		;D3=L2
+
+	MOVE.W	#L1,D4
+	ADD.W	D7,D4
+	MOVE.B	(A0,D4.W),D4
+	AND.W	D6,D4		;D4=L1
+
+	SUB.W	D4,V0(A0)	;X-L1
+	ADD.W	D4,V2(A0)	;X+L1
+	SUB.W	D0,V4(A0)	;Y-L5
+	SUB.W	D0,V5(A0)
+	SUB.W	D2,V5(A0)
+	SUB.W	D3,V5(A0)	;Y-L5-L3-L2
+
+	ADD.W	D3,D2
+	MOVE.W	D2,V6(A0)	;Raggio=L3+L2
+
+	MOVE.W	V0(A0),X0(A0)
+	MOVE.W	V2(A0),X1(A0)
+	MOVE.W	V4(A0),Y0(A0)
+	MOVE.W	V3(A0),Y1(A0)
+	MOVE.W	INFO_BT(A0),INK(A0)
+	BSR.W	RECT
+
+	MOVE.W	V1(A0),X(A0)
+	MOVE.W	V5(A0),Y(A0)
+	MOVE.W	V6(A0),R(A0)
+	MOVE.W	INFO_TP(A0),D0
+	OR.W	#$00F0,D0
+	MOVE.W	D0,INK(A0)
+	LEA	TREE_TAB(PC),A1
+	CLR.L	(A1)
+	CMP.W	#5,AUX(A0)
+	BEQ.B	TREE_PINO
+	MOVE.L	#$1900,(A1)
+TREE_PINO:
+	BSR.W	OBJECT
+TREE_EXIT:
+	RTS
+
+TREE_TAB:
+	DC.L	$0		;MASK ($0000=PINO/$1900=CIRCLE)
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	0		;Color (not used)
+	DC.B	31		;Max raggio
+	DC.B	1		;FLAG:Use INK
+	DC.B	1		;FLAG:DOUBLE VERT
+
+	DC.B	0	;per allineare a WORD
+
+; END of TREE routine
+****************************************************************************
+; ARCO routines                                            22 Mar 1993
+;
+
+ARCO_N:
+	TST.W	ALPHA(A0)
+	BNE.B	ARCO_N1
+	MOVE.W	#6,INK(A0)
+	BRA.B	ARCO_X
+ARCO_N1:
+	CMP.W	#2,ALPHA(A0)
+	BNE.W	ARCO_EXIT
+	MOVE.W	#1,INK(A0)
+	BRA.B	ARCO_X
+
+ARCO_E:
+	CMP.W	#1,ALPHA(A0)
+	BNE.B	ARCO_E1
+	MOVE.W	#6,INK(A0)
+	BRA.B	ARCO_X
+ARCO_E1:
+	CMP.W	#3,ALPHA(A0)
+	BNE.W	ARCO_EXIT
+	MOVE.W	#1,INK(A0)
+	BRA.B	ARCO_X
+
+ARCO_S:
+	CMP.W	#2,ALPHA(A0)
+	BNE.B	ARCO_S1
+	MOVE.W	#6,INK(A0)
+	BRA.B	ARCO_X
+ARCO_S1:
+	TST.W	ALPHA(A0)
+	BNE.W	ARCO_EXIT
+	MOVE.W	#1,INK(A0)
+	BRA.B	ARCO_X
+
+ARCO_W:
+	CMP.W	#3,ALPHA(A0)
+	BNE.B	ARCO_W1
+	MOVE.W	#6,INK(A0)
+	BRA.B	ARCO_X
+ARCO_W1:
+	CMP.W	#1,ALPHA(A0)
+	BNE.W	ARCO_EXIT
+	MOVE.W	#1,INK(A0)
+	BRA.W	ARCO_X
+
+ARCO_X:
+	MOVE.W	RY(A0),D7
+	ADD.W	#$20,D7
+	CMP.W	#$18,D7
+	BMI.W	ARCO_EXIT
+	BSR.W	PX_PY
+	MOVE.W	D1,V0(A0)	;X
+	MOVE.W	D1,V1(A0)	;X
+	MOVE.W	D1,V2(A0)	;X
+	MOVE.W	D1,V3(A0)	;X
+	MOVE.W	D0,V4(A0)	;Y
+	MOVE.W	D0,V5(A0)	;Y
+	MOVE.W	D0,V6(A0)	;Y
+
+	MOVE.W	#$FF,D1
+	MOVE.W	#L5,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	D1,D0
+	SUB.W	D0,V0(A0)	;X-L5
+	ADD.W	D0,V1(A0)	;X+L5
+	SUB.W	D0,V2(A0)	;X-L5
+	ADD.W	D0,V3(A0)	;X+L5
+	SUB.W	D0,V4(A0)	;Y-L5
+	SUB.W	D0,V5(A0)	;Y-L5
+
+	MOVE.W	#L4,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	D1,D0
+	SUB.W	D0,V4(A0)	;Y-L5-L4
+	SUB.W	D0,V5(A0)	;Y-L5-L4
+
+	MOVE.W	#L1,D0
+	ADD.W	D7,D0
+	MOVE.B	0(A0,D0.W),D0
+	AND.W	D1,D0
+	ADD.W	D0,V2(A0)	;X-L5+L1
+	SUB.W	D0,V3(A0)	;X+L5-L1
+	SUB.W	D0,V5(A0)	;Y-L5-L4-L2
+
+	MOVE.W	V0(A0),X0(A0)
+	MOVE.W	V2(A0),X1(A0)
+	MOVE.W	V5(A0),Y0(A0)
+	MOVE.W	V6(A0),Y1(A0)
+	BSR.W	RECT		;INK From ARCO_? routines
+	MOVE.W	V0(A0),X0(A0)
+	MOVE.W	V1(A0),X1(A0)
+	MOVE.W	V4(A0),Y0(A0)
+	MOVE.W	V5(A0),Y1(A0)
+	ADD.W	#1,INK(A0)
+	BSR.W	RECT
+	MOVE.W	V3(A0),X0(A0)
+	MOVE.W	V1(A0),X1(A0)
+	MOVE.W	V5(A0),Y0(A0)
+	MOVE.W	V6(A0),Y1(A0)
+	SUB.W	#1,INK(A0)
+	BSR.W	RECT
+	RTS
+ARCO_EXIT:
+	RTS
+; END of ARCO routine
+;******************************************************************************
+;******************************************************************************
+;******************************************************************************
+; CYBER_DRAW routine                                          18 Mar 1993
+;
+;
+
+CYBER_DRAW:
+	LEA.L	$DFF000,A6		; CUSTOM
+	MOVE.L	SCREEN_DRAW(A0),A1
+	CMP.L	PAGE_1(A0),A1
+	BEQ.B	COPPER_PRG_0
+	MOVE.L	PAGE_1(A0),SCREEN_DRAW(A0)
+	MOVE.L	PAGE_0(A0),SCREEN_SHOW(A0)
+	MOVE.L	Copper_LIST_0(A0),$80(A6)
+	MOVE.L	Copper_LIST_0(A0),CURRENT_COPLIST(A0)
+	MOVE.L	Copper_LIST_1(A0),HIDE_COPLIST(A0)
+	BRA.B	COPPER_PRG_1
+COPPER_PRG_0:
+	MOVE.L	PAGE_0(A0),SCREEN_DRAW(A0)
+	MOVE.L	PAGE_1(A0),SCREEN_SHOW(A0)
+	MOVE.L	Copper_LIST_1(A0),$80(A6)
+	MOVE.L	Copper_LIST_1(A0),CURRENT_COPLIST(A0)
+	MOVE.L	Copper_LIST_0(A0),HIDE_COPLIST(A0)
+COPPER_PRG_1:
+	CMP.W	#13,WAVS(A0)
+	BCS.B	WAVS_OK
+	MOVE.W	#-1,WAVS(A0)
+WAVS_OK:
+	ADDQ.W	#1,WAVS(A0)
+WAIT_VBL:
+	MOVE.L	$4(A6),D0
+	ANDI.L	#$1FFFF,D0
+	CMPI.L	#$0FF00,D0
+	BCS.B	WAIT_VBL
+
+	MOVE.W	ALPHA(A0),D0		;0=NORTH/1=EAST/2=SOUTH/3=WEST
+	ADD.W	D0,D0
+	MOVE.W	GRAPH_TAB(PC,D0.W),D0
+	JSR	GRAPH_TAB(PC,D0.W)
+	BRA.B	COPPER_WORK
+GRAPH_TAB:
+PC	set	*
+
+	DC.W	GRAPH0-PC
+	DC.W	GRAPH1-PC
+	DC.W	GRAPH2-PC
+	DC.W	GRAPH3-PC
+
+COPPER_WORK:
+	MOVE.L	HIDE_COPLIST(A0),A1
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	ADD.B	#$13,D0		;$13+HIGH_SKY
+	MOVE.B	D0,108(A1)
+	ADD.B	#$7,D0		;$1A+HIGH_SKY  --->DIWSTRT
+	MOVE.B	D0,34(A1)
+	ADD.B	#$D,D0		;$27+HIGH_SKY
+	MOVE.B	D0,116(A1)
+	ADD.B	#$8,D0		;$2F+HIGH_SKY
+	MOVE.B	D0,124(A1)
+	ADD.B	#$7,D0		;$36+HIGH_SKY
+	MOVE.B	D0,132(A1)
+	ADD.B	#$7,D0		;$3D+HIGH_SKY
+	MOVE.B	D0,140(A1)
+	ADD.B	#$4,D0		;$41+HIGH_SKY
+	MOVE.B	D0,148(A1)
+	ADD.B	#$4,D0		;$45+HIGH_SKY
+	MOVE.B	D0,156(A1)
+	ADD.B	#$4,D0		;$49+HIGH_SKY
+	MOVE.B	D0,164(A1)
+	ADD.B	#$3,D0		;$4C+HIGH_SKY
+	MOVE.B	D0,172(A1)
+	ADD.B	#$3,D0		;$4F+HIGH_SKY
+	MOVE.B	D0,180(A1)
+	ADD.B	#$3,D0		;$52+HIGH_SKY
+	MOVE.B	D0,188(A1)
+	ADD.B	#$2,D0		;$54+HIGH_SKY
+	MOVE.B	D0,196(A1)
+	ADD.B	#$2,D0		;$56+HIGH_SKY
+	MOVE.B	D0,204(A1)
+	ADD.B	#$2,D0		;$58+HIGH_SKY
+	MOVE.B	D0,212(A1)
+	ADD.B	#$1,D0		;$59+HIGH_SKY
+	MOVE.B	D0,220(A1)
+	ADD.B	#$1,D0		;$5A+HIGH_SKY
+	MOVE.B	D0,228(A1)
+	ADD.B	#$1,D0		;$5B+HIGH_SKY
+	MOVE.B	D0,236(A1)
+	ADD.B	#$1,D0		;$5C+HIGH_SKY
+	MOVE.B	D0,244(A1)
+	ADD.B	#$1,D0		;$5D+HIGH_SKY
+	MOVE.B	D0,252(A1)
+
+	MOVE.W	#$000,258(A1)
+	TST.B	BLEEDING(A0)
+	BEQ.B	.ok
+	MOVE.W	#$F00,258(A1)
+	CLR.B	BLEEDING(A0)
+.ok	TST.W	SUPERPILL(A0)
+	BEQ.B	.over
+	CMP.W	#100,SUPERPILL(A0)
+	BCC.B	.1
+	MOVE.W	#$999,258(A1)
+	BRA.B	.over
+.1	MOVE.W	#$FFF,258(A1)
+
+.over	MOVE.W	LAST_ALPHA(A0),D0
+	SUB.W	ALPHA(A0),D0	;D0=LAST_ALPHA-ALPHA
+	BEQ.W	NO_ALPHA_CHANGE
+
+	CMP.W	#2,D0
+	BEQ.B	TURNED_BACK
+	CMP.W	#-2,D0
+	BEQ.B	TURNED_BACK
+
+	CMP.W	#1,D0
+	BEQ.W	TURNED_LEFT
+	CMP.W	#-3,D0
+	BEQ.W	TURNED_LEFT
+
+	CMP.W	#-1,D0
+	BEQ.W	TURNED_RIGHT
+	CMP.W	#3,D0
+	BEQ.W	TURNED_RIGHT
+
+	BRA.W	NO_ALPHA_CHANGE
+
+TURNED_BACK:
+	MOVE.W	ALPHA(A0),LAST_ALPHA(A0)
+	MOVE.W	#$4000,$9A(A6)		;DISABLE INTs
+	MOVE.W	2(A6),-(SP)
+.wvb	CMPI.B	#$F0,$6(A6)
+	BCS.B	.wvb			;WAIT_VBL
+	BSR.W	DRAW_NO_RADAR		;turn off sprites
+
+	MOVE.L	CURRENT_COPLIST(A0),A1
+	MOVE.L	SCREEN_SHOW(A0),A2	; for PLANE 0/1/2/3
+	MOVE.L	SCREEN_DRAW(A0),A3
+	MOVE.L	$68(A1),-(SP)
+	MOVE.L	#$FFFFFFFE,$68(A1)
+TB_WB0:	BTST.B	#6,2(A6)
+	BNE.B	TB_WB0
+	MOVE.L	#$09F00000,$40(A6)	;CON0/CON1
+	MOVE.L	#$FFFFFFFF,$44(A6)	;MASK
+	MOVE.L	#$00000000,$64(A6)	;AMOD/DMOD
+
+	MOVEQ	#4,D0
+	MOVE.L	#$9000,D6
+	MOVE.L	#$3000,D5
+TB_LOOP:
+	BSR.B	TB_SCROLL
+	BSR.B	TB_COPY
+	DBRA	D0,TB_LOOP
+
+	MOVE.L	(SP)+,$68(A1)
+	MOVE.W	(SP)+,D0
+	BSET.L	#15,D0
+	MOVE.W	D0,$96(A6)
+	MOVE.W	#$C000,$9A(A6)		;ENABLE INTs
+	BRA.W	NO_ALPHA_CHANGE
+********
+TB_SCROLL:
+	CMPI.B	#$90,$6(A6)
+	BCS.B	TB_SCROLL		;WAIT_VBL
+	MOVE.L	A2,A5
+	BSR.B	TB_SCROLL2
+	MOVE.L	A2,A5
+	ADD.W	#$3000,A5
+	BSR.B	TB_SCROLL2
+	MOVE.L	A2,A5
+	ADD.W	#$6000,A5
+	BSR.B	TB_SCROLL2
+	MOVE.L	A2,A5
+	ADD.L	#$9000,A5
+	BRA.W	TB_SCROLL2
+TB_SCROLL2:
+.WB0:	BTST.B	#6,2(A6)
+	BNE.B	.WB0
+	MOVE.L	A5,$54(A6)		;DPT
+	ADD.W	#$2C*55,A5
+	MOVE.L	A5,$50(A6)		;APT
+	MOVE.W	#$37D6,$58(A6)		;SIZE&START
+	RTS
+********
+TB_COPY:
+	MOVE.L	A2,A5
+	ADD.W	#$2654,A5
+.WB0:	BTST.B	#6,2(A6)
+	BNE.B	.WB0
+	MOVE.L	A5,$54(A6)		;DPT
+	MOVE.L	A3,$50(A6)		;APT
+	MOVE.W	#$DD6,$58(A6)		;SIZE&START Plane 0
+.WB1:	BTST.B	#6,2(A6)
+	BNE.B	.WB1
+	ADD.W	D5,A5
+	MOVE.L	A5,$54(A6)		;DPT
+	ADD.W	D5,A3
+	MOVE.L	A3,$50(A6)		;APT
+	MOVE.W	#$DD6,$58(A6)		;SIZE&START Plane 1
+.WB2:	BTST.B	#6,2(A6)
+	BNE.B	.WB2
+	ADD.W	D5,A5
+	MOVE.L	A5,$54(A6)		;DPT
+	ADD.W	D5,A3
+	MOVE.L	A3,$50(A6)		;APT
+	MOVE.W	#$DD6,$58(A6)		;SIZE&START Plane 2
+.WB3:	BTST.B	#6,2(A6)
+	BNE.B	.WB3
+	ADD.W	D5,A5
+	MOVE.L	A5,$54(A6)		;DPT
+	ADD.W	D5,A3
+	MOVE.L	A3,$50(A6)		;APT
+	MOVE.W	#$DD6,$58(A6)		;SIZE&START Plane 3
+	SUB.L	D6,A3
+	ADD.W	#55*44,A3
+	RTS
+
+; END of TURNED_BACK routines
+*******************************************************************************
+TURNED_LEFT:
+	MOVE.W	ALPHA(A0),LAST_ALPHA(A0)
+	BTST.B	#6,2(A6)
+	BNE.B	TURNED_LEFT
+	MOVE.W	#$4000,$9A(A6)		;DISABLE INTs
+	MOVE.W	2(A6),-(SP)
+.wvb	CMPI.B	#$F0,$6(A6)
+	BCS.B	.wvb			;WAIT_VBL
+	BSR.W	DRAW_NO_RADAR		;turn off sprites
+
+	MOVE.L	CURRENT_COPLIST(A0),A1
+	MOVE.L	SCREEN_SHOW(A0),A2	; for PLANE 0/1/2/3
+	MOVE.L	SCREEN_DRAW(A0),A3
+	MOVE.B	TURNSPEED(A0),D3	;D3=TURNSPEED
+	MOVE.L	#$3000,D7		;K
+	TST.B	D3
+	BEQ.B	TL_SPD0
+	MOVEQ	#$9,D6			;SPEED NORM
+	BRA.B	TL_LOOP
+TL_SPD0:
+	MOVEQ	#$4,D6			;SPEED UP
+TL_LOOP:
+	TST.B	D3
+	BEQ.B	TL_LSPD0
+	SUBQ.L	#4,A2
+	SUBQ.L	#4,A3
+	BRA.B	TL_LP1
+TL_LSPD0:
+	SUBQ.L	#8,A2
+	SUBQ.L	#8,A3
+TL_LP1:	MOVE.L	A2,D1
+	MOVE.W	D1,$06(A1)		;PLANE 0 low
+	ADD.W	D7,D1
+	MOVE.W	D1,$0E(A1)		;PLANE 1 low
+	ADD.W	D7,D1
+	MOVE.W	D1,$16(A1)		;PLANE 2 low
+	ADD.W	D7,D1
+	MOVE.W	D1,$1E(A1)		;PLANE 3 low
+TL_WAIT_VBL:
+	CMPI.B	#$FF,$6(A6)
+	BCS.B	TL_WAIT_VBL
+	MOVEQ	#44,D2
+	MOVE.W	#273,D5
+TL_COPY:
+	MOVE.L	(A3,D2.L),(A2,D2.L)	;PLANE 0
+	TST.B	D3
+	BNE.B	TL_1
+	MOVE.L	4(A3,D2.L),4(A2,D2.L)	;PLANE 0
+TL_1:	ADD.L	D7,D2
+	MOVE.L	(A3,D2.L),(A2,D2.L)	;PLANE 1
+	TST.B	D3
+	BNE.B	TL_2
+	MOVE.L	4(A3,D2.L),4(A2,D2.L)	;PLANE 1
+TL_2:	ADD.L	D7,D2
+	MOVE.L	(A3,D2.L),(A2,D2.L)	;PLANE 2
+	TST.B	D3
+	BNE.B	TL_3
+	MOVE.L	4(A3,D2.L),4(A2,D2.L)	;PLANE 2
+TL_3:	ADD.L	D7,D2
+	MOVE.L	(A3,D2.L),(A2,D2.L)	;PLANE 3
+	TST.B	D3
+	BNE.B	TL_4
+	MOVE.L	4(A3,D2.L),4(A2,D2.L)	;PLANE 3
+TL_4:	SUB.L	#$9000,D2
+	ADD.L	#44,D2			;next LINE
+	DBRA	D5,TL_COPY
+	DBRA	D6,TL_LOOP
+
+	MOVE.L	SCREEN_SHOW(A0),D0
+	MOVE.W	D0,$06(A1)		;PLANE 0 low
+	ADD.W	D7,D0
+	MOVE.W	D0,$0E(A1)		;PLANE 1 low
+	ADD.W	D7,D0
+	MOVE.W	D0,$16(A1)		;PLANE 2 low
+	ADD.W	D7,D0
+	MOVE.W	D0,$1E(A1)		;PLANE 3 low
+
+	MOVE.W	(SP)+,D0
+	BSET.L	#15,D0
+	MOVE.W	D0,$96(A6)
+	MOVE.W	#$C000,$9A(A6)		;ENABLE INTs
+	BRA.W	NO_ALPHA_CHANGE		;EXIT
+
+; END of TURNED_LEFT routine	
+*******************************************************************************
+TURNED_RIGHT:
+	MOVE.W	ALPHA(A0),LAST_ALPHA(A0)
+	BTST.B	#6,2(A6)
+	BNE.B	TURNED_RIGHT
+	MOVE.W	#$4000,$9A(A6)		;DISABLE INTs
+	MOVE.W	2(A6),-(SP)
+.wvb	CMPI.B	#$F0,$6(A6)
+	BCS.B	.wvb			;WAIT_VBL
+	BSR.W	DRAW_NO_RADAR		;turn off sprites
+
+	MOVE.L	CURRENT_COPLIST(A0),A1
+	MOVE.L	SCREEN_SHOW(A0),A2	; for PLANE 0/1/2/3
+	MOVE.L	SCREEN_DRAW(A0),A3
+	MOVE.B	TURNSPEED(A0),D3	;D3=TURNSPEED
+	MOVE.L	#$3000,D7		;K
+	TST.B	D3
+	BEQ.B	TR_SPD0
+	MOVEQ	#$9,D6			;SPEED NORM
+	BRA.B	TR_LOOP
+TR_SPD0:
+	MOVEQ	#$4,D6			;SPEED UP
+TR_LOOP:
+	TST.B	D3
+	BEQ.B	TR_LSPD0
+	ADDQ.L	#4,A2
+	ADDQ.L	#4,A3
+	BRA.B	TR_LP1
+TR_LSPD0:
+	ADDQ.L	#8,A2
+	ADDQ.L	#8,A3
+TR_LP1:	MOVE.L	A2,D1
+	MOVE.W	D1,$06(A1)		;PLANE 0 low
+	ADD.W	D7,D1
+	MOVE.W	D1,$0E(A1)		;PLANE 1 low
+	ADD.W	D7,D1
+	MOVE.W	D1,$16(A1)		;PLANE 2 low
+	ADD.W	D7,D1
+	MOVE.W	D1,$1E(A1)		;PLANE 3 low
+TR_WAIT_VBL:
+	CMPI.B	#$FF,$6(A6)
+	BCS.B	TR_WAIT_VBL
+	MOVEQ	#44,D2
+	MOVE.W	#273,D5
+TR_COPY:
+	MOVE.L	-4(A3,D2.L),-4(A2,D2.L)	;PLANE 0
+	TST.B	D3
+	BNE.B	TR_1
+	MOVE.L	-8(A3,D2.L),-8(A2,D2.L)	;PLANE 0
+TR_1:	ADD.L	D7,D2
+	MOVE.L	-4(A3,D2.L),-4(A2,D2.L)	;PLANE 1
+	TST.B	D3
+	BNE.B	TR_2
+	MOVE.L	-8(A3,D2.L),-8(A2,D2.L)	;PLANE 1
+TR_2:	ADD.L	D7,D2
+	MOVE.L	-4(A3,D2.L),-4(A2,D2.L)	;PLANE 2
+	TST.B	D3
+	BNE.B	TR_3
+	MOVE.L	-8(A3,D2.L),-8(A2,D2.L)	;PLANE 2
+TR_3:	ADD.L	D7,D2
+	MOVE.L	-4(A3,D2.L),-4(A2,D2.L)	;PLANE 3
+	TST.B	D3
+	BNE.B	TR_4
+	MOVE.L	-8(A3,D2.L),-8(A2,D2.L)	;PLANE 3
+TR_4:	SUB.L	#$9000,D2
+	ADD.L	#44,D2			;next LINE
+	DBRA	D5,TR_COPY
+
+	DBRA	D6,TR_LOOP
+
+	MOVE.L	SCREEN_SHOW(A0),D0
+	MOVE.W	D0,$06(A1)		;PLANE 0 low
+	ADD.W	D7,D0
+	MOVE.W	D0,$0E(A1)		;PLANE 1 low
+	ADD.W	D7,D0
+	MOVE.W	D0,$16(A1)		;PLANE 2 low
+	ADD.W	D7,D0
+	MOVE.W	D0,$1E(A1)		;PLANE 3 low
+
+	MOVE.W	(SP)+,D0
+	BSET.L	#15,D0
+	MOVE.W	D0,$96(A6)
+	MOVE.W	#$C000,$9A(A6)		;ENABLE INTs
+	BRA.W	NO_ALPHA_CHANGE		;EXIT
+
+; END of TURNED_RIGHT routine	
+*******************************************************************************
+NO_ALPHA_CHANGE:
+	TST.B	GAMEOVER(A0)
+	BNE.W	GAME_OVER
+
+	MOVE.W	ALPHA(A0),D0
+	CMP.W	INT_ALPHA(A0),D0
+	BNE.B	CYBER_DRAW_EXIT
+
+	BSR.W	WELL_DONE
+	TST.B	HUD(A0)
+	BEQ.B	CYBER_DRAW_EXIT
+	BSR.W	DRAW_SCORE
+	BSR.W	DRAW_TIME
+	BSR.W	DRAW_JMPSPD
+	BSR.W	DRAW_ENERGY
+	BSR.W	DRAW_RADAR
+CYBER_DRAW_EXIT:
+	RTS
+; END of CYBER_DRAW routine
+;******************************************************************************
+;******************************************************************************
+; GRAPH0 routine                                              31 Mar 1993
+;
+;
+
+GRAPH0:
+	BSR.W	BACK_NORTH
+	MOVE.W	VX(a0),d0
+	LSR.W	#6,d0
+	MOVE.W	d0,BPOSX(a0)	;BPOSX=VX/64
+	MOVE.W	VY(a0),d0
+	LSR.W	#6,d0
+	MOVE.W	d0,BPOSY(a0)	;BPOSY=VY/64
+	MOVE.W	VY(a0),d0
+	AND.W	#$003f,d0
+	MOVE.W	d0,PR(a0)	;PR=VY and 63
+
+	MOVE.W	#32,PR_K(a0)	;PR_K=32
+	CLR.W	PR_FLAG(a0)	;PR_FLAG=0
+	CMP.W	#32,PR(a0)	;IF PR>=32
+	BLT.B	GRAPH0_OVER1		; THEN
+	MOVE.W	#-32,PR_K(a0)	;   PR=-32
+	MOVE.W	#1,PR_FLAG(a0)	;   PR_FLAG=1
+GRAPH0_OVER1:			; END_IF
+	MOVE.W	BPOSY(a0),d0
+	ADD.W	BPROF(a0),d0
+	MOVE.W	d0,BY(a0)	;BY=BPOSY+BPROF
+GRAPH0_LOOPY:
+	MOVE.W	BY(a0),d0
+	SUB.W	BPOSY(a0),d0
+	MOVE.W	d0,BRY(a0)	;BRY=BY-BPOSY
+	MOVE.B	BLIMIT0(a0,d0.w),d0
+	AND.W	#$00ff,d0
+	MOVE.W	d0,BLIMIT(a0)	;BLIMIT=0( BRY )
+	BTST.B	#0,PR_FLAG(a0)	;IF PR_FLAG=1
+	BEQ.B	GRAPH0_OVER2	; THEN
+	MOVE.W	BRY(a0),d0
+	MOVE.B	BLIMIT1(a0,d0.w),d0	;  BLIMIT=$10( BRY )
+	AND.W	#$00ff,d0
+	MOVE.W	d0,BLIMIT(a0)	; END_IF
+GRAPH0_OVER2:
+	MOVE.W	BY(a0),d0
+	LSL.W	#6,d0
+	SUB.W	VY(a0),d0
+	MOVE.W	d0,RY(a0)	;RY=(BY*64)-VY
+
+	MOVE.W	BPOSX(a0),d0
+	SUB.W	BLIMIT(a0),d0
+	MOVE.W	d0,BX(a0)	;BX=BPOSX-BLIMIT
+GRAPH0_LOOP0:
+	MOVE.W	BX(a0),d0
+	SUB.W	BPOSX(a0),d0
+	MOVE.W	d0,BRX(a0)	;BRX=BX-BPOSX
+
+	BSR.W	MAP_N
+
+;ON TYPE Gosub NULL,ROAD,WAV_0,WAV_1,WAV_2,WAV_3,TUBI,TUBI,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO
+	MOVE.W	TYPE(a0),d0
+	ADD.W	D0,D0
+	MOVE.W	GRAPH0_TAB0(PC,D0.W),D0
+	JSR	GRAPH0_TAB0(PC,D0.W)
+	BRA.B	GRAPH0_OVER3
+
+GRAPH0_TAB0:
+PC	set	*
+
+	DC.W	NULL-PC
+	DC.W	ROAD-PC
+	DC.W	WAVE0-PC
+	DC.W	WAVE1-PC
+	DC.W	WAVE2-PC
+	DC.W	WAVE3-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+
+
+GRAPH0_OVER3:
+	MOVE.W	BPOSX(a0),d0	;IF BX>=BPOSX-1
+	SUBQ.W	#1,d0		; THEN
+	CMP.W	BX(a0),d0	;   Goto LAB_1
+	BLE.B	GRAPH0_LAB_1		; END_IF
+
+	ADDQ.W	#1,BX(a0)	;BX=BX+1
+
+	BRA.B	GRAPH0_LOOP0
+
+GRAPH0_LAB_1:
+	MOVE.W	BPOSX(a0),d0
+	ADD.W	BLIMIT(a0),d0
+	MOVE.W	d0,BX(a0)	;BX=BPOSX+BLIMIT
+
+GRAPH0_LOOP1:
+	MOVE.W	BX(a0),d0
+	SUB.W	BPOSX(a0),d0
+	MOVE.W	d0,BRX(a0)	;BRX=BX-BPOSX
+
+	BSR.B	MAP_N
+
+;ON TYPE Gosub NULL,ROAD,WAV_0,WAV_1,WAV_2,WAV_3,TUBI,TUBI,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO
+	MOVE.W	TYPE(a0),d0
+	ADD.W	D0,D0
+	MOVE.W	GRAPH0_TAB1(PC,D0.W),D0
+	JSR	GRAPH0_TAB1(PC,D0.W)
+	BRA.B	GRAPH0_OVER4
+
+GRAPH0_TAB1:
+PC	set	*
+
+	DC.W	NULL-PC
+	DC.W	ROAD-PC
+	DC.W	WAVE0-PC
+	DC.W	WAVE1-PC
+	DC.W	WAVE2-PC
+	DC.W	WAVE3-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+
+GRAPH0_OVER4:
+	MOVE.W	BX(a0),d0	;IF BX<=BPOSX
+	CMP.W	BPOSX(a0),d0	; THEN Goto LAB_2
+	BLE.B	GRAPH0_LAB_2	; END_IF
+
+	SUBQ.W	#1,BX(a0)	;BX=BX-1
+
+	BRA.B	GRAPH0_LOOP1
+
+GRAPH0_LAB_2:
+	MOVE.W	BY(a0),d0	;IF BY<=BPOSY
+	CMP.W	BPOSY(a0),d0	; THEN Goto LAB_3
+	BLE.B	GRAPH0_LAB_3	; END_IF
+
+	SUBQ.W	#1,BY(a0)	;BY=BY-1
+
+	BRA.W	GRAPH0_LOOPY
+
+GRAPH0_LAB_3:
+
+	RTS
+
+MAP_N:
+;	TST.W	BX(a0)		;IF BX<0 Then RETURN
+;	BLT.W	MAP_N_CLEAR
+;	CMP.W	#63,BX(a0)	;IF BX>63 Then RETURN
+;	BGT.W	MAP_N_CLEAR
+	TST.W	BY(a0)		;IF BY<0 Then RETURN
+	BLT.W	MAP_N_CLEAR
+	CMP.W	#63,BY(a0)	;IF BY>63 Then RETURN
+	BGT.W	MAP_N_CLEAR
+
+	MOVE.L	ADDRESS_MAP(a0),a1
+	MOVE.W	BY(a0),d0
+	LSL.W	#6,d0
+	ADD.W	BX(a0),d0
+	ADD.W	d0,a1	;a1=MAP+(BY*64+BX)
+
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#$0f,d0
+	MOVE.W	d0,TYPE(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,OBJ(a0)
+	MOVE.W	d1,OBJ2(a0)
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	$1000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#$0f,d0
+	MOVE.W	d0,INFO_N0(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_N1(a0)
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	$2000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#$0f,d0
+	MOVE.W	d0,INFO_E0(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_E1(a0)
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	$3000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#$0f,d0
+	MOVE.W	d0,INFO_S0(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_S1(a0)
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	$4000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#$0f,d0
+	MOVE.W	d0,INFO_W0(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_W1(a0)
+	MOVEQ	#$00,d0      ;***
+	MOVE.B	$5000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#$0f,d0
+	MOVE.W	d0,INFO_TP(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_BT(a0)
+	MOVEQ	#$00,d0      ;***
+	MOVE.B	$6000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#$0f,d0
+	MOVE.W	d0,EXT(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,AUX(a0)
+
+;BCODE=Peek(TAB+BORDER0+(PR_FLAG*$100)+(BRX+8)+(BRY*16))
+	MOVE.W	PR_FLAG(a0),d0
+	LSL.W	#8,d0
+	ADDQ.W	#8,d0
+	ADD.W	BRX(a0),d0
+	MOVE.W	BRY(a0),d1
+	LSL.W	#4,d1
+	ADD.W	d1,d0
+	ADD.W	#BORDER0,d0
+	MOVE.B	(a0,d0.w),d0
+	AND.W	#$00ff,d0
+	MOVE.W	d0,BCODE(a0)
+
+MAP_N_EXIT
+	RTS
+
+MAP_N_CLEAR:
+	CLR.W	TYPE(a0)
+	CLR.W	OBJ(a0)
+	CLR.W	INFO_N0(a0)
+	CLR.W	INFO_E0(a0)
+	CLR.W	INFO_S0(a0)
+	CLR.W	INFO_W0(a0)
+	CLR.W	AUX(A0)
+	RTS
+
+BACK_NORTH:
+	MOVE.L	BACK_NORTH_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	MOVE.L	A2,A3
+	ADD.L	#$CB8,A3
+BNWB0:	BTST.B	#6,2(A6)
+	BNE.B	BNWB0
+	MOVE.L	#$01000000,$40(A6)
+	MOVE.L	#0,$64(A6)	;AD MOD
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.W	#73,D0
+BN_0:
+	TST.B	BACKGROUND(A0)
+	BNE.B	BN_0A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BN_0B
+BN_0A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BN_0B:	DBRA	D0,BN_0
+BNWB1:	BTST.B	#6,2(A6)
+	BNE.B	BNWB1
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_NORTH_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$D00,A1
+	ADD.L	#$3000,A2
+	MOVE.W	#73,D0
+BN_1:	TST.B	BACKGROUND(A0)
+	BNE.B	BN_1A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BN_1B
+BN_1A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BN_1B:	DBRA	D0,BN_1
+BNWB2:	BTST.B	#6,2(A6)
+	BNE.B	BNWB2
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_NORTH_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$1A00,A1
+	ADD.L	#$6000,A2
+	MOVE.W	#73,D0
+BN_2:	TST.B	BACKGROUND(A0)
+	BNE.B	BN_2A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BN_2B
+BN_2A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BN_2B:	DBRA	D0,BN_2
+BNWB3:	BTST.B	#6,2(A6)
+	BNE.B	BNWB3
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_NORTH_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$2700,A1
+	ADD.L	#$9000,A2
+	MOVE.W	#73,D0
+BN_3:	TST.B	BACKGROUND(A0)
+	BNE.B	BN_3A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BN_3B
+BN_3A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BN_3B:	DBRA	D0,BN_3
+
+	RTS
+; END of GRAPH0 routine
+;******************************************************************************
+; GRAPH1 routine                                              13 Mar 1993
+;
+;
+
+GRAPH1
+	BSR.W	BACK_EAST
+	MOVE.W	VX(A0),D0
+	LSR.W	#6,D0
+	MOVE.W	D0,BPOSX(A0)
+	MOVE.W	VY(A0),D0
+	LSR.W	#6,D0
+	MOVE.W	D0,BPOSY(A0)
+	MOVE.W	VX(A0),D0
+	AND.W	#$3F,D0
+	MOVE.W	D0,PR(A0)
+	MOVE.W	#$20,PR_K(A0)
+	CLR.W	PR_FLAG(A0)
+	CMPI.W	#$20,PR(A0)
+	BLT.B	GRAPH1_042
+	MOVE.W	#-32,PR_K(A0)
+	MOVE.W	#1,PR_FLAG(A0)
+GRAPH1_042:
+	MOVE.W	BPOSX(A0),D0
+	ADD.W	BPROF(A0),D0
+	MOVE.W	D0,BX(A0)
+GRAPH1_04E:
+	MOVE.W	BX(A0),D0
+	SUB.W	BPOSX(A0),D0
+	MOVE.W	D0,BRY(A0)
+	MOVE.B	BLIMIT0(A0,D0.W),D0
+	ANDI.W	#$FF,D0
+	MOVE.W	D0,BLIMIT(A0)
+	BTST.B	#0,PR_FLAG(A0)
+	BEQ.B	GRAPH1_07E
+	MOVE.W	BRY(A0),D0
+	MOVE.B	BLIMIT1(A0,D0.W),D0
+	ANDI.W	#$FF,D0
+	MOVE.W	D0,BLIMIT(A0)
+GRAPH1_07E:
+	MOVE.W	BX(A0),D0
+	LSL.W	#6,D0
+	SUB.W	VX(A0),D0
+	MOVE.W	D0,RY(A0)
+	MOVE.W	BPOSY(A0),D0
+	ADD.W	BLIMIT(A0),D0
+	MOVE.W	D0,BY(A0)
+GRAPH1_098:
+	MOVE.W	BPOSY(A0),D0
+	SUB.W	BY(A0),D0
+	MOVE.W	D0,BRX(A0)
+	BSR.W	GRAPH1_158
+	MOVE.W	TYPE(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	GRAPH1_TAB0(PC,D0.W),D0
+	JSR	GRAPH1_TAB0(PC,D0.W)
+	BRA.B	GRAPH1_0D8
+
+GRAPH1_TAB0:
+PC	set	*
+
+	DC.W	NULL-PC
+	DC.W	ROAD-PC
+	DC.W	WAVE0-PC
+	DC.W	WAVE1-PC
+	DC.W	WAVE2-PC
+	DC.W	WAVE3-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+
+GRAPH1_0D8:
+	MOVE.W	BPOSY(A0),D0
+	ADDQ.W	#1,D0
+	CMP.W	BY(A0),D0
+	BGE.B	GRAPH1_0EA
+	SUBQ.W	#1,BY(A0)
+	BRA.B	GRAPH1_098
+
+GRAPH1_0EA:
+	MOVE.W	BPOSY(A0),D0
+	SUB.W	BLIMIT(A0),D0
+	MOVE.W	D0,BY(A0)
+GRAPH1_0F6:
+	MOVE.W	BPOSY(A0),D0
+	SUB.W	BY(A0),D0
+	MOVE.W	D0,BRX(A0)
+	BSR.B	GRAPH1_158
+	MOVE.W	TYPE(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	GRAPH1_TAB1(PC,D0.W),D0
+	JSR	GRAPH1_TAB1(PC,D0.W)
+	BRA.B	GRAPH1_134
+
+GRAPH1_TAB1:
+PC	set	*
+
+	DC.W	NULL-PC
+	DC.W	ROAD-PC
+	DC.W	WAVE0-PC
+	DC.W	WAVE1-PC
+	DC.W	WAVE2-PC
+	DC.W	WAVE3-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+
+GRAPH1_134:
+	MOVE.W	BY(A0),D0
+	CMP.W	BPOSY(A0),D0
+	BGE.B	GRAPH1_144
+	ADDQ.W	#1,BY(A0)
+	BRA.B	GRAPH1_0F6
+
+GRAPH1_144:
+	MOVE.W	BX(A0),D0
+	CMP.W	BPOSX(A0),D0
+	BLE.B	GRAPH1_156
+	SUBQ.W	#1,BX(A0)
+	BRA.W	GRAPH1_04E
+
+GRAPH1_156:
+	RTS
+
+GRAPH1_158:
+;	TST.W	BX(A0)
+;	BLT.W	MAP_E_CLEAR
+;	CMPI.W	#$3F,BX(A0)
+;	BGT.W	MAP_E_CLEAR
+	TST.W	BY(A0)
+	BLT.W	MAP_E_CLEAR
+	CMPI.W	#$3F,BY(A0)
+	BGT.W	MAP_E_CLEAR
+
+	MOVEA.L	ADDRESS_MAP(A0),A1
+	MOVE.W	BY(A0),D0
+	LSL.W	#6,D0
+	ADD.W	BX(A0),D0
+	ADDA.W	D0,A1
+	MOVEQ	#0,D0
+	MOVE.B	(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,TYPE(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,OBJ(A0)
+	MOVE.W	D1,OBJ2(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$2000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_N0(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_N1(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$3000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_E0(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_E1(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$4000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_S0(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_S1(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$1000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_W0(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_W1(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$5000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_TP(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_BT(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$6000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,EXT(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,AUX(A0)
+
+	MOVE.W	PR_FLAG(A0),D0
+	LSL.W	#8,D0
+	ADDQ.W	#8,D0
+	ADD.W	BRX(A0),D0
+	MOVE.W	BRY(A0),D1
+	LSL.W	#4,D1
+	ADD.W	D1,D0
+	ADDI.W	#BORDER0,D0
+	MOVE.B	0(A0,D0.W),D0
+	ANDI.W	#$FF,D0
+	MOVE.W	D0,BCODE(A0)
+	MOVE.W	#OBJ_E,D0
+	ADD.W	OBJ(A0),D0
+	MOVE.B	0(A0,D0.W),OBJ+1(A0)
+	MOVE.W	#OBJ_E,D0
+	ADD.W	EXT(A0),D0
+	MOVE.B	0(A0,D0.W),EXT+1(A0)
+GRAPH1_27E:
+	RTS
+
+MAP_E_CLEAR:
+	CLR.W	TYPE(a0)
+	CLR.W	OBJ(a0)
+	CLR.W	INFO_N0(a0)
+	CLR.W	INFO_E0(a0)
+	CLR.W	INFO_S0(a0)
+	CLR.W	INFO_W0(a0)
+	CLR.W	AUX(A0)
+	RTS
+
+BACK_EAST:
+	MOVE.L	BACK_EAST_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	MOVE.L	A2,A3
+	ADD.L	#$CB8,A3
+BEWB0:	BTST.B	#6,2(A6)
+	BNE.B	BEWB0
+	MOVE.L	#$01000000,$40(A6)
+	MOVE.L	#0,$64(A6)	;AD MOD
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.W	#73,D0
+BE_0:
+	TST.B	BACKGROUND(A0)
+	BNE.B	BE_0A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BE_0B
+BE_0A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BE_0B:	DBRA	D0,BE_0
+BEWB1:	BTST.B	#6,2(A6)
+	BNE.B	BEWB1
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_EAST_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$D00,A1
+	ADD.L	#$3000,A2
+	MOVE.W	#73,D0
+BE_1:	TST.B	BACKGROUND(A0)
+	BNE.B	BE_1A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BE_1B
+BE_1A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BE_1B:	DBRA	D0,BE_1
+BEWB2:	BTST.B	#6,2(A6)
+	BNE.B	BEWB2
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_EAST_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$1A00,A1
+	ADD.L	#$6000,A2
+	MOVE.W	#73,D0
+BE_2:	TST.B	BACKGROUND(A0)
+	BNE.B	BE_2A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BE_2B
+BE_2A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BE_2B:	DBRA	D0,BE_2
+BEWB3:	BTST.B	#6,2(A6)
+	BNE.B	BEWB3
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_EAST_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$2700,A1
+	ADD.L	#$9000,A2
+	MOVE.W	#73,D0
+BE_3:	TST.B	BACKGROUND(A0)
+	BNE.B	BE_3A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BE_3B
+BE_3A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BE_3B:	DBRA	D0,BE_3
+
+	RTS
+; END of GRAPH1 routine
+;******************************************************************************
+; GRAPH2 routine                                              15 Mar 1993
+;
+;
+
+GRAPH2:
+	BSR.W	BACK_SOUTH
+	MOVE.W	VX(a0),d0
+	LSR.W	#6,d0
+	MOVE.W	d0,BPOSX(a0)	;BPOSX=VX/64
+	MOVE.W	VY(a0),d0
+	LSR.W	#6,d0
+	MOVE.W	d0,BPOSY(a0)	;BPOSY=VY/64
+	MOVE.W	VY(a0),d1
+	AND.W	#$003f,d1
+	MOVEQ	#64,D0
+	SUB.W	D1,D0
+	MOVE.W	d0,PR(a0)	;PR=64-(VY and 63)
+
+	MOVE.W	#32,PR_K(a0)	;PR_K=32
+	CLR.W	PR_FLAG(a0)	;PR_FLAG=0
+	CMP.W	#32,PR(a0)	;IF PR>=32
+	BLT.B	GRAPH2_OVER1	; THEN
+	MOVE.W	#-32,PR_K(a0)	;   PR=-32
+	MOVE.W	#1,PR_FLAG(a0)	;   PR_FLAG=1
+GRAPH2_OVER1:			; END_IF
+	MOVE.W	BPOSY(a0),d0
+	SUB.W	BPROF(a0),d0
+	MOVE.W	d0,BY(a0)	;BY=BPOSY-BPROF
+GRAPH2_LOOPY:
+	MOVE.W	BPOSY(a0),d0
+	SUB.W	BY(a0),d0
+	MOVE.W	d0,BRY(a0)	;BRY=BPOSY-BY
+	MOVE.B	BLIMIT0(a0,d0.w),d0
+	AND.W	#$00ff,d0
+	MOVE.W	d0,BLIMIT(a0)	;BLIMIT=0( BRY )
+	BTST.B	#0,PR_FLAG(a0)	;IF PR_FLAG=1
+	BEQ.B	GRAPH2_OVER2	; THEN
+	MOVE.W	BRY(a0),d0
+	MOVE.B	BLIMIT1(a0,d0.w),d0	;  BLIMIT=$10( BRY )
+	AND.W	#$00ff,d0
+	MOVE.W	d0,BLIMIT(a0)	; END_IF
+GRAPH2_OVER2:
+	MOVE.W	BY(A0),D1
+	ADDQ.W	#1,D1
+	LSL.W	#6,D1
+	MOVE.W	VY(A0),D0
+	SUB.W	D1,D0
+	MOVE.W	D0,RY(A0)	;RY=VY-((BY+1)*64)
+
+	MOVE.W	BPOSX(a0),d0
+	ADD.W	BLIMIT(a0),d0
+	MOVE.W	d0,BX(a0)	;BX=BPOSX+BLIMIT
+GRAPH2_LOOP0:
+	MOVE.W	BPOSX(a0),d0
+	SUB.W	BX(a0),d0
+	MOVE.W	d0,BRX(a0)	;BRX=BPOSX-BX
+
+	BSR.W	MAP_S
+
+;ON TYPE Gosub NULL,ROAD,WAV_0,WAV_1,WAV_2,WAV_3,TUBI,TUBI,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO
+	MOVE.W	TYPE(a0),d0
+	ADD.W	D0,D0
+	MOVE.W	GRAPH2_TAB0(PC,D0.W),D0
+	JSR	GRAPH2_TAB0(PC,D0.W)
+	BRA.B	GRAPH2_OVER3
+
+GRAPH2_TAB0:
+PC	set	*
+
+	DC.W	NULL-PC
+	DC.W	ROAD-PC
+	DC.W	WAVE0-PC
+	DC.W	WAVE1-PC
+	DC.W	WAVE2-PC
+	DC.W	WAVE3-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+
+
+GRAPH2_OVER3:
+	MOVE.W	BPOSX(a0),d0	;IF BX<=BPOSX+1 
+	ADDQ.W	#1,d0		; THEN
+	CMP.W	BX(a0),d0	;   Goto LAB_1
+	BGE.B	GRAPH2_LAB_1	; END_IF
+
+	SUBQ.W	#1,BX(a0)	;BX=BX-1
+
+	BRA.B	GRAPH2_LOOP0
+
+GRAPH2_LAB_1:
+	MOVE.W	BPOSX(a0),d0
+	SUB.W	BLIMIT(a0),d0
+	MOVE.W	d0,BX(a0)	;BX=BPOSX-BLIMIT
+
+GRAPH2_LOOP1:
+	MOVE.W	BPOSX(a0),d0
+	SUB.W	BX(a0),d0
+	MOVE.W	d0,BRX(a0)	;BRX=BPOSX-BX
+
+	BSR.B	MAP_S
+
+;ON TYPE Gosub NULL,ROAD,WAV_0,WAV_1,WAV_2,WAV_3,TUBI,TUBI,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO,LEGO
+	MOVE.W	TYPE(a0),d0
+	ADD.W	D0,D0
+	MOVE.W	GRAPH2_TAB1(PC,D0.W),D0
+	JSR	GRAPH2_TAB1(PC,D0.W)
+	BRA.B	GRAPH2_OVER4
+
+GRAPH2_TAB1:
+PC	set	*
+
+	DC.W	NULL-PC
+	DC.W	ROAD-PC
+	DC.W	WAVE0-PC
+	DC.W	WAVE1-PC
+	DC.W	WAVE2-PC
+	DC.W	WAVE3-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+
+GRAPH2_OVER4:
+	MOVE.W	BX(a0),d0	;IF BX>=BPOSX
+	CMP.W	BPOSX(a0),d0	; THEN Goto LAB_2
+	BGE.B	GRAPH2_LAB_2	; END_IF
+
+	ADDQ.W	#1,BX(a0)	;BX=BX+1
+
+	BRA.B	GRAPH2_LOOP1
+
+GRAPH2_LAB_2:
+	MOVE.W	BY(a0),d0	;IF BY>=BPOSY
+	CMP.W	BPOSY(a0),d0	; THEN Goto LAB_3
+	BGE.B	GRAPH2_LAB_3	; END_IF
+
+	ADDQ.W	#1,BY(a0)	;BY=BY+1
+
+	BRA.W	GRAPH2_LOOPY
+
+GRAPH2_LAB_3:
+
+	RTS
+
+MAP_S
+;	TST.W	BX(a0)		;IF BX<0 Then RETURN
+;	BLT.W	MAP_S_CLEAR
+;	CMP.W	#63,BX(a0)	;IF BX>63 Then RETURN
+;	BGT.W	MAP_S_CLEAR
+	TST.W	BY(a0)		;IF BY<0 Then RETURN
+	BLT.W	MAP_S_CLEAR
+	CMP.W	#63,BY(a0)	;IF BY>63 Then RETURN
+	BGT.W	MAP_S_CLEAR
+
+	MOVE.L	ADDRESS_MAP(a0),a1
+	MOVE.W	BY(a0),d0
+	LSL.W	#6,d0
+	ADD.W	BX(a0),d0
+	ADD.W	d0,a1	;a1=MAP+(BY*64+BX)
+
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#15,d0
+	MOVE.W	d0,TYPE(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,OBJ(a0)
+	MOVE.W	D1,OBJ2(A0)
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	$3000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#15,d0
+	MOVE.W	d0,INFO_N0(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_N1(a0)
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	$4000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#15,d0
+	MOVE.W	d0,INFO_E0(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_E1(a0)
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	$1000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#15,d0
+	MOVE.W	d0,INFO_S0(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_S1(a0)
+	MOVEQ	#$00,d0	     ;***
+	MOVE.B	$2000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#15,d0
+	MOVE.W	d0,INFO_W0(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_W1(a0)
+	MOVEQ	#$00,d0      ;***
+	MOVE.B	$5000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#15,d0
+	MOVE.W	d0,INFO_TP(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,INFO_BT(a0)
+	MOVEQ	#$00,d0      ;***
+	MOVE.B	$6000(a1),d0
+	MOVE.W	d0,d1
+	AND.B	#15,d0
+	MOVE.W	d0,EXT(a0)
+	LSR.W	#4,d1
+	MOVE.W	d1,AUX(a0)
+
+;BCODE=Peek(TAB+BORDER0+(PR_FLAG*$100)+(BRX+8)+(BRY*16))
+	MOVE.W	PR_FLAG(a0),d0
+	LSL.W	#8,d0
+	ADDQ.W	#8,d0
+	ADD.W	BRX(a0),d0
+	MOVE.W	BRY(a0),d1
+	LSL.W	#4,d1
+	ADD.W	d1,d0
+	ADD.W	#BORDER0,d0
+	MOVE.B	(a0,d0.w),d0
+	AND.W	#$00ff,d0
+	MOVE.W	d0,BCODE(a0)
+	MOVE.W	#OBJ_S,D0
+	ADD.W	OBJ(A0),D0
+	MOVE.B	(A0,D0.W),OBJ+1(A0)
+	MOVE.W	#OBJ_S,D0
+	ADD.W	EXT(A0),D0
+	MOVE.B	(A0,D0.W),EXT+1(A0)
+
+MAP_S_EXIT
+	RTS
+
+MAP_S_CLEAR:
+	CLR.W	TYPE(a0)
+	CLR.W	OBJ(a0)
+	CLR.W	INFO_N0(a0)
+	CLR.W	INFO_E0(a0)
+	CLR.W	INFO_S0(a0)
+	CLR.W	INFO_W0(a0)
+	CLR.W	AUX(A0)
+	RTS
+
+BACK_SOUTH:
+	MOVE.L	BACK_SOUTH_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	MOVE.L	A2,A3
+	ADD.L	#$CB8,A3
+BSWB0:	BTST.B	#6,2(A6)
+	BNE.B	BSWB0
+	MOVE.L	#$01000000,$40(A6)
+	MOVE.L	#0,$64(A6)	;AD MOD
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.W	#73,D0
+BS_0:
+	TST.B	BACKGROUND(A0)
+	BNE.B	BS_0A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BS_0B
+BS_0A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BS_0B:	DBRA	D0,BS_0
+BSWB1:	BTST.B	#6,2(A6)
+	BNE.B	BSWB1
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_SOUTH_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$D00,A1
+	ADD.L	#$3000,A2
+	MOVE.W	#73,D0
+BS_1:	TST.B	BACKGROUND(A0)
+	BNE.B	BS_1A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BS_1B
+BS_1A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BS_1B:	DBRA	D0,BS_1
+BSWB2:	BTST.B	#6,2(A6)
+	BNE.B	BSWB2
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_SOUTH_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$1A00,A1
+	ADD.L	#$6000,A2
+	MOVE.W	#73,D0
+BS_2:	TST.B	BACKGROUND(A0)
+	BNE.B	BS_2A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BS_2B
+BS_2A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BS_2B:	DBRA	D0,BS_2
+BSWB3:	BTST.B	#6,2(A6)
+	BNE.B	BSWB3
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_SOUTH_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$2700,A1
+	ADD.L	#$9000,A2
+	MOVE.W	#73,D0
+BS_3:	TST.B	BACKGROUND(A0)
+	BNE.B	BS_3A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BS_3B
+BS_3A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BS_3B:	DBRA	D0,BS_3
+
+	RTS
+; END of GRAPH2 routine
+;******************************************************************************
+; GRAPH3 routine                                              13 Mar 1993
+;
+;
+
+GRAPH3:
+	BSR.W	BACK_WEST
+	MOVE.W	VX(A0),D0
+	LSR.W	#6,D0
+	MOVE.W	D0,BPOSX(A0)
+	MOVE.W	VY(A0),D0
+	LSR.W	#6,D0
+	MOVE.W	D0,BPOSY(A0)
+	MOVE.W	#$40,D0
+	MOVE.W	VX(A0),D1
+	AND.W	#$3F,D1
+	SUB.W	D1,D0
+	MOVE.W	D0,PR(A0)
+	MOVE.W	#$20,PR_K(A0)
+	CLR.W	PR_FLAG(A0)
+	CMPI.W	#$20,PR(A0)
+	BLT.B	GRAPH3_048
+	MOVE.W	#-32,PR_K(A0)
+	MOVE.W	#1,PR_FLAG(A0)
+GRAPH3_048:
+	MOVE.W	BPOSX(A0),D0
+	SUB.W	BPROF(A0),D0
+	MOVE.W	D0,BX(A0)
+GRAPH3_054:
+	MOVE.W	BPOSX(A0),D0
+	SUB.W	BX(A0),D0
+	MOVE.W	D0,BRY(A0)
+	MOVE.B	BLIMIT0(A0,D0.W),D0
+	AND.W	#$FF,D0
+	MOVE.W	D0,BLIMIT(A0)
+	BTST.B	#0,PR_FLAG(A0)
+	BEQ.B	GRAPH3_084
+	MOVE.W	BRY(A0),D0
+	MOVE.B	BLIMIT1(A0,D0.W),D0
+	ANDI.W	#$FF,D0
+	MOVE.W	D0,BLIMIT(A0)
+GRAPH3_084:
+	MOVE.W	VX(A0),D0
+	MOVE.W	BX(A0),D1
+	ADDQ.W	#1,D1
+	LSL.W	#6,D1
+	SUB.W	D1,D0
+	MOVE.W	D0,RY(A0)
+	MOVE.W	BPOSY(A0),D0
+	SUB.W	BLIMIT(A0),D0
+	MOVE.W	D0,BY(A0)
+GRAPH3_0A2:
+	MOVE.W	BY(A0),D0
+	SUB.W	BPOSY(A0),D0
+	MOVE.W	D0,BRX(A0)
+	BSR.W	GRAPH3_162
+	MOVE.W	TYPE(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	GRAPH3_TAB0(PC,D0.W),D0
+	JSR	GRAPH3_TAB0(PC,D0.W)
+	BRA.B	GRAPH3_0E2
+
+GRAPH3_TAB0:
+PC	set	*
+
+	DC.W	NULL-PC
+	DC.W	ROAD-PC
+	DC.W	WAVE0-PC
+	DC.W	WAVE1-PC
+	DC.W	WAVE2-PC
+	DC.W	WAVE3-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+
+GRAPH3_0E2:
+	MOVE.W	BPOSY(A0),D0
+	SUBQ.W	#1,D0
+	CMP.W	BY(A0),D0
+	BLE.B	GRAPH3_0F4
+	ADDQ.W	#1,BY(A0)
+	BRA.B	GRAPH3_0A2
+
+GRAPH3_0F4:
+	MOVE.W	BPOSY(A0),D0
+	ADD.W	BLIMIT(A0),D0
+	MOVE.W	D0,BY(A0)
+GRAPH3_100:
+	MOVE.W	BY(A0),D0
+	SUB.W	BPOSY(A0),D0
+	MOVE.W	D0,BRX(A0)
+	BSR.B	GRAPH3_162
+	MOVE.W	TYPE(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	GRAPH3_TAB1(PC,D0.W),D0
+	JSR	GRAPH3_TAB1(PC,D0.W)
+	BRA.B	GRAPH3_13E
+
+GRAPH3_TAB1:
+PC	set	*
+
+	DC.W	NULL-PC
+	DC.W	ROAD-PC
+	DC.W	WAVE0-PC
+	DC.W	WAVE1-PC
+	DC.W	WAVE2-PC
+	DC.W	WAVE3-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	TUBI_PYRAMID-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+	DC.W	LEGO-PC
+
+GRAPH3_13E:
+	MOVE.W	BY(A0),D0
+	CMP.W	BPOSY(A0),D0
+	BLE.B	GRAPH3_14E
+	SUBQ.W	#1,BY(A0)
+	BRA.B	GRAPH3_100
+
+GRAPH3_14E:
+	MOVE.W	BX(A0),D0
+	CMP.W	BPOSX(A0),D0
+	BGE.B	GRAPH3_160
+	ADDQ.W	#1,BX(A0)
+	BRA.W	GRAPH3_054
+
+GRAPH3_160:
+	RTS
+
+GRAPH3_162:
+;	TST.W	BX(A0)
+;	BLT.W	MAP_W_CLEAR
+;	CMPI.W	#$3F,BX(A0)
+;	BGT.W	MAP_W_CLEAR
+	TST.W	BY(A0)
+	BLT.W	MAP_W_CLEAR
+	CMPI.W	#$3F,BY(A0)
+	BGT.W	MAP_W_CLEAR
+
+	MOVEA.L	ADDRESS_MAP(A0),A1
+	MOVE.W	BY(A0),D0
+	LSL.W	#6,D0
+	ADD.W	BX(A0),D0
+	ADDA.W	D0,A1
+	MOVEQ	#0,D0
+	MOVE.B	(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,TYPE(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,OBJ(A0)
+	MOVE.W	D1,OBJ2(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$4000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_N0(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_N1(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$1000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_E0(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_E1(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$2000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_S0(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_S1(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$3000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_W0(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_W1(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$5000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,INFO_TP(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,INFO_BT(A0)
+	MOVEQ	#0,D0
+	MOVE.B	$6000(A1),D0
+	MOVE.W	D0,D1
+	ANDI.B	#15,D0
+	MOVE.W	D0,EXT(A0)
+	LSR.W	#4,D1
+	MOVE.W	D1,AUX(A0)
+
+	MOVE.W	PR_FLAG(A0),D0
+	LSL.W	#8,D0
+	ADDQ.W	#8,D0
+	ADD.W	BRX(A0),D0
+	MOVE.W	BRY(A0),D1
+	LSL.W	#4,D1
+	ADD.W	D1,D0
+	ADDI.W	#BORDER0,D0
+	MOVE.B	0(A0,D0.W),D0
+	ANDI.W	#$FF,D0
+	MOVE.W	D0,BCODE(A0)
+	MOVE.W	#OBJ_W,D0
+	ADD.W	OBJ(A0),D0
+	MOVE.B	0(A0,D0.W),OBJ+1(A0)
+	MOVE.W	#OBJ_W,D0
+	ADD.W	EXT(A0),D0
+	MOVE.B	0(A0,D0.W),EXT+1(A0)
+GRAPH3_288:
+	RTS
+
+MAP_W_CLEAR:
+	CLR.W	TYPE(a0)
+	CLR.W	OBJ(a0)
+	CLR.W	INFO_N0(a0)
+	CLR.W	INFO_E0(a0)
+	CLR.W	INFO_S0(a0)
+	CLR.W	INFO_W0(a0)
+	CLR.W	AUX(A0)
+	RTS
+
+BACK_WEST:
+	MOVE.L	BACK_WEST_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	MOVE.L	A2,A3
+	ADD.L	#$CB8,A3
+BWWB0:	BTST.B	#6,2(A6)
+	BNE.B	BWWB0
+	MOVE.L	#$01000000,$40(A6)
+	MOVE.L	#0,$64(A6)	;AD MOD
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.W	#73,D0
+BW_0:
+	TST.B	BACKGROUND(A0)
+	BNE.B	BW_0A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BW_0B
+BW_0A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BW_0B:	DBRA	D0,BW_0
+BWWB1:	BTST.B	#6,2(A6)
+	BNE.B	BWWB1
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_WEST_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$D00,A1
+	ADD.L	#$3000,A2
+	MOVE.W	#73,D0
+BW_1:	TST.B	BACKGROUND(A0)
+	BNE.B	BW_1A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BW_1B
+BW_1A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BW_1B:	DBRA	D0,BW_1
+BWWB2:	BTST.B	#6,2(A6)
+	BNE.B	BWWB2
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_WEST_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$1A00,A1
+	ADD.L	#$6000,A2
+	MOVE.W	#73,D0
+BW_2:	TST.B	BACKGROUND(A0)
+	BNE.B	BW_2A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BW_2B
+BW_2A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BW_2B:	DBRA	D0,BW_2
+BWWB3:	BTST.B	#6,2(A6)
+	BNE.B	BWWB3
+	ADD.L	#$3000,A3
+	MOVE.L	A3,$54(A6)
+	MOVE.W	#$3316,$58(A6)
+	MOVE.L	BACK_WEST_PT(A0),A1
+	MOVE.L	SCREEN_DRAW(A0),A2
+	ADD.L	#$2700,A1
+	ADD.L	#$9000,A2
+	MOVE.W	#73,D0
+BW_3:	TST.B	BACKGROUND(A0)
+	BNE.B	BW_3A
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	CLR.L	(A2)+
+	BRA.B	BW_3B
+BW_3A:	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+	MOVE.L	(A1)+,(A2)+
+BW_3B:	DBRA	D0,BW_3
+
+	RTS
+; END of GRAPH3 routine
+;******************************************************************************
+; END of CYBER_DRAW routine
+;******************************************************************************
+;******************************************************************************
+;******************************************************************************
+; PALETTE routine                                             21 Mar 1993
+;
+
+PALETTE:
+	RTS
+; END of PALETTE routine
+;******************************************************************************
+;******************************************************************************
+****************************************************************************
+; OBJ routine                                                 26 Mar 1993
+;
+; INPUT   : A1      =STRUCT of OBJECT
+;           X(A0)   = X coord.            (come X0)
+;           Y(A0)   = Y coord.            (come X1)
+;           R(A0)   = R coord.            (come Y0)
+;           INK(A0) = Ink (When it is useful)
+;
+
+OBJECT:
+	lea	$dff000,a6	;CUSTOM
+
+	LEA	TAB_OBJ(PC),A2	;A2=TAB_OBJ
+	MOVE.B	24(A1),D7	;D7=DOUBLE VERT
+	MOVEQ	#0,D0
+	MOVE.W	R(A0),D0	;D0=R
+	BMI.W	OBJ_EXIT
+	MOVEQ	#0,D1
+	MOVE.B	22(A1),D1
+	CMP.B	D1,D0
+	BCS.B	OBJ_1
+	MOVE.B	D1,D0		;R=Rmax
+OBJ_1:
+	ADD.W	#128,D0
+	MOVE.B	(A2,D0.W),D0	;From R to R
+	MOVE.W	D0,D1
+	LSR.W	#3,D1		;D1=LX
+	LEA.L	256(A2),A3
+	MOVE.W	D1,D2
+	LSL.W	#8,D2
+	ADD.W	D2,A3		;A3=TAB_OBJ+$100+$100*LX
+	MOVE.W	X(A0),D2	;D2=X
+	ADD.W	#512,D2
+	ADD.W	D1,D1
+	ADD.W	OBJ_K(PC,D1.W),D2
+	LSR.W	D1
+	BRA.B	OBJ_2
+OBJ_K:
+	DC.W	8
+	DC.W	0
+	DC.W	-8
+	DC.W	-16
+	DC.W	-24
+	DC.W	-32
+	DC.W	-40
+	DC.W	-48
+OBJ_2:
+	MOVE.W	D2,D3
+	AND.W	#$000F,D3
+	ADD.W	D3,D3		;D3=2*SHIFT
+	MOVE.W	D2,D4
+	LSR.W	#4,D4		;D4=BX
+	CMP.W	#14,D4
+	BLT.W	OBJ_EXIT
+	CMP.W	#43,D4
+	BGT.W	OBJ_EXIT
+	MOVEQ	#0,D5
+	MOVE.B	64(A3,D4.W),D5	;D5=BASE (LONG!)
+	MOVE.L	D5,A5
+	ADD.W	D4,A5
+	ADD.W	D4,A5		;A5=IND+(2*BX)+BASE
+	MOVEQ	#0,D6
+	MOVE.B	(A3,D4.W),D6	;D6=SIZEX
+	BEQ.W	OBJ_EXIT
+	ADD.W	D1,D1
+	ADDQ.W	#2,D1
+	ADD.W	D6,D6
+	SUB.W	D6,D1		;D1=M
+	MOVEQ	#44,D2
+	SUB.W	D6,D2		;D2=MD
+	TST.B	D7
+	BEQ.B	OBJ_MD
+	ADD.W	#44,D2
+OBJ_MD:	ASR.W	#1,D6
+	SWAP	D1		;AFWM  | M
+	SWAP	D2		;ALWM  | MD
+	SWAP	D6		;SIZEY | SIZEX
+	LEA	$C0(A2),A4	;A4=TAB_OBJ+$C0
+	MOVE.W	(A4,D3.W),D1	;AFWM
+	LEA	$E0(A2),A4	;A4=TAB_OBJ+$E0
+	MOVE.W	(A4,D3.W),D2	;ALWM
+	LEA	128(A3),A4
+	TST.B	(A4,D4.W)	;AFWM TAB
+	BEQ.B	OBJ_3
+	MOVE.W	#$FFFF,D1	;AFWM=-1
+OBJ_3:	TST.B	64(A4,D4.W)	;ALWM TAB
+	BEQ.B	OBJ_4
+	CLR.W	D2		;ALWM=0
+OBJ_4:	MOVE.W	D0,D6
+	ADD.W	D0,D6
+	ADDQ.W	#1,D6		;SIZEY=R*2+1
+	SWAP	D3		;2*SHIFT | Y
+	MOVE.W	Y(A0),D3	;D3=Y
+	SUB.W	D0,D3		;Y=Y-R
+	TST.B	D7
+	BEQ.B	OBJ_5
+	SUB.W	D0,D3
+OBJ_5:	MOVE.W	#Mul_Y,D4
+	ADD.W	D3,D4
+	ADD.W	D3,D4
+	MOVE.W	(A0,D4.W),D4	;D4=Y*44
+	MOVE.L	#0,A4		;UP=0
+	ADD.W	D0,D0
+	ADD.W	(A2,D0.W),D5	;D5=BASE
+	TST.W	D3
+	BGE.B	OBJ_CLIP0
+	TST.B	D7
+	BEQ.B	OBJ_6
+	MOVE.W	D3,D7
+	ASR.W	#1,D7
+	ADD.W	D7,D6		;SIZEY=SIZEY+(Y/2)
+	MOVE.B	24(A1),D7	;D7=DOUBLE VERT (per la seconda volta)
+	BRA.B	OBJ_7
+OBJ_6:	ADD.W	D3,D6		;SIZEY=SIZEY+Y
+OBJ_7:	SWAP	D0		;D0=R | -Y
+	MOVE.W	D3,D0		;D0=Y
+	TST.B	D7
+	BEQ.B	OBJ_8
+	ASR.W	#1,D0
+OBJ_8:	NEG.W	D0		;D0=-Y
+	MOVEQ	#0,D4
+	MOVE.B	32(A3),D4
+	ADD.W	D4,D4
+	SUBQ.W	#2,D4
+	MULS.W	D4,D0		;D0=UP
+	ADD.L	D0,D5		;D5=BASE+UP
+	SWAP	D0
+	MOVEQ	#0,D4
+	BRA.B	OBJ_CLIP1
+OBJ_CLIP0:
+	TST.B	D7
+	BEQ.W	OBJ_CLIP0B
+	MOVE.W	D6,D0
+	ADD.W	D0,D0
+	ADD.W	D3,D0		;D0=SIZEY*2+Y
+	CMP.W	#277,D0
+	BLE.B	OBJ_CLIP1
+	MOVE.W	#277,D6
+	SUB.W	D3,D6
+	ASR.W	#1,D6
+	BRA.B	OBJ_CLIP1
+OBJ_CLIP0B:
+	MOVE.W	D6,D0
+	ADD.W	D3,D0		;D0=SIZEY+Y
+	CMP.W	#277,D0
+	BLE.B	OBJ_CLIP1
+	MOVE.W	#277,D6
+	SUB.W	D3,D6
+OBJ_CLIP1:
+	ADD.W	D4,A5
+	ADD.L	SCREEN_DRAW(A0),A5	;A5=IND (completo)	
+	TST.W	D6
+	BLE.W	OBJ_EXIT
+	ADD.L	SHAPES(A0),D5
+	MOVE.L	D5,A3
+	MOVE.W	D6,D0
+	LSL.W	#6,D0		;D0=SIZEY*64
+	SWAP	D6
+	ADD.W	D6,D0		;D0=SIZEY*64+SIZEX
+	SWAP	D3		;D3=2*SHIFT
+	LSL.W	#8,D3
+	LSL.W	#3,D3		;D3=SHIFT*$1000
+OBJ_DRAW:
+	MOVE.W	20(A1),D6	;COLOR
+	TST.B	23(A1)
+	BEQ.B	OBJ_COLOR
+	MOVE.W	INK(A0),D6	;INK
+OBJ_COLOR:
+	MOVE.L	A3,A2
+	ADD.L	(A1),A2		;A2=APT / MASK
+	MOVE.W	#$FCA,D5	;D5=FUN
+	BTST.L	#4,D6
+	BNE.B	.ink
+	BTST.L	#0,D6
+	BEQ.B	OBJ_DRAW0	;POSITIVE SHAPE
+	MOVE.W	#$F3A,D5	;INVERSE SHAPE
+	BRA.B	OBJ_DRAW0
+.ink	MOVE.W	#$B0A,D5
+	BTST.L	#0,D6
+	BEQ.B	OBJ_DRAW0
+	MOVE.W	#$BFA,D5
+OBJ_DRAW0:
+	OR.W	D3,D5		;D5=(SHIFT*$1000)+FUN
+OBJ_WB0:
+	BTST.B	#6,2(A6)
+	BNE.B	OBJ_WB0
+	MOVE.W	D1,$44(A6)	;AFWM
+	MOVE.W	D2,$46(A6)	;ALWM
+	SWAP	D1
+	SWAP	D2
+	MOVE.W	D1,$64(A6)	;AMOD
+	MOVE.W	D1,$62(A6)	;BMOD
+	MOVE.W	D2,$60(A6)	;CMOD
+	MOVE.W	D2,$66(A6)	;DMOD
+	MOVE.W	D5,$40(A6)	;CON0
+	MOVE.W	D3,$42(A6)	;CON1
+
+	MOVE.L	A2,$50(A6)	;APT / MASK
+	MOVE.L	A3,D4
+	ADD.L	4(A1),D4
+	MOVE.L	D4,$4C(A6)	;BPT / SHAPE
+	MOVE.L	A5,$48(A6)	;CPT / BACK
+	MOVE.L	A5,$54(A6)	;DPT / DEST
+	MOVE.W	D0,$58(A6)	;SIZE & START
+
+	TST.B	D7
+	BEQ.B	OBJ_COLOR1
+OBJ_WB0B:
+	BTST.B	#6,2(A6)
+	BNE.B	OBJ_WB0B
+	MOVE.L	A2,$50(A6)	;APT / MASK
+	MOVE.L	A3,D4
+	ADD.L	4(A1),D4
+	MOVE.L	D4,$4C(A6)	;BPT / SHAPE
+	ADD.L	#44,A5
+	MOVE.L	A5,$48(A6)	;CPT / BACK
+	MOVE.L	A5,$54(A6)	;DPT / DEST
+	MOVE.W	D0,$58(A6)	;SIZE & START
+	SUB.L	#44,A5
+
+OBJ_COLOR1:
+	MOVE.W	#$FCA,D5	;D5=FUN
+	BTST.L	#5,D6
+	BNE.B	.ink
+	BTST.L	#1,D6
+	BEQ.B	OBJ_DRAW1	;POSITIVE SHAPE
+	MOVE.W	#$F3A,D5	;INVERSE SHAPE
+	BRA.B	OBJ_DRAW1
+.ink	MOVE.W	#$B0A,D5
+	BTST.L	#1,D6
+	BEQ.B	OBJ_DRAW1
+	MOVE.W	#$BFA,D5
+OBJ_DRAW1:
+	OR.W	D3,D5		;D5=(SHIFT*$1000)+FUN
+OBJ_WB1:
+	BTST.B	#6,2(A6)
+	BNE.B	OBJ_WB1
+
+	MOVE.W	D5,$40(A6)	;CON0	
+	MOVE.L	A2,$50(A6)	;APT / MASK
+	MOVE.L	A3,D4
+	ADD.L	8(A1),D4
+	MOVE.L	D4,$4C(A6)	;BPT / SHAPE
+	ADD.L	#$3000,A5
+	MOVE.L	A5,$48(A6)	;CPT / BACK
+	MOVE.L	A5,$54(A6)	;DPT / DEST
+	MOVE.W	D0,$58(A6)	;SIZE & START
+
+	TST.B	D7
+	BEQ.B	OBJ_COLOR2
+OBJ_WB1B:
+	BTST.B	#6,2(A6)
+	BNE.B	OBJ_WB1B
+	MOVE.L	A2,$50(A6)	;APT / MASK
+	MOVE.L	A3,D4
+	ADD.L	8(A1),D4
+	MOVE.L	D4,$4C(A6)	;BPT / SHAPE
+	ADD.L	#44,A5
+	MOVE.L	A5,$48(A6)	;CPT / BACK
+	MOVE.L	A5,$54(A6)	;DPT / DEST
+	MOVE.W	D0,$58(A6)	;SIZE & START
+	SUB.L	#44,A5
+
+OBJ_COLOR2:
+	MOVE.W	#$FCA,D5	;D5=FUN
+	BTST.L	#6,D6
+	BNE.B	.ink
+	BTST.L	#2,D6
+	BEQ.B	OBJ_DRAW2	;POSITIVE SHAPE
+	MOVE.W	#$F3A,D5	;INVERSE SHAPE
+	BRA.B	OBJ_DRAW2
+.ink	MOVE.W	#$B0A,D5
+	BTST.L	#2,D6
+	BEQ.B	OBJ_DRAW2
+	MOVE.W	#$BFA,D5
+OBJ_DRAW2:
+	OR.W	D3,D5		;D5=(SHIFT*$1000)+FUN
+OBJ_WB2:
+	BTST.B	#6,2(A6)
+	BNE.B	OBJ_WB2
+	
+	MOVE.W	D5,$40(A6)	;CON0
+	MOVE.L	A2,$50(A6)	;APT / MASK
+	MOVE.L	A3,D4
+	ADD.L	12(A1),D4
+	MOVE.L	D4,$4C(A6)	;BPT / SHAPE
+	ADD.L	#$3000,A5
+	MOVE.L	A5,$48(A6)	;CPT / BACK
+	MOVE.L	A5,$54(A6)	;DPT / DEST
+	MOVE.W	D0,$58(A6)	;SIZE & START
+
+	TST.B	D7
+	BEQ.B	OBJ_COLOR3
+OBJ_WB2B:
+	BTST.B	#6,2(A6)
+	BNE.B	OBJ_WB2B
+	MOVE.L	A2,$50(A6)	;APT / MASK
+	MOVE.L	A3,D4
+	ADD.L	12(A1),D4
+	MOVE.L	D4,$4C(A6)	;BPT / SHAPE
+	ADD.L	#44,A5
+	MOVE.L	A5,$48(A6)	;CPT / BACK
+	MOVE.L	A5,$54(A6)	;DPT / DEST
+	MOVE.W	D0,$58(A6)	;SIZE & START
+	SUB.L	#44,A5
+
+OBJ_COLOR3:
+	MOVE.W	#$FCA,D5	;D5=FUN
+	BTST.L	#7,D6
+	BNE.B	.ink
+	BTST.L	#3,D6
+	BEQ.B	OBJ_DRAW3	;POSITIVE SHAPE
+	MOVE.W	#$F3A,D5	;INVERSE SHAPE
+	BRA.B	OBJ_DRAW3
+.ink	MOVE.W	#$B0A,D5
+	BTST.L	#3,D6
+	BEQ.B	OBJ_DRAW3
+	MOVE.W	#$BFA,D5
+OBJ_DRAW3:
+	OR.W	D3,D5		;D5=(SHIFT*$1000)+FUN
+OBJ_WB3:
+	BTST.B	#6,2(A6)
+	BNE.B	OBJ_WB3
+	
+	MOVE.W	D5,$40(A6)	;CON0
+	MOVE.L	A2,$50(A6)	;APT / MASK
+	MOVE.L	A3,D4
+	ADD.L	16(A1),D4
+	MOVE.L	D4,$4C(A6)	;BPT / SHAPE
+	ADD.L	#$3000,A5
+	MOVE.L	A5,$48(A6)	;CPT / BACK
+	MOVE.L	A5,$54(A6)	;DPT / DEST
+	MOVE.W	D0,$58(A6)	;SIZE & START
+
+	TST.B	D7
+	BEQ.B	OBJ_EXIT
+OBJ_WB3B:
+	BTST.B	#6,2(A6)
+	BNE.B	OBJ_WB3B
+	MOVE.L	A2,$50(A6)	;APT / MASK
+	MOVE.L	A3,D4
+	ADD.L	16(A1),D4
+	MOVE.L	D4,$4C(A6)	;BPT / SHAPE
+	ADD.L	#44,A5
+	MOVE.L	A5,$48(A6)	;CPT / BACK
+	MOVE.L	A5,$54(A6)	;DPT / DEST
+	MOVE.W	D0,$58(A6)	;SIZE & START
+
+OBJ_EXIT:
+	RTS
+TAB_OBJ:
+	incbin	EH:game/CyberMan/BINs/TAB_OBJ.bin
+; END of OBJECT routine
+;******************************************************************************
+; SIGNAL routine                                              31 Mar 1993
+;
+
+SIGNAL:
+	TST.W	D0		;SIGNAL 0 NON USATO
+	BEQ.B	.exit
+	SUBQ.W	#1,D0
+	LSL.W	#5,D0		; *32
+	LEA	SIGNAL_TAB(PC,D0.W),A1	;BASE
+	TST.W	D1		;if 0 Then OK Else Mask
+	BNE.W	.1
+	CLR.B	23(A1)		;ReUse Color
+	BRA.W	OBJECT
+.1	ST.B	23(A1)		;Use INK
+	MOVE.W	#$F1,INK(A0)	;grigio scuro
+	BRA.W	OBJECT
+.exit	RTS
+
+SIGNAL_TAB:
+;SIGN1_TAB:				; DIVIETO DI TRANSITO
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$4B00		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	%10110011	;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN2_TAB:				; DIVIETO DI ACCESSO
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$4E80		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	%10110011	;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN3_TAB:				; DIVIETO DI SOSTA
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$5200		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	%10110011	;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN4_TAB:				; DIREZIONE SINISTRA
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$5580		;PLANE 2
+	DC.L	$5580		;PLANE 3
+	DC.W	%00110011	;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN5_TAB:				; DIREZIONE DESTRA
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$5900		;PLANE 2
+	DC.L	$5900		;PLANE 3
+	DC.W	%00110011	;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN6_TAB:				; DIREZIONE AVANTI
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$5C80		;PLANE 2
+	DC.L	$5C80		;PLANE 3
+	DC.W	%00110011	;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN7_TAB:				; DARE PRECEDENZA
+	DC.L	$6000		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$6380		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	%10110011	;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN8_TAB:				; LEVEL 2
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	$9900		;PLANE 1
+	DC.L	$9900		;PLANE 2
+	DC.L	$9900		;PLANE 3
+	DC.W	$1d		;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN9_TAB:				; LEVEL 3
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	$B200		;PLANE 1
+	DC.L	$B200		;PLANE 2
+	DC.L	$B200		;PLANE 3
+	DC.W	$1d		;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN10_TAB:				; LEVEL 4
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	$CB00		;PLANE 1
+	DC.L	$CB00		;PLANE 2
+	DC.L	$CB00		;PLANE 3
+	DC.W	$1d		;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN11_TAB:				; LEVEL 5
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	$E400		;PLANE 1
+	DC.L	$E400		;PLANE 2
+	DC.L	$E400		;PLANE 3
+	DC.W	$1d		;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN12_TAB:				; SQUARE -?-
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	$8000		;PLANE 1
+	DC.L	$8000		;PLANE 2
+	DC.L	$8000		;PLANE 3
+	DC.W	$1d		;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN13_TAB:				; CIRCULAR -?-
+	DC.L	$1900		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$8000		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$B7		;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN14_TAB:				; SWISS -#-
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$FD00		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	%10110011	;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+;SIGN15_TAB:				; SQUARE -!-
+	DC.L	$3200		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	$6700		;PLANE 3
+	DC.W	$73		;Color (used)
+	DC.B	15		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+; END of OBJECT routine
+;******************************************************************************
+; GHOST_PX_PY routine                                         13 Mar 1993
+;
+
+GHOST_PX_PY:
+	MOVEQ	#0,D0
+	MOVE.W	H(A0),D0	; altezza 64..255
+	MULS.W	#176,D6
+	DIVS.W	D7,D6		; (RX*176)/RLINE
+	CMP.W	#256,D7
+	BGE.B	.over
+	LSL.W	#8,D0
+	ADD.W	D7,D0
+	ADD.L	D0,D0
+	MOVE.W	(A0,D0.L),D0
+	RTS
+.over	SWAP	D0
+	DIVU	D7,D0
+	LSR.W	#8,D0
+	LSR.W	#2,D0
+	ADD.W	#74,D0
+	RTS
+; END of GHOST_PX_PY routine
+;******************************************************************************
+; DRAW_GHOST routine                                           3 Apr 1993
+;
+
+DRAW_GHOST:
+	MOVEQ	#0,D0
+	MOVE.B	RGFACE(A2),D0	;SHAPE del GHOST
+	ADD.W	D0,D0
+	MOVE.W	DRAW_GHOST_TAB(PC,D0.W),D0
+	JMP	DRAW_GHOST_TAB(PC,D0.W)
+
+DRAW_GHOST_TAB:
+PC	set	*
+	DC.W	EMPTY-PC
+	DC.W	MACK-PC
+	DC.W	JOYPAD-PC
+	DC.W	SYNTAX-PC
+	DC.W	PITAGORAS-PC
+
+EMPTY:
+	LEA	.norm(PC),A1
+	TST.W	SUPERPILL(A0)
+	BEQ.W	.go
+	LEA	.vuln(PC),A1
+.go	BRA.W	OBJECT
+
+.norm	DC.L	$11600		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$F7		;Color (used)
+	DC.B	63		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+.vuln	DC.L	$11600		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$FF		;Color (used)
+	DC.B	63		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+MACK:
+	LEA	.norm(PC),A1
+	TST.W	SUPERPILL(A0)
+	BEQ.W	.go
+	LEA	.vuln(PC),A1
+.go	BRA.W	OBJECT
+
+.norm	DC.L	$15e4a		;MASK
+	DC.L	$1a694		;PLANE 0
+	DC.L	$1a694		;PLANE 1
+	DC.L	$1a694		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$84		;Color (used)
+	DC.B	63		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+.vuln	DC.L	$15e4a		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$1a694		;PLANE 2
+	DC.L	$1a694		;PLANE 3
+	DC.W	$3f		;Color (used)
+	DC.B	63		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+JOYPAD:
+	MOVE.W	R(A0),D0
+	LSR.W	#1,D0
+	CMP.W	#31,D0
+	BLE.B	.1
+	MOVE.W	#31,D0
+.1	MOVE.W	D0,R(A0)
+	SUB.W	D0,X(A0)
+	SUBQ.W	#1,X(A0)
+	LEA	.normL(PC),A1
+	TST.W	SUPERPILL(A0)
+	BEQ.W	.go1
+	LEA	.vulnL(PC),A1
+.go1	BSR.W	OBJECT
+	MOVE.W	R(A0),D0
+	ADD.W	D0,X(A0)
+	ADD.W	D0,X(A0)
+	ADDQ.W	#1,X(A0)
+	LEA	.normR(PC),A1
+	TST.W	SUPERPILL(A0)
+	BEQ.W	.go2
+	LEA	.vulnR(PC),A1
+.go2	BRA.W	OBJECT
+
+.normL	DC.L	$1eede		;MASK
+	DC.L	$220de		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	$252de		;PLANE 3
+	DC.W	$62		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+.normR	DC.L	$207de		;MASK
+	DC.L	$239de		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	$26bde		;PLANE 3
+	DC.W	$62		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+.vulnL	DC.L	$1eede		;MASK
+	DC.L	$220de		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	$252de		;PLANE 3
+	DC.W	$6a		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+.vulnR	DC.L	$207de		;MASK
+	DC.L	$239de		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	$26bde		;PLANE 3
+	DC.W	$6a		;Color (used)
+	DC.B	31		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	0		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+SYNTAX:
+	MOVE.W	R(A0),D0
+	SUB.W	D0,Y(A0)
+	LEA	.norm(PC),A1
+	TST.W	SUPERPILL(A0)
+	BEQ.W	.go
+	LEA	.vuln(PC),A1
+.go	BRA.W	OBJECT
+
+.norm	DC.L	$284DE		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$2CD28		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$B3		;Color (used)
+	DC.B	63		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	1		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+.vuln	DC.L	$284DE		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	$2CD28		;PLANE 2
+	DC.L	$2CD28		;PLANE 3
+	DC.W	$33		;Color (used)
+	DC.B	63		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	1		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+PITAGORAS:
+	MOVE.W	R(A0),D0
+	SUB.W	D0,Y(A0)
+	LEA	.norm(PC),A1
+	TST.W	SUPERPILL(A0)
+	BEQ.W	.go
+	LEA	.vuln(PC),A1
+.go	BRA.W	OBJECT
+
+.norm	DC.L	$31572		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$FA		;Color (used)
+	DC.B	63		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	1		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+.vuln	DC.L	$31572		;MASK
+	DC.L	0		;PLANE 0
+	DC.L	0		;PLANE 1
+	DC.L	0		;PLANE 2
+	DC.L	0		;PLANE 3
+	DC.W	$FF		;Color (used)
+	DC.B	63		;Max raggio
+	DC.B	0		;FLAG:Use INK
+	DC.B	1		;FLAG:DOUBLE VERT
+	DS.B	7		;per allineare a 32 Bytes
+
+; END of DRAW_GHOST routines
+;******************************************************************************
+; GAME_OVER routine                                           13 Sep 1993
+;
+
+GAME_OVER:
+	TST.B	GAMEOVER(A0)
+	BEQ.W	.exit
+
+	MOVE.L	SCREEN_DRAW(A0),A1
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	SUBQ.W	#4,D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	SUB.W	(A0,D1.W),A1
+	ADD.W	#5738,A1		;Y=130
+	MOVE.L	A1,A2
+
+	MOVEQ	#2,D0
+.loop	MOVE.L	#%00011110001110001101100111110000,(A1)
+	MOVE.L	#%00100000010001001010100100000000,$2c(A1)
+	MOVE.L	#%00100000010001001010100100000000,$58(A1)
+	MOVE.L	#%00100110011111001000100111100000,$84(A1)
+	MOVE.L	#%00100010010001001000100100000000,$b0(A1)
+	MOVE.L	#%00100010010001001000100100000000,$dc(A1)
+	MOVE.L	#%00011110010001001000100111110000,$108(A1)
+
+	MOVE.L	#%00001110001000100111110011110000,4(A1)
+	MOVE.L	#%00010001001000100100000010001000,$2c+4(A1)
+	MOVE.L	#%00010001001000100100000010001000,$58+4(A1)
+	MOVE.L	#%00010001001000100111100011110000,$84+4(A1)
+	MOVE.L	#%00010001000101000100000010010000,$b0+4(A1)
+	MOVE.L	#%00010001000101000100000010001000,$dc+4(A1)
+	MOVE.L	#%00001110000010000111110010001000,$108+4(A1)
+
+	ADD.W	#$3000,A1
+	DBRA	D0,.loop
+
+.exit	RTS
+
+; END of GAME_OVER routine
+;******************************************************************************
+; WELL_DONE routine                                           13 Sep 1993
+;
+
+WELL_DONE:
+	TST.B	WELL_DONE_CNT(A0)
+	BEQ.W	.exit
+
+	MOVE.L	SCREEN_DRAW(A0),A1
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	SUBQ.W	#4,D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	SUB.W	(A0,D1.W),A1
+	ADD.W	#5738,A1		;Y=130
+	MOVE.L	A1,A2
+
+	MOVEQ	#1,D0
+.loop	MOVE.L	#%01000010011111001000000100000000,(A1)
+	MOVE.L	#%01000010010000001000000100000000,$2c(A1)
+	MOVE.L	#%01000010010000001000000100000000,$58(A1)
+	MOVE.L	#%01000010011110001000000100000000,$84(A1)
+	MOVE.L	#%01011010010000001000000100000000,$b0(A1)
+	MOVE.L	#%01011010010000001000000100000000,$dc(A1)
+	MOVE.L	#%00100100011111001111100111110000,$108(A1)
+
+	MOVE.L	#%00111100001110001100100111110011,4(A1)
+	MOVE.L	#%00100010010001001100100100000011,$2c+4(A1)
+	MOVE.L	#%00100010010001001010100100000011,$58+4(A1)
+	MOVE.L	#%00100010010001001010100111100011,$84+4(A1)
+	MOVE.L	#%00100010010001001010100100000011,$b0+4(A1)
+	MOVE.L	#%00100010010001001001100100000000,$dc+4(A1)
+	MOVE.L	#%00111100001110001001100111110011,$108+4(A1)
+
+	MOVE.L	#%01111001110000001110001000100111,$18c(A1)
+	MOVE.L	#%10000010001000010001001000100001,$1b8(A1)
+	MOVE.L	#%10000010001000010001001000100001,$1e4(A1)
+	MOVE.L	#%10011010001000010001001000100001,$210(A1)
+	MOVE.L	#%10001010001000010001001000100001,$23c(A1)
+	MOVE.L	#%10001010001000010001001000100001,$268(A1)
+	MOVE.L	#%01111001110000001110000111000001,$294(A1)
+
+	MOVE.L	#%11000011001000111000100001001100,$18c+4(A1)
+	MOVE.L	#%00000011001001000100100001001100,$1b8+4(A1)
+	MOVE.L	#%00000010101001000100100001001100,$1e4+4(A1)
+	MOVE.L	#%00000010101001000100100001001100,$210+4(A1)
+	MOVE.L	#%00000010101001000100101101001100,$23c+4(A1)
+	MOVE.L	#%00000010011001000100101101000000,$268+4(A1)
+	MOVE.L	#%00000010011000111000010010001100,$294+4(A1)
+
+	ADD.W	#$3000,A1
+	DBRA	D0,.loop
+
+.exit	RTS
+
+; END of WELL_DONE routine
+;******************************************************************************
+; DRAW_JMPSPD routine                                          3 May 1993
+;
+
+DRAW_JMPSPD:
+	MOVE.L	SCREEN_DRAW(A0),A1
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	SUBQ.W	#4,D0
+	MOVE.W	D0,AUX(A0)
+	MOVE.L	A1,A5
+
+	MOVE.W	#-160,X0(A0)
+	MOVE.W	#-120,X1(A0)
+	MOVE.W	#13,Y0(A0)
+	SUB.W	D0,Y0(A0)
+	MOVE.W	#28,Y1(A0)
+	SUB.W	D0,Y1(A0)
+	MOVE.W	#0,INK(A0)
+	BSR.W	RECT
+
+	MOVE.L	A5,A1
+	MOVE.W	AUX(A0),D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	SUB.W	(A0,D1.W),A1
+	ADD.W	#574,A1			;Y=13
+	MOVE.L	A1,A2
+
+	MOVEQ	#2,D0
+.loop	MOVE.L	#%00000111011001100111110000000000,(A1)
+	MOVE.L	#%00000010010110100100001000000000,$2c(A1)
+	MOVE.L	#%00000010010000100100001001111110,$58(A1)
+	MOVE.L	#%00000010010000100111110000000000,$84(A1)
+	MOVE.L	#%00000010010000100100000001111110,$b0(A1)
+	MOVE.L	#%01000010010000100100000000000000,$dc(A1)
+	MOVE.L	#%00111100010000100100000000000000,$108(A1)
+
+	MOVE.L	#%00111110011111000111110000000000,$18c(A1)
+	MOVE.L	#%01000000010000100100001000000000,$1b8(A1)
+	MOVE.L	#%01000000010000100100001001111110,$1e4(A1)
+	MOVE.L	#%00111100011111000100001000000000,$210(A1)
+	MOVE.L	#%00000010010000000100001001111110,$23c(A1)
+	MOVE.L	#%00000010010000000100001000000000,$268(A1)
+	MOVE.L	#%01111100010000000111110000000000,$294(A1)
+
+	ADD.W	#$3000,A1
+	DBRA	D0,.loop
+
+	MOVEQ	#1,D6
+	MOVE.L	A2,A1
+	ADD.W	#4,A1
+	MOVE.W	POWERJUMP(A0),D0
+	BSR.W	DRAW_NUMBER
+	ADD.W	#$18b,A1
+	MOVE.W	VELOCITY(A0),D0
+	BSR.W	DRAW_NUMBER
+	RTS
+; END of DRAW_JMPSPD routine
+;******************************************************************************
+; DRAW_SCORE routine                                       3 Apr 1993
+;
+
+DRAW_SCORE:
+	MOVE.L	SCREEN_DRAW(A0),A1
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	SUBQ.W	#4,D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	SUB.W	(A0,D1.W),A1
+	MOVE.L	A1,A2
+
+	MOVEQ	#2,D0
+.loop1	OR.W	#$0007,$2D8C(A1)
+	MOVE.L	#$efdfbf7e,$2D8E(A1)
+	OR.W	#$0004,$2DB8(A1)
+	MOVE.L	#$0850a140,$2DBA(A1)
+	OR.W	#$0004,$2DE4(A1)
+	MOVE.L	#$0810a178,$2DE6(A1)
+	OR.W	#$0007,$2E10(A1)
+	MOVE.L	#$ec10bf40,$2E12(A1)
+	MOVE.L	#$6c18b260,$2E3E(A1)
+	MOVE.L	#$6c58b160,$2E6A(A1)
+	OR.W	#$0007,$2E94(A1)
+	MOVE.L	#$efdfb17e,$2E96(A1)
+	ADD.W	#$3000,A1
+	DBRA	D0,.loop1
+	MOVEQ	#$38,D0
+	MOVEQ	#1,D1
+.loop2	MOVE.B	D0,$2DBE(A1)
+	MOVE.B	D0,$2DEA(A1)
+	MOVE.B	D0,$2E42(A1)
+	MOVE.B	D0,$2E6E(A1)
+	SUB.W	#$3000,A1
+	DBRA	D1,.loop2
+
+	MOVE.L	A2,A1
+	ADD.W	#$2D93,A1
+	MOVE.L	#$FFFF,D7
+	MOVE.L	SCORE(A0),D0
+	CMP.L	#999900,D0
+	BLS.B	.ok
+	MOVE.L	#999900,D0
+.ok	DIVS.W	#100,D0
+	MOVEQ	#0,D6	
+	AND.L	D7,D0
+	DIVS.W	#10000,D0
+	BEQ.B	.1
+	MOVEQ	#-1,D6
+.1	BSR.W	DRAW_NUMBER
+	SWAP	D0
+	AND.L	D7,D0
+	DIVS.W	#1000,D0
+	BEQ.B	.2
+	MOVEQ	#-1,D6
+.2	BSR.W	DRAW_NUMBER
+	SWAP	D0
+	AND.L	D7,D0
+	DIVS.W	#100,D0
+	BEQ.B	.3
+	MOVEQ	#-1,D6
+.3	BSR.W	DRAW_NUMBER
+	SWAP	D0
+	AND.L	D7,D0
+	DIVS.W	#10,D0
+	BEQ.B	.4
+	MOVEQ	#-1,D6
+.4	BSR.W	DRAW_NUMBER
+	SWAP	D0
+	AND.L	D7,D0
+	BEQ.B	.5
+	MOVEQ	#-1,D6
+.5	BSR.W	DRAW_NUMBER
+	MOVEQ	#0,D0
+	BSR.W	DRAW_NUMBER
+	MOVEQ	#0,D0
+	BSR.W	DRAW_NUMBER
+	RTS
+; END of DRAW_SCORE routine
+;******************************************************************************
+; DRAW_TIME routine                                        3 Apr 1993
+;
+
+DRAW_TIME:
+	MOVE.L	SCREEN_DRAW(A0),A1
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	SUBQ.W	#4,D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	SUB.W	(A0,D1.W),A1
+	MOVE.L	A1,A2
+
+	MOVEQ	#2,D0
+.loop1	MOVE.L	#$3f10fc7e,$2DAE(A1)
+	MOVE.L	#$08109240,$2DDA(A1)
+	MOVE.L	#$08109278,$2E06(A1)
+	MOVE.L	#$08189240,$2E32(A1)
+	MOVE.L	#$0c18d260,$2E5E(A1)
+	MOVE.L	#$0c18d260,$2E8A(A1)
+	MOVE.L	#$0c18d27e,$2EB6(A1)
+	ADD.W	#$3000,A1
+	DBRA	D0,.loop1
+	MOVEQ	#$38,D0
+	MOVEQ	#1,D1
+.loop2	MOVE.B	D0,$2DDE(A1)
+	MOVE.B	D0,$2E0A(A1)
+	MOVE.B	D0,$2E62(A1)
+	MOVE.B	D0,$2E8E(A1)
+	SUB.W	#$3000,A1
+	DBRA	D1,.loop2
+
+	MOVE.L	A2,A1
+	ADD.W	#$2DB3,A1
+	MOVE.L	#$FFFF,D7
+	MOVE.L	VB(A0),D0
+	CMP.L	#499999,D0
+	BLS.B	.ok
+	MOVE.L	#499999,D0
+.ok	DIVS.W	#50,D0
+	AND.L	D7,D0
+	MOVEQ	#0,D6	
+	DIVS.W	#1000,D0
+	BEQ.B	.1
+	MOVEQ	#-1,D6
+.1	BSR.W	DRAW_NUMBER
+	SWAP	D0
+	AND.L	D7,D0
+	DIVS.W	#100,D0
+	BEQ.B	.2
+	MOVEQ	#-1,D6
+.2	BSR.W	DRAW_NUMBER
+	SWAP	D0
+	AND.L	D7,D0
+	DIVS.W	#10,D0
+	BEQ.B	.3
+	MOVEQ	#-1,D6
+.3	BSR.W	DRAW_NUMBER
+	SWAP	D0
+	AND.L	D7,D0
+	MOVEQ	#-1,D6
+	BSR.W	DRAW_NUMBER
+	RTS
+; END of DRAW_TIME routine
+;******************************************************************************
+; DRAW_ENERGY routine                                      3 Apr 1993
+;
+
+DRAW_ENERGY:
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	SUBQ.W	#4,D0
+	MOVE.W	D0,AUX(A0)		;qui usato per HIGH_SKY
+
+	MOVE.W	#-64,X0(A0)
+	MOVE.W	#63,X1(A0)
+	MOVE.W	#262,Y0(A0)
+	MOVE.W	AUX(A0),D0
+	SUB.W	D0,Y0(A0)
+	MOVE.W	#268,Y1(A0)
+	MOVE.W	AUX(A0),D0
+	SUB.W	D0,Y1(A0)
+	MOVE.W	#12,INK(A0)
+	BSR.W	RECT
+	MOVE.W	#-16,X0(A0)
+	MOVE.W	#15,X1(A0)
+	MOVE.W	#261,Y0(A0)
+	MOVE.W	AUX(A0),D0
+	SUB.W	D0,Y0(A0)
+	MOVE.W	#269,Y1(A0)
+	MOVE.W	AUX(A0),D0
+	SUB.W	D0,Y1(A0)
+	MOVE.W	#7,INK(A0)
+	BSR.W	RECT
+	MOVE.W	ENERGY(A0),D0
+	LSR.W	#8,D0
+	LSR.W	#2,D0
+	MOVE.W	D0,-(SP)
+	MOVE.W	#1,X0(A0)
+	MOVE.W	D0,X1(A0)
+	MOVE.W	#263,Y0(A0)
+	MOVE.W	AUX(A0),D0
+	SUB.W	D0,Y0(A0)
+	MOVE.W	#267,Y1(A0)
+	MOVE.W	AUX(A0),D0
+	SUB.W	D0,Y1(A0)
+	MOVE.W	#15,INK(A0)
+	BSR.W	RECT
+	MOVE.W	#-2,X0(A0)
+	MOVE.W	(SP)+,D0
+	NEG.W	D0
+	SUBQ.W	#1,D0
+	MOVE.W	D0,X1(A0)
+	MOVE.W	#15,INK(A0)
+	BSR.W	RECT
+
+	MOVE.L	SCREEN_DRAW(A0),A1
+	MOVE.W	#Mul_Y,D1
+	ADD.W	AUX(A0),D1
+	ADD.W	AUX(A0),D1
+	SUB.W	(A0,D1.W),A1
+
+	MOVE.L	A1,A2
+	ADD.W	#$6000,A2
+	MOVEQ	#1,D0
+.loop1	MOVE.L	#$000f9f3e,$2E7A(A2)
+	MOVE.L	#$7cf91000,$2E7E(A2)
+	MOVE.L	#$00089122,$2EA6(A2)
+	MOVE.L	#$44891000,$2EAA(A2)
+	MOVE.L	#$000f913e,$2ED2(A2)
+	MOVE.L	#$40f9f000,$2ED6(A2)
+	MOVE.L	#$00081120,$2EFE(A2)
+	MOVE.L	#$40081000,$2F02(A2)
+	MOVE.L	#$000f913e,$2F2A(A2)
+	MOVE.L	#$40f9f000,$2F2E(A2)
+	ADD.W	#$3000,A2
+	DBRA	D0,.loop1
+
+	MOVEQ	#2,D0
+.loop2	OR.B	#1,$2C99(A1)
+	OR.B	#1,$2CC5(A1)
+	OR.B	#128,$2C9A(A1)
+	OR.B	#128,$2CC6(A1)
+	OR.B	#1,$2E7D(A1)
+	OR.B	#1,$2EA9(A1)
+	OR.B	#128,$2E7E(A1)
+	OR.B	#128,$2EAA(A1)
+	ADD.W	#$3000,A1
+	DBRA	D0,.loop2
+
+	RTS
+; END of DRAW_ENERGY routine
+;******************************************************************************
+; DRAW_NUMBER routine                                          4 Apr 1993
+;
+
+DRAW_NUMBER:
+	TST.B	D6
+	BEQ.B	.exit
+	AND.W	#$000F,D0
+	ADD.W	D0,D0
+	MOVE.W	.tab(PC,D0.W),D0
+	LEA	.tab(PC,D0.W),A5
+	JSR	(A5)
+	ADD.W	#$3000,A1
+	JSR	(A5)
+	ADD.W	#$6000,A1
+	JSR	(A5)
+	SUB.L	#$9000,A1
+	ADDQ.W	#1,A1		;CURS RIGHT
+.exit	RTS
+.tab
+PC	set	*
+	DC.W	DRAW0-PC
+	DC.W	DRAW1-PC
+	DC.W	DRAW2-PC
+	DC.W	DRAW3-PC
+	DC.W	DRAW4-PC
+	DC.W	DRAW5-PC
+	DC.W	DRAW6-PC
+	DC.W	DRAW7-PC
+	DC.W	DRAW8-PC
+	DC.W	DRAW9-PC
+
+DRAW0:	MOVE.B	#$f8,(A1)
+	MOVE.B	#$88,$2c(A1)
+	MOVE.B	#$88,$58(A1)
+	MOVE.B	#$88,$84(A1)
+	MOVE.B	#$c8,$b0(A1)
+	MOVE.B	#$c8,$dc(A1)
+	MOVE.B	#$f8,$108(A1)
+	RTS
+
+DRAW1:	MOVE.B	#$e0,(A1)
+	MOVE.B	#$20,$2c(A1)
+	MOVE.B	#$20,$58(A1)
+	MOVE.B	#$20,$84(A1)
+	MOVE.B	#$20,$b0(A1)
+	MOVE.B	#$20,$dc(A1)
+	MOVE.B	#$f8,$108(A1)
+	RTS
+
+DRAW2:	MOVE.B	#$fc,(A1)
+	MOVE.B	#$04,$2c(A1)
+	MOVE.B	#$04,$58(A1)
+	MOVE.B	#$fc,$84(A1)
+	MOVE.B	#$c0,$b0(A1)
+	MOVE.B	#$c0,$dc(A1)
+	MOVE.B	#$fc,$108(A1)
+	RTS
+
+DRAW3:	MOVE.B	#$78,(A1)
+	MOVE.B	#$08,$2c(A1)
+	MOVE.B	#$08,$58(A1)
+	MOVE.B	#$78,$84(A1)
+	MOVE.B	#$18,$b0(A1)
+	MOVE.B	#$18,$dc(A1)
+	MOVE.B	#$f8,$108(A1)
+	RTS
+
+DRAW4:	MOVE.B	#$88,(A1)
+	MOVE.B	#$88,$2c(A1)
+	MOVE.B	#$88,$58(A1)
+	MOVE.B	#$88,$84(A1)
+	MOVE.B	#$fc,$b0(A1)
+	MOVE.B	#$18,$dc(A1)
+	MOVE.B	#$18,$108(A1)
+	RTS
+
+DRAW5:	MOVE.B	#$f8,(A1)
+	MOVE.B	#$80,$2c(A1)
+	MOVE.B	#$80,$58(A1)
+	MOVE.B	#$f8,$84(A1)
+	MOVE.B	#$18,$b0(A1)
+	MOVE.B	#$98,$dc(A1)
+	MOVE.B	#$f8,$108(A1)
+	RTS
+
+DRAW6:	MOVE.B	#$f8,(A1)
+	MOVE.B	#$88,$2c(A1)
+	MOVE.B	#$80,$58(A1)
+	MOVE.B	#$f8,$84(A1)
+	MOVE.B	#$c8,$b0(A1)
+	MOVE.B	#$c8,$dc(A1)
+	MOVE.B	#$f8,$108(A1)
+	RTS
+
+DRAW7:	MOVE.B	#$f8,(A1)
+	MOVE.B	#$88,$2c(A1)
+	MOVE.B	#$10,$58(A1)
+	MOVE.B	#$20,$84(A1)
+	MOVE.B	#$60,$b0(A1)
+	MOVE.B	#$60,$dc(A1)
+	MOVE.B	#$60,$108(A1)
+	RTS
+
+DRAW8:	MOVE.B	#$f8,(A1)
+	MOVE.B	#$88,$2c(A1)
+	MOVE.B	#$88,$58(A1)
+	MOVE.B	#$f8,$84(A1)
+	MOVE.B	#$c8,$b0(A1)
+	MOVE.B	#$c8,$dc(A1)
+	MOVE.B	#$f8,$108(A1)
+	RTS
+
+DRAW9:	MOVE.B	#$f8,(A1)
+	MOVE.B	#$88,$2c(A1)
+	MOVE.B	#$88,$58(A1)
+	MOVE.B	#$f8,$84(A1)
+	MOVE.B	#$18,$b0(A1)
+	MOVE.B	#$98,$dc(A1)
+	MOVE.B	#$f8,$108(A1)
+	RTS
+
+; END of DRAW_NUMBER routine
+;******************************************************************************
+; DRAW_RADAR routine                                          28 Apr 1993
+;
+
+DRAW_RADAR:
+	TST.B	HUD(A0)
+	BEQ.B	DRAW_NO_RADAR
+	TST.B	RADAR(A0)
+	BEQ.B	DRAW_NO_RADAR
+	MOVE.L	SCREEN_DRAW(A0),A2
+	MOVE.L	HIDE_COPLIST(A0),A4
+	MOVE.L	RADAR_PT(A0),A5
+	MOVE.L	A5,D7
+	MOVEQ	#0,D6
+	MOVE.W	ALPHA(A0),D6
+	MOVE.B	DRAW_RADAR_TAB1(PC,D6.W),D6
+	ADD.W	#$2838,D6	;indirizzo sprite 0 (CYBER)
+	ADD.L	D6,D7
+	MOVE.W	D7,42(A4)	;spr0ptl
+	SWAP	D7
+	MOVE.W	D7,38(A4)	;spr0pth
+	SWAP	D7
+	MOVE.L	D7,A3		;A3=V / A4=COP
+	MOVE.W	VX(A0),D6
+	ADDQ.W	#4,D6
+	LSR.W	#4,D6		;D6=(VX/16)   -->HP
+	MOVE.W	VY(A0),D7
+	ADDQ.W	#4,D7
+	LSR.W	#4,D7
+	NEG.W	D7		;D7=-(VY/16)  -->VP
+	MOVE.W	LEVEL(A0),D0
+	ADD.W	D0,D0
+	MOVE.W	DRAW_RADAR_TAB2(PC,D0.W),D0
+	JMP	DRAW_RADAR_TAB2(PC,D0.W)
+DRAW_RADAR_TAB1:
+	DC.B	0
+	DC.B	24
+	DC.B	48
+	DC.B	72
+DRAW_RADAR_TAB2:
+PC	set	*
+	DC.W	DRAW_NO_RADAR-PC
+	DC.W	DRAW_RADAR_1-PC
+	DC.W	DRAW_RADAR_2-PC
+	DC.W	DRAW_RADAR_3-PC
+	DC.W	DRAW_RADAR_4-PC
+	DC.W	DRAW_RADAR_5-PC
+DRAW_NO_RADAR:
+	MOVE.W	#$0020,$96(A6)		;turn off SPRITEs
+	MOVEQ	#0,D0
+	MOVE.W	D0,$140(A6)		;spr0pos
+	MOVE.W	D0,$142(A6)		;spr0ctl
+	MOVE.W	D0,$148(A6)		;spr1pos
+	MOVE.W	D0,$14a(A6)		;spr1ctl
+	MOVE.W	D0,$150(A6)		;spr2pos
+	MOVE.W	D0,$152(A6)		;spr2ctl
+	MOVE.W	D0,$158(A6)		;spr3pos
+	MOVE.W	D0,$15a(A6)		;spr3ctl
+	MOVE.W	D0,$160(A6)		;spr4pos
+	MOVE.W	D0,$162(A6)		;spr4ctl
+	MOVE.W	D0,$168(A6)		;spr5pos
+	MOVE.W	D0,$16a(A6)		;spr5ctl
+	RTS
+
+DRAW_RADAR_1:
+	MOVE.W	#$8220,$96(A6)		;turn on SPRITEs
+	ADD.W	#382,D6		;HP
+	ADD.W	#139,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.1
+	MOVE.W	#1,D5
+.1	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+
+	MOVE.L	RADAR_PT(A0),A3
+	ADD.W	#$2898,A3
+	LEA	RG_STRUCT(A0),A1
+	MOVEQ	#4,D4
+
+.loop	MOVE.W	RGVX(A1),D6
+	ADDQ.W	#4,D6
+	LSR.W	#4,D6		;D6=(VX/16)   -->HP
+	MOVE.W	RGVY(A1),D7
+	ADDQ.W	#4,D7
+	LSR.W	#4,D7
+	NEG.W	D7		;D7=-(VY/16)  -->VP
+	ADD.W	#382,D6		;HP
+	ADD.W	#139,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.2
+	MOVE.W	#1,D5
+.2	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+	ADDQ.W	#8,A1		;NEXT GHOST
+	ADD.W	#24,A3		;NEXT SPRITE
+	DBRA	D4,.loop
+
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	MOVE.W	#738,D0		;X offset
+	SUB.W	(A0,D1.W),D0
+	ADD.W	D0,A2
+
+.wblit0	BTST.B	#6,2(A6)
+	BNE.B	.wblit0
+
+	MOVE.L	#$FFFFFFFF,$44(A6)	;mask
+	MOVE.L	#$00220000,$60(A6)	;cmod/bmod
+	MOVE.L	#$00000022,$64(A6)	;amod/dmod
+
+	MOVE.L	#$0BFA0000,$40(A6)	;con
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1A85,$58(A6)		;SIZE & START
+
+.wblit1	BTST.B	#6,2(A6)
+	BNE.B	.wblit1
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1A85,$58(A6)		;SIZE & START
+
+.wblit2	BTST.B	#6,2(A6)
+	BNE.B	.wblit2
+	MOVE.W	#$0F2E,$40(A6)		;con0
+	MOVE.L	A5,A1			;RADAR_PT(A0)
+	ADD.W	#$141C,A1
+	MOVE.L	A1,$50(A6)		;apt
+	MOVE.L	A5,$4C(A6)		;bpt
+	ADD.W	#$3000,A2
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1A85,$58(A6)		;SIZE & START
+
+.wblit3	BTST.B	#6,2(A6)
+	BNE.B	.wblit3
+	MOVE.W	#$0B0A,$40(A6)		;con0
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1A85,$58(A6)		;SIZE & START
+	RTS
+
+DRAW_RADAR_2:
+	MOVE.W	#$8220,$96(A6)		;turn on SPRITEs
+	ADD.W	#242,D6		;HP
+	ADD.W	#143,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.1
+	MOVE.W	#1,D5
+.1	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+
+	MOVE.L	RADAR_PT(A0),A3
+	ADD.W	#$2898,A3
+	LEA	RG_STRUCT(A0),A1
+	MOVEQ	#4,D4
+
+.loop	MOVE.W	RGVX(A1),D6
+	ADDQ.W	#4,D6
+	LSR.W	#4,D6		;D6=(VX/16)   -->HP
+	MOVE.W	RGVY(A1),D7
+	ADDQ.W	#4,D7
+	LSR.W	#4,D7
+	NEG.W	D7		;D7=-(VY/16)  -->VP
+	ADD.W	#242,D6		;HP
+	ADD.W	#143,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.2
+	MOVE.W	#1,D5
+.2	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+	ADDQ.W	#8,A1		;NEXT GHOST
+	ADD.W	#24,A3		;NEXT SPRITE
+	DBRA	D4,.loop
+
+	ADD.W	#$424,A5	;LEVEL 2
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	MOVE.W	#736,D0		;X offset
+	SUB.W	(A0,D1.W),D0
+	ADD.W	D0,A2
+
+.wblit0	BTST.B	#6,2(A6)
+	BNE.B	.wblit0
+
+	MOVE.L	#$FFFFFFFF,$44(A6)	;mask
+	MOVE.L	#$00200000,$60(A6)	;cmod/bmod
+	MOVE.L	#$00000020,$64(A6)	;amod/dmod
+
+	MOVE.L	#$0BFA0000,$40(A6)	;con
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1B86,$58(A6)		;SIZE & START
+
+.wblit1	BTST.B	#6,2(A6)
+	BNE.B	.wblit1
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1B86,$58(A6)		;SIZE & START
+
+.wblit2	BTST.B	#6,2(A6)
+	BNE.B	.wblit2
+	MOVE.W	#$0F2E,$40(A6)		;con0
+	MOVE.L	A5,A1			;RADAR_PT(A0)
+	ADD.W	#$141C,A1
+	MOVE.L	A1,$50(A6)		;apt
+	MOVE.L	A5,$4C(A6)		;bpt
+	ADD.W	#$3000,A2
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1B86,$58(A6)		;SIZE & START
+
+.wblit3	BTST.B	#6,2(A6)
+	BNE.B	.wblit3
+	MOVE.W	#$0B0A,$40(A6)		;con0
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1B86,$58(A6)		;SIZE & START
+	RTS
+
+DRAW_RADAR_3:
+	MOVE.W	#$8220,$96(A6)		;turn on SPRITEs
+	ADD.W	#382,D6		;HP
+	ADD.W	#35,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.1
+	MOVE.W	#1,D5
+.1	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+
+	MOVE.L	RADAR_PT(A0),A3
+	ADD.W	#$2898,A3
+	LEA	RG_STRUCT(A0),A1
+	MOVEQ	#4,D4
+
+.loop	MOVE.W	RGVX(A1),D6
+	ADDQ.W	#4,D6
+	LSR.W	#4,D6		;D6=(VX/16)   -->HP
+	MOVE.W	RGVY(A1),D7
+	ADDQ.W	#4,D7
+	LSR.W	#4,D7
+	NEG.W	D7		;D7=-(VY/16)  -->VP
+	ADD.W	#382,D6		;HP
+	ADD.W	#35,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.2
+	MOVE.W	#1,D5
+.2	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+	ADDQ.W	#8,A1		;NEXT GHOST
+	ADD.W	#24,A3		;NEXT SPRITE
+	DBRA	D4,.loop
+
+	ADD.W	#$94C,A5	;LEVEL 3
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	MOVE.W	#738,D0		;X offset
+	SUB.W	(A0,D1.W),D0
+	ADD.W	D0,A2
+
+.wblit0	BTST.B	#6,2(A6)
+	BNE.B	.wblit0
+
+	MOVE.L	#$FFFFFFFF,$44(A6)	;mask
+	MOVE.L	#$00220000,$60(A6)	;cmod/bmod
+	MOVE.L	#$00000022,$64(A6)	;amod/dmod
+
+	MOVE.L	#$0BFA0000,$40(A6)	;con
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1685,$58(A6)		;SIZE & START
+
+.wblit1	BTST.B	#6,2(A6)
+	BNE.B	.wblit1
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1685,$58(A6)		;SIZE & START
+
+.wblit2	BTST.B	#6,2(A6)
+	BNE.B	.wblit2
+	MOVE.W	#$0F2E,$40(A6)		;con0
+	MOVE.L	A5,A1			;RADAR_PT(A0)
+	ADD.W	#$141C,A1
+	MOVE.L	A1,$50(A6)		;apt
+	MOVE.L	A5,$4C(A6)		;bpt
+	ADD.W	#$3000,A2
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1685,$58(A6)		;SIZE & START
+
+.wblit3	BTST.B	#6,2(A6)
+	BNE.B	.wblit3
+	MOVE.W	#$0B0A,$40(A6)		;con0
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1685,$58(A6)		;SIZE & START
+	RTS
+
+DRAW_RADAR_4:
+	MOVE.W	#$8220,$96(A6)		;turn on SPRITEs
+	ADD.W	#274,D6		;HP
+	ADD.W	#47,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.1
+	MOVE.W	#1,D5
+.1	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+
+	MOVE.L	RADAR_PT(A0),A3
+	ADD.W	#$2898,A3
+	LEA	RG_STRUCT(A0),A1
+	MOVEQ	#4,D4
+
+.loop	MOVE.W	RGVX(A1),D6
+	ADDQ.W	#4,D6
+	LSR.W	#4,D6		;D6=(VX/16)   -->HP
+	MOVE.W	RGVY(A1),D7
+	ADDQ.W	#4,D7
+	LSR.W	#4,D7
+	NEG.W	D7		;D7=-(VY/16)  -->VP
+	ADD.W	#274,D6		;HP
+	ADD.W	#47,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.2
+	MOVE.W	#1,D5
+.2	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+	ADDQ.W	#8,A1		;NEXT GHOST
+	ADD.W	#24,A3		;NEXT SPRITE
+	DBRA	D4,.loop
+
+	ADD.W	#$CD0,A5	;LEVEL 4
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	MOVE.W	#738,D0		;X offset
+	SUB.W	(A0,D1.W),D0
+	ADD.W	D0,A2
+
+.wblit0	BTST.B	#6,2(A6)
+	BNE.B	.wblit0
+
+	MOVE.L	#$FFFFFFFF,$44(A6)	;mask
+	MOVE.L	#$00220000,$60(A6)	;cmod/bmod
+	MOVE.L	#$00000022,$64(A6)	;amod/dmod
+
+	MOVE.L	#$0BFA0000,$40(A6)	;con
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1885,$58(A6)		;SIZE & START
+
+.wblit1	BTST.B	#6,2(A6)
+	BNE.B	.wblit1
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1885,$58(A6)		;SIZE & START
+
+.wblit2	BTST.B	#6,2(A6)
+	BNE.B	.wblit2
+	MOVE.W	#$0F2E,$40(A6)		;con0
+	MOVE.L	A5,A1			;RADAR_PT(A0)
+	ADD.W	#$141C,A1
+	MOVE.L	A1,$50(A6)		;apt
+	MOVE.L	A5,$4C(A6)		;bpt
+	ADD.W	#$3000,A2
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1885,$58(A6)		;SIZE & START
+
+.wblit3	BTST.B	#6,2(A6)
+	BNE.B	.wblit3
+	MOVE.W	#$0B0A,$40(A6)		;con0
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1885,$58(A6)		;SIZE & START
+	RTS
+
+DRAW_RADAR_5:
+	MOVE.W	#$8220,$96(A6)		;turn on SPRITEs
+	ADD.W	#202,D6		;HP
+	ADD.W	#47,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.1
+	MOVE.W	#1,D5
+.1	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+
+	MOVE.L	RADAR_PT(A0),A3
+	ADD.W	#$2898,A3
+	LEA	RG_STRUCT(A0),A1
+	MOVEQ	#4,D4
+
+.loop	MOVE.W	RGVX(A1),D6
+	ADDQ.W	#4,D6
+	LSR.W	#4,D6		;D6=(VX/16)   -->HP
+	MOVE.W	RGVY(A1),D7
+	ADDQ.W	#4,D7
+	LSR.W	#4,D7
+	NEG.W	D7		;D7=-(VY/16)  -->VP
+	ADD.W	#202,D6		;HP
+	ADD.W	#47,D7		;VP
+	MOVE.B	D7,(A3)
+	MOVEQ	#0,D5
+	LSR.W	#1,D6
+	BCC.B	.2
+	MOVE.W	#1,D5
+.2	MOVE.B	D6,1(A3)
+	MOVE.B	D5,3(A3)
+	ADD.W	#4,D7
+	MOVE.B	D7,2(A3)
+	ADDQ.W	#8,A1		;NEXT GHOST
+	ADD.W	#24,A3		;NEXT SPRITE
+	DBRA	D4,.loop
+
+	ADD.W	#$10A4,A5	;LEVEL 5
+	MOVE.W	#HIGH_SKY,D0
+	ADD.W	H(A0),D0
+	MOVE.B	(A0,D0.W),D0
+	AND.W	#$00FF,D0
+	MOVE.W	#Mul_Y,D1
+	ADD.W	D0,D1
+	ADD.W	D0,D1
+	MOVE.W	#740,D0		;X offset
+	SUB.W	(A0,D1.W),D0
+	ADD.W	D0,A2
+
+.wblit0	BTST.B	#6,2(A6)
+	BNE.B	.wblit0
+
+	MOVE.L	#$FFFFFFFF,$44(A6)	;mask
+	MOVE.L	#$00240000,$60(A6)	;cmod/bmod
+	MOVE.L	#$00000024,$64(A6)	;amod/dmod
+
+	MOVE.L	#$0BFA0000,$40(A6)	;con
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1BC4,$58(A6)		;SIZE & START
+
+.wblit1	BTST.B	#6,2(A6)
+	BNE.B	.wblit1
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1BC4,$58(A6)		;SIZE & START
+
+.wblit2	BTST.B	#6,2(A6)
+	BNE.B	.wblit2
+	MOVE.W	#$0F2E,$40(A6)		;con0
+	MOVE.L	A5,A1			;RADAR_PT(A0)
+	ADD.W	#$141C,A1
+	MOVE.L	A1,$50(A6)		;apt
+	MOVE.L	A5,$4C(A6)		;bpt
+	ADD.W	#$3000,A2
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1BC4,$58(A6)		;SIZE & START
+
+.wblit3	BTST.B	#6,2(A6)
+	BNE.B	.wblit3
+	MOVE.W	#$0B0A,$40(A6)		;con0
+	ADD.W	#$3000,A2
+	MOVE.L	A5,$50(A6)		;apt
+	MOVE.L	A2,$48(A6)		;cpt
+	MOVE.L	A2,$54(A6)		;dpt
+	MOVE.W	#$1BC4,$58(A6)		;SIZE & START
+	RTS
+
+; END of DRAW_RADAR routine
+;******************************************************************************

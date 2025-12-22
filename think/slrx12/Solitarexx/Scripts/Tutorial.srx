@@ -1,0 +1,97 @@
+/* Klondike Tutorial */
+OPTIONS RESULTS
+
+ADDBUTTON 0 10 'Start'
+ADDTEXT 4 42 '"Klondike Tuturial"' 6
+ADDSPACE 6 28
+ADDCYCLE 10 12 '"One|Two|Three"' 0 '"Cards at once"' 12
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 '"Klondike Tuturial"' 6
+SELECTGUI 3
+
+SCREENSIZE 2 15 7 0
+DO i = 0 TO 6
+	NEWSTACK 4 16+4 0 i 0 0 0 15
+	stack.i = RESULT
+END
+DO i = 0 TO 3
+	NEWSTACK i 0 i+2 i+3 1 0 15
+	base.i = RESULT
+END
+NEWSTACK 5 0 1 0 1 0 15
+deck = RESULT
+NEWSTACK 6 32+1 1 1 1 0 15 2 2
+waste = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SELECTGUI 4
+	sel = 0
+	fin. = 0
+	GETGADGET 10
+	gadcards = RESULT +1
+	DO i=0 TO 6
+		CARDSELECT deck i
+		MOVECARDS deck stack.i
+		CARDSELECT deck 1
+		MOVECARDS deck stack.i REVERSE
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sid = 5 THEN CALL DODECK
+			WHEN sel = 0 & card>0 & sid>3 THEN sel = stack
+			WHEN sel = stack THEN CALL DOBASE
+			WHEN sel>0 & sid = 4 THEN CALL DOSTACKS
+			WHEN sel>0 & sid < 4 THEN CALL DOBASE
+			OTHERWISE NOP
+		END
+		IF act = 3 THEN DO
+			SELECTGUI 3
+			RETURN
+		END
+	END
+RETURN
+
+DODECK:
+	CARDSELECT deck gadcards
+	IF RESULT = '' THEN DO
+		CARDSELECT waste 52
+		MOVECARDS waste deck REVERSE
+	END
+	ELSE MOVECARDS deck waste REVERSE
+RETURN
+
+DOSTACKS:
+	CARDSELECT sel 0 RELATIVE
+	PARSE VAR RESULT stype sval xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT type val xx
+	IF type = '' THEN DO
+		IF sval = 12 THEN MOVECARDS sel stack ATONCE
+	END
+	ELSE DO
+		IF (val = sval+1) & (((type + stype) // 2) = 1) THEN MOVECARDS sel stack ATONCE
+	END
+	sel = 0
+RETURN
+
+DOBASE:
+	CARDSELECT sel 1
+	PARSE VAR RESULT type val xx
+	IF val = fin.type THEN DO
+		fin.type = fin.type +1
+		MOVECARDS sel base.type
+	END
+	sel = 0
+RETURN

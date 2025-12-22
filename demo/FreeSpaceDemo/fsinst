@@ -1,0 +1,585 @@
+(set #minfree 50)
+(set #okfree 50)
+(set #goodfree 50)
+(set #inst1 "Freespace_1")
+
+(set #ver (/ @installer-version 65536))
+(if (>= #ver 44)
+    (
+	(effect "lower_right" "radial" $C85037 $000000)
+	(showmedia "symbol" "FS_Installer.iff" "center" "none" 0)
+    )
+)
+
+(if (< #ver 43)
+    (
+	(exit "Your Installer is too old. Get a new version from Aminet" (quiet))
+    )
+)
+
+; -- Locale strings - Deutsch --------------------------------
+(if (= @language "deutsch")
+(
+    (set #install-movies "Wollen Sie die Zwischensequenzen auf Festplatte installieren ?")	
+
+    (set #choice-yes "\x1B[2pJa")
+    (set #choice-no  "Nein")
+
+    (set #welcome-prompt (cat
+	"Willkommen zum Descent Freespace Demo Installations-Programm. Es wird Sie schrittweise "
+	"durch die Installation führen. Wenn Sie Probleme bekommen, können Sie durch "
+	"den Hilfe-Knopf weitere Informationen erhalten.\n"
+	"Bitte wählen Sie nun den Installations-Modus, abhängig von Ihrem "
+	"Kenntnisstand."
+    ))
+
+    (set #dest-prompt (cat
+	"Wählen Sie die Festplatte oder das Verzeichnis aus, auf dem das Demo installiert "
+	"werden soll. Ein Verzeichnis mit dem Namen \"FreespaceDemo\" wird\n erzeugt. "
+	"Es sollten mindestens "
+	#minfree
+	" Megabytes für eine\n Installation frei sein. "
+        
+    ))
+
+    (set #toolow (cat
+	"Die von Ihnen angewählte Festplatte hat nur noch %ld Megabytes \nfreien Speicher. "
+	"Für eine Installation sind mindestens " #minfree " Megabytes\n erforderlich. "
+	"Bitte wählen Sie eine andere Platte aus."
+    ))
+
+    (set #extract-base "Basis-Dateien werden auf die Festplatte kopiert...")
+    (set #extract-bin "Programm-Dateien werden auf die Festplatte kopiert...")
+    (set #extract-aux "GUI- und Zusatzdateien werden auf die Festplatte kopiert...")
+    (set #extract-lang "Sprach-spezifische Daten werden auf die Festplatte kopiert...")	
+    (set #user-abort (cat
+	"Sie haben die Installation von Hand abgebrochen. Im jetzigen Zustand können "
+	"Sie das Descent Freespace Demo nicht nutzen. Um die Installations zu einem späteren Zeitpunkt "
+	"fortzusetzen, starten Sie das Installations-Programm erneut."
+    ))
+    (set #incomplete-install (cat
+	"Auf Ihrem System wurde eine unvollständig installierte Version des Descent Freespace Demo "
+	"gefunden. Diese sollte vor dem erneuten Installieren von der Festplatte entfernt werden."
+	"\n\nMöchten Sie dies nun tun?"
+    ))
+    (set #choice_1 "\x1B[2pInstallation so belassen (nicht empfohlen)")
+    (set #choice_2  "Unvollständige Installation löschen und neu starten")
+    (set #incomplete-help (cat
+	"Sie können das Löschen der alten, unvollständigen Installation überspringen und "
+	"die neuen Dateien über die alten kopieren lassen. \nDies ist allerdings nicht anzuraten, "
+	"da daß Ergebnis unvorhersehbar ist (einige Dateien könnten Schreib- oder Löschgeschützt sein).\n"
+    ))
+    (set #wipe-me "Bitte bestätigen Sie, daß Sie das Verzeichnis %s und seinen Inhalt löschen möchten")
+    (set #wipe-help "Wenn Sie mit \"Ja\" antworten, wird das komplette Verzeichnis samt Inhalt vernichtet.")
+    (set #uninstall-msg "Möchten Sie das Descent Freespace Demo von Ihrer Festplatte löschen?")
+    (set #keep-user (cat
+	"Da Ihre Spielstände in der Schublade \"Players\" im FreespaceDemo-Verzeichnis "
+	"gespeichert werden, können Sie dieses Verzeichnis für "
+	"später aufheben. "
+	"Möchten Sie ihre \"Players\"-Schublade behalten?"
+    ))
+    (set #uninstalled-full (cat
+	"Das Descent Freespace Demo wurde von Ihrer Festplatte entfernt. Um die neue Installation durchzuführen, "
+	"starten Sie das Installationsprogramm erneut."
+    ))
+    (set #uninstalled-nouser (cat
+	"Das Descent Freespace Demo wurde von Ihrer Festplatte entfernt. Ihre Spielstände "
+	"wurden nicht angetastet, und sind immer noch in %s zu finden."
+    ))
+    (set #finish-msg (cat
+	"Das Descent Freespace Demo wurde in der Schublade %s erfolgreich installiert\n"
+	"Bitte werfen Sie einen Blick auf die LIESMICH-Datei.\n Sollten Sie Warp3D V4.0\n"
+  "noch nicht installiert haben, empfehlen wir, es jetzt zu installieren."
+    ))
+    (set #see-readme "\x1B[2pEinen Blick auf die LIESMICH-Datei werfen")
+    (set #chunkyppc
+	"Kopiere die chunkyppc.library"
+    )
+    (set #fsound
+  "Kopiere die fsoundPPC.library"
+    )
+    (set #loading
+  "Kopiere das Ladebild"
+    )
+    (set #fsound68k
+  "Kopiere die fsound68k.library"
+    )
+    (set #wizard
+	"Kopiere wizard library"
+    )
+ ) 
+; -- Locale strings - English --------------------------------
+(
+  (set #install-movies "Do you want to install the movies on your harddrive ?")
+
+    (set #choice-yes "\x1B[2pYes")
+    (set #choice-no  "No")
+
+    (set #welcome-prompt (cat
+	"Welcome to the Descent Freespace Demo installation program. This utility "
+	"will guide you through the installation in a step-by-step "
+	"process. At any time, "
+	"if you're stuck, you can press the help button to get more detailed "
+	"information. \n"
+	"Please indicate your level of expertise."
+    ))
+
+    (set #dest-prompt (cat
+	"Select a directory where you want the demo to be installed. The "
+	"installation utility will create a directory named \"FreespaceDemo\" "
+	"in the directory you specify here.\n"
+	"Disk space requirements are "
+	#minfree
+	" MB for an installation. "
+    ))
+
+    (set #toolow (cat
+	"The partition you selected only has %ld MB of free storage. For a minimal "
+	"installation you will require at least "
+	#minfree
+	" MB of free space. Please select another "
+	"place for the installation."
+    ))
+
+    (set #extract-base "Copying base files to your harddisk...")
+    (set #extract-bin "Copying program files to your harddisk...")
+    (set #extract-aux "Copying GUI and support files to your harddisk...")
+    (set #extract-lang "Copying language-specific files to your harddisk...")	
+    (set #user-abort (cat
+	"You have manually aborted the installation. You will not be able "
+	"to run the Descent Freespace Demo in this state. To complete the installation at a "
+	"later time, re-run the installation program."
+    ))
+    (set #incomplete-install (cat
+	"An incomplete installation was discovered on your harddisk. It is highly recommended "
+	"that you wipe this from your drive before proceeding any further.\n\n"
+	"Do you want to delete the incomplete installation?"
+    ))
+    (set #choice_1 "\x1B[2pLeave as is and proceed (not recommended)")
+    (set #choice_2  "Wipe the incomplete installation and re-start")
+    (set #incomplete-help (cat
+	"You may choose not to uninstall this incomplete installation and just copy "
+	"the files over it. It is however not recommended to do this, as the result "
+	"might be unpredictable.\n"
+    ))
+    (set #wipe-me "Please confirm that you want to delete the directory %s and its contents")
+    (set #wipe-help "If you answer yes, the complete directory and contents will be deleted.")
+    (set #uninstall-msg "Do you want to uninstall the Descent Freespace Demo from your system?")
+    (set #keep-user (cat
+	"Since your savegames are stored in your \"Players\" directory, "
+	"you might want to keep this directory for later use. "
+	"Do you want to keep your \"Players\" directory?"
+    ))
+    (set #uninstalled-full (cat
+	"The Descent Freespace Demo has been uninstalled from your system. If you want to re-install it at "
+	"any later point, just run the installation utility again. "
+    ))
+    (set #uninstalled-nouser (cat
+	"The Descent Freespace Demo has been uninstalled from your system. Your savegames "
+	"have been left untouched, and can still be found in "
+    ))
+    (set #finish-msg (cat
+	"The Descent Freespace Demo can be found in the directory %s\n on your system"
+	"Please take a look at the README file. "
+	"If you have a 3D graphics card and you have not installed Warp3D 4.0 yet, "
+	"it is adviced that you do this now."
+    ))
+    (set #see-readme "\x1B[2pHave a look at the README-File")
+    (set #chunkyppc
+	"Copying chunkyppc.library"
+    )
+    (set #loading
+	"Copying Loading image"
+    )		
+    (set #wizard
+	"Copying wizard library"
+    )
+    (set #fsound
+  "Copying fsoundPPC.library"
+    )
+    (set #fsound68k
+  "Copying fsound68k.library"
+    )
+  ))
+; -- Procedures ----------------------------------------------
+
+  
+; -- Procedures ----------------------------------------------
+(procedure P_AskDisk discnr
+    (if (= discnr 0)
+	(set #curvol #inst1)
+	(set #curvol #inst2)
+    )
+    (set #curvol (cat #curvol ":"))
+)
+
+; Try to find the amount of available memory
+; Why isn't there a function for that? I don't need to know how much is
+; free *now*, but I want to know how much is in this damn machine !!!
+(procedure P_GetTotalMem
+    (run "c/total >NIL:")
+)
+
+;    Verify the licence agreement
+(procedure P_DoLicence
+    (if (>= #ver 44)
+	(showmedia 'licence' 'LICENCE' 'upper_right' 'medium' 1 'wordwrap')
+	(run "sys:Utilities/Multiview LICENCE")
+    )
+)
+
+;    Set an environment variable (ENV: and ENVARC:)
+(procedure P_SetEnv variable value
+    (textfile
+	(help @textfile-help)
+	(dest (tackon "ENV:" variable))
+	(append value)
+    )
+    (textfile
+	(help @textfile-help)
+	(dest (tackon "ENVARC:" variable))
+	(append value)
+    )
+)
+
+;    Unset an environment variable
+(procedure P_UnsetEnv variable
+    (if (exists (tackon "ENV:" variable))
+	(delete (tackon "ENV:" variable)
+	    (optional "force")
+	)
+    )
+
+    (if (exists (tackon "ENVARC:" variable))
+	(delete (tackon "ENVARC:" variable)
+	    (optional "force")
+	)
+    )
+)
+
+;    Check if the given path can hold enough data for the installation
+(procedure P_CheckSize path
+    (set #free 0)
+    (set #ok-movies 0)
+    (if (>= #ver 44)
+	(set #free (getdiskspace #dest-dir "M"))
+	(
+	    (set #free (getdiskspace #dest-dir))
+	    (set #free (/ #free 1048576))
+	)
+    )
+    (if (< (+ #free 0) (+ #minfree 0))
+	(
+	    (set #message (#toolow #free))
+	    (message #message)
+	)
+    )
+    (if (>= (+ #free 0) (+ #minfree 0))
+	(
+	    (set #loop-flag 1)
+	)
+    )			
+)
+
+(procedure P_UninstallIncomplete
+    (set #choice
+	(askchoice
+	    (prompt #incomplete-install)
+	    (help (cat #incomplete-help "\n" @askchoice-help))
+	    (default 1)
+	    (choices #choice_1 #choice_2)
+	    
+	)
+    )
+    (if (= #choice 1)
+	(
+	    (run (cat "delete >NIL: <nil: ALL FORCE \"" @default-dest "\"")
+		(prompt (#wipe-me @default-dest))
+		(confirm)
+		(help #wipe-help)
+	    )
+	    (P_UnsetEnv "Freespace/InstallationPathDemo")
+	)
+
+    )
+)
+
+(procedure P_DoUninstall
+    (set #flag
+	(askchoice
+	    (prompt #keep-user)
+	    (help @askchoice-help)
+	    (choices #choice-yes #choice-no)
+	    (default 1)
+	)
+    )
+    (set #delpattern @default-dest)
+    (if (= #flag 0)
+	(set #delpattern (tackon @default-dest "~(Players)"))
+    )
+    (run (cat "delete >NIL: <nil: ALL FORCE \"" #delpattern "\""))
+    (P_UnsetEnv "Freespace/InstallationPathDemo")
+    (if (= #flag 0)
+	(exit (#uninstalled-nouser (tackon @default-dest "Players") (pathonly @default-dest))
+	    (quiet)
+	)
+	(exit #uninstalled-full (quiet))
+    )
+)
+
+(procedure P_ProposeUninstall
+    (set #flag
+	(askchoice
+	    (prompt #uninstall-msg)
+	    (help @askchoice-help)
+	    (choices #choice-yes #choice-no)
+	    (default 1)
+	)
+    )
+    (if (= #flag 0) (P_DoUninstall))
+    (exit (quiet))
+)
+
+(procedure P_DoRegister
+    (message #register-msg)
+    (set #cmdline (cat
+	"C/RegisterGUI \""
+	(tackon @default-dest "Freespace.exe")
+	"\""
+    ))
+    (set #retval
+	(run #cmdline
+	(help @run-help)
+    ))
+    (if (= #retval 10)
+	(exit "Internal Error during registering. Please contact tech suport" (quiet))
+    )
+    (if (= #retval 20)
+	(exit #user-abort (quiet))
+    )
+)
+
+(procedure P_InstallData arg1 arg2
+    (set #cmdline
+	(cat
+	    "C/makepakgui -u \""
+	    (arg1)
+	    "\" -a \""
+	    arg2
+	    "\""
+	)
+    )
+)
+
+(procedure P_BuildCommandline arg1 arg2
+    (set #cmdline
+	(cat
+	    "C/hUnpack -archive \""
+	    (arg1)
+	    "\" -dest \""
+	    arg2
+	    "\""
+	)
+    )
+)
+
+
+; -- Start the installation process --------------------------
+(welcome #welcome-prompt)
+(P_AskDisk 0)
+
+; try to find an already present installation
+(complete 0)
+(set #flag (exists "ENV:Freespace/InstallationPathDemo"))
+(if (= #flag 1)
+    (
+	(set @default-dest (getenv "Freespace/InstallationPathDemo"))
+	(if (exists (tackon @default-dest "installer-cookie-demo"))
+	    (P_UninstallIncomplete)
+	    (P_ProposeUninstall)
+	)
+	(set @default-dest (pathonly @default-dest))
+    )
+)
+
+
+(P_DoLicence)
+
+; -- Ask for destination and create a directory if required --
+(set #loop-flag 0)
+(while (= #loop-flag 0)
+    (
+	(set #dest-dir
+	    (askdir
+		(prompt #dest-prompt)
+		(default @default-dest)
+		(help @askdir-help)
+	    )
+	)
+	(P_CheckSize #dest-dir) ; resets #loop-flag to 1 if size is ok
+    )
+)
+
+(set #dest-dir (tackon #dest-dir "FreespaceDemo"))
+(set @default-dest #dest-dir) 
+
+
+(set #flag (exists @default-dest (noreq)))
+
+(if (= #flag 0)
+    (
+	(makedir @default-dest)
+    )
+)
+
+; Since we have the installation directory now, we add a small file there
+; This will be used to find out if the installation was successful
+(textfile
+    (dest (tackon @default-dest "installer-cookie-demo"))
+    (append "I am a cookie. Bite me")
+)
+
+(complete 20)
+; Create base/ if not already present
+(set #base-dir (tackon @default-dest "data"))
+(set #flag (exists #base-dir (noreq)))
+(if (= #flag 0)
+    (
+	(makedir #base-dir (infos))
+    )
+)
+
+; -- Set a variable to indicate where we are installing ------
+;    Will be used when the installer is launched a second time
+
+(set #flag (exists "ENV:Freespace" (noreq)))
+(if (= #flag 0)
+    (
+	(makedir "ENV:Freespace")
+	(makedir "ENVARC:Freespace")
+    )
+)
+(P_SetEnv "Freespace/InstallationPathDemo" @default-dest)
+
+(complete 30)
+
+; -- Ready to start installation -----------------------------
+(copylib
+    (prompt #chunkyppc)
+    (help @copylib-help)
+    (source ("libs/chunkyppc.library"))
+    (dest #dest-dir)
+)
+
+(complete 35)
+
+(copylib
+    (prompt #wizard)
+    (help @copylib-help)
+    (source ("libs/wizard.library"))
+    (dest #dest-dir)
+)
+
+(complete 40)
+
+(copyfiles(source "loading_wait.pcx")(help "")(dest #dest-dir))
+(copyfiles(source "Freespace.prefs")(help "")(dest #dest-dir))
+
+(complete 45)
+
+(copylib
+		(prompt #fsound)
+    (help @copylib-help)
+    (source ("libs/fsoundPPC.library"))
+    (dest #dest-dir)
+)
+
+(copylib
+		(prompt #fsound68k)
+    (help @copylib-help)
+    (source ("libs/fsound68k.library"))
+    (dest #dest-dir)
+)
+
+; unpack data
+(P_BuildCommandLine "data_demo.hpa" (tackon @default-dest "data"))
+(working #extract-base)
+(set #status
+    (run #cmdline
+	(help @run-help)
+    )
+)
+
+(if (= #status 2)
+    (
+	(exit #user-abort (quiet))
+    )
+)
+
+(P_BuildCommandLine "gui.hpa" @default-dest)
+(working #extract-aux)
+(set #status
+	(run #cmdline
+		(help @run-help)
+	)
+)
+
+(set #flag (exists "libs:powerpc.library" (noreq)))
+
+(if (= #flag 0)
+(
+; unpack BIN
+(P_BuildCommandLine "bin.hpa" @default-dest)
+(working #extract-bin)
+(set #status
+    (run #cmdline
+	(help @run-help)
+    )
+)
+
+(if (= #status 2)
+    (
+	(exit #user-abort (quiet))
+    )
+)
+)
+)
+
+(if (= #flag 1)
+(
+; unpack BIN
+(P_BuildCommandLine "binPPC.hpa" @default-dest)
+(working #extract-bin)
+(set #status
+    (run #cmdline
+	(help @run-help)
+    )
+)
+
+(if (= #status 2)
+    (
+	(exit #user-abort (quiet))
+    )
+)
+)
+)
+
+; Register your copy
+(complete 100)
+; Finish by wiping the installer-cookie
+(delete (tackon @default-dest "installer-cookie-demo"))
+(set #opts
+    (askoptions
+	(help @askoptions-help)
+	(prompt (#finish-msg @default-dest))
+	(choices #see-readme)
+	(default 1)
+    )
+)
+
+(if (IN #opts 0)
+    (if (>= #ver 44)
+	(showmedia "readme.txt" "README.TXT" "upper_right" "medium" 1)
+	(run "sys:Utilities/Multiview README.TXT")
+    )
+)

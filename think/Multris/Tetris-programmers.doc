@@ -1,0 +1,246 @@
+
+		100010 01010 010100 00010  01  010
+		  10   00      00   00  00 00 00
+		  00   0010    01   00100  10  010
+		  01   10      00   11  00 00    00
+		  00   01101   10   00  10 00 0010
+
+		  "A programmers' guide to galaxy"
+
+ --------------------------------------------------------------------------
+ By S. Raaijmakers in 1993      Release 1.0      E-mail:  stijnr@sci.kun.nl
+ --------------------------------------------------------------------------
+
+WHY READ THIS?
+
+ If you haven't had any experience in programming Yourtris, you are (sorry)
+ bound to fail. Although you have spend hours and hours planning your game,
+ you will encounter some --- hard to correct --- problems.  So here is this
+ guide to your rescue, or, prevention of you needing rescue, actually ...
+
+
+USED NAMES
+
+ Figure        These are the things you move  around,  like  [][][][],  the
+               long red figure in the Arcade version of Tetris.
+ Block         This is what these figures are built of,  the red figure is
+               built out of 4 blocks.
+ Pit           This is what you try not to fill with figures.
+ Line          One layer in the pit (if filled with blocks it disapears).
+
+
+ --------------------------------------------------------------------------
+ PART I: Programming difficulties
+ --------------------------------------------------------------------------
+
+PROBLEM 1: Representation of the figures.
+
+ The  easiest  way  to  represent a figure is by a square matrix.   Square,
+ because this is the fastest and easiest way to work with.   The red  block
+ would look like this:
+
+	....		.#..
+	####	and	.#..	a.s.o.
+	....		.#..
+	....		.#..
+
+ If your programming-language supports resizable  arrays,  a  3 x 2  figure
+ would look like this:
+
+	##.
+	.##
+	...
+
+ If it doesn't it would look like this:
+
+	##..
+	.##.
+	....
+	....
+
+ It doesn't really matter which one you use;  they are equally complex  and
+ the amounts of memory involved are essentially small.
+
+ But this isn't all; before you start,  you should think of what properties
+ a figure has.   One property your figures are bound to have is a diameter.
+ This is the (virtual) size of a block. So, wether you use resizable arrays
+ or not,  the diameter of the 3 x 2 figure above is 3 and that of  the  red
+ block is 4.  Here are some other properties a figure might have:
+
+ - Color
+ - Score (factor)
+ - Probability of occurance
+ - First level of appearance
+ - Index for corresponding sprites in spritetable
+
+
+PROBLEM 2: Rotating.
+
+ A small yet irritating problem.  Here's the answer:
+
+	Counter-clockwise	Normal			Clockwise
+
+	#....			####.			####.
+	#.#..			#....			.#.#.
+	#.#..			###..			.#.#.
+	####.			#....			...#.
+	.....			.....			.....
+	(y, d + s - x)		(x, y)			(d + s - y, x)
+
+ Where <d> is the diameter of the block, <md> the diameter of the matrix it
+ is in and <s> the index number of the first element in the array (which is
+ usually 0).  In this example, <d>=4 and <md>=5.
+
+
+PROBLEM 3: The edges of the pit.
+
+ Suppose somebody tries to move the long red block when it touches the left
+ edge of the pit:
+
+	|	   |
+	|	   |
+       ..#.	   |
+       ..#.	   |
+       ..#.	   |
+       ..#.	   |
+	|	   |
+	+----------+
+
+ Immediatily you see the problem:  when you start checking if it is allowed
+ to rotate the block you have to check positions that are 2 positions  away
+ from the pit-matrix.   So if <md> is the width of your  figure-matrix  and
+ <wpit> is the width of the pit (on screen,  measured in blocks), the width
+ of the actual matrix should be 2(<md> - 1) + <wpit>,  if you assume  every
+ figure contains at least one block.
+
+ At the top of your on-screen-matrix no extra space is needed in the actual
+ matrix, but at the bottom there is.  Look at this picture:
+
+	...##########...   In this picture, # represents one block in both
+	...##########...   on-screen-matrix and the actual matrix.  The
+	...##########...   dot . represents one block in the actual matrix.
+	...##########...
+	...##########...   This example belongs to a pit of width 10 and
+	...##########...   depth 8.  The (maximum) figure-matrix size is 4.
+	...##########...
+	...##########...
+	................
+	................
+	................
+
+
+PROBLEM 3: Next on/off
+
+ Of you want to make this possible, think of it before you start hacking.
+
+
+BOTTOM-UP PROGRAMMING
+
+ For those of you,  who don't know what this means,  here's what it  means:
+ Bottom-up  programming  is a certain way of setting up your program.   The
+ idea is to start by thinking of all the procedures you'll probably need to
+ make the program you want.  Next, you make these procedures, which will be
+ added as new commands to your programming language (in some languages, you
+ can't  see  any  differance  between  home-made  procedures  and primitive
+ commands, but in some you can,  anyway:  imagine there is no differance at
+ all).
+
+ It  isn't  easy  to find the right procedures.   But once you're past this
+ stage, programming was never so easy.  Here's some examples:
+
+ - Block_can_be_on (x, y)
+ - Put_block (x, y)
+ - Draw_block (x, y)
+ - Rotate_left
+ - Rotate_right
+ - Move_to (x, y)
+ - Move_left
+ - Move_right
+
+ In this set <Move_left> could be defined as follows:
+
+	PROC Move_left:
+	   IF Block_can_be_on (x-1, y)
+	   THEN Move_to (x-1, y)
+	   END IF
+	END Move_Left
+
+
+ --------------------------------------------------------------------------
+ PART II: Decisions to be made
+ --------------------------------------------------------------------------
+
+VARIABLES VS CONSTANTS
+
+ With  things like the pit width and score per figure you can decide to use
+ either variables or constants.  You can also choose to type actual numbers
+ in your program,  but this is simply stupid.   I chose to put almost every
+ value in a variable, because that's what makes Multris Multris.
+
+
+PIT SIZE
+
+ The traditional width is 10 and the height depends on  the  speed  of  the
+ figures; if the blocks fall at low speed, you might want to consider using
+ a shallow pit, te keep the game from getting to easy.
+
+
+COLOURS
+
+ I used 2 colors, so that one can easilly distinguish
+
+	##	from	  ##
+	 ##		 ##
+
+ There isn't really a general colour code for Tetris,  except for these two
+ figures:
+
+	####	and	##
+			##
+
+ The left one is always red and the right one is mostly blue.
+
+
+NEXT ON/OFF
+
+ If  you  ask  me,  you shouldn't show the next figure.   It makes the game
+ easier in the first levels, but it doesn't make it any easier in the later
+ levels, as you don't have time to look at the it than.  But if you do want
+ to implement this OPTION (!!!!!) consider showing the next <n> figures, as
+ this will make it easier for you to make it look nice on the screen.
+
+
+ANTI-MONITOR
+
+ Monitors (espially old ones) are not flat.   This makes it hard for you to
+ guess where your block will end up if you drop  it.   You  might  want  to
+ compensate this.  I know four ways of doing this:   (1) - Place the pit in
+ the middle of the screen, where the monitor is flattest      (2) - Use big
+ figures       (3) - Make a gridded (not nessesarily horizontal) background
+ (4) - Draw a shadow of the figure at the bottom of the pit, like this:
+
+	|	|			|	|
+	|  ##   |			|  ##   |
+	| ##    |  or even like this:	| ##    | (the * is the same as
+	|	|			|	|  #, but brighter.)
+	|     # |			|     # |
+	|#  ####|			|#  ####|
+	+-------+			+-------+
+	  ###				  ##*
+
+
+LUCK
+
+ Good luck programming Yourtris!!!
+
+	S. Raaijmakers,
+	Student Computer Science (informatica)
+	University of Nijmegen (KUN).
+
+ If you have any suggestions, questions or comments, please contact me.  If
+ you have access to Internet, use E-mail; this will insure you of getting a
+ reply.  Here's my adress:
+
+	Heijendaalse weg 54
+	6524 SP  Nijmegen
+	HOLLAND

@@ -1,0 +1,133 @@
+; $VER: BattleChess CD32 & Floppy HD Install-Script V1.0 by Jean-Francois Fabre
+
+
+;try to figure out a place where the user usually installs his games
+(if (exists "Games:" (noreq) )
+    (set @default-dest "Games:")
+    (if (exists "SYS:Games" (noreq) )
+        (set @default-dest "SYS:Games")
+        (if (exists "Work:Games" (noreq) )
+            (set @default-dest "Work:Games")
+            (if (exists "JEUX:" (noreq) )
+               (set @default-dest "JEUX:")
+               (set @default-dest "SYS:")
+            )
+        )
+    )
+)
+
+(set GameDir "BattleChess")
+
+
+(set #game_ver
+	(askchoice
+		(prompt "Which version should be installed")
+		(help	@askoptions-help)
+		(choices
+		   "CD-32"
+		   "Floppy"
+		)
+	)
+)
+
+;ask the user to select a directory to install the game into
+(set default-dest
+     (tackon (askdir (prompt "Where would you like " @app-name " installed?\n"
+                             "A drawer called " GameDir " will be created.")
+                     (help @askdir-help)
+                     (default @default-dest)
+             )
+     GameDir
+     )
+)
+(set @default-dest default-dest)
+
+
+;	create the selected directory
+(makedir @default-dest
+         (infos)
+)
+
+ 
+(if (= #game_ver 1)
+    (
+
+(set #CI_unit
+	(askchoice
+		(prompt "From which disk unit do you want\nto install the game")
+		(help	@askoptions-help)
+		(choices
+		   "DF0:"
+		   "DF1:"
+		   "DF2:"
+		   "DF3:"
+		)
+	)
+)
+
+(set #CI_drive ("DF%ld:" #CI_unit))
+
+
+	(message ("\nInsert %s disk into drive %s !" @app-name #CI_drive))
+	(if
+		(= 0 (run ("disk2file %ld \"%s/bchess.d1\" >con:///1000//CLOSE/WAIT" #CI_unit @default-dest )))
+		("")
+		(abort "\"disk2file\" must be in your PATH !")
+	)
+
+        (copyfiles (source "battlechess_FD")
+                   (dest @default-dest)
+		   (newname "battlechess")
+        )
+
+        (copyfiles (source "Game_FD")
+                   (dest @default-dest)
+		   (newname "Game")
+        )
+
+        (copyfiles (source "patchgfx")
+                   (dest @default-dest)
+        )
+
+
+)
+)
+
+(if (= #game_ver 0)
+    (
+
+        (message "\n\n\n\n\n\nPlease insert BattleChess CD-ROM in any drive")
+
+        (copyfiles (source "CD0:")
+                   (dest @default-dest)
+		   (all)
+        )
+
+        (copyfiles (source "battlechess_CD32")
+                   (dest @default-dest)
+		   (newname "battlechess")
+        )
+
+        (copyfiles (source "Game_CD32")
+                   (dest @default-dest)
+		   (newname "Game")
+        )
+
+
+)
+)
+
+	;copy all extra files to this directory
+
+        (copyfiles (source "bchesshd.readme")
+                   (dest @default-dest)
+		   (infos)
+        )
+
+
+
+        (copyfiles (source "Game.icon")
+		   (dest @default-dest)
+		   (newname "Game.info")
+        )
+

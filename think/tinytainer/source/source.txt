@@ -1,0 +1,1147 @@
+Set Buffer 20
+Erase All 
+
+
+If Prg State=-1 : GAME_PATH$=Dir$ : Else 
+   GAME_PATH$="Work:Programming/Tinytainer/"
+End If 
+
+
+' DEBUG_MASTERMIND=True
+
+
+Dim _MINE_COUNT(30+1,20+1),_VIEW_STATE(30+1,20+1)
+Dim _TO_REVEAL_X(30*20),_TO_REVEAL_Y(30*20)
+Dim _POINTER_COL(1,10-1),CUBE_COL(4-1,4-1)
+Dim UNKNOWN_IM(5-1),LIGHT_MINE_IM(5-1),ZERO_IM(5-1)
+Dim LAWN_IMAGE(2-1)
+
+Dim HIDDEN_BALL(10),CURRENT_BALL(10)
+Dim _COPY_OF_HIDDEN_BALL(10),_COPY_OF_CURRENT_BALL(10)
+Dim _COLOUR_BALL_IM(10)
+Dim INDICATE_PIN_X_OFFSET(4),INDICATE_PIN_Y_OFFSET(4)
+Dim BALL_COLOUR_LIGHT(10),BALL_COLOUR_DARK(10)
+
+Default Palette 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Trap Screen Close 0
+
+Procedure OLD_CODE
+   Open Out 1,"ram:pal"
+   Print #1,"Fade 1";
+   For I=0 To 31
+      Print #1,",";Hex$(Colour(I));
+   Next I
+   Close 1
+End Proc
+Procedure COMMENTS
+   'x_field up to 15 in not scrolling screen
+   'y_field up to 12 in not scrolling screen
+
+   'view state .. 0-unknown 1-signed mine -1-known
+   'mine count .. $10..mine, jinak pocet min v okoli
+End Proc
+
+Procedure SET_CONSTANTS
+   LAWN_IMAGE(0)=26
+   LAWN_IMAGE(1)=27
+   BUTTONS_IM=28
+
+   _POINTER_SHAPES=6 : _POINTER_COLOURS=5
+   CUBE_COLOURS=4
+
+   _MAX_X_SIZE=30
+   _MAX_Y_SIZE=20
+
+   Restore SC
+   Read DARK_MINE_IM
+   Read KNOWN_VS,UNKNOWN_VS,SIGNED_VS
+   For I=0 To 5-1
+      UNKNOWN_IM(I)=11+I
+      LIGHT_MINE_IM(I)=16+I
+      ZERO_IM(I)=21+I
+   Next I
+   For I=0 To _POINTER_COLOURS-1
+      For C=0 To 1
+         Read _POINTER_COL(C,I)
+      Next C
+   Next I
+   For I=0 To CUBE_COLOURS-1
+      For C=0 To 3
+         Read CUBE_COL(C,I)
+      Next C
+   Next I
+
+   '             _______________________  
+   '            |                       |   
+   '            |  MASTERMIND CONSTANTS |   
+   '            |_______________________| 
+
+
+   F_IM=50
+   TRY_IM=F_IM : Inc F_IM
+   TRY2_IM=F_IM : Inc F_IM
+   For I=0 To 9
+      _COLOUR_BALL_IM(I)=F_IM : Inc F_IM
+   Next I
+   HARD_PIN_IM=F_IM : Inc F_IM
+   SOFT_PIN_IM=F_IM : Inc F_IM
+
+   For I=0 To 4
+      Read INDICATE_PIN_X_OFFSET(I)
+   Next I
+   For I=0 To 4
+      Read INDICATE_PIN_Y_OFFSET(I)
+   Next I
+
+   For I=0 To 9
+      Read BALL_COLOUR_LIGHT(I)
+      Read BALL_COLOUR_DARK(I)
+   Next I
+
+   Pop Proc
+
+   SC:
+   Data 10
+   Data $10,0,1
+
+   Data $FA4,$FC4
+   Data $F97,$FC9
+   Data $5DD,$7FF
+   Data $CAF,$CCF
+   Data $DDC,$FFE
+
+   Data $50,$70,$82,$A4
+   Data $53,$75,$87,$A9
+   Data $340,$560,$772,$994
+   Data $441,$662,$873,$994
+
+   'MASTERMIND CONSTANTS
+
+   Data 3,8,13,6,11
+   Data 4,4,4,11,11
+   Data $8D,$69,$DB0,$A80,$F7A,$B57,$B60,$840,$F00,$A00,$C4F,$93C,$70,$82,$AAA,$888,0,0,0,0
+
+End Proc
+Procedure _DRAW_LAWN
+   LAWN_IM=LAWN_IMAGE(Rnd(2-1))
+   If X_SCROLLING and Y_SCROLLING
+      X_L=0 : Y_L=Y_PIX_SIZE-40
+      For X=0 To X_PIX_SIZE/40.0
+         Paste Bob X_L,Y_L,LAWN_IM
+         Paste Bob X_L,0,LAWN_IM
+         Add X_L,40
+      Next X
+      Y_L=0 : X_L=X_PIX_SIZE-40
+      For Y=0 To Y_PIX_SIZE/40.0
+         Paste Bob X_L,Y_L,LAWN_IM
+         Paste Bob 0,Y_L,LAWN_IM
+         Add Y_L,40
+      Next Y
+   Else 
+      X_L=0
+      For X=0 To X_PIX_SIZE/40.0
+         Y_L=0
+         For Y=0 To Y_PIX_SIZE/40.0
+            Paste Bob X_L,Y_L,LAWN_IM
+            Add Y_L,40
+         Next Y
+         Add X_L,40
+      Next X
+   End If 
+End Proc
+Procedure _LOAD_IMAGES_FROM_SOURCE
+   Screen Open 1,320,256,4,Lowres
+   Flash Off : Curs Off 
+   Screen To Front 2
+   
+   If Exist(GAME_PATH$+"Tinytainer_Pointers")
+      Load Iff GAME_PATH$+"Tinytainer_Pointers"
+   Else 
+      Screen 2
+      Cls 0
+      Locate 1,14
+      Paper 0 : Pen 1 : Centre "Cant find Tinytainer_Pointers :-("
+      Print GAME_PATH$
+      Fade 1,0,$A5A
+      Clear Key : Wait Key 
+      Fade 1,0,0 : Wait 15 : Erase All : End 
+   End If 
+   
+   For I=0 To _POINTER_SHAPES-1+2
+      Get Sprite 100+I,16*I,0 To 16*I+16,32
+   Next I
+   
+   Screen Open 1,320,256,32,Lowres
+   Flash Off : Curs Off 
+   Screen To Front 2
+   
+   If Exist(GAME_PATH$+"Tinytainer_Graphics")
+      Load Iff GAME_PATH$+"Tinytainer_Graphics"
+   Else 
+      Screen 2
+      Cls 0
+      Locate 1,14
+      Paper 0 : Pen 1 : Centre "Cant find HM_Graphics :-("
+      Fade 1,0,$A5A
+      Clear Key : Wait Key 
+      Fade 1,0,0 : Wait 15 : Erase All : End 
+   End If 
+
+   For I=1 To 9+1
+      Get Sprite I,(I-1)*20,0 To I*20,20
+   Next I
+   For I=1 To 5+5+5
+      Get Sprite 10+I,(I-1)*20,20 To I*20,40
+   Next I
+   Get Sprite LAWN_IMAGE(0),0,40 To 40,80
+   Get Sprite LAWN_IMAGE(1),40,40 To 40+40,80
+   Get Sprite BUTTONS_IM,0,80 To 40,80+16
+
+   Get Sprite TRY_IM,80,40 To 80+20,40+20
+   Get Sprite TRY2_IM,80,60 To 80+20,60+20
+   For I=0 To 9
+      Get Sprite _COLOUR_BALL_IM(I),100+20*I,40 To 100+20*I+20,40+20
+   Next I
+   Get Sprite HARD_PIN_IM,0,95 To 6,95+6
+   Get Sprite SOFT_PIN_IM,0,95+6 To 6,95+6+6
+
+   Screen Close 1
+End Proc
+Procedure MAIN
+   Screen Open 1,320,256,32,Lowres
+   Flash Off : Curs Off : Show On 
+   _POINTER_SHAPE=1
+   Change Mouse 3+100-1+_POINTER_SHAPE
+   
+   DEFINE_ZONES
+
+   If DEBUG_MASTERMIND : MASTERMIND_MAIN : Erase All : Edit : End If 
+   
+   Cls 0
+   Paste Bob 10,10,2
+   Paste Bob 10,10+20,3
+   Paste Bob 35,10,LIGHT_MINE_IM(0)
+   Paste Bob 35,10+20,_COLOUR_BALL_IM(0)
+   
+   CC=2 : PC=1
+   Fade 1,$0,$AAA,$110,$221,$332,$443,$F00,$8D,$DB0,$F7A,$B60,$C4F,CUBE_COL(0,CC),CUBE_COL(1,CC),CUBE_COL(2,CC),CUBE_COL(3,CC),$0,$111,_POINTER_COL(0,PC),_POINTER_COL(1,PC),$888,$0,$A00,$69,$A80,$B57,$840,$93C,$410,$720,$A30,$C50
+   Wait 15
+   
+   Repeat 
+      A$=Inkey$
+      SCAN=Scancode
+      _MOUSE_ZONE=Mouse Zone
+   Until(A$="1") or(A$="2") or(SCAN=69) or(Mouse Key and(_MOUSE_ZONE>0))
+   Fade 1 : Wait 15
+   
+   If SCAN<>69
+      If(A$="1") or(_MOUSE_ZONE=1)
+         _MINES_MAIN
+      Else 
+         MASTERMIND_MAIN
+      End If 
+   End If 
+   
+   Erase All : Edit 
+   
+End Proc
+Procedure _GLOBAL_INITIALIZATION
+   SET_CONSTANTS
+   
+   Screen Open 2,320,256,2,Lowres
+   Flash Off : Curs Off : Hide On 
+   _LOAD_IMAGES_FROM_SOURCE
+End Proc
+Procedure DEFINE_ZONES
+   Reserve Zone 5
+
+   For I=0 To 1
+      Set Zone I+1,10,10+20*I To 35+20,10+20*I+20
+   Next I
+
+End Proc
+
+
+'               ______________________________ 
+'              |                              |  
+'              |          Mines               |  
+'              |______________________________|  
+'
+
+
+Procedure _DRAW_FIELD_AT_THE_BEGINNING_AND_DEFINE_ZONES
+   Reserve Zone X_FIELD*Y_FIELD+4
+
+   WN_X=X_PIX_SIZE/2-10*X_FIELD
+   WN_Y=Y_PIX_SIZE/2-10*Y_FIELD
+   W=WN_X
+   E=W+20
+   For X=1 To X_FIELD
+      N=WN_Y
+      S=N+20
+      For Y=1 To Y_FIELD
+         Set Zone(Y-1)*X_FIELD+X,W,N To E,S
+         Paste Bob W,N,UNKNOWN_IM(Rnd(5-1))
+         N=S : Add S,20
+      Next Y
+      W=E : Add E,20
+   Next X
+
+   SW_Y=WN_Y+20*Y_FIELD-1 : SW_X=WN_X
+   NE_X=WN_X+20*X_FIELD-1 : NE_Y=WN_Y
+   SE_X=NE_X : SE_Y=SW_Y
+
+
+   Ink $C : Draw SW_X-1,SW_Y+1 To WN_X-1,WN_Y-1 : Draw To NE_X+1,NE_Y-1
+   Ink $E : Draw To SE_X+1,SE_Y+1 : Draw To SW_X-1,SW_Y+1
+
+   Ink 1 : Draw SW_X-2,SW_Y+2 To WN_X-2,WN_Y-2 : Draw To NE_X+2,NE_Y-2
+   Ink $D : Draw To SE_X+2,(SE_Y+NE_Y)/2+1 : Ink $C : Draw To SE_X+2,SE_Y+2
+   Draw To(SW_X+SE_X)/2-1,SW_Y+2 : Ink $D : Draw To SW_X-2,SW_Y+2
+
+   Ink 1 : Draw SW_X-3,SW_Y+3 To WN_X-3,WN_Y-3 : Draw To NE_X+3,NE_Y-3
+   Ink $D : Draw To SE_X+3,(SE_Y+NE_Y)/2-3 : Ink $C : Draw To SE_X+3,SE_Y+3
+   Draw To(SW_X+SE_X)/2-3,SW_Y+3 : Ink $D : Draw To SW_X-3,SW_Y+3
+
+   Ink 2 : Box WN_X-4,WN_Y-4 To SE_X+4,SE_Y+4
+   Draw SW_X-3,SW_Y+5 To SE_X+5,SE_Y+5 : Draw To NE_X+5,NE_Y-3
+   Ink $1C : Draw SW_X-2,SW_Y+6 To SE_X+6,SE_Y+6 : Draw To NE_X+6,NE_Y-2
+
+   For I=0 To 3
+      Set Zone _FIELD_SPACE+I+1,I*9+1,1 To I*9+8,13
+   Next I
+End Proc
+Procedure FIND_ZERO
+   ZERO_X=0 : ZERO_Y=0
+   For Y=1 To Y_FIELD
+      For X=1 To X_FIELD
+         If _MINE_COUNT(X,Y)=0
+            ZERO_X=X
+            ZERO_Y=Y
+            Pop Proc
+         End If 
+      Next X
+   Next Y
+End Proc
+Procedure _SCROLL_TO_ZERO_AND_DO_CLICK
+   X_Z=WN_X+(ZERO_X-1)*20-160
+   Y_Z=WN_Y+(ZERO_Y-1)*20-128
+   X_Z=Max(0,X_Z) : X_Z=Min(X_PIX_SIZE-320,X_Z)
+   Y_Z=Max(0,Y_Z) : Y_Z=Min(Y_PIX_SIZE-256,Y_Z)
+   X_Z=(X_Z/8)*8
+   Y_Z=(Y_Z/8)*8
+   X_WINDOW_POS=(X_WINDOW_POS/8)*8
+   Y_WINDOW_POS=(Y_WINDOW_POS/8)*8
+
+   X_ADDER=Sgn(X_Z-X_WINDOW_POS)*8
+   Y_ADDER=Sgn(Y_Z-Y_WINDOW_POS)*8
+
+   Screen Offset 1,X_WINDOW_POS,Y_WINDOW_POS
+   Repeat 
+      Wait Vbl 
+      If X_WINDOW_POS<>X_Z
+         Add X_WINDOW_POS,X_ADDER
+      End If 
+      If Y_WINDOW_POS<>Y_Z
+         Add Y_WINDOW_POS,Y_ADDER
+      End If 
+      Screen Offset 1,X_WINDOW_POS,Y_WINDOW_POS
+   Until(X_WINDOW_POS=X_Z) and(Y_WINDOW_POS=Y_Z)
+
+   _FORBIDEN_CLICK=-1
+   _FORBID_COUNTER=1
+   _MOUSE_ZONE=(ZERO_Y-1)*X_FIELD+ZERO_X
+   _MOUSE_CLICK=1
+End Proc
+Procedure _GENERATE_MINES_AND_SET_MINECOUNTS
+   'Fligna.. pouzijeme _view_state na pocitani min, pak ho uvolnime 
+
+   For X=1-1 To X_FIELD+1
+      For Y=1-1 To Y_FIELD+1
+         _VIEW_STATE(X,Y)=0
+      Next Y
+   Next X
+
+   Randomize(Timer)
+   For M=1 To _TOTAL_MINES
+      Repeat 
+         X=Rnd(X_FIELD-1)+1
+         Y=Rnd(Y_FIELD-1)+1
+      Until _VIEW_STATE(X,Y)<1
+      _VIEW_STATE(X,Y)=1
+   Next M
+
+   For X=1 To X_FIELD
+      For Y=1 To Y_FIELD
+         If _VIEW_STATE(X,Y)=1
+            _MINE_COUNT(X,Y)=$10
+         Else 
+            T=_VIEW_STATE(X,Y+1)+_VIEW_STATE(X-1,Y+1)+_VIEW_STATE(X+1,Y+1)+_VIEW_STATE(X,Y-1)
+            T=T+_VIEW_STATE(X-1,Y-1)+_VIEW_STATE(X+1,Y-1)+_VIEW_STATE(X-1,Y)+_VIEW_STATE(X+1,Y)
+            _MINE_COUNT(X,Y)=T
+         End If 
+      Next Y
+   Next X
+
+   For X=1 To X_FIELD
+      For Y=1 To Y_FIELD
+         _VIEW_STATE(X,Y)=UNKNOWN_VS
+      Next Y
+   Next X
+
+   '              ######################### 
+   '              ### Borders are known ### 
+   '              ######################### 
+
+   For X=1-1 To X_FIELD+1
+      _VIEW_STATE(X,0)=KNOWN_VS
+      _VIEW_STATE(X,Y_FIELD+1)=KNOWN_VS
+   Next X
+
+   For Y=1-1 To Y_FIELD+1
+      _VIEW_STATE(0,Y)=KNOWN_VS
+      _VIEW_STATE(X_FIELD+1,Y)=KNOWN_VS
+   Next Y
+
+End Proc
+Procedure _DO_REVEALING
+   _TO_REVEAL_POS=1
+   I=1
+   While I<=_TO_REVEAL_POS
+      R_X=_TO_REVEAL_X(I)
+      R_Y=_TO_REVEAL_Y(I)
+      
+      If _VIEW_STATE(R_X,R_Y-1)=UNKNOWN_VS
+         MC=_MINE_COUNT(R_X,R_Y-1)
+         If MC=0
+            Inc _TO_REVEAL_POS
+            _TO_REVEAL_X(_TO_REVEAL_POS)=R_X
+            _TO_REVEAL_Y(_TO_REVEAL_POS)=R_Y-1
+         Else If MC=$10
+            Paste Bob WN_X+(R_X-1)*20,WN_Y+(R_Y-1-1)*20,DARK_MINE_IM
+            _END_OF_GAME=-1
+            Pop Proc
+         End If 
+         If MC=0 : MC=ZERO_IM(Rnd(5-1))-1 : End If 
+         Paste Bob WN_X+(R_X-1)*20,WN_Y+(R_Y-1-1)*20,1+MC
+         _VIEW_STATE(R_X,R_Y-1)=KNOWN_VS
+         Dec UNKNOWN_MINES
+      End If 
+      If _VIEW_STATE(R_X+1,R_Y-1)=UNKNOWN_VS
+         MC=_MINE_COUNT(R_X+1,R_Y-1)
+         If MC=0
+            Inc _TO_REVEAL_POS
+            _TO_REVEAL_X(_TO_REVEAL_POS)=R_X+1
+            _TO_REVEAL_Y(_TO_REVEAL_POS)=R_Y-1
+         Else If MC=$10
+            Paste Bob WN_X+(R_X+1-1)*20,WN_Y+(R_Y-1-1)*20,DARK_MINE_IM
+            _END_OF_GAME=-1
+            Pop Proc
+         End If 
+         If MC=0 : MC=20+Rnd(5-1) : End If 
+         Paste Bob WN_X+(R_X+1-1)*20,WN_Y+(R_Y-1-1)*20,1+MC
+         _VIEW_STATE(R_X+1,R_Y-1)=KNOWN_VS
+         Dec UNKNOWN_MINES
+      End If 
+      If _VIEW_STATE(R_X+1,R_Y)=UNKNOWN_VS
+         MC=_MINE_COUNT(R_X+1,R_Y)
+         If MC=0
+            Inc _TO_REVEAL_POS
+            _TO_REVEAL_X(_TO_REVEAL_POS)=R_X+1
+            _TO_REVEAL_Y(_TO_REVEAL_POS)=R_Y
+         Else If MC=$10
+            Paste Bob WN_X+(R_X+1-1)*20,WN_Y+(R_Y-1)*20,DARK_MINE_IM
+            _END_OF_GAME=-1
+            Pop Proc
+         End If 
+         If MC=0 : MC=20+Rnd(5-1) : End If 
+         Paste Bob WN_X+(R_X+1-1)*20,WN_Y+(R_Y-1)*20,1+MC
+         _VIEW_STATE(R_X+1,R_Y)=KNOWN_VS
+         Dec UNKNOWN_MINES
+      End If 
+      If _VIEW_STATE(R_X+1,R_Y+1)=UNKNOWN_VS
+         MC=_MINE_COUNT(R_X+1,R_Y+1)
+         If MC=0
+            Inc _TO_REVEAL_POS
+            _TO_REVEAL_X(_TO_REVEAL_POS)=R_X+1
+            _TO_REVEAL_Y(_TO_REVEAL_POS)=R_Y+1
+         Else If MC=$10
+            Paste Bob WN_X+(R_X+1-1)*20,WN_Y+(R_Y+1-1)*20,DARK_MINE_IM
+            _END_OF_GAME=-1
+            Pop Proc
+         End If 
+         If MC=0 : MC=20+Rnd(5-1) : End If 
+         Paste Bob WN_X+(R_X+1-1)*20,WN_Y+(R_Y+1-1)*20,1+MC
+         _VIEW_STATE(R_X+1,R_Y+1)=KNOWN_VS
+         Dec UNKNOWN_MINES
+      End If 
+      If _VIEW_STATE(R_X,R_Y+1)=UNKNOWN_VS
+         MC=_MINE_COUNT(R_X,R_Y+1)
+         If MC=0
+            Inc _TO_REVEAL_POS
+            _TO_REVEAL_X(_TO_REVEAL_POS)=R_X
+            _TO_REVEAL_Y(_TO_REVEAL_POS)=R_Y+1
+         Else If MC=$10
+            Paste Bob WN_X+(R_X-1)*20,WN_Y+(R_Y+1-1)*20,DARK_MINE_IM
+            _END_OF_GAME=-1
+            Pop Proc
+         End If 
+         If MC=0 : MC=20+Rnd(5-1) : End If 
+         Paste Bob WN_X+(R_X-1)*20,WN_Y+(R_Y+1-1)*20,1+MC
+         _VIEW_STATE(R_X,R_Y+1)=KNOWN_VS
+         Dec UNKNOWN_MINES
+      End If 
+      If _VIEW_STATE(R_X-1,R_Y+1)=UNKNOWN_VS
+         MC=_MINE_COUNT(R_X-1,R_Y+1)
+         If MC=0
+            Inc _TO_REVEAL_POS
+            _TO_REVEAL_X(_TO_REVEAL_POS)=R_X-1
+            _TO_REVEAL_Y(_TO_REVEAL_POS)=R_Y+1
+         Else If MC=$10
+            Paste Bob WN_X+(R_X-1-1)*20,WN_Y+(R_Y+1-1)*20,DARK_MINE_IM
+            _END_OF_GAME=-1
+            Pop Proc
+         End If 
+         If MC=0 : MC=20+Rnd(5-1) : End If 
+         Paste Bob WN_X+(R_X-1-1)*20,WN_Y+(R_Y+1-1)*20,1+MC
+         _VIEW_STATE(R_X-1,R_Y+1)=KNOWN_VS
+         Dec UNKNOWN_MINES
+      End If 
+      If _VIEW_STATE(R_X-1,R_Y)=UNKNOWN_VS
+         MC=_MINE_COUNT(R_X-1,R_Y)
+         If MC=0
+            Inc _TO_REVEAL_POS
+            _TO_REVEAL_X(_TO_REVEAL_POS)=R_X-1
+            _TO_REVEAL_Y(_TO_REVEAL_POS)=R_Y
+         Else If MC=$10
+            Paste Bob WN_X+(R_X-1-1)*20,WN_Y+(R_Y-1)*20,DARK_MINE_IM
+            _END_OF_GAME=-1
+            Pop Proc
+         End If 
+         If MC=0 : MC=20+Rnd(5-1) : End If 
+         Paste Bob WN_X+(R_X-1-1)*20,WN_Y+(R_Y-1)*20,1+MC
+         _VIEW_STATE(R_X-1,R_Y)=KNOWN_VS
+         Dec UNKNOWN_MINES
+      End If 
+      If _VIEW_STATE(R_X-1,R_Y-1)=UNKNOWN_VS
+         MC=_MINE_COUNT(R_X-1,R_Y-1)
+         If MC=0
+            Inc _TO_REVEAL_POS
+            _TO_REVEAL_X(_TO_REVEAL_POS)=R_X-1
+            _TO_REVEAL_Y(_TO_REVEAL_POS)=R_Y-1
+         Else If MC=$10
+            Paste Bob WN_X+(R_X-1-1)*20,WN_Y+(R_Y-1-1)*20,DARK_MINE_IM
+            _END_OF_GAME=-1
+            Pop Proc
+         End If 
+         If MC=0 : MC=20+Rnd(5-1) : End If 
+         Paste Bob WN_X+(R_X-1-1)*20,WN_Y+(R_Y-1-1)*20,1+MC
+         _VIEW_STATE(R_X-1,R_Y-1)=KNOWN_VS
+         Dec UNKNOWN_MINES
+      End If 
+      Inc I
+   Wend 
+End Proc
+Procedure _ENTERING_NEW_SIZES
+   X_WINDOW_POS=(X_WINDOW_POS/8)*8
+   Y_WINDOW_POS=(Y_WINDOW_POS/8)*8
+   Screen Offset 1,X_WINDOW_POS,Y_WINDOW_POS
+   Repeat 
+      Wait Vbl 
+      If X_WINDOW_POS>0
+         Add X_WINDOW_POS,-8
+      End If 
+      If Y_WINDOW_POS>0
+         Add Y_WINDOW_POS,-8
+      End If 
+      Screen Offset 1,X_WINDOW_POS,Y_WINDOW_POS
+   Until(X_WINDOW_POS=0) and(Y_WINDOW_POS=0)
+   
+   Paper 0 : Pen $F
+   Locate 0,0 : Print Space$(40)
+   Locate 0,1 : Print Space$(40)
+   Locate 0,2 : Print Space$(40)
+   Locate 0,3 : Print Space$(40)
+   Ink $1C : Draw 0,4*8 To 320,4*8
+   Locate 0,0 : Print "New X size:"; : Input _NEW_X
+   Locate 0,1 : Print "New Y size:"; : Input _NEW_Y
+   Locate 0,2 : Print "Mines in field:"; : Input _NEW_MINES#
+
+   _NEW_X=Min(_MAX_X_SIZE,_NEW_X)
+   _NEW_Y=Min(_MAX_Y_SIZE,_NEW_Y)
+   _NEW_X=Max(2,_NEW_X)
+   _NEW_Y=Max(2,_NEW_Y)
+
+   If _NEW_MINES#>=1
+      _NEW_MINES=_NEW_MINES#
+      _NEW_MINES=Min(_NEW_MINES,_NEW_X*_NEW_Y/2)
+   Else 
+      _NEW_MINES=_NEW_X*_NEW_Y*_NEW_MINES#
+   End If 
+   _NEW_MINES=Max(_NEW_MINES,1)
+
+   _MOUSE_CLICK=$10 : _MOUSE_ZONE=1
+   _FORBIDEN_CLICK=True
+End Proc
+Procedure _WAIT_FOR_THE_CLICK
+   Repeat 
+      _SCROLLED_THIS_TIME=False
+      
+      A$=Inkey$ : A$=Lower$(A$)
+      SCAN=Scancode
+
+      If A$="z" or(Mouse Zone=_FIELD_SPACE+1) and(Mouse Key>0)
+         FIND_ZERO
+         If ZERO_X>0
+            _SCROLL_TO_ZERO_AND_DO_CLICK
+         End If 
+         Clear Key : Wait 5
+      Else If A$="c" or(Mouse Zone=_FIELD_SPACE+2) and(Mouse Key>0)
+         Add _POINTER_COLOUR,1,0 To _POINTER_COLOURS-1
+         PC=_POINTER_COLOUR
+         Fade 1,,,,,,,,,,,,,,,,,,,_POINTER_COL(0,PC),_POINTER_COL(1,PC)
+         Clear Key : Wait 10
+      Else If A$="p" or(Mouse Zone=_FIELD_SPACE+3) and(Mouse Key>0)
+         Add _POINTER_SHAPE,1,1 To _POINTER_SHAPES
+         Change Mouse 3+100-1+_POINTER_SHAPE
+         Clear Key : Wait 5
+      Else If A$="f" or(Mouse Zone=_FIELD_SPACE+4) and(Mouse Key>0)
+         _ENTERING_NEW_SIZES
+      Else If SCAN=69
+         Erase All : End 
+      End If 
+      
+      If X_SCROLLING
+         X_MOUSE=X Mouse-X Hard(0)
+         If(X_WINDOW_POS>0) and(X_MOUSE<_SCROLL_EDGE)
+            Add X_WINDOW_POS,-4
+            _SCROLLED_THIS_TIME=-1
+         End If 
+         If(X_WINDOW_POS<(X_PIX_SIZE-320)) and(X_MOUSE>(320-_SCROLL_EDGE))
+            Add X_WINDOW_POS,4
+            _SCROLLED_THIS_TIME=-1
+         End If 
+         If(X_WINDOW_POS>0) and(X_MOUSE<FAST_SCROLL_EDGE)
+            If(X_WINDOW_POS mod 8)=0
+               Add X_WINDOW_POS,-8
+            Else 
+               Add X_WINDOW_POS,-4
+            End If 
+            _SCROLLED_THIS_TIME=-1
+         End If 
+         If(X_WINDOW_POS<(X_PIX_SIZE-320)) and(X_MOUSE>(320-FAST_SCROLL_EDGE))
+            If(X_WINDOW_POS mod 8)=0
+               Add X_WINDOW_POS,8
+            Else 
+               Add X_WINDOW_POS,4
+            End If 
+            _SCROLLED_THIS_TIME=-1
+         End If 
+      End If 
+      
+      If Y_SCROLLING
+         Y_MOUSE=Y Mouse-42
+         If(Y_WINDOW_POS>0) and(Y_MOUSE<_SCROLL_EDGE)
+            Add Y_WINDOW_POS,-4
+            _SCROLLED_THIS_TIME=-1
+         End If 
+         If(Y_WINDOW_POS<(Y_PIX_SIZE-256)) and(Y_MOUSE>(256-_SCROLL_EDGE))
+            Add Y_WINDOW_POS,4
+            _SCROLLED_THIS_TIME=-1
+         End If 
+         If(Y_WINDOW_POS>0) and(Y_MOUSE<FAST_SCROLL_EDGE)
+            If(Y_WINDOW_POS mod 8)=0
+               Add Y_WINDOW_POS,-8
+            Else 
+               Add Y_WINDOW_POS,-4
+            End If 
+            _SCROLLED_THIS_TIME=-1
+         End If 
+         If(Y_WINDOW_POS<(Y_PIX_SIZE-256)) and(Y_MOUSE>(256-FAST_SCROLL_EDGE))
+            If(Y_WINDOW_POS mod 8)=0
+               Add Y_WINDOW_POS,8
+            Else 
+               Add Y_WINDOW_POS,4
+            End If 
+            _SCROLLED_THIS_TIME=-1
+         End If 
+      End If 
+      
+      If _SCROLLED_THIS_TIME
+         Screen Offset 1,X_WINDOW_POS,Y_WINDOW_POS
+         _FORBIDEN_CLICK=True
+         _FORBID_COUNTER=_FORBID_TIME
+         Wait Vbl 
+      Else 
+         If _FORBIDEN_CLICK
+            Dec _FORBID_COUNTER
+            If _FORBID_COUNTER=0 : _FORBIDEN_CLICK=False : End If 
+         Else 
+            _MOUSE_CLICK=Mouse Key
+            _MOUSE_ZONE=Mouse Zone
+         End If 
+      End If 
+      
+   Until(_MOUSE_CLICK>0) and(_MOUSE_ZONE>0) and(_MOUSE_ZONE<=_FIELD_SPACE)
+   
+End Proc
+Procedure CLEAR_FULL_SQUARE
+   T=_VIEW_STATE(X,Y+1)+_VIEW_STATE(X-1,Y+1)+_VIEW_STATE(X+1,Y+1)+_VIEW_STATE(X,Y-1)
+   T=T+_VIEW_STATE(X-1,Y-1)+_VIEW_STATE(X+1,Y-1)+_VIEW_STATE(X-1,Y)+_VIEW_STATE(X+1,Y)
+   If((T and $F)=_MINE_COUNT(X,Y))
+      _TO_REVEAL_X(1)=X
+      _TO_REVEAL_Y(1)=Y
+      _DO_REVEALING
+   Else If((_MOUSE_CLICK and 2)=2) and((8-(T and $F0)/$10)=_MINE_COUNT(X,Y))
+      If _VIEW_STATE(X,Y-1)=UNKNOWN_VS
+         Paste Bob WN_X+(X-1)*20,WN_Y+(Y-1-1)*20,LIGHT_MINE_IM(Rnd(5-1))
+         _VIEW_STATE(X,Y-1)=SIGNED_VS
+      End If 
+      If _VIEW_STATE(X+1,Y-1)=UNKNOWN_VS
+         Paste Bob WN_X+(X+1-1)*20,WN_Y+(Y-1-1)*20,LIGHT_MINE_IM(Rnd(5-1))
+         _VIEW_STATE(X+1,Y-1)=SIGNED_VS
+      End If 
+      If _VIEW_STATE(X+1,Y)=UNKNOWN_VS
+         Paste Bob WN_X+(X+1-1)*20,WN_Y+(Y-1)*20,LIGHT_MINE_IM(Rnd(5-1))
+         _VIEW_STATE(X+1,Y)=SIGNED_VS
+      End If 
+      If _VIEW_STATE(X+1,Y+1)=UNKNOWN_VS
+         Paste Bob WN_X+(X+1-1)*20,WN_Y+(Y+1-1)*20,LIGHT_MINE_IM(Rnd(5-1))
+         _VIEW_STATE(X+1,Y+1)=SIGNED_VS
+      End If 
+      If _VIEW_STATE(X,Y+1)=UNKNOWN_VS
+         Paste Bob WN_X+(X-1)*20,WN_Y+(Y+1-1)*20,LIGHT_MINE_IM(Rnd(5-1))
+         _VIEW_STATE(X,Y+1)=SIGNED_VS
+      End If 
+      If _VIEW_STATE(X-1,Y+1)=UNKNOWN_VS
+         Paste Bob WN_X+(X-1-1)*20,WN_Y+(Y+1-1)*20,LIGHT_MINE_IM(Rnd(5-1))
+         _VIEW_STATE(X-1,Y+1)=SIGNED_VS
+      End If 
+      If _VIEW_STATE(X-1,Y)=UNKNOWN_VS
+         Paste Bob WN_X+(X-1-1)*20,WN_Y+(Y-1)*20,LIGHT_MINE_IM(Rnd(5-1))
+         _VIEW_STATE(X-1,Y)=SIGNED_VS
+      End If 
+      If _VIEW_STATE(X-1,Y-1)=UNKNOWN_VS
+         Paste Bob WN_X+(X-1-1)*20,WN_Y+(Y-1-1)*20,LIGHT_MINE_IM(Rnd(5-1))
+         _VIEW_STATE(X-1,Y-1)=SIGNED_VS
+      End If 
+   End If 
+End Proc
+Procedure _PRINT_PLAY_AGAIN_REQUEST
+   If WON
+      Change Mouse 102+8
+      Fade 1,,,,,,,,,,,,,,,,,,,$F80,$FC5
+   Else 
+      Change Mouse 102+7
+      Fade 1,,,,,,,,,,,,,,,,,,,$A97,$DDC
+   End If 
+End Proc
+Procedure _MINES_GAME
+   _END_OF_GAME=False
+   WON=False
+   
+   Repeat 
+      _WAIT_FOR_THE_CLICK
+      
+      X=((_MOUSE_ZONE-1) mod X_FIELD)+1
+      Y=((_MOUSE_ZONE-1)/X_FIELD)+1
+      
+      If _VIEW_STATE(X,Y)=SIGNED_VS
+         If(_MOUSE_CLICK and $1)=1
+            Paste Bob WN_X+(X-1)*20,WN_Y+(Y-1)*20,UNKNOWN_IM(Rnd(5-1))
+            _VIEW_STATE(X,Y)=UNKNOWN_VS
+            Wait 10
+         End If 
+      Else If _VIEW_STATE(X,Y)=UNKNOWN_VS
+         If(_MOUSE_CLICK and $1)=1
+            If _MINE_COUNT(X,Y)=$10
+               Paste Bob WN_X+(X-1)*20,WN_Y+(Y-1)*20,DARK_MINE_IM
+               _END_OF_GAME=-1
+            Else 
+               MC=_MINE_COUNT(X,Y)
+               If MC=0 : MC=ZERO_IM(Rnd(5-1))-1 : End If 
+               Paste Bob WN_X+(X-1)*20,WN_Y+(Y-1)*20,1+MC
+               _VIEW_STATE(X,Y)=KNOWN_VS
+               Dec UNKNOWN_MINES
+               If _MINE_COUNT(X,Y)=0
+                  _TO_REVEAL_X(1)=X
+                  _TO_REVEAL_Y(1)=Y
+                  _DO_REVEALING
+               End If 
+            End If 
+         Else If(_MOUSE_CLICK and $2)=2
+            VS=_VIEW_STATE(X,Y)
+            If VS=UNKNOWN_VS
+               Paste Bob WN_X+(X-1)*20,WN_Y+(Y-1)*20,LIGHT_MINE_IM(Rnd(5-1))
+               _VIEW_STATE(X,Y)=SIGNED_VS
+            End If 
+         End If 
+      Else 
+         If(_MOUSE_CLICK and 2)=2
+            CLEAR_FULL_SQUARE
+         End If 
+      End If 
+      
+      If(UNKNOWN_MINES=0) or(_MOUSE_CLICK=$10)
+         _END_OF_GAME=-1
+         WON=-1
+      End If 
+      
+      If(_MOUSE_CLICK=$10)
+         _END_OF_GAME=-1
+      End If 
+      
+   Until _END_OF_GAME
+End Proc
+Procedure _MINES_MAIN
+   
+   _FORBID_TIME=10
+   FAST_SCROLL_EDGE=6
+   _SCROLL_EDGE=20
+   
+   _POINTER_SHAPE=1
+   _POINTER_COLOUR=0
+   
+   _CLOSE_SCREEN_2=-1
+   X_FIELD=30 : Y_FIELD=20 : _MINE_PERCENT#=0.25
+   _TOTAL_MINES=X_FIELD*Y_FIELD*_MINE_PERCENT#
+
+   Repeat 
+      If Not _CLOSE_SCREEN_2
+         Screen Open 2,320,256,2,Lowres
+         _CLOSE_SCREEN_2=-1
+      End If 
+      
+      X_SCROLLING=False
+      Y_SCROLLING=False
+      
+      X_PIX_SIZE=320 : Y_PIX_SIZE=256
+      If X_FIELD>15
+         X_PIX_SIZE=X_FIELD*20+40
+         X_SCROLLING=-1
+      End If 
+      If Y_FIELD>11
+         Y_PIX_SIZE=Y_FIELD*20+40
+         Y_SCROLLING=-1
+      End If 
+      
+      X_WINDOW_POS=0 : Y_WINDOW_POS=0
+
+      _FIELD_SPACE=X_FIELD*Y_FIELD
+      UNKNOWN_MINES=_FIELD_SPACE-_TOTAL_MINES
+
+      
+      Screen Open 1,X_PIX_SIZE,Y_PIX_SIZE,32,Lowres
+      Flash Off : Curs Off 
+      Screen Display 1,128,42,320,256
+      Screen Offset 1,X_WINDOW_POS,Y_WINDOW_POS
+      Limit Mouse 0,0 To 320+128,256+42
+      Change Mouse 3+100-1+_POINTER_SHAPE
+      
+      If _CLOSE_SCREEN_2
+         _CLOSE_SCREEN_2=False
+         Screen Close 2
+      End If 
+      
+      _GENERATE_MINES_AND_SET_MINECOUNTS
+      _DRAW_LAWN
+      Paste Bob 1,1,BUTTONS_IM
+      _DRAW_FIELD_AT_THE_BEGINNING_AND_DEFINE_ZONES
+      
+      Show On 
+
+      PC=_POINTER_COLOUR
+      CC=Rnd(CUBE_COLOURS-1)
+      Fade 1,$0,$AAA,$110,$221,$332,$443,$F00,$8D,$DB0,$F7A,$B60,$C4F,CUBE_COL(0,CC),CUBE_COL(1,CC),CUBE_COL(2,CC),CUBE_COL(3,CC),$0,$111,_POINTER_COL(0,PC),_POINTER_COL(1,PC),$888,$0,$A00,$69,$A80,$B57,$840,$93C,$630,$940,$C50,$E70
+      
+      Wait 15
+      
+      _FORBIDEN_CLICK=False
+      _MOUSE_CLICK=0
+      _MINES_GAME
+      
+      If _MOUSE_CLICK=$10
+         X_FIELD=_NEW_X
+         Y_FIELD=_NEW_Y
+         _TOTAL_MINES=_NEW_MINES
+      Else 
+         _PRINT_PLAY_AGAIN_REQUEST
+         Clear Key : Wait 20
+         Repeat 
+            A$=Inkey$
+            SCAN=Scancode
+            _MOUSE_CLICK=Mouse Key
+         Until A$<>"" or(SCAN=69) or(_MOUSE_CLICK>0)
+      End If 
+      
+   Until(SCAN=69)
+End Proc
+
+'               ______________________________ 
+'              |                              |  
+'              |        MASTER MIND           |  
+'              |______________________________|  
+
+
+Procedure MASTERMIND_GLOBAL_INITIALIZATION
+   Screen Open 1,320,256,32,Lowres
+   Flash Off : Curs Off : Show On 
+   Screen Close 2
+   
+   Limit Mouse 0,0 To 128+320,320
+   
+   _COLOURS=8
+   BALLS=5
+   _ATTEMPTS=10
+End Proc
+Procedure _DRAW_SHADE[LC_X,LC_Y,UC_X,UC_Y]
+   Ink 0 : Polyline LC_X,LC_Y To UC_X,LC_Y To UC_X,UC_Y
+   Polyline LC_X+1,LC_Y+1 To UC_X+1,LC_Y+1 To UC_X+1,UC_Y+1
+   Ink $1C : Polyline LC_X+2,LC_Y+2 To UC_X+2,LC_Y+2 To UC_X+2,UC_Y+2
+End Proc
+Procedure MASTERMIND_DEFINE_ZONES
+   Reserve Zone 300
+   For I=0 To _COLOURS-1
+      Set Zone I+1,20*I,0 To 20*I+20,20
+   Next I
+
+   For _ATTEMPT=0 To _ATTEMPTS-1
+      For X=0 To 5-1
+         Set Zone 50+_ATTEMPT*10+X,5+X*20,30+_ATTEMPT*20 To 5+X*20+20,30+_ATTEMPT*20+20
+      Next X
+
+      Set Zone 20+_ATTEMPT,5+BALLS*20+10,30+_ATTEMPT*20 To 5+BALLS*20+30+20,30+_ATTEMPT*20+20
+
+   Next _ATTEMPT
+
+End Proc
+Procedure MASTERMIND_MAIN
+   MASTERMIND_GLOBAL_INITIALIZATION
+   Repeat 
+      MASTERMIND_INITIALIZE_GAME
+      MASTERMIND_GAME
+   Until GAME_ABORTED
+End Proc
+Procedure MASTERMIND_DRAW_MAIN_SCREEN
+   _POINTER_SHAPE=1
+   Change Mouse 3+100-1+_POINTER_SHAPE
+
+   X_SCROLLING=False : Y_SCROLLING=False
+   X_PIX_SIZE=320 : Y_PIX_SIZE=256
+   _DRAW_LAWN
+
+   For I=0 To _COLOURS-1
+      Paste Bob 5+20*I,5,_COLOUR_BALL_IM(I)
+   Next I
+
+   Paper 0
+   
+   For _ATTEMPT=0 To _ATTEMPTS-1
+      For X=0 To BALLS-1
+         Paste Bob 5+X*20,30+_ATTEMPT*20,ZERO_IM(Rnd(5-1))
+      Next X
+      Paste Bob 5+BALLS*20+10,30+_ATTEMPT*20,ZERO_IM(Rnd(5-1))
+      Paste Bob 5+BALLS*20+30,30+_ATTEMPT*20,ZERO_IM(Rnd(5-1))
+   Next _ATTEMPT
+
+   _DRAW_SHADE[5+1,30+_ATTEMPTS*20,5+BALLS*20,30+1]
+   _DRAW_SHADE[5+BALLS*20+10+1,30+_ATTEMPTS*20,5+BALLS*20+30+20,30+1]
+   _DRAW_SHADE[5+1,25,5+_COLOURS*20,5+1]
+
+End Proc
+Procedure MASTERMIND_INITIALIZE_GAME
+   MASTERMIND_DRAW_MAIN_SCREEN
+   MASTERMIND_DEFINE_ZONES
+
+   HARD_FITTED=0
+   SOFT_FITTED=0
+
+   Restore TEST
+   For I=0 To BALLS-1
+      HIDDEN_BALL(I)=Rnd(_COLOURS-1)
+      CURRENT_BALL(I)=0
+   Next I
+
+   BALL_IN_MOUSE=0
+   _ATTEMPT=0
+   
+   TEST:
+   Data 7,3,7,0,7
+End Proc
+Procedure MASTERMIND_GAME
+   
+   For X=0 To BALLS-1
+      Paste Bob 5+X*20,30+_ATTEMPT*20,_COLOUR_BALL_IM(CURRENT_BALL(X))
+   Next X
+   Paste Bob 5+BALLS*20+10,30+_ATTEMPT*20,TRY_IM
+   Paste Bob 5+BALLS*20+30,30+_ATTEMPT*20,TRY_IM
+   
+   
+   CC=2 : PC=1
+   Fade 1,$0,$AAA,$110,$221,$332,$443,$F00,$8D,$DB0,$F7A,$B60,$C4F,CUBE_COL(0,CC),CUBE_COL(1,CC),CUBE_COL(2,CC),CUBE_COL(3,CC),$0,$111,_POINTER_COL(0,PC),_POINTER_COL(1,PC),$888,$0,$A00,$69,$A80,$B57,$840,$93C,$410,$720,$A30,$C50
+   Wait 15
+   
+   Repeat 
+      Repeat 
+         GAME_ABORTED=Key State(69)
+         _MOUSE_ZONE=Mouse Zone
+         _MOUSE_KEY=Mouse Key
+         TEST=(_MOUSE_KEY>0) and(_MOUSE_ZONE>0) or GAME_ABORTED
+      Until TEST
+      
+      If GAME_ABORTED=False
+         If(_MOUSE_KEY and 1)=1
+            If((_MOUSE_ZONE/10)=5)
+               X=_MOUSE_ZONE mod 10
+               CURRENT_BALL(X)=BALL_IN_MOUSE
+               Paste Bob 5+X*20,30,_COLOUR_BALL_IM(CURRENT_BALL(X))
+            Else If _MOUSE_ZONE<_COLOURS+1
+               BALL_IN_MOUSE=_MOUSE_ZONE-1
+               Fade 1,,,,,,,,,,,,,,,,,,,BALL_COLOUR_DARK(BALL_IN_MOUSE),BALL_COLOUR_LIGHT(BALL_IN_MOUSE)
+               Clear Key : Wait 10
+               Wait 5
+            Else If(_MOUSE_ZONE-20)=0 : Rem        TRY COMBINATION 
+               _PLAYER_TRIED_COMBINATION
+            End If 
+         Else 
+            If((_MOUSE_ZONE/10)=5) : Rem       RECOLOR POINTER
+               X=_MOUSE_ZONE mod 10
+               BALL_IN_MOUSE=CURRENT_BALL(X)
+               Fade 1,,,,,,,,,,,,,,,,,,,BALL_COLOUR_DARK(BALL_IN_MOUSE),BALL_COLOUR_LIGHT(BALL_IN_MOUSE)
+               Clear Key : Wait 10
+               Wait 5
+            End If 
+         End If 
+      End If 
+   Until GAME_ABORTED or(HARD_FITTED=5)
+   
+   If(HARD_FITTED=5)
+      WON=True
+      _PRINT_PLAY_AGAIN_REQUEST
+      Clear Key : Wait 20
+      Repeat 
+         A$=Inkey$
+         SCAN=Scancode
+         _MOUSE_CLICK=Mouse Key
+      Until A$<>"" or(SCAN=69) or(_MOUSE_CLICK>0)
+   End If 
+   Fade 1 : Wait 15
+   
+End Proc
+Procedure _PLAYER_TRIED_COMBINATION
+   
+   Paste Bob 5+BALLS*20+10,30,TRY2_IM
+   Paste Bob 5+BALLS*20+30,30,TRY2_IM
+   Wait 5
+   
+   ' Count numbers of hard fitted balls and soft fitted balls.
+   
+   
+   HARD_FITTED=0
+   SOFT_FITTED=0
+   For X=0 To BALLS-1
+      _COPY_OF_HIDDEN_BALL(X)=HIDDEN_BALL(X)
+      _COPY_OF_CURRENT_BALL(X)=CURRENT_BALL(X)
+      If _COPY_OF_CURRENT_BALL(X)=_COPY_OF_HIDDEN_BALL(X)
+         Inc HARD_FITTED
+         _COPY_OF_HIDDEN_BALL(X)=$100
+         _COPY_OF_CURRENT_BALL(X)=$101
+      End If 
+   Next X
+   For X=0 To BALLS-1
+      X1=0
+      Repeat 
+         If _COPY_OF_CURRENT_BALL(X)=_COPY_OF_HIDDEN_BALL(X1)
+            Inc SOFT_FITTED
+            _COPY_OF_HIDDEN_BALL(X1)=$100
+            X1=100
+         End If 
+         Inc X1
+      Until X1>BALLS-1
+   Next X
+   
+   Y_COORD=30+(_ATTEMPTS-_ATTEMPT-1)*20
+   Paste Bob 5+BALLS*20+10,Y_COORD,ZERO_IM(Rnd(5-1))
+   Paste Bob 5+BALLS*20+30,Y_COORD,ZERO_IM(Rnd(5-1))
+   If HARD_FITTED>0
+      For I=0 To HARD_FITTED-1
+         Paste Bob 5+BALLS*20+10+INDICATE_PIN_X_OFFSET(I),Y_COORD+INDICATE_PIN_Y_OFFSET(I),HARD_PIN_IM
+      Next I
+   End If 
+   If SOFT_FITTED>0
+      For I=0 To SOFT_FITTED-1
+         Paste Bob 5+BALLS*20+30+INDICATE_PIN_X_OFFSET(I),Y_COORD+INDICATE_PIN_Y_OFFSET(I),SOFT_PIN_IM
+      Next I
+   End If 
+   
+   If HARD_FITTED<5
+      
+      Inc _ATTEMPT
+      If _ATTEMPT<_ATTEMPTS
+         For X=0 To BALLS-1
+            Paste Bob 5+X*20,Y_COORD,_COLOUR_BALL_IM(CURRENT_BALL(X))
+         Next X
+         Paste Bob 5+BALLS*20+10,30,TRY_IM
+         Paste Bob 5+BALLS*20+30,30,TRY_IM
+      Else 
+         GAME_ABORTED=True
+      End If 
+      
+      Wait 5
+   End If 
+End Proc
+
+_GLOBAL_INITIALIZATION
+MAIN
+
+
+
+' @GLOBALS 
+
+Global GAME_PATH$
+
+Global X_PIX_SIZE,Y_PIX_SIZE
+Global X_FIELD,Y_FIELD,_TOTAL_MINES,_MINE_PERCENT#
+Global _END_OF_GAME,WON
+Global WN_X,WN_Y,X,Y
+Global UNKNOWN_MINES
+Global X_SCROLLING,Y_SCROLLING,X_WINDOW_POS,Y_WINDOW_POS
+Global _SCROLL_EDGE,FAST_SCROLL_EDGE
+Global _MOUSE_CLICK,_MOUSE_ZONE
+Global _TO_REVEAL_POS
+Global _FORBIDEN_CLICK,_FORBID_TIME,_FORBID_COUNTER
+Global _POINTER_SHAPE,_POINTER_SHAPES,_POINTER_COLOUR,_POINTER_COLOURS
+Global _NEW_X,_NEW_Y,_NEW_MINES
+Global ZERO_X,ZERO_Y,SCAN,LAWN_IM
+Global _FIELD_SPACE
+
+Global _MINE_COUNT(),_VIEW_STATE(),_TO_REVEAL_X(),_TO_REVEAL_Y()
+Global CUBE_COL()
+
+
+Global HARD_FITTED,SOFT_FITTED
+Global _COLOURS,BALLS,_ATTEMPTS
+Global _ATTEMPT
+Global BALL_IN_MOUSE,GAME_ABORTED
+Global HIDDEN_BALL(),CURRENT_BALL()
+Global _COPY_OF_HIDDEN_BALL(),_COPY_OF_CURRENT_BALL()
+
+Global _COLOUR_BALL_IM(),TRY_IM,TRY2_IM,HARD_PIN_IM,SOFT_PIN_IM
+
+Global INDICATE_PIN_X_OFFSET(),INDICATE_PIN_Y_OFFSET()
+Global BALL_COLOUR_LIGHT(),BALL_COLOUR_DARK()
+
+'############## Constants ################ 
+
+Global UNKNOWN_IM,DARK_MINE_IM,BUTTONS_IM
+Global KNOWN_VS,UNKNOWN_VS,SIGNED_VS
+Global _CLOSE_SCREEN_2
+Global _POINTER_COL()
+Global _MAX_X_SIZE,_MAX_Y_SIZE
+Global UNKNOWN_IM(),LIGHT_MINE_IM(),LAWN_IMAGE()
+Global ZERO_IM()
+Global CUBE_COLOURS
+
+
+
+Global DEBUG_MASTERMIND

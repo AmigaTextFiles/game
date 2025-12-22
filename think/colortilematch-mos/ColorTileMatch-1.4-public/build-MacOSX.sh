@@ -1,0 +1,1 @@
+gcc MacOSX/SDLmain.m src/*.c -framework SDL -framework Cocoa -o bin/ColorTileMatch

@@ -1,0 +1,2869 @@
+AmigaMUD, Copyright 1995 by Chris Gray
+
+
+			The Standard Scenario
+
+
+This file is intended as commentary and explanation of the standard
+scenario sources shipped with AmigaMUD. It cannot explain everything
+in those source files, else it would be a very long boring book. My
+hope is to explain enough of what is done in those files that people
+interested in scenario programming in AmigaMUD can learn from those
+examples, and, if they choose, can program within the framework of the
+standard scenario. The level of detail in these descriptions will
+decrease throughout this file. It is assumed that the reader will
+start at the beginning and read forward, and will understand the early
+material enough to be able to follow similar things without detailed
+explanations.
+
+The structure of the files is such that parts of the scenario can
+easily be left out, and other new parts can, hopefully, be inserted.
+This is done by having two levels of file inclusion, using the wizard-
+mode command "source". The file names are referenced relative to the
+assigned name "ST:", so, in order to create the standard scenario from
+these source files, you will have to have an assign of that name
+pointing to the directory you have the source files in. Note that the
+scenario source files no longer fit on a standard Amiga floppy disk,
+so people with no hard drive or high-density floppy drive will have to
+trim the scenario down, or build it in multiple pieces. I will not
+discuss these difficulties further, and will just assume that the
+reader will be able to make things work out.
+
+To create the standard scenario from the source files, you must:
+
+    - make sure the source files are ready, and assign "ST:" is set
+
+    - choose a directory (I often use the RAM-disk) which the database
+	files are to be created in, and CD to that directory
+
+    - run MUDCre to create the initial database
+
+    - run MUDServ in the background, using "Run". I usually specify a
+	cache size of 500000.
+
+    - enter	[path/]smud <st:go
+
+After a few minutes of work, depending on the speed of your CPU and
+disk, the scenario should be built. If you have modified the scenario
+source files and made errors which the AmigaMUD interpreter detects at
+this point, then you will see error messages coming out. If the number
+of messages is large, and threatens to scroll out of your window, you
+can hit CNTL-C to abort the run. Then, shut down MUDServ (using
+MUDShut or the CLI BREAK command), go fix your errors and try again
+from the "run MUDCre" step.
+
+
+Overall Organization
+
+
+Let's look at the initial file, "st:go" in detail:
+
+ 1 SysAdmin
+ 2 SysAdminPassword
+ 3 ignore RunLimit(100).
+ 4 use Characters
+ 5 public G CreateGrammar().
+ 6 SetContinue(true).
+ 7
+ 8
+ 9 /* the basics of this scenario */
+10 source st:basics.m
+11
+12 /* Combat code - player v.s. machine and player v.s. player. */
+13 source st:combat.m
+14
+15 /* The town */
+16 source st:town.m
+17
+18 /* The Proving Grounds area - 3 quests, weapons, special monsters, etc. */
+19 source st:proving.m
+20
+21 /* The on-line building commands and interactive stuff. Builder's guild. */
+22 source st:build.m
+23
+24 /* newsroom, telegram office - usenet news and email reading/posting. */
+25 source st:usenet.m
+26
+27 SetContinue(false).
+28 NewCreationPassword().
+29
+30
+31
+32 Print("Scenario parsed - flushing database.\n").
+33 Flush().
+34 ignore RunLimit(10).
+35 Print("All done.\n").
+
+When SMUD is run, it does a normal session with AmigaMUD. It first
+prompts for a character name, then for a password. After that it is
+ready for input from the player. In the initial database, the only
+character is SysAdmin, with password "SysAdminPassword". SysAdmin is
+in wizard-mode, since there is no scenario yet to handle non wizard-
+mode input. When its input is coming from a file, SMUD does not put
+out prompts, so you will not see them when running it with its input
+redirected from a file.
+
+Lines 1 and 2 simply log SysAdmin into AmigaMUD, and leave him in
+wizard-mode, ready for commands. Line 3 is a simple call to the
+builtin function "RunLimit". This builtin sets the time limit for the
+processing of each line of input, button click, etc. Since some of the
+things done in creating the scenario can take a while on a slow CPU,
+we want a fairly large limit (100 seconds), so that we don't get
+unwanted failures. The time limit is put back to a more reasonable 10
+seconds at the end of building the scenario, on line 34.
+
+Line 4 adds the Characters table (which contains the names of all
+characters in the scenario) to the set of in-use tables. The set of
+tables is initially just the table of builtin functions, the public
+table and SysAdmin's private table. Line 5 creates the main grammar
+used in the scenario for parsing user input. The short name for the
+symbol, "G", was picked because it is used a lot in many places in the
+scenario sources. Note that G is public, so that others can reference
+it by name. Line 6 calls the "SetContinue" builtin, passing "true" as
+the parameter. This tells the system that functions that have internal
+errors during compilation should still be entered into whatever symbol
+table they are intended for. In normal circumstances, such erroneous
+symbols are not defined. Since we are sourcing many files non-
+interactively, however, we want the symbols defined so that calls to
+them from other functions we are defining are not flagged as errors.
+Doing this avoids a lot of spurious error comments. We set back to the
+normal state after creating the scenario, on line 27.
+
+Line 10 is the first real step in creating the scenario. It sources
+file "st:basics.m" (I use suffix ".m" for AmigaMUD source files - my
+apologies if that gets confused with a suffix for, say, Modula source
+files). That file in turn, sources a number of other source files,
+which I will get to later. It is the only file that is needed if you
+want to just work within the framework of the standard scenario,
+without actually using any of the rooms or quests of the scenario. You
+will also want file "st:combat.m" (line 13) if you want to have the
+standard scenario's version of combat.
+
+Line 16, bringing in file "town.m", creates the mini-mall area; the
+streets of the town; the squirrel quest; the non-player characters
+Packrat and CareTaker; and the in-MUD mail and bulletin-board
+facility, including Postman. These areas include the "pear" quest.
+
+Line 19, bringing in file "proving.m", creates the entire "Proving
+Grounds" area, which is the combat area in the scenario. This is the
+largest area in the scenario, and includes 3 quests. Note that this
+area has a minor dependency on the town stuff, which is its point of
+attachment.
+
+Line 25, bringing in file "usenet.m", creates the simple electronic
+mail and usenet news facilities. They are dependent on the town area
+also, for their locations (the Telegram Office and the News Room).
+These facilities are not included in the shipped scenario database, so
+as to not cause problems for those not running the required supporting
+software.
+
+Lines 28, 29 and 30 change the "player creation password" to an empty
+string, which means that no password is required to create a new
+character. If you want a password to be required, you can change lines
+29 and 30 to the chosen password, or change it online by calling
+"NewCreationPassword" as SysAdmin in wizard mode. To disallow creation
+of characters by users (in which case SysAdmin must explicitly create
+each character using "CreateCharacter"), set the player creation
+password to be an asterisk.
+
+Line 33 uses the "Flush" builtin to cause the server to flush all of
+its caches out to the database files. This can take a while. Partial
+flushes will have been done automatically by the system earlier,
+unless you used a very large database cache.
+
+When the message "All done." appears, the standard scenario has been
+recreated, and SMUD, reaching the end of file "st:go", will exit. If
+you wish to run from the database created, I suggest you shut down
+MUDServ at this point and make a backup of the database files.
+
+
+Tables Used
+
+
+There are many symbols created in the standard scenario. When trying
+to work within it, especially interactively, it can be difficult to
+find a table containing a symbol that is referenced by a function you
+are displaying. For reference, a complete list of the tables created
+and used in the scenario is given here. All table names start with
+either "t_" or "tp_". The former are public tables, available for use
+by all programmers. The latter are private to SysAdmin, and are not
+needed by other programmers. Such private tables contain the many
+symbols used for the rooms in parts of the scenario, local functions
+used only in certain areas, the functions used with verbs, etc. In the
+following list, the name of the table is given, followed by the source
+file it is defined in, and a description of what is in it.
+
+    tp_misc	basics.m	symbols that are used in several
+				source files, but that are not made
+				public.
+
+    t_base	basics.m	public symbols which are basic to the
+				entire scenario. This includes many
+				properties on characters, rooms, and
+				objects, as well as routines which are
+				basic to the scenario.
+
+    t_icons	basics.m	public symbols relating to icons.
+
+    t_graphics	basics.m	public symbols relating to the various
+				styles of graphics supported by the
+				scenario. Includes the exported auto-
+				graphics routines, names for the
+				standard colours, the effects-id
+				generator, etc.
+
+    t_util	basics.m	public symbols, mostly functions,
+				which provide utilities useful for
+				constructing and operating the
+				scenario. For example, the code for
+				stores and banks is here.
+
+    t_roomtypes basics.m	small table containing the most-
+				general models for rooms. These should
+				be inherited by all rooms in the
+				scenario, so that code which depends
+				on things like indoors-versus-outdoors
+				can work correctly.
+
+    t_quests	basics.m	small table exporting the functions
+				needed to add a quest to the scenario.
+				Also has the stuff required to setup
+				Questor's Office.
+
+    tp_base	base.m		symbols used locally, or deliberately
+				hidden, which are involved in the
+				basic structure of the scenario.
+
+    tp_graphics graphics.m	symbols used locally in the graphics
+				code, such as local subroutines, state
+				properties, etc.
+
+    tp_util	util.m		local routines and flags used by the
+				utility code exported from this file.
+
+    tp_verbs	verbs.m 	contains the routines which implement
+				the standard verbs in the scenario, as
+				well as their subroutines and status
+				properties.
+
+    tp_chat	chat.m		private symbols for implementing the
+				chat and pose code and verbs.
+
+    tp_quests	quests.m	private functions, etc. used in
+				implementing the quest code, Questor,
+				and Questor's Office.
+
+    t_fight	combat.m	defines the properties and routines
+				used for combat and monsters. Also
+				builds on the store code to build
+				armouries.
+
+    t_monsters	combat.m	defines a few standard monsters as
+				well as some slightly non-standard
+				ones, and the code to support them.
+
+    tp_fight	fight.m 	functions and properties used internal
+				to the combat and monster code.
+
+    tp_monsters monsters.m	some routines relating to specific
+				monsters defined here.
+
+    t_mall	town.m		public rooms, etc. exported from the
+				mini-mall area.
+
+    t_streets	town.m		pubic locations, etc. exported from
+				the streets in the town.
+
+    tp_mall	mall.m		private rooms, code, properties, etc.
+				used in the mini-mall area.
+
+    tp_streets	streets.m	private rooms, code, etc. used in
+				creating the streets of the town.
+
+    tp_squirrel squirrel.m	rooms, objects, properties, code, etc.
+				used in creating the squirrel area and
+				quest.
+
+    tp_machines machines.m	private code and properties used in
+				creating the non-player characters in
+				the town area (Packrat and Caretaker),
+				and the enter-exit machine.
+
+    tp_mail	mail.m		private code, properties, etc. used to
+				implement in-MUD mail, bulletin boards
+				and Postman.
+
+    tp_proving	proving.m	private symbols global to the entire
+				Proving Grounds area, or at least
+				shared between more than one source
+				file.
+
+    tp_proving0 proving0.m	private stuff for surface level.
+    tp_proving1 proving1.m	private stuff for sewers level.
+    tp_proving2 proving2.m	private stuff for deep sewer level.
+    tp_proving3 proving3.m	private stuff for caves level.
+    tp_proving4 proving4.m	private stuff for chasm area.
+    tp_proving5 proving5.m	private stuff for doors room area.
+    tp_proving6 proving6.m	private stuff for 3-D maze area.
+
+    tp_build	build.m 	private stuff shared between files
+				which implement the build commands and
+				the Builder's Guild.
+
+    tp_build1	build1.m	private stuff for the textual build
+				commands, the build action "compiler",
+				and some common build utilities.
+
+    tp_build2	build1.m	private stuff for the button-driven
+				build commands.
+
+    tp_bguild	bguild.m	private stuff used when implementing
+				the Builder's Guild area.
+
+    tp_news	usenet.m	private stuff used to implement the
+				usenet news reading stuff, the
+				NewsRoom, and some code in common
+				between it and the Telegram Office.
+
+    tp_email	email.m 	private stuff used to implement the
+				email interface and the Telegram
+				Office and its commands.
+
+As you can see, most of the tables are private, and are only relevant
+to a small portion of the entire scenario. Some tables have hundreds
+of symbols, while others have under a dozen. Further partitioning of
+some of the public tables may be wise if many more symbols need to be
+added to them.
+
+
+Basics - base.m
+
+
+This file defines a large number of properties. They are divided up
+into related groups, and there are a reasonable number of comments in
+the file, so I won't go into detail on most of them.
+
+The first symbol defined in the file is public symbol "MAX_CARRY".
+This is written in all capital letters to signify (to the reader, not
+to the AmigaMUD system) that it is a numeric constant. This is a
+stylistic thing used in other languages such as "C". Changing this
+constant before rebuilding the scenario will change the maximum number
+of things that a player can carry in his/her inventory. The limit is
+enforced by utility routine "CarryItem" in file "util.m". This routine
+is called by the "get/pick-up" verb code to actually do the final step
+in picking something up and adding it to the player's inventory.
+
+This is the first of many cases where the code to do something in the
+actual scenario is more complicated than examples that have been given
+earlier, in other documents. This is because a real scenario wants
+things to be more realistic or interesting. In picking something up,
+for example, the code must allow for objects that cannot be picked up,
+objects that do something when they are picked up, rooms that do not
+allow objects to be picked up in them (glue on the floor?), players
+that cannot pick things up ("toaded"?), etc. This sort of complexity
+is often needed, and must be planned carefully so as to be
+consistently done throughout the scenario. The current versions of
+this in the standard scenario are probably not fully consistent, even
+though they have already gone through a couple of revisions.
+
+On the other hand, it is easy to think of things that could be done
+relating to carrying things that the standard scenario does not do.
+Perhaps each object should have a weight, or a size, or both, which
+govern how they must be picked up. The weight of a container would be
+the weight of the empty container plus the weight of whatever is in
+it. The size of a container may or may not change as things are put in
+it, depending on whether it is something like a canvas sack or
+something like a bank vault.
+
+The next few properties defined in "base.m" are entered directly into
+the public symbol table. This is a very unusual circumstance - most
+symbols would be entered into a specific table appropriate to them.
+The public table is used in this case since the properties defined in
+this group (p_rName, p_rContents, p_pCarrying, p_oName, p_oCarryer,
+p_oCreator, p_oContents) are referenced by code automatically
+generated and compiled by the build commands. Since someone using
+those commands should not be expected to have the appropriate tables
+in use, and since there is no safe way for the code itself to use and
+unuse the tables, these symbols are put into the public table, which
+makes them always available.
+
+As with the names of tables, I have been picky about the names of
+properties. Property names all start with "p_", usually followed by a
+letter indicating where the property is intended to be used, followed
+by a descriptive name for the property. This convention is established
+in an empty database produced by MUDCre, since that database contains
+properties p_pName and p_pIcon. Properties intended for use on players
+(and thus by extension on all characters) use the letter "p".
+Properties intended for use on rooms use the letter "r", and
+properties intended for use on objects use the letter "o". The
+scenario is not quite fully consistent in that use - some properties
+that are used in more than one circumstance either have one letter
+from the possible set of appropriate ones, or have no letter at all.
+Sorry about that - there aren't many such cases.
+
+It would be possible to write a short essay about the intended use for
+many of the properties that are defined here. That might be useful,
+but most people would never be able to read through it all, and I
+doubt if I would have the patience to type it all. Instead, I will
+assume that most readers will be able to figure a lot of things out
+for themselves, based on the comments in the files, the actual code in
+the files, and the other general material in this file. To show the
+flavour of the details, I will describe a few properties more fully.
+
+Property "p_rBuyList", of type "list thing", is the list of items that
+are for sale in a store. Each thing in the list should be the model of
+the item for sale, from which the store code will clone (via
+inheritance) the actual items purchased by players. Each item for sale
+should have a "p_oPrice" property, indicating how many Blutos it
+costs. Some may have a "p_oBuyChecker" property, which the store code
+will call when the purchase is attempted. This code can do special
+initialization of the newly purchased item, etc.
+
+"p_rNameAction" is a property that is defined and implemented in the
+standard scenario, but is not currently used. It allows the name of a
+room to be generated by an action, rather than being a simple string
+attached to the room. It was in fact used long ago, before inheritance
+was added to objects, as a way of avoiding string duplication.
+
+"p_rDark" is a boolean property which, if set to "true" on a room,
+indicates that it is dark in that room. All aspects of the scenario
+pay attention to whether or not it is dark in the current room. For
+example, the autographics code will not draw a view of the room if it
+is dark. There are many ways to bring light into a dark room. They
+are: the presence of an agent who glows, the presence of an object
+which glows, or the presence of an agent who is directly carrying an
+object which glows. This testing is all done by some routines defined
+and exported in file "util.m". The expense of this test was the main
+reason the various "FindAgentXXX" builtin functions were created.
+
+"p_rNoMachines" is a flag which can be set on a room. If it is
+present, the standard non-player characters will not enter that room
+by themselves. This is useful when keeping them out of areas where
+they would be a nuisance, or would perhaps interfere with the solving
+of quest (e.g. by making it easier!). An example of this possible
+subtle interference is the fact that Caretaker carries his prized
+flashlight, and therefore lights up any dark room he enters.
+
+Property "p_rLocked", when set on a room, prevents anyone other than
+the owner of the room (and SysAdmin) from entering the room. This is
+useful to builders when they are still in the middle of setting up an
+area - they can keep it locked until it is all finished, then they can
+unlock it and invite other players in. If the area has only one
+connection point to the rest of the main scenario, then only the one
+connecting room needs to be locked.
+
+Properties "p_rDesc" and "p_rDescAction" provide the long description
+for a room. A simple string description is stored in p_rDesc. A more
+complex, varying description, generated at run time, can be returned
+by an action stored as property p_rDescAction in the room. In the
+Proving Grounds, the description for the room with 5 doors varies,
+depending on which of the doors are open. This is done via an action
+attached as its p_rDescAction.
+
+Property "p_rScenery" is used for "scenery words" attached to rooms.
+Scenery words are words which are the names of things that the player
+might try to examine or act upon, and should normally be present,
+depending on the description of the room, but which are not
+implemented in the scenario. For example, all outdoors locations
+should respond in some way to "Examine the ground." Responding "There
+is no ground here." is not very friendly. By placing a p_rScenery
+property on the generic room "r_outdoors", which contains the string
+"ground,sky", the scenario is able to realize that it is reasonable to
+ask about "ground" and "sky", and to respond "You see nothing special
+about the ground." Similarly, attempts to operate on the ground or sky
+will fail, but not complain about them not being there. The string
+used as p_rScenery is in the standard internal name form, and is
+matched against using "MatchName".
+
+Property "p_rExits" is a list of integers which indicate which of the
+possible exits from the current room is considered to be an "obvious"
+exit, i.e. one which the player can see. All exits from rooms, whether
+obvious or not, are stored as links to other rooms. Those whose
+direction is not in p_rExits do not show up in the room description.
+This allows rooms to have hidden exits.
+
+Property "p_rLastVisit" does not have any fixed purpose. It is used in
+the standard scenario in a couple of rooms in the Proving Grounds, to
+indicate the time (as returned by "Time") when the special actions in
+the room were last triggered. The actions will not trigger again until
+a certain time interval has passed. The general utility routines in
+the scenario do not use this property directly, so area-specific code
+can use it for whatever it wants.
+
+Properties "p_rNoGoString" and "p_rNoGoAction" are a string and an
+action which are used when the player tries to go in a direction that
+does not have an exit in the room. If neither of these are present,
+the standard code prints the message "You can't go in that direction."
+The first, as usual, is a string that will be printed instead of the
+standard message, and the second is an action that will be called to
+do whatever it wants (like penalize a player for stepping off of a
+cliff). The NoGoAction does not return anything.
+
+"p_rBuyAction" is a fairly simple property. If it is present in a
+room, then that room is considered to be a store, and should have a
+corresponding "p_rBuyList". The action is called when the player uses
+the "buy/purchase" command in the room. File "util.m" provides routine
+"StoreBuy", which is an appropriate BuyAction. Other, special purpose,
+ones are also possible.
+
+This ends the block of properties that is described in some detail
+here. For the many other properties that are defined, the reader is
+encouraged to use the CLI "Search" command (or a "grep" program) to
+look for their occurrences in the source files. Studying the code that
+uses the properties should reveal what the property is all about.
+Often, the name of the property gives enough information to know
+whether or not it will be relevant to the problem at hand.
+
+The next sets of properties defined in "base.m" come in groups of
+closely related properties. The first set, starting with "p_rNorth"
+are the properties used for the actual links between rooms. If
+property "p_rNorth" of room A is a reference to room B, then a player
+moving north from room A will move to room B (provided none of the
+various special actions occur). The use of the other 11 properties in
+the group is analagous.
+
+The next set of properties are simple string properties which can
+contain a special description seen if the player looks in that
+particular direction (as in "look north"). The next set of
+descriptions ("p_rNorthMessage", etc.) are messages which are shown to
+the player when he/she moves in the corresponding direction from the
+current room. Following those are a set of messages
+("p_rNorthOMessage," etc.) which are given to others in the room when a
+player leaves in the corresponding direction. Lastly comes a set of
+messages, starting with "p_rNorthEMessage", which are displayed to
+others in a room when a players enters the room from the corresponding
+direction. All of these properties are ones which can be set by
+builders.
+
+The next sets of properties introduce the concept of "checkers". These
+are lists of routines that are called when a certain action (like
+going north) is attempted. Each routine in the list is called in turn
+and can OK the action (return "continue"); prevent the action (return
+"fail"); or complete the action (return "succeed"), thus cancelling
+any further checker actions and the default action. Many checker
+actions can be created in a simple form using the build code. Note
+that the checker properties defined here are put into table tp_base,
+which is private to SysAdmin. This is because they are only used by
+other routines later in this same source file.
+
+The concept of checker lists came about quite early in the development
+of the standard scenario, and has not been as useful as I first
+thought it would. The idea was to allow several wizards to
+independently add checks to actions (usually moving in a given
+direction from a room), without worrying about whether or not anyone
+else had already done so, or might need to do so in the future. For
+example, several wizards might be involved in the north connection
+from room A to room B. Wizard One does not let anyone enter room B
+from that direction unless that person is carrying the Magic Gizbot.
+Wizard Two, who owns room A, does not let anyone leave through the
+north exit if that player is carrying the Sacred Shirt. Wizard Three
+has created a large box, which players can push around to block exits,
+and it is now blocking the north exit from room A. Thus, if a player
+tries to move from room A to room B the three checkers, together, will
+require that the player first move the large box, not be carrying the
+Sacred Shirt, and be carrying the Magic Gizbot. Because the current
+scenario is all written by one person, these situations have not yet
+arisen, but the provisions for them are present in the scenario.
+
+Checker lists can exist for verbs as well as for room exits. Note that
+there are checkers for "AnyEnter" and "AnyLeave". These are triggered
+when a player tries to enter or leave a room, regardless of which
+specific direction is used. Note also that there are AnyEnterActions
+and AnyLeaveActions as well. These are simply lists of actions that
+are all called when the corresponding event occurs. Leave checkers and
+actions are called while the player is in the old room, Enter actions
+are done when the player is just in the new room. Enter checkers are
+done to see if something special, like an instant teleport out, should
+happen to the player in the new room. There are also special movement
+checkers that can be attached to the players. This great complexity on
+moving is used to implement a variety of things, such as automatically
+created monsters, graphics update on clients in the old and new rooms,
+healing on the player, etc.
+
+Note that all of these checker properties are private to table
+tp_base. This means that no-one other than SysAdmin can directly
+access these properties. Instead, they are handled by a set of
+routines located further down in source file "base.m", which allow
+their callers to add, remove, and processes these checker lists. This
+shows how the concepts of "modularity" and "information hiding" can be
+done in AmigaMUD. My initial goal in doing the checkers in this way
+was to reduce the number of symbols that needed to be exported. As you
+can see, I did not succeed! Perhaps a better way would be to have
+fewer interface routines, that are passed the direction number, rather
+than having individual routines for each direction.
+
+The next large set of properties are properties that can be attached
+to players (and often to machines). I will not describe them in detail
+here - if a property's name suggests that it might be of use in what
+you are trying to do, then search for it in the source files, as
+mentioned above. After the player properties comes a similar set of
+properties for use on objects. These include things like the object's
+name and description, anything that can be read on it, checker lists
+for some important actions, etc.
+
+The various POS_XXX constants, placed into table tp_misc, are used to
+indicate a descriptive position on a player. For example, if the
+player sits down on a chair, then his position will be POS_SIT_ON, and
+the property "p_pWhere" will be the chair. A player must stand up (or
+whatever) before assuming any other position, or leaving the room.
+
+The three EFFECT_XXX values are defined here for convenience. The
+standard scenario does not currently try to maintain any ongoing sound
+effects, but it does cancel the speech when the player walks out of
+the bank or Beauty Shop.
+
+The next few lines (the first actual code in the scenario!) create a
+generater of unique integer values. The generator is a thing, which
+has only one property. This property is initially zero. Every time
+someone calls function "NextSoundEffectId", the code will increment
+the value of that property and return the new value. A similar
+generator is present in file "graphics.m" for use in creating effects
+ids. Such a generator should not normally be used at runtime (when
+players are triggering things), but instead should be used when the
+scenario is being created, to assign a new, fixed identifier for some
+effect. They are then somewhat like an enumeration datatype, except
+that the number of elements in the enumeration is not determined until
+the entire scenario has been built, and all identifiers assigned.
+
+The "After" builtin in AmigaMUD schedules a call to an action for a
+point in the future. The action will be run on behalf of the agent
+(player character or machine) which called "After". Sometimes a time-
+scheduled event is desired, but there is no convenient agent to do it
+with. The "TimeKeeper" machine provides a general service for doing
+timed events, independent of other machines. The timed events that it
+governs are continued across server shutdowns by the "machine idle"
+and "machine active" handlers that the TimeKeeper uses.
+
+I will not attempt to explain the operation of the TimeKeeper here -
+it is one of the more complex systems in the scenario. It uses a
+linked list of things, sorted by the time of their triggering. The
+interface to the TimeKeeper is as follows:
+
+    DoAfter(int seconds; thing object; action a)void
+
+	A call to DoAfter will set things up so that "seconds" seconds
+	of server up-time after the call, action "a" will be called on
+	behalf of the owner of "object". It will be called with
+	"object" as its parameter. The action will be called
+	regardless of any server shutdowns and restarts which occur in
+	the waiting period. This facility is useful for events which
+	occur in real scenario time, such as torches burning out, etc.
+
+    CancelDoAfter(thing object; action a)bool:
+
+	CancelDoAfter will search for a timed event which is scheduled
+	to call action "a" for thing "object". The first (earliest)
+	such event (if any) is cancelled. If such an event is found
+	and cancelled, CancelDoAfter returns "true", else it returns
+	"false".
+
+When a player clicks on one of the standard movement mouse-buttons,
+clicks in the map-view area to move the cursor, or uses a numeric
+keypad key to move, the scenario echoes the command being done before
+executing it. This is done using routine "InsertCommand", which is
+passed the string of the command to be executed. It simply prints the
+command, preceeded by ">>> ", and then passes it to "Parse", the
+builtin function which parses input commands. Note that this direct
+call to Parse means that the given command cannot be a "say" or "pose"
+entered using the single-character forms (quote and colon), and any
+aliases in it will not be expanded.
+
+Recall the earlier discussion of checker routines attached to some
+objects and to some room exits. They are a list of actions, which are
+called one-at-a-time to determine if the action is allowed to happen.
+The next routines in "base.m", "DoChecks", "DoThingChecks",
+"DoStringChecks", and "DoIntChecks" are the routines used to execute
+the checker lists. The ones with a type in their name are also passed
+an additional parameter of that type, which is passed to each action
+in the list which is called. Following those are a couple of other
+related routines. "DoList" simply executes each action in a list of
+actions. "DoThingActions" is similar, except that it has an additional
+thing parameter which is passed to each action called.
+"DoActionStrings" is also similar, except that each parameterless
+action in the list is expected to return a string, and all of the
+resulting strings are joined together and the combined result is
+returned. Note that all of these routines call "SetEffectiveToNone"
+before processing the list. This removes the access-rights of whoever
+is calling the routine, so that if an action in the list is "utility",
+it will not inherit the access rights of that caller.
+
+Next in the file come a number of symbols which relate to directions
+in the scenario. The available directions are numbered, so that they
+can be stored as properties or lists (as in p_rExits), and so that it
+is easy to find which direction is "right" or "left" of another.
+First, a set of constants naming the directions is defined. "DirBack"
+is a utility routine which takes a direction number and returns the
+direction number of the reverse direction. "DirName" takes a direction
+number and returns a string naming that direction in a form which can
+be used in "Fred has left to the <direction-name>". "ExitName" is
+similar, except that it just returns the one-word name of the
+direction. "DirProp" takes a direction number and returns the property
+which is the link from a room in that direction. This is used in the
+build code, to enable it to work easier with variable directions.
+Similarly, "DirChecks" returns the property which gives the checker
+list for the corresponding direction. "DirDesc" returns the property
+which describes the corresponding direction, "DirMessage" returns the
+property which contains the message shown to a player leaving by the
+direction, "DirOMessage" returns the property which contains the
+message shown to other players in the source room when a player
+leaves, and "DirEMessage" returns the corresponding property which
+contains the message shown to players in the destination room when a
+player arrives from the passed direction. Note that the relationship
+between the directions in the last two is usually that given by
+DirBack, unless the scenario is mazelike in its construction.
+
+DirMatch is essentially the reverse of DirName. It takes a direction
+name and tries to return a corresponding direction number. This is
+done using builtin "MatchName", so that several alternative forms of
+the direction names can be accepted. If DirName cannot find a match
+for the direction name, it will return -1, which is exactly what
+MatchName does in that circumstance. The last direction-related
+function here is "PairToDir", which returns a direction number based
+on a two-character code for the direction. These two-character codes
+can be stored in a string which represents the path for a machine to
+take.
+
+When an action is to be added to a checker list, the order of the
+actions in the list may be important. In the example given previously,
+the order of the checks should be: first the box, then the check of
+leaving this room, then the check of entering the destination room. To
+help in getting things in the right order, routine "AddChecker", which
+is used to add actions to checker lists, takes a bool parameter,
+"front" which says whether to add the new action to the front of the
+list (so it will be executed first), or to the back of the list (so it
+will be executed last). AddChecker does not take a checker list as its
+parameter. Instead, it takes a thing and a property which is the
+checker property. This way it can create and add a new checker list if
+there wasn't one already there. "delChecker" is the reverse of
+AddChecker - it deletes a checker routine from a list. It will delete
+the entire list from the thing if the list becomes empty. Note that
+both of these routines are private to table tp_base - they are only
+called from the routines which follow.
+
+Next in file "base.m" are a number of routines which add and delete
+specific checkers from rooms, objects and characters. They are all
+very short - just calling either AddChecker or delChecker with the
+appropriate checker property. Following are the similar routines which
+actually execute the checker lists, returning the final result that
+they get. These must be in this source file since the properties for
+the checkers were made private. I now believe that doing so was a
+mistake - the properties should be public, and all these silly little
+routines should be done away with.
+
+The final routine in "base.m" is "SetupMachine". It is just a little
+routine which will carefully initialize a machine being used as a non-
+player character. It adds empty carrying and hidden lists, if they do
+not already exits. The hidden list can be used to attach things to a
+character in such a way that they do not show up in the inventory, and
+cannot be dropped in the normal way by the player.
+
+
+Basics - icons.m
+
+
+This short source file contains some handy routines for dealing with
+icons. Most of the code is pretty straightforward. The first set of
+routines are the most used ones. "ShowIconOnce" shows the icon of the
+agent whose thing is passed as a parameter to the current agent.
+"ShowIcon" uses ForEachAgent to call ShowIconOnce for each agent,
+other than the active one, in the same room as the active agent. The
+effect of this is that the active agent's icon will appear on the
+screen of each player in the same room as the active agent. The active
+agent can be a player character or a non-player character.
+"DoShowIcon" does nothing other than call ShowIcon. It returns a
+"status" result, however, and so is of the right type to be called by
+ForceAction. So, it can be used when forcing an agent to move
+somewhere, to get that agent's icon shown properly.
+
+The next set of routines is the reverse of the first set. They are
+used for removing icons from displays. The fact that "UnShowIconOnce"
+has more comments that code indicates that it took me a while to get
+it right!
+
+"PrintIcon" isn't actually used in the scenario. It is a handy utility
+to dump out the internal array of an icon, however. As the comment at
+the top of the file indicates, the various makeXXXIcon functions were
+generated by a simple program which contained the icon represented as
+an array of 16 16-bit words, represented in hexadecimal. Once again I
+beg for some better icons.
+
+
+Basics - graphics.m
+
+
+This file is much longer than the previous one. It contains various
+utilities, as well as the icon/cursor editor and all of the
+autographics code. The properties at the beginning are mostly attached
+to rooms to indicate how the rooms are to be drawn:
+
+    p_rName1 - the first of a two-line room name, or a one-line name
+    p_rName2 - second line of two-line room name
+    p_rBackGroundPen - colour for background
+    p_rForeGroundPen - colour for main foreground drawing
+    p_rEdgePen - colour for edge of rooms
+    p_rDoorPen - colour for doors in "door rooms"
+    p_rCursorX, p_rCursorY - where to put player cursor for this room
+    p_rDrawAction - special routine to draw the room
+    p_pStandardButtonsNow - standard movement buttons are active
+    p_rAutoGraphics - use autographics for this room
+    p_rAutoDrawAction - autographics function to use
+
+Next comes names for the default colours that the Amiga MUD client
+program uses for the graphics area. "ColourMatch" takes a string which
+should be the name of a colour, and tries to understand it as the name
+of one of the standard colours. It returns the corresponding colour
+code, or -1 if nothing matches. The special cases at the beginning are
+to avoid MatchName finding the wrong match because of an ambiguous
+name. "ColourName" is the reverse - it returns the name of the passed
+colour code. "ShowKnownColours" can be used in error messages - it
+simply prints a message indicating what the standard colour names are.
+
+A "map group" is an integer value which identifies a displayed map,
+such as the standard scenario displays for the mini-mall, the streets,
+and the Builder's Guild. When moving from room to room, if the map
+group changes, then the graphics must be redrawn. When moving between
+rooms with the same map group, only the cursor position and the room
+name must be redrawn.
+
+"NextMapGroup" is a generator for map group values. It should be
+called once for each map image which represents more than one room.
+Similarly, "NextEffectId" returns unique identifiers for effects, as
+discussed in previous documents.
+
+"DrawRoomNameBox" is the first of the utility routines which are
+available to deal with the display style that the standard scenario
+uses. It draws the box within which the room name is displayed, on the
+right half of the display, above the standard movement buttons. If the
+standard graphics style is in use, then this routine only needs to be
+called once at the beginning of the session. "DrawRoomName" draws the
+room name within that box. If its second parameter is an empty string,
+then it will center its first parameter in the box, as a one-line room
+name. If the second parameter is non-empty, then the two parameters
+are displayed centered horizontally within the room name box. Both are
+truncated if they are too long.
+
+Next follows four routines which draw the little door indicators that
+the standard scenario uses. Note that each has a unique effect id,
+yielded by NextEffectId. Note also that none of the routines sets a
+drawing pen - they draw the door in the current pen. Following is
+function "MakeCursor", which simply returns the definition of the
+standard little smiley-face cursor. "EraseAllButtons" simply calls
+ClearButtons, which removes all mouse-buttons from the active client.
+Builtin functions cannot be attached to things as properties (they
+cannot be used as first-class values at all), so a interpreted routine
+is needed for that purpose.
+
+The next set of routines creates and handles the standard set of mouse
+buttons (movement and look-around) and the standard mouse-click region
+which is used to allow the player to click near the cursor to move in
+that direction relative to the current room. There is nothing much of
+interest in this code. It is fairly basic to the scenario, however.
+
+The code starting with "EnterRoomDraw" is more interesting. This is the
+code which provides graphics from rooms in the scenario. EnterRoomDraw
+is called when a player enters a room, and the graphics for that room
+are to be drawn. The two portions of code handle the cases of rooms
+with autographics and rooms with custom graphics. In both cases,
+although with minor differences, the first thing to be checked is
+whether the move is into a room with a different set of graphics,
+determined by comparing the map group stored on the player against the
+map group of the room being moved into (obtained from "Here()"). If
+the graphics set is different, or this is the first time that graphics
+is being drawn, then the code first clears the map area of the
+display. For an autographics room, the autographics routine is
+retrieved and called. Then, the cursor is placed in the center of the
+room (standard for all autographics), and the room name is displayed.
+This is either obtained from the p_rName1 and p_rName2 properties, or
+is just the last word of the room name, capitalized.
+
+For rooms with custom graphics, the procedure is quite similar. First,
+the area is initialized if it was not already. Then, if the new room
+has a different map group then the previous room, the area is cleared,
+the custom drawing routine is called, and the map group of this room
+is stored on the player. Next, the cursor is placed in the indicated
+position, if any position is indicated. Finally, the room name is
+drawn. Note that a custom graphics room is assumed to have a specific
+name set.
+
+"LeaveRoomDraw" is called when the player leaves a room which has
+graphics specified. The current version of the standard scenario has
+graphics specified for all rooms, so this routine doesn't ever do
+anything, but in the past there were areas that didn't have graphics.
+It essentially zaps everything that needs zapping.
+
+"RoomGraphics" is a standard routine which is useful when creating
+rooms in the scenario that have custom graphics. It is passed the
+room, the two strings for its name, its map group, the position of the
+cursor in the room map for this room, and the custom drawing routine
+to use to draw the room. Any autographics on the room is removed, any
+non- default parameters are stored on the room, and the room is given
+EnterRoomDraw and LeaveRoomDraw as the code to use to draw it. No
+rooms in the current scenario have any other routines, but in the past
+there were non-graphics area that had no such routines.
+
+"AutoGraphics" is similar to RoomGraphics, except that all it takes is
+the autographics function to attach to the room. This function is
+normally one of the autographics routines provided in this file.
+AutoRedraw is a utility routine which is used by the build code. It
+simply erases the map display and redraws it. This is useful when
+something affecting the autographics display (like a colour choice)
+has been changed. AutoPens allows setting of the pens to use for the
+autographics display of the room. It conserves space by deleting any
+existing pen when the desired pen-colour is 0. As discussed in other
+documents, an int property fetched from a thing which does not contain
+that property will retrieve the value 0. RoomName simply sets one or
+two room name strings.
+
+"DrawUpArrow" and "DrawDownArrow" are the first parts of the
+autographics routines. They can be called from custom drawing code as
+well. They are passed the colour to draw the arrows in, which is
+normally "gold" for the autographics code. "DrawUpDown" takes the room
+and the list of obvious exits from the room (normally obtained from
+the room itself), and draws any needed up and down arrows. It does a
+bit of checking to pick a good colour to draw them in.
+
+The next few hundred lines of code are the autographics routines. Feel
+free to add more. Essentially, autographics is an automatic way to
+produce simple graphics for any room. Autographics only looks at the
+obvious exits from a room - "hidden" exits are not shown. Autographics
+draws the view based on the exits it has to display, and will select
+the colours to draw in from the room, or will use default colours. The
+available styles of autographics can be seen by playing around with
+the mouse-button build code. They are:
+
+    AutoRoads - wide tan regions on a dark green background.
+
+    AutoPaths - narrow tan regions on a forest green background.
+
+    AutoTunnels - medium-wide light grey regions on a dark grey
+	background.
+
+    AutoTunnelChamber - a central light grey octagon on a dark grey
+	background. Exits are medium-wide light-grey regions extending
+	from the octagon to the appropriate side or corner. Function
+	DrawTunnelChamber is separated out to make it callable from
+	custom graphics routines.
+
+    AutoOpenSpace - the map region is filled with the foreground
+	colour, and then any direction which has an exit is filled
+	with the background colour. Not very pretty. Intended for
+	things like fields.
+
+    AutoOpenRoom - all drawing uses a single-pixel edge between the
+	foreground parts and the background parts. The basic shape is
+	that of a rectangle, with extra rectangles added as passages
+	to other rooms.
+
+    AutoHalls - similar to AutoOpenRoom, except that there is no open
+	rectangle in the middle - just passages. Diagonal exits are
+	not displayed - I couldn't figure out how to make them look
+	reasonable in this style.
+
+    AutoClosedRoom - a rectangular box with doors indicated in the
+	four orthogonal directions as needed. Doors in the diagonal
+	directions are drawn by nibbling off a bit of the corner, so
+	that the doors can be fit in.
+
+Following the autographics routines is the icon/cursor editor.
+"showIconPixel" is a local subroutine which will display the current
+contents of the indicated pixel. Each pixel is shown as a small
+rectangle in the main editing area, as well as a single pixel in the
+area which shows the icon/cursor at normal size. The value to draw for
+the pixel is retrieved from the active agent, based on the passed co-
+ordinates of the pixel. "showWholeIcon" simply loops over the rows and
+columns of the icon, using showIconPixel to display each pixel.
+
+"iconEditMouseHandler" is the handler for mouse-click-in-region events
+which is used to implement the icon editor. It simply determines which
+pixel is affected and toggles it in the bit array.
+"iconEditButtonHandler" handles the three buttons which the icon
+editor puts up: CLEAR - clear the icon to all black, DONE - save the
+current icon value as the final value, and exit from icon editing, and
+CANCEL, which puts the icon back the way it was before beginning
+editing, and exits from editing. The latter two also remove the icon
+editor buttons and mouse region from the display, and call a caller-
+supplied restore action to redraw the normal graphics view.
+"iconEditIdleHandler" is a catcher for when the user exits the MUD
+while in the middle of editing an icon or cursor. It simply undoes the
+values for handlers, etc. that were stored when the user entered
+editing mode, and calls whatever idle handler was in effect when
+editing was started. This matches the philosophy for idle handlers
+discussed in "ProgConcepts.txt".
+
+"copyIcon", "startEdit", "StartIconEdit" and "StartCursorEdit" simply
+set things up for editing and do the initial display. Note that the
+latter two are the only functions exported from this icon editing code
+- the rest are simply internal routines used in the implementation.
+
+
+Basics - util.m
+
+
+File "util.m" is a fairly long file. It provides a lot of the basic
+utilities which are used all over the scenario. The stuff here is not
+quite as basic as the stuff in "base.m", but the choice between
+putting things in one file versus the other is pretty fuzzy.
+
+When moving from room to room, there are a couple of ways the move can
+be done. The normal way is to physically move from one room to
+another. In that case, the exit actions and checks for the room being
+left are executed, followed by those for the room being entered. The
+occupants of the two rooms are informed of the move. Wizards and
+builders can "poof" between rooms, however. This is a type of
+magical teleportation that does not involve going between the rooms,
+so any checkers are not executed. Also, the message given to those in
+the rooms is different. A third possibility is that something in the
+scenario is causing the move. For example, when opening some doors in
+the scenario, the player is automatically moved into the room on the
+other side of the door. In this case some of the checkers are not
+executed, as required in the individual case. The first three
+constants defined in "util.m", the "MOVE_XXX" values, are used to
+inform some generic routines as to which kind of move is being done.
+
+A set of standard rooms are defined next. These are stored in the
+"t_roomTypes" table. They have the appropriate kind of autographics,
+with the default colours. They also have a small amount of neutral
+scenery. Programmers are requested to inherit from these generic rooms
+when they build rooms of their own. If this is done, then code can be
+written, e.g. on machines, such that it is easy to tell the general
+kind of location that a machine is in, such as indoors versus
+outdoors, forest versus roadway, etc.
+
+When creating a source file for a new region of the world, there will
+be one or more locations in the pre-existing world at which the new
+locations will be attached. The description of those locations should
+be updated to indicate the new additions. Routine "ExtendDesc" is
+intended for that purpose. If the room passed has a description, then
+the passed new description is added to the end of the existing one,
+with a separating space. If the room has no description, then the new
+one becomes the room's description. As an example, the Proving Grounds
+is attached at one point to the pathway to the north of the town.
+ExtendDesc is used to extend the description of the pathway to
+indicate the new direction.
+
+Function "Scenery" operates in a similar manner. The p_rScenery field
+on rooms is one which is in the internal noun-phrase format. It
+contains the names of objects which are mentioned in or implied by the
+location's description and name, but which do not actually exist.
+Using this technique, the scenario allows commands like "Get tree." to
+reply "You cannot get the tree." instead of "There is no tree here."
+when used in a location (like a forest) that should logically have
+trees. New scenery is added to old scenery with a period as a
+separator, since the checking of scenery is done with the "MatchName"
+builtin, and that routine handles noun-phrases separated by periods.
+
+Function "Sign" is a bit more complex. It builds a sign of some kind
+in the room specified. The sign will not show up as an object in the
+room, and cannot be taken away, but it can be examined and read. An
+example call:
+
+    Sign(Here(), "sign;small,wooden.sign;no,trespassing",
+	"The wooden sign is very old, and appears to have been "
+	"painted by hand. The lettering is quite hard to read.",
+	"No Trespassing").
+
+This will create a sign at the current location, which can be referred
+to as "small wooden sign" or as "no trespassing sign". To let the
+player's know that the sign exists, the description for the room
+should contain something like "There is a small wooden sign at the
+side of the road."
+
+The next set of routines are useful for setting up rooms. They are
+quite generic, so if you want a set of rooms with some common
+properties, you may want to write some routines that are easier to
+call for your special case. All of these routines add empty contents
+and exits lists to the rooms. The scenario code assumes that these
+lists exist on all rooms, so any other room-creating routines you
+write should make sure they are present. The first pair of routines
+take a name and a description for the room, and add them to the room.
+If the passed description is an empty string, then no description is
+added to the room. The scenario is set up to handle that case. The "P"
+variant makes the room public, i.e. changeable by any wizard, whereas
+the non-P variant makes the room private.
+
+The next pair of routines is exactly the same, except that the rooms
+they set up are made to be dark. Players will not be able to see what
+they are doing in those rooms unless they, or some other agent or
+object in the room, is providing light. The "SetupRoom2" versions take
+an action as the room name, instead of a string. This was useful
+before the AmigaMUD database supported inheritance, in order to cut
+down on duplicated strings in the database. It is also useful for
+special rooms where the name of the room will change depending on
+circumstances. These rooms have no description. The "SetupRoom3"
+versions are similar, except that they also require a description
+string. Other variants can easily be created as needed.
+
+"SetupObject" is used to initialize simple objects. Further setup of
+the objects can be done after SetupObject is called. Using a routine
+like this to setup an object (or a room), allows fewer lines of source
+to be used to accomplish the setup. If SetupObject is passed a non-nil
+value for "where", then it will add the object to the contents list of
+that room, and set that room as the current location and the home for
+the object. The home of an object is where Caretaker will leave the
+object if he comes across it, and later its home.
+
+"FakeObject" is similar, except that the object is more like a piece
+of scenery - it is not gettable, and it does not show up directly in
+the room's inventory. "FakeModel" is nearly the same as FakeObject,
+except that it doesn't put the object anywhere. It's name reflects its
+use in setting up things which will be inherited as parent by newly
+created things, such as when something is purchased in a store.
+Function "DepositObject" is one example of that action - it clones
+(inherits from) a new object from a passed object, and deposits the
+clone in the given room. The "p_oCreator" property of the new object
+is set to be the active agent. Thus, the active agent owns the object,
+in the sense of the scenario. In the sense of AmigaMUD, SysAdmin owns
+the object.
+
+The next set of routines are useful in setting up the links from room
+to room. They also take care of properly setting reverse links (except
+the UniConnect forms), and of adding the exits to the appropriate
+exits lists (except the "H" forms, which create hidden connections).
+The most commonly used version is "Connect". Connect can usually be
+called from a single source line, and accomplishes several lines worth
+of setup from the pair of rooms.
+
+"ShowExits" is the first routine here that is useful from inside verb
+routines. It simply shows a nicely formatted list of the obvious exits
+in the room that is passed. Its output goes to the active client. Note
+the use of SetIndent to format the list nicely. This is only seen in
+the standard scenario in the exist list for the mini-mall room. Also
+seen here is a call to ExitName, which was defined in "base.m".
+
+"ShowList" is similar in nature. It is passed a list of objects, such
+as a room contents list or a character inventory list. It prints that
+list, indented by two spaces, with an introductory string printed
+before the first item. Items are not printed if they are invisible.
+The routine returns "true" if no objects were printed (which is not
+the same as there being no objects in the list). In that case, the
+caller can, if needed, print out a message indicating that nothing was
+seen.
+
+Routine "DoAll" is useful for verbs which wish to be able to apply
+themselves to "all". It scans down the passed list of objects, calling
+the passed routine on each visible one. The routine returns a bool
+(true/false) value. If it ever returns "false", then DoAll will stop
+its scan of the list and return "succeed". If there were no visible
+objects on the list, then DoAll returns "fail". If nothing special
+happened (all calls returned "true"), then DoAll returns "continue".
+DoAll is setup so that the called action can delete objects (including
+the current object) from the list, without too much confusion.
+
+Function "CanSee" is fairly central to the operation of the scenario.
+It reports whether or not the passed agent can see in the passed room.
+If called for a simple monster (p_pStandard not set), then the action
+is actually done for the active agent. If called with 'nil' as the
+agent, then no specific agent is assumed to be in the room for the
+testing. An agent can see in a given room if the room is not dark, if
+any object in the room is emitting light (p_oLight), if any agent in
+the room is emitting light, or if any agent in the room is directly
+carrying an object which is emitting light. The desire to make this
+routine less expensive was the incentive for implementing the various
+"FindXXX" routines, three of which are used here.
+
+"LightAt" is slightly different - it simply asks if the given room is
+lit, without any special checks on any character. Similarly,
+"HasLight" asks if the given character is a source of light,
+regardless of which room the character is in.
+
+Private routine "containsChild" is part of the implementation of
+public routine "CarryingChild". It is recursive, i.e. it calls itself.
+It returns the first object in the passed list that is a child of the
+passed object. It also checks the contents of any objects which are
+containers, and calls itself for each container. If no object on the
+list is a child of the passed thing, and no object on the list is a
+container which contains an object which is such a child (or is a
+container which contains...), then "containsChild" returns 'nil'.
+CarryingChild uses it to answer the question: does "who" have a
+"what"? Similarly, "ChildHere" answers the question: is there a "what"
+in room "room"?
+
+Routine "ShowPosition" is used to print the description of how a
+character appears in a room. It's output is intended to appear after a
+prefix of the form "Player is ". If the player is simply present in
+the room, then, the total output will be "Player is here.\n". If,
+however, the player is using some furniture, then the output will be
+of the form "Player is sitting on the sofa.\n". The standard scenario
+does not attach much semantic meaning to such positioning - it is
+mostly used as an atmospheric addition to player descriptions.
+
+Routine "ZapObject" is a heavy-duty way of getting rid of an object.
+It does this using the builtin "ClearThing", which removes all
+properties from a thing. If the original object is a container,
+however, then ZapObject recursively applies itself to all objects
+contained in the container.
+
+"SayToList" is a little routine which speaks a message to each room
+whose thing is contained in a passed list. This is used in the "Doors
+Room" area to make the various sounds audible throughout the locations
+making up the doors room and the passage leading to it.
+
+"CharacterDescription" returns a string which is the description of
+the passed character. This can be either a simple string or can be the
+result of calling a character's description action. This is made into
+a routine since it is useful in situations like taking a photograph
+and looking in a mirror.
+
+"LookAtCharacter" uses CharacterDescription and makes other checks in
+order to print to the active agent a description of some other agent.
+It returns "true" if it is able to do so. It first checks for and
+calls any "p_pDescCheck" to see if looking at the character triggers
+some special case (such as looking at a medusa might). LookAtCharacter
+also prints out the inventory of the character.
+
+The next pair of routines in the file have to do with showing the set
+of other characters that is present in a room. "ShowAgents" simply
+calls "ShowOneAgent" for each other active agent in the room, using a
+call to ForEachAgent. If the agent is not hidden (something only
+wizards or apprentices can do in the current scenario), then a line
+showing the agent is printed, and that agent's icon is also displayed.
+Note that this code is called for both player characters and for non-
+player characters.
+
+The next six routines are used to show and unshow the room that an
+agent is in from that agent. This is only needed for real players,
+since showing a room to a machine doesn't accomplish anything. Routine
+"ShowRoomToMe" is the bottom-level routine of the first set. It first
+unconditionally prints the name of the room, preceeded by "You are ".
+It then checks for and calls any "look checks" in the room, using the
+routine exported from "base.m" for that purpose. If the checkers (if
+any) do not block further looking, ShowRoomToMe next checks to see if
+the character is wanting verbose descriptions. If so, then the rooms
+description (either a string or the result of a p_rDescAction routine)
+is shown. Then, if the player is not in superbrief mode, the obvious
+exits from the room are shown. Next, ShowList is used to display the
+non-hidden contents of the room. After that, if the active agent (the
+one the room is being shown to) has graphics enabled, the set of icons
+currently shown is removed, and any graphics display routine for the
+room is called. Finally, ShowOneAgent is used to display the agents in
+the room. Note that, in order to avoid the cost of one function call,
+ShowOneAgent is used directly. ShowRoomToMe returns "false" if a look
+checker prevented display of the room, and "true" otherwise. If the
+look checker returned "succeed", indicating that it had already done
+all needed displaying of the room, then only the contents list and
+icons are displayed. "doShowRoom" is a local routine which simply
+calls ShowRoomToMe. It is setup, however, to be callable from the
+builtin routine ForceAction, which allows one agent to make another
+agent do something. In turn, doShowRoom is called from the public
+routine "ShowRoomToAgent", to allow using ShowRoomToMe to show the
+room to another agent. This is used in situations where an action by
+an agent causes the room to become lit, and hence visible to other
+agents already in the room. The next three routines perform a similar
+but reverse task - that of removing any graphics display of a room.
+This can be used when the only source of light in a room is removed.
+
+"EnterRoomStuff" is used for the second half of moving from one room
+to another - that of entering the new room. First, any actions to be
+triggered on room entry are called (actions checking to see if the
+move is allowed have already been called). Next, we see if the room
+was lit before the agent moves in. The line
+
+    SetLocation(dest);
+
+is the one that actually sets the location of the agent, as far as the
+AmigaMUD system is concerned - all the rest, including all of the
+routines called, are just for the scenario's benefit. If the room is
+dark, and the active agent doesn't have a source of light (the test is
+made directly for speed purposes), then the player is not shown the
+room, and any graphics already displayed are removed by calling
+UnShowRoomFromMe. If light is present, then the room is shown to the
+agent. Then, if the agent is not hidden, the agent's icon is shown to
+all other agents in the room, and they are shown an appropriate
+message about the arrival of the agent. Finally, if the room was
+previously dark, then ShowRoomToAgent is used to display the room to
+each other agent in it. Note the double use of ForEachAgent - one
+directly here, and the other from inside ShowRoomToMe.
+
+"LeaveRoomStuff" is similar - it handles the stuff that needs to be
+done when a character leaves the room he is in. The set of actions
+done if similar to those done by EnterRoomStuff, except that the
+ordering is reversed. "EnterRoom" puts the two together, moving a
+player from one room to another. It also calls "DoPlayerEnterChecks"
+after the player is in the new room. This is used for things like
+triggering new random monsters in the Proving Grounds. After that,
+there might be something funning happening on entering the new room,
+so the enter checks for the room are called. If those checks indicate
+that something special has happened, EnterRoom returns false, allowing
+callers to not do further standard actions.
+
+Putting it all together, "DoMove" is the top level routine which
+attempts to move a player in a given direction from the player's
+current room. First, it checks to see if the player has assumed a
+position, such as sitting down, and prevents the move if so. Next it
+checks to see if there is a connection from the current room in the
+desired direction. If there isn't, then the move cannot happen. There
+might be a special "nogo" string or action to handle that case. If the
+direction exists but is locked, then the move is also prevented. Next,
+the various checks associated with the attempted move are called.
+DoPlayerLeaveChecks handles things like a player being blocked by a
+monster in the Proving Grounds. The DoChecks call is for special
+checks on that one direction, and DoRoomAnyLeaveChecks is for special
+checks on any attempt to leave the current room. If all checks allow
+further progress, EnterRoom is called to do the actual moving, and all
+of the other actions, display updates, etc. that are needed.
+
+The following two routines are used in this scenario to move machines
+around. This is for the fixed machines like Packrat as well as the
+random machines in the Proving Grounds. "TryToMove" checks to see if
+the machine will be allowed to move in the indicated direction. If it
+returns "true", then the machine can use "MachineMove" to move in that
+direction. The things done for machines are very similar to those done
+for players, except that there is no display associated with a
+machine, so less updating need be done. Note, however, that a machine
+moving into a room can bring light into that room, and thus the
+displays of any players there might need updating.
+
+Next are some routines for dealing with light sources. "AddLight" is
+called whenever some activity is adding a light source to a room. This
+is not used for agents doing this by moving into a room, but is used
+for things like a player lighting a lamp in a dark room. The next
+routine, "ActiveLightObject", uses AddLight, and is useful as an
+action routine on an object that can be lit. Similarly, "RemoveLight"
+and "ActiveUnLightObject" are useful for situations where a source of
+light is being extinguished. A slightly different situation makes use
+of "PassiveUnLightObject". In that situation, no agent action is
+causing the light to go away - it is happening on its own. This is
+useful for things like torches and lamps which can burn out.
+
+Routine "CarryItem" is used when a player is trying to pick something
+up. It is the code that prevents a player from carrying more than
+MAX_CARRY objects. Note that objects have a property that indicates
+who is carrying them. This is useful for when the object needs to
+remove itself from its carryer. This is used in the squirrel quest in
+the standard scenario to remove objects from the player that should
+not be allows out into the rest of the scenario.
+
+The next set of routines are related to allowing players to
+interactively enter descriptions, the text of letters, etc. If the
+scenario wants a single short line of input from the player, and that
+player is using the full MUD client, then a text requester can be
+used. For longer text input, however, the user should be able to use a
+text editor where possible, and multi-line input otherwise.
+"GetDocument" is the basic routine in the scenario used for that
+purpose. "appendToDocument" is used as an input handler for a
+character that is entering a document line-by-line. If it is passed a
+string consisting only of a period (as entered by the player), then
+the document is finished. The idle handler setup by GetDocument (to
+handle the case of the player disconnecting while in the middle of
+entering a document) is reset, the previous input handler is reset,
+and the prompt is reset. Since something must happen when the document
+is completed, appendToDocument assumes that an action has been set on
+the player for that purpose. It retrieves and deletes the handler, and
+then calls it. If the input string was not an end-of-document signal,
+then it is simply concatentated onto the document being built up.
+
+"docIdleAction" is the idle action used by GetDocument. It simply
+saves a copy of the old idle action (since it will be deleted by the
+call to appendToDocument), puts the saved, old copy of the document
+into the current form of the document, and then calls appendToDocument
+with a "." string, to indicate that the document is complete. After
+that, it calls the saved previous idle handler, thus preserving the
+proper stacking of such idle handlers.
+
+If the player is using the full MUD client, or is using the SMUD
+client locally, so that builtin "EditString" can work, then
+GetDocument will use those facilities. "docEndAction" is the routine
+which it sets up to be called when the user completes the string
+editing. It is passed, by the system, the current value of the string
+being edited, as well as an indication of whether or not the user
+aborted out of the edit. Again, appendToDocument is called to complete
+the editing.
+
+Next comes "GetDocument" itself, the exported interface to this code.
+It is passed a prompt, which is only used if line-by-line mode is
+used. If the character can edit, and is not already editing something,
+then the temporary properties on the player are setup, the idle action
+is setup, and builtin EditString is called to allow the user to do the
+actual editing. If the user cannot edit, then the input handler is set
+to appendToDocument, the idle handler is set, and the routine returns
+- control will then end up inside appendToDocument when the user
+enters the next input line.
+
+The next three routines are a variant of "GetDocument". They only
+support line-by-line input, and they allow a caller-supplied routine
+to handle each line of input from the user. This is used in the
+building code when the user is entering an action.
+
+Following the GetDocument routines are some routines which allow long
+strings to be output with pagination. This is not needed when players
+are using the full "MUD" client, be is quite useful for those that are
+in text-only mode. The pagination done here is not very smart and will
+output too many lines if the lines in the string to be printed are
+longer than the output width in use. A better solution would perhaps
+be to build some kind of pagination into the text-only clients (SMUD
+and MUDAgent in text mode), handling tab expansion, proper word-
+breaks, etc.
+
+There are a number of important concepts that are used in this code.
+The first thing defined is actually a thing, "paginateThing". This
+will always contain one fixed property, "p_paginateParse", which is
+assigned during the initial parsing and never changed again. This may
+seem strange, but the purpose is to allow a function ("paginateParse")
+to be used ("in paginateShowPage") before it is defined. This is
+needed because both of those routines can reference the other. So,
+since the AmigaMUD language has no direct method for doing "forward
+references", this indirect method must be used.
+
+Property "p_pPaginateSetup" is a flag which indicates whether or not
+the complex parts of pagination had to be set up. This allows the
+reset routine ("paginateReset") to know how much resetting it must do.
+Properties "p_pPaginateString" and "p_pPaginateLen" describe the
+string that is being paginated. They change as parts of the string are
+printed. The remaining three properties are used to save the
+character's prompt, input handler, and idle handler. This is done so
+that we can restore them when we are finished displaying the string.
+
+"paginateReset" puts things back to normal. It deletes all of the
+properties that were added to the character, and sets the input and
+idle handlers back to what they were before "Paginate" was called. If
+parameter "goingIdle" is true, then paginateReset is being called as
+part of the player leaving the game. In that case, we not only want to
+reset our stuff on the character, but we also want to allow any other
+"going idle" actions to happen. We do this by calling the saved idle
+action as our last step. "paginateIdle" is the actual "idle action"
+used here. It simply calls paginateReset with goingIdle 'true'.
+
+Function "paginateShowPage" prints out one page of the string. This is
+the routine that could be improved to split up long parts of the
+string on word boundaries, but this would be quite expensive to do
+using the AmigaMUD interpreter and strings. paginateShowPage first
+obtains the values it needs to do its job. TextWidth(0) returns the
+width in characters of the player's display, and TextHeight(0) returns
+the height in text lines of the display. These are set automatically
+if the "MUD" client is in use, and can be set by the player in the
+standard scenario with the "width" and "height" commands. The while
+loop continues outputting text until the desired number of lines have
+been printed (by its best guess) or it runs out of text to print.
+After the loop, if the string is empty, paginateReset is called to
+reset the player, otherwise the remainder of the string is saved on
+the player. If this is the first full page of the string that has been
+printed, then the player's input prompt, input handler and idle action
+are set to the ones defined here. These could have been set right away
+in "Paginate", and unconditionally reset in paginateReset, but that
+would result in extra "flapping around" of things like the prompt,
+when the string is short enough to not need pagination.
+
+"paginateParse" is the input handler used during pagination. It
+accepts a "q" to end the display of the string, or an empty line (just
+a carriage return) to display the next page. Note the use of "==" to
+allow either a capital or lower-case "q". "Paginate" is the top-level
+entry point for this code. It simply sets the string onto the
+character and calls paginateShowPage.
+
+Next in file "util.m" comes some routines, etc. dealing with stores.
+The first such, "AddForSale", is used to add an item for sale in a
+store. It is passed the room that is the store, the name of the item
+(in the usual internal form), an optional description of the item, the
+price of the item, and an optional routine to do special handling when
+the item is purchased. A new thing is created to represent the item,
+the various properties are attached, and the item is appended to the
+list (created if needed) of items for sale in the store.
+
+"AddObjectForSale" is similar, except that it adds for sale an already
+existing object. This will be the case when the object is set up using
+the build code. "SubOjbectForSale", also used from the build code, is
+used to make an object be no longer for sale at the store. Note that
+it removes properties "p_oPrice" and "p_oBuyChecker" from the object.
+
+Routine "ShowForSale" is used as the action for the "shop" verb. It
+simply shows the active client what is for sale in the current room.
+
+"StoreBuy" is used as the main body for the "buy" verb. It takes a
+string which is the internal-form name of the object to buy, and
+attempts to buy one in the current location. The price is checked
+against the player's current money. Note that if the player has flag
+"p_pPrivileged" set, that player does not pay for purchases. If the
+purchase is going ahead, a new thing is created which will be the new
+copy of the item being purchases. It inherits most of its properties
+from the model which was for sale. If there was a buy action set on
+the model, then it is called, and it can cancel the sale, or can
+complete it, in which case the standard message about buying is not
+output. Note that other players can see when someone buys something,
+although they are not told what was purchased.
+
+"MakeStore" is used from the build code to make a room into a store.
+This is done by attaching a p_rBuyAction to the room. The build code
+uses the presence of that property to determine whether or not a room
+is a store. "IsStore" makes that test. This is done as a routine,
+since property "p_rBuyAction" is private to this source file.
+Similarly, "UnmakeStore" removes the buy action, and any list of items
+for sale.
+
+The next pair of routines deal with special commands that are
+available only at specific locations. Examples in this scenario are
+the commands used in banks. The command is just a simple string, and
+can include comma-separated alternative forms. Special commands are
+checked for very early in processing user input. "AddSpecialCommand"
+takes the room, the command and an action to be called to execute that
+command. "RemoveSpecialCommand" takes the same three parameters. The
+string and routine given to RemoveSpecialCommand must be exactly the
+same as those given to AddSpecialCommand, else things will not work
+out quite right.
+
+"DoSay" is a simple routine which this scenario uses whenever someone
+or some machine (excepting some simple special cases) wants to say
+something out loud. It checks that the room allows normal speech,
+echos the speech to the player if needed, and then simply calls the
+builtin routine "Say" to do the speaking.
+
+"checkAlias" is a subroutine of "parseInput", which is the input
+handler this scenario uses for user input lines. Here is the sequence
+of checks, etc. made on each input line:
+
+    - if the line starts with '"', then use DoSay on the entire line
+    - expand any alias in the command
+    - if any object in the room, or carried by the active agent, has
+	the first word of the input as its "act word", then call the
+	corresponding action on that object
+    - otherwise, check for a special command in this room, and if
+	found, use it
+    - otherwise, use builtin "Parse", with the standard grammar, to
+	parse the input line
+
+After parseInput comes the definition within the scenario of the codes
+for the various special keys that the MUD client supports. Routine
+"handleRawKey" is the normal handler for special key events. It uses
+previously defined routine "InsertCommand" to echo and execute the
+corresponding command.
+
+"idleAction" is the standard idle action in the scenario. It removes
+the icon of the leaving player from the displays of all other players
+in the same room, removes light from the room if appropriate, and
+resets things so that when the player reconnects, he will get a
+display of the current location. idleAction then informs other players
+in the room that the player has left the world.
+
+"activeAction" in turn is the standard active action for this standard
+scenario. It sends the players chosen text colours to the MUD client,
+if needed, initializes the standard graphics if needed, and then calls
+any other enter actions that other portions of the scenario may have
+added. One of these is used by the build code to put up the "@"
+button. Next, activeAction continues doing the reverse of idleAction,
+by adding this player's icon to the screens of other players in the
+room, and possibly bringing light into the room. Finally, it prints a
+message saying that the player has entered the world.
+
+The next set of routines implement the banks in the standard scenario.
+The first three are special action routines called by parseInput. As
+such, they have no parameters, but get what they need from the command
+line tail, usually using builtin GetWord. "bankDeposit" wants a
+number, and will try to deposit that number of blutos into the bank.
+Note that each bank is separate - they all have a "p_rBankAccounts",
+which is a list of the accounts at that bank. Each account consists of
+a pointer to the thing of the account holder, and the number of blutos
+in the account. bankDeposit will create an account for the player if
+none exists. "bankWithdraw" is the reverse - it transfers blutos from
+the bank account to the player. If the account is drained, it is
+closed. "bankBalance" simply shows the player's current balance.
+
+Routine "MakeBank" is publically exported, and is used to make a room
+into a bank. It simply creates an empty account list, and uses routine
+AddSpecialCommand (described earlier) to add the commands "deposit",
+"withdraw" and "balance" to the room. Routine "IsBank", used from the
+build code, tells whether or not a room is a bank. "UnmakeBank" tries
+to make a room not be a bank. It returns a status value, with continue
+indicating that the room was not a bank, fail indicating that it could
+not unmake the bank because active accounts exist, and succeed
+indicating that it was able to make the room not be a bank.
+
+Next follow a couple of self-explanatory utility routines.
+
+Routines "commonVerbTail", "VerbCarry" and "VerbHere" are worth close
+examination. They are used to implement most of the common verbs in
+the scenario. Each verb is essentially implemented with one or two
+action properties, and a string property. If the action required for
+the verb is just that of printing out a message, then the string
+property will yield the message. Otherwise, the action property will
+yield an action which is both a checker and a do-er for the verb. The
+properties can exist on objects, rooms and agents, thus allowing a
+fair amount of flexibility. VerbCarry and VerbHere are used as the
+body of verb-handler routines for Verb1 verbs. VerbCarry looks for the
+user-specified object in the player's inventory. VerbHere looks both
+in the inventory and in the current room. Which one you use depends on
+the normal English semantics of the verb you are adding.
+
+commonVerbTail is the central code that is common to both VerbCarry
+and VerbHere. Both VerbCarry and VerbHere handle the special case of
+"all" being the user-specified object. VerbCarry will attempt to
+operate on everything in the player's inventory. VerbHere will first
+try all things in the inventory. If there are none, then it will try
+to work on all in the current room. VerbHere will also check the
+room's scenery for an object not found elsewhere, and will tell the
+user that the operation cannot be done on it.
+
+Let's examine a use and call with VerbHere in more detail:
+
+    define t_base p_oUseString CreateStringProp().
+    define t_base p_oUseChecker CreateActionProp().
+    define t_base p_pUseChecker CreateActionProp().
+
+    define tp_verbs proc v_use(string what)bool:
+	VerbCarry("use", p_oUseString, p_oUseChecker, p_pUseChecker,
+		  "You cannot use", what)
+    corp;
+
+    Verb1(G, "use", 0, v_use).
+    Synonym(G, "use", "apply").
+
+Property "p_oUseString" is a constant string which can be attached to
+an object or a room, and which will be the entire result of trying to
+"use" something, if it is present. "p_oUseChecker" is an action that
+can be attached to the object or room to do the required action, check
+that it can or cannot be done, print special messages, etc. as
+desired. "p_pUseChecker" serves the same purpose, but is only looked
+for on the active agent. As the comment before "commonVerbTail" says,
+separating this case out prevents some confusion relating to machines.
+The verb routine "v_use" simply calls VerbCarry. It is a Verb1
+routine, and has synonym "apply". This simple setup allows players to
+try to "use" objects, with objects being able to have special actions
+and checks, rooms being able to block or special-case using, and
+special use-checks possibly attached directly to the player.
+
+When VerbCarry is called, it is passed value 'what', which is the
+internal form of the noun phrase that the player entered. So, the
+first task of VerbCarry is to try to find the object that the user is
+talking about. If 'what' is empty, then the user just typed the verb
+by itself - VerbCarry sets variable "object" to nil and drops through
+to a call to commonVerbTail. If 'what' is the string "all", then
+VerbCarry will iterate through all items in the player's inventory,
+calling commonVerbTail for each one, so long as it continues to return
+'true'. This is only done for objects which are not marked as
+invisible, i.e. only for those which show up in the inventory. The
+code handles the situation where the inventory list it is scanning is
+changed during this process. Variable 'ok' is used to record the
+success of the operations. If the player is not carrying any visible
+object, then variable 'done' will not have been set, and so VerbCarry
+will print an appropriate message, and its entire result will be
+'false', via 'ok'. For a normal call, builtin FindName will be used to
+find a matching object in the inventory list. Such an object (or nil
+from the empty 'what' case) is passed to the normal call to routine
+commonVerbTail at the end of VerbCarry.
+
+commonVerbTail has parameters as follows, most passed directly from
+the caller of VerbCarry or VerbHere:
+
+    direct - the property containing any direct string result
+    indirect - the property containing any action to check for
+    actorCheck - the property containing a check on the agent
+    object - the object to work with, or nil
+    failHeader - what to print if the operation fails
+    verbName - the common name of the verb, used in messages
+    name - the formatted name of the object, if any
+
+The order of the checks that commonVerbTail does may not be the best,
+but so far I haven't been able to come up with a better one. First,
+the player (or machine) is checked for an 'actorCheck' routine. If one
+is found, the object is set as "it", and the routine is called. The
+routine must return a status value, with the values having the usual
+interpretation:
+
+    fail - the operation has failed - no more processing
+    succeed - the operation has succeeded - no more processing
+    continue - neither result - continue processing
+
+If there is no 'actorCheck' on the agent, or if it returned continue,
+then a checker on the current room is looked for. It is called in the
+same manner, with the same effect. Next, a simple string is checked
+for in the room, but only if the object is nil or there is no direct
+string on the object. Such a string is simply printed out, and
+processing is allowed to continue. Next, a checker on the object (if
+any) is looked for and called as usual. Finally, if all is still well
+(or, more likely, nothing has happened yet), a direct string is looked
+for on the object, and printed if found. Note that if a direct string
+is printed in either case, a newline is automatically added.
+
+The final result of commonVerbTail, and hence of VerbCarry or
+VerbHere, depends on what was done during processing. This has been
+maintained in variable 'st', which will have the result from the last
+indirect routine call, if any. If that status is not 'fail', then the
+entire action is considered to have succeeded. If there were no
+checkers on the actor or room that were triggered, and no object was
+given (the player entered no noun-phrase), then a standard usage
+message is printed. Otherwise, nothing appropriate was found, so that
+the verb is not applicable to the object, a message to that effect is
+printed, and commonVerbTail returns 'true'.
+
+The above simple run-through of this code is unlikely to have given
+the reader a true understanding of what is going on here, much less
+why things are done that way. Only experience in working with the
+scenario can give you that kind of understanding. Also, note that
+these routines were not coded this way immediately - several revisions
+were needed until the current form appeared to be satisfactory. This
+is true of much of the general tools in the scenario - they were not
+designed from first principles, but have evolved over a couple of
+years of working within the scenario. There are many other ways that
+similar results can be obtained, and the practiced (or brave!)
+programmer should feel free to investigate alternatives. If you find
+any that work out well, let me know.
+
+Following this family of routines are a couple more handy utilities.
+"ResetObjects" is used in places like the squirrel quest. It runs
+through a passed list of objects, and takes each one from where it is
+and puts it back to where it is supposed to be. This latter is
+represented by the property "p_oHome". Note the use of property
+"p_oWhere", which is maintained by the scenario to keep track of where
+the various objects are.
+
+"RemoveAllFromInventory" is used in similar circumstances. It removes
+all occurrences of a given object ('what') from the inventory of agent
+'who'. It does this using recursive routine "scanList", so that
+occurrences inside containers will be found and removed.
+
+We now finally come to the first location in the scenario. This is the
+arrivals room. In the full standard scenario, this room is part of the
+mini-mall, but since the mini-mall is not created until much later,
+the arrivals room is simply an isolated room at this point. It doesn't
+even have any graphics associated with it yet. It is defined this
+early since it is needed when a player is initialized, since that
+initialization includes moving the new player to the arrivals room.
+Previously discussed routine SetupRoom is used to do the setup.
+
+Following the definition of the arrivals room is the setup of the
+SysAdmin character. This is done separately here so that that
+character can be set up a bit different from the normal "nondescript
+adventurer". In particular, SysAdmin is made privileged (doesn't have
+to pay for purchases), is given 10000 blutos and is given a special
+description. Property "p_pEnterActions" is setup on SysAdmin right
+away, so that code which sets itself up to add scenario-entry routines
+to players can do so immediately to SysAdmin.
+
+The final routine in file "util.m" is "newPlayer". This is the routine
+which is made the "new player action" for the scenario. It will be
+executed automatically on behalf of a player when that player first
+enters the game. We have seen many of the properties being set up here
+discussed in this file, as well as most of the routines being called.
+I hope that the reader can understand what is going on in this routine
+without further explanation.
+
+
+Basics - verbs.m
+
+
+File "verbs.m" contains the definitions of many of the more important
+verbs in the scenario. Most verbs can simply use the common verb code
+defined "util.m", but some of the more important ones require special
+processing, or do not use that code for some other reason.
+
+The first thing done in "verbs.m" is to use the "Word" builtin to
+define a few separator words that are used in a number of verbs. These
+are done here so that they can be readily found, instead of doing them
+before the first verb that happens to use them.
+
+The first real verbs defined are the movement verbs. These are
+implemented using the DoMove routine defined in "util.m", and most
+have several synonyms, including very short abbreviations. Verb "go",
+and its abbreviations simply allows the player to put a movement verb
+in front of the direction to move.
+
+Verb "with", defined next, is a somewhat special one. It is defined in
+the scenario, but it cannot be used. It is intended for use with
+magical objects, which add a whole set of new commands to the world.
+That set of commands is represented as a grammar attached to the
+object. The tail of the user's command, after the "with" and the noun
+phrase for the object, is parsed according to the grammar retrieved
+from the object. For example, if a wizard creates a "staff of power",
+which supports additional commands "zap", "thwack" and "jump", a
+player carrying the staff could enter:
+
+    with the staff of power do zap blue dragon
+
+The English isn't terribly good here, but the structure works. The
+difference between setting "magical spells" up this way as opposed to
+using the "cast" command, is that here the spell is associated with an
+object, rather than with a character. That way, a non-wizard can
+execute the spells attached to a magical object. A small "with toy"
+was used to test the "with" command, but its definition is commented
+out.
+
+After the "with" verb comes a set of verbs that allow players to sit
+on benches, lie on beds, etc. There really isn't much semantics
+attached to these actions, but they can give more feeling of reality
+to social interactions in a MUD.
+
+Following these verbs, starting with routine "lookAtObject", is the
+code for the "look" verb. "lookAtObject" is just a little utility
+which will do the job of printing out an object's description. This
+includes calling a possible description checker, and getting the
+actual description from either a direct string or an indirect routine.
+Note the use of builtin "NPrint" to avoid some possible spoofing on
+this important activity.
+
+Actual verb routine "v_look" uses "lookAtObject" to look at "all"
+objects in the current room. LookAtCharacter, defined in "util.m" is
+used to look at characters. "look" allows looking in a specific
+direction, which shows the room's direction description for that
+direction. "look" allows examination of objects that are either being
+carried by the character, or are in the current room. The room's
+scenery is checked if no matching object is found. Verb "look around"
+is a special case of "look" - it simply shows the current room to the
+character. Similarly, verb "exits" just shows the obvious exits in the
+current room. This is useful if the player is in "superterse" mode.
+
+After "look" comes "read", which is set up very similarly. Verb
+"inventory" simply shows the player what his character is carrying,
+and how many blutos it currently has.
+
+Next follows code to implement the "get" verb. I will describe this
+verb in more detail. "DoGet" is an exported routine which handles the
+basics of getting an object. It is used by the "get" verb in a couple
+of places. "p_oNotGetString" is used in DoGet as a special string to
+print when something is not gettable. It can be set directly, or by
+using the build code. DoGet is passed the room the object is in, the
+character who is picking the object up, and the object itself. It
+returns 'continue' if the operation proceeds normally, i.e. nothing
+special happens during the getting. It returns 'suceed' if the getting
+is reported as successful, but special things may have happened. It
+returns 'fail' if something went wrong and the object was not gotten.
+
+First, DoGet creates string "whatName", which is the external form of
+the name of the object. This is used when printing messages about the
+object. Recall that when a verb routine is called, it can be passed
+the internal form of the name of the object to operate on. If the
+object has been set up to be not gettable by its creator, then DoGet
+will print a message saying so, and return 'fail'. Otherwise, it will
+look for a "p_oGetChecker" routine on the object. If there is such a
+checker, it will be called, and its status result interpreted in the
+normal way: continue -> nothing special, continue processing; fail ->
+do not continue trying to get the object; succeed -> the getting was
+successful, but it has already been completed. The object is passed to
+the checker routine, but for convenience is also set up as "It". If
+there was no object checker, or the checker says to continue, DoGet
+next calls any "get checkers" in the room. These checkers can be used
+to control the picking up of objects in the room, as limited by some
+aspect of the room itself. If those checkers are absent or allow the
+getting to continue, DoGet calls "CarryItem", defined in "util.m" to
+see if the character has the capacity to carry the item. If so, the
+item will have been added to the character's inventory. So, DoGet
+needs only to delete the item from the room's contents list, remove
+property "p_oWhere" from the item, and possibly inform others in the
+room about the action that has just been taken. Note the special check
+and message for a hidden wizard getting an object.
+
+"getAllStub" uses DoGet to have the active character get an object
+from the current room. DoGet is more general. The form of getAllStub
+is such that it can be passed to "DoAll".
+
+"v_get" is the actual verb routine for the verb "get". It is a Verb1
+routine, indicating that it only has a direct object (or a list of
+them, automatically handled by the AmigaMUD parsing code). Thus, it
+has a single string parameter, which is the internal form of the name
+of the object, and returns a bool value, indicating whether or not
+further actions from the input line should be processed. v_get first
+checks for an empty "what" value, which can occur if the player just
+enters something like "get.". Next, special checking is done to allow
+the form "take inventory" to be the same as using the "inventory"
+verb. Similarly "take exit" is the same as "exit", "take entrance" is
+the same as "enter" and "get up" is the same as "stand up". "get all"
+is handled by using DoAll with getAllStub. Recall that DoAll returns
+fail if it cannot work on anything in the passed list.
+
+The standard handling code follows. First, an external form of the
+object name is produced by FormatName. Next, the object is looked for
+in the room's contents. If a unique match is found, then the object
+is identified, and DoGet is called to try to pick it up. If FindName
+indicates that the user's input form was ambiguous, a message to that
+effect is printed. Otherwise, no matching name was found in the room's
+contents list. So, a check is made to see if there is an agent by that
+name in the room. Characters cannot pick up other characters! If there
+isn't, the a check is made to see if the character is already carrying
+something that matches the name. (Forgetting having already picked
+something up is a common mistake.) If not, then the name is checked
+for in the room's scenery string. If a match is found there, then the
+player is told that it cannot be picked up, else the player is told
+that there is no matching object to be found. Note that much of the
+code and checking is done in order to be "user friendly".
+
+Following the get routines come similar routines for dropping things:
+"DoDrop", "dropAllStub" and "v_drop". There are slight differences
+from the getting, but otherwise the above explanation applies.
+
+"give" is the first verb we have seen here that takes both a direct
+and an indirect object. Thus it is a "Verb2" verb, and "v_give" takes
+two string parameters. v_give is a fairly long routine. The first
+interesting part is that of the three checkers that can be called. The
+first is the "p_oUnGetChecker" on the item. This can be used to make
+an item that cannot be dropped (the same checker is called by DoDrop)
+or given away (like the cursed things in Hack). Next, any "p_pGivePre"
+on the receiving character is called. A wizard can use one of these to
+prevent people from giving them things. Some machines in the scenario
+also use them. If that is well, then a "p_oGiveChecker" on the object
+itself is checked. This allows for things that cannot be given away,
+such as the pears in the standard scenario. Following that, the
+receiving character's "p_pGivePost" is called to do any checks for the
+character, after any checks by the object itself. If all checks allow
+continuation, then the object is transferred from the active character
+to the receiving character, and appropriate messages are printed. Note
+that if you give away something that you caused to be created (e.g. by
+buying it in a store), the "p_oCreator" property is changed to be that
+of the receiving character - you are truly giving the object away, not
+just lending it to someone. If no object matching the object name
+given by the user is found, v_get checks to see if it is a string that
+ends in "bluto", or something similar. If it is, the code looks for a
+valid count of blutos, and will try to transfer that many blutos from
+the active character to the receiving character. No special checks
+were implemented for this kind of transfer.
+
+Next come verbs "put in" and "take from", which are used to put things
+into containers, and to take things from containers. They are similar
+in nature to "v_give", but with less checkers, and no special case for
+blutos. Note that the container is looked for both in the character's
+inventory and in the room's contents, but the object is looked for
+only in the character's inventory. "v_lookin" implements the verb
+"look in", which allows players to look inside containers. Similar
+verbs "fill", "lock" and "unlock" follow.
+
+Following these fancy verbs comes a set of much simpler utility verbs.
+"quit" simply calls builtin "Quit", which arranges for the player to
+be disconnected when the current input line has been processed.
+Several fairly uninteresting verbs follow. The next interesting ones
+are those dealing with command aliases. "showAliases" is a utility
+routine which simply shows the current aliases a character has. Note
+how these aliases are stored - a list of things is attached to the
+character's thing. Each of those things contains two properties.
+p_sAliasKey is the word that is being aliased, and "p_sAliasValue" is
+the expanded value of that alias. Command "aliases" simply calls
+showAliases to print out the current aliases. Command "alias" will
+also do so if it has no further arguments. If is given just an alias
+word, then any alias for that word is removed. Otherwise an alias for
+the word is added or changed to whatever follows in the command.
+
+More boring but useful commands follow. Note command "words", which
+uses builtin ShowWords to show all of the command words in the
+standard grammar the scenario uses. There are quite a few. Command
+"shop" directly uses "ShowForSale", defined in "util.m". Next follows
+a whole bunch of stuff which uses the standard verb code in "util.m"
+to implement a set of common verbs. Routines "GetVerbStringProp" and
+"GetVerbCheckerProp" are used to allow the build code to work with
+these verbs. These are followed by more boring verbs. Note the verbs
+"typo", "bug" and "gripe", which allow players to log complaints about
+the scenario. Verb "cast" is worth mentioning. It allows a wizard or
+apprentice to call up any action defined in their set of in-use
+tables. The routine called this way must have no parameters and must
+return no result, but it can get further words from the rest of the
+command line, using GetWord, GetTail, etc. I have a separate source
+file which contains a number of "spells" that I find useful when being
+an active wizard in the game. Other wizards are encouraged to do the
+same. A few more boring verbs finish off the file.
+
+
+Basics - chat.m
+
+
+File "chat.m" contains a number of commands and routines that are used
+only for communication between players and for poses, which are
+actions the players can do that are seen by other players, but which
+have no actual effect on the scenario. They are used only for the
+effect they have on the minds of the other players.
+
+The "chat" command allows the player to enter into "chat mode". In
+this mode, input lines are simply spoken out loud, instead of being
+passed to the normal parser. This is done by having a handler routine,
+"chatHandler", which is assigned as the character's input handler.
+This routine supports its own set of aliases, and has escapes to allow
+normal commands to be given while in chat mode.
+
+Verb "whisper" accepts a few common input formats for separating the
+name of the agent to be whispered to from the words to be whispered.
+Verb "v_pose" handles the "pose" verb, which can also be abbreviated
+as ":", as is done in other MUD systems.
+
+Next follows two sets of routines and verbs that are specific pose-
+like verbs. SysAdmin's are encouraged to add others as they see fit.
+These specific poses are divided into two categories - those that
+normally must be seen by others, and those that can be heard by
+others. This distinction is used when the player is in a dark room, or
+is hidden.
+
+
+basics - quests.m
+
+
+File "quests.m" contains the code which implements the general
+framework for quests in the scenario. This includes the "Questor"
+machine and his office. There are three types of quests that this code
+supports:
+
+    - direct - the scenario calls a routine when it determines that a
+	quest has been solved
+    - give - the player must give something to Questor
+    - tell - the player must speak a special word to Questor
+
+All quests have a name, which shows up on the sign outside of
+Questor's office. They also have a description routine and a hint
+routine. These are routines so that the resulting strings can be
+dependent on the player, or something else. This is used for the
+"Whatzit" quest in the standard scenario. All quests also have a
+checker routine, which is used to uniquely identify the quest. Direct
+quests do not actually use this checker, other that for identifying
+the quest if a player tries to accomplish it more than once.
+
+In "give" quests, the item being given will already be set up as "It".
+The checker must simply determine if that item is one that must be
+given to Questor to satisfy the quest. This can be done based on the
+name of the item, it's ancestry, or its thing. The latter will
+restrict the use of the quest, since no-one can solve the quest if
+someone else (or a machine!) is carrying the special object. The
+checker returns a status value, with values indicating:
+
+    continue - the item does not solve the quest
+    succeed - the item solves the quest
+    fail - the item appears to be an attempt to cheat on the quest -
+	it should be destroyed (this is done by "questorPre")
+
+The checker for a "tell" quest is passed the string of a word spoken
+by the player. The checker returns a boolean value, with 'true'
+indicating that the word is the magic one to solve the quest. If you
+are building a "tell" quest (like the "squirrel" quest), then it is a
+good idea to make the magic word change from player to player (it can
+be stored on the player for testing), so that the solution to the
+quest doesn't become common knowledge.
+
+Routines exported from this file are:
+
+    QuestDirect - define a direct quest
+    QuestGive - define a "give" quest
+    GiveToQuestor - utility which is useful inside your "give" checker
+	to indicate that someone is giving something to questor.
+    QuestTell - define a "tell" quest
+    DoQuest - called by the scenario to indicate that the conditions
+	for a direct quest have been met. It will check whether or not
+	the character has already completed the quest.
+    DoneQuest - returns 'true' if the active agent has already done
+	the indicated quest.
+    ShowQuests - prints an indication of how many quests the passed
+	character has solved.
+    SetupQuestorOffice - allows Questor's Office to be linked at the
+	specified location.
+
+This file also defines the "quests" verb, which show how many quests
+someone has completed.
+
+This is the last file included by source file "basics.m". They are the
+set which define the basic operation of the scenario. Those wishing to
+create an entirely new scenario can start with just this set, and
+start defining locations next. The standard scenario next sources file
+"combat.m", which defines the simple combat and monsters supported in
+the Proving Grounds area. If those writing a new scenario want that
+type of combat included, they should source it as well.
+
+
+Combat - fight.m
+
+
+File "fight.m" contains the code which defines combat in the scenario.
+This includes utilities for use in monsters, weapons and armour; code
+to create armouries and healer shops, etc. Also contained here are the
+routines for performing the actual combat, from the verb "hit" all the
+way to the killing of monsters and players. First, some constants are
+defined:
+
+    STEPS_PER_REGAINED_HIT_POINT - this is the number of movements
+	that a character makes in order to regain one hit point.
+
+    BLUTOS_AFTER_DYING - this is the number of blutos a player is
+	given when the player is killed and moved to the arrivals
+	room.
+
+    RANDOM_MONSTER_LIFE - the is the number of steps that a typical
+	random monster will take before it disappears.
+
+    FOREVER_LIFE - this value, when used as a monster life value
+	(property p_mMovesUntilVanish), indicates that the monster
+	should not vanish on its own.
+
+Next come several new properties, that can be attached to characters,
+monsters, objects and rooms. These will be seen in the code, and are
+each commented with their basic purpose.
+
+The first routine in this file is "fighterDesc". It is attached to
+characters which are fighters, and can return additional description
+which is seen when the character is looked at. It basically combines
+the character's weapon, shield and armour into a proper descriptive
+sentence.
+
+Routine "useItem" can be attached to objects which are weapons,
+shields or armour, as an action routine. It makes sure that the
+character has a "p_pDescMore" list, and makes sure that "fighterDesc"
+is in that list. It also modifies the character's active status based
+on any bonuses given by the object being used (or worn or wielded).
+Routine "unUseItem" is the reverse - it removes any special bonuses
+associated with an item. Routines "armourDrop", "shieldDrop" and
+"weaponDrop" are suitable for use as "p_oUnGetChecker" routines on
+armour, shields and weapons. They ensure that any benefits associated
+with the objects are lost when the object is discarded. Routines
+"armourWear", "shieldUse" and "weaponUse" do the reverse - they set
+the active item to be inuse by the active character. Any previously
+inuse item of the same type is unused first. These routines are used
+as verb routines, so they print confirmation messages to the player.
+
+"SetupWeapon" is the first routine exported from this source file. It
+is used to set up an object as weapon, shield or armour. It attaches
+the relevant bonuses and values to the thing which is the model for
+the item, and also attaches any needed action routines from the set
+just defined. "WeaponSell" combines the functions of "AddForSale"
+(from file "util.m") with SetupWeapon, to create and add for sale a
+new item as weapon, shield or armour. A single call to this routine
+containing the name, description and statistics for the item is enough
+to create it and make it for sale at a store. Similarly, routines
+"healBuy" and public routine "HealSell" are sufficient to setup an
+amount of healing for sale in a store. Note that "healBuy" randomizes
+the amount of healing that is actually done.
+
+"showStats" prints out the status of the passed character, and is used
+as the basis for the "status" command defined later.
+
+Public routine "AddExperience" is used to add a given amount of
+experience (which can be negative) to the given character. The routine
+takes care of adjusting the character's level if needed, and of adding
+or removing strength or speed. It will also notify the character of
+any changes made. Note that AddExperience can be called by any agent,
+and will change and inform the correct one. This allows it to be used
+in situations such as one player attacking and killing another.
+Routine "FindLoot" adds a given quantity of blutos to the current
+character, and informs the character of that.
+
+Routine "KillPlayer" is called when a player or machine kills another
+player. It takes care of a lot of the details involved. First, it
+calls any routines that have requested notification of the death of
+this character. This is used by the tracker spiders to stop tracking
+someone who has died. Next, all of the victim's possessions are
+dropped in the current location, using routine "DoDrop" from file
+"verbs.m", which will take care of things like destroying pears, etc.
+Next, the victim is penalized for dying. The victim is then forced to
+be unhidden, and is floated off to the arrivals room. Appropriate
+messages are show to all involved, and icon updating is handled.
+Finally, if the victim was the only source of light in a dark room
+(such as in many locations in the Proving Grounds), then light is
+removed from that location. Nothing is done to the arrivals room -
+that room is assumed to be not dark.
+
+"MonsterHitPlayer" allows a monster to attack a player. Whether or not
+the monster can and does hit are first determined. Next, the amount of
+damage is determined, taking into account the attacker's damage level,
+the victim's armour level, and the victim's strength. If the victim is
+killed by the attack, then KillPlayer is called to handle that. The
+attacker, the victim, and any bystanders are notified as appropriate.
+This routine returns 'true' if the victim is still alive, and can hit
+back.
+
+"KillMonster" is called when a character kills a monster. Note that
+this can be a non-player character such as Packrat as well as a player
+character. Appropriate messages are printed, and the victim's
+possessions are dropped. The winner receives loot if the victim had
+any money. The victim's icon is removed from the displays of anyone in
+the room.
+
+"PlayerHitMonster" is called to allow a player character to hit a
+monster. The monster's "p_mMovesUntilVanish" is reset to the default
+value, the player's current target is set to this monster, and the
+monster's target may be set to be the attacking player. Messages are
+printed to others in the room. Next, PlayerHitMonster determines if
+the player manages to hit the monster, and if so, how much damage is
+done. Damage done is awarded to the player as experience using
+"AddExperience", described earlier. If the monster is killed, the code
+checks for a special "p_mKillAction" on it. If one is found, it is
+called, else KillMonster is called, and the machine representing the
+monster is destroyed using builtin DestroyMachine.
+
+Routine "PlayerHitPlayer" is similar to both MonsterHitPlayer and
+PlayerHitMonster. The three routines should be rewritten to share
+common code for their calculations and message printing.
+
+Random monsters in rooms are generated according to a pair of lists
+attached (usually by inheritance) to the rooms. "p_rMonsterList" is a
+list of pointers to the models of the monsters. "p_rMonsterChance" is
+an array of numbers which is used to calculate whether or not any
+monster is to appear, and if so, which kind. "InitMonsterModels" sets
+these values up, ready for the adding of monsters. Routine
+"AddPossibleMonster" adds a given monster to the set. The value given
+to InitMonsterModels represents the proportion of the time that no
+monster will be selected. The value given to AddPossibleMonster
+represents the proportion of the time that that monster will be
+selected for generation.
+
+The next three routines are used with monsters which run away from
+other monsters. See the comments there. They are used with the deer in
+the standard scenario. Had you noticed that the deer run away from
+wolves and trolls?
+
+Each monster can have an associated set of "actions" that it can do on
+random occasions. These are simply strings that are shown to others in
+the room. "MonsterAction" selects one and displays it.
+
+Routine "PickNewTarget", along with "huntTarget" is used to allow a
+monster to try to select a new target when it enters a room. This is
+only needed if the monster doesn't currently have a target.
+
+Public routine "MonsterMove" is the normal movement routine attached
+to these monsters. It attempts to move in the indicated direction. If
+the move is successful, any "p_mArrivedAction" is checked for and
+called. Similarly, each agent in the room is informed of the arrival
+of this monster. These checks allow deer to immediately leave rooms
+with enemies in them, and to leave rooms when an enemy arrives. Next,
+if the monster's current target is in the current room, the monster
+will attack the target if the room is lit, otherwise a small message
+is sent to everyone in the room. If the target is not present, there
+is a one in five chance that the monster will try to pick another
+target from the characters in the new room.
+
+Routine "DoMonsterMove" can be used as part of the the basic step
+routine for one of these monsters. It can choose to attack the current
+target, or look for another one; or it can attempt to move, doing a
+random "action" if the move fails.
+
+"MonsterStillMoving" asks if the monster is still active. If the
+monster is not still active, the passed "dieAction", if any, will be
+called. Following that, messages indicating that the monster has left
+are displayed, and the monster's icon is removed. Then, if the
+monster's target is targetting the monster, that link is removed. The
+monster's inventory is then destroyed. Note that no attempt is made to
+drop any of the items - the monster is assumed to have carried them
+off to wherever it went. Thus, in this scenario, it is not a good idea
+to have single, unique items that are needed for quests, since they
+may end up in the possession of a monster which can carry them off and
+destroy them if no-one manages to kill the monster. Alternatively make
+sure that the object's cannot fall into the hands of a monster. This
+is what is done with the Troll-King's shovel. Finally, the machine
+representing the monster is destroyed. If the monster is still active,
+it's time-to-vanishing is decremented.
+
+Routine "MonsterReschedule" simply schedules a call to the monster's
+move action (often "MonsterStillMoving") at a random future time
+depending on the monster's speed. Monsters with higher speed move and
+do things more often. "DummyMonsterInit" can be used as the init
+routine passed to builtin CreateMachine when a machine for a monster
+is created. It will simply call MonsterReschedule to start the monster
+up. "MonsterInit" can be used when a monster appears in a way that
+might be visible to others - it prints a message and shows the
+monster's icon if the room is lit.
+
+Starting with routine "MonsterNoNo" is code and definitions to set up
+a generic monster model which most other monsters inherit from.
+MonsterNoNo is used as a checker for many actions that a player might
+try to do to a monster. The resulting generic monster, called
+"GenericMonster", is exported for use elsewhere.
+
+"CreateMonsterModel" is used to simplify the creation of a new type of
+monster. It is passed the various strings, actions and numbers which
+define the monster, and does all of the work to create the new monster
+from them. It returns the thing representing the new monster. No
+machine is actually created for the monster, however - that is only
+done when an actual example of this monster is needed.
+
+Recall from previous description that a monster can have a number of
+"actions" which will be printed out on occasion. "AddModelAction" adds
+such an action to a monster. The passed string is simply something of
+the form "roars" or "hops around" - when it is printed out by the
+standard monster code, it will be preceeded by the name of the
+monster. "CreateMonster" uses a model monster and creates an actual
+example of that type. The creator of the monster is made the current
+target of the monster. The monster's hit points are set to a random
+value up to the maximum obtained from the model. An actual machine is
+created for the new monster, and all agents in the room who wish to be
+notified of the creation of a new monster will be so notified. This
+latter is used to make the deer run away if a wolf or troll is
+created. "CreateSpecificMonster" is similar, except that the passed
+model is used exactly as the parent of the new monster - nothing is
+varied.
+
+"PickNewMonster" examines the set of random monsters available in the
+given location, and "throws the dice" to see if one should be created.
+If one is to be created, it is picked according to the liklihoods
+established using AddPossibleMonster. CreateMonster is used to create
+the new monster, so it will have a random amount of hit points.
+
+Function "monsterEnterCheck" is the trigger for the monsters. It is
+attached to players when they enter the Proving Grounds, and executes
+every time a character moves. It does incremental healing of the
+player, and will create a random monster if the player does not have a
+current target and the room is not marked as "safe". Similar checker
+"monsterLeaveCheck" allows a monster to take a final swing at a player
+who is trying to run away, or to block the player. Note that this
+routine returns 'fail' if the monster's last hit kills the player,
+thus preventing the player from doing the move in the arrivals room.
+
+Routine "StandardAttack" is called to have a player attack a monster
+or another player in a given location. When attacking a monster, the
+relative speeds of the player and the monster randomly govern which
+will hit first. If either is hit first and is killed, they cannot hit
+back.
+
+"InitFighter" sets a character up to use the combat stuff defined
+here. In the standard scenario, this is done when the player enters
+the Proving Grounds area, but it could also be done when a player is
+first initialized, if everyone is to be setup for combat.
+
+"LeaveFighting" is used as an exit checker when leaving the Proving
+Grounds - it prevents monsters from leaving and carrying their combat
+outside the Proving Grounds.
+
+"HealingBuy" can be attached to a room as the function to execute when
+someone tries to buy something in that room. It checks to see if the
+active character needs any healing, and complains if not. Otherwise,
+it uses "StoreBuy" from file "util.m" to actually do the purchasing.
+
+This file adds six commands to the main grammer. The first is command
+"status", abbreviated as "st". This is normally used by a player to
+examine the combat status of their character. It can also be used on
+other characters in the room by wizards. Verb "wield" is used to try
+to wield a weapon. Shields can be used by pre-existing verb "use", and
+armour is put on using pre-existing verb "wear". The basic combat verb
+is "hit" ("fight", "attack", "kill", "h", "k"). It searches for a
+player or machine in the current room to be the target of the attack.
+If a matching player is found, "PlayerHitPlayer" is used to do the
+attack. If a monster is found, then it is checked for a
+"p_mFightAction" property. If one is found, it is used to handle the
+attack attempt, otherwise "StandardAttack" is used.
+
+The remaining three verbs simply control the amount of output that is
+generated by the combat code. Reducing the amount is handy for those
+connecting a low speeds, or for those who don't want their screen
+cluttered up with output that doesn't give much information.
+
+
+Combat - monsters.m
+
+
+Source file "monsters.m" contains the definitions and actions for most
+of the monsters that are seen in the Proving Grounds. It should be
+fairly easy for others to add more. A couple of the machines seen in
+the Proving Grounds are not exactly "monsters", and are defined
+elsewhere.
+
+Routine "RandomMove" uses the code from "fight.m" to create the actual
+"step" routine used by most of the random monsters. It checks if the
+monster is still moving (hasn't timed out), and if so, it looks to see
+if there is a "p_mSpecialAction" attached to the monster. If so, that
+action is called, and if it returns 'false', indicating that it has
+not done all things necessary to keep the monster active, or killed
+off the monster, RandomMove decrements the monster's active time, and
+calls MonsterReschedule to setup the monster's next step. If there is
+no special action attached, "DoMonsterMove", described above, is used
+as the basic step action.
+
+"MonsterPickUp" provides for some interesting, but rarely seen
+activity. It is normally only attached to "humanoid" monsters, like
+the goblins. With this action attached, the goblins will attempt to
+pick up things that they encounter. They will try to wear armour,
+use shields or wield weapons, if they are better than any they already
+have. This can make it difficult to recover especially good objects
+lost in the deeps. Such objects are also subject to being destroyed if
+the monster carrying them times out and goes away.
+
+The next half dozen routines are used to implement "tracker" monsters.
+The only example of these in the standard scenario is the tracker
+spiders which guard the spider egg. Such monsters attach a move
+checker to the player who they are tracking, and it records the moves
+the player makes. At their own speed, the tracker follows that
+recorded path, thus "tracking" the victim. If the victim is
+encountered, the path is reset. "TrackerDieNotify" is attached to the
+victim so that it is called if the victim is killed. It simply clears
+and removes the record of anything tracking that victim.
+"TrackerChecker" is the actual routine which records the movements. It
+will delete the tracking information if all of the trackers are gone
+(e.g. if the player kills all the tracker spiders). It also does the
+slight optimization of cancelling a move that is the reverse of the
+previously recorded one. "TrackerDie" is the companion to routine
+TrackerDieNotify. It deletes tracking information from a target if the
+tracking monster goes away. "TrackerKill" is an explicit routine
+called when a tracker monster is killed. Among them, these routines
+should be sufficient to keep unneeded tracker and track lists from
+accumulating. "TrackerInit" is the init routine that should be used
+when a tracker monster is created. It initializes both the monster and
+the player to allow the tracking to occur. "TrackerMove" is the basic
+step routine for a tracker monster. If the tracker finds the target,
+it uses the usual "MonsterHitPlayer" to attack the target, and resets
+the track record. If the target is not found, the tracker tries to
+move in the next direction recorded in the track. If the track runs
+out without the monster finding the player, or some move following
+the track fails (e.g. trying to go through a locked door), the tracker
+falls back to the normal random-monster method of moving.
+
+Following the tracker code, the standard monsters are created. The
+only thing to take note of here are the routines "deerArrivalCheck",
+"deerCreationCheck" and "deerArrivedCheck", which are the special
+checker routines that allow the deer to run away from wolves and
+trolls.
+
+
+Town - mall.m
+
+
+Source file "mall.m" defines the mini-mall area. A number of special
+constructs and situations occur in this area, so the reader is
+encouraged to browse the code to see where to find examples of how to
+do things. None of these will be explained in detail.
+
+The entrance corridor is a good example of how to set up a lot of
+detail. Note the room drop checker in the garbage room, which attempts
+to destroy objects dropped by their creator. The smell checker used
+here shows how such a checker can be added and then removed from a
+player.
+
+The Beauty Shop shows some complexity. When the players enter there,
+three additional mouse-buttons are added to the screen. These trigger
+either the use of GetDocument to get a new player description, or of
+the use of the icon editor to edit either the player's icon or the
+player's cursor. Special care was taken with this code to allow it to
+operate even if the player leaves the Beauty Shop in the middle of
+using it. Similar code cleans things up if the player leaves the game
+in the middle of doing these things.
+
+The camera object in the store has quite a bit of code associated with
+it. This includes a new verb, "photograph"/"photo"/"snap". This allows
+the player to take photographs of characters, objects, rooms and
+directions. The code allows for description strings and actions, and
+will record anything written on an object. This code, and similar code
+for the mirror in the squirrel quest, is the reason why the
+description routines all return their strings, rather than just
+printing them.
+
+Routine "checkForGift" and its associated properties is an example of
+how to make sure that something only happens once per player. The
+player is recorded on a list so that this minor event does not need to
+add a property to the player, which would be using up one of the
+possibly scarce property slots available.
+
+
+Town - streets.m
+
+
+This file creates the town and its surroundings, including the streets
+and sidewalks, the park, the ring road, and the area with the pear
+tree. The "pear quest" is defined here. Note that a fair amount of
+code was required to make sure that there aren't any ways to "cheat"
+on the pear quest. Are there any cheats that I missed?
+
+
+Town - squirrel.m
+
+
+File "squirrel.m" defines the squirrel quest and the areas around it.
+Setting up an interesting quest is not an easy task. The first step is
+perhaps the hardest - deciding exactly what the quest is, and setting
+it up so that it is neither too hard nor too easy. Solving the
+squirrel quest is made easier with the standard MUD client program, so
+that input history can be used to help place all the tape.
+
+The squirrel is a machine which has a fairly complex movement
+algorithm. She must interact with the structure of her tree, with
+where the player is, and with where there are pieces of tape. She must
+move "intelligently" enough to avoid get trapped too easily, but there
+must be a way to trap her. It took a couple of revisions of her code
+to get the difficulty to what I wanted. The first revision made it far
+too easy to trap her, so the ability to jump from branch to branch was
+added, thus leading to the need for the isolated, broken-off branch.
+Care has been taken to make sure that the descriptive output produced
+is correct and natural English. Wizards wishing to create "tell"
+quests may want to take note of the code in "squirrelStep" which
+creates a random "word" as the quest solution.
+
+Also of interest in this source file are the various special objects
+that can be used or created. E.g. using the hoe out-of-doors creates a
+weed, which is again slightly special. E.g. the mirror in the bedroom
+shows the character his own description. Things are arranged so that
+taking a picture of the mirror will capture a picture of the player.
+There is room for two people on the bed, but unless SysAdmin "poofs"
+in, there can only ever be one person on it.
+
+
+Town - machines.m
+
+
+This file defines the two non-player characters that wander around the
+town (Packrat and Caretaker) as well as the "enter-exit machine",
+which records the people passing through the mini-mall entrance
+passage. The enter-exit machine isn't a machine in the technical
+AmigaMUD sense, but it is the first machine-like thing I coded in
+AmigaMUD, so I don't want to change it much or remove it, for
+sentimental reasons.
+
+Caretaker doesn't do much. He just wanders around, picking things up.
+He will drop them in their "home" location if he can. Many objects
+with no reasonable "home" are marked with the lost and found room as
+their home, so they will end up there, if Caretaker finds them and
+then finds his way there. The only thing he will do for players is to
+drop things he is carrying, if they tell him to. He will also accept
+anything given to him.
+
+Packrat is a bit more complex. She wanders around picking things up
+and dropping them, but she also has special checks for being in the
+field with the pear tree. She will pick a pear and then eat it.
+Packrat's main feature is that she will do whatever you tell her to
+do, sometimes with fascinating results. One player tells me that he
+used her as a companion in the Proving Grounds, attacking the same
+monsters he was attacking. Since she can kill them, she gained
+experience, levels, etc. just like a player character would. She can
+also be made to solve quests, although some wouldn't work because of
+restrictions on how some things operate. Packrat:
+
+    - echoes any pose/emote she sees
+    - greets whoever greets her
+    - repeats out loud any whisper she overhears
+    - accepts and thanks you for anything given to her
+    - is involved in one of the quests
+
+
+Town - mail.m
+
+
+This file adds the in-mud mail system, the postman, and the bulletin
+board facility to the scenario. Mail is done by buying a pen and a pad
+of paper in the store; writing letters to someone; and posting them in
+a mailbox. Mailman, a non-player character, follows a route around the
+streets of the town, taking letters out of the mailboxes and taking
+them to the mailroom in the mini-mall. The letters are left there,
+where they can be picked up by the character they are addressed to. An
+example of the bulletin boards (which also use pen and paper) can be
+found on the north side of the west street in the town.
+
+Verbs "write"/"mail" and "post" are created in this source file. The
+only routine publically exported is "MakeBulletinBoard", which will
+create a bulletin board in the room it is passed. When writing a
+letter to someone, a check is made to see if that someone has
+registered for mail in the mailroom. This is done so that it is less
+likely that a mail sender thinks that someone should have received
+mail when that someone hasn't even discovered the mail system.
+
+
+The Proving Grounds - proving0.m - proving6.m
+
+
+The source for the Proving Grounds is split up as follows:
+
+    proving0.m - the surface level
+    proving1.m - the sewers level
+    proving2.m - the deep sewer level
+    proving3.m - the caves level
+    proving4.m - the chasm area
+    proving5.m - the doors room area
+    proving6.m - the 3-D maze area
+
+Again, I will only be mentioning a few things from these source files.
+
+
+proving0.m - the surface
+
+
+The "monsterSet" routines generate a set of random monsters for the
+room they are given. The set is normally inherited from a general
+model of the room, rather than being attached separately to each room.
+The birds, the drinking troll, and later the drinking goblin, are
+slight variations of the standard monsters.
+
+The checkers associated with entering and exiting the Proving Grounds
+area handle the initialization of the combat values on characters,
+and keeping monsters out of the non-combat areas of the world.
+
+A number of useful weapons, armour, etc. are offered for sale at the
+six stores in the Proving Grounds. They make use of various routines
+provided earlier in the scenario. The high price on the flashing
+sword, the Hammer of Thor, and the enchanted shield are due to their
+bonus attributes, which are given to the player when they are used.
+This is done via their various "bonus" properties. The oil lamp and
+the torch use "DoAfter", implemented in "base.m" to control their
+burning interval. Note how the state of the lamp, oilcan and torch are
+set only on the model objects. When the timed actions happen, they
+subtract one from the "p_oState" of the individual objects, which is
+first inherited from the model, updated on the individual, and then
+fetched from the individual.
+
+The apple tree and the apples are essentially a copy of the pear tree
+and pears from "streets.m", with the addition of extra things to the
+"appleEat" routine. The iron bar grating by the steam is implemented
+in a fashion quite similar to that of the metal plate in the mini-mall
+entrance passage.
+
+
+proving1.m - the sewers level
+
+
+The pair of drainage grates use what are by now fairly standard stuff
+to operate. Note the check in "grateLift2" that tries to keep the
+"non-intelligent" monsters from passing. The idea is that things like
+rats and snakes should not be able to open the grate and pass through,
+but gremlins and goblins should. Quite deliberately, tracker spiders
+cannot - I didn't want them getting out to the surface.
+
+
+proving2.m - the deep sewers level
+
+
+The dagger quest is fairly simple, but it does try to avoid giving
+more than one dagger to someone. It isn't too hard to trick it,
+however. When my character is strong enough to venture down here, I
+often run around among the goblin chamber, the chamber with the rats,
+and the snake pit, bashing the critters to get my experience up. A bit
+later, I start including the goblin maze in my "tour". Did you notice
+the possible free leather armour in the snakepit? Did you also notice
+that the stuff sold in the goblin armoury is better than that sold on
+the surface? The goods offered by the goblin shaman are the only real
+"magic" in this scenario, outside of wizards directly manipulating
+things.
+
+
+proving3.m - the caves level
+
+
+The monsters are tougher down here. This level has the egg quest,
+which is done very similar to the dagger quest. It also has stuff that
+is needed to solve the heart quest. Did you find a key? Did you notice
+your weapon become less effective? Good heavens! I had completely
+forgotten that I gave away a goblin sword! Other than these things,
+this file is just a large bunch of rooms.
+
+
+proving4.m - the chasm area
+
+
+The chimney is infinitely deep - perhaps later some more stuff will be
+added further down. I want to provide access to the bottom of the
+chasm at some point. Did you find out how to get past the guardian
+troll without defeating him, which is pretty difficult? Going after
+the set of large trolls without sufficient protection is a good way to
+get your character killed!
+
+
+proving5.m - the doors room area
+
+
+There is a lot of code in this file, but not very many locations. That
+is likely to be an unfortunately common situation - implementing
+something interesting, and doing it properly, takes a lot of code,
+much of which most players won't notice, and perhaps won't ever
+trigger. The first 130 lines simply define the door that must be
+unlocked with the small key. Following that are the simple rooms of
+the corridor, followed by the effects code to draw the doors room.
+There are two views of the doors room ("drawDoors2" and "drawDoors3"),
+one for when the player has not passed through the doors and cannot
+see what is on the other side, and one for when the player has passed
+through a door and is shown the entire room. Next come some utility
+routines to help in defining the locations in the doors room, followed
+by uses of them to create those locations.
+
+The first interesting code starts with routine "door1Desc", which is
+the description routine for the doors. The door in question will be
+set into 'It' before this routine is called. There should not be any
+way to examine the front of a door when the door is open, but, just in
+case a wizard messes around, the code here will return an appropriate
+description. Similarly, the winch is described by "winchDesc", which
+returns a string dependent on the current position of the winch, as
+stored in general-purpose field "p_oState".
+
+In this scenario, an object is only in one room's contents list at a
+time (not absolutely necessary, if the object cannot be taken). So,
+there is a pair of objects for each door in the doors room. Property
+"p_oOtherDoor" points to the other one of such a pair. Property
+"p_oSound" is the individual sound that a door makes. "p_oDoorName" is
+the name of the door, in terms of where it is in the room.
+"p_oSoundList" is a property attached to "o_winch", which is simply
+used to hold the list of rooms that can see and hear what is happening
+to the doors. The doors room area is considered to be one large room
+for the purposes of these sounds.
+
+"o_doorModel2" is the model for the back of the doors - they can be
+opened and closed easily by their handles. Routine "door2Checker"
+simple forces people to explicitly open the doors, rather than just
+walking through the closed doors. "door1Checker" denies all access
+through the doors from the front when the door is closed. Note that
+when coming back out of a door, "door2Checker" sounds the
+characteristic sound of that door. The individual doors themselves are
+then created.
+
+"p_oDoors" is attached to o_winch as a list of the five doors. List
+"p_oMapping" is a list of five ints which is a mapping of the order in
+the which the doors will fall this time. This order is determined
+randomly when the winch is turned ("turnWinch").
+
+Routine "doorsEntranceDesc" provides a description of the doors room.
+It works hard to generate decent English output to describe the state
+of all five doors. After this routine, the rooms of the doors room (on
+both sides of the doors) are added to the list of rooms which can hear
+the door sounds. Routine "doorDrop", along with others, uses this
+routine, and other code, to tell everyone concerned about a door
+dropping closed. Someone standing beside the winch will just hear the
+winch unwinding. Routine "doorsDrop" is the trigger routine, which
+causes the "next" door to drop. It can be triggered by time or by the
+player walking along the corridor. "clearWinch" uses "doorDrop" in a
+loop to let the winch quicky unwind all the way. Note the way both of
+these routines index indirectly through "p_oMapping" to get the doors
+in the correct order. "doorsEnter" is an enter checker used on the
+rooms in the corridor to call "doorsDrop" as the player moves.
+
+"doorsLightEnter" is an entry checker for all of the rooms in the
+front part of the doors room. It cancels the time-driven closing of
+the doors and either closes the next door, or closes all of the doors,
+depending on whether or not the player has brought light into the
+doors room.
+
+Routine "turnWinch" is the turn action for the winch. It sets the
+winch to fully cranked, picks the order in which the doors will fall
+this time, announces the doors rising to anyone who is in the doors
+room with a source of light. Of course, this source of light causes
+them all to fall immediately! This is an example of something needed
+in a MUD that would not be needed in a one-player adventure game. If
+there is no-one to see the doors open, then the line reading
+
+	DoAfter(DOOR_TIME, o_winch, doorsDrop);
+
+starts up the timed events which will close the doors automatically.
+The doors close by themselves every DOOR_TIME (8) seconds.
+
+
+proving6.m - the 3-D maze area
+
+
+The 3-D maze in this scenario is the most complex code in the
+scenario, requiring almost 1000 lines of code for what is essentially
+just one room. Users, however, can think of there being 10 x 10 x 16
+or 1600 rooms, some of which are impassible. In terms of "thing"s,
+there really is only one room - the graphics and description are
+dependent on the X, Y and Z position of the character in the maze, as
+recorded on the character. I won't describe the code here in too much
+detail, but I will point out some features.
+
+Routine "mazeDropCheck" is quite important - because of the way these
+"rooms" are implemented, we cannot let the player try to drop things
+in them. Because all of the maze is the same room, any checks for
+special actions (e.g. "drawBridgeDesc") must check the co-ordinates of
+the character to see what they should say. "mazeIdle" is used to move
+the player out of the maze, and drop the shovel, when the player exits
+the game. This is to allow other players to try the maze. Similarly,
+"leaveShovel" takes away the shovel when the player leaves the area.
+
+Routine "maze" is used a lot. It is given the X, Y and Z co-ordinates
+of a point within the maze, and returns the maze code of that position
+in the maze. This is just faking out a 3-dimensional array of ints in
+a language that doesn't have multi-dimensional arrays. "markSpace" and
+"dumpSpaces" are part of some elaborate code to produce nice English
+output describing the open spaces around a given position. "showMaze"
+shows and describes the player's current view in the maze. It
+describes the current position, describes the direction the tugging is
+coming from, and uses specially coded "ray-tracing" to draw the area
+around the player that is visible.
+
+Routine "mazeMove" attempts to move the player in the specified
+direction in the maze, describing what is happening. Note the 'while'
+loop for falling through open space until something solid is hit.
+
+Code starting with routine "makeRow" is used to define the shape of
+the maze. This is done layer by layer, using strings to define each
+row of the layer. For those who solved this quest: did you notice my
+initials in the maze? Did you find the two ways back to the front of
+the maze from the back of it?
+
+
+The Builder Code - build1.m, build2.m, bguild.m
+
+
+I won't describe much of the code in these files - most wizards will
+not be trying to produce code like this. "build1.m" contains the code
+which handles the textual build commands. A few routines in it are
+also used by the button-building code, which is in file "build2.m". A
+lot of the code and definitions in "build1.m" relate to routine
+"bv_actionLineHandler", which is an input-line checker passed to
+"GetCheckedDescription". It parses and checks the lines it is given,
+and uses them to add on to a piece of AmigaMUD code being built up in
+string "p_pActiveCode". This code is then dynamically compiled by
+passing it to builtin "StringToAction" to produce various kinds of
+checker and action routines.
+
+Note the use of three new grammars to handle the build command sets. A
+lot of the code which implements the various build commands is quite
+straightforward - there is just a lot of it. "bv_poof" will be of
+interest to wizards who want to magically teleport characters around.
+
+There isn't much to say about "build2.m". Most of the handling for
+things just goes through a sequence of input/button handlers that
+varies from sequence to sequence. "AutoRedraw" is used when something
+is done that affects the image of the current room. Sometimes, such as
+when "poofHandler" calls "bv_poof", a routine in "build1.m" can be
+used to do all or most of the work required to handle a button click.
+
+Routine "makeBuilder" is a "spell" routine. It is intended to be used
+from normal command mode by a wizard who has it in his private symbol
+table. This is done using the "cast" command, as in:
+
+    cast makebuilder Fred
+
+Spell "unmakebuilder" is similar.
+
+File "bguild.m" defines the Builder's Guild area of the scenario. It
+is quite standard except for the books that it creates with long text
+in them, and for the way it sets up the Playpen. Of some interest is
+the code starting with "scanList", by which the playpen code attempts
+to remove all playpen-created objects from characters when they leave
+the playpen area. The last code in the file sets up the "Whatzit"
+quest. Where this is defined should be a pretty big hint on how to
+solve that quest!
+
+
+The files included by "usenet.m" are:
+
+    news.m - the simple usenet news reader/poster
+    email.m - the simple usenet email reader/sender
+
+I will not describe the code in these files. The only thing of note
+about it is the complexities of presenting a prompt-response interface
+to the user, and the use of the "System" builtin to trigger external
+AmigaDOS commands on the server machine, in order to post news and
+send email.
+
+There is one thing that some sysadmins may want to control. This is
+whether or not "uuxqt" is automatically run after sending mail. I use
+this to force sending of local mail to the recipient. If you do not
+want this, change or comment out the line in "email.m" reading:
+
+    CharacterThing(Character("SysAdmin"))@p_pRunUUXQT := true.
+
+
+Extras
+
+There are some extra files included in the scenario source archive, in
+the "Extras" directory:
+
+    buildtest.so - a file that can be sourced by a builder to do the
+	testing of building as in the documentation
+
+    Frog.m - a wizard-mode source file as seen in the documentation
+
+    hex.m - output integers in hex and binary
+
+    numbers.m - output integers in American English words
+
+    icons.d - Draco program I used to build the icon values
+
+    temple.cg - an IFF image of a "temple area". This shows how bad an
+	artist I am! The intent here is that the character cursor
+	could move around the squares in the image, and go through
+	various doors. To see this image loaded into MUD, copy it to
+	AmigaMUD:images, then go into wizard mode and enter:
+
+	    GShowImage(nil,"temple.cg",0,0,320,100,0,0).
+
+
+    spells.m - a wizard-mode source file that defines a bunch of
+	useful spells. These can be accessed with the "cast" command.
+	Note that the spells are only defined for the wizard who
+	sources the file.
+
+    wanderers.m - a wizard-mode source file that allows the creation
+	of a set of 26 "wanderers". These are machines whose purpose
+	is to act somewhat like human players, and stress-test the
+	system. On a database that you do not want to keep, you can
+	source this file, then move to somewhere handy (like a corner
+	of the street) and enter:
+
+	    createWanderers().
+
+	Then stand back! Note that the wanderers are capable of
+	combat, and are pretty good at it, and hard to hit. I've had
+	the full set running for four days now on my A4000T, and all
+	is still well. They soon get into the Proving Grounds, and
+	leave monsters running all over. For some fun, let them run
+	for a day or so, then build a protected fighter and go kill
+	some of them. I got over 50,000 blutos from one that way! Once
+	started, there is no easy way to shut down the wanderers (I've
+	never tried), so don't create them in a database that you care
+	about - they interfere too much with normal players, and put
+	too much load on the server for good response time.

@@ -1,0 +1,134 @@
+Performance:
+============
+Timedemo results with the gl-renderer (512x384) are around
+35% faster than clickBoom's 060 optimized software-renderer
+(320x200, 8bit), provided that vertexarrays and fake
+multitexturing is enabled and gl_keeptjunctions is disabled.
+If particles is set lower than default 2048 it becomes a lot
+faster. Particles can easily generate a 50% overhead.
+For large speedup, try r_particle_hack 2.
+There is a many other options to finetune the quality
+of the renderer (see Speedup Hints section below). 
+In GLqwcl I have added a lot of options normally found in
+proxies - many of them lowers the peak-throughput of
+triangles. Notably, corpse and gib elimination + particle
+restrictions helps a lot (see qwcl.readme)
+
+
+Speedup Hints:
+==============
+
+1. Console variables and parameters
+-----------------------------------
+Use the parameter -particles to reduce number of particles.
+Try 256. Max number of particles is 2048 but this is
+intolerably slow, unless r_particle_hack 2 is used.
+
+Note: particles are currently disabled by default.
+
+- r_particle_hack 1 or 2: (exclusine to this version)
+Used for drawing particles.
+A setting of 1 will draw untextured particles. Otherwise they look the same.
+Setting it to 2 will speed up particle drawing a lot, thanks
+to emulated points which require less calculations. 
+With r_particle_hack 2, the particles are not scaled correctly. This is because I wrote a simple emulation since
+points are unsupported in Voodoo3 W3D driver.
+
+Note: in glqwcl68k, r_particle_hack 2 along with explosion and teleport restriction can be used with 2048 particles without causing any significant slowdown. In fact, it is faster than reducing global number of particles to 128
+(without the particle_hack) and gives much more of the
+important visual cues like rockettrails, bullet impact and
+blood.
+
+- r_vertexarrays 1 or 2: (exclusive to this version)
+Used for model rendering.
+Speedup is proportional to complexity and count (25-40%)
+If set to 2, extra culling based on field of view and
+distance will be performed - it is not 100% perfect, but you
+will not notice unless you look closely.
+
+gl_fake_multitexture 1 or 2: (exclusine to this version)
+This options enables MiniGL to emulate an extra TMU
+(2 textures per primitive with only a single pass through
+the pipeline).
+Used for World rendering and brushmodels.
+Speedup is proportional to complexity (10-40%)
+It is not as fast as actual multitexturing but the speedup
+is nice. A setting of 1 is compatible with dynamic lightmaps
+A setting if 2 does not support dynamic lightmapping and is faster (like "gl_fake_multitexture 1" in beta2/3)
+
+- r_models_maxdist: NB: only active with vertexarrays
+Default is 4096. Experiment with setting. 900-1200 is often
+a good choice - it depends on the amount of open space.
+It may aid visibility tests by rejecting models further away
+than the specified value.
+
+- r_elim_areasize:
+Default is 0.5 (= no detail loss), max is 10.0
+A setting of screenwidth*screenheight/100000 is ok.
+Detail loss becomes noticeable with settings above screenwidth*screenhight/75000.
+
+- r_waterwarp 0 (glquake only - permanantly disabled in qw)
+- r_drawviewmodel 0 (large speedup)
+- r_dynamic 0 (important if gl_flashblend is disabled)
+- r_cullworld 0 (default)
+- gl_smoothmodels 0 (flatshading)
+- gl_warp 1 (in glqwcl use the details menu)
+- gl_flashblend 0
+- gl_polyblend 0
+- gl_keeptjunctions 0 (default)
+- gl_subdivide_size 16384 (beyond 8192 it doesn't make much
+difference, but compared to the default it will improve
+performance significantly - especially in maps with large
+strecthes of sky and liquid. It was 128 default, but I
+increased it to 1024. It has no effect on skyboxes but still
+applies to turbulent surfaces.
+
+- use skyboxes instead of the quake parallax sky.
+Enable with r_skybox "name" (without quotes)
+Supplied skyboxes: day, night, canyon, nebula, rainforest
+Note: r_skybox 0 will return to normal sky
+Note2: always specify desired skybox before level is loaded
+
+- If sound becomes messed up when going slow, then set the
+console variable "_snd_mixahead" to 0.2 or 0.25
+- Decrease audio mixing frequency (-audspeed 5513)
+- Don't use screenmodes with resolutions higher than 640x400
+- Resolution vs. performanve: see tables above.
+
+GLqwcl only:
+- use the parameter -cachearrays
+- noskins 1 (prevents the use of custom skins)
+- gl_nocolors 1 (disables shirt/pants color on playermodels)
+- Use the normal statusbar (cl_sbar 1).
+- Decrease "sbar_detail" (0-2), default 2 = max
+- Make use of bodyfilter, gibfilter, muzzleflash, teleport
+and explosions restrictions (details costumization menu)
+
+
+2. System
+---------
+Mediator system (mmu drivers):
+- P96 Voodoo tooltypes/vars: Ignoremask=Yes, others: NO
+- Set the env variable mediator/VoodooMem to as high a value
+as you can afford. Warp3D has automatic texture management
+and the more mem you reserve for P96, the more textures
+can be on board simultaneously.
+- Enable vblank interrupts if possible.
+  Active vblank will improve performance by 5% on Blizz1260
+- Overclocking the Voodoo3 doesn't give much.
+  overclocking from 166 to 175 gives less than 1% extra
+  GLQuake and GLQwcl 68K are purely CPU-limited on V3.
+  Overclock the cpu instead :)
+- If you are using PVS, make sure that the monitor
+  tooltypes   "overclock" and "memoryclock" are set correct.
+
+Mediator system (no-mmu drivers):
+- start with the parameter "-lockmode smart"
+otherwise you will have heavy gfx-corruption.
+
+I don't recommend using no-mmu drivers on 68k systems,
+because it is not as fast as using mmu drivers and the smart
+lockmode also degrades performance.
+
+Mediator1200 systems: If you experience heavy gfx
+corruption, try setting wait jumper to closed.

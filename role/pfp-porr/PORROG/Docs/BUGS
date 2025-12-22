@@ -1,0 +1,143 @@
+Known BUGS in Porrog
+
+NB- There's not enough functionality to have many actual bugs yet,
+ most of the problems so far are down to things not being implemented!
+
+-Have seen an odd string corruption (repeatedly) in one game, in the
+ open-which-door prompt. Next game it wasn't there. I don't see anything
+ wrong with the code, I think I must misunderstand some aspect of C's
+ string handling functions :(
+
+-ARGH! Item replacement appears to be broken!!! ISTR replace_items() being
+ iffy before, and perhaps seeing compiler warnings about it, but dumping
+ ~2 screenfuls of items in a pile and then leaving/returning to the level
+ made over half of them disappear!!! Memory assignment test at end of
+ program found no problems though :P
+ Later investigation showed that doing various things to other heaps of
+ items (at least, heaps that would coincide with the other heap in the
+ processing cache) would make some items reappear again, suggesting that
+ it is indeed something wrong with replace_items, rather than things
+ falling off the level-wide item list.
+ --I THINK I've fixed this now, but will need testing.
+
+-Taking items out of a container that will merge displays them oddly-
+ I must have freed the item_t before displaying its name :P
+
+-All of a sudden, the FEW_MON compile-time option seems to upset cpp,
+ which claims "syntax error" or similar at line 120 of maparray.c.
+ If you use a different option to that, it's fine. I'm sure that didn't
+ used to happen.
+  --Have I taken this out yet?
+
+-There appears to be some bug whilst freeing the data at the end of the
+ game. It appears to be before all the levels have been freed (but
+ that doesn't mean it's the freeing of levels that is the problem, as
+ for each level, lots of other things *in* the levels are freed).
+
+-free_tunnelsearch() is not being called nearly as often as
+ new_tunnelsearch() is. free_intersearch() is not being called as
+ often as new_intersearch() either. But to less of an extent, it
+ seems.
+ These structures should be being freed within the scope of the
+ function that calls them (As few should be being created when
+ there *isn't* a leak, new_intersearch and new_tunnelsearch ladle
+ out the first 20 or so from a small global array of elements that
+ it reuses. Past those 20, they malloc them instead).
+ It seems this must be happening from some situation where the
+ pathfinding finishes (successfully or otherwise) but fails to free
+ the structures. My money's on the situation where pathfinding fails,
+ as this used to be a fatal condition. I realise now that's no
+ excuse for not tidying up... But meh I didn't think it'd happen
+ that often :P
+ --Hey, is that still true? Now, I've not seen memory leaks for a while.
+
+-GAH. Having released V0.03, first Jonathan told me it had crashed on
+his Mac, with monsters unable to find routes, and then a few hours after
+asking him to do some relatively involved stuff to get me screenshots
+of the region in question, I manage to get the same situation myself
+(difference is I think he was getting it from the first map, which I
+don't have problems with here). So now I got myself a view of such
+circumstances. It looks like:
+  #:#
+  #:###
+  #:+::
+  #:###
+  #:#
+ ...But what circumstances are causing this?? This shall likely take
+ some finding.
+ OK, These are now fixed since I moved the crappy code for actually
+ *placing* the tunnels into plunk_path1() and plunk_path2(). They're
+ actually incomplete, but seem to work a lot better than the old stuff.
+ --But I've since found logs of a few more screwed up tunnels. Finally
+ I tracked one down, and took a screenshot. I think the best way to
+ deal with this is implementing the 2-level dice system with the
+ string-based entropy feed thingy. That way I can have various
+ random starts that I can log and reproduce. Oh, OK, I could just have
+ the time-based RNG seeds printed too, but...
+
+
+-In a similar way, I've very very occasionally seen tunnel junctions
+ with *square* areas like:
+    #.#
+    #.##
+    #..###
+    #.....
+    #.####
+    #.#
+ At first glance, it appears that the tunnel on the right was going west
+ and had its midpoint just adjacent to the tunnel on the left, and
+ only noticed that tunnel when it turned north (tunnel probes never
+ probe the square ahead of the path), at which point it connected to
+ it. If this is the cause, then it shouldn't have happened as
+ target_reached() is supposed to require probes to have gone *past*
+ the target if the target was a midpoint. In which case, the first
+ probe should have seen the tunnel on the left.
+ So, either target_reached() isn't managing to make attempt_joining()
+ see that tunnel (which it should), or the square area is caused by
+ something else.
+ Luckily, this bug appears harmless, so I shan't worry too much about it.
+ ADDENDUM: Since adding intersections, I'd be interested in seeing
+ another of these glitches- especially with the marker objects on the
+ intersections (controlled by MARK_INTERSECTIONS option). It might
+ shed a bit of light on what's going on.
+
+
+-show_messages() used to be not only rubbish but also very very buggy.
+ With v0.03, I got around to improving it and fixing it up.
+ I'm fairly sure I've not seen any bugs in it recently, but I'd still
+ like to make some really good function to test it (possibly have some
+ readables display lots of text, like passages of Hamlet or summat).
+
+-the prompt_for_inv_item() and prompt_for_heap_item() functions
+ are very clunky and AFAIK are incomplete. Most noticably they
+ don't clean up the display after doing item listings (OK, this
+ only applies to prompt_for_heap_item(), but prompt_for_inv_item()
+ depends on display_heap() which it shouldn't.
+ --Is this still true? I dont remember. Don't think they leave the
+ display dirty any more.
+
+--the code for displaying the inventory is crappy, and if there's too
+ many items in inventory, it simply doesn't display anything (but
+ still silently waits for you to press space!!!) rather than showing
+ a pageful at a time.
+ --FIXED! But new implementation has a (non-serious) bug of its own :P
+
+-having changed add_room_mobs() to place monsters randomly in a room,
+ I spotted that it didn't check what was at the chosen position before
+ placing the monster. What drew my attention to this? Starting under
+ a sprite. I'll have to have it rechoose coords if it finds grid->mptr
+ isn't NULL or the player is in the square. Er, couldn't this end up
+ having to pick random points indefinitely? Well, I've thought about
+ a "monster pressure" concept that encourages mobs to spread out if
+ they get too concentrated in one spot, and discourages them from
+ reproducing if the concentration gets too high. So (1), a room
+ *shouldn't* get entirely full, and (2), we could have the function
+ simply give up after a few goes. Further, we could have each failure
+ try to place the monster *next to* the position that was occupied.
+
+--Similar problems apply to add_features() or whatever it's called, as
+ it can end up overwriting existing features. It should only place
+ features on spaces that are PTL_FLOOR, nothing else.
+ add_room_items() doesn't have this problem, as you can have as many
+ items in a space as you like.
+

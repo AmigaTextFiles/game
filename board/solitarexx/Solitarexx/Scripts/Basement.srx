@@ -1,0 +1,151 @@
+/********************************\
+** Basement v1.0 for Solitarexx **
+**    by Michal Szafranski      **
+\********************************/
+OPTIONS RESULTS
+
+tex = 'Basement'
+wintex = '"We Have a Winner"'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 tex 6
+SELECTGUI 1
+
+SCREENSIZE 5 0 3 20
+DO i = 0 TO 3
+	NEWSTACK 3 8+3 0 0 i 10 0 10
+	stack.i = RESULT
+	NEWSTACK 3 8+1 0 2 i 10 0 10
+	j = i+5
+	stack.j = RESULT
+	NEWSTACK 1 8   0 1 i 10
+	base.i = RESULT
+END
+NEWSTACK 4 8+3 0 0 4 10 0 10
+stack.4 = RESULT
+NEWSTACK 5 8+1 0 2 4 10 0 10
+stack.9 = RESULT
+NEWSTACK 2 8   1 1 4 10
+deck = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SETGADGET 14 STR tex
+	SELECTGUI 4
+	sel = 0
+	fin = 4
+	b = 0
+	bopen = 0
+	order = 0
+	CARDSELECT deck 1
+	PARSE VAR RESULT k base .
+	MOVECARDS deck base.0 REVERSE
+	kbase.k = base.0
+	stc. = 5
+	stc.4 = 4
+	stc.9 = 4
+	j=0
+	DO i=0 TO 50
+		CARDSELECT deck 1
+		PARSE VAR RESULT k war .
+		IF war = base THEN DO
+			b = b+1
+			mm = base.b
+			kbase.k = mm
+		END
+		ELSE DO
+			stc.j = stc.j -1
+			mm = stack.j
+		END
+		MOVECARDS deck mm REVERSE
+		IF stc.j = 0 THEN j=j+1
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		SELECT
+		WHEN act = 1 THEN EXIT
+		WHEN act = 2 & sel = 0 & card>0 & sid>2 THEN sel = stack
+		WHEN act = 2 & sel = 0 & card>0 & sid=2 & bopen = 1 THEN sel = stack
+		WHEN act = 2 & sel > 0 THEN DO
+			IF sel = stack THEN DO
+				sid = 1
+				CARDSELECT sel 1
+				PARSE VAR RESULT k .
+				stack = kbase.k
+			END
+			SELECT
+				WHEN sid = 1 THEN CALL DOBASE
+				WHEN sid = 2 THEN CALL DOHELP
+				WHEN sid = 3 THEN CALL DOSTACKS
+				OTHERWISE ERRBEEP
+			END
+			sel = 0
+			IF bopen = 0 THEN DO
+				CARDSELECT stack.4 1
+				IF RESULT = '' THEN bopen = 1
+				CARDSELECT stack.9 1
+				IF RESULT = '' THEN bopen = 1
+			END
+		END
+		WHEN act = 3 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+		OTHERWISE ERRBEEP
+		END
+	END
+RETURN
+DOHELP:
+	CARDSELECT stack 1
+	IF RESULT = '' THEN MOVECARDS sel stack
+	ELSE ERRBEEP
+RETURN
+DOSTACKS:
+	CARDSELECT sel 0 RELATIVE
+	PARSE VAR RESULT kolors wars xx
+	CARDSELECT stack 1
+	PARSE VAR RESULT kolor war xx
+	IF kolor = '' THEN DO
+		w = 1
+		kolor = kolors
+	END
+	ELSE w = ABS(war-wars)
+	IF (w=1 | w=12) & kolor = kolors THEN MOVECARDS sel stack
+	ELSE ERRBEEP
+RETURN
+DOBASE:
+	IF order~= 0 THEN CALL CHBASE
+	ELSE DO
+		order = 1
+		CALL CHBASE
+		IF ok = 1 THEN DO
+			order = -1
+			CALL CHBASE
+		END
+		IF ok = 1 THEN order = 0
+	END
+	IF ok=0 THEN DO
+		fin = fin +1
+		MOVECARDS sel stack
+		IF fin = 52 THEN SETGADGET 14 STR wintex
+	END
+	ELSE ERRBEEP
+RETURN
+CHBASE:
+	CARDSELECT sel 1
+	PARSE VAR RESULT kolors wars .
+	CARDSELECT stack 1
+	PARSE VAR RESULT kolor war .
+	w = war - wars
+	ok = ~(kolor = kolors & (w = order | -w = 12*order))
+RETURN

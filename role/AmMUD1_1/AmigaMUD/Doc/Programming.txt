@@ -1,0 +1,1959 @@
+AmigaMUD, Copyright 1997 by Chris Gray
+
+
+		Programming in the AmigaMUD System
+
+Introduction
+
+
+The AmigaMUD system contains a complete programming system for a
+structured programming language. This language is used to program any
+MUD scenarios, quests, puzzles, etc. The AmigaMUD system contains
+facilities for parsing, executing, storing, retrieving and pretty-
+printing code in the language. Although intended for writing MUD
+scenarios, the language can easily be used for other purposes.
+
+Although the interpreter is reasonably efficient, it is by no means as
+fast as true compiled code. Programmers should keep this in mind when
+using the language - things that are practical in, say, C, may not be
+practical in AmigaMUD.
+
+AmigaMUD programming is accessed though one of the client programs,
+just like playing a scenario is. Only characters with status 'wizard'
+or 'apprentice' can directly access the programming features.
+Characters enabled as builders in the standard scenario can indirectly
+access them by writing actions as described in the building document.
+
+The AmigaMUD programming language does not contain any language
+constructs for doing input/output, graphics, sound, etc. Instead, the
+system contains a large number of builtin functions which perform
+these activities. Other builtin functions perform utility operations
+such as returning the length of a string, taking a substring,
+returning the current time and date, etc.
+
+Most AmigaMUD programming involves writing functions. These functions
+are stored in the system database and are automatically retrieved as
+needed (e.g. to call them or print them out). AmigaMUD functions can
+have parameters and can return a result. They can also be recursive,
+although this is unlikely in a MUD scenario.
+
+All AmigaMUD code executes in the server program, MUDServ, on the host
+computer. Lexical scanning, parsing, and editing all happen on the
+client computers. Parsed functions are sent from the client to the
+server as a "compiled" bytestream. Pretty-printing is done on the
+host computer, and the results are sent to the client as text. Because
+the server computer can never wait for any client (the human player
+might get a phone call in the middle of typing in a function!), some
+operations, such as input, are done differently than in other
+languages.
+
+When using the standard scenario, a wizard or apprentice can go into
+programming, or wizard mode, by typing the 'wizard' command. The
+prompt will change to "> ". In this mode, input typed in is assumed to
+be statements in the programming language, definitions of functions,
+or one of a few simple wizard-mode commands. For reference, a
+statement to get out of wizard mode consists of:
+
+    Normal()$
+
+This, of course, is only valid when the prompt is "> ", i.e. when no
+partial statement has been entered, and the user is not in the middle
+of typing in a function definition.
+
+If the input statement does not fit on a single line, it can be
+continued on as many lines as needed. On lines other than the first,
+the prompt will change to ": ". The input statement is ended with a
+dollar sign, as in the above example. If the input statement is in
+fact an expression, i.e. it returns a value, then the system will
+print out that value. For example:
+
+    > 2 + 3 $
+    ==> 5
+
+Not all values can be printed in any meaningful way. Function and
+thing (database entity) values are printed either symbolically (if the
+system can find a symbol for them) or as a hexadecimal number.
+
+Each input line entered by any user is subject to an execution time
+limit, which can be controlled by the MUD administrator (SysAdmin).
+Running out of time will result in the execution being stopped, and a
+traceback of the called functions being produced. Other run-time
+errors, such as dividing by zero, produce a similar abort and
+traceback.
+
+The following sections of this document give some examples of AmigaMUD
+programming. It is assumed that the reader already knows something
+about programming, or is a fast learner - this document does not try
+to teach programming to a novice. Readers are not expected to fully
+understand these examples - they are just a random sampling to show
+the flavour of AmigaMUD programming.
+
+
+Example - the Towers of Hanoi
+
+
+Here is a log of entering, printing and running the classic "Towers of
+Hanoi" function. Commentary is separated off and enclosed in square
+brackets. For those not familiar with this computer programming
+classic, the story goes something like this:
+
+    There is a monastery near Hanoi where there live a group of monks
+    dedicated to keeping the universe running. They do this by
+    continually moving flat disks around on a set of three pegs. The
+    disks are round, and have a hole in the middle so that they can
+    slide onto the pegs. At the beginning of the universe, all 64
+    disks were on the left-most peg, with the widest disk on the
+    bottom, and the narrowest one on the top. When the monks have
+    succeeded in moving all of the disks to the right-hand peg, the
+    universe will end. They can only move one disk at a time, and must
+    never place a wider disk on top of a narrower one. The monks must
+    move the disks as fast as they can.
+
+input> wizard
+
+    [I was initially in normal playing mode. I used the 'wizard'
+    command to get into wizard mode so I can program.]
+
+> private proc hanoi(int n; string from, to, using)void:
+*** expecting identifier for proc parameter name
+*** expecting ',', ';' or ')' after proc parameter
+: .
+*** expecting 'corp' to end proc definition
+Errors detected, proc "hanoi" not created.
+
+    [I accidentally tried to use a reserved word as a parameter name.
+    I decided to abort the entering of the function by typing a '$'.
+    This doesn't always work - sometimes closing parentheses or
+    constructs are also needed. Note that the prompt changed to ": "
+    while I was entering the function definition.]
+
+> private proc hanoi(int n; string fromStr, toStr, usingStr)void:
+Postman has arrived from the north.
+: if n ~= 0 then
+Postman heads into the passageway.
+:  hanoi(n - 1, fromStr, usingStr, toStr);
+:  Print("Move disk " + IntToString(n) + " from " + fromStr + " peg to " +
+:   toStr + " peg.\n");
+:  hanoi(n - 1, usingStr, toStr, fromStr);
+: fi;
+: corp
+
+    [Being in wizard mode doesn't take your character out of the
+    scenario, hence I still saw messages about Postman passing
+    through. It is often wise to go somewhere private when doing
+    serious wizarding, so that you aren't interrupted.]
+
+> describe hanoi$
+hanoi: proc, owner Merlin, useCount 2:
+proc hanoi(int n; string fromStr, toStr, usingStr)void:
+    if n ~= 0 then
+	hanoi(n - 1, fromStr, usingStr, toStr);
+	Print("Move disk " + IntToString(n) + " from " + fromStr + " peg to "
+	     + toStr + " peg.\n");
+	hanoi(n - 1, usingStr, toStr, fromStr);
+    fi;
+corp
+
+    [The exact form in which I entered the function is not preserved.
+    The function is stored internally as a byte stream, and is
+    "pretty-printed" by the system as needed. I used the 'describe'
+    wizard-mode command to display the function.]
+
+> hanoi(0, "left", "right", "center")$
+
+    [Now I call the function. This is a directly entered statement in
+    the programming language. With 'n' equal to 0, the function does
+    nothing, and, since it returns nothing ("void"), nothing is
+    printed.]
+
+> hanoi(1, "left", "right", "center")$
+Move disk 1 from left peg to right peg.
+
+    [With 'n' equal to 1, there is one line of output.]
+
+> hanoi(2, "left", "right", "center")$
+Move disk 1 from left peg to center peg.
+Move disk 2 from left peg to right peg.
+Move disk 1 from center peg to right peg.
+> hanoi(3, "left", "right", "center")$
+Move disk 1 from left peg to right peg.
+Move disk 2 from left peg to center peg.
+Move disk 1 from right peg to center peg.
+Move disk 3 from left peg to right peg.
+Move disk 1 from center peg to left peg.
+Move disk 2 from center peg to right peg.
+Move disk 1 from left peg to right peg.
+
+    [The number of lines of output is equal to 2 to the power of 'n',
+    minus one. Thus, we need not fear for the imminent end of the
+    world. Even if the monks can move one disk per second, the time
+    needed to complete the task, 2 to the power of 64, minus one, is a
+    very long time indeed!]
+
+> Normal()$
+input> bye
+
+    [I go back into normal mode, and exit.]
+
+
+Example - Code to Draw the Streets Area
+
+
+(This is not a stand-alone example - it lives within the standard
+scenario.)
+
+define tp_streets proc drawStreets()void:
+
+    if not KnowsEffect(nil, STREETS_ID) then
+	DefineEffect(nil, STREETS_ID);
+	GSetImage(nil, "Town/streets");
+	IfFound(nil);
+	    GShowImage(nil, "", 0.0, 0.0, 0.5, 1.0, 0.0, 0.0);
+	Else(nil);
+	    GSetPen(nil, C_DARK_GREY);
+	    GAMove(nil, 0.0, 0.0);
+	    GRectangle(nil, 0.4995, 1.0, true);
+
+	    GSetPen(nil, C_LIGHT_GREY);
+	    GAMove(nil, 0.0, 0.0);
+	    GRectangle(nil, 0.217, 0.415, true);
+	    GAMove(nil, 0.277, 0.0);
+	    GRectangle(nil, 0.2235, 0.415, true);
+	    GAMove(nil, 0.0, 0.57);
+	    GRectangle(nil, 0.217, 0.44, true);
+	    GAMove(nil, 0.277, 0.57);
+	    GRectangle(nil, 0.2235, 0.44, true);
+
+	    GSetPen(nil, C_DARK_BROWN);
+	    GAMove(nil, 0.0, 0.0);
+	    GRectangle(nil, 0.193, 0.35, true);
+	    GAMove(nil, 0.3, 0.0);
+	    GRectangle(nil, 0.202, 0.35, true);
+	    GAMove(nil, 0.0, 0.63);
+	    GRectangle(nil, 0.193, 0.38, true);
+
+	    GSetPen(nil, C_WHITE);
+	    GAMove(nil, 0.246, 0.0);
+	    GADraw(nil, 0.246, 0.35);
+	    GAMove(nil, 0.0, 0.49);
+	    GADraw(nil, 0.194, 0.49);
+	    GAMove(nil, 0.303, 0.49);
+	    GADraw(nil, 0.499, 0.49);
+	    GAMove(nil, 0.246, 0.63);
+	    GADraw(nil, 0.246, 0.997);
+
+	    GSetPen(nil, C_BLACK);
+	    GAMove(nil, 0.193, 0.13);
+	    VerticalDoor();
+	    GAMove(nil, 0.3, 0.01);
+	    VerticalDoor();
+	    GAMove(nil, 0.3, 0.13);
+	    VerticalDoor();
+	    GAMove(nil, 0.3, 0.245);
+	    VerticalDoor();
+	    GAMove(nil, 0.31562, 0.35);
+	    HorizontalDoor();
+	    GAMove(nil, 0.38125, 0.35);
+	    HorizontalDoor();
+	    GAMove(nil, 0.44687, 0.35);
+	    HorizontalDoor();
+	    GAMove(nil, 0.193, 0.65);
+	    VerticalDoor();
+	    GAMove(nil, 0.193, 0.77);
+	    VerticalDoor();
+	    GAMove(nil, 0.193, 0.89);
+	    VerticalDoor();
+	    GAMove(nil, 0.01563, 0.63);
+	    HorizontalDoor();
+	    GAMove(nil, 0.08124, 0.63);
+	    HorizontalDoor();
+	    GAMove(nil, 0.14687, 0.63);
+	    HorizontalDoor();
+
+	    GAMove(nil, 0.085, 0.35);
+	    GADraw(nil, 0.106, 0.35);
+
+	    GSetPen(nil, C_LIGHT_GREEN);
+	    GAMove(nil, 0.3, 0.64);
+	    GRectangle(nil, 0.18, 0.3, true);
+	    GSetPen(nil, C_LIGHT_GREY);
+	    GAMove(nil, 0.378, 0.63);
+	    GRectangle(nil, 0.0155, 0.36, true);
+	    GAMove(nil, 0.345, 0.69);
+	    GRectangle(nil, 0.079, 0.19, true);
+	    GSetPen(nil, C_BLUE);
+	    GAMove(nil, 0.36875, 0.74);
+	    GRectangle(nil, 0.03437, 0.09, true);
+	    GSetPen(nil, C_GOLD);
+	    GAMove(nil, 0.38437, 0.78);
+	    GEllipse(nil, 0.01, 0.02, true);
+
+	    GSetPen(nil, C_DARK_BROWN);
+	    GAMove(nil, 0.32, 0.72);
+	    GRectangle(nil, 0.025, 0.13, true);
+	    GAMove(nil, 0.425, 0.72);
+	    GRectangle(nil, 0.025, 0.13, true);
+	    GSetPen(nil, C_BLACK);
+	    GAMove(nil, 0.3437, 0.74);
+	    VerticalDoor();
+	    GAMove(nil, 0.425, 0.74);
+	    VerticalDoor();
+
+	    GSetPen(nil, C_FOREST_GREEN);
+	    GAMove(nil, 0.3125, 0.67);
+	    GCircle(nil, 0.01563, true);
+	    GAMove(nil, 0.42188, 0.67);
+	    GCircle(nil, 0.0125, true);
+	    GAMove(nil, 0.45313, 0.68);
+	    GCircle(nil, 0.01563, true);
+	    GAMove(nil, 0.35625, 0.91);
+	    GCircle(nil, 0.00937, true);
+	    GAMove(nil, 0.33437, 0.9);
+	    GCircle(nil, 0.00937, true);
+	    GAMove(nil, 0.30938, 0.91);
+	    GCircle(nil, 0.00937, true);
+	    GAMove(nil, 0.46563, 0.8);
+	    GCircle(nil, 0.00937, true);
+	    GAMove(nil, 0.4625, 0.87);
+	    GCircle(nil, 0.00937, true);
+	    GAMove(nil, 0.44375, 0.91);
+	    GCircle(nil, 0.00937, true);
+	    GAMove(nil, 0.41562, 0.9);
+	    GCircle(nil, 0.00937, true);
+	Fi(nil);
+	EndEffect();
+    fi;
+    CallEffect(nil, STREETS_ID);
+corp;
+
+
+Recall from earlier documents that the "MUD" client program can cache
+effects, such as the graphics for the streets area. The server program
+keeps track of which active clients currently know which effects. The
+code here is asking the server if the current client knows the effect
+identified by 'STREETS_ID'. If it doesn't, then that effect is
+defined. The effect is actually like a little program itself. A
+graphics image called "Town/streets" is requested. If it is found on
+the client machine, then it is shown, otherwise a rough rendering of
+the image is produced using rectangles, lines, circles, etc. Note that
+this decision is made in the client program, since the server cannot
+wait for the result of that decision. The rough drawing of the streets
+area can be summarized as:
+
+    - fill the entire image area with dark grey
+    - draw four rectangles of light grey as sidewalks
+    - draw three smaller rectangles of dark brown as the buildings
+    - draw lines of white down the middle of the roads
+    - draw a bunch of black doors. 'VerticalDoor' and 'HorizontalDoor'
+	are scenario functions which in turn use effects to draw the
+	standard vertical and horizontal doors.
+    - draw a light green rectangle to be the body of the park
+    - draw a pair of overlapping light grey rectangles to be the
+	sidewalks in the park
+    - draw the blue fountain with the gold mermaid in it
+    - draw two dark brown buildings with black doors
+    - draw a bunch of forest green trees
+
+After the STREETS_ID effect is defined (if it wasn't already), it is
+called up. The result of all of this is that the first time a client
+program needs to draw this area, there is a pause as the effect code
+is sent from the server. On subsequent uses, however, the server knows
+that the client knows the effect, so only a short request to run it is
+sent over. (The pause is not noticeable with a fast connection.)
+
+
+Example - Code for the 'Inventory' Verb
+
+
+(This is not a stand-alone example - it lives within the standard
+scenario.)
+
+define tp_verbs proc v_inventory()bool:
+    int cash;
+    thing me;
+
+    me := Me();
+    cash := me@p_pMoney;
+    if cash = 0 then
+	Print("You are broke.\n");
+    else
+	Print("You have ");
+	IPrint(cash);
+	if cash = 1 then
+	    Print(" bluto.\n");
+	else
+	    Print(" blutos.\n");
+	fi;
+    fi;
+    if ShowList(me@p_pCarrying, "You are carrying:\n") then
+	Print("You are not carrying anything.\n");
+    fi;
+    if not me@p_pHidden and CanSee(Here(), me) then
+	OPrint(FormatName(me@p_pName) + " takes inventory.\n");
+    fi;
+    true
+corp;
+
+Verb0(G, "inventory", 0, v_inventory)$
+Synonym(G, "inventory", "inv")$
+Synonym(G, "inventory", "i")$
+
+
+This routine returns a 'bool' (true/false) value, like other direct
+parsing routines. This is done so that if an error is encountered, the
+system can abort the handling of user input which contains several
+commands on one line, such as:
+
+    go north. go east. west. get rope. go south. tie rope to rail
+
+If such a parsing routine returns 'false', then the successive
+commands on the same line are not executed. In the case of
+'inventory', there is nothing that can go wrong, so the function
+always returns 'true'.
+
+This function has some local variables. They are valid only while the
+function is executing, and do not have to have names unique from local
+variables in other functions.
+
+First, a local copy of the pointer to the current character, as
+yielded by calling the builtin "Me", is created. This is done since it
+is quicker to reference a local variable than to call a function.
+Next, the amount of money the character has is obtained. The '@'
+operator takes a 'thing' on the left and a property on the right, and
+returns the value of that property attached to the thing. Much more
+will be said about this later. The function then prints out an
+appropriate comment based on that amount. Next, it calls "ShowList",
+which is another routine in the scenario which prints the names of
+objects in a list, one per line, slightly indented. It is used here,
+when describing a room, and when looking inside a container. If the
+list is empty, it does not print anything, and returns 'true'. If the
+list is not empty, it prints its second parameter (here "You are
+carrying:\n") before printing the items in the list, and then returns
+'false'. Thus, the code here will either print the list of objects the
+character is carrying (property 'p_pCarrying' on the character) headed
+by "You are carrying:\n", or will print "You are not carrying
+anything.\n" if the character is empty-handed.
+
+The next 'if' statement is a bit more complicated. It's purpose is to
+allow other characters in the same room as the one doing the inventory
+to see what the first is doing, if appropriate. A character can be
+"hidden" (only wizards can do this in the current scenario), so that
+others cannot see them or what they are doing. 'CanSee' is another
+routine in the scenario, that determines whether or not there is light
+in the given room. There will be no light if the room is dark, no
+object in the room is emitting light, no character in the room is
+emitting light (wizards can make themselves glow), and no character in
+the room is carrying an object which is emitting light. 'OPrint' is a
+builtin function which displays the passed string to all characters,
+except the active one, in the same room as the active one.
+'FormatName' is a builtin function which reformats a string from the
+AmigaMUD internal form into a more normal external form (e.g. turns
+"frog;small,green" into "small green frog"). Thus, if the active
+player is not a hidden wizard, and there is light in the current room,
+then all players in the current room will see the message "XXX takes
+inventory.\n", where XXX is the character's name.
+
+The three lines after the function definition are directly executed
+statements which add the verbs "inventory", "inv" and "i" to the main
+grammar, as abbreviated by 'G'. 'Verb0' tells the system that there
+are no arguments expected for the verb. Other possibilities are
+'Verb1' as in "examine <object>" and 'Verb2' as in "put the <object>
+into the <object>". The main grammar, G, is the one which is used to
+parse normal user commands when not in wizard mode. Other grammars are
+used for the building commands, etc. More details on parsing will be
+given later.
+
+
+Example - Code for the 'ShowList' Utility Routine
+
+
+(This is not a stand-alone example - it lives within the standard
+scenario.)
+
+define t_util proc utility public ShowList(list thing lt;
+					   string starter)bool:
+    int i;
+    thing object;
+    string s;
+    bool first;
+
+    first := true;
+    for i from 0 upto Count(lt) - 1 do
+	object := lt[i];
+	if not object@p_oInvisible then
+	    if first then
+		first := false;
+		Print(starter);
+	    fi;
+	    Print("  " + FormatName(object@p_oName) + "\n");
+	fi;
+    od;
+    first
+corp;
+
+
+A list in AmigaMUD can be indexed like a one-dimensional array. The
+builtin 'Count' takes any kind of list as its argument, and returns
+the number of elements in it. This routine simply runs down the
+elements in the passed list, and looks for any objects that are not
+marked as invisible. It prints each such one out, indented by two
+spaces, after the header passed by the caller. If no visible objects
+were found, 'ShowList' returns true, else it returns false.
+
+
+Example - the Code for Killing a Monster
+
+
+(This is not a stand-alone example - it lives within the standard
+scenario.)
+
+define t_fight proc KillMonster(thing theMonster)void:
+    string monsterName;
+    thing theKiller, other, here;
+    list thing lt;
+    int i;
+
+    theKiller := Me();
+    monsterName := CharacterNameS(theMonster);
+    Print(Capitalize(monsterName) + " is killed!\n");
+    if theKiller@p_pHidden then
+	OPrint(Capitalize(monsterName) + " is killed!\n");
+    else
+	OPrint(Capitalize(CharacterNameS(theKiller)) + " kills " +
+	    monsterName +"!\n");
+    fi;
+    theKiller -- p_pCurrentTarget;
+    other := theMonster@p_pCurrentTarget;
+    if other ~= nil and other ~= theKiller then
+	if other@p_pCurrentTarget = theMonster then
+	    other -- p_pCurrentTarget;
+	fi;
+    fi;
+    lt := theMonster@p_pCarrying;
+    if lt ~= nil then
+	here := Here();
+	i := Count(lt);
+	while i ~= 0 do
+	    i := i - 1;
+	    ignore DoDrop(here, theMonster, lt[i]);
+	od;
+    fi;
+    if theMonster ~= theKiller then
+	i := theMonster@p_pMoney;
+	if i ~= 0 then
+	    FindLoot((i + 1) / 2 + Random((i + 1) / 2));
+	fi;
+    fi;
+    ignore ForceAction(theMonster, DoUnShowIcon);
+corp;
+
+This routine is executed whenever a character in the combat area (the
+"Proving Grounds") successfully vanquishes a monster. The routine
+prints informative messages to the player and anyone else around,
+causes all of the monster's possessions to be dropped, and gives the
+character a possible monetary reward. The final line of the function
+needs a bit more explaining. The builtin function 'ForceAction' forces
+the indicated character or NPC to execute the function passed as the
+second argument. This means that any code that affects "everyone else
+in the room" will also affect whoever is killing the monster. In this
+case, the routine called is responsible for removing the icon for the
+monster from the displays of everyone else in the room, which will
+include the character who killed the monster.
+
+
+Wizard-Mode Commands
+
+
+Most input entered while in wizard mode is either function definitions
+or statements in the programming language to be directly executed. A
+few special commands are available for convenience, however. They are:
+
+    END-OF-FILE - an end-of-file condition will cause the client to
+	exit.
+
+    bye - this command will cause the client to exit. Note that the
+	server keeps track of whether a character is in wizard mode
+	or not, so on the next connection, it will enter wizard mode
+	if that is the mode the character was last in. When not in
+	wizard mode, special scenario actions can be taken when a
+	character exits the game and when the character re-enters the
+	game. These are not performed when in wizard mode. Thus,
+	things like the initial display of the current location will
+	not happen automatically, and it may be necessary to look
+	around and/or move around to get it to appear.
+
+    public
+    private
+    define/def - these three commands are used to define a symbol.
+	'public' will put the symbol into the global public symbol
+	table. 'private' will put the symbol into your private symbol
+	table, and 'define' will put the symbol into whatever table
+	you specify. There are two kinds of symbol definitions that
+	can be made. The first kind consists of a name for the symbol
+	followed by the definition of it, followed by a period.
+	Examples:
+
+	    public G CreateGrammar()$
+	    public p_pName CreateStringProp()$
+	    private HIT_LIMIT 72$
+	    private room_table CreateTable()$
+	    define room_table westRoom CreateThing(genericRoom)$
+	    define room_table eastRoom CreateThing(genericRoom)$
+
+	The second kind of symbol definition defines a function. This
+	is done by using the reserved word 'proc' followed by the
+	function definition. See the previous example sections for
+	some of these. They will be discussed in more detail later.
+
+    delete/del <table-name> <symbol> - this command will delete the
+	given symbol from the given table, if it can. It is similar
+	to running the 'DeleteSymbol' builtin. <table-name> can be
+	"private" or "public" as well as the name of a table.
+
+    use <table-expression> - this command adds the specified symbol
+	table to the set of currently in-use tables. It is equivalent
+	to calling the 'UseTable' builtin. See the discussion of
+	tables in the 'Building' document. See the documentation of
+	'UseTable' for a warning.
+
+    unuse <table-expression> - this command removes the specified
+	symbol table from the set of currently in-use tables. It is
+	equivalent to calling the 'UnUseTable' builtin.
+
+    source <filename> - this command causes the contents of the named
+	file (on the client machine) to be read and processed. Files
+	sourced in this way can in turn contain other 'source'
+	commands. Doing this allows a large scenario to be split up
+	into a number of logical (and smaller) pieces. The filename
+	can be any legal AmigaDOS file path. Examples:
+
+	    source AmigaMUD:Src/go
+	    source df0:AmigaMUD/examples/speech.m
+
+	When using the "MUD" client program, the 'Source' menu item is
+	equivalent to the 'source' command. Do not try to switch
+	between wizard mode and normal mode while sourcing files,
+	however, since the operation is asynchronous and will
+	probably not occur when you want it to.
+
+    describe/desc/d <expression>$ - this command prints out
+	information about the value of the requested expression. It is
+	the wizard mode command most often used interactively. The
+	output will depend on the type of the expression:
+
+	    void - a void value, i.e. no value, is printed as '<VOID>'
+
+	    status - a status value is printed symbolically, as
+		'succeed', 'continue' or 'fail'
+
+	    character - output for a character value is quite lengthy.
+		It consists of:
+
+		    - the character's sponsor - this is the character
+			who promoted this character to its current
+			status, if any.
+
+		    - the character's current location. This will be
+			the name of the location (room) the character
+			is in, if that room has a name, and a table
+			containing that name is in-use. Otherwise it
+			will just be '<THING>'.
+
+		    - the character's input action. This is the action
+			that all non-wizard-mode text input from the
+			player is passed to. It is normally some
+			general scenario parsing routine. The output
+			will be the name of the function if a table
+			containing that function is in-use, otherwise
+			it will be '<ACTION>'.
+
+		    - the character's raw key action. This is the
+			action which is called to process raw key
+			events occuring when the player hits a special
+			key, such as 'HELP', or a numeric keypad key.
+
+		    - the character's mouse down action. This is the
+			action which is called to process left-mouse-
+			button hits over identified regions of the
+			graphics window.
+
+		    - the character's button action. This is the
+			action which is called to process button hits
+			done with the mouse. Button-hits are clicks on
+			scenario-created "mouse-buttons" in the
+			graphics window.
+
+		    - the character's idle action. This is the action
+			which is called when the player leaves the
+			game when not in wizard mode.
+
+		    - the character's active action. This is the
+			action which is called when the player re-
+			enters the game not in wizard mode. It is
+			often used to do a 'look around' to establish
+			the display for the current location.
+
+		    - the character's status. This is one of:
+
+			- normal
+			- apprentice
+			- wizard
+
+		    - the character's usecount. This indicates the
+			number of references to the character data
+			structure currently contained in the database.
+			There are many indirect references to the
+			character as "owner" pointers, but these do
+			not contribute to this count.
+
+		    - the character's current non-wizard-mode prompt
+
+		    - the character's current password. This will only
+			be displayed for SysAdmin.
+
+		    - if the character is currently in wizard mode,
+			then '(in wizard mode)' is displayed
+
+		    - if the character is a new character, i.e. has
+			not yet connected and been initialized, then
+			'(new player)'.
+
+		    - the character's "thing" is displayed. This is
+			where all other changeable properties of the
+			character are stored. See the section here on
+			thing output for details.
+
+	    bool - a boolean value is printed as 'true' or 'false'
+
+	    int - an integer value is printed in decimal
+
+	    fixed - a fixed point value is printed in decimal with a
+		decimal point always present
+
+	    string - a string value is printed in quotes, with special
+		characters escaped as in source form
+
+	    thing - the output for a thing consists of a header
+		section, showing the fixed values that make up a
+		thing, followed by some number of property-value pairs
+		which are the contents of the thing. The fixed header
+		contains:
+
+		    - the thing's parent. This is the thing which this
+			thing starts inheriting properties from.
+
+		    - the thing's owner. This is the character who
+			currently owns the thing. When a thing is
+			created, it's owner is set to the effective
+			character at the time.
+
+		    - the thing's usecount. This is the number of
+			references to the thing from other entities in
+			the database. If this count goes to zero, then
+			the thing can be destroyed.
+
+		    - the thing's property count. This is the count of
+			the number of properties attached to the
+			thing. This does not count any properties that
+			may be inherited from ancestors.
+
+		    - the thing's status. This is one of:
+
+			ts_private - only the owner of the thing can
+			    examine or change it
+
+			ts_readonly - only the owner of the thing can
+			    change it, but anyone can examine it
+
+			ts_wizard - any character with wizard status
+			    (or code running with that status) can
+			    change the thing, and anyone can examine
+			    the thing
+
+			ts_public - anyone can change or examine the
+			    thing
+
+		The contents of the thing, i.e. its properties, are
+		then displayed, indented two spaces. Each property
+		consists of the property, a colon and the value of
+		that property. If the property is defined in any in-
+		use table, then the name of the property is printed,
+		otherwise '<PROPERTY>' is printed. The value of the
+		property is printed much as being described here,
+		except that things are not shown expanded, but are
+		shown as a name, if one is found in an in-use table,
+		or as '<THING>'. Note that properties not known to the
+		current character are not displayed, unless the
+		current character is SysAdmin. Thus, adding more
+		tables to the "in-use" list can cause more properties
+		to be displayed on things. However, if a property is
+		not publically exported by the wizard who created it,
+		only that wizard and SysAdmin can see its value.
+
+	    action - actions, or functions, or procedures, are printed
+		with a short header describing the function. This header
+		contains:
+
+		    - the owner of the function. This is the character
+			who defined it.
+
+		    - the usecount of the function. An function cannot
+			be deleted unless this count goes to zero.
+
+		Following this header is the definition of the
+		function, as pretty-printed by the system. For builtin
+		functions, which are pre-implemented, no function body
+		is shown. Also, if the owner of the function has made
+		it available in some public symbol table, but has not
+		marked the function itself as "public", the body is
+		not shown, unless it is SysAdmin who is looking. See a
+		later section on "Declarations" for an explanation of
+		the syntax of functions.
+
+	    table - only a header is printed for a table. The symbols
+		in the table can be displayed using the 'ShowTable'
+		builtin. The header for a table contains:
+
+		    - the owner of the table
+
+		    - the usecount of the table
+
+		    - the number of entries in the table
+
+	    grammar - a grammar is described much the same as a table.
+		The words in the grammar can be displayed using the
+		'ShowWords' builtin. The header for a grammar
+		contains:
+
+		    - the owner of the grammar
+
+		    - the usecount of the grammar
+
+		    - the number of words in the grammar
+
+	    lists - AmigaMUD has three kinds of lists: lists of 
+		integers, lists of things, and lists of actions. Each
+		is displayed as a list of values enclosed in braces.
+		Integers are shown directly in decimal, and things and
+		actions are shown as a symbol, if one is found in the
+		in-use tables, or as '<THING>' or '<ACTION>'.
+
+	    properties - properties are displayed symbolically if a
+		symbol for them is found in the set of in-use tables,
+		or just as '<PROPERTY>'.
+
+	    thing-status - a thing status (as returned by the builtin
+		'GetThingStatus') is displayed as one of:
+
+		    ts_private
+		    ts_readonly
+		    ts_wizard
+		    ts_public
+
+    edit/ed/e <function-name> - this command is used to interactively
+	edit a function. Only the body of a function can be changed -
+	its header can only be changed by deleting the function and
+	recreating it. Editing can only be done when using the "MUD"
+	client program, either locally or remotely, or when using the
+	"SMUD" client program locally. "SMUD" will always use an
+	external editor, as indicated by your "MUDEDITOR" and "EDITOR"
+	environment variables, and "MUD" will use either an internal
+	one or an external one, depending on the "Editor" menu
+	setting. See the "MUD" document for details on how to use the
+	internal editor.
+
+	When the editing is done, the AmigaMUD programming language
+	parser attempts to "compile" the function. This can fail,
+	because of syntax or other errors, in which case the function
+	is left unchanged. With the "MUD" internal editor, the errors
+	are pointed out one at a time and the user can resubmit the
+	function at any point. When using an external editor, the user
+	can re-issue the 'edit' command, without giving a function
+	name, and will be left editing the file as it was when it was
+	submitted for compiling. This cycle can be repeated until the
+	function compiles, or the user gives up.
+
+    replace <function-definition> - this command can be used, even
+	when not using the "MUD" or "SMUD" client programs, to change
+	the body of a function. A table containing the function symbol
+	must be in-use at the time of the replacement. The entire
+	function must be re-entered, including its header. E.g.
+
+	    > private proc doit()void:
+	    :	  Print("Hello\n");
+	    : corp;
+	    >
+	    > replace doit()void:
+	    :	  int i;
+	    :	  for i from 1 upto 10 do
+	    :	      Print("i = " + IntToString(i) + "\n");
+	    :	  od;
+	    : corp;
+	    >
+
+	This kind of editing is expected to be most useful in
+	conjunction with a terminal program which can do an ASCII-put
+	from a file on the remote machine. As with function editing,
+	the header of the function cannot be changed.
+
+	The replace command can also be useful within source files as
+	part of "forward declaring" a function. This is useful when a
+	pair (or set) of functions reference each other. E.g.
+
+	    define myTable proc test1()void: corp;
+
+	    define myTable proc test2()void:
+		...
+		<call to test1>
+		...
+	    corp;
+
+	    replace test1()void:
+		...
+		<call to test2>
+		...
+	    corp;
+
+
+Data Types
+
+There are a number of data types in the AmigaMUD programming language.
+Not all are useable in all circumstances. The types are:
+
+    void - this is not really a type. It is used as a function return
+	type to indicate that the function does not return a value
+	(and hence is actually a procedure and not a function). It is
+	also the type returned by statements, such as a 'for' loop.
+
+    nil - this also is not really a type. It is the type of the
+	reserved word 'nil', which represents a non-value for things,
+	actions, tables, grammars and lists. This allows values of
+	those types to be tested for validity. No other use of this
+	type can occur.
+
+    status - this type is a three-valued type, with values 'succeed',
+	'fail' and 'continue'. The interpretation of these three
+	values is at the discretion of the programmer, but a number of
+	builtin functions, such as 'FindName', return status values
+	with fixed interpretations on the values. It is suggested that
+	programmers use similar interpretations to avoid confusion:
+
+	    'succeed' - the operation has completed successfully
+	    'fail' - the operation has failed
+	    'continue' - the operation can be continued
+
+    character - this type represents a reference to a player
+	character. It is used by a few builtin functions, such as
+	'Owner', 'Character', etc. Such a reference is not equivalent
+	to a reference to the character thing, such as is returned by
+	the 'Me' builtin. Builtins 'CharacterThing' and
+	'ThingCharacter' can be used to return one from the other.
+
+    bool - this type is a two-valued type, with values 'true' and
+	'false'. It is the result of a comparison, and is the required
+	type for the condition in an 'if' construct or 'while'
+	statement. It is also used with the parsing builtins.
+
+    int - this type is a signed 32 bit integer. In the programming
+	language, integers can be entered in decimal, hexadecimal,
+	octal, or binary. Only decimal conversions are provided as
+	builtins.
+
+    fixed - this type is a signed 32 bit integer, which has been
+	split into two 16 bit halves, the upper half being the whole
+	number portion, and the lower half being the fractional part.
+	Fixed values are used for graphical coordinates, so that
+	drawing commands can be automatically scaled to the actual
+	size of the client graphics area.
+
+    string - this type represents a character string. The current
+	implementation limits strings to about 4000 characters in
+	length. Empty strings are allowed. In the programming
+	language, strings are surrounded by quotation marks (") and
+	may contain escapes for some non-printable characters.
+
+    thing - this type represents a pointer to a thing. Things are the
+	basic database entity used to represent concepts such as
+	rooms and objects. There is a thing associated with each
+	player character or NPC. To the programmer, a thing is just a
+	set of attribute-value pairs. The attributes are properties
+	defined in the database by programmers, and their values can
+	be actions (functions), strings, integers, references to other
+	things, etc. Each thing also has an owner (the character who
+	currently owns it), and a parent (the thing, if any, to start
+	inheriting other properties from).
+
+    action - actions are just functions or procedures. In AmigaMUD
+	they are first-class objects in that they can be stored in the
+	database, passed as parameters, and called indirectly. When a
+	function is called directly by another, the types and number
+	of the parameters and result are checked during the
+	compilation of the calling function. When a function is called
+	indirectly at runtime, this checking must be done dynamically,
+	after the called function has been identified. Thus, there can
+	be function-calling errors at runtime. Also, several builtins
+	take actions as parameters, and they check the parameters and
+	result of such actions at runtime.
+
+    table - a table is a symbol table. It is a mapping from strings
+	(the symbols) to their values. Such tables are dynamic
+	entities and can be created, manipulated and destroyed at
+	runtime. They are stored in the database along with things,
+	properties, actions, etc. Since tables are values, it is
+	possible to have a symbol in a table whose value is another
+	table. This allows the construction of trees of symbol tables,
+	which is quite useful when organizing a large number of
+	symbols.
+
+    grammar - a grammar is much like a table, in that it contains a
+	mapping from strings to values. In a grammar, however, the
+	values are special internal ones which the AmigaMUD system can
+	use to parse player input. The use of grammars is described in
+	the section on parsing.
+
+    list int
+    list fixed
+    list thing
+    list action - lists in AmigaMUD are somewhat of a cross between
+	linked lists and arrays. The size of them is dynamic, and
+	there are builtins to add and remove elements from both ends.
+	Their elements can be retrieved and modified by direct
+	indexing. Such indexing cannot extend the size of the list,
+	however.
+
+    property bool
+    property int
+    property fixed
+    property string
+    property thing
+    property action
+    property table
+    property grammar
+    property list int
+    property list fixed
+    property list thing
+    property list action - properties in AmigaMUD are the identifiers
+	for attribute-value pairs attached to things. The properties
+	are themselves first-class objects, however, so they can be
+	passed to functions as parameters, and returned as results.
+	Note that only certain types can be attached to things in
+	attribute-value pairs.
+
+    <thing-status> - this type is not a full type in the language. It
+	has values 'ts_private', 'ts_readonly', 'ts_wizard' and
+	'ts_public'. It is only used as the result type of the builtin
+	'GetThingStatus' and the parameter to 'SetThingStatus'.
+
+A few other types exist internally, but they are not generally visible
+to the programmer.
+
+
+Lexical Entities
+
+
+The bottom-level sequences of characters that are known by a
+programming language are called the tokens or lexemes of that
+language. In the AmigaMUD programming language, spaces, tabs and
+newlines are used to separate tokens that would otherwise appear to be
+single tokens, but are otherwise ignored. In other words, the system
+does not care, or even notice, what kind of indentation you use.
+
+There are two kinds of comments in the language. One is the C-like
+form consisting of characters enclosed within an opening "/*" and a
+closing "*/". Unlike C, however, this kind of comment can be nested in
+AmigaMUD, so that you can comment out a piece of code without worrying
+about whether it has comments inside it. These comments are discarded
+very early in the compilation process, so they do not affect runtime
+at all. The second kind of comment is the 'note' statement. These are
+actually stored in the database and displayed when the function
+containing them is printed out. They also slow down execution of
+functions containing them by a very small amount.
+
+Newlines are normally ignored when you are in wizard mode. They are
+significant, however, when typing wizard mode commands which accept
+something other than a dollar-terminated expression as their
+parameter. For example, entering just 'source' as an input line in
+wizard mode will yield an error message about a missing file name.
+
+The reserved words in the AmigaMUD programming language (those symbols
+that cannot be used as regular identifiers by programmers) are:
+
+    and, or, not, if, then, elif, else, fi, while, do, od, for,
+    from, upto, case, incase, default, esac, ignore, call, note,
+    proc, utility, wizard, public, corp, void, bool, int, fixed,
+    string, thing, status, grammar, character, table, action, list,
+    property, true, false, succeed, fail, continue, nil,
+    ts_private, ts_readonly, ts_wizard, ts_public
+
+Identifiers (user symbols) look like reserved words, but they aren't
+give any predefined meaning by the system. They can be of any length,
+and are composed of letters, digits and underscores. They must not
+start with a digit. The following are legal identifiers:
+
+    Fred ThisIsALongIdentifier so_is_this_one fazz_79 x3
+
+Note that the interpretation of reserved words and identifiers is case
+sensitive; 'And' and 'AND' are valid and different (but badly chosen!)
+identifiers, while 'and' is the reserved word.
+
+Integers (numbers) can be entered in several forms in the AmigaMUD
+programming language. The normal form is decimal (base 10). A number
+can be prefixed with '0x' for hexadecimal (base 16) interpretation,
+'0o' for octal (base 8) interpretation or '0b' for binary (base 2)
+interpretation. The following are all valid integer constants:
+
+    1234567890
+    0xcaf4A
+    0o777
+    0b1010101010001010111
+
+Integers are signed 32 bit quantities in AmigaMUD. Minus signs are not
+part of integer constants - they are unary operators that can be
+applied to them. Thus
+
+    x := -13;
+
+is perfectly legal - '-13' is interpreted as the unary '-' operator
+and the integer constant 13.
+
+Fixed constants are the same as integer constants, except that they
+must contain a decimal point:
+
+    12.0
+    0.743
+    137.2984
+
+String constants in AmigaMUD are similar to those in most programming
+languages. They consist of any number of any characters enclosed in
+quotation marks ("). Quotation marks and some unprintable characters
+can be put inside string constants using an escape mechanism. Inside a
+string, a backslash (\) is handled specially, depending on the
+character following the backslash, as follows:
+
+    \n - a newline character appears in the string
+    \t - a tab character appears in the string
+    \X, where X is any other character - a single X appears in the
+	string. This is how backslashes and quotation marks can be put
+	in string constants.
+
+An important feature of string constants is the concept of a string
+break. Two string constants, separated only by whitespace and /* */
+comments, are concatenated together into one string constant. This is
+done at "compile" time, and the internal representation used will be
+that of a single string constant. When a function containing a long
+string constant is printed, the string constant will be broken up
+using string breaks in order to fit on the output lines. Such long
+string constants are most often used in output messages, as in:
+
+    Print("As you open the small wooden door, you detect a strange "
+	  "odour coming from the room beyond. The odour seems "
+	  "familiar, and you are about to identify it when you fall "
+	  "unconscious.");
+
+Note the spaces within the quotes at the end of the first three lines.
+These are needed to prevent the words from being squished together, as
+e.g. "strangeodour" instead of "strange odour".
+
+The following operator and punctuation tokens are also recognized:
+
+    $	      used to end input in wizard mode
+    =	      simple equality test for various types
+    ==	      case ignoring comparison for strings
+    ~	      bitwise invert
+    ~=	      simple inequality test for various types
+    < <= > >= comparison tests for integers and strings
+    << >>     bitwise shift operators
+    ><	      bitwise exclusive-or operator
+    :	      punctuation in function headers, after the result type
+    :=	      assignment construct
+    +	      addition and string concatenation operator
+    --	      property deletion operator
+    - * / %   integer arithmetic operators
+    & |       integer bitwise operators
+    ( )       parentheses for subexpressions, function calls, etc.
+    , ;       separators for expressions and statements
+    @	      property lookup operator
+    [ ]       brackets for list indexing
+
+
+Declarations
+
+
+The term "declaration" in the AmigaMUD programming language includes
+the declaration and definition of functions, and the declarations of
+local variables inside a function. AmigaMUD does not have global
+variables - you must use properties attached to things instead.
+Several examples of function (proc, action) definitions have already
+been seen as examples. They consist of:
+
+    - 'proc'
+    - <optional 'utility'>
+    - <optional 'public'>
+    - <optional 'wizard'>
+    - <the symbol for the proc>
+    - '('
+    - <formal parameter list>
+    - ')'
+    - result type
+    - <optional local variable declarations>
+    - <proc body>
+    - 'corp'
+
+The 'utility'/'public'/'wizard' tokens can be given in any order. If
+the result type of the proc is 'void', then the <proc body>, which is
+a semi-colon separated list of statements, must end in a statement. If
+the result type of the proc is not void, then the <proc body> must end
+in an expression of that type. That expression will yield the result
+of the proc when the proc is executed. The <formal parameter list> is
+just a semi-colon separated list of declarations, indicating the names
+and types of the parameters that the proc will take when called. The
+list is empty if the proc has no parameters. Note that, unlike some
+languages, like Pascal, when calling a proc with no parameters, the
+parentheses must still be given. This allows the system to distinguish
+calling a proc from the use of the proc as a value (of type 'action').
+
+A declaration of local variables or proc formal parameters consists of
+at type followed by a comma-separated list of identifiers, and a
+terminating semi-colon. Examples:
+
+    int i, j, k;
+    action a;
+    property list int pli, l2prop;
+    bool found, ok;
+
+'void' is not a valid type for a variable or parameter. When declaring
+formal parameters to a function, the semicolon at the end of the last
+set (before the ')') can be omitted.
+
+If a function is defined in a private table (one that is not available
+to other wizards and apprentices), then there is no way for others to
+look at it, unless it is attached to a thing as an action property, or
+added to a visible action list. This does not prevent others from
+executing it, however, such as when called by some other function. If
+the proc is visible to others, they can use the 'describe' command, or
+the DescribeSymbol builtin, to look at it. Normally, however, they
+will only be able to see the proc header. If the owner adds 'public'
+when defining the function, then others will be able to see the full
+body of the function, printy-printed for them.
+
+Normally, when a function is called, the effective character and the
+effective status are set to be the owner of the function. This gives
+the function full access to properties, etc. owned by that character.
+Sometimes, however, especially when SysAdmin is writing functions, the
+setting of the effective state is not desired. In that case, the token
+'utility' can be added to the declaration. This arranges things so
+that no change of effective character or status is done when the
+function is called. This avoids giving access to private properties,
+etc. The body of the function, however, must be careful to only use
+publicly accessible properties.
+
+If the token 'wizard' is added to a function definition, then the
+function can only be called when the effective character is a wizard.
+This allows wizards (and apprentices, although that isn't of much use)
+to write wizard-only functions, just like some of the builtin ones.
+
+
+Language Constructs
+
+
+A number of constructs in AmigaMUD accept a sequence of statements or
+an expression as a part of them. As in many programming languages,
+statements in a sequence of statements are separated by semicolons.
+Such a sequence can have an expression as its final element instead of
+a statement, and thus the entire sequence can be used as an
+expression. This is most often seen as the body of a function. Note
+that this can only happen where specifically indicated - it is not
+legal to replace any arbitrary expression with a sequence of
+statements and an expression. This is trivial to implement, but I
+deliberately did not do so, because of the confusion it can cause.
+AmigaMUD does not have any constructs which only accept a single
+statement as part of them, and thus it does not have any problem with
+"dangling else"'s. All constructs are fully bracketed with reserved
+words, hence there are no "begin"/"end" or "{"/"}" brackets needed.
+
+
+The 'if' Construct
+
+
+The AmigaMUD programming language has a standard set of language
+constructs, including 'if's, 'while's, 'for's and 'case's. 'if's and
+'case's can be used as both statements and expressions, i.e. can
+return a value or not return a value. An 'if' construct consists of:
+
+    - 'if'
+    - a bool expression (the condition)
+    - 'then'
+    - statements/expression to execute if condition is true
+    - zero or more of:
+	- 'elif'
+	- a bool expression (the condition)
+	- 'then'
+	- statements/expression to execute if condition is true
+    - optional:
+	- 'else'
+	- statements/expression to execute if all conditions are false
+    - 'fi'
+
+A simple example of an 'if' is:
+
+    if flag then
+	Print("Flag is true.\n");
+    fi;
+
+A more complex 'if' statement:
+
+    if a <= b and not flag2 then
+	if a = b then
+	    Print("Found!\n");
+	else
+	    Print("Not found yet.\n");
+	fi;
+    elif a <= b or not flag2 then
+	Print("Partly found.\n");
+    else
+	Print("No result.\n");
+    fi;
+
+Note that 'if' constructs can be nested. This is true in general of
+the programming language - there are no limitations other than memory
+available (nesting of constructs is limited only by the available
+stack space - the required space is sufficient for a lot of nesting).
+'if' expressions can be used like this:
+
+    max := if b > a then b else a fi;
+
+An 'if' expression must always have an 'else' part, since there must
+always be some value yielded. The various branches of an 'if'
+expression must all yield the same type of value. The branches of an
+'if' expression can have statements preceeding the final result, all
+separated by semicolons. E.g.
+
+    result :=
+	if a < b or b < c then
+	    Print("first case\n");
+	    a := b;
+	    c
+	elif a < b then
+	    Print("second case\n");
+	    b := a;
+	    c
+	else
+	    Print("third case\n");
+	    a := b;
+	    c := b;
+	    a
+	fi;
+
+This kind of construct works fine, but can be a little confusing, so
+they should be used with care. Such large 'if' expressions are most
+often used as the bodies of functions that return a result which
+conditionally depends on something.
+
+
+The 'while' Construct
+
+
+A 'while' statement consists of:
+
+    - 'while'
+    - a bool expression (the condition)
+    - 'do'
+    - the loop body statement-sequence
+    - 'od'
+
+A 'while' loop is executed repeatedly until the condition yields
+false. A 'while' loop does not return any value, i.e. it yields
+'void'. The condition can have statements before the final 'bool'
+value, thus yielding a loop with its exit test in the middle. E.g.
+
+    i := 10;
+    while
+	i := retrieveValue(i);
+	i ~= 0
+    do
+	processValue(i);
+    od;
+
+Here, the sequence of execution will be:
+
+    i := retrieveValue(10);	/* lets say this returns 8 */
+    processValue(8);
+    i := retrieveValue(8);	/* lets say this returns 3 */
+    processValue(3);
+    i := retrieveValue(3);	/* lets say this returns 0 */
+
+and 'i' will be 0 after the 'while' loop. Programmers should use care
+when using 'while' loops, since it may not be obvious when the loop
+exits. The AmigaMUD server places an execution time limit on all
+execution, so an infinite loop will be aborted, but, depending on what
+SysAdmin has set that limit to, bad loops can have serious effects on
+the performance of the server for other users. Also, aborting
+execution can leave wizard-created data structures in an inconsistent
+state.
+
+
+The 'for' Construct
+
+
+A 'for' statement consists of:
+
+    - 'for'
+    - local int variable name
+    - 'from'
+    - int expression (the start value)
+    - 'upto'
+    - int expression (the limit value)
+    - 'do'
+    - the loop body statement-sequence
+    - 'od'
+
+Like a 'while' loop, the 'for' loop does not return any value. The
+start and limit expressions are evaluated once at the beginning of the
+loop, and then the int variable is stepped by ones from the start
+value upto the limit value, with the loop body executed once for each
+such value. If the limit value is less than (signed integer
+comparison) the start value, then the loop body is never executed.
+
+'for' loops are useful for stepping over fixed ranges, or through the
+entries of a list, as in:
+
+    GSetPen(nil, C_BLACK);
+    for i from 1 upto 10 do
+	GAMovePixels(nil, i * 2, 30);
+	for j from 1 upto 20 do
+	    GRMovePixels(nil, 0, 1);
+	    GRDrawPixels(nil, 0, 1);
+	od;
+    od;
+
+    sum := 0;
+    for j from 0 upto Count(listOfThings) - 1 do
+	sum := sum + listOfThings[j]@intProperty;
+    od;
+    Print("Sum of values = ");
+    IPrint(sum);
+    Print(".\n");
+
+When using a 'for' loop to scan down a list, make sure that code
+executed in the body of the loop cannot modify the list itself. If it
+can, you must use a 'while' loop, since the 'Count' of the elements in
+the list will be changing.
+
+
+The 'case' Construct
+
+
+The 'case' construct is in some ways a generalization of the 'if'
+construct. In other ways it is less general. It consists of:
+
+    - 'case'
+    - int expression (the selector)
+    - one or more "case alternatives", which are:
+	- 'default'
+	- ':'
+	- the alternative statements/expression
+	or
+	- a sequence of "case indexes", which are:
+	    - 'incase'
+	    - integer constant
+	    - ':'
+	- the alternative statements/expression
+    - 'esac'
+
+Only one 'default' alternative can occur in any given 'case', and if
+the 'case' is a 'case' expression, a 'default' alternative must occur.
+Some examples:
+
+    case whichButton
+    incase LEFT_BUTTON:
+	doMove(MOVE_LEFT);
+	lastDirection := MOVE_LEFT;
+    incase RIGHT_BUTTON:
+	doMove(MOVE_RIGHT);
+	lastDirection := MOVE_RIGHT;
+    incase EXIT_BUTTON:
+    incase LEAVE_BUTTON:
+    incase OUT_BUTTON:
+	doMove(MOVE_EXIT);
+	lastDirection := MOVE_EXIT;
+    default:
+	if lastDirection ~= -1 then
+	    Print("You can't go that way.\n");
+	    lastDirection := -1;
+	else
+	    Print("You still can't go that way.\n");
+	fi;
+    esac;
+
+    result :=
+	case retrieveThing()@intProperty
+	incase 0:
+	    1
+	incase 1:
+	    20
+	default:
+	    Print("Illegal value encountered!\n");
+	    -1
+	esac;
+
+C programmers are cautioned that AmigaMUD case alternatives do not
+fall through to the one beneath them. All 'case expressions' must have
+a 'default' part, since some value must always result. 'case
+statements' need not have one, and if the selector does not match any
+of the case indexes, and the 'case' has no 'default' alternative, no
+action is taken.
+
+
+Function Calls
+
+
+Function calls, whether to a builtin or to a user-defined function,
+consist of the name of the function followed by a left parenthesis, a
+comma separated list of the function parameters, and a right
+parenthesis. The parentheses must be given even if the function has no
+parameters. If no parentheses are given after a function name, then
+the function itself is the value, with type 'action'. All function
+parameters must be given on a call, and must be of the same type as
+required by the function header. If the function has a return-type of
+'void', then the function call itself yields 'void', i.e. it is a
+statement. Otherwise, the function call yields the type of the
+function result. Examples:
+
+    Assume:
+	proc f1(int i, j)int
+	proc f2(string s1, s2)string
+	proc f3(int i, string s)void
+
+    Then:
+
+	i := f1(1, 2);
+	i := f1(j + 7, k * (13 + l));
+	str := f2("string 1", "string 2");
+	Print(f2("Hello" + f2(str, "out")));
+	f3(0x32af9, "done!");
+	f3(f1(6, j + 7), f2("hello", "there") + "world");
+
+If the function to be called is not known until run time, then the
+above syntax cannot be used, since the result type of the function is
+not known. Instead, the 'call' construct can be used. This form
+consists of:
+
+    - 'call'
+    - '('
+    - action expression (returns the function to call)
+    - ','
+    - the expected result type of the action
+    - ')'
+    - '('
+    - the parameters for the function call
+    - ')'
+
+Since the expected result type is given explicitly, the system can
+assume that type at "compile" time, and can check for it at run time.
+The parameter count and types of the called function will always be
+checked at run time. Examples:
+
+    Print(call(Me()@p_pDescAction, string)() + "\n");
+    i := i + call(if wantMax then max else min fi, int)(j, k);
+
+
+Miscellaneous Constructs
+
+
+Sometimes a function or a builtin yields a result that is not always
+wanted - the call is being done for its side effects. In these cases,
+it can be desireable to make it perfectly clear that the result is
+being discarded, so, instead of assigning the result to some dummy
+variable, the 'ignore' construct can be used. It consists of the
+reserved word 'ignore' followed by any expression whose result is to
+be discarded. 'ignore' always returns 'void'. E.g.
+
+    ignore FindName(Me()@p_pCarrying, p_oName, "bottle");
+    theBottle := FindResult();
+
+As mentioned previously, there are two kinds of comments in the
+AmigaMUD programming language. The first is the C-like one consisting
+of an opening /*, comment text, and a closing */. The second kind of
+comment is the 'note', which consists of all of the characters after
+the 'note' keyword up to the end of the line. A 'note' comment is
+stored in the database and will appear when the function containing it
+is printed. For example:
+
+    public proc complicated(thing th)void:
+	note We are doing something complicated here, so be careful!
+	if th@flag then
+	    ...
+	else
+	    note flag not set, so don't try the tricky stuff.
+	    Print("The easy stuff!\n");
+	fi;
+    corp;
+
+It is not necessary to put a semicolon after a note - they delimit
+themselves, so the parser can recognize them.
+
+The AmigaMUD system has limited support for direct, unnamed actions.
+These are values of type 'action' and can be assigned and called. They
+are typically only used in specialized circumstances, such as one-shot
+actions produced by the "StringToAction" builtin. They consist of:
+
+    - 'proc'
+    - optional body statements
+    - result expression
+    - 'corp'
+
+For example, it is legal to do:
+
+    myThing@actionProp :=
+	proc
+	    Print("Hello there world!\n");
+	    void
+	corp;
+    ignore call(myThing@actionProp, void)();
+
+Such procs have no symbol, so are usually less useful than normal
+functions. Also, the lack of parameters or local variables are a
+limiting factor. The run-time compilation form available through the
+builtin "StringToProc" is much more powerful.
+
+The most common construct in the AmigaMUD programming language is the
+assignment statement. Assignment statements consist of:
+
+    - <assignment-left-hand-side>
+    - ':='
+    - <expression>
+
+Assignment statements do not return any value, hence the concept of
+"nested assignments" does not exist. Several different kinds of
+<assignment-left-hand-side>'s are possible:
+
+	- local variable or parameter name
+    or
+	- <list-expression>
+	- '['
+	- <int-expression>
+	- ']'
+    or
+	- <thing-expression>
+	- '@'
+	- <property-expression>
+
+The first variant is the obvious one of assigning a new value to a
+local variable or parameter. The second is that of assigning a new
+value to a specific element of a list. Note that the element indexed
+by the <int-expression> must already be present in the list, else a
+run-time indexing error will occur. Such indexing starts with 0 as the
+first index, and "Count(<list>) - 1" as the last index.
+
+The third form is used to assign a value to a property on a thing. The
+property does not need to already exist - this method is the method
+used to add new properties also.
+
+Note that there are no global variables in AmigaMUD - values needed
+outside of a single function must be stored as properties attached to
+some thing.
+
+Example assignment statements (all are of integer values, but the
+same rules hold for any type of value):
+
+    private th CreateThing(nil)$
+    private intProp CreateIntProp()$
+    private listProp CreateIntListProp()$
+
+    private proc testProc(int n)void:
+	int i;
+	list int li;
+	
+	i := 10;
+	n := 100;
+	li := CreateIntList();
+	AddTail(li, 10);
+	Addtail(li, 20);
+	li[0] := 1;
+	li[1] := 2;
+	li(otherFunc()] := 6;
+	th@intProp := 7;
+	th@if i < 2 then intProp else otherIntProp fi := 8;
+	th@listProp := li;
+	th@listProp[1] := 9;
+	call(th@thingProp@actionProp, list int)()[n] := i;
+    corp;
+
+Properties can be removed from things using the '--' construct:
+
+    - <thing-expression>
+    - '--';
+    - <property-expression>
+
+This construct is a statement - it does not return any value. Note
+that it is not an error to try to delete a property from a thing when
+that property does not exist on that thing. Examples:
+
+    th1--intProp;
+    thingFunc() -- thingPropFunc();
+
+
+Expressions
+
+
+Many examples of expressions have already been seen. This section will
+simply list the full set of operators, in order of decreasing
+precedence. The precedence of an operator is an indication of how
+strongly it binds to its operands. A simple example is the following
+expression:
+
+    2 * 4 + 6 * 8
+
+The value of this expression is 56, the sum of 2 * 4 and 6 * 8. This
+is because the multiplications are done before the addition. The
+multiplication operator, '*', has higher precedence than the addition
+operator, '+'. The evaluation order of an expression can be changed by
+the use of parentheses around a subexpression, as in:
+
+    2 * (4 + 6) * 8
+
+which has value 160, the product of 2, 4 + 6, and 8. So, for the
+operators in the following descriptions, those described first will be
+done before those described later, unless parentheses are introduced
+to change the order of evaluation.
+
+All expressions must start with bottom-level items. These are: 'if'-
+expression, 'case'-expression, function call result, inline action,
+parenthesized sub-expression, list reference, property reference,
+identifier, string constant, integer constant, fixed constant, or
+any of the reserved words 'false', 'true', 'succeed', 'fail',
+'continue', 'nil', 'ts_private', 'ts_readonly', 'ts_wizard',
+'ts_public'.
+
+'if'- expressions, 'case'-expressions, function calls, inline actions
+and parenthesized sub-expressions have all been covered previously.
+Similarly, the bottom-level items were explained in the section on
+lexical entities.
+
+A list reference used as an expression looks exactly like the left-
+hand-side of an assignment to a list element. The same rule holds -
+the indexed element must exist in the list.
+
+A property reference also looks just like the corresponding assignment
+left-hand-side. When a property is being searched for on a thing, it
+might not be found. If the thing has a parent thing (established when
+the thing is created), then the search will continue with that parent
+thing. Any value found on the parent will be used. Similarly, if the
+value is not found on the parent, then the parent's parent will be
+searched, etc. This "inheritance" of properties can be used to save
+considerable space in the database, and to save a lot of effort when
+creating new things which are all similar. Note that things can only
+have a single parent - AmigaMUD does not have "multiple inheritance".
+
+Good examples of the use of inheritance are the monsters in the
+Proving Grounds in the standard scenario. Each monster has a model,
+defined in the file "monsters.m", and when examples of that monster
+are needed, they inherit most of their properties (name, description,
+actions, speed, armour class, special actions, etc.) from the model.
+Only values which need to be different (such as current hit points)
+are stored on the specific instance. The fact that property assignment
+only assigns to the descendant thing makes this use automatic.
+
+A tricky use of inheritance can occur with things which inherit from
+an ancestor, as in:
+
+    private ancestor CreateThing(nil)$
+    private child CreateThing(ancestor)$
+    private intProp CreateIntProp()$
+
+    ancestor@intProp := 100$
+
+    ...
+
+	child@intProp := child@intProp - 1;
+	if child@intProp = 0 then
+	    child -- intProp;
+	fi;
+
+This assignment statement will get the 100 value from the ancestor
+thing the first time it is executed, and will add the property with
+value 99 to the child. On successive executions, it will modify the
+property on the child. When the value reaches 0, the property is
+deleted, and will again inherit the 100 from the ancestor. Although
+this works, most programmers would just set the child value to 100
+directly, rather than deleting the child's property. If values
+different from the parent value are very rare, however, and there are
+a lot of child things around, using the inheritance trick can save
+some space in the database.
+
+If a property which is not present on the thing is referenced, the
+value yielded depends on the type of the property:
+
+    status - fail
+    bool - false
+    int - 0
+    fixed - 0.0
+    string - "" (an empty string)
+    thing, action, grammar, list - nil
+
+This defaulting of values is usually useful, but can occasionally be a
+bit of a nuisance. The main use is to save storage - the programmer
+can count on these values for missing properties, and hence can
+arrange to not store them explicitly. This works quite well for flag
+values.
+
+
+Unary Negation: -
+Unary BitWise Invert: ~
+
+    The negation operator appears before an int expression and negates
+    the value of the expression. E.g.
+
+	-6
+	-(intvar * 7)
+	-th@func(7, -6)
+
+    The bitwise invert operator similarly takes an int expression, but
+    yields a result in which all 32 bits are flipped. E.g.:
+
+	~ 0b10110 => 0b11111111111111111111111111101001
+	~ -1 => 0b0
+
+Bitwise And: &
+Bitwise Exclusive-Or: ><
+Bitwise Shift Left: <<
+Bitwise Shift Right: >>
+
+    These operators all operate on int values. They all have the same
+    precedence, so are evaluated left-to-right when used together in
+    an expression. The Bitwise And operator combines two int values in
+    a bit-by-bit fashion - each of the 32 bits of the result is a '1'
+    bit only if both of the corresponding bits in the operands were
+    also '1' bits. The Bitwise Exclusive-Or operator yields a '1' bit
+    in the result only if the corresponding bits in the operands are
+    different. The Shift-Left operator shifts its left-hand operand
+    left by the number of bits specified in its right-hand operand.
+    Similarly, the Shift-Right operator shifts its left-hand operand
+    right by the number of bits specified in its right-hand operand.
+    If the right-hand operand to a shift operator is negative, it is
+    not defined what the result will be. Also, if the right-hand
+    operand is greater than 32 (the number of bits in the left-hand
+    operand), the result is not defined. E.g.
+
+	0b1100 & 0b0101 => 0b0100
+	0b1100 >< 0b0101 => 0b1001
+	0b001100 << 2 => 0b110000
+	0b001100 << 3 => 0b1100000
+	0b001100 >> 2 => 0b000011
+
+	a & b >< c << d >> e == ((((a & b) >< c) << d) >> e)
+
+    Note that both shift directions are unsigned shifts, even though
+    the 'int' type is a signed value. This means that on a right
+    shift, the value shifted in on the left-hand-end is all zero bits.
+
+Bitwise Inclusive-Or: |
+
+    This operator requires two int operands and returns an int result.
+    Each of the 32 bits in the result is a '1' if the corresponding
+    bit in either of the operands is a '1'. E.g.
+
+	0b1100 | 0b0101 => 0b1101
+	a & b | c << d | e == (a & b) | (c << d) | e
+
+Integer Multiplication: *
+Integer Division: /
+Integer Remainder: %
+Fixed Multiplication: *
+Fixed Division: /
+
+    These operators take a pair of int or fixed operands and yield
+    an int (or fixed) result. Division or remainder by zero will
+    be trapped at runtime.
+
+Integer Addition: +
+Integer Subtraction: -
+Fixed Addition: +
+Fixed Subtraction: -
+String Concatenation: +
+
+    Note that both numeric addition and string concatenation have the
+    same operator symbol. The operations are distinguished by the
+    types of their operands. E.g.
+
+	6 + 128 => 134
+	6 - 128 => -122
+	12.7 + 128.003 => 140.703
+	"hello" + "world" => "helloworld"
+	"hello " + "world" => "hello world"
+	"" + "" => ""
+
+Integer Comparisons: <= < = ~= > >=
+Fixed Comparisons: <= < = ~= > >=
+String Comparisons: <= < = ~= == > >=
+Other Comparisons: = ~=
+
+    All comparisons yield a bool value. All comparisons must have
+    operands which are both of the same type. The integer comparisons
+    are 32 bit signed integer comparisons. The string comparisons use
+    comparisons based on the ASCII values of the characters in the
+    strings. The '==' operator converts all letters to upper case (or
+    lower case if you prefer!) before doing the comparison. It is
+    useful when dealing with user input that might be capitalized.
+    Things, actions, lists, properties, etc. can be compared for
+    equality or inequality. E.g.
+
+	6 < 12 => true
+	-6 < -12 => false
+	12.7 < 12.65 => false
+	"hello" = "hello" => true
+	"hello" <= "hello" => true
+	"hello" = "Hello" => false
+	"hello" == "Hello" => true
+
+Logical Not: not
+
+    This prefix operator reverses the logical value of its bool
+    operand. E.g.
+
+	not true => false
+	not false => true
+	not 6 < 10 => false
+
+Logical And: and
+
+    This operator takes two bool operands and returns a bool result
+    that is true only if both operands are true. Technically, this is
+    a language construct rather than a true operator, since the
+    AmigaMUD interpreter will not even try to evaluate the right-hand
+    operand if the left-hand operand evaluates to false, since it
+    knows that the right-hand operand will not affect the final
+    result. This behaviour is part of the language definition and will
+    not change; thus the programmer is correct to write things like:
+
+	th ~= nil and th@field = 2
+
+Logical Or: or
+
+    This operator takes two bool operands and returns a bool result
+    that is true if either of its operands is true. Similar to the
+    'and' operator, the 'or' operator will not evaluate its right-hand
+    operand if its left-hand operand is "true".
+
+
+Further Reading
+
+This document has informally defined the AmigaMUD programming
+language. This information allows wizards and apprentices to write and
+run valid AmigaMUD programs, but it has not given enough information
+to allow them to write meaningful programs, or programs that fit in
+with the supplied standard scenario. Further documents relevant to
+programming are:
+
+    ProgConcepts.txt - discusses some classes of builtin functions and
+	how to use them. This includes parsing, effects handling,
+	graphics, character manipulation, etc.
+
+    Builtins.txt - this is a reference manual for the builtin
+	functions. It lists and describes all of the builtins, in
+	alphabetical order.
+
+    Scenario.txt - this document is a rambling discussion of how the
+	standard scenario is set up, the utility functions it
+	provides, how to build from it, and how to change how it
+	works.

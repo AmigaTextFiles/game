@@ -1,0 +1,191 @@
+*****************************************************************************
+*									    *
+*	PROGRAM: CCBackUpper (part2)					    *
+*	VERSION: 1.1							    *
+*   SOURCE CODE: 13 (26.2.2001)						    *
+*	   DATE: 15.01.2001 - 9.2.2001					    *
+*      LANGUAGE: Assembler (DevPac V3.14)				    *
+*	 SYSTEM: A1200	KS 40.68 WB 40.42 2MB chip 64MB fast 68030/50mhz    *
+*									    *
+*	 AUTHOR: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+*      FUNCTION: backup-program part 2 for carrier command's master disk.   *
+*		 the main and just the functionally part of it.		    *
+*									    *
+*	COMMENT: i prefer the Barfly assembler to create the binare_file    *
+*									    *
+*****************************************************************************
+
+A2000 set 1	;if A2000 -> TimeS3 = 166ms
+		;	  -> CCBackupperPart2.bin=CCBUP2_mc68000_07.bin
+		;else
+		;	  -> TimeS3 = 172ms
+		;	  -> CCBackupperPart2.bin=CCBUP2_mc68030_50.bin
+
+*****************************************************************************
+
+	ifd	A2000
+	output	ram:CCBUP2_mc68000_07.bin
+	elseif
+	output	ram:CCBUP2_mc68030_50.bin
+	endc
+
+*****************************************************************************
+
+WRITE	set	1	;use enhanced database_size
+
+*****************************************************************************
+
+		include	source/custom.i
+		include	source/DBStructure.i
+
+*****************************************************************************
+
+ProgStart	lea	$1C00.w,SP
+
+		lea	CopList(PC),A0
+		move.l	A0,cop1lc(A6)
+		move.w	copjmp1(A6),D0
+
+		move.w	#$87C0,dmacon(A6)
+
+		bsr	DrawBorder
+
+		lea	ColorTab(pc),A0
+		lea	color(A6),A1
+		moveq	#$0F,D0
+.SetColor	move.w	(A0)+,D1
+		add.w	D1,D1
+		move.w	D1,(A1)+
+		dbra	D0,.SetColor
+
+*****************************************************************************
+
+		lea	HeadLine.txt(pc),A0
+		bsr	lbC000662		;set screen
+
+Main		bsr	PrintText		;print text
+		dc.w	$0000,$0003,$0002	;insert master disk
+		bsr	WaitMouse
+		bsr.b	LoadSide1		;read tracks 1-79 upperside
+
+		bsr	PrintText		;print text
+		dc.w	$0000,$0004,$0002	;insert backup disk
+		bsr	WaitMouse
+		bsr	SaveSide1 ;write bootblock + tracks 1-79 upperside
+
+		bsr	PrintText		;print text
+		dc.w	$0000,$0003,$0002	;insert master disk
+		bsr	WaitMouse
+		bsr	LoadSide2		;read track 0-79 lowerside
+
+		bsr	PrintText		;print text
+		dc.w	$0000,$0004,$0002	;insert backup disk
+		bsr	WaitMouse
+		bsr	SaveSide2 ;write title-sound tracks 0-79 lowerside
+
+		bsr	PrintText		;print text
+		dc.w	$0003,$0005,$0000	;reset computer to run game
+
+End		bra.b	End			;wait for reset
+
+*****************************************************************************
+
+		include	source/LoadSide1.s
+		include	source/LoadSide2.s
+
+		include	source/SaveSide1.s
+		include	source/SaveSide2.s
+
+		include	source/DrawBorder.s
+		include	source/WaitMouse.s
+		include	source/PrintText.s
+
+		include	source/LoadDatas.s
+		include	source/SaveDatas.s
+
+*****************************************************************************
+
+CopList		dc.l	$00EC0007
+		dc.l	$00EE7478
+		dc.l	$00E80007
+		dc.l	$00EA7450
+		dc.l	$00E40007
+		dc.l	$00E67428
+		dc.l	$00E00007
+		dc.l	$00E27400
+		dc.l	$FFFFFFFE
+
+*****************************************************************************
+
+CharTable	include	source/CharTable_new2.s
+
+*****************************************************************************
+
+ColorTab	dc.w	$0000,$0700,$0057,$0432,$0143,$0650,$0540,$0006
+		dc.w	$0777,$0555,$0026,$0152,$0030,$0333,$0732,$0000
+
+*****************************************************************************
+
+TextTab00	dc.w	Text00-TextTab00
+		dc.w	Text01-TextTab00
+		dc.w	Text02-TextTab00
+		dc.w	Text03-TextTab00
+
+TextTab01	dc.w	Text00-TextTab01
+		dc.w	Text04-TextTab01
+		dc.w	Text05-TextTab01
+		dc.w	Text06-TextTab01
+		dc.w	Text07-TextTab01
+		dc.w	Text08-TextTab01
+
+TextTab02	dc.w	Text00-TextTab02
+		dc.w	Text09-TextTab02
+		dc.w	Text10-TextTab02
+
+TextBuf00	dc.w	$0000
+TextBuf01	dc.w	$0001
+TextBuf02	dc.w	$0002
+
+lbB000FE2	dc.b	$00
+lbB000FE3	dc.b	$00
+lbB000FE4	dc.b	$00
+
+HeadLine.txt	dc.b	$05,$05
+
+		dc.b	$03,$04,$08,'Realtime Amiga Backerupper Clone'
+		dc.b	$03,$06,$18,'Remember, Piracy is illegal!',0
+
+Text00		dc.b	$01,$01,'                                      ',0
+
+TextPos00	dc.b	$02,$50,$05,$05,$00
+Text01		dc.b	$01,$0A,'Reading Master Disk',0
+Text02		dc.b	$01,$0A,'Writing Backup Disk',0
+Text03		dc.b	$01,$0D,'Backup Complete',0
+
+TextPos01	dc.b	$02,$78,$05,$01,$00
+Text04		dc.b	$01,$07,'Error Reading Master Disk',0
+Text05		dc.b	$01,$07,'Error Writing Backup Disk',0
+Text06		dc.b	$01,$0B,'Insert Master Disk',0
+Text07		dc.b	$01,$0B,'Insert Backup Disk',0
+Text08		dc.b	$01,$07,'Reset Computer To Run Game',0
+
+TextPos02	dc.b	$02,$90,$05,$05,$00
+Text09		dc.b	$01,$04,'Press Both Buttons To Try Again',0
+Text10		dc.b	$01,$05,'Press Both Buttons When Ready',0,0
+
+		cnop	0,4
+
+*****************************************************************************
+
+DataBase	dcb.b	BSS_Size,0
+
+		cnop	0,4
+
+*****************************************************************************
+
+ProgSize	EQU	*-ProgStart
+
+		DCB.B	4096-ProgSize,0
+
+ end ************************************************************************

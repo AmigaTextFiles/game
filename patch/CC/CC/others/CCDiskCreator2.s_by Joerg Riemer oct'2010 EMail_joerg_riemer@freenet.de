@@ -1,0 +1,1022 @@
+
+	output	ram:CCDiskCreator
+
+dsksync	equ	$0000007E
+copjmp1	equ	$00000088
+potgo	equ	$00000034
+adkcon	equ	$0000009E
+ddfstop	equ	$00000094
+Lab01	equ	$000013E3
+bltcon0	equ	$00000040
+bltcon1	equ	$00000042
+diwstrt	equ	$0000008E
+bplcon0	equ	$00000100
+intreq	equ	$0000009C
+bplcon1	equ	$00000102
+test	equ	$000013E3
+diwstop	equ	$00000090
+ddfstrt	equ	$00000092
+dmaconr	equ	$00000002
+bltdpt	equ	$00000054
+bltbpt	equ	$0000004C
+ciaprb	equ	$00000100
+bltapt	equ	$00000050
+intena	equ	$0000009A
+bltafwm	equ	$00000044
+intreqr	equ	$0000001E
+bltbmod	equ	$00000062
+bpl2mod	equ	$0000010A
+color	equ	$00000180
+potinp	equ	$00000016
+bpl1mod	equ	$00000108
+vhposr	equ	$00000006
+dskpt	equ	$00000020
+cop1lc	equ	$00000080
+_ciab	equ	$00BFD000
+dmacon	equ	$00000096
+bltcdat	equ	$00000070
+dsklen	equ	$00000024
+bltsize	equ	$00000058
+bltdmod	equ	$00000066
+
+*****************************************************************************
+
+	cmp.b	#"x",(A0)
+	beq	MakeDisk
+
+Start	moveq	#0,D0			;set last supported version
+	lea	DosName(pc),A1		;get library name
+	movea.l	$4.w,A6			;set execbase to call a function
+	jsr	-$228(A6)		;use EXEC to (openlibrary)
+	tst.l	D0			;be sure it's open
+	beq.b	Quit			;quit if not
+	movea.l	D0,A6			;set dosbase to call a function
+	jsr	-$3C(A6)		;use DOS to find (output)
+	move.l	D0,D1			;set them
+	lea	InfoText(pc),A0		;get textbase
+	move.l	A0,D2			;set base of text
+	move.l	#TextSize,D3		;set size of text
+	jsr	-$30(A6)		;use DOS to (write) text
+	movea.l	A6,A1			;set dosbase for close
+	movea.l	$4.w,A6			;set execbase to call a function
+	jsr	-$19e(A6)		;use EXEC to (closelibrary)
+	moveq	#0,D0			;clear returncode
+Quit	rts				;back to console
+
+*****************************************************************************
+
+DosName	dc.b	"dos.library",0		;library name
+
+*****************************************************************************
+
+InfoText
+
+  dc.b	$A," CARRIER COMMAND DISK CREATOR",$A,$A
+
+  dc.b	" especially disk creator program for CARRIER COMMAND",$A
+  dc.b	" RAINBIRD DISK: aga fixed version A1.2 19/08/88",$A,$A
+
+  dc.b	" generates an original RAINBIRD DISK for Carrier Command.",$A
+  dc.b	" including titlesound, game saving ability and some AGA fixes.",$A
+  dc.b	" tested by using an A1200 environment, blizzard 030/882/50mhz 64mb.",$A,$A
+
+  dc.b	$9b,"32m » CC-DISKCREATOR TAKES OVER THE SYSTEM «",$9b,"0m",$A,$A
+
+  dc.b	" for safety reasons use",$9b,"32m CCDiskCreator x",$9b,"0m to e(x)ecute.",$A
+  dc.b	" it never returns, be sure to save all datas before run.",$A,$A
+
+  dc.b	" by joerg riemer feb'2001  email: mission@cs.tu-berlin.de",$A,$A,0
+ 
+TextSize  equ	*-InfoText-1
+
+*****************************************************************************
+
+		cnop	0,4
+		
+MakeDisk	moveq	#0,D0		;any version
+		lea	GFXName(pc),A1	;set libraryname
+
+		movea.l	4.w,A6		;set exec to call a function
+		jsr	-$228(A6)	;use exec to (openlibrary)
+		movea.l	D0,A5		;save library_base
+		suba.l	A1,A1		;no view
+		exg.l	A5,A6		;set gfx to call a function
+		jsr	-$DE(A6)	;use gfx to (loadview)
+		jsr	-270(A6)	;use gfx to (waittof)
+		jsr	-270(A6)	;use gfx to (waittof)
+
+		movea.l	A6,A1		;get library base
+		movea.l	A5,A6		;set exec to call a function
+		jsr	-$19E(A6)	;use exec to (closelibrary)
+
+		lea	HardHack(pc),A5	;get supervisor_code
+		jmp	-$01E(A6)	;use exec to call (supervisor)
+
+*****************************************************************************
+
+GFXName		dc.b	"graphics.library",0
+
+*****************************************************************************
+
+		dc.b	"$VER: CCDiskCreator 1.1 (26.2.2001)",0
+
+*****************************************************************************
+
+		cnop	0,4
+
+HardHack	lea	$DFF000,A6	;get custombase
+		move.w	#$7FFF,$096(A6)	;cut all DMA
+		move.w	#$7FFF,$09A(A6)	;all interrupts
+		move.w	#$7FFF,$09C(A6)	;and all requests
+
+		movea.l	4.W,A0		;set exec
+		btst	#0,$129(A0)	;check for 68020 or higher
+		beq.b	MC68000		;branch if not
+
+****************************************
+
+		moveq	#0,D0		;all caches
+
+		move.l	D0,(SP)		;turn off
+		pmove.l	(SP),TC		;MMU
+		
+		movec	D0,CACR		;disable caches
+
+		movec	vbr,D0		;get VBR 
+		beq.b	MC68000		;branch if zero
+
+		suba.l	A1,A1		;prepare register
+		movea.l	D0,A2		;set vbr_base
+		move.w	#$FF,D0		;set loop_count
+.CopyVBR	move.l	(A2)+,(A1)+	;copy trap_table
+		dbra	D0,.CopyVBR	;copy trap_table
+		suba.l	A1,A1		;prepare register
+		movec	A1,vbr		;set vbr to zero
+
+****************************************
+
+MC68000		lea	Data2(PC),A0
+		lea	$400.w,A1
+		move.l	#Data2Size/4-1,D0
+lbC000040a	move.l	(A0)+,(A1)+
+		dbra	D0,lbC000040a
+
+		lea	lbC00004C(PC),A0
+		lea	$00076C00,A1
+		move.l	#DataSize/4-1,D0
+lbC000040	move.l	(A0)+,(A1)+
+		dbra	D0,lbC000040
+
+		jmp	$00076C00
+
+*****************************************************************************
+
+lbC00004C	moveq	#$00,D0
+		moveq	#$07,D1
+		lea	$0180(A6),A0
+lbC000060	move.l	D0,(A0)+
+		dbra	D1,lbC000060
+
+		move.w	#$4200,$0100(A6)
+		move.w	#$0038,$0092(A6)
+		move.w	#$00D0,$0094(A6)
+		move.w	#$2C81,$008E(A6)
+		move.w	#$F4C1,$0090(A6)
+		clr.w	$0102(A6)
+		moveq	#$78,D0
+		move.w	D0,$0108(A6)
+		move.w	D0,$010A(A6)
+
+		lea	lbL00032A(PC),A0
+		move.l	A0,$0080(A6)
+		move.w	$0088(A6),D0
+
+		move.w	#$8390,$0096(A6)
+		move.w	#$0C00,$0034(A6)
+
+		clr.w	$01F4.w			;try to read/write track
+		clr.w	$01F6.w
+		clr.w	$01F8.w
+		clr.w	$01FA.w			;diskside
+		clr.w	$01FC.w
+		
+		jmp	$0800.w
+
+*****************************************************************************
+
+lbL00032A	dc.l	$00EC0007
+		dc.l	$00EE7478
+		dc.l	$00E80007
+		dc.l	$00EA7450
+		dc.l	$00E40007
+		dc.l	$00E67428
+		dc.l	$00E00007
+		dc.l	$00E27400
+		dc.l	$FFFFFFFE
+
+		cnop	0,4
+			
+DataSize	equ	*-lbC00004C
+
+		cnop	0,4
+		
+Data2		incbin	/bin/CCBackupperPart1.bin
+
+*****************************************************************************
+
+		lea	$1C00.w,SP
+
+		lea	CopList(PC),A0
+		move.l	A0,cop1lc(A6)
+		move.w	copjmp1(A6),D0
+
+		move.w	#$87C0,dmacon(A6)
+
+		bsr	lbC000566
+
+		lea	ColorTab(pc),A0
+		lea	color(A6),A1
+		moveq	#$0F,D0
+lbC000426	move.w	(A0)+,D1
+		add.w	D1,D1
+		move.w	D1,(A1)+
+		dbra	D0,lbC000426
+
+*****************************************************************************
+
+		lea	HeadLine(pc),A0
+		bsr	lbC000662		;set screen
+
+		bsr	lbC0005E2		;print text
+		dc.w	$0000,$0003,$0002	;insert master disk
+		bsr	WaitMouse
+
+		bsr.b	WriteSide1 ;write bootblock + tracks 1-80 upperside
+		bsr.b	WriteSide2 ;write title sound tracks 0-80 lowerside
+
+		bsr	lbC0005E2		;print text
+		dc.w	$0003,$0005,$0000	;reset computer to run game
+
+lbC00047E	bra.s	lbC00047E		;wait for reset
+
+*****************************************************************************
+
+WriteSide1	lea	$1C00.w,A0
+		lea	Side1,A1
+		move.l	#Side1Size,D0
+.CopyMem	move.l	(A1)+,(A0)+
+		subq.l	#1,D0
+		bne.b	.CopyMem
+
+lbC0004AA	bsr	lbC0005E2
+		dc.w	$0002,$0000,$0000
+
+		st	$01F8.w
+		lea	$400.w,A0
+		lea	$00073400,A1		;$73400
+		bsr	BBChkSum
+		bsr	MotorOn
+		bmi.b	lbC0004F2
+		moveq	#$00,D0
+		bsr	StepHead
+		lea	$00073400,A5
+		bsr	lbC000AB0
+		bsr	WriteTrack
+		bmi.s	lbC0004F2
+		lea	$1C00.w,A0
+		moveq	#1,D0
+		moveq	#79,D1
+		bsr	SaveFile
+		bpl.s	lbC000502
+
+lbC0004F2	bsr	lbC0005E2
+		dc.w	$0000,$0002,$0001
+
+		bsr	WaitMouse
+		bra.s	lbC0004AA
+
+lbC000502	rts
+
+*****************************************************************************
+
+WriteSide2	lea	$1C00.w,A0
+		lea	Side2,A1
+		move.l	#Side2Size,D0
+.CopyMem	move.l	(A1)+,(A0)+
+		subq.l	#1,D0
+		bne.b	.CopyMem
+
+lbC000538	st	$01F8.w
+		move.w	#1,$01FA.W
+		lea	$1C00.w,A0
+		moveq	#$00,D0
+		moveq	#$50,D1
+		bsr	SaveFile
+		bpl.s	lbC000564
+
+		bsr.b	lbC0005E2
+		dc.w	$0000,$0002,$0001
+		bsr.b	WaitMouse
+		bra.s	lbC000538
+
+lbC000564	rts
+
+*****************************************************************************
+
+lbC000566	lea	$0007F100,A0
+		moveq	#$00,D0
+		moveq	#$00,D1
+		moveq	#$00,D2
+		moveq	#$00,D3
+		move.w	#$07CF,D7
+lbC000578	movem.l	D0-D3,-(A0)
+		dbra	D7,lbC000578
+		lea	$00077478,A0
+		moveq	#$2D,D5
+		bsr.b	lbC00059C
+		moveq	#$00,D0
+		moveq	#$00,D1
+		moveq	#$00,D2
+		moveq	#$07,D4
+		bsr.b	lbC0005B6
+		move.w	#$008D,D5
+lbC00059C	bsr.b	lbC0005AE
+		move.w	#$8000,D0
+		moveq	#$00,D1
+		moveq	#$01,D2
+		move.w	D5,D4
+		bsr.b	lbC0005B6
+lbC0005AE	moveq	#-$01,D0
+		moveq	#-$01,D1
+		moveq	#-$01,D2
+		moveq	#$00,D4
+lbC0005B6	move.w	D0,(A0)+
+		moveq	#$11,D3
+lbC0005BA	move.w	D1,(A0)+
+		dbra	D3,lbC0005BA
+		move.w	D2,(A0)+
+		lea	$0078(A0),A0
+		dbra	D4,lbC0005B6
+		rts
+
+****************************************************************************
+
+WaitMouse	btst	#$06,$00BFE001
+		beq.b	lbC0005E0
+		btst	#$02,$0016(A6)
+		bne.s	WaitMouse
+lbC0005E0	rts
+
+*****************************************************************************
+
+lbC0005E2	move.l	(SP),A0
+		lea	lbW001196(pc),A1
+		move.l	(A0)+,(A1)+		;lbW001196+$400
+		move.w	(A0)+,(A1)		;lbW00119A+$400
+		move.l	A0,(SP)
+		lea	lbB001067(pc),A0
+		bsr.b	lbC000662
+		lea	lbW001024(pc),A0
+		move.w	lbW001196(pc),D0
+		bsr.b	lbC000638
+		lea	lbB0010AA(pc),A0
+		bsr.b	lbC000662
+		lea	lbW00102C(pc),A0
+		move.w	lbW001198(pc),D0
+		bsr.b	lbC000638
+		lea	lbB00112E(pc),A0
+		bsr.b	lbC000662
+		lea	lbW001038(pc),A0
+		move.w	lbW00119A(pc),D0
+		bsr.b	lbC000638
+		rts
+
+*****************************************************************************
+
+lbC000638	add.w	D0,D0
+		add.w	(A0,D0.W),A0		;move.w	$00(A0,D0.W),A0
+		move.l	A0,-(SP)
+		lea	Clear.txt(pc),A0
+		bsr.b	lbC000662
+		move.l	(SP)+,A0
+
+lbC000662	movem.l	D0-D7/A1-A5,-(SP)
+		clr.w	D1
+		clr.w	D2
+		move.b	lbB000FE3(pc),D1
+		move.b	lbB000FE4(pc),D2
+		bsr.b	lbC000684
+		lea	lbB000FE3(pc),A1
+		move.b	D1,(A1)			;lbB000FE3+$400
+		move.b	D2,1(A1)		;lbB000FE4+$400
+		movem.l	(SP)+,D0-D7/A1-A5
+		rts
+
+*****************************************************************************
+
+lbC000684	clr.w	D0
+		move.b	(A0)+,D0
+		bmi	lbC000712
+		cmp.b	#$06,D0
+		bls.s	lbC0006A6
+		cmp.b	#$0D,D0
+		beq.s	lbC00069E
+		bsr	lbC000738
+		bra.s	lbC000684
+
+lbC00069E	move.b	lbB000FE2(pc),D1
+		addq.w	#$08,D2
+		bra.s	lbC000684
+
+lbC0006A6	tst.b	D0
+		beq	lbC00072C
+		subq.b	#$01,D0
+		beq.s	lbC000700
+		subq.b	#$01,D0
+		beq.s	lbC000704
+		subq.b	#$01,D0
+		beq.s	lbC00070A
+		subq.b	#$01,D0
+		beq.s	lbC0006FA
+		subq.b	#$01,D0
+		beq.s	lbC0006CE
+lbC0006C0	move.b	(A0)+,D0
+		beq.s	lbC00072C
+		cmp.b	#$20,D0
+		beq.s	lbC0006C0
+		subq.w	#$01,A0
+		bra.s	lbC000684
+
+lbC0006CE	move.b	(A0)+,D0
+		bsr.b	lbC0006D6
+		bra.s	lbC000684
+
+lbC0006D6	move.b	D0,D4
+		lsr.b	#$04,D4
+		moveq	#$03,D3
+		lea	PatchCode(PC),A1
+lbC0006E0	lsr.b	#$01,D0
+		scc	D5
+		lsr.b	#$01,D4
+		scs	D6
+		eor.b	D5,D6
+		move.b	D6,(A1)
+		move.b	D5,$0004(A1)
+		lea	$0010(A1),A1
+		dbra	D3,lbC0006E0
+		rts
+
+lbC0006FA	lea	lbB000FE2(pc),A1
+		move.b	D1,(A1)			;lbB000FE2+$400
+		bra.s	lbC000684
+
+lbC000700	move.b	(A0)+,D1
+		bra.b	lbC000684
+
+lbC000704	move.b	(A0)+,D2
+		bra	lbC000684
+
+lbC00070A	move.b	(A0)+,D1
+		move.b	(A0)+,D2
+		bra	lbC000684
+
+lbC000712	move.l	A0,-(SP)
+		and.w	#$007F,D0
+		add.w	D0,D0
+		move.w	lbW00072E(PC,D0.W),D0
+		lea	lbL000734(PC,D0.W),A0
+		bsr	lbC000684
+		move.l	(SP)+,A0
+		bra	lbC000684
+
+lbC00072C	rts
+
+lbW00072E	dc.w	$0000,$0001,$0002
+lbL000734	dc.l	$00000000
+
+lbC000738	lea	$00077400,A5
+		move.w	D2,D3
+		lsl.w	#$05,D3
+		move.w	D3,D5
+		add.w	D3,D3
+		add.w	D3,D3
+		add.w	D5,D3
+		add.w	D3,A5
+		sub.w	#$0020,D0
+		add.w	D0,D0
+		add.w	D0,D0
+		add.w	D0,D0
+		lea	CharTable(pc),A4
+		add.w	D0,A4
+		add.w	D1,A5
+		addq.w	#$01,D1
+		moveq	#$07,D0
+lbC000764	move.b	(A4)+,D6
+		move.b	D6,D5
+		or.b	#$00,D5
+PatchCode	equ	*-1
+		eor.b	#$00,D5
+		move.b	D5,(A5)
+		lea	$0028(A5),A5
+		move.b	D6,D5
+		or.b	#$00,D5
+		eor.b	#$00,D5
+		move.b	D5,(A5)
+		lea	$0028(A5),A5
+		move.b	D6,D5
+		or.b	#$00,D5
+		eor.b	#$00,D5
+		move.b	D5,(A5)
+		lea	$0028(A5),A5
+		move.b	D6,D5
+		or.b	#$00,D5
+		eor.b	#$00,D5
+		move.b	D5,(A5)
+		lea	$0028(A5),A5
+		dbra	D0,lbC000764
+		rts
+
+*****************************************************************************
+
+MotorOn		lea	_ciab,A4	;set drive, diskside, motor on
+		bset	#3,$E00(A4)	;one-shot mode.
+		move.l	#$55555555,D5
+		move.w	$01F6.w,D2
+		moveq	#$00,D3
+		addq.w	#$03,D2
+		bset	D2,D3
+		move.b	D3,D4
+		move.w	$01FA.w,D2
+		beq.s	lbC0007CC
+		bset	#$02,D3
+lbC0007CC	move.b	D3,$01FC.w
+		or.b	#%01111100,$100(A4)	;deselect drives, lower side
+		bclr	#7,$100(A4)		;motor on
+		not.b	D3			;11110111
+		and.b	D3,$100(A4)		;blcr drive and/or diskside
+		moveq	#0,D4
+.wait		addq.l	#1,D4
+		btst	#20,D4
+		bne.w	lbC00093A		;!!!!!!!
+		btst	#5,$1001(A4)		;disk ready ?
+		bne.b	.wait			;branch if not
+		moveq	#$00,D4
+error		rts
+
+*****************************************************************************
+
+MotorOff	move.b	#$FF,ciaprb(A4)
+		move.b	#$BF,ciaprb(A4)
+		move.b	#$DF,ciaprb(A4)
+		move.b	#$EF,ciaprb(A4)
+		move.b	#$F7,ciaprb(A4)
+		move.b	#$FF,ciaprb(A4)
+		rts
+
+*****************************************************************************
+
+lbC000826	btst	#$04,$1001(A4)
+		beq.s	lbC000836
+		moveq	#$01,D0
+		bsr.b	lbC000856
+		bra.s	lbC000826
+
+lbC000836	clr.w	$01F8.w
+		rts
+
+*****************************************************************************
+
+StepHead	move.w	D0,D6
+		tst.w	$01F8.w
+		bpl.s	lbC000846
+		bsr.s	lbC000826
+lbC000846	sub.w	$01F8.w,D6
+		beq.s	lbC000892
+		add.w	D6,$01F8.w
+		move.w	D6,D0
+		bpl.s	lbC000860
+		neg.w	D0
+lbC000856	move.b	$01FC.w,D1
+		or.b	#$80,D1
+		bra.s	lbC000868
+
+lbC000860	move.b	$01FC.w,D1
+		or.b	#$82,D1
+lbC000868	move.b	D1,D2
+		or.b	#$01,D2
+		not.b	D1
+		not.b	D2
+		subq.w	#$01,D0
+lbC000874	move.b	D2,ciaprb(A4)
+lbC000880	move.b	D1,ciaprb(A4)
+
+		move.b	#$50,$400(A4)		;timer A low.
+		move.b	#$08,$500(A4)		;timer A hi, and start timer.
+.wait		btst	#0,$D00(A4)		;await timer ready.
+		beq.b	.wait			;wait a bit ($850 = 3ms)
+
+		dbra	D0,lbC000874
+lbC000892	rts
+
+*****************************************************************************
+
+lbC000894	subq.w	#$01,D1
+		bmi.s	lbC0008C8
+		bsr	MotorOn
+		bmi.s	lbC0008CA
+lbC00089E	move.w	#$0002,$01F4.w
+lbC0008A4	movem.w	D0/D1,-(SP)
+		move.l	A0,-(SP)
+		bsr.b	StepHead
+		bsr.b	lbC0008E6
+		bmi.s	lbC0008D2
+		move.l	A0,A5
+		bsr	lbC000A5C
+		bmi.s	lbC0008D2
+		move.l	A5,A0
+		addq.w	#$04,SP
+		movem.w	(SP)+,D0/D1
+		addq.w	#$01,D0
+		dbra	D1,lbC00089E
+lbC0008C8	moveq	#$00,D4
+lbC0008CA	bsr	MotorOff
+		tst.w	D4
+		rts
+
+lbC0008D2	move.l	(SP)+,A0
+		movem.w	(SP)+,D0/D1
+		subq.w	#$01,$01F4.w
+		bmi.s	lbC0008CA
+		bne.s	lbC0008A4
+		st	$01F8.w
+		bra.s	lbC0008A4
+
+lbC0008E6	move.w	#$4000,dsklen(A6)
+		move.w	#$0002,intreq(A6)
+		move.l	#$00073800,dskpt(A6)
+		move.w	#$6800,adkcon(A6)
+		move.w	#$9500,adkcon(A6)
+		move.w	#$4489,dsksync(A6)
+		move.w	#$9414,dsklen(A6)
+		move.w	#$9414,dsklen(A6)
+lbC000918
+		moveq	#0,D0
+wait		addq.l	#1,D0
+		btst	#20,D0
+		bne.b	lbC000934
+		btst	#1,$1f(A6)
+		beq.b	wait
+		move.w	#$4000,$24(A6)
+		moveq	#$00,D4
+		rts
+
+lbC000934	move.w	#$4000,dsklen(A6)
+lbC00093A	moveq	#-$01,D4
+		rts
+
+SaveFile	st	$01F8.w
+		bsr	MotorOn
+		bmi.s	lbC00098A
+		subq.w	#$01,D1
+		bmi.s	lbC000988
+lbC00094C	move.w	#$0002,$01F4.w
+lbC000952	movem.w	D0/D1,-(SP)
+		bsr	StepHead
+		cmp.w	#$0002,$01F4.w
+		bne.s	lbC00096A
+		move.l	A0,A5
+		bsr.b	SetMFMBuf
+		move.l	A5,A0
+lbC00096A	bsr.b	WriteTrack
+		bmi.s	lbC000992
+		movem.w	(SP)+,D0/D1
+		addq.w	#$01,D0
+		dbra	D1,lbC00094C
+lbC000988	moveq	#$00,D4
+lbC00098A	bsr	MotorOff
+		tst.w	D4
+		rts
+
+lbC000992	movem.w	(SP)+,D0/D1
+		subq.w	#$01,$01F4.w
+		bmi.s	lbC00098A
+		bne.s	lbC000952
+		st	$01F8.w
+		bra.s	lbC000952
+
+*****************************************************************************
+
+WriteTrack	move.w	#$4000,dsklen(A6)
+		move.w	#$0002,intreq(A6)
+		move.l	#$00073800,dskpt(A6)
+		move.w	#$6E00,adkcon(A6)
+		move.w	#$9100,adkcon(A6)
+		move.w	#$D9A0,dsklen(A6)
+		move.w	#$D9A0,dsklen(A6)
+		bra	lbC000918
+
+SetMFMBuf	lea	$00073800,A2
+		move.w	#$0CFF,D0
+		move.l	#$AAAAAAAA,D1
+lbC0009F4	move.l	D1,(A2)+		;$3400 bytes
+		dbra	D0,lbC0009F4
+		lea	$00073C74,A2		;$474 (offset?)
+		move.l	#$44894489,$0004(A2)	;set sync (longword?)
+		moveq	#-$01,D0
+		move.b	$01F9.w,D0		;get track
+		add.b	D0,D0			;x2 = cylinder
+		add.b	$01FB.w,D0		;add side
+		lea	$0008(A2),A0		;
+		bsr	lbC000BAE
+		move.l	A5,A0
+		lea	$0018(A2),A1
+		move.w	#$1400,D0
+		bsr	Blitter
+		lea	$0018(A2),A0
+		bsr	lbC000BB8
+		lea	$1418(A2),A0
+		bsr	lbC000BB8
+		lea	$2818(A2),A0
+		bsr	lbC000BB8
+		lea	$0018(A2),A0
+		move.w	#$2800,D1
+		bsr	lbC000B72
+		lea	$0010(A2),A0
+		bsr	lbC000BAE
+		lea	$1400(A5),A5
+		rts
+
+lbC000A5C	lea	$00073800,A2
+		cmp.w	#$4489,(A2)+
+		beq.s	lbC000A6A
+		subq.w	#$02,A2
+lbC000A6A	move.l	A2,A0
+		bsr	lbC000B84
+		move.w	$01F8.w,D1
+		add.w	D1,D1
+		add.w	$01FA.w,D1
+		cmp.b	D0,D1
+		bne	lbC00093A
+		lea	$0008(A2),A0
+		bsr	lbC000B84
+		move.l	D0,D7
+		lea	$0010(A2),A0
+		move.w	#$2800,D1
+		bsr	lbC000B72
+		cmp.l	D0,D7
+		bne	lbC00093A
+		lea	$0010(A2),A0
+		move.w	#$1400,D0
+		bsr	lbC000B92
+		moveq	#$00,D4
+		rts
+
+lbC000AB0	lea	$00073800,A2		;mfm buffer
+		move.w	#$0CFF,D0		;size (longword)
+		move.l	#$AAAAAAAA,D1		;clear buffer
+lbC000AC0	move.l	D1,(A2)+
+		dbra	D0,lbC000AC0
+		lea	$00073C74,A2
+		moveq	#$00,D7
+lbC000ACE	moveq	#-$01,D0
+		move.b	$01F9.w,D0
+		add.b	D0,D0
+		add.b	$01FB.w,D0
+		swap	D0
+		move.w	D7,D0
+		lsl.w	#$08,D0
+		move.b	#$0B,D0
+		sub.b	D7,D0
+		bsr.b	lbC000AFC
+		lea	$0440(A2),A2
+		lea	$0200(A5),A5
+		addq.b	#$01,D7
+		cmp.b	#$0B,D7
+		blt.s	lbC000ACE
+		rts
+
+lbC000AFC	move.l	D0,D4
+		move.l	A2,A0
+		moveq	#$00,D0
+		bsr	lbC000BAE
+		move.l	#$44894489,$0004(A2)
+		lea	$0008(A2),A0
+		move.l	D4,D0
+		bsr	lbC000BAE
+		moveq	#$03,D4
+lbC000B1A	moveq	#$00,D0
+		bsr	lbC000BAE
+		dbra	D4,lbC000B1A
+		lea	$0008(A2),A0
+		moveq	#$28,D1
+		bsr.b	lbC000B72
+		lea	$0030(A2),A0
+		bsr.b	lbC000BAE
+		move.w	#$0200,D0
+		move.l	A5,A0
+		lea	$0040(A2),A1
+		bsr	Blitter
+		lea	$0040(A2),A0
+		bsr.b	lbC000BB8
+		lea	$0240(A2),A0
+		bsr.b	lbC000BB8
+		lea	$0440(A2),A0
+		bsr.b	lbC000BB8
+		lea	$0040(A2),A0
+		move.w	#$0400,D1
+		bsr.b	lbC000B72
+		lea	$0038(A2),A0
+		bsr.b	lbC000BAE
+		rts
+
+lbC000B72	lsr.w	#$02,D1
+		move.l	(A0)+,D0
+		subq.w	#$02,D1
+lbC000B78	move.l	(A0)+,D2
+		eor.l	D2,D0
+		dbra	D1,lbC000B78
+		and.l	D5,D0
+		rts
+
+lbC000B84	move.l	(A0)+,D0
+		move.l	(A0)+,D1
+		and.l	D5,D0
+		and.l	D5,D1
+		add.l	D0,D0
+		or.l	D1,D0
+		rts
+
+lbC000B92	lea	$00(A0,D0.W),A1
+		lsr.w	#$02,D0
+		subq.w	#$01,D0
+lbC000B9A	move.l	(A0)+,D1
+		move.l	(A1)+,D2
+		and.l	D5,D1
+		and.l	D5,D2
+		add.l	D1,D1
+		or.l	D2,D1
+		move.l	D1,(A5)+
+		dbra	D0,lbC000B9A
+		rts
+
+lbC000BAE	move.l	D0,D3			;set cylinder
+		lsr.l	#$01,D0
+		bsr.s	lbC000BD4
+		move.l	D3,D0
+		bsr.s	lbC000BD4
+lbC000BB8	move.b	(A0),D0
+		bclr	#$07,D0
+		btst	#$06,D0
+		bne.s	lbC000BD0
+		btst	#$00,-$0001(A0)
+		bne.s	lbC000BD0
+		bset	#$07,D0
+lbC000BD0	move.b	D0,(A0)
+		rts
+
+lbC000BD4	and.l	D5,D0
+		move.l	D0,D2
+		eor.l	D5,D2
+		move.l	D2,D1
+		add.l	D2,D2
+		lsr.l	#$01,D1
+		bset	#$1F,D1
+		and.l	D2,D1
+		or.l	D1,D0
+		btst	#$00,-$0001(A0)
+		beq.s	lbC000BF4
+		bclr	#$1F,D0
+lbC000BF4	move.l	D0,(A0)+
+		rts
+
+Blitter		move.l	A1,A3
+		moveq	#-$01,D1
+lbC000BFC	btst	#$06,dmaconr(A6)
+		bne.s	lbC000BFC
+		move.l	D1,bltafwm(A6)
+		moveq	#$00,D1
+		move.l	D1,bltbmod(A6)
+		move.w	D1,bltdmod(A6)
+		move.w	D5,bltcdat(A6)
+		move.l	A0,bltbpt(A6)
+		move.l	A0,bltapt(A6)
+		move.l	A3,bltdpt(A6)
+		move.w	#$1DE4,bltcon0(A6)
+		move.w	D1,bltcon1(A6)
+		move.w	D0,D2
+		add.w	D2,D2
+		add.w	#$0010,D2
+		move.w	D2,bltsize(A6)
+		lea	-$02(A0,D0.W),A0
+		add.w	D0,D0
+		lea	-$02(A3,D0.W),A1
+lbC000C42	btst	#$06,dmaconr(A6)
+		bne.s	lbC000C42
+		move.l	A0,bltbpt(A6)
+		move.l	A0,bltapt(A6)
+		move.l	A1,bltdpt(A6)
+		move.w	#$0DE4,bltcon0(A6)
+		move.w	#$1002,bltcon1(A6)
+		move.w	D2,bltsize(A6)
+lbC000C66	btst	#$06,dmaconr(A6)
+		bne.s	lbC000C66
+		move.l	A3,bltbpt(A6)
+		move.l	A3,bltapt(A6)
+		move.l	A3,bltdpt(A6)
+		move.w	#$1D89,bltcon0(A6)
+		move.w	D1,bltcon1(A6)
+		add.w	#$0010,D2
+		move.w	D2,bltsize(A6)
+lbC000C8C	btst	#$06,dmaconr(A6)
+		bne.s	lbC000C8C
+		rts
+
+BBChkSum	move.l	A1,A2
+		move.l	#$444F5300,D0		;dos string
+		move.l	D0,(A1)+
+		clr.l	(A1)+
+		clr.l	(A1)+
+		move.w	#$00FC,D1
+lbC000CA8	move.l	(A0)+,D2
+		add.l	D2,D0
+		bcc.s	lbC000CB0
+		addq.l	#$01,D0
+lbC000CB0	move.l	D2,(A1)+
+		dbra	D1,lbC000CA8
+		not.l	D0
+		move.l	D0,$0004(A2)
+		rts
+
+CopList		dc.l	$00EC0007
+		dc.l	$00EE7478
+		dc.l	$00E80007
+		dc.l	$00EA7450
+		dc.l	$00E40007
+		dc.l	$00E67428
+		dc.l	$00E00007
+		dc.l	$00E27400
+		dc.l	$FFFFFFFE
+
+CharTable	include	/source/CharTable_new2.s
+
+lbB000FE2	dc.b	$00
+lbB000FE3	dc.b	$00
+lbB000FE4	dc.b	$00
+
+HeadLine	dc.b	$05,$05                     
+		dc.b	$03,$03,$08,'Carrier Command Masterdisk Creator'
+		dc.b	$03,$06,$18,'Remember, Piracy is illegal!',0
+
+lbW001024	dc.w	Clear.txt-lbW001024
+		dc.w	Clear.txt-lbW001024
+		dc.w	WritingBackup.MSG-lbW001024
+		dc.w	BackupComplet.MSG-lbW001024
+
+lbW00102C	dc.w	Clear.txt-lbW00102C
+		dc.w	Clear.txt-lbW00102C
+		dc.w	ErrorWritingB.MSG-lbW00102C
+		dc.w	InsertMasterD.MSG-lbW00102C
+		dc.w	Clear.txt-lbW00102C
+		dc.w	ResetComputer.MSG-lbW00102C
+
+lbW001038	dc.w	Clear.txt-lbW001038
+		dc.w	PressMouseBut.MSG-lbW001038
+		dc.w	PressMouseBut.MSG0-lbW001038
+
+Clear.txt		dc.b	$01,$01,'                                      ',0
+lbB001067		dc.b	$02,$50,$05,$05,$00
+WritingBackup.MSG	dc.b	$01,$0A,'Writing Master Disk',0
+BackupComplet.MSG	dc.b	$01,$0D,'Master Complete',0
+lbB0010AA		dc.b	$02,$78,$05,$01,$00
+ErrorWritingB.MSG	dc.b	$01,$07,'Error Writing Master Disk',0
+InsertMasterD.MSG	dc.b	$01,$0B,'Insert Empty Disk',0
+ResetComputer.MSG	dc.b	$01,$07,'Reset Computer To Run Game',0
+lbB00112E		dc.b	$02,$90,$05,$05,$00
+PressMouseBut.MSG	dc.b	$01,$04,'Press Mouse Button To Try Again',0
+PressMouseBut.MSG0	dc.b	$01,$05,'Press Mouse Button When Ready',0,0
+
+ColorTab	dc.w	$0000,$0700,$0057,$0432,$0143,$0650,$0540,$0006
+		dc.w	$0777,$0555,$0026,$0152,$0030,$0333,$0732,$0000
+
+lbW001196	dc.w	$0000
+lbW001198	dc.w	$0001
+lbW00119A	dc.w	$0002
+
+Data2Size	equ	*-Data2
+
+		cnop	0,4
+
+*****************************************************************************
+
+Side1		incbin	/bin/CCBackupperPart1.bin	;bootprog
+		incbin	/bin/CCBackupperPart2.bin	;backerupper
+		incbin	/bin/CCPicture.bin
+		incbin	/bin/CCGame.bin
+
+Side1Size	equ	(*-Side1)/4
+
+Side2		incbin	/bin/CCTitleSound.bin
+
+Side2Size	equ	(*-Side2)/4
+
+ end ************************************************************************

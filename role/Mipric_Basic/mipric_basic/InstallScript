@@ -1,0 +1,339 @@
+(PROCEDURE GetGameKeyFile
+		(IF (= (EXISTS "Df0:KeyFile") 0)
+		(
+			(ABORT "I'm sorry, but I couldn't find any keyfile. \
+Please insert the right disk into df0: before selecting 'Yes' next time. Install aborted.")
+		))
+		(IF (EXISTS "Timeless Empire Disk 01:" (NOREQ))
+		(
+			(SET TEIReg 1)
+			(COPYFILES	(SOURCE	"Df0:KeyFile")
+						(DEST	"T:"))
+			(RENAME "T:KeyFile" "T:The Timeless Empire I.Key")
+		)
+		(
+			(IF (EXISTS "Ice Princess Disk 01:" (NOREQ))
+			(
+				(SET IPReg 1)
+				(COPYFILES	(SOURCE "Df0:KeyFile")
+							(DEST	"T:"))
+				(RENAME "T:KeyFile" "T:The Ice Princess.Key")
+			)
+			(
+				(ABORT "This is not your original game disk #1 or a new \
+Mipric game. Please only install The Ice Princess and The Timeless Empire I \
+with this script. Scripts for newer games come along with them.")
+			))
+		))
+)
+
+(PROCEDURE SysToRam
+	(SET Arg (CAT "SYS:" Arg))
+	(IF (= (EXISTS Arg (NOREQ)) 0)
+	(
+		(ABORT "Error: System file not found:\n\n" Arg "\n\nThis file is \
+essential for a successful installation of MIPRIC.")
+	))
+	(COPYFILES (SOURCE Arg) (DEST "RAM:"))
+)
+
+
+
+(SET InstallTo (ASKCHOICE	(PROMPT "To what medium would you like to install Mipric 3 to?")
+							(HELP "Before the installation begins, you must decide \
+whether you want to install the game on a floppy disk or a hard disk. If you have a hard disk, I \
+strongly recommend installing the game to your hard disk.\n  If you select \"Floppy Disk\", then \
+this script will create a bootable disk for you. All system files required to run Mipric will be \
+copied to this disk.")
+							(CHOICES	"Hard Disk   (recommended medium)"
+										"Floppy Disk (only one game per disk)")
+							))
+(SET Registered
+				(ASKBOOL	(PROMPT "Are you a registered Mipric player? If so, please \
+insert either the Update-disk you received or (if you received no update disk) your original game disk \
+#1 into the internal disk drive and select 'Yes'. if you are a registered user, please read also the help text.")
+							(HELP	(CAT "If you are a registered user, the script needs to \
+copy your keyfiles, so that you can play the complete game. However, there was a bug in the last release (see \
+the Mipric History in the documentation) that messed up the keyfile when writing to it. Until now, this "
+"caused no crash, but it's more secure to copy the original keyfile which is found in the main directory \
+of your game disks or - if you received an update disk - in the TEI and IP directories. This script \
+will automatically detect this. Just insert the disk into the internal drive. If you have more than one game and \
+no update disk, you can insert any disk #1 you like."))
+							))
+(IF Registered
+(
+	(IF (OR (SET TEIReg (EXISTS "Df0:TEI/KeyFile" (NOREQ)))
+			(SET IPReg  (EXISTS "Df0:IP/KeyFile" (NOREQ))))
+	(
+		(IF TEIReg
+		(
+			(COPYFILES	(SOURCE "Df0:TEI/KeyFile")
+						(DEST	"T:"))
+			(RENAME "T:KeyFile" "T:The Timeless Empire I.Key")
+		))
+		(IF IPReg
+		(
+			(COPYFILES	(SOURCE "Df0:IP/KeyFile")
+						(DEST	"T:"))
+			(RENAME "T:KeyFile" "T:The Ice Princess.Key")
+		))
+	)
+	(
+		(GetGameKeyFile)
+		(WHILE (ASKBOOL	(PROMPT	"Do you have another registered game to install?")
+						(HELP	"If you have another registered game, insert now \
+its disk #1 and click on 'Yes'."))
+			(GetGameKeyFile)
+		)
+	))
+))
+
+(SET Defaults 8)
+(IF (AND	(EXISTS "LIBS:muimaster.library" (NOREQ))
+			(>= (GETVERSION "LIBS:muimaster.library") 589904))
+(
+	(IF (AND (<> (DATABASE "cpu") "68000")
+			 (<> (DATABASE "cpu") "68010"))
+	(
+		(IF (EXISTS "DOpus5:" (NOREQ))
+		(
+			(SET	Defaults (BITOR 1 4 8))
+		)
+		(
+			(SET	Defaults (BITOR 1 8))
+		))
+	))
+))
+(SET Options Defaults)
+
+(IF (AND (= @user-level 2)
+		 (= InstallTo 0))
+(
+	(SET Options	(ASKOPTIONS	(PROMPT		"Please choose what you want to install. NOTE: \
+this script will try to choose the best options for your hardware.")
+							(HELP		"The following options are possible:\n\n \
+  MUI-Interpreter: The MUI-interpreter features new requester, but it requires \
+MUI v2.2 and a 68020+ cpu.\n  MagicWB: great icons for 8-color-workbench\n  InfoShell: Shell for handling both Mipric and \
+Infocom games with same requirements as the MUI-Interpreter, plus DOpus 5 and ARexx.\n  HintComp: Install \
+this if you want to write hintbooks for Infocom games.")
+							(CHOICES	"MUI-Interpreter"
+										"MagicWB-Icons"
+										"InfoShell"
+										"HintComp")
+							(DEFAULT	Defaults)))
+)
+(
+	(IF (= (ASKBOOL (PROMPT "Do you want MagicWB icons?")
+					(HELP   "MagicWB is a set of great 8-color-icons. No workbench \
+should be without it.")) 1)
+	(
+		(SET Options (BITOR Options 2))
+	))
+))
+
+(SET IconFile "Data/Book.ico")
+(IF (BITAND Options 2)
+(
+	(SET IconFile "Data/Book.mwb")
+))
+
+(IF (= InstallTo 0)
+(
+	(SET @default-dest (ASKDIR	(PROMPT "Please choose the path in which you \
+want me to install Mipric 3")
+								(HELP	"Now you must select where you want to \
+install Mipric 3. Please note that the \
+installation script won't create a new \
+directory, so you'll have to do this \
+now.")
+								(DEFAULT "Work:")))
+	(MAKEASSIGN "MIPRIC" @default-dest)
+	(STARTUP "MIPRIC Story System 3" (COMMAND (CAT "Assign MIPRIC: \"" @default-dest "\""))
+									 (PROMPT (CAT "I'll have to add an assign to your \
+user-startup:\n\nAssign MIPRIC: " @default-dest))
+									 (HELP	"This assign is needed by the \
+interpreter. You must enter this assign \
+manually every time you want to play \
+if you decide to skip this part of \
+the installation."))
+)
+(
+	(COPYFILES (SOURCE IconFile) (DEST "RAM:"))
+	(COPYFILES (SOURCE "Data/StandardInt") (DEST "RAM:"))
+	(SET IconFile (CAT "RAM:" (FILEONLY IconFile)))
+	(ASKDISK (PROMPT "Please insert now your workbench disk in any drive.")
+			 (HELP   "I need the disk to copy some system files to RAM!")
+			 (DEST "SYS")
+			 (ASSIGNS "SYS"))
+	(SET Arg "c/Install")
+	(SysToRam)
+	(SET Arg "c/Assign")
+	(SysToRam)
+	(SET Arg "c/SetPatch")
+	(SysToRam)
+	(SET Arg "libs/diskfont.library")
+	(SysToRam)
+	(SET Arg "libs/asl.library")
+	(SysToRam)
+	(SET Arg "libs/mathieeedoubbas.library")
+	(SysToRam)
+	(IF (EXISTS "SYS:libs/68040.library" (NOREQ))
+	(
+		(SET Arg "libs/68040.library")
+		(SysToRam)
+	))
+	(SET Arg "system/format")
+	(SysToRam)
+	(SET Arg "devs/monitors/NTSC")
+	(SysToRam)
+	(IF (ASKBOOL (PROMPT "I have to format a disk for the story system now. Please \
+insert the disk to format now in the internal disk drive. Was this disk already \
+formatted as an AmigaDOS disk?")
+				(HELP "If you select \"Yes\", the disk will be formatted much \
+faster. However, this works only if this disk has been formatted before. If you're \
+not sure, you'd better select \"No\"."))
+	(
+		(TEXTFILE (DEST "RAM:FCall") (APPEND "RAM:Format DRIVE DF0: NAME MIPRIC NOICONS QUICK\nEndCLI\n"))
+	)
+	(
+		(TEXTFILE (DEST "RAM:FCall") (APPEND "RAM:Format DRIVE DF0: NAME MIPRIC NOICONS\nEndCLI\n"))
+	))
+	(RUN "Execute RAM:FCall")
+	(ASKDISK (PROMPT "Please insert now your newly formatted MIPRIC disk in any drive.")
+			 (HELP   "I need the disk to copy some system files to it!")
+			 (DEST "MIPRIC"))
+	(DELETE "RAM:FCall")
+	(DELETE "RAM:format")
+	(RUN "RAM:Install DF0:")
+	(DELETE "RAM:Install")
+	(MAKEDIR "DF0:System")
+	(MAKEDIR "DF0:GameSave")
+	(MAKEDIR "DF0:InfoHints")
+	(MAKEDIR "DF0:Environment")
+	(MAKEDIR "DF0:KeyFiles")
+	(MAKEDIR "DF0:s")
+	(MAKEDIR "DF0:c")
+	(MAKEDIR "DF0:devs")
+	(MAKEDIR "DF0:devs/monitors")
+	(MAKEDIR "DF0:libs")
+	(COPYFILES (SOURCE IconFile) (DEST "DF0:"))
+	(COPYFILES (SOURCE "RAM:StandardInt") (DEST "DF0:System"))
+	(DELETE IconFile)
+	(DELETE "RAM:StandardInt")
+	(SET IconFile (CAT "DF0:" (FILEONLY IconFile)))
+	(RENAME IconFile "DF0:Start Story.info")
+	(TOOLTYPE (DEST "DF0:Start Story") (SETDEFAULTTOOL "C:IconX") (SETSTACK 15000))
+	(COPYFILES (SOURCE "RAM:diskfont.library") (DEST "DF0:libs"))
+	(COPYFILES (SOURCE "RAM:asl.library") (DEST "DF0:libs"))
+	(COPYFILES (SOURCE "RAM:mathieeedoubbas.library") (DEST "DF0:libs"))
+	(COPYFILES (SOURCE "RAM:NTSC") (DEST "DF0:devs/monitors"))
+	(COPYFILES (SOURCE "RAM:SetPatch") (DEST "DF0:c"))
+	(COPYFILES (SOURCE "RAM:Assign") (DEST "DF0:c"))
+	(IF (EXISTS "RAM:68040.library" (NOREQ))
+	(
+		(COPYFILES (SOURCE "RAM:68040.library") (DEST "DF0:libs"))
+		(DELETE "RAM:68040.library")
+	))
+	(DELETE "RAM:diskfont.library")
+	(DELETE "RAM:asl.library")
+	(DELETE "RAM:mathieeedoubbas.library")
+	(DELETE "RAM:SetPatch")
+	(DELETE "RAM:Assign")
+	(DELETE "RAM:NTSC")
+	(IF (= TEIReg 1)
+	(
+		(COPYFILES  (SOURCE "T:The Timeless Empire I.Key")
+					(DEST "DF0:KeyFiles"))
+		(DELETE "T:The Timeless Empire I.Key")
+	))
+	(IF (= IPReg 1)
+	(
+		(COPYFILES  (SOURCE "T:The Ice Princess.Key")
+					(DEST "DF0:KeyFiles"))
+		(DELETE "T:The Ice Princess.Key")
+	))
+	(TEXTFILE (DEST "Df0:Start Story") (APPEND "Stack 15000\nAssign MIPRIC: \"\"\nCd MIPRIC:\nSystem/StandardInt\n"))
+	(TEXTFILE (DEST "Df0:s/StartUp-Sequence") (APPEND (CAT "SetPatch >NIL:\n"
+														   "Assign MIPRIC: SYS:\n"
+														   "Assign ENV: SYS:Environment\n"
+														   "DF0:Devs/monitors/NTSC\n"
+														   "Stack 15000\n"
+														   "DF0:System/StandardInt\n")))
+	(EXIT "The system files are now installed on your disk. To install a game \
+on this disk, start its installation script. See ReadMe's for more detail.")
+))
+(MAKEDIR "MIPRIC:System")
+(MAKEDIR "MIPRIC:GameSave")
+(MAKEDIR "MIPRIC:InfoHints")
+(MAKEDIR "MIPRIC:Environment")
+(MAKEDIR "MIPRIC:KeyFiles")
+
+(IF (= InstallTo 0)
+(
+	(IF (= TEIReg 1)
+	(
+		(COPYFILES  (SOURCE "T:The Timeless Empire I.Key")
+					(DEST "MIPRIC:KeyFiles"))
+		(DELETE "T:The Timeless Empire I.Key")
+	))
+	(IF (= IPReg 1)
+	(
+		(COPYFILES  (SOURCE "T:The Ice Princess.Key")
+					(DEST "MIPRIC:KeyFiles"))
+		(DELETE "T:The Ice Princess.Key")
+	))
+))
+
+(IF (BITAND Options 1)
+(
+	(SET Int "Data/MUIInt")
+)
+(
+	(SET Int "Data/StandardInt")
+))
+(COPYFILES	(SOURCE	 Int)
+			(DEST	 "MIPRIC:System"))
+(RENAME (CAT "MIPRIC:System/" (FILEONLY Int)) "MIPRIC:System/MipricRun")
+(COPYFILES	(SOURCE	 "Data/MipricShell")
+			(DEST	 "MIPRIC:System"))
+(COPYFILES	(SOURCE	 IconFile)
+			(DEST	 "MIPRIC:"))
+(RENAME (CAT "MIPRIC:" (FILEONLY IconFile)) "MIPRIC:Mipric Shell.info")
+(TOOLTYPE	(DEST	"MIPRIC:Mipric Shell")
+			(SETDEFAULTTOOL "MIPRIC:System/MipricShell"))
+
+(IF (BITAND Options 8)
+(
+	(COPYFILES	(SOURCE	 "Data/HintComp")
+				(DEST	 "MIPRIC:System"))
+))
+
+(IF (BITAND Options 4)
+(
+	(SET ShellDir (ASKDIR (PROMPT "Please select the directory to which you want \
+to install the InfoShell starter.")
+						  (HELP	  "You may not want to place the InfoShell starter \
+in your MIPRIC: directory, for it is a database for both Infocom and Mipric games. \
+You may want to put all your games into a directory called \"Interactive Novels\" \
+(this is only an example) with the subdirectories \"Infocom\" and \"Mipric\". In \
+this case, it would usually be best to place the starter in the \"Interactive \
+Novels\" drawer.")
+						  (DEFAULT "MIPRIC:")))
+	(COPYFILES	(SOURCE	"Data/InfoShell")
+				(DEST   "MIPRIC:System"))
+	(COPYFILES	(SOURCE	IconFile)
+				(DEST   ShellDir))
+	(RENAME (TACKON ShellDir (FILEONLY IconFile)) (TACKON ShellDir "InfoShell.info"))
+	(TOOLTYPE	(DEST	(TACKON ShellDir "InfoShell"))
+				(SETDEFAULTTOOL "MIPRIC:System/InfoShell"))
+	(COPYFILES	(SOURCE	"Data/InfoShell.Prefs")
+				(DEST   "MIPRIC:Environment"))
+	(COPYFILES	(SOURCE "Data/Infocom V3-4 Story")
+				(DEST	"DOpus5:FileTypes"))
+	(COPYFILES	(SOURCE "Data/Infocom V5 Story")
+				(DEST	"DOpus5:FileTypes"))
+	(COPYFILES	(SOURCE "Data/Infocom, Arthur")
+				(DEST	"DOpus5:FileTypes"))
+	(COPYFILES	(SOURCE "Data/Mipric Story")
+				(DEST	"DOpus5:FileTypes"))
+))

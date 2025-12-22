@@ -1,0 +1,132 @@
+#!/bin/sh
+
+# tests configuration
+
+function clean() {  \
+rpm -e armagetron 		> /dev/null 2>&1; \
+rpm -e armagetron-executable	> /dev/null 2>&1; \
+rpm -e armagetron-data		> /dev/null 2>&1; \
+rpm -e armagetron-dedicated	> /dev/null 2>&1; \
+\
+rm -rf /usr/local/games/armagetron*;\
+rm -rf /usr/local/bin/armagetron*;\
+\
+ }
+
+pushd ..
+VERSION=$( cat major_version ).$( cat minor_version )
+TAG=$( echo v$VERSION | sed -e "s/\./_/g" )
+RPMPACKAGES=/usr/src/packages
+
+cd build/redhat
+
+VERSION=$( cat $RPMPACKAGES/SOURCES/armagetron/major_version ).$( cat $RPMPACKAGES/SOURCES/armagetron/minor_version )
+RPMRELEASE=$( cat .release_$VERSION )
+
+#copy generated doc and config files to windows
+
+TARGETDEV=/windows/G/ArmagetronDevel
+TARGETBASE=$TARGETDEV/Source
+UPLOAD=/abakus/home/manuel/C++/Armagetron/Upload
+WWWDIR=/abakus/home/manuel/WWW/SourceForge/htdocs
+
+cd $UPLOAD
+
+#remove armagetron completely
+echo -e "\nRemoving...\n"
+
+rm -rf /home/armagetron-tester/.armagetron;\
+
+clean;
+
+echo -e "\nTesting rpm dependencies ( supposed to fail )...\n"
+
+RPMVERSION=$VERSION-$RPMRELEASE
+rpm -i armagetron-executable-$RPMVERSION.i386.rpm && exit 1
+
+echo -e "\nTesting unpacking..\n"
+tar -tzf armagetron-$VERSION.tar.gz 			>> /dev/null || exit 1
+tar -tzf armagetron-linux-$VERSION.tar.gz		>> /dev/null || exit 1
+tar -tzf armagetron-linux-dedicated-$VERSION.tar.gz	>> /dev/null || exit 1
+
+tar -tjf armagetron-$VERSION.tar.bz2			>> /dev/null || exit 1
+tar -tjf armagetron-linux-$VERSION.tar.bz2		>> /dev/null || exit 1
+tar -tjf armagetron-linux-dedicated-$VERSION.tar.bz2	>> /dev/null || exit 1
+
+echo -e "\nTesting bindist installation...\n"
+pushd /usr/tmp
+rm -rf trontest
+mkdir trontest
+cd trontest
+
+mkdir bin
+cd bin
+tar -xzf $UPLOAD/armagetron-linux-$VERSION.tar.gz
+cd *
+./install || exit 1
+su -l armagetron-tester -c armagetron || exit 1
+armagetron --uninstall || exit 1
+
+cd ..
+rm -rf *
+tar -xzf $UPLOAD/armagetron-linux-dedicated-$VERSION.tar.gz
+cd *
+./install || exit 1
+su -l armagetron-tester -c "xterm -e armagetron-dedicated" || exit 1
+armagetron-dedicated --uninstall || exit 1
+
+
+clean;
+popd
+
+
+
+
+echo -e "\nTesting RPM installation...\n"
+rpm -i armagetron-data-$RPMVERSION.i386.rpm || exit 1
+rpm -i armagetron-executable-$RPMVERSION.i386.rpm || exit 1
+
+clean;
+rpm -i armagetron-$RPMVERSION.i386.rpm || exit 1
+rpm -i armagetron-dedicated-$RPMVERSION.i386.rpm || exit 1
+
+echo -e "\nTesting execution...\n"
+su -l armagetron-tester -c armagetron || exit 1
+
+echo -e "\nTesting RPM uninstallation...\n"
+rpm -e armagetron
+rpm -e armagetron-dedicated
+
+# clean;
+
+echo -e "\nTesting compilation...\n"
+pushd /usr/tmp
+cd trontest
+
+tar -xzf $UPLOAD/armagetron-$VERSION.tar.gz
+cd armagetron-$VERSION
+
+test -r sound/expl.wav || exit 1
+
+./configure || exit 1
+make install || exit 1
+
+test -r doc/index.html || exit 1
+
+su -l armagetron-tester -c armagetron || exit 1
+
+echo "testing armagetron-stat..."
+su -l armagetron-tester -c armagetron-stat || exit 1
+cp -ax /home/armagetron-tester/.armagetron/var/frommaster.srv /windows/G/ArmagetronDevel/Source/dist/var || exit 1
+
+cp -ax /home/armagetron-tester/textures  /home/armagetron-tester/.armagetron || exit 1
+su -l armagetron-tester -c armagetron || exit 1
+
+make uninstall || exit 1
+cd ..
+
+clean;
+
+
+
+popd

@@ -1,0 +1,1 @@
+quake2.exe +set game ctf +set dedicated 1 +exec exctf.cfg

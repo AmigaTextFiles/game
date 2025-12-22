@@ -1,0 +1,1 @@
+quake2.exe +set game expert +set dedicated 1 +exec exdmc.cfg

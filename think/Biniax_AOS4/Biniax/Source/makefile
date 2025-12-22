@@ -1,0 +1,15 @@
+# BINIAX 1.1 MAKEFILE FOR UNIX/LINUX/MACOS SYSTEMS
+# (C) 2005, JORDAN TUZSUZOV
+# To build the game you need the development libraries of SDL 1.2 and SDL_mixer.
+# To execute the game you need the runtimes of SDL and SDL_mixer.
+
+FLAGS=-W -WALL
+CC=gcc
+FILES=biniax.c desktop/gfx.c desktop/snd.c desktop/inp.c desktop/sys.c
+INCLUDES=-I . -I desktop
+LINKTO=-lSDL -lSDL_mixer
+AUTO=`sdl-config --libs --cflags`
+TARGET=biniax
+
+biniax:
+	$(CC) $(AUTO) $(FILES) $(INCLUDES) -o $(TARGET) $(LINKTO)

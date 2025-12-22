@@ -1,0 +1,32 @@
+SDLMONKEY Version 0.1
+---------------------
+
+A game by Sol. It's part of a SDL tutorial. The game is kinda neat.
+No audio though. :(
+
+http://sol.gfxile.net/gp/index.html
+
+LICENSE
+"You have my blessing for using the techniques and source code from 
+this tutorial in whatever way you wish. Since corporations keep 
+patenting obvious things, it's entirely possible that I'm covering 
+patented things, but in my opinion, everything I talk about is, or 
+should be, general knowledge."
+
+     .___________________________________________________________.
+     |                                                           |
+     |       A M I G A   O S   4 . 0   C O M P I L E   B Y       |
+    ._______                                        .______.     |
+    |  ____/________________________________________|      |__   .
+  ._|____._         |      ._       |      ._       |       _/______.
+  |      |/         |      |/       |      |/       |      |/       |
+  |                 |      _________|               |               |
+  |_________________|______|spt/up  |_______________|_______________| 
+     .                                                           .
+     |                                                           | 
+     |   I am in a shitty economical situation, so if you feel   | 
+     |  that what I do is  worth anything, use paypal to donate  |  
+     |         to my email addy, spotATtriadDOTse, thanx!        | 
+     |                                                           | 
+     |                    Spot / Up Rough 2006                   | 
+     |___________________________________________________________|

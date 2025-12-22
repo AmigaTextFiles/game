@@ -1,0 +1,6 @@
+#ifndef _AL_ATTENUATION_H_
+#define _AL_ATTENUATION_H_
+
+#define _AL_CUTTOFF_ATTENUATION 0.001
+
+#endif /*  _AL_ATTENUATION_H_ */

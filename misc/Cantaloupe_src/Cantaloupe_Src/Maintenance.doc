@@ -1,0 +1,1070 @@
+
+         Maintenance Notes
+
+
+
+Overview
+
+     This section will contain all of the information needed to maintain
+and update the system.  There will be three main parts to this:
+- Maintaining the Game
+- Maintaining the Level Editor
+- Specific examples of updating the system.
+
+     In each of the program maintenance parts, each of the procedures will
+be briefly described.  In most cases, only their function will be noted,
+along with any other relevant information, rather than explaining how the
+program works.  This is because most of the procedures are straight
+forward, and once the outcome of a procedure is known, then it should be
+quite easy to see how it does it.  For this reason, a working knowledge of
+Amos Basic is assumed.
+
+     Also, for certain sections of the program, relevant global variables
+will be listed, and their purpose explained.  At the beginning of each
+program, there is a list of global variables used throughout the program:
+take care not to use the name of a global variable as a local one.
+
+     All the file formats used by the program will be listed at the end of
+the level editor section.  All other relevant information to each program
+will be presented at the end of the appropriate section.
+
+     The final section will detail how to update the system for a number
+of certain operations (for example, adding new tiles, compression methods,
+etc.), and will take the maintenance programmer through the operations in
+a step by step format.
+
+
+            >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+
+         Game Maintenance
+
+
+
+General
+
+     Throughout the program, the global variable GAME holds the currently
+selected game number, and STAGE contains the current stage number.
+
+
+Main Loop
+
+     This acts as the main control for the whole program, yet it is very
+simple.  After the system has been set up (_STARTUP), the main loop is
+entered.  Similar to nearly all arcade-type games, it is an infinite loop
+(the only way to exit is to reboot the computer).
+
+     The title screen procedure is called.  When this finishes, the
+options screen routine is called.  This will return a parameter, referring
+to which option was selected.  If it was 1 ("Start game"), the game is
+started.  If it was 4 ("Read instructions"), the text reader routines are
+called.  If it was any other, the loop is restarted.
+
+
+Start-up Procedures
+
+_STARTUP:  Calls all the other startup routines, and sets all variables to
+their initial settings.
+
+_ASSIGN:  Finds an appropriate directory to assign the device
+"Cantaloupe:" to.  The directory is then referred to as "Cantaloupe:" for
+the rest of the program.
+
+_DEF_AMAL:  All the Amal routines used by the program are stored in the
+global array AML$().  This procedure reads the strings into that array.
+
+_INIT_LEVELS:  Simply initialises all of the levels to default (i.e.
+blank) status
+
+_LOAD_GAME_BITMAP:  Attempts to load the game bitmap into bank 21.
+
+_GETFONTS:  Looks for the font "Rounded", size 8, checking through the
+fonts stored in memory, and then the disk fonts.  The font number that is
+used to refer to it for the rest of the program is stored in the global
+variable FONT.
+
+_INIT_LETTERS: Stores default values in the LETTER$() array for use later
+in the high score entry system.
+
+
+General Purpose routines
+
+_OUT_TEXT[X,Y,TX$,MAIN,OUT]:  Prints the string TX$ at position (X,Y) in
+the colour index MAIN, outlined by colour OUT.
+
+_INT_TO_STR[N]:  Converts the integer N into four bytes, which are then
+all passed back as a string parameter.
+
+_STR_TO_INT[A$]:  Converts the string made by _INT_TO_STR[] back into an
+integer variable (passed as parameter).
+
+_WAIT_EVENT:  Waits for the user to do something (press a key, mouse
+button or fire button).
+
+
+Error Trapping
+
+_ERROR[A$,S]:  This will open up a new screen, number S, and print the
+error A$ on it.  The screen will now be displayed, and the user will have
+to press the fire button to move it.
+
+_TRAP_ERR:  If an error occurs, and this procedure has been set as the "On
+Error Proc" one,  then _ERROR[] will be called with the actual error text,
+and screen 7 will be used.  Files are closed and the program is restarted
+from the label specified by a "Resume Label" statement.
+
+
+Title Screen
+
+_TITLE_MAIN:  Controls all of the title screen procedures.  Exits when the
+user has pressed fire, and all of screens have been cleared away.
+
+_TITLE_ON:  Opens all the screens needed for the main title screen, and
+moves them into view.
+
+_TITLE_OFF:  As you might expect, this shuts down all the screens in the
+title screen.
+
+_TITLE_FADE1:  Closes a constantly updating part of the title screen,
+before the high scores are rendered.
+
+_TITLE_RANDOM_DATA:  Makes 5000 bytes of random data, stored in memory
+bank 9, for use later in the title screen sequence.  Called by _STARTUP.
+
+_TITLE_INTERFERE:  Updates the interference pattern on the part of the
+title screen that says "Press Fire to Start".  Fills bitplane 1 with
+random data (from _TITLE_RANDOM_DATA), waits for a vertical blanking line
+(VBL), and then updates bitplane 2.
+
+_TITLE_CHOOSE_PALETTE:  Randomly chooses one of 10 previously defined
+palettes for the title screen.
+
+
+High Scores
+
+     The high scores themselves are stored as:
+HISCORES(RANK):  The actual score attained.
+HISCORES$(RANK,0):  The name of the person who got the score.
+HISCORES$(RANK,1):  The maximum stage number they got to.
+
+_MAKE_HISCORES:  Renders the high-scores screen in the background while
+the title screen is still displayed.
+
+_HI_SETRAINBOW:  Defines the rainbow (colour list) to be displayed behind
+the high score table.
+
+_HI_PRINTSCORES:  Prints out the scores onto the screen.
+
+_HI_PRINT[A$,X,Y,IN1,IN2]:  Prints the string A$ at position (X,Y) in
+colour IN2, outlined in colour IN1.  The outlining in this is more square
+than _OUT_TEXT[], and more time consuming.
+
+_HI_DEFAULTS:  Fills the high scores with default values and names. 
+Called by _STARTUP.  Currently, all the names have a "Captain Scarlet"
+theme running through them.
+
+_HI_FLASHES:  Sets up the colour flashing sequence for the title of the
+screen (i.e. the flashing lights around the words "High Scores").
+
+_HI_FADE:  Fades away and turns off both the high score screens.
+
+_HI_SHOW:  Displays the previously made high scores (_MAKE_HISCORES)
+screens.
+
+_HI_LOADSCORES[GM]:  Loads in the scores from game GM, if any exist, into
+the HISCORES arrays.
+
+_HI_SAVESCORES[GM]:  Saves the scores in memory to disk, under game GM.
+
+_HI_SORT:  Sorts the high scores into descending points order.
+
+
+Options Screen
+
+_OPTIONS:  The main options screen procedure.  Controls all the other
+option routines.
+
+_OPTIONS_ON:  Turns on and displays the two options screens (title and
+main screen).
+
+_OPTIONS_OFF[C]:  Removes and shuts down the options screen.  C represents
+the last option selected (so the selection bar can be scrolled off
+easily).
+
+_OPT_SCROLL_BAR[P,C]:  Scrolls the option bar from option number P to
+option number C.
+
+_OPT_CREATE_SCREEN:  Creates and draws out the main options screen.
+
+_OPT_PRINT[OPT,CL]:  Prints out the option number OPT in colour index CL. 
+Used when the option bar is used to change the current option into a
+flashing colour.
+
+_OPT_ENTER_PASSWORD:  Opens up a screen and allows the user to type in a
+password.  If the password is valid for the current game, the stage to
+which it applies is found and set, otherwise an error message appears.
+
+_OPT_PRINT_STATUS:  Prints the part of the option screen that contains the
+present password, and the current game and stage numbers.
+
+
+"Choose Game" Screen
+
+_CHOOSE_GAME: The main controlling procedure.  Calls the other routines,
+and handles the interface.
+
+_CHOOSE_ON:  Creates and displays the choose game screen.
+
+_CHOOSE_OFF:  Turns the choose game screen off.
+
+_CHOOSE_PRINT_NUMBER[N]:  Updates the displayed game number, N, on the
+screen (in the blue boxes).
+
+_CHOOSE_PRINT_STAGES[GM]:  Updates the displayed number of stages present
+for the game GM.
+
+_NEXT_STAGE[GM,STG]:  Finds the next stage that exists in game GM after
+stage STG.  Returns the stage number as the parameter.  If the parameter
+is 200, there are no more stages after STG present.
+
+_CHANGE_GAME[GM]:  Changes the game number to GM, loads in the passwords
+for the new game, and reset the stage number to the start of the game.
+
+
+Read Instructions
+
+     The techniques used in this section are quite complex, so I will give
+a brief outline of how they work before considering the main procedures.
+
+     Firstly, the animated tiles in the background.  There are about two
+hundred tiles behind the text, all constantly spinning.  Although Amos is
+fast, it is not fast enough to animate all those tiles in the usual way of
+redrawing it 25 times a second.  I have had to cheat a little to achieve
+the effect.  The screen on which the tiles are drawn is one normal screen
+in width, but many normal screens in height (the dimensions are 320x1000
+pixels).  Before the text is viewed, the screen is rendered with all the
+tile animations.
+
+     There are two different tile animations: those that rotate about a
+horizontal axis, and ones which rotate about a vertical axis.  These two
+animations will be called A and B.  The screen would be rendered thus:
+
+A1     A2     A3     A4     A5     A6     A7
+B1     B2     B3     B4     B5     B6     B7
+A2     A3     A4     A5     A6     A7     A8
+B2     B3     B4     B5     B6     B7     B8
+A3     A4     A5     A6     A7     A8     A9
+B3     B4     B5     B6     B7     B8     B9
+
+     ...and so on, until the screen is full.  In this diagram, A1 refers
+to the first image of animation A, B6 refers to the sixth image of
+animation B, and so on.  25 times a second, the entire screen is instantly
+moved up 40 pixels, so that A2 is in the same place A1 was, B5 is where B4
+was, and so on.  When the bottom of the screen is reached, it flips back
+to the top of the screen.  This gives the impression of 200 fluidly
+animated tiles, while taking up virtually no processor time.
+
+     To avoid the text being moved as well, a dual playfield is used (two
+screens appearing over each other, while remaining independent).  The text
+is rendered onto the front screen, and the animated tiles rotate in the
+background.
+
+     The tile screen also changes it's palette every so often, completely
+independently of what is happening on the text screen.  To accomplish
+this, a pseudo-multitasking style of routine has been written.
+
+     There are two tasks that need to be constantly updated (one is the
+tile animation and colour changing, the other is the rendering and
+displaying of the text screen).  I have done this by allowing the first to
+be executed by the main program, and the second by another routine.  This
+other routine will have to act like a completely separate program, and not
+interfere with the main one.
+
+     I have created another program counter, HTEXT0.  This will control
+where in the second program execution is up to.  The routine will be
+called fifty times a second from the main program, will execute one
+instruction, and update HTEXT0.
+
+     There are two other global variables used exclusively by these
+routines:
+HTEXT1:  This stores which part of the text screen is being updated.  The
+text screen is twice as high as the visible screen; while the top half is
+showing, the bottom half is being rendered, and vice versa.  When the
+screen has been fully rendered, a notice saying "Press Fire" appears on
+the screen: when fire is then pressed, the notice disappears and the text
+screen scrolls to the previously undisplayed part, and the process begins
+again.
+HTEXT2:  This stores which line of text is next to be worked on.  There
+are currently 90 lines of text in total, 15 lines per page.
+
+
+_TXT_READ_TEXT:  This procedure is the "main program" described above, and
+sets up and controls all of the text reading operations.
+
+_TXT_HANDLE_TEXT:  This is the secondary routine described above, and
+copes with all the text rendering activities.
+
+_TXT_DRAW_SCREEN:  This routine draws the tile screen, and contains the
+animation data needed to do so.
+
+_TXT_PRINT_LINE[LINE]:  Prints the line number LINE on the current text
+screen.  Contains all the instructions text data, which can be easily
+edited.
+
+
+High Score Entry
+
+_TEST_FOR_HISCORE[SCORE,STG,LVL]:  This tests whether the score SCORE is
+high enough for inclusion in the high score table.  If it is, it calls the
+high score entry routines.  STG and LVL are the maximum stage and level
+the player got to.
+
+_ENTER_HISCORE[RANK]:  Lets the user enter a high score.  RANK is their
+position in the table.  Controls all the main routines that set up the
+screen and lets the player use it (using mouse, joystick or keyboard). 
+Returns the name the player has entered as a parameter.
+
+_ENT_INIT_LETTERS:  Displays the array of letters on the high score entry
+screen.
+
+_ENT_PRINT_LETTER[NUMBER,CLR]:  Prints the letter number NUMBER in index
+colour CLR on the high score entry screen.  Uses array LETTER$() to
+determine which letter goes where.  Used for switching certain letters
+from being black into a flashing colour (when the user points at a
+particular letter), and back to black again.
+
+_ENT_GET_LETTER:  Calculates the letter number being pointed at by the
+user, and returns it as a parameter.
+
+_ENT_ON[RANK]:  Initialises all the high score entry screens, and moves
+them into the display.  RANK is the position of the player in the high
+score table.
+
+_ENT_OFF:  Removes the high score entry screens from the display.
+
+_ENT_UPD_NAME[NAME$,RANK]:  Updates the lowest part of the screen, showing
+the name the user has entered so far (NAME$, for high score position
+RANK).
+
+
+Playing the Game
+
+_PLAY_LEVEL:  This sets up all the variables for use in the actual game,
+and controls the loading and saving of stages.  The following variables
+are initialised:
+LIVES:  The number of lives the player has.
+SCORE:  Their score
+SP:  The sprite queue pointer (see implementation notes)
+LVL:  The level being played
+GAME_OVER:  A True/False flag, indicating whether the game is over or not.
+STRTX:  The X coordinate for where the player will start
+STRTY:  The Y coordinate for where the player will start
+TEL$:  The teleport data for the current level
+SWT$:  The switch data for the level
+COMM$:  The level comment
+TIME:  The time limit for the level, in fiftieths of a second
+
+     The following procedures also apply to the test game option in the
+level editor.
+
+_COPY_MAP[LVL]:  Copies the level map from the master MAP() array to the
+TMAP() array, where it can be updated as the game is played.  Also
+calculates TILES, the number of destructible tiles on the level.
+
+_GAME:  Simply calls the three main procedures for the playing of the
+level:  the get ready sequence, the rendering of the level, and finally
+the main game itself.
+
+
+Get Ready Sequence
+
+_GET_READY:  Calls all the procedures needed to set up the get ready
+screen.
+
+_CREATE_SCREENS:  Creates the necessary screens for the get ready
+sequence.
+
+_COMMENTS:  Prints out the entire comments part of the get ready screen.
+
+_CENTRE_COMMENT[B$,Y,I1,I2]:  Centres the comment B$ at the Y coordinate
+Y, using colours I1 (main text) and I2 (shadow).
+
+_GET_READY_ON:  Displays all the previously created get ready screens.
+
+
+Drawing the level
+
+_RENDERSCREEN:  Controls all the other screen drawing routines.
+
+_SET_GAME_PALETTE:  Sets the palette for the level, and also the colour
+flashing sequences.
+
+_DRAWMAP:  Draws the main part of the level, and then calls the tile
+shading routine (_SHADING).
+
+_SHADING:  Goes through the entire map, and when it finds a normal tile
+(tile type 1), it fills the SHADE() array with whether the surrounding
+tiles are of the same type.  The SHADE() array is used by the _SHADE[]
+procedure to actually draw the bas-relief effect.
+
+_SHADE[X,Y]:  Calculates what each of the corners of the tile at (X,Y)
+should look like (based on the surrounding tiles, represented by the
+SHADE() array), and then draws them onto the screen.
+
+_SCR_DISPLAY:  Prints a "Press fire to begin" message on the get ready
+screen, and waits for fire to be pressed.  When it is, the get ready
+screens disappear, leaving behind the game screen and status bar.
+
+_GAME_OFF:  Takes off the game screen.
+
+
+Game Over Sequence
+
+_GAME_OVER[COMP]:  COMP is a flag (true or false) representing whether the
+game was completed or not.  This procedure works out what message to
+display on the game over screen, and initialises it.  It then waits for
+fire to be pressed, and the screen is turned off.
+
+_GAME_OVER_PALETTE[COMP]:  This sets the game over screen palette,
+choosing one from four palettes.  If the game has been completed, however,
+then an especially colourful palette is chosen.  Again, COMP is the game
+complete flag.
+
+_CS_SCREEN_FLIP[SP1,SP2]:  Flips between the game over and main game
+screens, in the same way as certain scene cuts are achieved in Captain
+Scarlet.  A tune is also started.
+
+
+Status Bar Procedures
+
+_SET_STATUS:  Initialises the status bar, and prints the score, lives
+left, level and stage numbers.
+
+_PRINT_STATUS[VAR,XOFF]:  Prints the number VAR in the status bar, at X
+coordinate XOFF.
+
+_PRINT_SCORE:  Updates the score on the status bar.
+
+
+Bonuses
+
+_SHOW_BONUSES:  This displays the bonuses on screen at the end of a level.
+
+Main Game
+
+_MAIN:  This is the main control loop for the level, and will execute
+until the level is complete or the player is dead.
+
+_INIT_SPRITES:  Animates the main sprite onto the screen in the correct
+position.
+
+_SURVEY:  Calls the _EXITS routine if the player is still in the level (if
+he has moved off, all exits are blocked and he dies).
+
+_EXITS:  Calculates which exits are available form the current tile.  The
+results are stored in the SURVEY() array.
+
+_MOVE:  Moves the player in the direction specified by DR.
+
+_GETJOY[FYRE]:  This waits for a valid joystick input (i.e. the player can
+move in that direction).  FYRE is a True/False flag, specifying whether
+the user pressing the fire button is a valid condition for the exit of the
+routine.
+
+_TEST_WAIT:  Waits until the player has moved onto the next tile.
+
+_CHECKS:  Checks if the time limit is up yet, and whether all the
+destructible tiles have been destroyed.
+
+
+Block Procedures
+
+_REACT[BLK]:  Calls the relevant following tile routine for tile type BLK.
+
+     The block routines are called _BLKn, where n is the tile type number.
+ They are each simple programs that describe what happens when the player
+moves over that tile.
+
+_DEL_BLOCK[X,Y]:  Deletes the tile at position (X,Y).
+
+_PATCH_BLOCK[X,Y]:  Starts the tile flipping animation for the destruction
+of the tile at position (X,Y), and redraws the shadow from other tiles
+previously covered by it.
+
+_TRANSPORT:  Teleports the player from his teleport to the previously
+defined destination point.
+
+_SWITCH:  Changes the level in the way that the switch has been defined
+to.
+
+Dying Routines
+
+_DIE[ANM]:  Show the user dying using the animation number ANM.
+
+_DEATH:  Updates the variables affected by the players death (LIVES,
+GAME_OVER, etc.).
+
+
+Coordinate Conversion
+
+     These procedures convert between the two coordinate systems (from
+(X,Y) to one number, and back again).
+
+_CONV_TO_ONE[X,Y]:  Converts coordinates (X,Y) into one coordinate number,
+returned as the parameter.
+
+_CONV_TO_X[C]:  Converts the single coordinate C into an X coordinate,
+returned as the parameter.
+
+_CONV_TO_Y[C]:  Converts the single coordinate C into an Y coordinate,
+returned as the parameter.
+
+
+Other Routines
+
+     The I/O and other procedures not covered here will be covered in the
+level editor maintenance guide.
+
+
+Tile Types: Reference
+
+     This is a table of which tile type corresponds to which number:
+
+0:     No tile
+1:     Normal tile
+2:     Destructible tile
+3:     Double destructible tile
+4:     Ice block
+5:     Vertical movement only
+6:     Horizontal movement only
+7:     Up arrow
+8:     Down arrow
+9:     Left arrow
+10:     Right arrow
+11:     Teleport
+12:     Switch
+13:     Non-fatal changeable tile
+14:     Fatal changeable tile
+15:     Exit tile
+
+
+            >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+
+     Level Editor Maintenance
+
+
+
+Initialisation
+
+     _GETFONTS, _ASSIGN, _DEF_AMAL, _INIT_LEVELS and _LOAD_GAME_BITMAP are
+detailed in the Game maintenance section.
+
+_STARTUP: Calls all the other initialisation routines.
+
+
+Dynamic Array Handling
+
+     Dynamic arrays, and their format, are described in detail in the
+design section.
+
+_ADD_ITEM[SRC$,NUM,AD$]:  This adds AD$ as element number NUM to the array
+SRC$, and returns the array as the parameter.
+
+_DEL_ITEM[SRC$,NUM]:  Deletes item number NUM from array SRC$, and returns
+the array as the parameter.
+
+_FIND_ITEM[SRC$,NUM]:  Gets item number NUM from array SRC$, and returns
+the item as the parameter.
+
+_REPLACE_ITEM[SRC$,NUM,AD$]:  Replaces element number NUM in array SRC$
+with AD$, and returns the array as the parameter.
+
+
+Validation
+
+_VALIDATE_NUMBER[N$,MN,MX]:  Ensures that the number in N$ is between the
+values MN and MX.
+
+
+Main Menu
+
+_MAIN_SCREEN:  Initialises and controls the entire main menu.
+
+_INIT_MAIN_SCREEN:  Draws the main menu.
+
+_MAIN_SCREEN_DEFAULTS:  Sets the default values for the interface array on
+the main screen.
+
+_MAIN_ALERT[TITLE$,MES$,LB$,RB$,LVL]:  Allows the error routine, _ALERT[],
+to be used from the main menu.
+
+_VALIDATE_PASSWORD[STG]:  Makes sure that the password for stage STG will
+be short enough to fit on the screen.
+
+_CHECK_ERRORS:  Checks the levels in memory for errors, and puts them in
+the error list if any are found.
+
+_INIT_ERROR_LIST[MS$]:  Initialises the error list so it displays the
+message MS$.
+
+_ADD_ERROR[ER$]:  Adds the error ER$ to the error list.
+
+_EDIT_COMMENT[LVL]:  Brings up a screen so that the user can edit the
+comment for level LVL.
+
+_MAIN_SAVE_STAGE[GM,STG,LVL]:  Allows the main menu to call the save stage
+routine to save the contents of memory to disk as game GM, stage STG.
+
+_PRINT_ABOUT_MESSAGE:  If the title of the screen is clicked on, an
+"About" message appears, provided by this procedure.
+
+
+Choose Screen
+
+_CHOOSE_STAGE[GM,STG]:  Initialises and controls the "Choose stage"
+screen.
+
+_DRAW_CHOOSE_SCREEN:  Draws out the choose stage screen.
+
+_CHOOSE_DEFAULTS:  Sets the default interface variables for the choose
+stage screen.
+
+_INIT_GAME_LIST:  Initialises the game list.
+
+_READ_STAGE_LIST[GM,STG]:  Reads the stage list for game GM, and
+highlights stage STG if it is present.
+
+_HIGHLIGHT_GAME[GM]:  Highlights the game GM in the game list.
+
+_HIGHLIGHT_STAGE[STG]:  Highlights the stage STG in the stage list.
+
+_NEW_GAME[OGM,STG]:  Called when the game number changes (from OGM to
+GAME), to reset all the affected variables.
+
+_CHOOSE_ALERT[TITLE$,MES$,LB$,RB$,GM,STG]:  Allows the choose screen to
+use the main error routine, _ALERT.
+
+_VALIDATE_GAME[GM]:  Validates the game GM, and ensures all the necessary
+files are there.
+
+
+I/O Routines
+
+_LOAD_STAGE[GM,STG]:  Loads in the stage STG from game GM.
+
+_SAVE_STAGE[F$,GM,STG]:  Saves the stage STG, game GM, to file F$.
+
+_COMPRESS_LEVEL[LVL]:  Compresses the level LVL using the best method
+possible, and returns the result of it as the parameter.
+
+_MAKE_COMPRESSIONn[LVL]:  Uses compression method n (in title of
+procedure) to compress level LVL.  The result is returned as the
+parameter.
+
+_DECOMPRESS_LEVEL[LVL,PTR]:  Decompresses the data at memory position PTR
+and onwards into level LVL.
+
+_DECOMPRESSn[LVL,PTR]:  Using compression method n (in title of
+procedure), the data at memory position PTR is decompressed into level
+LVL.
+
+_READ_NUMBER[BYTE]:  Reads the frequency number from the byte BYTE, used
+in both compression methods.  Returns the number as a parameter.
+
+_READ_TILE[BYTE]:  Reads the tile type from the byte BYTE, used in both
+compression methods.  Returns the type as a parameter.
+
+_MAKE_BYTE[TILE,COUNT]:  Combines the tile type TILE, and the frequency
+COUNT, into a single byte, returned as the parameter.
+
+_LOAD_PASSWORDS[GM]:  Loads the passwords for game GM into the internal
+array of passwords, PASS$().
+
+_SAVE_PASSWORDS[GM]:  Saves the passwords in memory for game GM.
+
+_ENCRYPT[P$]:  Encrypts P$ using the method described in the design
+section.  Result returned as parameter.
+
+_ENCRYPT[P$]:  Decrypts P$ using the method described in the design
+section.  Result returned as parameter.
+
+_MAKE_GAME_BITMAP:  Creates the game bitmap, and saves it to disk.
+
+_ALTER_GAME_BITMAP[GM,FLAG]:  Alters the game bitmap, changing the
+contents of position GM to FLAG.
+
+_CHECK_GAME_BITMAP[GM]:  Returns the value of the position GM in the game
+bitmap as parameter.
+
+_SET_GAME_BIT[GM]:  Alters the game bitmap so position GM includes the
+correct number of stages in that game.
+
+_LOAD_STAGE_BMAP[GM]:  If it is not all ready in memory, then the stage
+bitmap for game GM is loaded in.
+
+_MAKE_STAGE_BITMAP[GM]:  Creates a new stage bitmap for game GM.
+
+_ALTER_STAGE_BITMAP[GM,STG,FLAG]:  Alters the stage bitmap for game GM by
+setting STG to contain FLAG.
+
+_CHECK_STAGE_BITMAP[GM,STG]:  Returns the value of the contents of the
+stage bitmap for game GM, position STG.
+
+_DELETE_STAGE[GM,STG]:  Deletes the stage STG in game GM.
+
+_DELETE_GAME[GM]:  Game GM is deleted.
+
+
+Interface
+
+     All the interface data is stored in two arrays, GADGET(M,6) and
+GADGET$(M,1).  M is the gadget number, the 9 other data items describe it.
+ GADGET(M,0) always contains the gadget type, and this determines the data
+structure of the rest of the array relating to that gadget.
+
+     Here is a table outlining the different data structures, depending on
+the gadget type:
+
+
+
+
+
+     GADGET(M,X)                         GADGET$(M,Y)
+     X:                                   Y:
+Type:     0     1     2     3     4     5     6     0     1
+
+Button     1          X     Y     W     H     C     Text
+Tick Box     3     Set     X     Y               C     Text
+Radio Buttons     4     Set     X     Y     Grp     Num     C     Text
+Input Box     5     Off     X     Y     W     TLn     C     Contents    
+Allow
+ListBox     6     Sel     X     Y     W     H     C
+Slider     7     Lst     X     Y     W     H     C
+Up Arrow     8     Ln1     X     Y     W     SC     C
+Down Arrow     9     MxL     X     Y     W     ISC     C
+Icon     10     Icn     X     Y     W     H     Zne
+
+
+Key:
+X-Top left X coordinate
+Y-Top left Y coordinate
+W-Width
+HHeight
+C-Colour scheme number
+Text-The words displayed on the gadget
+Set-The setting for the gadget
+Grp-The group number a radio button is in
+Num-Number of gadget in group
+Off-Text offset
+TLnText length
+Contents-The contents of the input box
+Allow-The characters that are allowed to be typed in
+Sel-Selected list item
+Lst-List number
+Ln1-The first line displayed in a list
+SC-Slider colour scheme
+ISC-Inverted slider colour scheme
+MxL-Maximum line number displayed in list
+Icn-Icon number.
+Zne-Flag: make zone around icon? (True/False)
+
+     Gadgets 6,7,8 and 9 all have to be defined in that order,
+consecutively.  This is because some elements of types 8 and 9 refer to
+types 6 and 7.
+
+_INTERFACE_LOOP:  This is called when the interface has been set up and
+drawn, and the program is waiting for user input.  It allows the
+manipulation of the interface, and returns the value of the gadget number
+operated.
+
+_PREP_SCREEN[PAL,TITLE$]:  This opens a new screen, with palette number
+PAL and TITLE$ as the title of the screen.
+
+_SET_PALETTE[PAL]:  Sets palette number PAL for the current screen.
+
+_DEF_INTERFACE[INF]:  This defines interface number INF by reading in,
+from data lines, the contents of the GADGET arrays.
+
+_INIT_ALL_GADGETS:  Initialise (i.e. draw and set zones around) all the
+gadgets.
+
+_INIT_GADGET[GAD]:  Initialise only gadget GAD.
+
+_UPD_ALL_GADGETS:  Redraws all gadgets.
+
+_UPD_GADGET[GAD]:  Redraws gadget GAD.
+
+     Every gadget type mentioned in the table on the previous page has
+three basic procedures attached to it:  creating, drawing and pressing. 
+Creating a gadget will draw the gadget from scratch, and set a zone around
+it.  Drawing it will simply redraw it all.  Pressing it "animates" it when
+the user is pressing it (i.e. indents it).  Some gadgets can be updated as
+well (simply redrawing the changed part of the gadget).  As they are all
+so similar, I will not be detailing them all:  however, there are a few
+specific ones which warrant a mention.
+
+_DRAW_ALL_RADIO_BUTTONS[SET]:  This redraws all of the radio buttons in
+set (group) number SET.
+
+_GET_LIST_ITEM[LIST,ITEM]:  A program specific routine that will return
+the item number ITEM from the list number LIST.  The arrays referred to in
+this routine will change from program to program.
+
+     There are 3 other routines that aren't part of the above interface
+system, but used by the level editor part of the program to create icon
+buttons:
+
+_CREATE_ICON_BUTTON[XPOS,YPOS,WIDTH,HEIGHT,ZNE,ICN1]:  Sets a zone (number
+ZNE, width WIDTH and height HEIGHT) and draws the icon ICN1 at position
+(XPOS,YPOS).
+
+_PRESS_ICON_BUTTON[XPOS,YPOS,WIDTH,HEIGHT,ZNE,ICN1,ICN2]:  Lets the user
+press the button in zone ZNE, position (XPOS,YPOS), width WIDTH and height
+HEIGHT.  Unpressed, it displays icon ICN1, when it is pressed, it will
+display ICN2.
+
+_PRINT_ICON_BUTTON[XPOS,YPOS,WIDTH,HEIGHT,ICN1]:  Actually draws icon ICN1
+(position (XPOS,YPOS), etc.) on screen.
+
+     Miscellaneous interface procedures:
+
+_ALERT[TITLE$,MES$,LB$,RB$]:  Brings up a requester with the title TITLE$,
+and the message MES$.  There will be two buttons on this, requiring the
+user to make a choice.  The left button text will be LB$, the right button
+will be RB$.  The selected choice is returned as the parameter.
+
+_MESSAGE_ON[MES$]:  Displays the message MES$ on a separate screen.
+
+_MESSAGE_OFF:  Removes the message.
+
+
+Level editor
+
+_EDIT_LEVEL[LVL]: Simply calls the two procedures (_EDIT_STARTUP and
+_EDIT_MAIN) needed to use the editor.  LVL is the level being edited.
+
+_EDIT_MAIN[LVL]:  Controls all of the main level editor functions.
+
+_EDIT_MAP[LVL]:  When the user moves his mouse over the map area, the
+currently selected tile is dragged over it.  This routine governs that,
+and lets the user actually change the map.
+
+_HANDLE_BUTTONS[MDE]:  This routine has 2 functions:  to initialise the
+buttons (if MDE=0), or to press one of them down (if MDE>0, MDE=button
+number).  This is because the button data is in data lines in this
+routine, and to repeat them in another routine would waste memory.
+
+_EDIT_STARTUP[LVL]:  Controls the initialisation of the level editor
+screen and variables.
+
+_INIT_SCREEN[LVL]:  Controls the initialisation of the level editor
+screen.
+
+_INIT_PANEL:  Draws the row of tiles at the bottom of the screen, from
+which the user can select the tile type.
+
+_INIT_MAP[LVL]:  Draws out the map for level LVL.
+
+_INIT_MLINE[LVL]:  Initialises the message line at the top of the screen.
+
+_INIT_ZONES:  Creates all the zones on the screen.
+
+_SET_EDIT_PALETTE:  Sets the default level palette, and the colour
+flashing sequences.
+
+_PRINT_COORDS[X,Y]:  Updates the coordinates at the top of the screen,
+referring to where the user is pointing at on the map.
+
+_PRINT_MESSAGE[M$]:  Prints the message M$ in the message line.
+
+_UPD_ARROW:  TILE is a global variable representing what tile type has
+been chosen.  There is an arrow that points to this on the panel, and this
+procedure updates it.
+
+_PLOT_TILE[X,Y,MK,LVL]:  Plots the tile type TILE at position (X,Y) on
+level LVL.  MK represents which mouse keys were being held down at the
+time: if it is the right one, then the tile at this point is erased.
+
+_SHOW_BOX[N,MDE]:  Emphasises the pressed button, number N, and either
+highlights it (MDE=True), or turns off the highlight (MDE=False).
+
+_CHANGE_STARTPOS[LVL]:  Allows the user to select a new start position.
+
+_CHANGE_TELEPORT[LVL]:  Allows the user to connect a teleport to another
+tile.
+
+_CHANGE_SWITCH[LVL,NUMBER]:  Allows the user to connect a switch and
+either one or two changeable tiles (specified by NUMBER).
+
+_CHANGE_PARAM[DEF,MS$,LVL,TYPE$,SPNO,IMNO,FLG]:  Used by the above three
+procedures, this provides a standard interface for changing a parameter. 
+DEF is the default tile coordinate to be chosen, MS$ is displayed in the
+message line, LVL is the level number, TYPE$ contains the character codes
+of all the tile types the user is allowed to choose, SPNO is the sprite
+number to be used, IMNO the image number to be used, and FLG determines
+whether the sprite is taken off after it has been used.
+
+
+Test Game
+
+     For a full description of the Test Game procedures, see the game
+maintenance guide.
+
+File Formats
+
+1)  Stage files
+
+Stored as file "Cantaloupe:Games/<game number>/<stage number>"
+
+Time Limit          2 bytes
+Start position          1 byte
+Comment               ?? bytes
+Teleport Data          ?? bytes
+Switch Data          ?? bytes
+Compression Method     1 byte
+Map Data (compressed)     ?? bytes
+
+     This format is repeated 5 times, once for each level.
+
+
+2)  High Score Data
+
+Stored as file "Cantaloupe:Games/<game number>/Hiscores"
+
+1st Score               4 bytes
+2nd Score               4 bytes
+...
+15th Score               4 bytes
+1st Name length               1 byte
+1st Name data               ?? bytes
+1st "Highest stage" length     1 byte
+1st "Highest stage" data     ?? bytes
+2nd Name length               1 byte
+...
+15th "Highest stage" data     ?? bytes
+
+
+3)  Password Data
+
+Stored as file "Cantaloupe:Games/<game number>/Pass.dat"
+
+In encrypted format:
+
+Separator          1 byte
+Number of stage          1 byte
+Password          ?? bytes
+Separator          1 byte
+Number of stage          1 byte
+...
+Password          ?? bytes
+Separator          1 byte
+
+
+4)  Game bitmap
+
+Stored as file "Cantaloupe:Games/Games.Bmap"
+
+Number of stages (+1) in game 0          1 byte
+Number of stages (+1) in game 1          1 byte
+Number of stages (+1) in game 2          1 byte
+...
+Number of stages (+1) in game 999     1 byte
+
+If a game does not exist, a zero will be in the place of the number of
+stages (+1) data.  E.g. if a 6 is in file position 76, this means game 76
+has 5 stages in it.
+
+
+5)  Stage bitmap
+
+Stored as file "Cantaloupe:Games/<game number>/Stage.Bmap"
+
+Each of the following data items is a flag, and will be set to 0 for
+false, and 1 for true.
+
+Does stage 0 exist?          1 byte
+Does stage 1 exist?          1 byte
+Does stage 2 exist?          1 byte
+...
+Does stage 99 exist?          1 byte
+
+
+            >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+
+         Updating Examples
+
+
+
+Overview
+
+     This section is designed to help the maintenance programmer to
+perform specific tasks on updating the system.
+
+
+Adding a new tile type
+
+- Decide on a suitable new tile type, and draw it in an art package using
+the same palette as the normal game screen.
+- Load up Amos Pro and the Cantaloupe program
+- Select "Edit Icons" from the "User" menu
+- Import the image you have drawn using the functions of the object editor
+- Add the procedure that will cope with the new tile (e.g. _BLK16.  See
+the ones all ready there for examples), and any others to be called from
+it
+- Add the procedure name to the _REACT procedure
+- Now test the game, and make sure it works.
+
+- Do exactly the same things to the level editor
+- Add the tile image to the tile panel on the editor screen (it may have
+to be rearranged a little)
+- Change all the references in the program to the highest tile type being
+16 to the new total number of tiles
+
+
+Changing the Encryption method
+
+- Your new encryption method must be reversible
+- Load up the Level Editor program
+- Change the _ENCRYPT[P$] procedure to encrypt the whole of P$ using the
+new method, and return it as the parameter
+- Change the _DECRYPT[P$] procedure to decrypt the whole of P$ using the
+new method, and return it as the parameter
+- Check that it works
+- Copy the _DECRYPT[] procedure to the game program
+
+Adding a new Compression method
+
+- Load up the Level Editor program
+- Add one to the parameter of the line Dim C$(1), at the top of the
+_COMPRESS_LEVEL[] procedure.
+- Also change the "For T=0 to 1" line to "For T=0 to 2"
+- Add the lines:
+     Else If T=2
+          _MAKE_COMPRESSION3[LVL]
+before the following End If.
+- Add the new compression procedure, _MAKE_COMPRESSION3[LVL], making sure
+it returns the compressed data in a string as a parameter
+- Add it's counterpart, _DECOMPRESS3[], to the program and alter the
+_DECOMPRESS_LEVEL[] procedure accordingly
+- Test it and hope that it works
+- If it does, copy the _DECOMPRESS_LEVEL[] and _DECOMPRESS3[] procedures
+to the game program
+
+
+Changing the Aesthetics
+
+     This is very easy to do.  If you want to change a certain screen,
+simply create a new one, preferably the same size as the old one, and load
+it into Amos.  Then pack it to the relevant bank, and test out the
+program.  To change the in game graphics, simply load up the object editor
+from Amos, and edit them there.
+
+     To change the music, simply create new music, and load it into the
+correct bank (it must be in Tracker format).  To change the sound effects,
+simply load up the sample editor through Amos and use it to load in new
+samples.

@@ -1,0 +1,365 @@
+A BRIEF HISTORY OF HUGO - RELEASE NOTES
+
+By Kent Tessman
+
+(reachable at the time of this writing at <as400477@orion.yorku.ca>)
+
+
+-----------------------------------------------------------------------------
+v1.0 - June 1995
+
+Hugo v1.0 was essentially the first full-featured, portable version of
+the compiler and engine written in C (and based on a MS-DOS-only 
+Microsoft QuickBASIC beta release).  It was intended from the beginning
+to be a functional beta release--i.e. one which would serve to point
+out shortcomings and needed improvements with Hugo's design, but with
+which users would also be able to start developing programs that would
+be fully compatible with later releases.
+
+The most obvious shortcomings were in memory management and compilation
+speed.  On the machine the author used for development--an 8086, the
+machine of necessity, not of choice--the sample game SAMPLE.HUG took
+more than 600 seconds to compile.  And larger programs ran into memory
+limitations, in one instance prompting the creation of the scaled-down
+DEBUG_SMALL HugoFix command set instead of the regular set included via
+setting DEBUG in the source file.
+
+Also at this time, the first version of COLOSSAL.HUG was released--a Hugo 
+port of Adventure based on Graham Nelson's Inform port of David Baggett's 
+TADS adaptation of Crowther and Woods's original classic game.  (Quite a
+lineage.)
+
+-----------------------------------------------------------------------------
+v1.1 - July 1995
+
+After a couple weeks of error-reporting and user-testing, I went about 
+trying to address the two major problems with v1.0:  i.e. memory shortages
+and the lethargic compile speed.
+
+Thanks especially in this case to Dr. Jeff Jenness, who pointed out to me
+that life does exist beyond MS-DOS, and that it may highly susceptible 
+to stack abuse.  Jeff also suggested moving dictionary search/store 
+management into memory as opposed to doing it in a work file.  This change
+alone practically doubled compile speed--on the trusty 8086, SAMPLE.HUG 
+compiled in just over 300 seconds--and the programming required to 
+implement the far-model arrays (MS-DOS programmers may flinch here in 
+painful recognition) enabled many of the storage arrays such as for 
+objects, properties, etc. to be changed from static arrays to dynamically
+allocated memory blocks.  The benefit:  increased limits for whatever
+storage types the user may desire, and no more memory problems when, for
+example, setting DEBUG instead of DEBUG_SMALL in COLOSSAL.HUG.
+
+Changes to HCHEADER.H:  Far-model memory allocation and pointer declaration 
+for objects, properties, dictionary, etc.  Making the applicable MAX<limit>
+declarations dynamic integers instead of constant #defines.
+
+HCMISC.C:  AddDictionary() now searches a memory-based array instead of a 
+temporary work file.  OpenFiles() takes care of allocating space for 
+objects, properties, dictionary, etc.  New functions ListLimits() and 
+SetLimit(), as well as provision for $<setting>=<new limit> specification
+in the invocation line via an addition to ParseCommandLine() (once again
+following in the footsteps of another of Graham Nelson's excellent ideas
+from Inform).
+
+Additionally, there were minor additions/changes to the other compiler
+and engine source files, as well as to the Hugo library files.  (One change
+to SAMPLE.HUG was important--particularly to the author's self-respect.
+Seems that in revising the methods of player-character interaction, he 
+actually omitted the means of solving the sample game.)
+
+---------------------------------------------------------------------------
+v1.2 - July 1995
+
+This time at the end of the month.
+
+Hugo version 1.2 was moved ahead mainly in response to requests by 
+porters for more easily portable code.  As a result, the H?HEADER.H
+files were changed somewhat, with the porting-required functions moved
+into separate .C files to make the job of adapting Hugo to different
+operating systems more manageable.  (Thanks especially to Jesse McGrew
+for the suggestion.)
+
+Changes to Hugo at the most basic levels were relatively minor, except
+that compilation speed is about 20% faster (and engine execution is
+faster as well) because of Jeff Jenness's suggestion to limit the
+number of C strcmp() calls performed.  The greatest changes here were
+in STRINGFN.C, and HCMISC.C in the SeparateWords() function.
+
+A couple of new constructs have been added to the language, particularly
+
+        for <variable> in <object>
+
+loops, the ability to specify values as ASCII characters as in 
+
+        'A', 'z', '7'
+
+and print them as characters using
+
+        printchar <value>
+
+As well, it is now possible to specify an array address using a variable
+or other value, as in:
+
+        x = testarray           ! i.e testarray[]
+        print array x[5]        ! the same as:  print testarray[5]
+
+And finally, there is now a STRING command
+
+        string <array>, <word>, <maximum length>
+
+which reads the dictionary word <word> into the array given by <array>,
+to a maximum of <maximum length> characters.  A number of string-
+manipulation routines were subsequently added to HUGOLIB.H:
+StringCapture, StringCopy, StringLength, and StringPrint.
+
+Error trapping is also considerably tighter, lessening the number of
+almost-correct lines which might slip through the compiler only to
+crash the engine at runtime.
+
+Thanks also to Vikram Ravindran for spotting a couple of problems
+in Colossal Hugo (mainly involving attributes that were not properly
+assigned when needed in certain object definitions), as well as 
+identifying a problem in HUGOLIB.H's DoGo routine which moved the
+player to a null room upon entering 'go vault' in the sample game.
+Thanks to Markus Mattes for suggesting a better fix than the one the
+author had in mind...
+
+-----------------------------------------------------------------------------
+v1.3 - August 1995
+
+Some significant enhancements to the compiler and interpreter, as well
+as the library--enough so, in fact, that the author considered making 
+this v2.0, but held off as it has been suggested in the past that v2.0 
+will be the full bells-and-whistles, CD-ROM graphics and sound version.
+
+The most significant changes were to accommodate large programs, which 
+would run into problems if the size of the total data space exceeded 64K.  
+The fix required involved altering the internal format for storing 
+reference addresses.  And some further refinement of the file format
+has--thankfully--eliminated the need for a separate .H$$ text bank file;
+everything is now self-contained in .HEX.  (These were the almost-v2.0 
+changes.)
+
+Also, property routines now always pass the number of the property 
+element referenced as the first-defined local in the routine (if any is 
+defined), so that if 'object.property #x' is called, and <property> is 
+a routine, <x> is passed as the first local.  The only effects on 
+programmers are that 1.)  It is now possible to return more than one value 
+from a property routine, depending on how it was called, and 2.)  The 
+first-defined local can no longer be expected to equal 0, as is usually 
+the case in a normal routine.
+
+It was decided that all compiler directives must now be prefixed with a
+C-ish "#"--i.e. #include, #ifset, etc.  This not only makes the source
+code easier to read, but increases compiler speed.  Other fine-tuning and
+optimizations increased compilation speed by as much as 25 percent.  (And
+another directive, #version, is provided--and used in the library files--
+to ensure that #included files are compatible with the latest Hugo features.)
+
+Changes in format to engine commands and functions include:
+
+        string(<array>, <dictentry or parse$>, <maxlen>)
+
+(making the StringCapture library function obsolete), and
+
+        save, restore, restart, scripton, and scriptoff
+
+all of which must now be read as values instead of simply issuing a
+simple command.  Return values (1 if successful, 0 if not) should now
+be checked where appropriate, i.e.:
+
+        if not save:  "Failed."
+
+An UNDO function (checked in the same manner as save, restore, etc.) is
+now provided to undo the last player command.  (Multiple-turn undoing
+is allowed as long as undo information exists in the undo buffer.)
+
+It is also possible to use the token STRING in a grammar syntax line
+to allow the player input to contain a quoted string.  The string is
+passed to the verbroutine in parse$, and may then be written to a string
+array via STRING(<array>, parse$, <maxlen>).
+
+The new command DICT, as in 
+
+        x = dict(<array or parse$>, <maxlen>)
+
+allows a new dictionary entry to be dynamically created at runtime
+(although space for the total number of entries that may ultimately be
+created must be reserved during compilation--in bytes--by setting the
+MAXDICTEXTEND limit).
+
+Additions to the library included the NumberWord routine as well as a
+(small to begin with) set of math routines.  Properties such as 
+inv_desc and list_contents now make it even easier to customize the 
+listing of objects.  As well, some work was done with how the library 
+treats scenery objects--their contents (if any) are now listed by default, 
+even if the object itself isn't.
+
+New string array routines include StringCompare, StringDictCompare, and
+StringEqual.  New character script routines include CancelScript,
+PauseScript, ResumeScript, and LoopScript--not to mention the fact that
+RunScripts now checks before/after routines for the actor.
+
+A major improvement to before/after routines is in the usage specification,
+so that
+
+        parent(object) DoGet
+
+replaces
+
+        parent DoGet
+
+and the library now does checking for the special before property in the
+DoGet routine.  What this means is that programmers may now check
+any before or after routine/object combination instead of the previously
+pre-determined object, xobject, location, and parent.
+
+Thanks again to Vikram Ravindran for excellent suggestions on where
+Hugo's functionality could be extended (particularly on supporting 
+the implementation of DICT and UNDO, as well as library improvements big
+and small), and to Jim Newland for his extensive investigation into--and 
+subsequent notes to the author on--how the character script routines might 
+be expanded to further increase their usefulness.
+
+NOTE:  Due to enhancements to certain key aspects of the Hugo language, it
+is recommended that programmers who may already be familiar with it take a
+moment to browse through the v1.3 manual, revisiting in particular the
+sections on before/after property routines, string arrays, and character
+scripts.
+
+-----------------------------------------------------------------------------
+v2.0 - November 1995
+
+(Those keeping score may have noticed that v1.3 was never officially 
+released.  And admittedly v2.0 is not the full-featured, bells-and-whistles,
+CD-ROM-driven animation and sound version.  But the changes to the actual
+framework and functionality of the compiler have been so substantial since
+v1.2 that it started to seem less sensible to keep Hugo at a version 1
+level.)
+
+The biggest new feature in version 2.0 is the ability to precompile header
+files like HUGOLIB.H into .HLB files that may be included using the #link
+directive instead of #include.  A new compiler switch -h is provided to 
+specify creation of an .HLB precompiled header instead of a normal .HEX
+Hugo object file.
+
+Thanks to the Hugo users who saw the value of allowing some form of linking, 
+and thanks also to the author's lack of sensibility in vastly underestimating
+the work involved in reverse-engineering a non-linking compiler to accomplish
+the task.  I'm going to get some sleep now.
+
+Other streamlining changes have included the removal of the -t, -m, -n, and
+-f switches (for compilation tracing, monitoring, numerical code generation,
+and full-object summaries) since 1.) the amount of output produced using any
+one of these become almost overwhelming when compiling a program of any
+significant length, and 2.) few programmers, if any, made use of them
+anyway.
+
+The performance speed of the Hugo Engine has been increased by redesigning
+the way it processes conditional statements.  The engine is now able to 
+work much more quickly through a complex series of IFs, SELECTs, DO-WHILEs, 
+etc.
+
+Accompanying version 2.0 is also Spur, a western adventure written by the
+author, as well as an extensive demonstration of what Hugo can do.  (In 
+fact, the greatest use of version 1.3 was as an interim development tool
+for Spur.)
+
+(NOTE:  A pre-Christmas touch-up release of v2.0 included some minor
+fixes to the compiler, engine, and library.  Special thanks to David Kinder,
+whose feedback helped increase the portability of the Hugo source code.)
+
+-----------------------------------------------------------------------------
+v2.1 - March 1996
+
+Version 2.1 includes a number of substantial (although not earth-
+shattering) improvements to both the compiler and the interpreter.
+Foremost among these are the increase in the number of available attributes
+from 32 to 128, more elegant compiling and linking (and error messaging),
+more explicit run-time tracing of loop constructs, and a much, much faster 
+expression evaluator.
+
+As well, the (also faster) text-printing routine in the engine has been
+enhanced to allow the use of ~ and ^ in printed text to mimic \" and \n
+(the quotation mark and newline characters); this feature was added at
+the request of a number of Inform users who find them familiar and easier
+to work with.  And string constants can now be extended over more than one 
+line without using the backslash ("\") at the end of the unfinished line.  
+(The backslash is still necessary for non-string-constant expressions, etc. 
+that stretch over more than one line.)
+
+The author also managed to track down one particularly troublesome bug that
+prevented the coding of a complex assignment such as:
+
+        <object>.<property> [#n] is <attribute>
+
+The library files include some major developments.  Primarily, the object
+library (OBJLIB.H) now includes advanced classes such as plural and
+identical objects, attachables, and components.
+
+HUGOLIB.H has also been fine-tuned.  The routines DefArt, CDefArt,
+IndefArt, and CIndefArt (hold-overs from the author's introduction to
+interactive-fiction programming via the early Inform library) have been
+replaced with The, CThe, Art, and CArt, respectively--a somewhat subjective
+choice, perhaps, but one that lends it self to clarity of reading, and 
+which is both easily corrected in existing files using search-and-replace
+as well as being nicely less cryptic.
+
+Object listing has been enhanced--particulary the routines DescribePlace,
+ShortDescribe, WhatsIn, SpecialDesc, and ListObjects.  The LISTTYPE global
+no longer exists; it has been replaced by FORMAT.  As well, those users
+who have begun projects using the v2.0 starting-block program SHELL.HUG
+will want to remove the list_contents property from the player object.
+
+And of course, the obligatory enhancements of the Vault of Hugo sample game,
+Colossal Hugo, and Spur have been released to accompany version 2.1.
+
+-----------------------------------------------------------------------------
+v2.2 - July 1996
+
+While on the surface not much different from v2.1, v2.2 contains a range
+of revisions, enhancements, and extensions.  Here's a quick rundown:
+
+Text output has been greatly expanded in terms of flexibility and capability,
+allowing (if the system in question supports it) boldface, italics, 
+underlining, and proportional type.  Special characters such as accents
+are now easily printable.  In conjunction with these changes, the library
+printing and listing routines have been revised, and (most of) the printed
+text has been localized at the ends of HUGOLIB.H and OBJLIB.H.  Additionally,
+text may now be routed to a memory (array table) address instead of the
+screen.
+
+Changes in how expressions may be structured now allow
+
+        if x = 1, 2, 3
+
+to be used instead of:  if x = 1 or x = 2 or x = 3, and
+
+        if a = "apple" and b = "orange" and
+                c = "banana"
+
+to be split across multiple lines, providing it ends in "or", "and", or ",".
+
+The Init routine is no longer called with the arguments (MAX_OBJECTS,
+MAX_LINE); these are now referenced by the new globals objects and 
+linelength (and there is a new global pagelength).
+
+The random(n) engine function now returns a random value from 0 to n, a
+change that Jim Newland suggested was more intuitive and consistent.  Array
+references are now all word-based, instead of previously where references
+involving calculations such as a[b+3] were byte-based.  Property routines
+may now be indirectly run with object..property.  And grammar lines may now 
+use the "word" token to specify any single dictionary entry.
+
+Extensions such as file i/o and command recording/playback have been 
+added, as well as a machine-independent compressed saved-game format--and
+the engine now requires a confirmation if a save request will overwrite
+an existing file.
+
+Enhancements to the command line allow directories to be specified for
+different types of files.  
+
+Finally, there have been the usual fine-tuning to the compiler (particularly
+with regard to source-file processing and temp file usage) and the engine
+(mainly the expression evaluator) to increase speed and performance.
+

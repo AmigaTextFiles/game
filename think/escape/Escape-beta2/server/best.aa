@@ -1,0 +1,49 @@
+
+let
+    import "escape.aah"
+    import "cgi.aah"
+
+    datatype how = Difficulty | Style
+
+    val url = limit (?/, cgiurl ())
+
+    (* can get any number of best levels,
+       and specify rank criteria *)
+    val (n, how) = 
+	case url of
+	    n :: d => (stoi n, 
+		       case d of
+			   nil => Style
+			 | d :: _ => if stoi d = 1 then Difficulty
+			             else Style)
+	  | _ => (0, Style)
+
+    (* but zero levels is bogus *)
+    val n = if n <= 0 then 10 else n
+
+    (* FIXME: oops, this is not possible!
+       we would have to select this expression as another column,
+       and then order by it by name. A shortcut would be to keep
+       a predivided rating (perhaps multiplied by 1000) in each record. *)
+    val ob = [order by ([case how of
+			    Style => [style]
+			  | Difficulty => [difficulty]] / (nvotes + 1))]
+
+    val levs = 
+	select (id, title, author, md) 
+	from escape : level
+	(* XXX this is a hack to get around aph2 surface syntax.
+	   we should be able to insert "any" into the order by
+	   clause! *)
+	where any {[nvotes >= 3 [ob]]}
+	limit {n}
+
+    fun plevel-simple (id, title, author, _) =
+	print [<tr><td>#[itos id]</td><td><b><a href="[FCGI]/escape/level/[itos id]">[nocolor title]</a></b></td><td>by [nocolor author]</td></tr>\n]
+
+in
+    print "<table>\n";
+    app (levs, plevel-simple);
+    print "</table>\n"
+
+end

@@ -1,0 +1,331 @@
+/*
+    Bantumi
+    Copyright 2005 - 2007 Martin Storsjö
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+    Martin Storsjö
+    martin@martin.st
+*/
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "socketconn.h"
+
+// needed to init tcpip specific stuff from initSockets
+#include "tcpip.h"
+
+#ifdef WIN32
+#include <winsock2.h>
+
+
+const static struct {
+	int id;
+	const char *msg;
+} errorList[] = {
+	{ 0, "No error" },
+	{ WSAEINTR, "Interrupted system call" },
+	{ WSAEBADF, "Bad file number" },
+	{ WSAEACCES, "Permission denied" },
+	{ WSAEFAULT, "Bad address" },
+	{ WSAEINVAL, "Invalid argument" },
+	{ WSAEMFILE, "Too many open files" },
+	{ WSAEWOULDBLOCK, "Resource temporarily unavailable" },
+	{ WSAEINPROGRESS, "Operation now in progress" },
+	{ WSAEALREADY, "Operation already in progress" },
+	{ WSAENOTSOCK, "Socket operation on nonsocket" },
+	{ WSAEDESTADDRREQ, "Destination address required" },
+	{ WSAEMSGSIZE, "Message too long" },
+	{ WSAEPROTOTYPE, "Protocol wrong type for socket" },
+	{ WSAENOPROTOOPT, "Bad protocol option" },
+	{ WSAEPROTONOSUPPORT, "Protocol not supported" },
+	{ WSAESOCKTNOSUPPORT, "Socket type not supported" },
+	{ WSAEOPNOTSUPP, "Operation not supported" },
+	{ WSAEPFNOSUPPORT, "Protocol family not supported" },
+	{ WSAEAFNOSUPPORT, "Address family not supported by protocol family" },
+	{ WSAEADDRINUSE, "Address already in use" },
+	{ WSAEADDRNOTAVAIL, "Cannot assign requested address" },
+	{ WSAENETDOWN, "Network is down" },
+	{ WSAENETUNREACH, "Network is unreachable" },
+	{ WSAENETRESET, "Network dropped connection on reset" },
+	{ WSAECONNABORTED, "Software caused connection abort" },
+	{ WSAECONNRESET, "Connection reset by peer" },
+	{ WSAENOBUFS, "No buffer space available" },
+	{ WSAEISCONN, "Socket is already connected" },
+	{ WSAENOTCONN, "Socket is not connected" },
+	{ WSAESHUTDOWN, "Cannot send after socket shutdown" },
+	{ WSAETOOMANYREFS, "Too many references, can't splice" },
+	{ WSAETIMEDOUT, "Connection timed out" },
+	{ WSAECONNREFUSED, "Connection refused" },
+	{ WSAELOOP, "Too many levels of symbolic links" },
+	{ WSAENAMETOOLONG, "File name too long" },
+	{ WSAEHOSTDOWN, "Host is down" },
+	{ WSAEHOSTUNREACH, "No route to host" },
+	{ WSAENOTEMPTY, "Directory not empty" },
+	{ WSAEPROCLIM, "Too many processes" },
+	{ WSAEUSERS, "Too many users" },
+	{ WSAEDQUOT, "Disk quota exceeded" },
+	{ WSAESTALE, "Stale NFS handle" },
+	{ WSAEREMOTE, "Too many levels of remote in path" },
+	{ WSASYSNOTREADY, "Network system is unavailable" },
+	{ WSAVERNOTSUPPORTED, "Winsock.dll version out of range" },
+	{ WSANOTINITIALISED, "Successful WSAStartup not yet performed" },
+	{ WSAEDISCON, "Graceful shutdown in progress" },
+/*
+	{ WSAENOMORE, "" },
+	{ WSAECANCELLED, "" },
+	{ WSAEINVALIDPROCTABLE, "" },
+	{ WSAEINVALIDPROVIDER, "" },
+	{ WSAEPROVIDERFAILEDINIT, "" },
+	{ WSASYSCALLFAILURE, "" },
+	{ WSASERVICE_NOT_FOUND, "" },
+	{ WSATYPE_NOT_FOUND, "Class type not found" },
+	{ WSA_E_NO_MORE, "" },
+	{ WSA_E_CANCELLED, "" },
+	{ WSAREFUSED, "" }
+*/
+	{ WSAHOST_NOT_FOUND, "Host not found" },
+	{ WSATRY_AGAIN, "Nonauthoritative host not found" },
+	{ WSANO_RECOVERY, "Nonrecoverable error" },
+	{ WSANO_DATA, "Valid name, no data record of requested type" },
+};
+
+char buf[200];
+
+const char *getSockError(int err) {
+	int min = 0;
+	int max = (sizeof(errorList)/sizeof(errorList[0])) - 1;
+	while (min <= max) {
+		int mid = (min+max)/2;
+		if (errorList[mid].id < err)
+			min = mid+1;
+		else if (errorList[mid].id > err)
+			max = mid-1;
+		else
+			return errorList[mid].msg;
+	}
+	return "Unknown error";
+}
+
+const char *getSockError() {
+	return getSockError(WSAGetLastError());
+}
+
+#define EAGAIN WSAEWOULDBLOCK
+#define socklen_t int
+
+#else
+
+typedef unsigned long socklen_t;
+#include <sys/time.h>
+#include <signal.h>
+
+const char *getSockError() {
+	return strerror(errno);
+}
+
+const char *getSockError(int err) {
+	return strerror(err);
+}
+
+#endif
+
+void initSockets() {
+#ifdef WIN32
+	WSADATA data;
+	WSAStartup(MAKEWORD(2, 0), &data);
+#else
+	signal(SIGPIPE, SIG_IGN);
+#endif
+	initTCPIP();
+}
+
+void closeSockets() {
+	closeTCPIP();
+#ifdef WIN32
+	WSACleanup();
+#endif
+}
+
+SocketConnection::SocketConnection(SOCKTYPE s) {
+	sock = s;
+	status = 0;
+}
+
+SocketConnection::~SocketConnection() {
+	CLOSESOCK(sock);
+}
+
+static int doSelect(SOCKTYPE sock, bool write, int msec, const char **errString) {
+	*errString = NULL;
+	fd_set readfds, writefds;
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+	if (write)
+		FD_SET(sock, &writefds);
+	else
+		FD_SET(sock, &readfds);
+	struct timeval timeout;
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 1000*msec;
+	int retval = select(sock + 1, &readfds, &writefds, NULL, &timeout);
+	if (retval < 0) {
+		*errString = getSockError();
+		return -1;
+	}
+	int err;
+	socklen_t optlen = sizeof(err);
+	getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*) &err, &optlen);
+	if (err != 0) {
+		*errString = getSockError(err);
+		return -1;
+	}
+	if (retval > 0) {
+		return 1;
+	}
+	return 0;
+}
+
+int SocketConnection::pollConnect(int msec, const char **errString) {
+	int retval = doSelect(sock, true, msec, errString);
+	if (retval <= 0)
+		return retval;
+
+	if (SETNONBLOCK(sock, 0) == -1) {
+		*errString = getSockError();
+		return -1;
+	}
+	status = 1;
+	return 1;
+}
+
+int SocketConnection::pollAccept(int msec, const char **errString) {
+	int retval = doSelect(sock, false, msec, errString);
+	if (retval <= 0)
+		return retval;
+
+	SOCKTYPE cs;
+	/*if ((cs = ::accept(sock, NULL, NULL)) == INVALID_SOCKET)*/ {
+		*errString = getSockError();
+		return -1;
+	}
+
+	CLOSESOCK(sock);
+	sock = cs;
+
+	int err;
+	socklen_t optlen = sizeof(err);
+	getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*) &err, &optlen);
+	if (err != 0) {
+		*errString = getSockError(err);
+		return -1;
+	}
+
+	status = 1;
+	return 1;
+}
+
+bool SocketConnection::isClient() {
+	return connecting;
+}
+
+int SocketConnection::ready(const char **errString) {
+	if (status == 1)
+		return 1;
+	if (connecting)
+		return pollConnect(50, errString);
+	else
+		return pollAccept(50, errString);
+}
+
+bool SocketConnection::read(const char **errString) {
+	while (true) {
+		fd_set readfds;
+		FD_ZERO(&readfds);
+		FD_SET(sock, &readfds);
+		struct timeval timeout;
+		timeout.tv_sec = 0;
+		timeout.tv_usec = 0;
+		int retval = select(sock + 1, &readfds, NULL, NULL, &timeout);
+		if (retval < 0) {
+			*errString = getSockError();
+			return false;
+		}
+		if (retval == 0)
+			return true;
+		unsigned char buf[100];
+		retval = recv(sock, (char*) buf, sizeof(buf), 0);
+		if (retval == 0) {
+			*errString = "Connection closed";
+			return false;
+		}
+		if (retval < 0) {
+			if (CUR_ERROR() != EAGAIN) {
+				*errString = getSockError();
+				return false;
+			}
+			return true;
+		}
+		cb->received(buf, retval);
+	}
+}
+
+bool SocketConnection::write(const unsigned char *ptr, int n, const char **errString) {
+	int sent = 0;
+	while (sent < n) {
+		// block until writing will succeed
+		while (true) {
+			fd_set readfds, writefds;
+			FD_ZERO(&readfds);
+			FD_ZERO(&writefds);
+			FD_SET(sock, &readfds);
+			FD_SET(sock, &writefds);
+			struct timeval timeout;
+			timeout.tv_sec = 0;
+			timeout.tv_usec = 1000*10;
+			int retval = select(sock + 1, &readfds, &writefds, NULL, &timeout);
+			if (retval < 0) {
+				*errString = getSockError();
+				return false;
+			}
+			if (retval == 0)
+				continue;
+			if (FD_ISSET(sock, &writefds))
+				break;
+			if (FD_ISSET(sock, &readfds)) {
+				// to break an infinite wait if sending buffer is full and the connection is closed, since send doesn't indicate failure to deliver
+				if (!read(errString))
+					return false;
+			}
+		}
+		int retval = send(sock, (char*) ptr+sent, n-sent, 0);
+		if (retval < 0) {
+			if (CUR_ERROR() != EAGAIN) {
+				*errString = getSockError();
+				return false;
+			}
+		} else if (retval == 0) {
+			*errString = "Connection closed";
+			return false;
+		} else {
+			sent += retval;
+		}
+	}
+	return true;
+}
+
+
+

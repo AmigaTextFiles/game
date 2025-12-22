@@ -1,0 +1,103 @@
+*****************************************************************************
+*									    *
+*	PROGRAM: CCBackUpper						    *
+*	VERSION: 1.2							    *
+*   SOURCE CODE: 14 (11.2.2003)						    *
+*	   DATE: 15.01.2001 - 9.2.2001					    *
+*      LANGUAGE: Assembler (DevPac V3.14)				    *
+*	 SYSTEM: A1200	KS 40.68 WB 40.42 2MB chip 64MB fast 68030/50mhz    *
+*									    *
+*	 AUTHOR: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+*      FUNCTION: diskkopy-program for carrier command's master disk	    *
+*									    *
+*****************************************************************************
+
+A2000 set 1	;if A2000 -> TimeS3 = 166ms
+		;	  -> CCBackupperPart2.bin=CCBUP2_mc68000_07.bin
+		;else
+		;	  -> TimeS3 = 172ms
+		;	  -> CCBackupperPart2.bin=CCBUP2_mc68030_50.bin
+
+*****************************************************************************
+
+	output	ram:CCBackupper
+
+*****************************************************************************
+
+	section	ccbu_cf,code_f
+
+*****************************************************************************
+
+	cmp.b	#"x",(A0)
+	beq	CCBackup
+
+Start	moveq	#0,D0			;set last supported version
+	lea	DosName(pc),A1		;get library name
+	movea.l	$4.w,A6			;set execbase to call a function
+	jsr	-$228(A6)		;use EXEC to (openlibrary)
+	tst.l	D0			;be sure it's open
+	beq.b	Quit			;quit if not
+	movea.l	D0,A6			;set dosbase to call a function
+	jsr	-$3C(A6)		;use DOS to find (output)
+	move.l	D0,D1			;set them
+	lea	InfoText(pc),A0		;get textbase
+	move.l	A0,D2			;set base of text
+	move.l	#TextSize,D3		;set size of text
+	jsr	-$30(A6)		;use DOS to (write) text
+	movea.l	A6,A1			;set dosbase for close
+	movea.l	$4.w,A6			;set execbase to call a function
+	jsr	-$19e(A6)		;use EXEC to (closelibrary)
+	moveq	#0,D0			;clear returncode
+Quit	rts				;back to console
+
+*****************************************************************************
+
+DosName	dc.b	"dos.library",0		;library name
+
+*****************************************************************************
+
+	dc.b	"$VER: CCBackupper 1.2 (11.2.2003)",0
+
+*****************************************************************************
+
+InfoText
+
+  dc.b	$A," REALTIME AMIGA BACKERUPPER CLONE",$A,$A
+
+  dc.b	" especially diskcopy program for CARRIER COMMAND",$A
+  dc.b	" RAINBIRD DISK: version A1.2 (19.08.1988) / A1200-fix TML!'2001",$A,$A
+
+  dc.b	$9b,"32m » CC-BACKUPPER TAKES OVER THE SYSTEM «",$9b,"0m",$A,$A
+
+  dc.b	" for safety reasons use",$9b,"32m CCBackupper x",$9b,"0m to e(x)ecute.",$A
+  dc.b	" it never returns, be sure to save all datas before run.",$A,$A
+
+  dc.b	" by joerg riemer feb'2001  email: <joerg_riemer@freenet.de>",$A,$A,0
+
+
+TextSize  equ	*-InfoText-1
+
+*****************************************************************************
+
+		cnop	0,4
+
+*****************************************************************************
+
+CCBackup	include	source/HardHack.s
+
+*****************************************************************************
+
+		include	source/CopyMem.s
+
+Data2		incbin	bin/CCBackupperPart1.bin
+
+		ifd	A2000
+		incbin	bin/CCBUP2_mc68000_07.bin	;backerupper
+		elseif
+		incbin	bin/CCBUP2_mc68030_50.bin	;backerupper
+		endc
+
+Data2Size	equ	*-Data2
+
+ end ************************************************************************

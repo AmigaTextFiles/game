@@ -1,0 +1,214 @@
+; ---------------------------------------------------------------------------------------
+; $VER: Cannon Fodder NC installation script 1.0
+; ---------------------------------------------------------------------------------------
+
+(set #ver (/ @installer-version 65536))
+(if (>= #ver 44)
+	(
+		(showmedia 'sound' "war.8svx" "center" "none" 0)
+		(setmedia sound "play")
+	)
+)
+
+(if (< #ver 43)
+	(
+		(exit "Your Installer is too old. Get a new version from http://os.amigaworld.de (NDK 3.9 archive)" (quiet))
+	)
+)
+
+(if (not (exists "c:gpatch"))
+	(
+		(exit "Your gpatch is missing. Get it from Aminet" (quiet))
+	)
+)
+
+(if (not (exists "c:xfdDecrunch"))
+	(
+		(exit "Your XFD is missing. Get it from Aminet" (quiet))
+	)
+)
+
+(complete 0)
+
+; ---------------------------------------------------------------------------------------
+
+(set #help_welcome
+	(cat
+		"\n\n\n\Cannon Fodder New Campaign\n"
+		"(C) 2004-2008 Bartek Binder & Marcin Kornas\n\n\n"
+		"Welcome to the CFNC installation!\n"
+		"This script will install the CFNC on your HD."
+	)
+)
+
+(set #select-destination
+	(cat
+		"Select drawer with the Cannon Fodder maps (f.ex cf_data).\n"
+		"NOTE: Current campaign will be backuped."
+	)
+)
+
+(set #copying-files "Copying files...")
+
+(set #byebye
+	(cat
+		"\n\n\n\Done!\n"
+		"Now you can play Cannon Fodder\n"
+		"and lead your soldiers to victory!"
+	)
+)
+
+; ---------------------------------------------------------------------------------------
+
+(message #help_welcome)
+
+(welcome)
+
+; ---------------------------------------------------------------------------------------
+
+(set #destination
+	(askdir
+		(prompt  #select-destination)
+		(help    @askdir-help)
+		(disk)
+		(default "SYS:")
+	)
+)
+
+; ---------------------------------------------------------------------------------------
+
+(message "\nBackuping!\n")
+
+(copyfiles
+	(source #destination)
+	(dest   (tackon #destination "/cf_data_backup"))
+	(all)
+	(prompt #copying-files)
+	(help   @copyinfiles-help)
+)
+
+(complete 10)
+
+; ---------------------------------------------------------------------------------------
+
+(message "\nCopying map and spt files!\n")
+
+(copyfiles
+	(source  "Maps")
+	(dest    #destination)
+	(pattern "(#?.map|#?.spt)")
+	(prompt  #copying-files)
+	(help    @copyinfiles-help)
+)
+
+(complete 20)
+
+; ---------------------------------------------------------------------------------------
+
+(message "\nPatching files!\nPlease wait a moment or make a cup of tea.\n")
+
+(makeassign "Patch_temp" #destination)
+(run "xfdDecrunch Patch_temp:FODDERC")
+
+(run "gpatch DIRECT Patch_temp:FODDERC      Patches/FODDERC.pch" )
+(run "gpatch DIRECT Patch_temp:desarmy.lbm  Patches/desarmy.pch" )
+(run "gpatch DIRECT Patch_temp:descopt.lbm  Patches/descopt.pch" )
+(run "gpatch DIRECT Patch_temp:hills.lbm    Patches/hills.pch"   )
+(run "gpatch DIRECT Patch_temp:icearmy.lbm  Patches/icearmy.pch" )
+(run "gpatch DIRECT Patch_temp:icecopt.lbm  Patches/icecopt.pch" )
+(run "gpatch DIRECT Patch_temp:intarmy.lbm  Patches/intarmy.pch" )
+(run "gpatch DIRECT Patch_temp:intcopt.lbm  Patches/intcopt.pch" )
+(run "gpatch DIRECT Patch_temp:junarmy.lbm  Patches/junarmy.pch" )
+(run "gpatch DIRECT Patch_temp:juncopt.lbm  Patches/juncopt.pch" )
+(run "gpatch DIRECT Patch_temp:morarmy.lbm  Patches/morarmy.pch" )
+(run "gpatch DIRECT Patch_temp:morcopt.lbm  Patches/morcopt.pch" )
+(run "gpatch DIRECT Patch_temp:pstuff.lbm   Patches/pstuff.pch"  )
+(run "gpatch DIRECT Patch_temp:rankfont.lbm Patches/rankfont.pch")
+
+(run "assign remove Patch_temp:")
+
+(complete 90)
+
+; ---------------------------------------------------------------------------------------
+
+(message "\nCopying guides!\n")
+
+(copyfiles
+	(source  "Docs")
+	(dest    (tackon #destination "/"))
+	(pattern "(#?.guide)")
+	(prompt  #copying-files)
+	(help    @copyinfiles-help)
+)
+
+(complete 99)
+
+; ---------------------------------------------------------------------------------------
+
+(set #ic "\nIcon selection!\n")
+
+(set #ic_old  "Old AmigaOS style")
+(set #ic_ni   "NewIcon")
+(set #ic_png  "PNGIcon")
+(set #ic_none "I don't like icons")
+
+(set itype
+	(askchoice
+		(prompt #ic)
+		(help @askchoice-help)
+		(choices
+			#ic_old
+			#ic_ni
+			#ic_png
+			#ic_none
+		)
+		(default 0)
+	)
+)
+
+(if (NOT (= itype 3))
+	(
+		(if (= itype 0)
+			(copyfiles
+				(source  "Icons/OLD/")
+				(dest    (tackon #destination "/"))
+				(all)
+				(prompt  #copying-files)
+				(help    @copyinfiles-help)
+			)
+		)
+
+		(if (= itype 1)
+			(copyfiles
+				(source  "Icons/NI/")
+				(dest    (tackon #destination "/"))
+				(all)
+				(prompt  #copying-files)
+				(help    @copyinfiles-help)
+			)
+		)
+
+		(if (= itype 2)
+			(copyfiles
+				(source  "Icons/PNG/")
+				(dest    (tackon #destination "/"))
+				(all)
+				(prompt  #copying-files)
+				(help    @copyinfiles-help)
+			)
+		)
+
+		(if (= itype 3)
+		) 
+	)
+)
+
+(complete 100)
+
+; ---------------------------------------------------------------------------------------
+
+(message #byebye)
+
+(exit (QUIET))
+
+; ---------------------------------------------------------------------------------------

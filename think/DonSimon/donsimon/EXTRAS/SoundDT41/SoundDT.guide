@@ -1,0 +1,355 @@
+@database "SoundDT v41.11 Guide"
+@node main "SoundDT v41.11 Documentation"
+
+   @{b}SoundDT v41
+   ===========@{ub}
+
+   @{" · " link Intro     } Introduction                    Why a soundclass replacement?
+   @{" · " link Reqs      } Requierements                   What it needs for living.
+   @{" · " link Install   } Installation & Use              Installing and using the software.
+   @{" · " link Legal     } Legal Issues                    License, distribution, disclaimer.
+   @{" · " link Credits   } Credits                         Thanks and credit where credit is due.
+   @{" · " link Problems  } Problems                        Known bugs/problems
+   @{" · " link History   } History                         History of changes.
+   @{" · " link Future    } Future                          Plans for future versions.
+   @{" · " link Author    } Author                          Who wrote it
+
+   @{b}Appendix@{ub}
+
+   @{" · " link "developer/sound_dtc/sound.datatype()" } sound_dtc                       Developer information
+   @{" · " link "developer/svx_dtc/svx.datatype()" } svx_dtc                         Developer information
+   @{" · " link "svxdt.doc/Main" } svx.datatype                    About svx.datatype
+
+   (C) Copyright 1998-2000 by Stephan Rupprecht
+
+   @{i}Some parts of this documentation have been taken from SoundDT.guide by
+   Jonathan Gapen (without permisson. He left Amiga® so I think he doesn't
+   bother).@{ui}
+
+@endnode
+
+@node Intro "SoundDT v41.11 - Introduction"
+
+@{b}Why a new DataTypes soundclass?
+===============================@{ub}
+
+Short: someone asks me for it.
+
+Long : The original sound.datatype provided by AmigaOS3.x lacks of several
+       features:
+       · samples longer than the hardware limit of 128k can't be played 
+	 completely.
+       · no support for stereo samples, channel selection and 16bit samples.
+       · ugly static icon.
+       · once a sound has been started there's no way to stop playback.
+       · doesn't support sound cards.
+       · samples have to be in chip memory (v39 only).
+
+       My sound.datatype fixes all these problems.
+       
+       Starting v41.9 of this datatype, the datatype is called v41sound.datatype.
+       This avoids clashes with the v44 sound.datatype and v41 subclasses written
+       for this datatype.
+
+@endnode
+
+@node Reqs "SoundDT v41.11 - Requirements"
+
+@{b}What it needs for living
+========================@{ub}
+
+     · Any AMIGA® (compatible) computer with at least OS3.0.
+     · 68020 cpu or better.
+     · gadgets/tapedeck.gadget for the controls (optional).
+     · gtlayout.library by Olaf Barthel for SoundDT41 the prefsed.
+
+@endnode
+
+@node Install "SoundDT v41.11 - Installation & Use"
+
+@{b}Installation
+============@{ub}
+
+     Simply start the provided Installer script.
+
+@{b}Use
+===@{ub}
+
+     There's no difference in using the C= sounddt and my one. You can abort a
+playing sound by pressing the waveform image twice. Certain aspects of the
+datatype can be controlled by using the global enviroment variable 
+'datatypes/sounddt41.prefs'. Currently the following options are recognized
+(you must put all options of your choice into a _single_ line):
+      
+      @{i}AHI/S:@{ui} tells the datatype to use ahi.device by Martin Blom for output.
+      @{i}AHIMODEID/N/K:@{ui} ahi mode id that is taken as reference to the audio
+      hardware that should be used for playback (eg. AHIMODEID=0x00020000
+      for paula audio).
+      @{i}FAM=FORCEAHIMODE/S:@{ui} tells the datatype to use the supplied AHI 
+      modeid (via AHIMODEID option) for playback instead of taking it as 
+      reference to the audio hardware used for playback.
+      @{i}AMF=AHIMIXFREQ/N/K:@{ui} ahi mixing frequency. If not defined the
+      default frequency taken from ahi prefs is used.
+      @{i}WIDTH/N/K:@{ui} default width of the waveform image (default: 160).
+      @{i}HEIGHT/N/K:@{ui} default height of the waveform image (default: 100).
+      @{i}BG=BACKGROUNDCOLOR/K:@{ui} background color of the image as hex number
+      (Format: 0x00rrggbb - default: 0x00000000 = black).
+      @{i}WF=WAVEFORMCOLOR/K:@{ui} color of waveform (default: 0x0023cc17 = green).
+      @{i}AIFF16/S:@{ui} tells the datatype to save 16bit samples as AIFF (creates 16SV
+      files by default).
+      @{i}COMPRESS/S:@{ui} When using this option, the datatype will only save 
+      compressed samples. NOTE: Compression is only supported for 8 bit 
+      samples (no compression method has been defined for 16sv files. To
+      save compressed AIFC files you've to get a license from Apple [AFAIK]),
+      for compression the well known fibonacci delta method is used. It's
+      fast and guarantees a compression ratio of 50% at cost of some
+      'quantization' noise.
+      @{i}BUFFERSIZE/N/K:@{ui} Size of a single buffer when playing double-
+      buffered (Range: 1024 - 131072). For stereo samples sounddt allocates
+      4 buffers of the given size otherwise 2. The default buffersize is 
+      65536 bytes. Sounddt falls back to a smaller buffersize, if the requested
+      amount of memory isn't available. Normally, you won't have to change
+      it but it might help when your computer can't play a large sample without
+      gaps. NOTE: This option is useless in conjuction with AHI.
+      @{i}CP=CONTROLPANEL/T:@{ui} Tells the datatype that you (don't) want a
+      controlpanel. Default: NO. Currently the REWIND and FORWARD buttons 
+      aren't functional! NOTE TO AUDIO.DEVICE USERS: When using the PAUSE
+      button you'll recognize that the sound won't restart at the same point
+      you've stopped it. This is not a bug of sounddt! audio.device can't
+      stop a playing sound, so it simply mutes the channels. You can work
+      around this by specifying a smaller BUFFERSIZE. 2ND NOTE: The panel
+      is only drawn when the gadget has at least a minimum size of 201x24
+      pixels. IMPORTANT: This option is a toggle, so it requires either YES
+      or NO as argument!
+      @{i}NOGTSLIDER/S:@{ui} Don't draw the volume slider gadtools alike.
+      @{i}VOLUME/N/K:@{ui} Changes the default volume. This option is pretty
+      useless because subclasses of sounddt set the volume (to 64), which 
+      means that your prefered level will be overriden.
+
+      more to come ...
+
+     
+     Starting release v41.8a a preferences editor is available, too.
+
+@endnode
+
+@node Legal "License, Distribution, Disclaimer"
+
+@{b}License
+=======@{ub}
+
+     Under this license, you are granted use of the sound.datatype v41.11 ('the
+software') for any purpose, free of charge. Installation and use of the software
+implies your acceptance of the terms of this license.
+
+@{b}Distribution
+============@{ub}
+
+     This software is freely distributable in the form of the compressed archive
+released by Stephan Rupprecht, and in this form only. You may not add or remove any
+files, but you may convert the archive into another format. All methods of
+distribution are allowed. However, no fees for the distribution of this software
+may be charged, beyond the cost of media and compilation.
+
+@{b}Disclaimer
+==========@{ub}
+
+     NO WARRANTY AS TO THE PERFORMANCE, COMPATIBILITY, OR FITNESS FOR ANY
+PARTICULAR PURPOSE IS MADE. NO TECHNICAL SUPPORT IS GUARANTEED. ALL USE OF THE
+SOFTWARE IS AT THE USER'S OWN RISK.
+
+   The sound.datatype v41.11 is Copyright © 1998-2000 by Stephan Rupprecht.
+
+@endnode
+
+@node Credits "SoundDT v41.11 - Credits"
+
+@{b}Special thanks are due (in no special order:)
+=============================================@{ub}
+
+   · Martin Blom, for AHI and some useful suggestions.
+   · dan@amiga.demon.co.uk, for his bug report.
+   · Francis Labrie, for his suggestions and bugrepots.
+   · Luca "Hexaae" Longone, for his bug reports.
+   · Pascal Walers, for the idea.
+   · Raul Silva, for the bugreport concerning ptdt.
+   · Stefan Ruppert, for his help with the controlpanel.
+   · Daniel Wicke, for the bugreport.
+   · Brad Avery, for the bugreport.
+   · Andreas Homa, for the bugreport.
+   · Christoph AEon Loewe, for the bugreport.
+   · Andrea Vallinotto, for the bugreport.
+   · Gunther Nikl, for his suggestions.
+
+   and all other people who send me an eMail :)
+
+@endnode
+
+@node Problems "SoundDT v41.11 - Known Bugs"
+
+   · @{b}The gadget image doesn't like Multiview with SysIHack!@{ub}
+
+     Actually, Multiview itself doesn't like SysIHack; it assumes a fixed size
+for the system scrollbars. Therefore, it reports the wrong values for the inner
+dimensions of the window to the DataTypes object. I can't fix it without a bad
+hack, and it's only a cosmetic bug, so I leave it alone.
+     If it really bothers you, please feel free to write a new Multiview.
+
+   · @{b}Converting files from one format to another@{ub}
+
+     A white noise file will be produced if you try to convert a stereo or 16bit
+sample using a v41 compatible datatype for loading and an older (not v41 compatible)
+one for saving. This shouldn't be a problem since there is hardly any subclass
+of sounddt that @{i}fully@{ui} (= with a DTST_RAM handle) supports saving. This is
+also true for DTConvert because this program isn't aware of the v41 API.
+
+   · @{b}The controlpanel might cause deadlocks@{ub}
+
+     Adding a controlpanel to a datatypes object is a tricky stuff (especially
+when serveral tasks want to access it at the same time). If you encounter any
+deadlocks better turn off the panel. I am working on it ...
+
+   · @{b}Sounddt and datatypes.library v40@{ub}
+
+     One users reported me that dtlib v40 crashs in conjuction with my sounddt.
+I couldn't find any bug in sounddt and since v45 of dtlib works fine, I think
+this could be a bug of the v40 code.
+
+   · @{b}There are clicks and gaps when playing an animation with sound@{ub}
+
+     Animations.datatypes feed sounddt with a continuous stream of very small
+samples (<1024bytes), which forces the datatype to update its buffers very 
+often within a second. If your machine is too slow, you'll hear clicks and 
+gaps. For AHI you can try to reduce these noises by lowering the mixing
+frequency.
+
+   · @{b}Playing samples over 28khz with audio.device@{ub}
+
+     In order to play samples over 28khz correctly (using audio.device), you
+must have an ECS or AGA computer running a dblscan/vga screenmode.
+
+@endnode
+
+@node Future "SoundDT v41.11 - Future"
+
+@{b}Plans for the future
+====================@{ub}
+
+   · cursor animation.
+   · xpk support.
+   · your suggestions ...
+
+@endnode
+
+@node Author "SoundDT v41.11 - Author"
+
+@{b}How to contact the author
+=========================@{ub}
+
+   Stephan Rupprecht
+   Apfeldweg 1
+   44359 Dortmund
+
+   stephan.rupprecht@gmx.de
+
+   http://stephan.2xs.de
+
+@endnode
+
+@node History "SoundDT v41.11 - History of Changes"
+
+v41.0
+   · first public release.
+
+v41.1
+   · implemented ahi support.
+   · supports 16bit samples now.
+   · STM_STOP crashed.
+   · a doubleclick on the image will stop the sound now.
+   · always tries to allocate two stereo channels, on failure
+     a stereo sample will be played on a single channel.
+   · now aborts a playing sound and restarts it when the image is pressed
+     while playing.
+   · developer information are now available
+   · the waveform image is now drawn faster and doesn't requiere any memory
+     for rendering.
+   · some changes I can't remember ;)
+
+v41.2
+   · finally, MAUD.datatype (and older versions of aiffdt) work.
+   · now it's possible to mark a part of the sample in order to save it to
+     the clipboard (DTM_SELECT).
+   · disabled panning for stereo samples.
+   · new option FAM=FORCEAHIMODE/S.
+
+v41.3
+   · fixed some small bugs (nothing serious).
+   · works with protracker.datatype now.
+   · fixed display problem when using sounddt in conjuction with 
+     embed.datatype.
+   · added some security checks and semaphore protection.
+   · optionally displays a control panel now.
+   · two new prefs options (BUFFERSIZE,CONTROLPANEL).
+
+v41.4 INTERNAL RELEASE (due to aminet related problems;)
+   · implemented SDTA_Continuous (now works correctly with animation.datatype).
+   · fixed a bug of the AHI player routine where a pointer wasn't correctly
+     intialized.
+   · new option AHIMIXFREQ.
+   · again fixed some small bugs.
+   · tracked down and fixed a bug that were produced by the compiler and 
+     caused a lot of enforcer hits (MaxonC compiled the program correctly, 
+     GNUC didn't [public releases are compiled with GNUC]).
+   · prefs system didn't work correctly.
+
+v41.5
+   · waveform drawing routine didn't draw the 2nd channel of 16bit samples
+     correctly.
+   · 16sv stereo saving routine produced trash.
+   · implemented DTM_DRAW.
+   · updated developer docs a bit.
+   · volume slider looks like a gadtools one now (can be turned off by 
+     NOGTSLIDER).
+
+v41.6
+   · updated revision number (41.5 wasn't v41.5 but v41.4 ;)
+   · saving of IFF files (DTWM_IFF) crashed, funny that I didn't recognize 
+     that before (GMultiview 'Project/Save as IFF ...').
+
+v41.7
+   · some small changes.
+   · added some macros to the .h file.
+   · the v41.7 release actually replaces the "update" archives available.
+
+v41.8
+   · implemented DTA_Repeat and DTA_Immediate (GMultiview IMMEDIATE, REPEAT).
+   · fixed bug of audio.device player (samples weren't correctly repeated).
+   · changed volume slider to make it work properly with VisualPrefs.
+   · fixed and optimized library module.
+   · added workaround for a bug (?) of gmultiview 45.8, after changing the
+     objects' DTA_ControlPanel attribute, GM_LAYOUT (AddDTObject) is called
+     but not GM_RENDER (RefreshDTObject should follow AddDTObject).
+   · drawing pens are allocated during GM_LAYOUT now and released at 
+     DTM_REMOVEDTOBJECT. This avoids "color changes" when a "MagicMenu" popup.
+
+v41.8a
+   · added prefs editor to the archive (requires gtlayout.library!), not 
+     localized yet.
+     
+v41.9
+   · changed the name of this datatype to v41sound.datatype, all subclasses
+     written for this datatype have been updated, too. this will fix any
+     problem when using a v41 subclass in conjunction with sounddt v44.
+     
+v41.10
+   · SDTA_SignalBit expects a signalmask instead of a bit number, now <Stefan
+     Falke>. implemented some v44 tags: SDTA_SignalBitNumber, SDTA_ReplayPeriod,
+     SDTA_FreeSampleData, SDTA_SamplesPerSec, SDTA_Pan. SDTA_SyncSampleChange,
+     SDTA_LeftSample and SDTA_RightSample will be implemented later.
+     
+v41.11
+   · OM_NOTIFY was mistakely treated the same way OM_UPDATE was <Georg Steger>.
+     the return value of OM_SET was wrong, causing some programs to dispose
+     the datatypes object while a sound was playing <Krister S. Skrtic>.
+
+@endnode

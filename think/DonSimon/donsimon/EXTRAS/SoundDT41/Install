@@ -1,0 +1,108 @@
+; $VER: Installer script for SoundDT41 1.4 (22.01.00) © 1998-2000 by Stephan Rupprecht
+
+(set @default-dest "SYS:classes/datatypes")
+
+;--- localize strings ----
+(if (= @language "deutsch")
+(
+	(set #wrongver "v41SoundDT benötigt mindestens AmigaOS3.0.\nInstallation kann nicht durchgeführt werden.")
+	(set #backup "Soll der alte sound.datatype gesichert werden?")
+	(set #backup_help "Wenn Sie 'Ja' selektieren, so wird der alte sound.datatype unter 'sound.datatype.bak' gesichert.");
+	(set #found_8svx "Der '8svx.datatype' ist auf Ihrem System installiert.\nDieser wird nun durch den neuen 'svx.datatype' ersetzt.\nDie Deskriptordatei für 8svx wird in das 'Storage'\nVerzeichnis Ihrer Systempartition bewegt.")
+	(set #found_16sv "Der '16sv.datatype' ist auf Ihrem System installiert.\nDieser wird nun durch den neuen 'svx.datatype' ersetzt.\nDie Deskriptordatei für 16sv wird in das 'Storage'\nVerzeichnis Ihrer Systempartition bewegt.")
+	(set #prefsdrwr "Bitte wählen Sie das Zielverzeichnis\nfür den SoundDT41 Prefseditor")
+	(set #endmsg "Sie sollten nun Ihren Rechner neu starten!")
+)
+(
+	(set #wrongver "v41SoundDT requires at least AmigaOS3.0\nInstallation aborted.")
+	(set #backup "Do you wish to backup the old sound.datatype?")
+	(set #backup_help "If you select 'Yes', the old sound.datatype will be renamed as sound.datatype.bak.")
+	(set #found_8svx "You've '8svx.datatype' installed.\nThis datatype will now be replaced by the new 'svx.datatype'.\nThe descriptor-file for 8svx will be moved to\nthe 'Storage' drawer of your SYS: partition.")
+	(set #found_16sv "You've '16sv.datatype' installed.\nThis datatype will now be replaced by the new 'svx.datatype'.\nThe descriptor-file for 16sv will be moved to\nthe 'Storage' drawer of your SYS: partition.")
+	(set #prefsdrwr "Please choose the destination drawer\nfor the preferences editor")
+	(set #endmsg "To make the changes active you need to restart your computer!");
+)
+)
+
+;--- check os version ---
+(set #vernum (getversion "exec.library" (resident)))
+(set #vernum (/ #vernum 65536))
+
+(if(< #vernum 39)
+	(abort #wrongver)
+)
+
+;--- lets rock ---
+;(set #choice
+;	(askbool 
+;		(prompt #backup)
+;		(help	#backup_help)
+;		(default 1)
+;	)
+;)
+
+;(if (= #choice 1) 
+;(
+;	(rename "sys:classes/datatypes/sound.datatype" "sys:classes/datatypes/sound.datatype.bak")
+;)
+;)
+
+(copyfiles
+	(source "datatypes/v41sound.datatype")
+	(dest @default-dest)
+)
+
+;--- move old descriptor files to storage, if found ---
+(if (exists "DEVS:DataTypes/8SVX")
+(
+	(message #found_8svx)
+	(rename "DEVS:DataTypes/8SVX" "SYS:Storage/DataTypes/8SVX")
+	(rename "DEVS:DataTypes/8SVX.info" "SYS:Storage/DataTypes/8SVX.info")
+)
+)
+
+(if (exists "DEVS:DataTypes/16SV")
+(
+	(message #found_16sv)
+	(rename "DEVS:DataTypes/16SV" "SYS:Storage/DataTypes/16SV")
+	(rename "DEVS:DataTypes/16SV.info" "SYS:Storage/DataTypes/16SV.info")
+)
+)
+
+;--- install svx.datatype ---
+(copyfiles
+	(source "datatypes/svx.datatype")
+	(dest @default-dest)
+)
+
+(if (not (exists "DEVS:DataTypes/SVX") )
+(
+	(copyfiles
+		(source "datatypes/SVX")
+		(dest "DEVS:DataTypes")
+	)
+
+	(copyfiles
+		(source "datatypes/SVX.info")
+		(dest "DEVS:DataTypes")
+	)
+)
+)
+
+;--- install prefsed ---
+(set #dest
+	(askdir
+		(prompt #prefsdrwr)
+		(help @askdir-help)
+		(default "SYS:Prefs/Datatypes")
+	)
+)
+
+(copyfiles
+	(source "prefs/")
+	(pattern "#?")
+	(dest #dest)
+)
+
+(message #endmsg)
+;--- eof ---

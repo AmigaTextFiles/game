@@ -1,0 +1,109 @@
+EPOC=$(HOME)/symbian-sdks/s60_21
+GCCPATH=$(HOME)/symbian-gcc
+
+PATH=$(GCCPATH)/bin:/usr/local/bin:/usr/bin:/bin
+include $(GCCPATH)/lib/makerules/eikon
+
+LIBS=	$(EPOCTRGREL)/egcc.lib \
+	$(EPOCTRGREL)/euser.lib \
+	$(EPOCTRGREL)/apparc.lib \
+	$(EPOCTRGREL)/cone.lib \
+	$(EPOCTRGREL)/eikcore.lib \
+	$(EPOCTRGREL)/eikcoctl.lib \
+	$(EPOCTRGREL)/avkon.lib \
+	$(EPOCTRGREL)/libGLES_CM.lib \
+	$(EPOCTRGREL)/ws32.lib \
+	$(EPOCTRGREL)/fbscli.lib \
+	$(EPOCTRGREL)/bitgdi.lib \
+	$(EPOCTRGREL)/hal.lib \
+	$(EPOCTRGREL)/estlib.lib \
+	$(EPOCTRGREL)/flogger.lib \
+	$(EPOCTRGREL)/efsrv.lib \
+	$(EPOCTRGREL)/estor.lib \
+	$(EPOCTRGREL)/charconv.lib \
+	$(EPOCTRGREL)/commonengine.lib \
+	$(EPOCTRGREL)/btextnotifiers.lib \
+	$(EPOCTRGREL)/bluetooth.lib \
+	$(EPOCTRGREL)/esock.lib \
+	$(EPOCTRGREL)/sdpagent.lib \
+	$(EPOCTRGREL)/sdpdatabase.lib \
+	$(EPOCTRGREL)/btmanclient.lib \
+	$(EPOCTRGREL)/insock.lib
+
+
+NAME=bantumigl
+S60OBJECTS = bantumiapp.o bantumiappview.o bantumiappui.o bantumidoc.o symbianthread.o symbianfont.o symbianbt.o connectwaitcontainer.o servicesearcher.o socketreader.o socketwriter.o glappui.o glappview.o connwrap.o symbiantcp.o symbianconn.o
+GLOBJECTS = bantumigl.o hand.o matrix.o mesh.o grid.o quat.o glfont.o
+GAMEOBJECTS = bantumi.o
+OBJECTS = $(S60OBJECTS) $(GLOBJECTS) $(GAMEOBJECTS)
+PTFLAGS = 
+
+
+TARGET=$(NAME).app
+MAJORVER=2
+MINORVER=04
+PKGVERS=$(MAJORVER),$(MINORVER)
+PKG_ADDON_26='(0x10200BAB), 0, 0, 0, {"Series60ProductID"}'
+PKG_ADDON_09='(0x101F6F88), 0, 0, 0, {"Series60ProductID"}'
+PKGFILES=$(NAME).app $(NAME).aif bantumigl.rsc bantumigl_caption.rsc
+
+U1 = 10000079
+U2 = 100039ce 
+U3 = 10273929
+
+CFLAGS += -O2 -DNDEBUG -I. -I../inc -DUID3=0x$(U3) -D_QUARTZ -D_EPOC32_61 -DGLES -DSYMBIAN -Wall -DMULTIPLAYER
+CPPFLAGS += -D_QUARTZ -D_EPOC32_61 -I../inc -I../data
+RCFLAGS = -6
+
+VERSION=$(MAJORVER).$(MINORVER)
+SISNAME=bantumigl-$(VERSION)
+
+all:bantumigl.rsc $(PKGFILES) $(SISNAME).sis $(SISNAME)-gerbera.sis
+
+$(SISNAME).sis:$(NAME).app $(SISNAME).pkg
+$(SISNAME)-gerbera.sis:$(NAME).app $(SISNAME)-gerbera.pkg
+
+$(TARGET): $(OBJECTS)
+
+$(NAME).aifspec: icon.mbm
+	echo "ELangEnglish=BantumiGL" >> $(NAME).aifspec
+	echo "mbmfile=icon.mbm" >> $(NAME).aifspec
+
+bantumigl.rss:../data/bantumigl.rss
+	cp $< .
+
+bantumigl_caption.rss: ../data/bantumigl_caption.rss
+	cp $< .
+
+$(SISNAME).pkg:
+	@echo "[PKGBLD] $*"
+	@echo '&EN' > $@
+	@echo '#{"Bantumi GL"},(0x'$(U3)'),$(PKGVERS),0' >> $@
+	@echo $(PKG_ADDON_26) >> $@
+	@for i in $(PKGFILES); do \
+		echo '"'$$i'"-"!:\system\apps\$(NAME)\'$$i'"' >> $@; \
+	done    
+	@echo '""-"C:\BantumiGLSettings",FILENULL' >> $@
+
+$(SISNAME)-gerbera.pkg: libGLES_CM.dll
+	@echo "[PKGBLD] $*"
+	@echo '&EN' > $@
+	@echo '#{"Bantumi GL"},(0x'$(U3)'),$(PKGVERS),0' >> $@
+	@echo $(PKG_ADDON_09) >> $@
+	@for i in $(PKGFILES); do \
+		echo '"'$$i'"-"!:\system\apps\$(NAME)\'$$i'"' >> $@; \
+	done    
+	@echo '""-"C:\BantumiGLSettings",FILENULL' >> $@
+	@echo '"libGLES_CM.dll"-"!:\system\apps\$(NAME)\libGLES_CM.dll"' >> $@
+
+libGLES_CM.dll:
+	cp ~/gles/rasteroid/opengles11/bin/series60/armi/urel/$@ .
+
+icon.mbm:
+	cd ../aif && bmconv ../src/icon.mbm \
+	/c12icon_44x44.bmp /c12icon_44x44_mask.bmp \
+	/c12icon_42x29.bmp /c12icon_42x29_mask.bmp
+
+clean:
+	rm -f $(GENERATED) $(PKGFILES) $(NAME).aifspec icon.mbm *.mbg *.rss *.dll
+

@@ -1,0 +1,148 @@
+*****************************************************************************
+*									    *
+*	PROGRAM: BootBlock and CCBackUpper (part_1)			    *
+*	VERSION: 1.2							    *
+*   SOURCE CODE: 14 (13.2.2003)						    *
+*	   DATE: 15.01.2001 - 9.2.2001					    *
+*      LANGUAGE: Assembler (DevPac V3.14)				    *
+*	 SYSTEM: A1200	KS 40.68 WB 40.42 2MB chip 64MB fast 68030/50mhz    *
+*									    *
+*	 AUTHOR: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+*      FUNCTION: mainly the bootblock for carrier command's masterdisk	    *
+*		 also required as a part of the amiga backerupper clone	    *
+*									    *
+*	COMMENT: i prefer the Barfly assembler to create the binare_file    *
+*									    *
+*****************************************************************************
+
+	output	ram:CCBackupperPart1.bin
+
+*****************************************************************************
+
+		include	source/DBStructure.i
+
+*****************************************************************************
+
+ProgStart	include	source/HardHack.s
+
+*****************************************************************************
+
+		lea	DataStart(PC),A0
+		lea	$76C00,A1
+		move.l	#DataSize/4-1,D0
+.CopyMem1	move.l	(A0)+,(A1)+
+		dbra	D0,.CopyMem1
+
+		jmp	$76C00
+
+*****************************************************************************
+
+DataStart	moveq	#0,D0
+		moveq	#7,D1
+		lea	$180(A6),A0
+.ClearColor	move.l	D0,(A0)+
+		dbra	D1,.ClearColor
+
+		move.w	#$4200,$100(A6)
+		move.w	#$0038,$092(A6)
+		move.w	#$00D0,$094(A6)
+		move.w	#$2C81,$08E(A6)
+		move.w	#$F4C1,$090(A6)
+		move.w	d0,$102(A6)
+		moveq	#$78,D0
+		move.w	D0,$108(A6)
+		move.w	D0,$10A(A6)
+
+		lea	CopList(PC),A0
+		move.l	A0,$80(A6)
+		move.w	$88(A6),D0
+
+		move.w	#$8390,$96(A6)
+		move.w	#$0C00,$34(A6)
+
+		btst	#$06,$BFE001
+		beq.b	LoadBackup
+
+LoadTitle	moveq	#2,D0
+		moveq	#7,D1
+		moveq	#0,D2
+		moveq	#0,D3
+		lea	$77400,A0
+		lea	$73800,A1
+		bsr.b	LoadDatas
+		bne.b	LoadTitle
+
+		lea	$7F100,A0
+		lea	$180(A6),A1
+		moveq	#7,D0
+.SetColor	move.l	(A0)+,(A1)+
+		dbra	D0,.SetColor
+
+LoadGame	moveq	#9,D0
+		moveq	#70,D1
+		moveq	#0,D2
+		moveq	#0,D3
+		lea	$400.w,A0
+		lea	$73800,A1
+		bsr.b	LoadDatas
+		bne.b	LoadGame
+
+		lea	$77400,A0
+		jmp	$400.w
+
+LoadBackup	moveq	#1,D0
+		moveq	#1,D1
+		moveq	#0,D2
+		moveq	#0,D3
+		lea	$400.w,A0
+		lea	$73800,A1
+		bsr.b	LoadDatas
+		bne.b	LoadBackup
+
+		jmp	$800.w
+
+*****************************************************************************
+
+		cnop	0,4
+
+CopList		dc.l	$00EC0007
+		dc.l	$00EE7478
+		dc.l	$00E80007
+		dc.l	$00EA7450
+		dc.l	$00E40007
+		dc.l	$00E67428
+		dc.l	$00E00007
+		dc.l	$00E27400
+		dc.l	$FFFFFFFE
+
+*****************************************************************************
+
+		include	source/LoadDatas.s
+
+*****************************************************************************
+
+		cnop	0,4
+
+DataBase	dcb.b	BSS_Size,0
+
+*****************************************************************************
+
+ProgSize	equ	*-ProgStart
+
+		dcb.b	1004-ProgSize,0
+
+ 		dc.l "TML!","2010" ;hacker's sign and bootblock identifier
+
+DataSize	equ	*-DataStart
+
+; the whole part must fit into 1024 bytes (a dos bootblock)
+; and at last we need some place holder for this block
+
+		dc.l	0	;dos-id
+		dc.l	0	;chksum
+		dc.l	0	;rootblock
+
+; if anything fits, CCBackupperPart1 will be assembled into 1024 bytes
+
+ end ************************************************************************

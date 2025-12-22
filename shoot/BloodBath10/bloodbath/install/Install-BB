@@ -1,0 +1,368 @@
+; $VER: Install-BB 1.0 (97.01.01)
+; Script to install BloodBath
+
+(complete 0)
+
+;=============================================================================
+; svenska strings
+
+(if (= @language "svenska")
+(
+
+(set #intro
+(cat "                                                      "
+     "      Detta program låter dig installera BloodBath    "
+     "                                                     "
+     "                                       #              "
+     "                 #########################            "
+     "               ##########################             "
+     "                ####  #  ##                           "
+     "               ##########                             "
+     "              ####                                    "
+     "             ####                                     " 
+     "            ####                                      "
+     "           ####                                       "
+
+))
+
+(set #destdir
+(cat "Var god och välj ett ställe för spelat Bloodbath. "
+     "En Låda kallad ´BloodBath´ kommer att skapas här. "
+       "Installationen kommer att ta upp omkring 4M. "
+))
+
+(set #destexists
+(cat "En ´BloodBath´ låda finns redan i din valda . "
+     "Om du fortsätter, kommer lådan och dess innehåll att tas bort och "
+     "ersättas med den nya installationen. "
+))
+
+(set #icons-prompt "Välj den ikonuppsättning du vill ha.")
+(set #icons-help "Arkivet levereras med tre olika typer av ikoner för BloodBath spelet.\nIkoner för standard Workbench och två olika storlekar för Magic WB är medskickade.\n\nVar god och välj den typ du vill installera.")
+(set #icons-message "Du kan rita om ikonerna efteråt om du vill.")
+
+(set #copylib_text "Kopierar ett nödvändigt library...")
+
+(set #copymain "Kopierar huvud-filer...")
+
+(set #copydocs "Kopierar textfiler...")
+
+(set #copymore "Kopierar grafik- och ljud-filer...")
+
+(set #copyintro "Kopierar intro-filer...")
+
+))
+
+
+;=============================================================================
+; English strings
+
+(if (= @language "english")
+(
+
+(set #intro
+(cat "                                                      "
+     "        This program lets you install BloodBath.      "
+     "                                                      "
+     "                                       #              "
+     "                 #########################            "
+     "               ##########################             "
+     "                ####  #  ##                           "
+     "               ##########                             "
+     "              ####                                    "
+     "             ####                                     " 
+     "            ####                                      "
+     "           ####                                       "
+
+))
+
+(set #destdir
+(cat "Please select a place for the game BloodBath. "
+     "A drawer called 'BloodBath' will be created here. "
+          "The install will take about 4M. "
+))
+
+(set #destexists
+(cat "A 'BloodBath' drawer does already exists in your selected destination directory. "
+     "By proceeding, you indicate that you wish to delete the "
+     "contents of this drawer and replace them with the new "
+     "installation."
+))
+
+(set #icons-prompt "Please select icontype to install.")
+(set #icons-help "The archive is shipped with three different icons for the BloodBath game.\nIcons for the standard Workbench and two different for Magic WB are included.\n\nPlease select which of these icons you want to be installed.")
+(set #icons-message "You may have to edit the BloodBath icon by hand afterwards.")
+
+(set #copylib_text "Copying a nescessary library...")
+
+(set #copymain "Copying main-files...")
+
+(set #copydocs "Copying textfiles...")
+
+(set #copymore "Copying grafic- and sound-files...")
+
+(set #copyintro "Copying intro-filer...")
+
+))
+
+;=============================================================================
+; Say hello
+
+; (set @default-dest "Work:")
+(message #intro)
+
+
+;=============================================================================
+; Check for an old BB installation
+
+(complete 5)
+
+(if (<> (exists "BB:" (noreq)) 0)
+(
+	(set @default-dest (expandpath "BB:/"))
+	(set bbdir (tackon @default-dest "BloodBath"))
+	(set olddir (tackon @default-dest "BloodBath_old"))
+
+	(run "assign BB: remove")
+
+	(if (<> (exists olddir (noreq)) 0)
+	(
+		(message #oldbb "'" @default-dest "'. " #oldbbdel " '" bbdir "' " #oldbbdel2)
+		(run (cat "delete " bbdir " all >nil:"))
+		(run (cat "delete " bbdir ".info >nil:"))
+	)
+	(
+		(message #oldbb "'" @default-dest "'." #oldbbbak)
+		(rename bbdir olddir)
+		(rename (cat bbdir ".info") (cat olddir ".info"))
+	))
+))
+
+
+;=============================================================================
+; Ask for destination directory
+
+(complete 10)
+(set @default-dest
+	(askdir
+		(PROMpt #destdir)
+		(help @askdir-help)
+		(default @default-dest)
+	)
+)
+
+(set @default-dest (expandpath @default-dest))
+(set destination (tackon @default-dest "BloodBath"))
+(set docs_dir (tackon destination "docs"))
+
+(if (<> (exists destination) 0)
+(
+	(message #destexists)
+	(run (cat "delete " destination " all >nil:"))
+	(run (cat "delete " destination ".info >nil:"))
+))
+
+
+;=============================================================================
+; Lets go, create destination directory, copy all files
+
+(complete 20)
+
+(makedir destination (help @makedir-help))
+(run (cat "copy " "//BloodBath.info \"" destination ".info\""))
+
+(makedir docs_dir)
+(run (cat "copy " "/docs.info \"" docs_dir ".info\""))
+
+(complete 30)
+
+(copyfiles
+	(prompt #copymain)
+	(source "/")
+	(pattern "(Bloodbath)")
+	(dest destination)
+	(infos)
+	(help @copyfiles-help)
+)
+
+(complete 40)
+
+(if (= @language "svenska")
+(
+
+(copyfiles
+        (prompt #copydocs)
+        (source "/")
+        (pattern "(läsmig)")
+        (dest destination)
+        (infos)
+        (help @copyfiles-help)
+)
+
+(copyfiles
+        (prompt #copydocs)
+        (source "/docs/bloodBath_swe.guide")
+        (dest destination)
+        (newname "docs/bloodBath_swe.guide")
+        (infos)
+        (help @copyfiles-help)
+)
+
+))
+
+(if (= @language "english")
+(
+
+(copyfiles
+        (prompt #copydocs)
+        (source "/readme")
+        (dest destination)
+        (infos)
+        (help @copyfiles-help)
+)
+
+(copyfiles
+        (prompt #copydocs)
+        (source "/docs/bloodBath_eng.guide")
+        (dest destination)
+        (newname "docs/bloodBath_eng.guide")
+        (infos)
+        (help @copyfiles-help)
+)
+
+))
+
+(complete 50)
+
+(copyfiles
+        (prompt #copymore)
+        (source "/")
+        (pattern "(Mods|Pictures|Samples|Sprites|Libs)")
+        (dest destination)
+        (infos)
+        (help @copyfiles-help)
+)
+
+(complete 60)
+
+(copyfiles
+        (prompt #copyintro)
+        (source "/")
+        (pattern "(intro|mv|intro.anim|intro.anim.index|intro.anim.sound)")
+        (dest destination)
+        (infos)
+        (help @copyfiles-help)
+)
+
+;=============================================================================
+; Icons settings
+
+(complete 70)
+
+(set #icontype
+   (askchoice
+      (prompt #icons-prompt)
+      (default 1)
+      (choices
+         "Standard"
+         "Magic WB Big"
+         "Magic WB Small"
+      )
+      (help #icons-help)
+   )
+)
+
+(copyfiles
+   (source
+      (select #icontype
+         "/Icons/BB.info"
+         "/Icons/BB_MWB.info"
+         "/Icons/BB_MWB2.info"
+      )
+   )
+   (dest @default-dest)
+   (newname "BloodBath/BloodBath.info")
+   (infos)
+)
+
+(copyfiles
+   (source
+      (select #icontype
+         "/Icons/Intro.info"
+         "/Icons/Intro_MWB.info"
+         "/Icons/Intro_MWB2.info"
+      )
+   )
+   (dest @default-dest)
+   (newname "BloodBath/Intro.info")
+   (infos)
+)
+
+(complete 80)
+
+(if (= @language "svenska")
+(
+
+(copyfiles
+   (source
+      (select #icontype
+         "/Icons/BB_swe.info"
+         "/Icons/BB_swe_MWB.info"
+         "/Icons/BB_swe_MWB.info"
+      )
+   )
+   (dest @default-dest)
+   (newname "BloodBath/docs/BloodBath_swe.guide.info")
+   (infos)
+)
+
+))
+
+(if (= @language "english")
+(
+
+(copyfiles
+   (source
+      (select #icontype
+         "/Icons/BB_eng.info"
+         "/Icons/BB_eng_MWB.info"
+         "/Icons/BB_eng_MWB.info"
+      )
+   )
+   (dest @default-dest)
+   (newname "BloodBath/docs/BloodBath_eng.guide.info")
+   (infos)
+)
+
+))
+
+
+(if (= #icontype 0)
+   (message #icons-message)
+)
+
+
+;=============================================================================
+; Startup Sequence
+
+(complete 90)
+
+(startup "BB"
+	(prompt "Some commands will be added to your \"s:user-startup\" file.")
+	(help @startup-help)
+	(command "if exists \"" destination "\"\n")
+	(command "   assign BB: \"" destination "\"\n")
+	(command "endif")
+)
+
+
+;=============================================================================
+; Finish
+
+(complete 99)
+
+(run (cat "assign BB: " "\"" destination "\""))
+
+;***** Finished
+
+(complete 100)

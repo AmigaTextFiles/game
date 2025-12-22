@@ -1,0 +1,166 @@
+#!/bin/sh
+
+# builds all; this script is only supposed to run on MY PERSONAL
+# MACHINE. look into the subdirectories for portable build scripts.
+
+#build RPM
+
+function packsource()
+{
+    for f in $PACKAGENAME/install $PACKAGENAME/bin/uninstall ; do
+	cp $f /tmp/tosed
+	sed -e "s|/var/tmp/armagetron-$VERSION-root||" < /tmp/tosed > $f 
+	rm -f /tmp/tosed
+    done
+
+    tar -cf $UPLOAD/$PACKAGENAME.tar $PACKAGENAME
+    gzip -best -f $UPLOAD/$PACKAGENAME.tar
+    tar -cjf $UPLOAD/$PACKAGENAME.tar.bz2 $PACKAGENAME
+}
+
+pushd ..
+cvs -q update || exit 1
+rm -f doc/commands.txt
+
+MV=$( sed -e "s/pre//" < minor_version )
+echo $MV > minor_version
+
+VERSION=$( cat major_version ).$( cat minor_version )
+TAG=$( echo v$VERSION | sed -e "s/\./_/g" )
+echo TAG=$TAG
+RPMPACKAGES=/usr/src/packages
+DIRECTORY_NAME=armagetron
+TARGETDEV=/windows/G/ArmagetronDevel
+TARGETBASE=$TARGETDEV/Source
+UPLOAD=/abakus/home/manuel/C++/Armagetron/Upload
+WWWDIR=/abakus/home/manuel/WWW/SourceForge/htdocs
+
+test "$( pwd )" == "$RPMPACKAGES/SOURCES/armagetron" && SOURCE=copy
+export SOURCE
+
+echo "#!/bin/sh" > tagcvs
+echo "cvs -q update" >> tagcvs
+echo "cvs -q commit" >> tagcvs
+echo "cvs tag \$* $TAG" >> tagcvs
+chmod 755 tagcvs
+
+cp CHANGELOG $WWWDIR
+
+find $RPMPACKAGES -name "armagetron*.rpm" -exec rm \{\} \;
+
+cd build/redhat
+./build $*  || exit 1
+
+pushd $RPMPACKAGES/SOURCES
+#building web and windows docu
+for f in web windows; do
+    echo -e "\nBuilding $f documentation..."
+    rm -rf ${f}docu_$DIRECTORY_NAME
+    mkdir ${f}docu_$DIRECTORY_NAME
+    cd ${f}docu_$DIRECTORY_NAME
+    docstyle=$f 
+    export docstyle
+    ../$DIRECTORY_NAME/configure
+    make documentation  || exit 1
+
+    find doc -name "*m4" -exec rm \{\} \;
+    find doc -name "*ghost" -exec rm \{\} \;
+    find doc -name "Makefile" -exec rm \{\} \;
+    find doc -name ".m4.dep" -exec rm \{\} \;
+    cd ..
+done
+
+
+rm -rf $WWWDIR/doc
+cp -ax webdocu_$DIRECTORY_NAME/doc $WWWDIR
+
+popd
+
+
+#copy generated doc and config files to windows
+
+MAJORVERSION=$( cat $RPMPACKAGES/SOURCES/armagetron/major_version )
+MINORVERSION=$( cat $RPMPACKAGES/SOURCES/armagetron/minor_version )
+NUMERICVERSION=$( echo $MAJORVERSION | sed -e "s/\.//" )
+
+VERSION=$MAJORVERSION.$MINORVERSION
+RPMRELEASE=$( cat .release_$VERSION )
+
+STABLE=no
+#test $(( $NUMERICVERSION % 2 )) = 0 && STABLE=yes
+#echo STABLE=$STABLE
+
+cd $RPMPACKAGES
+
+test -d BUILD/armagetron-$VERSION/bindist || exit 1
+cd BUILD/armagetron-$VERSION/bindist
+
+rm -rf $TARGETBASE/dist/*
+
+for DIR in dist debug ; do
+    TARGET=$TARGETBASE/$DIR
+    cp $TARGETBASE/libs_binonly/* $TARGET/
+    cp -fax * $TARGET/
+    cp ../README $TARGET/README.txt
+    cp ../README-SDL $TARGET/README-SDL.txt
+    rm -rf $TARGET/bin
+    rm -rf $TARGET/rc.d
+    rm -rf $TARGET/doc
+    cp -fax $RPMPACKAGES/SOURCES/windowsdocu_$DIRECTORY_NAME/doc $TARGET
+    install -d $TARGET/var
+    echo "This is the directory that will keep you configuration." > $TARGET/var/README.txt
+    find $TARGET -type f -exec chmod 755 \{\} \;
+    find $TARGET -name "*.txt" -exec recode lat1..ibmpc \{\} \; > /dev/null 2>&1
+    find $TARGET -name "*.cfg" -exec recode lat1..ibmpc \{\} \; > /dev/null 2>&1
+    find $TARGET -name ".*" -exec rm -f \{\} \;
+    find $TARGET -name "*~" -exec rm -f \{\} \;
+done
+
+for DIR in armagetron_build_devel armagetron_build_stable armagetron_work; do
+   TARGET=$TARGETBASE/$DIR
+   cp ../version.h $TARGET
+
+   test $DIR = armagetron_work || rm -rf $TARGET/VisualC/tmp
+   echo "cvs -q update $*" 	>  $TARGET/update.bat
+   echo "copy language\\*.txt ..\\dist\\language" >> $TARGET/update.bat
+   echo "copy language\\*.txt ..\\debug\\language" >> $TARGET/update.bat
+   echo "pause" >> $TARGET/update.bat
+#  echo "copy ../dist/*.dll ." >> $TARGET/update.bat
+
+   recode lat1..ibmpc $TARGET/update.bat  || exit 1
+done
+
+echo "define(ARMAGETRONVERSION,$VERSION)" 	>  $WWWDIR/version.m4
+echo "define(RPMRELEASE,$RPMRELEASE)" 	>>  $WWWDIR/version.m4
+
+if test $STABLE = yes ; then
+    echo "define(ARMAGETRONVERSION_STABLE,$VERSION)" 	>  $WWWDIR/stableversion.m4
+    echo "define(RPMRELEASE_STABLE,$RPMRELEASE)" 	>>  $WWWDIR/stableversion.m4
+fi
+
+cd ..
+
+mv $UPLOAD/old/* $UPLOAD/oldold
+mv $UPLOAD/*.* $UPLOAD/old
+
+PACKAGENAME=armagetron-linux-$VERSION
+mv bindist $PACKAGENAME
+packsource
+mv $PACKAGENAME bindist
+
+PACKAGENAME=armagetron-linux-dedicated-$VERSION
+mv bindist-dedicated $PACKAGENAME
+packsource
+mv $PACKAGENAME bindist-dedicated
+
+cd ../../
+find -name "armagetron*$VERSION*" -exec cp \{\} $UPLOAD \;
+
+pushd $UPLOAD
+PACKAGENAME=armagetron-$VERSION
+bzip2 -k -d $PACKAGENAME.tar.bz2  || exit 1
+rm -f $PACKAGENAME.tar.gz  || exit 1
+gzip -best -f $PACKAGENAME.tar  || exit 1
+popd
+
+popd

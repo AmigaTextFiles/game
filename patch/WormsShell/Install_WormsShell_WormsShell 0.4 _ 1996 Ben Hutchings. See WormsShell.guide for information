@@ -1,0 +1,551 @@
+(
+    ;Warn about buggy versions of Installer
+
+    (if (< @installer-version 43)
+	(message "Since you have an old version of Installer, this script may not work correctly. "
+	    "You are advised to abort now and update your copy of Installer before proceeding.")
+    )
+
+    (set #yes "YES")
+    (set #no "NO")
+
+    (if (= @language "english")
+	(set #deflangs 1)
+	(if (= @language "français")
+	    (
+		(set #deflangs 2)
+		(set #yes "OUI")
+		(set #no "NON")
+	    )
+	    (if (= @language "deutsch")
+		(
+		    (set #deflangs 4)
+		    (set #yes "JA")
+		    (set #no "NEIN")
+		)
+		(set #deflangs 0)
+	    )
+	)
+    )
+
+    ;Set installation mode
+
+    (set #instmode
+	(askchoice
+	    (choices
+		"[2pInstall Worms (floppy version) and WormsShell together"
+		"Install Worms CD³² and WormsShell together"
+		"Install WormsShell over an existing Worms installation"
+		"Update an older installation of WormsShell")
+	    (prompt "Choose installation mode")
+	    (help "If you have installed WormsShell before, choose the "
+		"last option (Update an older installation of WormsShell).\n\n"
+		"Otherwise, you are advised to pick the first or second "
+		"option (Install Worms and WormsShell together), depending "
+		"on which version of Worms you have. You should delete your "
+		"old installation of Worms first.\n\n"
+		"If you prefer not to delete your old installation, pick the "
+		"third option (Install WormsShell over an existing Worms "
+		"installation). This may not result in a very satisfactory "
+		"installation, though.")
+	)
+    )
+
+    ;Set various flags depending on installation mode
+
+    (set #fromfd (or (= #instmode 0) (= #instmode 2)))
+    (set #fromcd (= #instmode 1))
+    (set #instworms (or (= #instmode 0) (= #instmode 1)))
+    (set #update (= #instmode 3))
+
+    ;Initialise various flags
+
+    (set #cleanup 0)
+    (set #languages 0)
+    (set #hdwormcrunched 1)
+
+    (if #instworms
+	(
+	    ;Prepare to install Worms from scratch
+
+	    (set @app-name "Worms")
+	    (set #dest
+		(askdir
+		    (prompt "Select the drawer to install Worms and WormsShell in. "
+			"A new drawer will be created there for them.")
+		    (help @askdir-help)
+		    (default @default-dest)
+		)
+	    )
+	    (set #dest (tackon #dest "Worms"))
+	    (makedir #dest (infos))
+
+	    (while (= #languages 0)
+		(set #languages
+		    (askoptions
+			(prompt "Which languages would you like to install?")
+			(help "Speech samples for the chosen languages will be "
+			    "installed for you. You must choose at least one "
+			    "language. Each time you run Worms, you will be "
+			    "asked which language to use.")
+			(choices "[2pEnglish" "Français" "Deutsch")
+			(default #deflangs)
+		    )
+		)
+		(if (= #languages 0)
+		    (message "You must select at least one language.")
+		)
+	    )
+	)
+	(if #update
+	    (
+		(set #dest
+		    (askdir
+			(prompt "Select the drawer Worms and WormsShell were installed in")
+			(help @askdir-help)
+			(default "SYS:Worms")
+		    )
+		)
+
+		;Can we find HDWORM?
+
+		(if (not (exists (tackon #dest "HDWORM")))
+		    (
+			(set #dest (tackon #dest "Worms"))
+			(if (not (exists (tackon #dest "HDWORM")))
+			    (abort "Worms is not installed in the selected drawer.")
+			)
+			(if (not (exists (tackon #dest "WormsShell")))
+			    (abort "WormsShell is not installed in the selected drawer.")
+			)
+		    )
+		)
+	    )
+	    (
+		;Find and check old Worms installation
+
+		(set #dest
+		    (askdir
+			(prompt "Select the drawer Worms was installed in")
+			(help @askdir-help)
+			(default "SYS:Worms")
+		    )
+		)
+
+		;Can we find HDWORM?
+
+		(if (not (exists (tackon #dest "HDWORM")))
+		    (
+			(set #dest (tackon #dest "Worms"))
+			(if (not (exists (tackon #dest "HDWORM")))
+			    (abort "Worms is not installed in the selected drawer.")
+			)
+		    )
+		)
+
+		;Do we recognise it?
+
+		(working "Checking Worms executable")
+
+		(if (= (getsize (tackon #dest "HDWORM")) 130484) ;crunched size
+		    (if (= (getsum (tackon #dest "HDWORM")) 1617765619)
+			(set #hdwormcrunched 1)
+			(abort "Your HDWORM executable is corrupt or has been modified.")
+		    )
+		    (if (= (getsize (tackon #dest "HDWORM")) 353940) ;decrunched size
+			(if (= (getsum (tackon #dest "HDWORM")) 1077440902)
+			    (set #hdwormcrunched 0)
+			    (abort "Your HDWORM executable is corrupt or has been modified.")
+			)
+			(if (= (getsize (tackon #dest "HDWORM")) 1736) ;this should be called "WORMS"
+			    (abort "Worms has not been installed correctly; please delete "
+				"your installation and reinstall using this script.")
+			    (abort "You have an unsupported version of the HDWORM executable. "
+				"Please report this to the author.")
+			)
+		    )
+		)
+
+		;Should we delete the unneeded files?
+
+		(set #cleanup 1)
+
+		(if (= @user-level 2)
+		    (set #cleanup
+			(askbool
+			    (prompt "Would you like to remove the unnecessary "
+				"files which the Worms installer copied to your hard drive?")
+			    (help "This procedure will delete the files which Worms installs "
+				"to your hard drive but are only required when running from "
+				"floppy disks:"
+				"· devs/system-configuration\n"
+				"· Disk.info\n"
+				"· INSTALL(.info)\n"
+				"· libs/#?.library\n"
+				"· OCEAN\n"
+				"· Run\n"
+				"· s/startup-sequence\n"
+				"· TEAM17")
+			)
+		    )
+		)
+	    )
+	)
+    )
+
+    ;Make sure Installer reports the correct destination at the end
+
+    (set @default-dest #dest)
+
+    ;Should we decrunch HDWORM?
+
+    (if #hdwormcrunched
+	(set #decrunchhdworm
+	    (askbool
+		(prompt "Would you like to decrunch Worms?")
+		(help "Worms normally decrunches itself after loading, but this takes a long "
+		    "time unless you have a fast processor. If you decrunch it now, you will "
+		    "not have to wait for Worms to decrunch every time you run it, although "
+		    "it will take up about 220K more disk space.")
+	    )
+	)
+    )
+
+    (set #instguide
+	(askbool
+	    (prompt "Do you want to install the WormsShell guide file?")
+	    (help "This is the file you should have read before starting "
+		"this installation. Even if you have already read it, "
+		"you may want to have it to hand in case you want to "
+		"make changes to your Worms and WormsShell installations.")
+	)
+    )
+
+    ;Calculate disk space needed
+
+    (set #spaceneeded 50000) ;for WormsShell and Worms script, plus a bit spare for icons and stuff
+
+    (if (in #languages 0)
+	(set #spaceneeded (+ #spaceneeded 750000))
+    )
+    (if (in #languages 1)
+	(set #spaceneeded (+ #spaceneeded 375000))
+    )
+    (if (in #languages 2)
+	(set #spaceneeded (+ #spaceneeded 408000))
+    )
+    (if #instworms
+	(set #spaceneeded (+ #spaceneeded 667000)) ;HDWORM, TWCUSTOM, TW500, TWSTUFF, RunBack, *LIST
+    )
+    (if #instguide
+	(set #spaceneeded (+ #spaceneeded 24000))
+    )
+    (if #decrunchhdworm
+	(set #spaceneeded (+ #spaceneeded 225000))
+    )
+    (if #cleanup
+	(set #spaceneeded (- #spaceneeded 50000))
+    )
+
+    (while (< (getdiskspace #dest) #spaceneeded)
+	(message
+	    ("You do not appear to have enough free disk space to install %s with the options you have chosen. You will need approximately %ldK more disk space free before you can proceed." @app-name (/ (- #spaceneeded (getdiskspace #dest)) 1024))
+	)
+    )
+
+    ;Ask whether to set the switches
+
+    (set #switches
+	(askoptions
+	    (prompt "Select the startup options for Worms. "
+		"At the moment, I don't know how to set these safely for all systems. "
+		"Please experiment with them and report your experiences to me as "
+		"requested in the WormsShell guide. Select the Help button for some "
+		"advice.")
+	    (help "Normally you should set \"USE2MCHIP\" if you have 2M of Chip RAM, "
+		"\"USEFAST\" if you have some Fast RAM, and \"CLOSEWB\" if you "
+		"don't have both 2M Chip and some Fast. I need people to "
+		"experiment with these. Some combinations are likely to cause your "
+		"computer to crash, but with your help I hope to make these choices "
+		"safe and automatic in future.")
+	    (choices "[2pUSE2MCHIP" "USEFAST" "CLOSEWB")
+	    (default 3)
+	)
+    )
+
+    (set #sheep
+	(askbool
+	    (prompt "Do you want Worms to start with Sheep Mode on?")
+	    (help "Sheep Mode gives you lots of extra explosive weapons in every round. "
+		"However, you can set the availability of weapons freely using the "
+		"tooltypes described in the WormsShell guide.")
+	)
+    )
+
+    (if (>= (/ (getversion "libs:lowlevel.library") 65536) 40)
+	(set #cd32pad
+	    (askbool
+		(prompt "Do you want to use a CD³² joypad with Worms? (This will "
+		    "mean that you cannot use the keyboard in Worms.)")
+		(help "You do not need to have the CD version of Worms for this "
+		    "option to work, although it has not yet been tested.")
+	    )
+	)
+    )
+
+    (set #forcepal
+	(askbool
+	    (prompt "Do you want to force Worms to use a PAL display?")
+	    (help "This will be necessary only if you have an NTSC Amiga or a PAL "
+		"Amiga using an NTSC screenmode for the Workbench screen.")
+	)
+    )
+
+    ;Install WormsShell itself
+
+    (if #update
+	(
+	    (working "Updating WormsShell")
+	    (delete (tackon #dest "WormsShell.info"))
+	)
+	(working "Installing WormsShell")
+    )
+
+    (copyfiles (source "Worms") (dest #dest) (help "") (prompt ""))
+    (protect (tackon #dest "Worms") "+s") ;in case file has somehow lost the script bit
+    (copyfiles (source "WormsShell") (dest #dest) (help "") (prompt ""))
+    (copyfiles (source "WormsShell.icon") (dest #dest) (newname "Start_WormsShell.info") (help "") (prompt ""))
+
+    (if #instguide
+	(copyfiles (source "WormsShell.guide") (dest #dest) (infos) (noposition) (help "") (prompt ""))
+    )
+
+    (if #instworms
+	(
+	    ;Install Worms
+
+	    ;Install main Worms files
+
+	    (if #fromcd
+		(
+		    (askdisk
+			(prompt "Insert Worms CD")
+			(help @askdisk-help)
+			(dest "WORMS")
+		    )
+		    (set #source "WORMS:")
+		)
+		(
+		    (askdisk
+			(prompt "Insert Worms disk 1")
+			(help @askdisk-help)
+			(dest "TW1")
+		    )
+		    (set #source "TW1:")
+		)
+	    )
+
+	    (working "Installing Worms program")
+	    (if #decrunchhdworm
+		(if (run (cat "decrunchworms \"" (tackon #source "Worms") "\" \"" (tackon #dest "HDWORM") "\""))
+		    (if (= (getsize (tackon #source "Worms")) 130484) ;crunched size
+			(if (= (getsum (tackon #source "Worms")) 1617765619)
+			    (abort "Not enough memory to decrunch HDWORM - or perhaps you have "
+				"an incomplete XFD installation?")
+			    (abort "Your HDWORM executable is corrupt or has been modified.")
+			)
+			(abort "You have an unsupported version of the HDWORM executable. "
+			    "Please report this to the author.")
+		    )
+		)
+		(copyfiles (source (tackon #source "Worms")) (dest #dest) (newname "HDWORM"))
+	    )
+
+	    (copyfiles (source (tackon #source "RunBack")) (dest #dest))
+	    (working "Installing Worms graphics")
+	    (copyfiles (source (tackon #source "TWSTUFF")) (dest (tackon #dest "TWSTUFF")) (all))
+	    (working "Installing Worms basic samples")
+	    (copyfiles (source (tackon #source "TW500")) (dest (tackon #dest "TW500")) (all))
+	    (working "Installing default Worm and team lists")
+	    (copyfiles (source (tackon #source "TEAMLIST")) (dest #dest))
+	    (copyfiles (source (tackon #source "WORMLIST")) (dest #dest))
+	    (working "Installing custom landscapes")
+	    (makedir (tackon #dest "TWCUSTOM") (infos))
+	    (copyfiles (source (tackon #source "TWCUSTOM")) (dest (tackon #dest "TWCUSTOM")) (all))
+
+
+	    ;Install requested languages
+
+	    (if (in #languages 0)
+		(
+		    (set #sd1 "ENGLISH")
+		    (if (not (in #languages 1)) (set #sd2 "ENGLISH"))
+		    (if (not (in #languages 2)) (set #sd3 "ENGLISH"))
+		    (if #fromfd
+			(
+			    (askdisk
+				(prompt "Insert Worms disk 2")
+				(help @askdisk-help)
+				(dest "TW2")
+			    )
+			    (set #source "TW2:")
+			)
+		    )
+		    (working "Installing English samples")
+		    (makedir (tackon #dest "ENGLISH") (infos))
+		    (copyfiles (source (tackon #source "TWENGLISH")) (dest (tackon #dest "ENGLISH")) (all))
+		)
+	    )
+
+	    (if (in #languages 1 2)
+		(
+		    (if #fromfd
+			(
+			    (askdisk
+				(prompt "Insert Worms disk 3")
+				(help @askdisk-help)
+				(dest "TW3")
+			    )
+			    (set #source "TW3:")
+			)
+		    )
+		    (if (in #languages 1)
+			(
+			    (if (not (in #languages 0)) (set #sd1 "FRANCAIS"))
+			    (set #sd2 "FRANCAIS")
+			    (if (not (in #languages 2)) (set #sd3 "FRANCAIS"))
+			    (working "Installant les échantillons françaises")
+			    (makedir (tackon #dest "FRANCAIS") (infos))
+			    (copyfiles (source (tackon #source "TWFRENCH")) (dest (tackon #dest "FRANCAIS")) (all))
+			)
+		    )
+		    (if (in #languages 2)
+			(
+			    (if (not (in #languages 0)) (set #sd1 "DEUTSCH"))
+			    (if (not (in #languages 1)) (set #sd2 "DEUTSCH"))
+			    (set #sd3 "DEUTSCH")
+			    (working "Installing die Deutschen Geräusche")
+			    (makedir (tackon #dest "DEUTSCH") (infos))
+			    (copyfiles (source (tackon #source "TWGERMAN")) (dest (tackon #dest "DEUTSCH")) (all))
+			)
+		    )
+		)
+	    )
+	)
+	(
+	    ;Clean up existing Worms installation
+
+	    (if #cleanup
+		(
+		    (working "Removing unneeded files")
+
+		    (delete (tackon #dest "devs") (all))
+		    (delete (tackon #dest "Disk.info"))
+		    (delete (tackon #dest "INSTALL") (infos))
+		    (delete (tackon #dest "libs") (all))
+		    (delete (tackon #dest "OCEAN"))
+		    (delete (tackon #dest "Run"))
+		    (delete (tackon #dest "s") (all))
+		    (delete (tackon #dest "TEAM17"))
+		)
+	    )
+
+	    (if #decrunchhdworm
+		(if (run (cat "decrunchworms \"" (tackon #dest "HDWORM") "\" \"" (tackon #dest "HDWORM") "\""))
+		    (abort "Not enough memory to decrunch HDWORM - or perhaps you have "
+			"an incomplete XFD installation?")
+		)
+	    )
+
+	    (if (or
+		    (run (cat "MakeLink \"" (tackon #dest "ENGLISH") "\" \"" (tackon #dest "TWENGLISH") "\" force"))
+		    (run (cat "MakeLink \"" (tackon #dest "FRANCAIS") "\" \"" (tackon #dest "TWFRENCH") "\" force"))
+		    (run (cat "MakeLink \"" (tackon #dest "DEUTSCH") "\" \"" (tackon #dest "TWGERMAN") "\" force"))
+		)
+		(abort "MakeLink failed to make links for sample directories.")
+	    )
+
+	    (set #sd1 "ENGLISH")
+	    (set #sd2 "FRANCAIS")
+	    (set #sd3 "DEUTSCH")
+	)
+    )
+
+
+    ;Prepare to set tooltype as requested
+
+    (if (in #switches 0)
+	(set #uc #yes)
+	(set #uc #no)
+    )
+    (if (in #switches 1)
+	(set #uf #yes)
+	(set #uf #no)
+    )
+    (if (in #switches 2)
+	(set #cw #yes)
+	(set #cw #no)
+    )
+    (if #sheep
+	(set #sm #yes)
+	(set #sm #no)
+    )
+    (if #cd32pad
+	(set #jp #yes)
+	(set #jp #no)
+    )
+    (if #forcepal
+	(set #fp #yes)
+	(set #fp #no)
+    )
+
+
+    ;Set all the tooltypes
+
+    (tooltype (dest (tackon #dest "Start_WormsShell"))
+	(settooltype "SAMPLEDIR3" #sd3)
+	(settooltype "SAMPLEDIR2" #sd2)
+	(settooltype "SAMPLEDIR1" #sd1)
+	(settooltype "FORCEPAL" #fp)
+	(settooltype "CD32PAD" #jp)
+	(settooltype "SHEEPMODE" #sm)
+	(settooltype "CLOSEWB" #cw)
+	(settooltype "USEFAST" #uf)
+	(settooltype "USE2MCHIP" #uc)
+    )
+
+
+    ;Check ROM version
+
+    (if (< (/ (getversion "exec.library" (resident)) 65536) 39)
+	(set #breakproc (cat
+	    "· Reboot your Amiga.\n"
+	    "· Hold down both mouse buttons until a screen labelled \"Boot Menu\" appears.\n"
+	    "· Click on \"Advanced Options\".\n"
+	    "· Click on the cycle-gadget labelled \"Startup-Sequence\".\n"
+	    "· Click on \"Use\".\n"
+	    "· Click on the button for your hard drive - probably marked \"" (getdevice "SYS:")
+		"\".\n"
+	    "· Wait for a window containing a copyright notice to appear.\n")
+	)
+	(set #breakproc (cat
+	    "· Remove any floppy disks.\n"
+	    "· Reboot your Amiga.\n"
+	    "· Hold down both mouse buttons until a screen labelled \"Amiga Early Startup "
+		"Control\" appears.\n"
+	    "· Click on \"Boot With No Startup-Sequence\".\n"
+	    "· Wait for a window containing a copyright notice to appear.\n")
+	)
+    )
+
+    (message "IMPORTANT: If you do not have enough memory to run Worms after booting "
+	"normally, Worms may crash, die (leaving you with a blank screen) "
+	"or else exit with an error message. In this case, you will have to run Worms "
+	"manually from the CLI. This is not as hard as it may sound, but you may want "
+	"to write down these instructions for future reference. These are specific "
+	"to your particular Amiga and are therefore not contained in the WormsShell guide. "
+	"To run Worms from the CLI:\n"
+	#breakproc
+	"· Type 'cd \"" #dest "\"' and press Return.\n"
+	"· Type 'Worms' and press Return.")
+)

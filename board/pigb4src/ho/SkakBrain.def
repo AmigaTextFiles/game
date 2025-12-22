@@ -1,0 +1,130 @@
+DEFINITION MODULE SkakBrain;
+
+(*$ DEFINE Test:=FALSE *)
+(*$ LongAlign:=TRUE StackParms:=TRUE CStrings:=TRUE LargeVars:=FALSE *)
+(*$ IF Test *)
+  (*$ Volatile:=FALSE StackChk:=TRUE RangeChk:=TRUE OverflowChk:=TRUE
+  NilChk:=TRUE EntryClear:=TRUE CaseChk:=TRUE ReturnChk:=TRUE *)
+(*$ ELSE *)
+  (*$ Volatile:=TRUE StackChk:=FALSE RangeChk:=FALSE OverflowChk:=FALSE
+  NilChk:=FALSE EntryClear:=FALSE CaseChk:=FALSE ReturnChk:=FALSE *)
+(*$ ENDIF *)
+
+(* Re-Compile-kæde: Skak *)
+
+FROM SYSTEM IMPORT
+  BYTE;
+FROM SkakBase IMPORT
+  STILLINGTYPE, MaxTeori;
+
+CONST
+  SkakBrainDefCompilation="51";
+  MaxHalvTraek =  600; (* 180,200? *)
+
+TYPE
+  (* {mat}=skakmat, {x7}=draw on repetition *) 
+  MOVETYPES=(enpassant,rokade,pat,mat,slag,skak,promotion,x7);
+  MOVETYPE=SET OF MOVETYPES;
+  ATTRTYPES=(man,e1,e2,e4,a4,a5,a6,a7); (* lv1={e1} lv4={e4} lv7={e1,e2,e4} *)
+  ATTRTYPE=SET OF ATTRTYPES;            (* a4 should be e8, to get lv 1-15  *)
+					(* so use a5-a7 for xtras *)
+
+CONST
+  MOVEnormal=MOVETYPE{};
+  MOVEslag  =MOVETYPE{slag};
+  TeoMax       =   5; (* max antal kendte stillinger *)
+  TeoMaxTrk    =   5; (* max variantlængde *)
+
+TYPE
+  STRING=ARRAY[0..2000] OF CHAR;
+  str65=ARRAY[0..65] OF CHAR;
+  STRINGptr=POINTER TO STRING;
+  TRKDATA=RECORD
+            Fra:INTEGER;
+            Til:INTEGER;
+            Typ:MOVETYPE;
+            Vlu:INTEGER;
+          END;
+  TRAEKDATA=ARRAY[1..116] OF TRKDATA; (* max på 116 træk i een stilling *)
+  AEMtype=PROCEDURE();
+  STIL=RECORD
+    DomOn:INTEGER; (* -128 | 0 | 1 *) (* -128=don't change 		*)
+    StyOv:INTEGER; (* -128 | StyO  *) (*    0=man, 1-9=machine (1,4,7) 	*)
+    StyUn:INTEGER; (* -128 | StyU  *) (* store for StyU 		*)
+    Opad :INTEGER; (* -128 | 0 | 1 *) (* store for OpAd (BOOLEAN) norm=T*)
+    TrkNr:INTEGER;                    (* store for TraekNr             	*)
+    Late1:INTEGER;
+    Late2:INTEGER;
+    Late3:INTEGER;
+    Still:STILLINGTYPE;
+  END;
+
+  STILLREC=RECORD
+             Fra,Til  : INTEGER; (* [0] bruger start *)
+             Tekst    : STRINGptr; (* flere linier, der deles med \ eller LF *)
+             Secs     : CARDINAL; (* Seconds used for this move *)
+             Attribs  : ATTRTYPE; (* who did it? *)
+             Xtra     : SHORTINT; (* future *)
+           END;
+  SPIL=ARRAY[0..MaxHalvTraek] OF STILLREC; (* [0]=udgangsstilling *)
+
+VAR 
+  GameStartSeconds,GameStartMicros,MoveStartSeconds,MoveStartMicros : LONGINT;
+  stVsum   : CARDINAL; 
+  Evals    : LONGCARD; (* not used, use SkakBrainEval.Evals *)
+  Push     : BOOLEAN;
+  Spil     : POINTER TO SPIL; (* changed to pointer to free 14.4k global var (max 64k) *)
+  stilling : STILLINGTYPE;
+  start    : STIL;
+  EatChar  : CHAR;
+  (* retn kun for SkakBrainX *) 
+  retn     : ARRAY['B'..'t'] OF ARRAY[-31..31] OF INTEGER; (* retning opslagstabel *)
+  Teo:ARRAY[0..TeoMax] OF STILLINGTYPE;
+  TeoT:ARRAY[0..TeoMax],[1..4] OF TRKDATA;
+  DefStill : STILLINGTYPE;
+
+PROCEDURE Equal(a,b:ARRAY OF BYTE):BOOLEAN;
+(* Compare for alle data-typer (også StrVAR med StrCONST, men IKKE StrVar) *)
+
+PROCEDURE still(VAR stilling:STILLINGTYPE; st:str65);
+(* opsætter en stilling udfra en streng (st='' giver udgangsstilling) *)
+
+PROCEDURE DoMoveOk(VAR stilling:STILLINGTYPE; fra,til:INTEGER; VAR MoveTyp:MOVETYPE):BOOLEAN;
+(* fuldstændigt check af om træk er ok, genererer sort/hvide træk med DoMove *)
+(* IF not DoMoveOk() then fejl.. -> udfører et træk hvis det er lovligt *)
+
+PROCEDURE DoMoveC(VAR stilling:STILLINGTYPE; fra,til:INTEGER);
+(* som DoMove, men kræver IKKE MoveTyp information *)
+(* Hurtigere end DoMoveOK når træk ER valideret OK *)
+
+PROCEDURE DoMove(VAR stilling:STILLINGTYPE; fra,til:INTEGER; MoveTyp:MOVETYPE);
+(* udfører (hvide/sorte) træk, der i forvejen er valideret OK (af GetNext) *)
+(* underforvandling er sat til: 20 mindre så Tårn, 30 så Springer, 40 så Løber*)
+(* MoveTyp SKAL sættes til enpassant og rokade når relevant!!! (Brug DoMoveC) *)
+
+PROCEDURE GetNext(VAR stilling:STILLINGTYPE; VAR fra,til,retning:INTEGER;
+                  VAR MoveTyp:MOVETYPE);
+(* finder næste lovlige (hvide/sorte) træk i stillingen, fra=89 når ikke flere
+   fra=fra-1 og til=89 for læsning af en briks muligheder; *)
+
+PROCEDURE Mirror(VAR stilling:STILLINGTYPE);
+(* Spejler stilling sort/hvid *)
+
+PROCEDURE FindTrk(VAR stilling:STILLINGTYPE; dybde,ekstra:INTEGER;
+                  VAR Traek:TRKDATA; AEMproc:AEMtype);
+
+PROCEDURE GetMove(VAR st:STILLINGTYPE; VAR t:TRKDATA; MoveNr:CARDINAL; Quick:BOOLEAN);
+(* Lav Move af MoveNr, evt slået ligger i EatChar (blstrdBLSTRD) ellers ' ' *)
+(* 1'ste træk =1, Udfører træk hvis fundet et OK træk til MoveNr (fra<89) *)
+(* Quick, så drop check for skakker *)
+
+PROCEDURE GetMoveNr(VAR st:STILLINGTYPE; Fra,Til:INTEGER; VAR MoveNr:CARDINAL; Quick:BOOLEAN);
+(* Lav MoveNr af Move *) 
+
+PROCEDURE ClearHistory(cnt:INTEGER; black:BOOLEAN);
+(* clears engine history data 3* array: cnt=1-999 (4) moves back ,black=colour *)
+
+PROCEDURE AddHistory(VAR stilling:STILLINGTYPE; fra,til,vlu:INTEGER);
+(* to add moves not made by engine to history used by engine *)
+
+END SkakBrain.

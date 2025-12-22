@@ -1,0 +1,103 @@
+
+let
+    import "escape.aah"
+
+in
+    protect "bad lev"
+
+    (fn () =>
+     let
+	 val id = credentials ()
+	 val username = get escape : user ( id ) : name
+
+	 (* get level *)
+	 val levloc = requires "lev.location"
+	 val levmd5 = md5file levloc
+	     
+	 (* get solution *)
+	 val solloc = requires "sol.location"
+	 val solmd5 = md5file solloc
+
+	 val lev = Escape.fromfile levloc
+         val sol = Escape.sfromfile solloc
+
+	 (* put file in md5 pool *)
+	 val pre = MD5ROOT ^ (substr (levmd5, 0, 2))
+	 val pos = substr (levmd5, 2, size levmd5 - 2)
+
+	 val author = Escape.getauthor lev
+     in
+	 ensuredir pre;
+
+	 Escape.verify (lev, sol)
+           otherwise failm "The solution is invalid!";
+
+	 Escape.slength sol <= MAXSOLUTION
+	   otherwise failm [Maximum solution length:[itos MAXSOLUTION]];
+
+	 fexists (pre ^ "/" ^ pos)
+	   andthen failm "Same level already uploaded!";
+
+	 (empty (select id from escape : level
+                 where title = {Escape.gettitle lev}))
+	   otherwise failm "A level exists with this exact title.";
+
+	 (hascolorcodes author)
+	   andthen failm "Can't use color codes in Author.";
+
+	 let 
+	     (* insert level *)
+
+	     do system ("/bin/mv " ^ levloc ^ " " ^
+			(pre ^ "/" ^ pos))
+
+	     (* this appears to be irrelevant now,
+		since we store solutions in the database *)
+	     do system ("/bin/mv " ^ solloc ^ " " ^
+			(SOLROOT ^ levmd5 ^ ".sol"))
+
+	     val now = time ()
+
+	     val title = Escape.gettitle lev
+
+	     val levid = 
+		 insert (levmd5,
+			 title,
+			 author,
+			 now,
+			 0, 0, 0, 0, 0, 0, id)
+		 into escape : level : (md, title, author,
+					uploaded,
+					nvotes, difficulty,
+					style, rigidity,
+					cooked, solved, owner)
+	 in
+	     (* put solution as "official" *)
+	     insert (levid, "Original", username, solmd5, now,
+		     Escape.stobase64 sol, Escape.slength sol, false)
+	     into escape : solution : (of, name, author, md5, date,
+				       moves, len, speedrecord);
+
+	     (* put level in "triage" collection *)
+	     insert (TRIAGE-COLLECTION, levid)
+	     into escape : levelrel : (col, lev);
+
+	     (* add info comment *)
+	     insert (id, levid, now, 
+		     ['[nocolor title]' uploaded by [username].], 
+		     false, true)
+	     into escape : lcomment : (byuser, of, date, comment, 
+				       spoiler, info);
+
+	     (* fix triage collection *)
+
+	     update-collection TRIAGE-COLLECTION;
+
+	     (* make screenshot *)
+	     make-screenshot levmd5;
+
+	     print "ok\n"
+	 end
+     end)
+
+end

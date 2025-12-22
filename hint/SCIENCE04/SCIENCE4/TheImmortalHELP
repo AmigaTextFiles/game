@@ -1,0 +1,157 @@
+
+
+
+                                 IMMORTAL
+                                 --------
+
+                          SOLUTION TO LEVELS 1-4
+			  ----------------------
+
+                      SUPPLIED BY DAX! OF INNER CITY
+		      ------------------------------
+
+Level 1
+-------
+	Wait for the message from the vision.
+	Exit the room through the door on the left.
+	Go to the body and take all objects,avoid the goblin,and go south.
+	Kill second goblin,the go to talk to man,he will give you a key.
+	Go to the chest and open it with key,take all items in it.
+	Go back north,avoiding goblin,and through the door to the left.
+	Arm the 4-Shot scroll,go north and kill goblin with fireball.
+	Search body and take all items,take gold as well.
+	Go back south,and exit to the left.
+
+	Go to the south wall,and along it to the left,round the corner
+	and through the door.
+	Go south across the patch of dirt,along the bottom wall,and through
+	the door.
+	Go along the north wall to the left,then along the left one to
+	the south,fire fireball to light torch,avoid the shadows on the 
+	ground.pick up object,then continue south,then go right along
+	the south wall,picking up object on the way,then north along the
+	right wall,through the door.
+	Sleep on the straw.
+	
+	Walk over to beam of light,stand in its path,hold amulet up to the
+	light,but DO NOT read the runes,go down ladder when it appears.
+
+	PASSWORD TO LEVEL 2 (ALL ENERGY) : cddff10006f70
+
+Level 2
+-------
+	AVOID THE SLIME ALL THE TIME (Poetical or wot!)
+	Pick up the red gem.
+	Go to the bones,take the sword,but DO NOT look any further.
+	Exit through the door to the left.
+	Activate the CHARM spell,to protect against will'o'wisps.
+	Go to peddler,DO NOT buy at 80,instead walk away then back again,
+	and buy the oil at 60.
+	Go to the left.
+	Pick up the stone on the ground.
+	Exit through the door to the north,making sure that all 4 
+	of the will'o'wisps follow you.
+	Kill both of the Goblins.
+	Go through the door to the north,as soon as you get through the
+	door stand still.
+	Activate the CHARM spell again,and wait for the two goblins to
+	die.
+	Then go to the patch of dirt,plant the spores there.
+	LEAVE IMMEDIATELY through the door to the south.
+	Wait outside for about 5 seconds.	
+	Go back into the room.
+	Go to the king,give him water when he asks for it.	
+	Exit to the south,Exit to the South.
+	Go round the corner to the right,past the peddler,and exit right
+	through the door.
+	Avoid the slime,and exit south through the door.
+	sleep on the straw.	
+	Throw dust in the air.
+	Go to man with gem,and he will give it to you.
+	Walk to the right,and go through the second door on the north wall.
+	Put OIL onto boots,walk along corridor,drop stone onto SLIME.
+	Pick up gem,and exit through the door on the north wall.
+	
+	You will see three triangles with holes around them.
+	PUT THE GEMS IN IN THIS ORDER! 
+
+	First GEM  : Lower Right hole of Top Triangle
+
+	Second GEM : Upper Left hole of Middle Traingle
+
+	Third GEM  : Centre hole of Lower Triangle
+
+	Go down ladder to Level 3
+
+	PASSWORD TO LEVEL 3 (NEARLY ALL ENERGY) : cc5ee21000e10
+
+Level 3
+-------
+	Go down the ladder to the right.
+	Go to chest(Avoiding Flame-throwers!)and take everything.
+	Shoot troll (NOT GOBLIN!) with fireball,search body + take all.
+	Go back up the ladder.
+	Go down the left ladder.
+	Shoot the left goblin (NOT THE RIGHT ONE!) ,search body + take all.
+	Go down ladder,put on ring (PROTEAN) walk to the right,sticking
+	close to the wall,round the corner to the chest,take everything,
+	go back to the ladder,take the ring off.
+	Up the ladder,Up the ladder,Down the ladder to the Right.
+	Through the door to the right.
+	Go north,up the ladder on the north wall.
+	
+This Room is full of spikes,if you watch them you will see where they
+all lie,and on which corners.
+	Walk forward one small square.
+	Walk left,until you are one square right of the line to the
+	red gem,then go south until you can get the gem,then go back
+	to where you were before,and go left to the second ladder,go
+	down the ladder.
+	Walk round the corner,and throw the knife at the troll.
+	While the trolls fight,go through the door to the north.	
+	Go to the north wall,and head for the potion,drink the potion.
+	Kill both of the trolls,then exit through the door to the left.
+	Kill the troll,sleep on the straw.
+	when the light turn purple stand over it and drop the RED gem.
+	go down the ladder.
+
+	PASSWORD FOR LEVEL 4 (NEARLY ALL ENERGY) : b5fff31001eb0
+
+Level 4
+-------
+	Kill troll.
+	Go to man,select magic carpet and test fly it (IMPORTANT!)
+	Go north and through the door.
+	Stop as soon as you go through the door.
+	Select the magic carpet.
+	
+NB.The little mark below you shows where you are over the ground,use
+   it to find out what you are flying over.
+
+	Fly to the left,avoiding the flamers.when you get there fly
+	south,and then to the right doing the same thing.
+	Then go south and pick up the ring.
+	Go back to the door which you passed on the way and go through it.
+	Get back on the carpet,and fly north avoiding all the flamers.
+	When you get to a door go through it.
+	Sleep on the Straw.
+	Go down the Ladder.	
+	Kill the monsters.
+	Go down the ladder.	
+	Go to the Girl,When she asks you a question answer YES.
+	Go down the ladder.
+
+	YOU ARE NOW AT THE END OF LEVEL 4 _ PUZZLE.
+	
+	At the moment i am stuck at this point.
+
+
+
+                HOPE THIS HAS BEEN OF SOME HELP TO YOU ALL
+
+                       FROM DAX! OF INNER CITY 1990
+		       ----------------------------
+
+              Originally U/l'ed to THE LIGHT +44(0)815716025
+                             The BEST U.K. BBS
+

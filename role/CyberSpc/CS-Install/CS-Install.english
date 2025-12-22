@@ -1,0 +1,440 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  ShowCopyrightMessage procedure
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure ShowCopyrightMessage
+	(message "Cyberspace:    The first Computersimulationgame\n\n"
+		"Version" installVersion "     © 1996 Cyberspace D-Zign System \n\n"
+		"This program is SHAREWARE and all rights reserved ."
+	)
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  CompleteStep procedure
+;;;
+;;;  Shows how much of the work is completed.
+;;;
+;;;  Uses: completeLevel        Percent of work already done
+;;;        completeIncrement    Percent to add for this step
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure CompleteStep
+	(set completeLevel (+ completeLevel completeIncrement))
+	(complete completeLevel)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  SelectInstallDir procedure
+;;;
+;;;  Allows the user to select an installation directory (full path),
+;;;  which will be stored in the installDir variable.
+;;;
+;;;  Uses:  installDir      old installation directory path
+;;;
+;;;  Sets:  installDir      installation directory path
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(set installDir "Games:")
+(procedure SelectInstallDir
+	(set installDirParent (pathonly installDir))
+
+	((set installDirParent (expandpath (askdir
+		(prompt "Please select the installation directory. "
+			"A drawer Cyberspace will be created."
+		)
+		(help "Cyberspace is installed in a directory called `Cyberspace'. "
+		      "For example, sounds go into `Cyberspace/snd', text "
+		      "in `Cyberspace/text' and so on.\n\n"
+		      "A typical place for Cyberspace is something like "
+		      "`Games:Cyberspace' or something similar. In this "
+		      "example you should select the directory "
+		      "`Games:'.\n\n"
+		      @askdir-help
+		)
+		(default (pathonly installDir))
+		(newpath)
+	    )))
+
+	(CompleteStep)
+
+	(set installDir (tackon installDirParent "Cyberspace"))
+
+	(message "Installing Cyberspace in " installDir ".\n\n"
+		"sounds will be in " (tackon installDir "snd")
+		", texts in " (tackon installDir "text")
+		", brushes in " (tackon installDir "brush")
+		", and so on."
+	))
+	(set @default-dest installDir)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  SelectLHAProgram procedure
+;;;
+;;;  Lets the user select the LHA binary; sets the variable lhaProgram.
+;;;
+;;;  Sets: lhaProgram   path of LhA binary
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure SelectLHAProgram
+
+    (set l 1)
+    (while l
+    (   (set lhaProgram (askfile
+	    (prompt "Please select your LhA program.")
+	    (help "Unfortunately the Installer program ignores "
+		  "your path settings. Thus I need to know the "
+		  "complete path of your LhA program.\n\n"
+		  @askfile-help
+	    )
+	    (default "LhA")
+	))
+	(if (exists lhaProgram)
+	(   (set l 0)
+	))
+    ))
+    (CompleteStep)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  UnpackArchives procedure
+;;;
+;;;  Allows the user to select and unpack LhA archives.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure UnpackArchivesHarddisk
+	((SelectLHAProgram)
+	(CompleteStep)
+
+	(message "Installer will create all directories needed for the game. "
+		"After this action he will decrypt all files into the dirs. "
+	)
+	(makedir installDir)
+	(set installDirStandard installDir)
+	(if (<> (substr installDir (- (strlen installDir) 1)) "/")
+		((set installDir (cat installDir "/"))
+	))
+	(set installDirSound (cat installDir "snd"))
+	(set installDirGfx (cat installDir "gfx"))
+	(set installDirText (cat installDir "text"))
+	(set installDirBrush (cat installDir "brush"))
+	(makedir installDirSound)
+	(makedir installDirGfx)
+	(makedir installDirText)
+	(makedir installDirBrush)
+	(set installDirSound (cat installDirSound "/"))
+	(set installDirGfx (cat installDirGfx "/"))
+	(set installDirText (cat installDirText "/"))
+	(set installDirBrush (cat installDirBrush "/"))
+	(CompleteStep)
+
+	(set lhaCommand (cat lhaProgram " x \"%s\" " installDir))
+
+	((if (exists "Main.lha")
+		((set installArchive "Main.lha"))
+		((set installArchive "CyberspaceInstall1:Main.lha"))
+		)
+	)
+	(if (run (lhaCommand installArchive)
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (lhaCommand installArchive)
+		"\n\nshowed an error."
+	    ))
+	)
+	(CompleteStep)
+
+	(set lhaCommand (cat lhaProgram " x \"%s\" " installDirSound))
+	(if (exists "Sounds.lha")
+		((set installArchive "Sounds.lha"))
+		((if (exists "CyberspaceInstall1:Sounds.lha")
+			((set installArchive "CyberspaceInstall1:Sounds.lha"))
+			((set installArchive "CyberspaceInstall2:Sounds.lha"))
+			)
+		)
+
+	)
+	(if (run (lhaCommand installArchive)
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (lhaCommand installArchive)
+		"\n\nshowed an error."
+	    ))
+	)
+	(CompleteStep)
+
+	(set lhaCommand (cat lhaProgram " x \"%s\" " installDirText))
+	((if (exists "Text.lha")
+		((set installArchive "Text.lha"))
+		((set installArchive "CyberspaceInstall1:Text.lha"))
+		)
+	)
+	(if (run (lhaCommand installArchive)
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (lhaCommand installArchive)
+		"\n\nshowed an error."
+	    ))
+	)
+	(CompleteStep)
+
+	(set lhaCommand (cat lhaProgram " x \"%s\" " installDirBrush))
+	((if (exists "Gfx.lha")
+		((set installArchive "Gfx.lha"))
+		((set installArchive "CyberspaceInstall1:Gfx.lha"))
+		)
+	)
+	(if (run (lhaCommand installArchive)
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (lhaCommand installArchive)
+		"\n\nshowed an error."
+	    ))
+	)
+	(CompleteStep)
+	)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  UnpackArchives procedure
+;;;
+;;;  Allows the user to select and unpack LhA archives.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure UnpackArchivesDisk
+	((SelectLHAProgram)
+	(CompleteStep)
+
+	(message "Installer will format your disks before using it. "
+	)
+
+	(set formatCommand (cat "format drive df0: name \"%s\" NOICONS"))
+	(set installCommand (cat "install df0:"))
+
+	(message "Insert a blank disk into df0:, it will be formatted. "
+		"This disk will be the boot disk, called MAIN."
+	)
+	(if (run (formatCommand "Cyberspace")
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (formatCommand "Cyberspace")
+		"\n\nshowed an error."
+	    ))
+	)
+	(if (run (installCommand)
+		(prompt ("\n\nInstalling \"%s\" ..."))
+	    )
+	    ((abort "\n\n" (installCommand)
+		"\n\nshowed an error."
+	    ))
+	)
+	(set lhaCommand (cat lhaProgram " x \"%s\" Cyberspace:"))
+	((if (exists "Main.lha")
+		((run ("copy Main.lha t:Archive.lha")))
+		((run ("copy CyberspaceInstall1:Main.lha t:Archive.lha")))
+		)
+	)
+	(message "Insert the new formatted disk called MAIN into any drive:")
+	(set installArchive "t:Archive.lha")
+	(if (run (lhaCommand installArchive)
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (lhaCommand installArchive)
+		"\n\nshowed an error."
+	    ))
+	)
+	(CompleteStep)
+
+	(message "Insert a blank disk into df0:, it will be formatted. "
+		"This disk will be the boot disk, called SOUNDS."
+	)
+	(if (run (formatCommand "CSSound")
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (formatCommand "CSSound")
+		"\n\nshowed an error."
+	    ))
+	)
+	(set lhaCommand (cat lhaProgram " x \"%s\" CSSound:"))
+	(if (exists "Sounds.lha")
+		((run ("copy Sounds.lha t:Archive.lha")))
+		((if (exists "CyberspaceInstall1:Sounds.lha")
+			((run ("copy CyberspaceInstall1:Sounds.lha t:Archive.lha")))
+			((run ("copy CyberspaceInstall2:Sounds.lha t:Archive.lha")))
+			)
+		)
+	)
+	(message "Insert the new formatted disk called SOUNDS into any drive:")
+	(set installArchive "t:Archive.lha")
+	(if (run (lhaCommand installArchive)
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (lhaCommand installArchive)
+		"\n\nshowed an error."
+	    ))
+	)
+	(CompleteStep)
+
+	(message "Insert a blank disk into df0:, it will be formatted. "
+		"This disk will be the boot disk, called TEXT."
+	)
+	(if (run (formatCommand "CSText")
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (formatCommand "CSText")
+		"\n\nshowed an error."
+	    ))
+	)
+	(set lhaCommand (cat lhaProgram " x \"%s\" CSText:"))
+	((if (exists "Text.lha")
+		((run ("copy Text.lha t:Archive.lha")))
+		((run ("copy CyberspaceInstall1:Text.lha t:Archive.lha")))
+		)
+	)
+	(message "Insert the new formatted disk called TEXT into any drive:")
+	(set installArchive "t:Archive.lha")
+	(if (run (lhaCommand installArchive)
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (lhaCommand installArchive)
+		"\n\nshowed an error."
+	    ))
+	)
+	(CompleteStep)
+
+	(message "Insert a blank disk into df0:, it will be formatted. "
+		"This disk will be the boot disk, called GRAFIK."
+	)
+	(if (run (formatCommand "CSGfx")
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (formatCommand "CSGfx")
+		"\n\nshowed an error."
+	    ))
+	)
+	(set lhaCommand (cat lhaProgram " x \"%s\" CSGfx:"))
+	((if (exists "Gfx.lha")
+		((run ("copy Gfx.lha t:Archive.lha")))
+		((run ("copy CyberspaceInstall1:Gfx.lha t:Archive.lha")))
+		)
+	)
+	(message "Insert the new formatted disk called GRAFIK into any drive:")
+	(set installArchive "t:Archive.lha")
+	(if (run (lhaCommand installArchive)
+		(prompt ("\n\nUnpacking \"%s\" ..." installArchive))
+	    )
+	    ((abort "\n\n" (lhaCommand installArchive)
+		"\n\nshowed an error."
+	    ))
+	)
+	(CompleteStep)
+	)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  ActionDiskInstallation procedure
+;;;
+;;;  Executes the work which is unique for installing a new package:
+;;;  Unpacking the archive.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure ActionDiskInstallation
+	(UnpackArchivesDisk)
+	(CompleteStep)
+	((if (exists "standard.dat")
+		((run ("copy standard.dat Cyberspace:")))
+		((run ("copy CyberspaceInstall1:standard.dat Cyberspace:")))
+		)
+	)
+	(complete 100)
+	(message "Cyberspace is completely installed to 4 disks."
+		"Boot with the MAIN-disk and insert the others,"
+		"if requested"
+	)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;  ActionHarddiskInstallation procedure
+;;;
+;;;  Executes the work which is unique for installing a new package:
+;;;  Unpacking the archive.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(procedure ActionHarddiskInstallation
+	(SelectInstallDir)
+	(UnpackArchivesHarddisk)
+	(CompleteStep)
+	((if (exists "standard.dat")
+		((set copyStandard (cat "copy standard.dat " installDirStandard)))
+		((set copyStandard (cat "copy CyberspaceInstall1:standard.dat " installDirStandard)))
+		)
+	)
+	((run (copyStandard)))
+	(complete 100)
+	(message "Cyberspace is completely installed in one directory called Cyberspace."
+	)
+)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;   main program
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(ShowCopyrightMessage)
+
+(   (complete 0)
+
+    (set repeatIt 1)
+    (set defaultChoice 1)
+    (while repeatIt
+    (   (set actionChoice (askchoice
+	    (prompt "Please select actions to perform.")
+	    (help "Select \"Install to disks\", if you want "
+		  "to play Cyberspace from disks. You will need "
+		  "4 disks to install on it.\n\n"
+		  "Select \"Install to harddisk\", if you want to "
+		  "to play Cyberspace from harddisks. You will need "
+		  "3 MB free disk space.\n\n"
+		  "Select \"Done\", if you want to exit.\n\n"
+		  @askchoices-help
+	    )
+	    (choices "Install to disks."
+		     "Install to harddisk."
+		     "Done"
+	    )
+	    (default defaultChoice)
+	))
+
+	(select actionChoice
+	(   (set completeLevel 0)
+	    (set completeIncrement 10)
+	    (ActionDiskInstallation)
+	    (set repeatIt 0)
+	)
+	(   (set completeLevel 0)
+	    (set completeIncrement 10)
+	    (ActionHarddiskInstallation)
+	    (set repeatIt 0)
+	)
+	(   (set repeatIt 0)
+	))
+    ))
+
+    (complete 100)
+)

@@ -1,0 +1,747 @@
+;
+; Language for Kroz I by Adam Dawes.
+;
+
+
+; --- movement handling ---
+
+verb = .direction
+   syntax = direction
+      a = cango player direction       ; can we go this way?
+      if a = noroom                    ; nope...
+         submove                       ; don't increment turn counter
+         endparse
+      endif
+      move player a                    ; move player to wherever he's going
+
+      gosub .findlight                 ; is there any light here?
+      if a = false                     ; no
+         eprint "It is dark.^"
+      endif
+
+      printshortdesc                   ; one-line description of room
+
+      a = superbriefon
+      if a = false
+         a = verboseon
+         if a = true                         ; 'verbose' mode is on
+            printlongdesc                    ; long room description
+         endif
+         if a = false                        ; 'brief' mode is on
+            a = hasroom location entered     ; been here before?
+            if a = false
+               printlongdesc                 ; no -- so give long desc.
+            endif
+         endif
+      endif
+
+      giveroom location entered              ; we have now been here
+
+      a = children location            ; how many objects in this location?
+      if a = 1                         ; 1 = me, no others
+         endparse
+      endif
+      s = 0                            ; use stream 0
+      o = location                     ; list objects in current location
+      gosub .listobjects      
+      endparse
+
+
+
+; --- object manipulation ---
+
+verb = get
+   syntax = verb noun
+      a = carried noun1
+      if a = true
+         eprint "You're already carrying it!^"
+      endif
+      a = nearto noun1
+      if a = false
+         eprint "It's not here!"
+      endif
+      a = getparent noun1        ; a is now the parent of the target obj
+      if a <> location           ; the object is inside/on top of something
+         b = has a openable      ; is the object's parent openable?
+         if b = true
+            b = has a open       ; and is it open?
+            if b = false
+               eprint "I can't see @a1 @n1!^"
+            endif
+         endif
+         print "(from the "
+         printobjshort a
+         print ")^"
+      endif
+      a = has noun1 static
+      if a = true
+         eprint "As hard as you try, you just can not lift the @n1.^"
+      endif
+      a = has noun1 scenery
+      if a = true
+         eprint "You can't take that!^"
+      endif
+      move noun1 player
+      eprint "Taken.^"
+   syntax = verb word
+      eprint "It's not here!^"
+
+verb = drop
+   syntax = verb noun
+      checkcarried noun1
+      move noun1 location        ; drop the object
+      eprint "Dropped.^"
+   syntax = verb word
+      eprint "I'm not carrying any @w1!^"
+
+verb = put
+   syntax = verb noun word=on noun
+      gosub .checklight
+      a = getparent noun1
+      if a <> player
+         eprint "..You're not carrying the @n1!^"
+      endif
+      a = nearto noun2
+      if a = false
+         eprint "I can't see any @n2!^"
+      endif
+      a = has noun2 supporter
+      if a = false
+         eprint "There's no good surface on the @n2.^"
+      endif
+
+;     a = weight noun1                          ; weight of src object
+;     b = wused noun2                           ; used weight of dst obj
+;     c = wcapacity noun2                       ; total capacity of dst obj
+;     a = a + b                  ; too much weight on there already
+;     if a > c
+;        eprint "There's no room on the @n2.^"
+;     endif
+
+;     a = oused noun2                           ; used capacity of dst obj
+;     b = ocapacity noun2                       ; total capacity of dst obj
+;     a = a + 1
+;     if a > b                   ; too many objects on there already
+;        eprint "There's no room on the @n2.^"
+;     endif
+
+      move noun1 noun2                          ; put n1 on n2
+      eprint "You put the @n1 on the @n2.^"
+   syntax = verb word word=on word
+      eprint "I don't have any @w1!^"
+   syntax = verb noun word=on word
+      eprint "I don't see any @w2!^"
+   syntax = verb noun word=in noun
+      a = getparent noun1
+      if a <> player
+         eprint "..You're not carrying the @n1!^"
+      endif
+      a = nearto noun2
+      if a = false
+         eprint "I can't see any @n2!^"
+      endif
+
+      a = has noun2 container
+      if a = false
+         eprint "..And how exactly do I put things in the @n2?^"
+      endif
+      a = has noun2 openable        ; can the container be opened?
+      if a = true
+         a = has noun2 open         ; if so, is it open?
+         if a = false
+            eprint "You'd better open the @n2 first!^"
+         endif
+      endif
+
+;     a = weight noun1                          ; weight of src object
+;     b = wused noun2                           ; used capacity of dst obj
+;     c = wcapacity noun2                       ; total capacity of dst obj
+;     a = a + b
+;     if a > c             ; too much weight in there already
+;        eprint "There's no room in the @n2.^"
+;     endif
+
+;     a = oused noun2                           ; used capacity of dst obj
+;     b = ocapacity noun2                       ; total capacity of dst obj
+;     a = a + 1
+;     if a > b             ; too many objects in there already
+;        eprint "There's no room in the @n2.^"
+;     endif
+
+      move noun1 noun2                          ; put n1 in n2
+      eprint "You put the @n1 in the @n2.^"
+   syntax = verb word word=in word
+      eprint "I don't have any @w1!^"
+   syntax = verb noun word=in word
+      eprint "I don't see any @w2!^"
+
+
+
+verb = eat
+   syntax = verb noun
+      checkcarried noun1
+      a = has noun1 edible
+      if a = false
+         eprint "It doesn't look very appetising..^"
+      endif
+      move noun1 trashcan     ; object goes to trashcan (see rooms file)
+      eprint "You eat the @n1.^"
+   syntax = verb word
+      eprint "You're not carrying any @w1!^"
+
+verb = examine
+   syntax = verb noun
+      gosub .checklight
+
+      a = nearto noun1
+      if a = false
+         eprint "I can't see any @n1!^"
+      endif
+
+      if noun1 = window
+         a = has curtain open
+         if a = false
+            eprint "Your view of the window is somewhat obscured by \
+                     the curtain hanging in front of it.^"
+         endif
+      endif
+
+      printobjfull noun1
+      a = has noun1 openable
+      if a = true
+         a = has noun1 open
+         if a = true
+            print "It is open.^"
+         endif
+         if a = false
+            print "It is closed.^"
+         endif
+      endif
+      a = has noun1 switchable
+      if a = true
+         a = has noun1 on
+         if a = true
+            print "It is switched on.^"
+         endif
+         if a = false
+            print "It is switched off.^"
+         endif
+      endif
+
+      a = has noun1 container
+      if a = true
+         a = has noun1 openable -open     ; is it openable, but closed?
+         if a = false
+            a = children noun1
+            if a = 0
+               print "The @n1 is empty.^"
+            endif
+            if a <> 0
+               print "In the @n1:^"
+               s = 1    ; objstream 1 so that indentation is increased
+               o = noun1
+               gosub .listobjects
+            endif
+         endif
+      endif
+      a = has noun1 supporter
+      if a = true
+         a = children noun1
+         if a <> 0
+            print "On the @n1:^"
+            s = 1
+            o = noun1
+            gosub .listobjects
+         endif
+      endif
+      endparse
+   syntax = verb word
+      gosub .checklight
+      eprint "I can't see any @w1!^"
+
+
+verb = open
+   syntax = verb noun
+      gosub .checklight
+      a = nearto noun1
+      if a = false
+         eprint "I can't see any @n1!^"
+      endif
+      a = has noun1 openable
+      if a = false
+         eprint "The @n1 doesn't seem to open!^"
+      endif
+      a = has noun1 lockable           ; is the thing lockable?
+      if a = true
+         a = has noun1 locked          ; is it locked?
+         if a = true
+            eprint "The @n1 seems to be locked.^"
+         endif
+      endif
+      a = has noun1 open
+      if a = true
+         eprint "The @n1 is open already!^"
+      endif
+      give noun1 open
+      print "The @n1 is now open.^"
+
+      if noun1 = curtain
+         giveroom location light       ; we can see now
+         a = has switch taken       ; is this the first time we've seen?
+         if a = false
+            give switch taken       ; no longer the first time
+            printshortdesc
+            printlongdesc
+            a = children location      ; how many objects in this location?
+            if a = 1                   ; 1 = me, no others
+               endparse
+            endif
+            s = 0                      ; use stream 0
+            o = location               ; list objects in current location
+            gosub .listobjects      
+            endparse
+         endif
+      endif
+      a = has noun1 container
+      if a = true
+         a = children noun1
+         if a = 0
+            print "The @n1 is empty.^"
+         endif
+         if a <> 0
+            print "In the @n1:^"
+            s = 1
+            o = noun1
+            gosub .listobjects
+         endif
+      endif
+      endparse
+   syntax = verb word
+      eprint "I can't see any @w1!^"
+
+
+verb = close
+   syntax = verb noun
+      gosub .checklight
+      a = nearto noun1
+      if a = false
+         eprint "I can't see any @n1!^"
+      endif
+      a = has noun1 openable
+      if a = false
+         eprint "I don't know how to close the @n1!^"
+      endif
+      a = has noun1 open
+      if a = false
+         eprint "The @n1 is closed already!^"
+      endif
+      give noun1 -open
+      print "The @n1 is now closed.^"
+
+      if noun1 = curtain
+         a = has switch on             ; is the light on?
+         if a = false
+            giveroom location -light         ; oops -- it's dark
+            gosub .findlight
+            if a = false
+               eprint "It's now dark.^"
+            endif
+         endif
+      endif
+      endparse
+   syntax = verb word
+      eprint "I can't see any @w1!^"
+
+
+verb = unlock
+   syntax = verb noun word=with noun
+      gosub .checklight
+      a = nearto noun1
+      if a = false
+         eprint "I can't see any @n1!^"
+      endif
+      a = getparent noun2
+      if a <> player
+         eprint "You're not carrying @a2 @n2!^"
+      endif
+      a = has noun1 lockable
+      if a = false
+         eprint "I'm not entirely sure how to go about unlocking the @n1!^"
+      endif
+      a = has noun1 locked
+      if a = false
+         eprint "But the @n1 isn't locked!"
+      endif
+      eprint "The @n2 doesn't seem to unlock the @n1..^"
+   syntax = verb noun
+      eprint "What do you want to unlock the @n1 with?^"
+   syntax = verb word word=with any
+      eprint "I can't see any @w1!^"
+   syntax = verb noun word=with word
+      eprint "I can't see any @w2!^"
+
+verb = lock
+   syntax = verb noun word=with noun
+      gosub .checklight
+      a = nearto noun1
+      if a = false
+         eprint "I can't see any @n1!^"
+      endif
+      a = getparent noun2
+      if a <> player
+         eprint "You're not carrying @a2 @n2!^"
+      endif
+      a = has noun1 lockable
+      if a = false
+         eprint "I'm not entirely sure how to go about locking the @n1!^"
+      endif
+      a = has noun1 locked
+      if a = true
+         eprint "But the @n1 is already locked!"
+      endif
+      a = has noun1 openable
+      if a = true
+         a = has noun1 open
+         if a = true
+            eprint "You'd better close the @n1 first..^"
+         endif
+      endif
+      eprint "The @n2 doesn't seem to lock the @n1..^"
+   syntax = verb noun
+      eprint "What do you want to lock the @n1 with?^"
+   syntax = verb word word=with any
+      eprint "I can't see any @w1!^"
+   syntax = verb noun word=with word
+      eprint "I can't see any @w2!^"
+
+
+verb = turn
+   syntax = verb word=on noun
+      a = nearto noun1
+      if a = false
+         eprint "I can't see any @n1!^"
+      endif
+
+      a = noun1                        ; copy noun1 to a
+      if a = light                     ; are we turning on the light?
+         a = switch                    ; yes, actually turn on the switch
+      endif
+
+      b = has a switchable
+      if b = false
+         eprint "I don't see any way of turning the @n1 on!^"
+      endif
+      b = has a on
+      if b = true
+         eprint "The @n1 is already turned on!^"
+      endif
+
+      give a on               ; switch on the object
+      print "You turn on the @n1.^"
+
+      if a = switch
+         giveroom location light    ; turn on the light
+         if noun1 = switch       ; don't do this if 'turn on light'
+            print "A light bursts into life above you..^^"
+         endif
+
+         give light on           ; the light is on aswell as the switch!
+
+         a = has switch taken    ; taken flag tells us if it's the first time
+         if a = false
+            give switch taken       ; no longer the first time
+            printshortdesc
+            printlongdesc
+            a = children location            ; how many objects in this location?
+            if a = 1                         ; 1 = me, no others
+               endparse
+            endif
+            s = 0                            ; use stream 0
+            o = location                     ; list objects in current location
+            gosub .listobjects      
+            endparse
+         endif
+      endif
+      endparse
+   syntax = verb word=off noun
+      a = nearto noun1
+      if a = false
+         eprint "I can't see any @n1!^"
+      endif
+
+      a = noun1                        ; copy noun1 to a
+      if a = light                     ; are we turning on the light?
+         a = switch                    ; yes, actually turn on the switch
+      endif
+
+      b = has a switchable
+      if b = false
+         eprint "I don't see any way of turning the @n1 off!^"
+      endif
+      b = has a on
+      if b = false
+         eprint "The @n1 is already turned off!^"
+      endif
+
+      give a -on                 ; turn the thing off
+      print "You turn the @n1 off.^"
+
+      if a = switch
+         give light -on             ; the light object is off too!
+         a = has curtain open       ; is the curtain open?
+         if a = false               ; no.. so..
+            giveroom location -light      ; take away the light
+         endif
+         gosub .findlight
+         if a = false
+            eprint "It's now dark!^"
+         endif
+      endif
+      endparse
+   syntax = verb word=on
+      eprint "What do you want to turn on?"
+   syntax = verb word=off
+      eprint "What do you want to turn off?"
+   syntax = verb noun
+      eprint "The @n1 doesn't seem to turn!^"
+      
+
+
+; --- game commands ---
+
+verb = look
+   syntax = verb
+      gosub .checklight                ; is there any light here?
+
+      printshortdesc
+      printlongdesc
+      a = children location            ; how many objects in this location?
+      if a = 1                         ; 1 = me, no others
+         endparse
+      endif
+      s = 0                            ; use stream 0
+      o = location                     ; list objects in current location
+      gosub .listobjects      
+      endparse
+
+
+verb = inventory
+   syntax = any
+      print "You are carrying:^"
+      a = children player              ; how many objects am I carrying?
+      if a = 0
+         eprint "  Nothing.^"
+      endif
+      s = 1                            ; indentation straight away
+      o = player                       ; list my objects
+      gosub .listobjects
+      endparse
+
+
+verb = .listobjects  ; recursively list al objects contained within 'o'
+   syntax = any
+      resetstream s o
+      loop
+         a = getstreamobj s            ; get obj from stream
+         if a = noobject
+            exitloop                   ; reached the end
+         endif
+         if a <> player                ; check it's not me!
+            b = has a scenery          ; is it scenery?
+            if b = false
+               if s = 0
+                  printobjlong a          ; say what the object is (long)
+               endif
+               if s <> 0
+                  gosub .doindent
+                  printarticle a
+                  printobjshort a         ; say what the object is (short)
+                  print "^"
+               endif
+               b = children a             ; see how many children it has
+               if b <> 0
+                  c = 0                   ; not ok to show children
+                  b = has a container
+                  if b = true
+                     c = 1                ; it's a container
+                     d = has a openable -open   ; is it openable but closed?
+                     if d = true
+                        c = 0       ; contents is not visible..
+                     endif
+                  endif
+                  b = has a supporter
+                  if b = true
+                     c = 2             ; it's a supporter
+                  endif
+                  if c <> 0                  ; it's ok to show the children..
+                     gosub .doindent
+                     if c = 1
+                        print "In the "
+                     endif
+                     if c = 2
+                        print "On the "
+                     endif
+                     printobjshort a
+                     print ":^"
+
+                     push o                  ; store the current obj
+                     s = s + 1               ; increase stream value
+                     o = a                   ; get new object to scan
+                     gosub .listobjects      ; say what's in/on this object
+                     s = s - 1               ; return to original stream
+                     o = pop                 ; get back old object
+                  endif
+               endif
+            endif
+         endif
+      endloop
+      return
+
+verb = .doindent                       ; do indentation for object lists
+   syntax = any
+      if s = 0
+         return
+      endif
+      r = s                            ; copy stream value
+      loop
+         print " "
+         r = r - 1
+         if r = 0
+            exitloop
+         endif
+      endloop
+      return
+
+verb = .findlight
+   syntax = any
+      a = hasroom location light
+      if a = true
+         return                  ; light is here, return with 'true' in a
+      endif
+      a = false                  ; no light here!
+      return
+
+verb = .checklight
+   syntax = any
+      a = hasroom location light
+      if a = true
+         return                  ; light is here, return
+      endif
+      eprint "It's dark, I can't see a thing!^" ;no light, end parsing
+
+
+; --- miscellaneous commands ---
+
+verb = wait
+   syntax = any
+      print "Time passes..^"
+      endparse
+
+verb = quit
+   syntax = any
+      submove
+      a = confirm "Are you sure you want to quit? "
+      if a = false
+         eprint "No.^"
+      endif
+      print "Yes.^^Your score is @cs out of a possible @ms, in @tn turns.^^"
+      getcr
+      quit
+
+verb = score
+   syntax = any
+      submove
+      eprint "Your score is @cs out of a possible @ms in @tn turns."
+
+verb = restore
+   syntax = any
+      load
+
+verb = save
+   syntax = any
+      submove
+      save
+
+verb = restart
+   syntax = any
+      submove
+      a = confirm "Are you sure you want to restart? "
+      if a = false
+         eprint "No.^"
+      endif
+      print "Yes.^^"
+      restart
+
+
+verb = verbose
+   syntax = any
+      verbose
+      eprint "Verbose mode activated.^"
+
+verb = brief
+   syntax = any
+      brief
+      eprint "Brief mode activated.^"
+
+verb = superbrief
+   syntax = any
+      superbrief
+      eprint "Superbrief mode activated.^"
+
+; --- preset special verbs ---
+
+
+verb = .startgame
+   syntax = any
+      printmsg 1
+
+;     printshortdesc
+;     printlongdesc
+;     a = children location      ; how many objects in this location?
+;     if a = 1                   ; 1 = me, no others
+;        endparse
+;     endif
+
+;     s = 0                      ; use stream 0
+;     o = location               ; list objects in current location
+;     gosub .listobjects
+;     endparse
+
+      eprint "It is dark.^"
+
+; --- misc special verbs ---
+
+
+verb = .intovortex               ; sucked into vortex from kitchen
+   syntax = any
+      print "A huge blast of air blows from behind you towards the \
+            vortex, and it knocks you to the floor. Unable to find \
+            anything to hold on to, you are unable to prevent yourself \
+            from being dragged head-first into the vortex.^^You seem to \
+            fall through thin air for a very long time, before landing \
+            heavily on damp ground. You slowly come to your senses and \
+            look around..^^"
+      move player ropebridge
+
+
+      printshortdesc
+
+      a = superbriefon
+      if a = false
+         a = verboseon
+         if a = true                         ; 'verbose' mode is on
+            printlongdesc
+         endif
+         if a = false                        ; 'brief' mode is on
+            a = hasroom location entered     ; been here before?
+            if a = false
+               printlongdesc
+            endif
+         endif
+      endif
+      giveroom location entered
+         
+      s = 0                      ; use stream 0
+      o = location               ; list objects in current location
+      gosub .listobjects
+      endparse

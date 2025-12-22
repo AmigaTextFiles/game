@@ -1,0 +1,71 @@
+
+#   Default compile arguments
+
+    postfix=
+    CC=ppc-amigaos-gcc
+    STRIP=ppc-amigaos-strip
+    COPT=-std=c99 -w
+    LOPT=-flto -O2 -lauto -std=c99
+#    bin=/cygdrive/c/dev/AmiKit/AmiKit/Work/Sumeria
+    bin=..
+    cat=..
+
+#   AmigaOS 3.1 -- AmigaOS loadseg()ble executable/binary
+#   https://github.com/bebbo/amiga-gcc.git
+ifeq ($(OS), AOS3)
+    postfix=_aos3
+    CC=m68k-amigaos-gcc
+    STRIP=m68k-amigaos-strip
+    COPT=-O3 -fomit-frame-pointer -std=c99 -w
+    LOPT=-O3 -lm -m68020-60 -noixemul -std=c99 -w
+else
+
+#   AmigaOS 4.1 -- ELF 32-bit MSB executable, PowerPC or cisco 4500, version 1 (SYSV), statically linked
+#   https://github.com/sba1/adtools
+ifeq ($(OS), AOS4)
+    postfix=_aos4
+    CC=ppc-amigaos-gcc
+    STRIP=ppc-amigaos-strip
+    COPT=-flto -O2 -lauto -std=c99 -w
+    LOPT=-flto -O2 -lauto -std=c99
+else
+
+#   AROS i386 --  ELF 32-bit LSB relocatable, Intel 80386, version 1 (SYSV), not stripped
+#   http://archives.aros-exec.org/share/development/cross/gcc-4.2.2-i386-aros-cygwin.tar.bz2
+ifeq ($(OS), AROS32)
+    postfix=_aros-i386
+    CC=i386-aros-gcc
+    STRIP=i386-aros-strip --strip-unneeded --remove-section .comment
+    COPT=-m32 -O2 -w
+    LOPT=-m32 -O2
+endif
+endif
+endif
+
+.PHONY: all clean
+
+all: sumeria
+
+clean:
+	    rm -f *.o Catalogs/catalogs.h $(cat)/Catalogs/english/sumeria.catalog $(cat)/Catalogs/russian/sumeria.catalog
+	    rm -f $(bin)/Sumeria.exe $(bin)/Sumeria_aos3 $(bin)/Sumeria_aos4 $(bin)/Sumeria_aros-i386
+
+sumeria.o: Catalogs sumeria.c
+	    $(CC) $(COPT) -c sumeria.c -o sumeria.o
+
+sumeria: sumeria.o
+	    $(CC) $(LOPT) sumeria.o -o $(bin)/Sumeria$(postfix).exe
+	    $(STRIP) $(bin)/Sumeria$(postfix).exe
+#	    cp -rf $(cat)/Catalogs $(bin)/
+	    rm -f *.o
+
+Catalogs: Catalogs/english/sumeria.catalog Catalogs/russian/sumeria.catalog catalogs.h
+
+Catalogs/english/sumeria.catalog: Catalogs/sumeria.cd Catalogs/sumeria_EN.ct
+	flexcat $^ CATALOG $(cat)/$@
+
+Catalogs/russian/sumeria.catalog: Catalogs/sumeria.cd Catalogs/sumeria_RU.ct
+	flexcat $^ CATALOG $(cat)/$@
+
+catalogs.h: Catalogs/sumeria.cd
+	flexcat $^ Catalogs/$@=sd/C_h_context.sd

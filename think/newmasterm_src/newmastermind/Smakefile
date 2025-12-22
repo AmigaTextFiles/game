@@ -1,0 +1,71 @@
+##
+## Smakefile
+## =========
+## Makefile for newmastermind.  Requires SAS/SMAKE.
+##
+## Copyright (C) 1994-2000 Håkan L. Younes (lorens@hem.passagen.se)
+##
+
+.ct.catalog:
+	-makedir $*
+	CatComp catalogs/$(APPNAME).cd $< CATALOG $@
+
+
+APPNAME = newmastermind
+
+CDEFINES = def=__USE_SYSBASE
+CDEBUGFLAGS = #debug=sf
+COPTFLAGS = opt optsched utillib
+CFLAGS = $(CDEFINES) $(CDEBUGFLAGS) $(COPTFLAGS) strict ansi nochkabort\
+ noicons nover nostkchk nostkext params=r strmer idir=:include ign=315+317
+
+LDFLAGS = stripdbg
+OBJS = main.o menustrip.o boardgadget.o panelgadget.o markers.o getstring.o
+LOADLIBES = :lib/apputil.lib
+
+
+all: $(APPNAME) \
+     catalogs/dansk/$(APPNAME).catalog \
+     catalogs/svenska/$(APPNAME).catalog \
+     catalogs/template.ct
+
+$(APPNAME): $(OBJS)
+	$(CC) link $(CFLAGS) $(LDFLAGS) $(OBJS) $(LOADLIBES) pname=$@
+
+catalogs/dansk/$(APPNAME).catalog: catalogs/dansk.ct
+catalogs/svenska/$(APPNAME).catalog: catalogs/svenska.ct
+
+catalogs/template.ct: catalogs/$(APPNAME).cd
+	CatComp $< CTFILE $@
+
+main.o:        main.c menustrip.h menuactions.h boardgadget.h panelgadget.h\
+               markers.h stringnumbers.h
+menustrip.o:   menustrip.c menustrip.h menuactions.h stringnumbers.h
+boardgadget.o: boardgadget.c boardgadget.h panelgadget.h markers.h
+panelgadget.o: panelgadget.c panelgadget.h markers.h
+markers.o:     markers.c markers.h
+
+getstring.o: catalogs/$(APPNAME).cd
+	CatComp $< OBJFILE $@
+
+stringnumbers.h: catalogs/$(APPNAME).cd
+	CatComp $< CFILE $@ NOSTRINGS NOARRAY NOBLOCK NOCODE
+
+clean:
+	-delete ALL \#?.o stringnumbers.h $(APPNAME) catalogs/~(\#?.\#?) \
+	catalogs/template.ct \#?.lnk \#?.lha \#?.prefs
+
+archive:
+	makedir t:$(APPNAME)
+	copy install t:$(APPNAME)/
+	copy install.info t:$(APPNAME)/
+	copy $(APPNAME) t:$(APPNAME)/
+	copy $(APPNAME).info t:$(APPNAME)/
+	copy $(APPNAME).guide t:$(APPNAME)/
+	copy $(APPNAME).guide.info t:$(APPNAME)/
+	makedir t:$(APPNAME)/catalogs
+	copy ALL catalogs/~(\#?.\#?) t:$(APPNAME)/catalogs/
+	copy catalogs/$(APPNAME).cd t:$(APPNAME)/catalogs/
+	copy catalogs/template.ct t:$(APPNAME)/catalogs/
+	lha -aemqrx r $(APPNAME).lha t:$(APPNAME)
+	delete ALL QUIET t:$(APPNAME)

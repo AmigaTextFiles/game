@@ -1,0 +1,63 @@
+00IceWall.bpk
+01IceWindow.bpk
+02RayTracedDoor.bpk
+06AirDuct.bpk
+07IcePipe.bpk
+08IcePipe3.bpk
+11IceSwitchOff.bpk
+12IceSwitchOn.bpk
+13IcePipeValve1.bpk
+14IcePipeValve2.bpk
+16FanFrames.bpk
+-
+00Pillar.bpk
+01Bullets.bpk
+02FirstAidKit.bpk
+03Magazine.bpk
+04Lamp.bpk
+05Chest.bpk
+06Emerald.bpk
+07PinkGem.bpk
+08Battery.bpk
+09Carcass.bpk
+10Camera.bpk
+13Barrel.bpk
+14ExplodedBarrel.bpk
+16ExplosionFrames.bpk
+-
+00GemFrames.bpk
+-
+ 512
+ 129
+ 139
+ 130
+ 512
+ 0
+ 384
+ 0
+ 145
+ 512
+ 12
+ 0
+ 512
+ 576
+ 0
+ 0
+-
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 2
+ 1
+ 2
+ 1
+ 0
+-

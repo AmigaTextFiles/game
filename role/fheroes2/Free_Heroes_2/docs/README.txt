@@ -1,0 +1,48 @@
+Free Heroes2 Engine (is not playable version.)
+
+Prerequisites:
+
+You need to have these libraries (with equivalent devel versions) to build fHeroes2:
+
+- SDL
+- SDL_mixer (with OGG support)
+- SDL_image (with PNG support)
+- SDL_ttf
+- SDL_net
+- libpng
+- gettext
+
+SDL libraries can be found at http://www.libsdl.org .
+Sourcecode you can get it here: http://sourceforge.net/projects/fheroes2/
+And translations: http://translations.launchpad.net/fheroes2
+
+Copy origin data/*.agg in to data directory.
+Copy maps files (*.mp2) in to maps directory.
+
+Hot keys:
+F4		- switch to fullscreen
+PrintScreen	- create screenshot
+Up		- move hero top
+Down		- move hero bottom
+Left		- move hero left
+Right		- move hero right
+Ctrl + Up	- scroll map top
+Ctrl + Down	- scroll map bottom
+Ctrl + Left	- scroll map left
+Ctrl + Right	- scroll map right
+e		- end turn
+t		- next town
+h		- next hero
+s		- save game to fheroes2.sav
+l		- load game
+i		- game info
+p		- puzzle dialog
+d		- digging artifact for current hero
+space		- default action
+return 		- open dialog
+
+Main menu:
+n		- new game
+s		- standard game
+c		- campaign game
+m		- multi-player game

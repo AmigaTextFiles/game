@@ -1,0 +1,5297 @@
+ _________________________________________________________________________
+/#########################################################################\
+|#####...####..######..######......####...####..#####..##......##......###|
+|####.....###..######..########..#####.....###...####..##..######..#######|
+|###..###..##..######..########..####..###..##....###..##..######..#######|
+|###..###..##..######..########..####..###..##..#...#..##..######......###|
+|###.......##..######..########..####.......##..##.....##..######..#######|
+|###..###..##..######..########..####..###..##..###....##..######..#######|
+|###..###..##...#####...#######..####..###..##..####...##..######..#######|
+|###..###..##......##......##......##..###..##..#####..##......##......###|
+|#########################################################################|
+|####################################################################{RB}#|
+|=========================================================================|
+|									  |
+|		           ----> PRESENTS <----				  |
+|									  |
+|            AMIGA GRAPHICS INSIDE AND OUT - THE COMPLETE BOOK            |
+|									  |
+|			        > PART 2 <				  |
+|									  |
+| Typed / Scanned / Edited By : RAZOR BLADE.			          |
+| Additional Typing by        : GLITCH ( + 8 pages by Asterix ! ).	  |
+| Original Supplied by	      : VIPER					  |
+|									  |
+|-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-|
+| 		CALL THE ALLIANCE WORLD HQ -> THE PLACE TO BE             |
+|       UNKNOWN PLEASURES --> +44 (0) 823 322 891 --> SYSOP: BARBARIAN    |
+|_________________________________________________________________________|
+
+
+             CHAPTER 3 - INTUITION - THE USER INTERFACE
+
+We begin our trip through the graphic world of the Amiga with a system
+component named INTUITION, which refers to a library within the operating
+system (see chapter 2). Intuition is directly related to the graphic
+libraries' capabilities and is responsible for windows, screens, reqesters,
+alerts (Guru Meditations, for example) and much more.
+
+                ----------------------------------------------
+
+3.1  INTUITION WINDOWS.
+
+Unless you are running another operating system. Intuition will mamage all
+windows. This also applies to the standard windows of the BASIC
+interpreter, LIST and BASIC. A data block used for intuition windows
+consists of 124 bytes and contains all data specific to a window. The
+starting address of the BASIC output window data is always stored in the
+variable WINDOW(7). You can obtainn the start address like this:
+        
+        windo&=WINDOW(8)
+
+The data block is stored in the following format:
+
+        Data structure  Window/Intuition/124 bytes.
+
+OFFSET  TYPE    DEFINITION
+------- ------- ------------------------------------------------
++000    Long    Pointer to next window.
++004    Word    X coordinate of upper left corner.
++006    Word    Y coordinate of upper edge.
++008    Word    Width of window.
++010    Word    Height of Window.
++012    Word    Y coordinate of mouse, rel. to window.
++014    Word    X coordinate of mouse, rel. to window.
++016    Word    Minimum width of window.
++018    Word    Minimum height of window.
++020    Word    Maximum width of window.
++022    Word    Maximim height of window.
++024    Long    Window modes
+                Bit 0:  1=Sizing Gadget Available.
+                Bit 1:  1=Dragbar gadget available.
+                Bit 2:  1=Fore/Background gadgets available.
+
+                                PAGE 93
+
+----------------------------------------------------------------------------
+
+WINDOW DATA STRUCTURE (CONT'D) ....
+
+OFFSET  TYPE    DEFINITION              
+------- ------- ----------------------------------------------------
+
+                Bit 3:  1=Close gadget available.
+                Bit 4:  1=Sizing gadget is right.
+                Bit 5:  1=Sizing gadget is bottom.
+                Bit 6:  1=Simple refresh.
+                Bit 7:  1=Superbitmap.
+                Bit 8:  1=Backdrop Window.
+                Bit 9:  1=Report Mouse.
+                Bit 10: 1=GimmeZeroZero.
+                Bit 11: 1=Borderless.
+                Bit 12: 1=Activate.
+                Bit 13: 1=This window is active.
+                Bit 14: 1=This window is in request mode.
+                Bit 15: 1=Active window with active menu.
+
++028    Long    Pointer to menu header.
++032    Long    Pointer to title text for this window.
++036    Long    Pointer to first active requester.
++040    Long    Pointer to double click requester.
++044    Word    Number of the window block request.
++046    Long    Pointer to the screen, of this window.
++050    Long    Pointer to the RastPort of this window.
++054    Byte    Left Border.
++055    Byte    Top Border.
++056    Byte    Right Border.
++057    Byte    Bottom Border.
++058    Long    Pointer to border RastPort.
++062    Long    Pointer to the first gadget.
++066    Long    Pointer to previous window (father).
++070    Long    Pointer to next window (child).
++074    Long    Pointer to sprite data for pointer.
++078    Byte    Height of sprite pointer.
++079    Byte    Width of sprite pointer.
++080    Byte    X offset of pointer.
++081    Byte    Y offset of pointer.
++082    Long    IDCMP flags.
++086    Long    User message port.
++090    Long    Window message port.
++094    Long    IntuiMessage message key.
++098    Byte    Detailpen.
++099    Byte    Blockpen.
++100    Long    Pointer to menu checkmarks.
++104    Long    Pointer to screen title text.
++108    Word    GZZ-MouseX
++110    Word    GZZ-MouseY
+
+                                PAGE 94
+
+----------------------------------------------------------------------------
+
+Offset  Type    Definition.
+------- ------- --------------------------------------------
++112    Word    GZZ-Width.
++114    Word    GZZ-Height.
++116    Long    Pointer to external data.
++120    Long    Pointer to user data.
+
+Every window has a data block like the one in the above format. To access
+the different data fields in the data block, first select the desired
+output window using the WINDOW OUTPUT statement. After this command, the
+data block address will be in the variable WINDOW(7). You add the offset
+value of the desired field to this address. There are 3 types of data
+fields, byte, word and long. A byte field which consists of exactly one
+byte is read with PEEK and is changed with POKE. A word is two bytes wide
+and is read and written with PEEKW and POKEW. A long field is four bytes
+wide and is read and written with PEEKL and POKEL. We will present several
+examples of each.
+
+                                PAGE 95
+
+----------------------------------------------------------------------------
+
+3.2 THE WINDOW DATA STRUCTURE.
+
+Now you know the method used to access the data structure of your output
+window. The following is a detailed explanation of each data field to
+explain what you can do with them.
+
+
+OFFSET 0 : POINTER TO NEXT WINDOW.
+
+Intuition manages all windows in a type of chain. This offset contains the
+starting address of the next window data block. You can find the data block
+of the next and previous window from your current data block. This
+particular pointer is not important because the chain pointers come later
+at offsets 66 and 70.
+
+
+OFFSETS 4 AND 6 : POSITION OF WINDOW IN UPPER LEFT HAND CORNER.
+
+These two word fields contain the X and Y coordinates of the upper left
+hand corner of their window. These coordinates are relative to the
+upperleft hand corner of the screen that contains the window. The lines
+below provide you with the coordinates:
+
+        windo&=WINDOW(7)
+        x%=PEEKW(windo&+4)
+        y%=PEEKW(windo&+6)
+        PRINT "Upper left window corner is at "
+        PRINT "Coordinates (";x%;",";y%;")"
+        END
+
+Because the BASIC output window sits in the upper leeft hand corner of the
+Workbench screen you would receive coordinates of (0,0). The moment you
+drag this window to a different position, the coordinates are changed.
+Later we will use these values to access various intuition routines.
+
+
+OFFSETS 8 AND 10 : WINDOW DIMENSIONS.
+
+Since we can change the window size with the sizing gadget in the lower
+right hand corner of the window, the program doesn't always know the
+current window size. The small program below provides the current window
+size:
+
+                                PAGE 96
+
+-----------------------------------------------------------------------------
+
+        windo&=WINDOW(7)
+        windoWidth%=PEEKW(windo&+8)
+        windoHeight%=PEEKW(windo&+10)
+        PRINT "At the moment your window is ";windoWidth%
+        PRINT "pixels wide and ";windoHeight%;" Pixels high."
+        END
+
+OFFSETS 12 AND 14 : MOUSE COORDINATES.
+
+These two word fields contain the actual mouse coordinates relative to the
+upper left hand corner of the window. The first field contains the Y
+coordinate and the second field the X coordinate.
+
+Using these two values you can easily create a small drawing program. The
+following lines demonstrate this:
+
+        '##################################
+        '#
+        '# Section:  3.2
+        '# Program:  Mouse Draw I
+        '# Date   :  04/05/87
+        '# Author :  tob
+        '# Version:  1.0
+        '#
+        '###################################
+
+        init:   windo&=WINDOW(7)
+                'Address of window structure
+        loop:   'wait for key press
+                PRINT "Press any key to exit"
+                WHILE INKEY$ = ""
+                   mouse.y% = PEEKW(windo&+12)
+                   mouse.x% = PEEKW(windo&+14)
+                   PSET(mouse.x%,mouse.y%)
+                WEND
+
+Two things are immediately visible. First the line drawn starts several
+pixels below the mouse pointer and second, only a dotted line is being
+drawn. The mouse position fields contain the mouse coordinates relative to
+the upper left hand corner of the window. However, PSET draws in a plane
+that uses an offset relative to the upper left hand corner of the drawing
+plane and not the window (as long as the window is a GimmeZeroZero window;
+we will have more on this later). To correct the window/plane problem,
+subtract 11 from the Y value and 4 from the X value. The second problem is
+caused by BASIC's slow speed. The mouse moves faster than BASIC can draw.
+Test this by moving the mouse very slowly across the screen. You should see
+a complete line from one point to another. The next program contains both
+changes :
+
+                                PAGE 97
+
+----------------------------------------------------------------------------
+
+        '###################################
+        '#
+        '# Section: 3.2B
+        '# Program: Mouse Draw II
+        '# Date   : 04/05/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '###################################
+        init:   windo&=WINDOW(7)
+                '* Address of Window Data Structure.
+                mouse.y% = PEEKW(windo&+12)-11
+                mouse.x% = PEEKW(windo&+14)-4
+        loop:   '* Wait for keypress.
+                PRINT "Press any key to Exit"
+                WHILE INKEY$=""
+                    oldmouse.y% = mouse.y%
+                    oldmouse.x% = mouse.x%
+                    mouse.y% = PEEKW(windo&+12)-11
+                    mouse.x% = PEEKW(windo&+14)-4
+                    LINE(oldmouse.x%,oldmouse.y%)-(mouse.x%,mouse.y%)
+                WEND
+
+When you speed around the screen with this program, you will discover that
+individual "peaks" appear. This happens when the mouse coordinates are
+calculated but the Y value has not changed.
+
+     
+OFFSET 16,18,20 AND 22: WINDOW LIMITS.
+
+Some windows can be made larger and smaller using the mouse. Every window
+has it's own maximum and minimum size. A window can be any size within
+these limits in the window data structure.
+
+        windo&=WINDOW(7)
+        min.x%=PEEKW(windo&+16)
+        min.y%=PEEKW(windo&+18)
+        max.x%=PEEKW(windo&+20)
+        max.y%=PEEKW(windo&+22)
+        PRINT "Minimum Size: X=";min.x%;
+        PRINT " Y=";min.y%
+        PRINT "Maximum Size: X=";max.x%;
+        PRINT " Y=";max.y%
+        END
+
+In this example we read the limit values. You can easily set your own
+window limits by using POKEW to the required addresses:
+
+        windo&=WINDOW(7)
+        min.x%=5
+        min.y%=7
+        max.x%=640
+        max.y%=200
+        POKEW,windo&+16,min,x%
+        POKEW,windo&+18,min.y%
+        POKEW,windo&+20,max.x%
+        POKEW,windo&+22,max.y%
+        END
+
+                                PAGE 98
+
+-----------------------------------------------------------------------------
+
+There are two things you must always be sure of:
+
+1.) The minimum size has to be smaller than the maximum size.
+
+2.) The maximum size cannot be smaller than the current window you are
+    changing. (Dimensions are available fromm offsets 8 and 10).
+
+
+OFFSET 24: WINDOW MODES.
+
+Intuition has different window types and each window can have various
+gadgets assigned to them :
+
+        a.)     Sizing gadget.
+        b.)     Dragbar.
+        c.)     Fore/Background gadget.
+        d.)     Close gadget.
+
+You can also set the refresh mode for the window. This mode determines how
+a window is restored once another window covers it. SIMPLE REFRESH leaves
+the restoring up to you. Normally this means that if another window covers
+your window, the covered part is lost. SMART REFRESH uses Intuition to save
+the covered portion of the window and restores it after the window is
+uncovered. This method requires more time and can use much more memory,
+depending on how many windows are active. The SUPERBIT method keeps a copy
+of the entire window contents in RAM. Although this expends a large amount
+of memory, it allows a window to show a piece of a much larger graphic.
+
+Besides the basic attributes of a window, there are also special windows. A
+BACKDROP window is always behind all other windows and cannot be put in
+front. For example, it works as the background or graphic plane. The
+visible workbench screen is nothing more than a backdrop window the covers
+the screen. A GimmeZeroZero window has two parts, a border and a drawing
+plane. This method allows easy drawing because it is impossible to
+accidentally draw over the border. The BASIC window is an example of a
+GimmeZeroZero window. The BORDERLESS window does not have a borderr frame.
+An example of this type is the backdrop Workbench window because it does
+not have a borderr frame and it merges with the background.
+
+To access these modes use the bit pattern from the table in section 3.1
+
+NOTE: Changes to this field only take effect after workbench refreshes the 
+      window (for example, when you drag it to move it).
+
+                                PAGE 99
+
+------------------------------------------------------------------------------
+
+OFFSET 28: THE MENU HEADER.
+
+A special property of all intuition windows is their ability to have menus.
+When you press the right mouse button the menus appear in the top window
+bar.
+
+This field contains the pointer to the intuition menu system for this
+window.
+
+
+OFFSET 32: TITLE TEXT FOR THE WINDOW.
+
+Every window has it's own name. This offsett contains the starting address
+for the title text. The following lines demonstrate an easy way to change
+this:
+
+        window.name$="Hello World"+CHR$(0)
+        POKEL WINDOW(7)+32,SADD(window.name$)
+
+As soon as you perform an action with the window, such as dragging (cuasing
+intuition to refresh the window), the new menu name appears. Later we will
+show you a method for changing a window name that will give you instant
+results.
+
+The CHR$(0) is a null byte added at the end of the text that tells
+Intuition where the text ends.
+
+
+OFFSET 36,40 AND 44: REQUESTER HANDLING.
+
+Intuition uses this data field to remember how many (and what kind) of
+requesters are blocked by this window. Basic programmers can ignore this
+field for now.
+
+
+OFFSET 46: POINTER TO SCREEN.
+
+Windows with complete freedom of movement do not exist. Every window
+appears in a screen. The Workbench screen is the first screen and the other
+screens can be overlaid by using the SCREEN statement. This offset contains
+the address of the Intuition screen data structure. In the same way that
+each window has it's own data structure, each screen has its own data
+structure. Screen data is arranged somewhat differently. We will discuss
+that in more detail later.
+
+
+OFFSET 50: POINTER TO RASTPORT OF WINDOW.
+
+The RastPort is nothing more than another data structure. It could be
+defined as an intersection. From the RastPort there are paths to windows,
+screens and even the most simple graphic components like bit-maps and
+layers. We will discuss all of these in detail later.
+
+                                PAGE 100
+
+----------------------------------------------------------------------------
+
+OFFSET 54,55,56 AND 57: WINDOW BORDERS.
+
+This 4 byte field contains the dimensions in pixels of the window border.
+When we were working with the mouse coordinates (offset 12,14) we
+subtracted the values 11 and 4. The same values are located here; they are
+the height of the top border and the width of the left border.
+
+You can calculate the drawing coordinates in a GimmeZeroZero window by
+adding these values. This determines your relative position to the top left
+hand corner of the window.
+
+When working with other window types you have to be careful not to draw
+over the window border. The following rules can help you avoid this:
+
+a.) Your X coordinate must be greater than the window border and smaller
+    than the width of the window (offset 8) minus the width of the right
+    border.
+
+b.) Follow the same rule for the Y coordinates.
+
+
+OFFSET 58: THE RASTPORT BORDER.
+
+All GimmeZeroZero windows control two independant drawing planes: the
+window border and the window contents. This offset contains the address
+pointer for the RastPort of a GimmeZeroZero window. The following program
+uses the RastPort border and the Graphic function TEXT to display a status
+line in the window header:
+
+        '###############################
+        '#
+        '# section: 3.2C       
+        '# Program: Status Line                                 
+        '# Date   : 12/17/89                                    
+        '# Author : tob                                 
+        '# Version: 1.0
+        '#
+        '###############################
+
+        ' This program creates a user status liine in a 
+        ' GimmeZeroZero window. BorderRastPort is the
+        ' length of x. x is independant of the actual window 
+        ' size. Error checking prevents any Gadgets from 
+        ' being disturbed.
+
+        PRINT "Searching for .bmap file ...."
+
+
+                                PAGE 101
+
+-----------------------------------------------------------------------------
+
+        'graphics.library
+        'Text()
+        'SetAPen()
+        'SetDrMd()
+        'Move()
+
+        LIBRARY "graphics.library"
+
+        main:   CLS
+                Status "STATUS: Demo window. Please press a key!",60
+                WHILE INKEY$=""
+                WEND
+                WHILE yn$<>"y"
+                   Status "STATUS: Please enter your name!",60
+                   CLS
+                   LOCATE 1,1
+                   LINE INPUT "--> ";n$
+                   Status "Name: "+n$+". Correct (y/n) ? ",60
+                   LOCATE 1,1
+                   PRINT SPACE$(50)
+                   LOCATE 1,1
+                   LINE INPUT "--> ";yn$       
+                WEND
+
+        endprog: WINDOW 1,""            
+                 LIBRARY CLOSE
+                 END
+
+        SUB Status(text$,t.width%) STATIC
+                borderRast%     = PEEKL(WINDOW(7)+58)
+                IF borderRast% = 0 THEN
+                   BEEP
+                   PRINT "This is not a GimmeZeroZero type window."
+                   ERROR 255
+                END IF
+
+                windoWidth% = PEEKW(WINDOW(7)+8)
+                maxchar%    = INT((windoWidth%-86)/8)
+                TextLen%    = LEN(text$)
+                IF t.width% = 0 THEN t.width% = TextLen%
+                IF t.width% < maxChar% THEN maxChar%=t.width%
+                IF TextLen% < t.width% THEN
+                   text$=text$+SPACE$(t.width%-TextLen%)
+                END IF
+                CALL SetAPen(borderRast&,1)
+                CALL Move(borderRast&,32,7)
+                CALL text(borderRast&,SADD(text$),maxChar%)
+                CALL SetDrMd(borderRast&,0)             
+                CALL SetAPen(borderRast&,3)
+                CALL Move(borderRast&,31,7)
+                CALL text(borderRast,SADD(text$),maxchar%)
+                CALL SetDrMd(borderRas&,1)
+        END SUB
+
+                                PAGE 102
+
+----------------------------------------------------------------------------
+
+OFFSET 62: FIRST GADGET.
+
+Gadgets are small (or large) "switch elements" that you select with the
+mouse. Among these are the on/off gadget and the sizing gadget. This offset
+contains the address of the first gadget structure in a chain. BASIC users
+can disregard this.
+
+
+OFFSETS 66 AND 70: FATHER AND CHILD WINDOWS.
+
+In our discussion of offset 0 we mentioned that Intuition manages all
+windows in a data chain. Every window has it's own data structure block. In
+each data structure there is a pointer to the previous (father) window and
+to the next (child) window. The first window in a chain does not have a
+father pointer (=0) and the last has no child pointer (=0).
+
+These two fields are very important. Up until now it was possible for us to
+determine the address of the output window by using the variable WINDOW(7).
+Now we can use a window to determine where the data for any window is
+located. The following program demonstrates this:
+
+        '#######################################
+        '#
+        '# section: 3.2
+        '# Program: Window Finder.
+        '# Date   : 04/05/87
+        '# Author : tob 
+        '# Version: 1.0
+        '#
+        '########################################
+
+        init:   windo& = WINDOW(7)
+
+        '* Here we search for the end of the data chain.
+        '* The 'parent' field of the first element is zero.
+
+        WHILE found% = 0
+            parent.windo& = PEEKL(windo&+66)
+            IF parent.windo&= 0 THEN
+                found% = 1
+            ELSE
+                windo& = parent.windo&
+            END IF
+        WEND
+        found% = 0
+
+        '* Windo& contains the address of the window
+        '* Data block of the first window in the Data
+        '* chain. Now we read through the chain, until 
+        '* the 'child' field equals zero.
+
+                                PAGE 103
+
+----------------------------------------------------------------------------
+
+        WHILE found% = 0
+            counter% = counter%+1
+            PRINT counter%;
+            PRINT ". Window:"
+            PRINT "Address of data structure: ";windo&
+
+        '* now we provide the name of the window found at offset +32
+
+            PRINT "Name of Window :            ";
+            windo.name& = PEEKL(windo&+32)
+            WHILE done% = 0
+                gef$ = CHR$(PEEK(windo.name&))
+                IF gef$ = CHR$(0) THEN
+                    done% = 1
+                    PRINT
+                ELSE
+                    PRINT gef%;
+                    windo.name& = windo.name&+1
+                END IF
+            WEND
+            PRINT
+            done% = 0
+            child.windo& = PEEKL(windo&+70)
+            IF child.windo&= 0 THEN
+                found% = 1
+            ELSE
+                windo& = child.windo&
+            END IF
+        WEND
+
+Using these methods you have complete control of all the intuition managed
+windows. You can write into other windows, change their names etc.. We will
+present more programs further on that demonstrate this.
+
+
+OFFSET 74,78,79,80 AND 81: THE SPRITE IMAGE.
+
+It is possible for every window to have it's own mouse pointer. This offset
+has the address pointer to the data for the new pointer's sprite image, the
+height and width (maximum 16 pixels). Changing the value of this offset
+doesn't accomplish anything. To set up your custom pointer, use SETPOINTER
+via intuition. We show an example of how to do this at the end of the
+chapter.
+
+
+OFFSET 82,86,90 AND 94: IDCMP FLAGS AND MESSAGE PORTS.
+
+IDCMP stands for INTUITION DIRECT COMMUNICATION MESSAGE PORT. Intuition
+communicates through this channel with other tasks such as BASIC. This is
+not important to you as a BASIC programmer since Intuition receives the
+messages from BASIC and processes them automatically.
+
+                                PAGE 104
+
+------------------------------------------------------------------------------
+
+OFFSET 98 AND 99: WINDOW COLOURS.
+
+The window determines it's two colours from these two byte fields where the
+colour registers are stored. You can change the window colours by poking
+new values here. As before, intuition does not make the changes until a
+window refresh is prompted (and window action such as dragging or sizing).
+
+
+OFFSET 100: THE CHECK MARK IMAGE.
+
+This offset contains the address of a small graphic image. You have
+probably seen a menu option that sets a specific menu option on and marks
+it with a check mark. The default value of this offset is zero for the
+standard check mark image.
+
+
+OFFSET 104: THE SCREEN TITLE.
+
+A screen, that contains your window, can have different names. The screen
+name depends on which window is selected (=active). Each window can give
+the screen a different name. This offset holds the address pointer of the
+name text.
+
+
+OFFSET 108,110,112 AND 114: GIMMEZEROZERO PARAMETERS.
+
+These fields are used only for a GimmeZeroZero window. GZZ-MouseX and
+GZZ-MouseY contain relative values to offsets 12 and 14. They specify the
+coordinates of the mouse pointer relative to the drawing plane, not to the
+window. The zero coordinate is the upper left hand corner of the window
+contents, not the upper left hand corner of the window border.
+
+GZZ-width and GZZ-height contain values relative to offset fields 8 and 10.
+The width and height of the window contents without the border are stored
+here.
+
+
+OFFSET 116 AND 120: OPTIONAL POINTERS.
+
+These two pointers are used to link data blocks of different types with the
+standard structure. The first pointer is reserved for Intuition, the second
+is available for the user.
+
+                                PAGE 105
+
+-----------------------------------------------------------------------------
+
+3.3 FUNCTIONS OF THE INTUITION LIBRARY.
+
+Now that we understand how intuition manages window we can look at the
+intuition library. The following routines of the intuition library are
+responsible for windows:
+
+        SetPointer()
+        ClearPointer()
+        MoveWindow()
+        SizeWindow()
+        WindowLimits()
+        WindowToBack()
+        WindowToFront()
+
+                ------------------------------------------------
+
+3.3.1  A PERSONALISED MOUSE POINTER.
+
+The SetPointer function makes it possible for you to create your own
+personalised mouse pointer for your window. As soon as your window is
+active the normal pointer will be replaced by yours.
+
+
+This function requires six parameters:
+
+        SetPointer(window,image,height,width,xOff,yOff)
+        Window: Address of window data structure of that window.
+        image : Address of sprite image block.
+        height: Height of the sprite.
+        width : Width of sprite (max.16)
+        xOff  : Marks the "hot spot"
+        yOff  : Marks the "hot spot"
+
+The following is an example program which shows how to change the mouse
+pointer.
+
+        '######################################
+        '#
+        '# section: 3.3.1
+        '# Program: SetPointer-ClearPointer.
+        '# Date   : 04/05/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '#######################################
+
+                                PAGE 106
+
+----------------------------------------------------------------------------
+
+        ' The Amiga standard mouse pointer is
+        ' replaced by a user-defined pointer.
+
+        PRINT "Searching for .bmap file...."
+
+        'INTUITION-Library
+        'SetPointer()
+        'ClearPointer()
+        LIBRARY "intuition.library"
+
+        init:   image$=""
+                sprite.height% = 14
+                sprite.width% = 16
+                sprite.xOff% = -7
+                sprite.yOff% = -6
+
+        image:  '* REad sprite data image.
+                RESTORE sprite.data
+                FOR loop% = 0 TO 31
+                    READ info&
+                    hi% = INT(info&/256)
+                    lo% = info& - (256*hi%)
+                    image$ = image$+CHR$(hi%)+CHR$(lo%)
+                NEXT loop
+
+        setpoint:  '* Build new image.
+                   CALL SetPointer(WINDOW(7),SADD(image$),sprite.height%,
+                        sprite.width%,sprite.xOff%,sprite.yOff%)
+        maindemo:  '* Demonstration of the new pointer.
+                   CLS
+                   PRINT "Any key to exit."
+                   PRINT "Left Mouse button to draw."
+
+                   '* Draw with pattern.
+                   area.pat%(0) = &h1111
+                   area.pat%(1) = &h2222
+                   area.pat%(2) = &h4444
+                   area.pat%(3) = &h8888
+                   PATTERN , area.pat%
+                   COLOR 2,3
+
+                   WHILE INKEY$=""
+                      state% = MOUSE(0)
+                      IF state%<0 THEN
+                        mouseOldX% = mouseX%
+                        mouseOldY% = mouseY%
+                        mouseX% = MOUSE(1)
+                        mouseY% = MOUSE(2)
+                        IF lplot% = 0 THEN
+                            lplot% = 1
+
+
+                                PAGE 107
+
+----------------------------------------------------------------------------
+
+                            PSET(mouseX%,mouseY%)
+                        ELSE
+                          LINE(mouseOldX%,mouseOldY%)-(mouseX%,mouseY%),1,bf
+                        END IF
+                      ELSE
+                        lplot% = 0
+                      END IF
+                   WEND
+
+                   COLOR 1,0
+
+        endprog:   '* End demo and restore old pointer.
+                   CALL ClearPointer(WINDOW(7))
+                   LIBRARY CLOSE
+                   END
+
+        sprite.data:    DATA 0,0   
+                        DATA 256,256
+                        DATA 256,256
+                        DATA 256,256
+                        DATA 896,0
+                        DATA 3168,0
+                        DATA 12312,0
+                        DATA 256,49414
+                        DATA 256,49414
+                        DATA 12312,0
+                        DATA 3168,0
+                        DATA 896,0
+                        DATA 256,256
+                        DATA 256,256
+                        DATA 256,256
+                        DATA 0,0
+
+PROGRAM DESCRIPTION:
+
+Our new mouse pointer should be 16 pixels wide and 14 pixels high. The "hot
+spot", the sensitive pixel of the pointer, is seven pixels to the right and
+six pixels below the upper left hand corner of the sprite.
+
+The program routine IMAGE defines the shape of the new pointer. The data
+for the shape is stored in the section called SPRITE.DATA. Each row of a
+sprite can be a maximum of 16 pixels wide. The data block is composed of
+two 16 bit values per sprite row. Since our sample sprite is 14 rows high
+there has to be 14*2 = 28 data elements (plus two zeros at the beginning
+and emd to switch of DMA). For every possible pixel of the sprite there are
+two bits. If neither bit is set the pixel will be transparent. The
+remaining three combinations determine which of the three possible colours
+the pixel will be.
+
+The sprite data is stored in the string variable IMAGE$. To do this the
+16bit values are first converted to two 8 bit values (lo and hi byte).
+
+Finally we call SetPointer to activate the new pointer.
+
+At the end of the program we use ClearPointer to restore the normal
+pointer.
+
+                                PAGE 108
+
+----------------------------------------------------------------------------
+
+3.3.2  MOVING WINDOWS MADE EASY.
+
+Instead of using the mouse to drag windows around the screen, you can
+program Intuition to do the same thing. You can use the intuition routine
+"MoveWindow" which requires three parameters:
+
+        MoveWindow(window,deltaX,deltaY)
+
+        window: Address of the window data structure            
+        deltaX: Number of pixels to move the window to the right.
+                (left = negative)
+        deltaY: Same in vertical direction.
+
+These routines do not check your parameters for valid coordinates. If your
+delta values set coordinates outside the screen, Intuition will try to move
+your window off the monitor. Of course, this will not work. To prevent this
+from happening we have added a small error check routine to the next
+program. This routine will check your input with the data in the window
+data structure (Section 2.2).
+
+This program is a SUB named Move.
+
+        '##############################
+        '#
+        '# Section: 3.3.2
+        '# Program: Window Move.
+        '# Date   : 04/10/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '###############################
+
+        'Intuition can move selected windows under
+        ' program control. This program demonstrates
+        ' the WindowMove() command (including
+        ' error checking.
+
+        PRINT "Searching for .bmap file .... "
+
+        'INTUITION-library
+        'MoveWindow()
+
+        LIBRARY "intuition.library"
+
+                                PAGE 109
+
+----------------------------------------------------------------------------
+
+        demo:   CLS
+                WINDOW 2,"Test Window",(10,10)-(400,100),16
+                WINDOW OUTPUT 2
+
+                PRINT "Original Position. Please Press a Key"
+                WHILE INKEY$="": WEND
+
+                Move 10,20  '10 right,20 down
+                PRINT "New position! Press a Key."
+                WHILE INKEY$ = "":WEND
+
+                Move -10,-20 ' 10 left, 20 up
+                PRINT "Returned!!"
+
+                FOR t = 1 TO 3000: NEXT t
+
+                Move 10000,10000
+                ' Nothing happened thanks to the error check.
+
+                WINDOW CLOSE 2
+                LIBRARY CLOSE
+
+        SUB Move(x%,y%) STATIC
+
+                win&    = WINDOW(7)
+                screen.width%   = 640
+                screen.height%  = 200 'PAL systems can use 256 here.
+                windo.x%        = PEEKW(win&+4)
+                windo.y%        = PEEKW(win&+6)
+                windo.width     = PEEKW(win&+8)
+                windo.height%   = PEEKW(win&+10)
+                min.x%          = windo.x%*(-1)
+                min.y%          = windo.y%*(-1)
+                max.x%          = screen.width%-windo.width%-windo.x%
+                max.y%          = screen.height%-windo.height%-windo.y%
+                IF x%<min.x% OR x%>max.x% THEN x% = 0
+                IF y%<min.y% OR y%>max.y% THEN y% = 0
+                CALL MoveWindow(win&,x%,y%)
+        END SUB
+
+                ---------------------------------------------
+
+3.3.3 SETTING WINDOW LIMITS.
+
+All windows that can be sized have a minimum and maximum size. The
+Intuition routine WindowLimits sets the limits according to the input
+values. The data fields at offset 16 (see section 2.2) are directly
+manipulated by WindowLimits. This routine also checks for valid arguments.
+When all parameters are OK, WindowLimits returns a TRUE (=1), if not, it
+returns a FALSE (=0).
+
+                                PAGE 110
+
+------------------------------------------------------------------------------
+
+WindowLimits requires 5 arguments and returns a result:
+
+result% = WindowLimits%(window,minX,minY,maxX,maxY)
+
+        result% = 1= all OK
+                  0= Minimum size greater than maximim size etc.
+
+        minX,minY:  Minimum size of window.
+        maxX,maxY:  Maximum sixe of window.
+
+A short example:
+
+        REM 3.3.3 Window Limits.
+        DECLARE FUNCTION WindowLimits% LIBRARY
+        LIBRARY "intuition.library"
+        minX%=5
+        minY%=5
+        maxX%=640
+        maxY%=200
+        res%=WindowLimits(WINDOW(7),minX%,minY%,maxX%,maxY%)
+
+        IF res% = 0 THEN
+                PRINT "Something is incorrect ......."
+        END IF
+
+        LIBRARY CLOSE
+        END
+
+                ---------------------------------------------
+
+3.3.4 SIZING WINDOWS.
+
+The Intuition function SizeWindow is used to shrink or enlarge a window.
+SizeWindow requires three arguments:
+
+        SizeWindow(window,deltaX,deltaY)
+
+        window: Address of the window data structure.
+        deltaX: Number of pixels to enlarge the window horizontally 
+                (negative = shrink)
+        deltaY: Same action, only vertically.
+
+This routine does not check for incorrect parameters. If your delta values
+make the window smaller than is possible or bigger than the screen, you
+will encounter a system crash. To prevent this, the next program has a
+routine the recognises false values and makes them safe. This SUB is named
+Size:
+
+                                PAGE 111
+
+------------------------------------------------------------------------------
+
+        '############################################
+        '#
+        '# Section: 3.3.4
+        '# Program: Window Limits.
+        '# Date   : 04/10/87
+        '# Author : tob.
+        '# Version: 1.0
+        '#
+        '#############################################
+
+        'Demonstrate setting a window's maximum and
+        'and minimum settings.
+
+        PRINT "Searching for .bmap file ......"
+
+        'INTUITION-library
+        'WindowLimits
+
+        DECLARE FUNCTION WindowLimits% LIBRARY
+
+        LIBRARY "intuition.library"
+
+        demo:   CLS         
+                WINDOW 2,"Test Window",(10,10)-(400,100),16
+                WINDOW OUTPUT 2
+
+                '* Set window limits.
+                r% = WindowLimits%(WINDOW(7),0,0,600,200)
+                IF r% = 0 THEN ERROR 255
+
+                PRINT "Original Size - Please press a key .... "
+                WHILE INKEY$ = "": WEND
+
+                Size 60,40      '60 right, 40 down
+                PRINT "New size - press a key ......"
+                WHILE INKEY$ = "":WEND
+
+                Size -60,-40 ' 60 left, 40 up
+                PRINT "Restored!"
+
+                '* Wait
+                FOR t=1 TO 3000: NEXT t
+
+                '* Invalid arguments caught here
+                Size 10000,10000 ' Error
+                ' nothing happened thanks to the error check
+
+                WINDOW CLOSE 2
+                LIBRARY CLOSE
+
+        SUB Size(x%,y%) STATIC
+                
+                win& =          WINDOW(7)
+                windo.width%    = PEEKW(win& + 8)
+                windo.height%   = PEEKW(win& + 10)
+                windo.minX%     = PEEKW(win& + 16)
+                windo.minY%     = PEEKW(win& + 18)
+                windo.maxX%     = PEEKW(win& + 20)
+                windo.maxY%     = PEEKW(win& + 22)
+                min.x%          = windo.minX%-windo.width%
+                min.y%          = windo.minY%-windo.height%
+                max.x%          = windo.maxX%-windo.width%
+                max.y%          = windo.maxY%-windo.height%
+                IF x%<min.x% OR x%>max.x% THEN x%=0
+                IF y%<min.y% OR y%>max.y% THEN y%=0
+                CALL SizeWindow(win&,x%,y%)
+        END SUB
+
+                                PAGE 112
+
+----------------------------------------------------------------------------
+
+3.3.5 WINDOWTOFRONT AND WINDOWTOBACK.
+
+A window can be moved to the background or foreground in relation to other
+windows. These operations are normally performed with the mouse. However,
+there are two intuition functions that can perform the same operation from
+a program, WindowToFront and WindowToBack.
+
+Here is a small demonstration:
+
+        LIBRARY "intuition.library"
+
+        FOR loop%= 1 TO 10
+            CALL WindowToBack(WINDOW(7))
+            PRINT "Behind!"
+            FOR t = 1 TO 2000: NEXT t
+            CALL WindowToFront(WINDOW(7))
+            PRINT "In front!"
+            FOR t = 1 TO 2000: NEXT t
+        NEXT loop%
+        END
+
+                                PAGE 113
+
+----------------------------------------------------------------------------
+
+3.4 THE INTUITION SCREEN.
+
+Intuition also manages screens. An intuition screen data structure is
+similar to those of intuition windows. The pointer to the screen data is
+located at offset 46 in the window data structure. To obtain the base
+address of your output window use the following:
+
+        screen& = PEEKL(WINDOW(7)+46)
+
+To calculate the address of an individual data field you add the offset to
+the base address. The data structure is as follows:
+
+Data structure Screen/Intuition/342 bytes.
+
+Offset  Type    Description.
+------- ------- ---------------------------------------
++000    Long    Pointer to the next screen.
++004    Long    Pointer to the first window in this screen.
++008    Word    X coordinate of upper left corner.
++010    Word    Y coordinate of upper left corner.
++012    Word    Width of the screen.
++014    Word    Height of the screen.
++016    Word    Y coordinate of mouse pointer.
++018    Word    X coordinate of mouse pointer.
++020    Word    Flags
+                Bit 0  : 1 = Workbench screen.
+                Bit 0-3: 1 = Custom screen.
+                Bit 4  : 1 = Showtitle.
+                Bit 5  : 1 = Screen beeps now.
+                Bit 6  : 1 = Custom bit-map.
++022    Long    Pointer to screen name text.
++026    Long    Pointer to standard title text.
++030    Byte    TitleBar height.
++031    Byte    Vertical limit of titlebar.
++032    Byte    Horizontal limit of titlebar.
++033    Byte    Vertical limit of menus.
++034    Byte    Horizontal limit of menus.
++035    Byte    Top window border.
++036    Byte    Left window border.
++037    Byte    Right window border.
++038    Byte    Bottom window border.
++039    Byte    Unused.
++040    Long    Pointer to standard font TextAttr
++044     --     Viewport of screen.
++084     --     Rastport of screen.
++184     --     Bit-map of screen.
++224     --     LAyerInfo of screen.
++326    Long    Pointer to first screen gadget.
++330    Byte    DetailPen.
++331    Byte    BlockPen.
++332    Word    Backup register for Beep(), stores col0
++334    Long    Pointer to external data.
++338    Long    Pointer to user data.
+
+You probably noticed that the window and screen data structures are quite
+similar, even though some fields are new. Again, we will explain each field
+individually.
+
+                                PAGE 114
+
+----------------------------------------------------------------------------
+
+3.4.1 SCREEN STRUCTURE.
+
+
+OFFSET 0: NEXT SCREEN.
+
+Screens are also organised by Intuition in the form of a data chain. When
+there are other screens in a chain with your screen, the address of the
+next screen's data block is at this offset.
+
+
+OFFSET 4: FIRST WINDOW.
+
+Remember the data chain used by windows: two fields, the father and child,
+provide the address of the previous and next windows. By using these you
+can move back and forth through the chain from one window to another.
+however, this method has a small flaw. In order to go through the entire
+chain, you have to find the beginning of the chain first. The active window
+you access is not necessarily the first window in the chain.
+
+If you are interested only in a window in a specific screen, there is an
+easier method you can use. This field contains the address of the first
+window data block. The address of the next window structure is in offset+0
+of the window data structure.
+
+        windo& = WINDOW(7)
+        scr& = PEEKL(windo&+46)
+        searcher&=scr&+4
+        WHILE flag% = 0
+            searcher& = PEEKL(searcher&)
+            IF searcher& = 0 THEN
+                flag% = 1
+            ELSE
+                counter%=counter%+1
+                PRINT "Window";counter%;
+                PRINT " Data block address : ";
+                PRINT searcher&
+            END IF
+        WEND
+        END
+
+NOTE: Although this method is easier to program, it only accesses those
+windows in the output window of the current screen.
+
+                                PAGE 115
+
+----------------------------------------------------------------------------
+
+OFFSET 8, 10, 12 AND 14: SCREEN DIMENSIONS.
+
+Like the window structure, there offsets contain the coordinates of the
+upper left hand corner of the screen and the height and width of the
+screen. The corner coordinate is relative to the top corner of the
+display. The current versions of the Amiga(500-2000) do not allow
+horizontal shifting of the screen. Offset field +8 is available for future
+compatibility.
+
+
+OFFSET 16 AND 18: THE MOUSE COORDINATES.
+
+Here you find the X and Y coordinates of the mouse pointer relative to the
+upper left hand corner of the screen. During vertical screen movements the
+Y value can vary a bit.
+
+
+OFFSET 20: FLAGS.
+
+The bit descriptions a self-explanatory. Show title means that the screen's
+title text is visible. A custom bit-map is suitable when you are generating
+a new screen that has its own drawing plane.
+
+
+OFFSET 22 AND 26: THE NAME OF THE SCREEN.
+
+This offset contains the address of either the name string of this screen
+or a standard text string which is taken as default from a window when a
+name string is not specified.
+
+
+OFFSET 30-39: DEFAULT PARAMETERS.
+
+These bytes contain various standard parameters, such as the dimensions
+of the title bar etc.. All windows in this screen default to these
+dimensions automatically.
+
+
+OFFSET 40: THE STANDARD CHARACTER SET.
+
+Whenever a window is opened in your screen, it has a standard character set
+(a predetermined font). The address of this font is stored here.
+
+We will be discussing character sets in more detail later.
+
+                                PAGE 116
+
+----------------------------------------------------------------------------
+
+OFFSET 44 : THE VIEWPORT.
+
+This is another new term we will be discussing in more detail later. In
+relation to the data structure of the screen, the ViewPort is NOT a
+pointer. At offset 44, it is the actual ViewPort of the screen. ViewPort,
+which is a small data structure 40 bytes long, is an interface to the Amiga
+graphic hardware (the COPPER graphic coprocessor).
+
+
+OFFSET 84: THE RASTPORT.
+
+This offset is not a pointer either but the actual RastPort. You received
+an introduction to the RastPort in the window data structure. Since both
+screen and windows are drawing planes, the screen also has a RastPort.
+
+
+OFFSET 184: THE BIT-MAP.
+
+This is a new data structure which is 40 bytes long. Bit-map is the
+interface between the screen and the memory it occupies, called
+"bit-planes".
+
+
+OFFSET 234:THE LAYERINFO.
+
+This is the last internal data structure of the screen. It is the core of
+thw windowing system (the layers). This will be discussed in detail later.
+
+
+OFFSET 326: POINTER TO SCREEN GADGETS.
+
+Screens also recognise gadgets that move them to the background or bring
+them to the foreground. This field is specifically for internal system use.
+
+
+OFFSET 330 AND 331: THE SCREEN COLOURS.
+
+Changing the screen colour values that are stored here works the same way
+as for windows. The new colours take effect as soon as the screen is
+refreshed, such as when you use a menu etc...
+
+
+OFFSET 332: BACKUP-REGISTER.
+
+Intuition stores the colour from register 0 here when the screen is flashed
+or beeped. The following will beep the screen:
+
+        PRINT CHR$(7)
+
+
+OFFSET 334 AND 338: EXTERNAL AND USER DATA.
+
+These allow the possibility to link other data blocks with the standard
+structure.
+
+                                PAGE 117
+
+----------------------------------------------------------------------------
+
+3.4.2 THE INTUITION FUNCTIONS FOR SCREEN HANDLING.
+
+Below are the routines from the intuition library used for screen handling:
+
+        MoveScreen()
+        ScreenToBack()
+        ScreenToFront()
+        WBenchToBack()
+        WBenchToFront()
+
+To make things easier we have written three SUBs that use all of these
+routines. They are named ScrollScreen, ScreenHere and ScreenBye.
+
+ScrollScreen requires the number of pixels that the screen should scroll
+down in the current output window (a negative value scrolls it up).
+ScreenBye sends the screen behind all current screens and ScreenHere brings
+the screen to the foreground.
+
+Here are the SUBs in a small demonstration program:
+
+        '#####################################
+        '#
+        '# Section: 3.4.2
+        '# Program: Screen Control.
+        '# Date   : 01/04/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '######################################
+
+        ' Program controlled screen handling.
+
+        PRINT "Searching for .BMAP file ........."
+
+        'INTUITION-library
+        'MoveScreen()
+        'ScreenToFront()
+        'ScreenToBack()
+
+        LIBRARY "intuition.library"
+
+        init:   CLS
+                SCREEN 1,320,200,1,1
+                WINDOW 2,"Hello1",,,1
+
+        main:   '* Screen scrolling.
+                PRINT "This is the second screen! "
+                
+                                
+                                PAGE 118
+
+----------------------------------------------------------------------------
+
+        '* Screen 1 down.       
+        WINDOW OUTPUT 2
+        FOR loop% = 255 TO 0 STEP -1
+            ScrollScreen(1)
+        NEXT loop%
+
+        '* Screen 0 Down.
+        WINDOW OUTPUT 1
+        FOR loop% = 255 TO 0 STEP -1
+            ScrollScreen(1)
+        NEXT loop%
+
+        '* Screen 1 up.
+        WINDOW OUTPUT 2
+        FOR loop% = 0 TO 255
+            ScrollScreen(-1)
+        NEXT loop%
+
+        '* Screen 0 up.
+        WINDOW OUTPUT 1
+        ScreenHere
+        FOR loop% = 0 TO 255
+            ScrollScreen(-1)
+        NEXT loop%
+        
+        '* Swapping.
+        FOR t% = 1 TO 3000:NEXT t%
+        ScreenBye
+        FOR t% = 1 TO 3000:NEXT t%
+        ScreenHere
+        FOR t% = 1 TO 3000:NEXT t%
+        
+        '* Closing.
+        WINDOW CLOSE 2
+        SCREEN CLOSE 1
+
+        endprog:        LIBRARY CLOSE
+                        END
+
+        SUB ScrollScreen(pixel%) STATIC
+                screenAddress&=PEEKL(WINDOW(7)+46)
+                CALL MoveScreen(screenAddress&,0,pixel%)
+        END SUB
+
+        SUB ScreenHere STATIC
+                screenAddress& = PEEKL(WINDOW(7)+46)
+                CALL ScreenToFront(screenAddress&)
+        END SUB
+
+        SUB ScreenBye STATIC
+                screenAddress& = PEEKL(WINDOW(7)+46)
+                CALL ScreenToBack(screenAddress&)
+        END SUB
+
+                                PAGE 119
+
+----------------------------------------------------------------------------
+
+3.5 INTUITION AND THE REST OF THE WORLD.
+
+So far you have been introduced to the data structure of "windows" and
+"screens". It is now time to for review amd show you the connections
+between these two data blocks. The following figure symbolises a window
+data structure to other components:
+
+                                        |           |
+                                        |           |
+        ________________________________|___________|_____
+       |                                |           |     |
+       |                              Screen     Father   |
+       |                                                  |
+       |            W I N D O W                         __|____ next
+       |                                                  |     window
+       |        |                               |         |
+       |        |                               |         |
+       |________|_______________________________|_________|
+                |                               |
+             RastPort                        Child Window.
+        
+
+The "screen" structure can be displayed using a similar figure:
+
+
+        ____|__________________________________________
+       |    |                                          |
+       |  Next Screen                                  |
+       |                                    1. window  |        
+    ------- ViewPort    S C R E E N             ---------- 
+       |                                               |
+       |                                               |        
+       |    |           |                              |
+       |    |           |                              |
+       |____|___________|______________________________|
+            |           |
+          BitMap      RastPort
+
+                                PAGE 120
+
+----------------------------------------------------------------------------
+
+The next figure shows the system connection with a screen and a window:
+
+NOTE: THE CHARACTER "+" REPRESENTS A DOWN ARROW.
+
+
+        _________________________
+       |                         |
+       |                         |
+     __|      S C R E E N        |<--------------------------------
+    |  |                         |                                 |
+    |  |                         |--------------------------       |
+    |  |                         |                         |       |
+    |  |_________________________|                         |       |
+    |       |      |                                       |       |
+    |       |      |                    ___________________+_______|__|_
+    +       +      +                   |                              | |
+ ViewPort  BitMap RastPort             |                                |
+                                       |           W I N D O W        ----
+                                       |                                |
+                                       |                                |
+                                       |___|__________________________|_|
+                                           |                          | 
+                                           +
+                                        RastPort
+
+We are not finished yet. You still need an understanding of the RastPort,
+ViewPort and BitMap structures. Next we will take a closer look at the
+RastPort.
+
+                                PAGE 121
+
+----------------------------------------------------------------------------
+
+3.6 THE RASTPORT.
+
+With this data block, we get even closer to the basic elements of Amiga
+graphics, the so called "graphic primitives". We'll leave intuition to go
+deeper into the Amiga system architecture. We'll now explore the graphic
+libraries.
+
+The RastPort, which contains the data that controls how a drawing takes
+place, manages a drawing plane. The starting address of the data block for
+an actual window is always in the variable WINDOW(8). This address can be
+read directly from the window data structure.
+
+        PRINT WINDOW(8) 
+        PRINT PEEKL(WINDOW(7)+50)
+
+The RastPort structure is constructred as follows:
+
+Data Structure: RastPort/Graphics/100 Bytes.
+
+Offset  Type    Description.            
+------- ------- ------------------------------------------------------
++000    Long    Pointer to the layer structure.
++004    Long    Pointer to the Bit-map structure.
++008    Long    Pointer to the AreaFill pattern.
++012    Long    Pointer to the TmpRas structure.
++016    Long    Pointer to the AreaInfo structure.
++020    Long    Pointer to the GelsInfo structure.
++024    Byte    Mask: Writemask for this raster.
++025    Byte    Foreground colour.
++026    Byte    Background colour.
++027    Byte    AreaFill outline colour.
++028    Byte    Drawing mode:
+                        JAM1            = 0
+                        JAM2            = 1
+                        COMPLEMENT      = 2
+                        INVERSVID       = 4
++029    Byte    AreaPtSz: 2^n Words for AreaFill pattern.
++030    Byte    Unused.
++031    Byte    Line draw pattern preshift.
++032    Word    various control bits.
+                FIRST DOT       = 1 : Draw first pixel?
+                ONE DOT         = 2 : one dot mode for lines.
+                DBUFFER         = 4 : Double buffered set.
++034    Word    LinePtrn: 16 bits for line pattern.
++036    Word    X coordinate of graphic cursor.
+
+                                PAGE 122
+
+----------------------------------------------------------------------------
+
++038    Word    Y coordinate of graphic cursor.
++040    ----    8*1 byte minterms.
++048    Word    Cursor Width.
++050    Word    Cursor Height.
++052    Long    Pointer to character set.
++056    Byte    Character set mode (bold, italics etc...)
++057    Byte    textspecific flags.
++058    Word    Height of characterset.
++060    Word    Average character width.
++062    Word    Text height without underline.
++064    Word    Character spacing.
++066    Long    Pointer to user data.
++070    Word    Reserved (7x)
++084    Long    Reserved (2x)
++092    Byte    Reserved (8x)
+
+                ------------------------------------------
+
+3.6.1 THE RASTPORT STRUCTURE.
+
+The following explains the RastPort structure by offset the same manner we
+did for windows and screens:
+
+OFFSET 0 : THE LAYER.
+
+The Amiga uses layers to keep each drawing plane separate from the other
+planes. These layers are actually the principle elements of each Intuition
+window. You might think layers are very complicated and, compared to
+windows, relatively useless. However, layers are important and a closer
+look (as seen in a later chapter) will prove that they are really a
+storehouse of graphic possibilities.
+
+
+OFFSET 4: THE BITMAP.
+
+You have already learned about the Bitmap, which is a pointer to the
+bit-map structure. With this pointer you have indirect access to the screen
+address through the RastPort:
+
+        scr& = PEEKL(WINDOW(8)+4)-184
+
+The bit-map is the intersection between the data structure and the RAM
+banks where the window and screen contents are stored.
+
+                                PAGE 123
+
+----------------------------------------------------------------------------
+
+OFFSET 8 : POINTER TO THE AREAFILL PATTERN.
+
+You have seen how to fill areas with a single colour or with a pattern. If
+you use a pattern, then that pattern has to be stored somewhere in memory.
+This offset contains the address pointer to where the pattern is stored.
+
+We will provide more information and examples after the offset
+explanations. One of our subjects will show you how to use multi-colour
+patterns of up to 32 colours.
+
+
+OFFSET 12: THE TmpRas.
+
+TmpRas stands for Temporary Raster. This is a pointer to an area of free
+RAM used for certain operations. Whenever you use the fill commands like
+PAINT or LINE BF, this RAM is used as a temporary holding area for the
+entire object being filled.
+
+
+OFFSET 16: AREA INFO.
+
+This pointer is for a data structure used when drawing polygon shapes.
+There is not much use for this from BASIC, but we will discuss it later.
+
+
+OFFSET 20: GELSINFO.
+
+Gels are Graphic Elements, such as sprites and Bobs (Blitter Objects), and
+also the complete automatic Amiga animation system. Before this system can
+be activated the GelsInfo structure has to be defined. This structure
+contains some very important parameters.
+
+
+OFFSET 24: WRITEMASK.
+
+This variable allows individual bit-planes of the drawing plane to fade.
+The default value is normally 255. All bits are set which means that all
+available bit-planes are used. The POKE,
+
+        POKE WINDOW(8) + 24,0
+
+makes all bit-planes inactive and nothing more will be drawn on the
+screen. You can also select specific bit planes to be active or inactive.
+
+
+OFFSET 25,26 AND 27: DRAWING COLOUR.
+
+These registers determine the drawing colours. The first contains the
+number of the colour register for the drawing colour. The second has the
+background and the third the AreaOutlineMode.
+
+                                PAGE 124
+
+------------------------------------------------------------------------------
+
+OFFSET 28: DRAWING MODE.
+
+The Amiga has four basic drawing modes that you can use. They are:
+
+        JAM1            = 0
+        JAM2            = 1
+        COMPLEMENT      = 2
+        INVERSEVID      = 4
+
+The normal drawing mode is JAM2. This means that the foreground colour is
+used to draw in the drawing plane and the rest will be in the background
+colour. THe following example will make this clear:
+
+        (Enter these examples in Direct Mode!)
+        LINE (0,0)-(100,100),2,bf
+        LOCATE 1,1:PRINT "hello!"
+
+Thw white text appears on a blue background. A hole is made in the original
+black background.
+
+JAM 1 is different. The foreground colour is used to draw, but the
+background is not changed.
+        
+        LINE (0,0)-(100,100),2,bf
+        POKE WINDOW(8)+28,0
+        LOCATE 1,1:PRINT "hello"
+        POKE WINDOW(8)+28,1
+
+COMPLEMENT complements the graphic with the background: Where ever a pixel
+is set, it will be erased and just the opposite for unset pixels:
+
+        LINE (0,0)-(100,100),2,bf
+        POKE WINDOW(8)+28,2
+        LINE(50,50)-(150,150),3,bf
+        POKE WINDOW(8)+28,1
+
+INVERSEVID inverts a graphicL background and foreground are exchanged. It
+looks like this:
+
+        POKE WINDOW(8)+28,4
+        PRINT "Inverse!"
+        POKE WINDOW(8)+28,1
+
+These pokes work great in direct mode. However, they do not work in a
+program. Nothing will happen.
+
+The routine SetDrMd in the graphic library sets the desired mode safely and
+reliably.
+
+                                PAGE 125
+
+----------------------------------------------------------------------------
+
+        LIBRARY "graphic.library"
+        CALL SetDrMd(WINDOW(8),mode%)
+
+        mode% = 0 - 255
+
+Various modes may be combined, only JAM1 and JAM2 work against each other.
+
+
+OFFSET 29: AreaPtSz.
+
+Whenever you work with patterns, you must specify how high the pattern will
+be. Patterns can only be defined using powers of two (1,2,4,8,....). This
+field stored the power of two.
+
+Using a special programming method, you can use this register to activate
+the mutli-colour pattern mode. This allows you to create patterns with up
+to 32 colours. ( There will be more on this in the next section).
+
+
+OFFSET 30,31 AND 32. FOR SYSTEM USE.
+
+OFFSET 34: LINE PATTERN.
+
+Patterns are not only for areas, but for lines also. The method is easy: 16
+pixels in a row can be set or unset. The amiga then uses this Sample
+pattern to draw lines. Take the following line pattern for example:
+
+        *****.*.*****.*.
+
+A dash dot dash dot line.
+
+First you determine the bit values of the line:
+
+bit& = 2^15+2^14+2^13+2^12+2^11+2^9+2^7+2^6+2^5+2^4+2^3+2^1
+
+Now the value is stored to this register:
+
+        POKEW WINDOW(8)+34,bit&
+
+A test:
+
+        LINE (10,10)-(600,10)
+
+AS you can see it works.
+
+
+OFFSET 36 AND 38: COORDINATES OF THE GRAPHIC CURSOR.
+
+These two fields are extremely important. Text on the Amiga is nothing more
+than text shaded graphics. Because of this, text can be placed in any
+position on the screen. The following example demonstrates this:
+
+        WHILE INKEY$ = ""
+           x% = RND(1)*600
+           y% = RND(1)*160
+           POKEW WINDOW(8)+36,x%
+           POKEW WINDOW(8)+38,y%
+           PRINT "Commodore Amiga!"
+        WEND
+
+                                PAGE 126
+
+----------------------------------------------------------------------------
+
+OFFSET 40-51: MINTERMS, INTERNAL USAGE.
+
+OFFSET 52: THE CHARACTER SET.
+
+Just as in the screen structure this is a pointer to the currently active
+font. The character set determines what your text looks like. We will
+return to this subject later.
+
+
+OFFSET 56: ACTUAL TEXT STYLE.
+
+The Amiga can display a font in various forms on the screen:
+        
+        normal          = 0
+        underlined      = Bit 0 set.
+        bold            = Bit 1 set.
+        italics         = Bit 2 set.
+
+The last three modes can be combined to form different combinations.
+
+
+OFFSET 57: TEXT FLAGS, INTERNAL USAGE.
+
+
+OFFSET 58: TEXT HEIGHT.
+
+This field contains the height of the currently active font. This value is
+used to average the line height to calculate the correct line spacing.
+
+There is nothing to prevent you from setting you own line spacing. It can
+be even closer together than normal:
+
+        POKEW WINDOW(8)+58,5
+
+or further apart:
+
+        POKEW WINDOW(8)+58,12
+
+
+OFFSET 60: CHARACTER WIDTH.
+
+This register contains the average width of the font. Since the Amiga also
+supports proportional fonts (characters of different widths), you can set
+the average width in this register.
+
+                                PAGE 127
+
+----------------------------------------------------------------------------
+
+OFFSET 62: TEXT HEIGHT WITHOUT UNDERLINE.
+
+
+OFFSET 64: CHARACTER SPACING.
+
+The following routine allows you to vary the spacing between individual
+characters. The default for this field is zero. Storing larger values here
+will spread the characters over a larger area as in the following example:
+
+        text$ = "Hello World!"
+        text%=LEN(text$)
+
+        FOR loop% = 1 TO 40
+            POKEW WINDOW(8)+36,280-(loop%*text%*.5)
+            '(centering)
+            POKEW WINDOW(8)+38,90
+            POKEW WINDOW(8)+64,loop%
+            PRINT text$
+        NEXT loop%
+
+        FOR loop% = 39 TO 0 STEP -1
+            POKEW WINDOW(8)+36,280-(loop%*text%*.5)
+            POKEW WINDOW(8)+38,90
+            POKEW WINDOW(8)+64,loop%
+            PRINT text%
+        NEXT loop%
+
+        END
+
+
+OFFSET 66: USER DATA.
+
+This is a pointer to more data that can be linked to this structure.
+
+
+OFFSET 70 to END - Reserved Data Fields.
+
+                                PAGE 128
+
+---------------------------------------------------------------------------- 
+
+3.7 GRAPHIC PRIMITIVES.
+
+The RastPort provides us with the graphic primitives, which is the lowest
+software controlled entry address to the graphic planes. First we will try
+out a few of the possibilities of the RastPort that we have been
+discussing.
+
+                ----------------------------------------------
+
+3.7.1 MULTICOLOUR PATTERNS.
+
+At the beginning if the book we introduced you to the PATTERN statement.
+Instead of having plain areas, you can use this statement to fill any
+desired area with a pattern of your own design. 
+
+        CIRCLE (310,100),100
+        PAINT (310,100),2,1
+
+We can also display patterned areas:
+
+        DIM area.pat%(3)
+        area.pat%(0)=&HFFFF
+        area.pat%(1)=&HCCCC
+        area.pat%(2)=&HCCCC
+        area.pat%(3)=&HFFFF
+
+        CIRCLE (310,100),100
+        PATTERN ,area.pat%
+        PAINT (310,100),3,1
+
+You can see that this works, filling the circle with dotted orange pattern.
+Up to now the patterns have been limited to one colour.
+
+We have put together a complete pattern package that will enable you to
+design and create your patterns and add more colour to them.
+
+You know from the previous chapter that a pattern has to be stored in a
+specific memory area. The height of the pattern is stored in the RastPort
+field at Offset 29, as a power of two. Since we know the basics of
+patterns, we can now write a small pattern SUB program to activate the
+multicolour mode. This mode is switched on whenever the power at offset 29
+is negative (a power of 256).
+
+                                PAGE 129
+
+-----------------------------------------------------------------------------
+
+The following program manages patterns without the PATTERN statement. It is
+composed of these six routines:
+
+1.      InitPattern(howmany)%
+
+This routine initialises our new pattern system. You pass the parameter for
+how many lines high your example pattern is to be.
+
+The routine calculates the required memory and calls GetMemory. The
+starting address of the new buffer is form&.
+
+
+2.      SetPat(number%,pat$)
+
+This new command allows you to easily enter the individual lines of your
+pattern in a binary representation: An A equals an unset pixel and a B
+equals a set pixel. The number% variable passes the row number of your
+pattern and pat$ passes the actual bit pattern. Make sure that pat$ always
+contains 16 characters. For a solid line pat$ would look like this:
+
+                     "BBBBBBBBBBBBBBBB"
+
+
+3.      MonoPattern.
+
+This routine is called without any arguments and activates the pattern
+system. Both RastPort addresses are initialised to their correct values in
+this routine.
+
+
+4.      EndPattern.
+
+This routine is also called without any arguments. If tells the Amiga that
+your example pattern will no longer be used. The memory used for your
+pattern is released back to the system. You should call EndPattern at the
+end of your program to release all memory back to the system.
+
+
+5.      GetMemory(size&).
+
+This is an all purpose memory get routine. Whenever you need memory,
+GetMemory gets it for you. You specify an & variable containing the amount
+of memory you need in bytes.
+
+
+6.      
+
+To reserve an area of 1245 bytes:
+
+	DECLARE FUNCTION Allocmem& LIBRARY
+	LIBRARY "exec.library"
+
+	mymem& = 1245
+	GetMemory mymem&
+	PRINT "Starting address: ";mymem&
+
+NOTE: If a value of zero is returned for the starting address the memory
+allocation did not work. You did not receive a memory area and cannot use
+FreeMemory to return it.
+
+
+6. FreeMemory(add&)
+
+When you no longer require the memory that you have reserved you return it 
+to the system with FreeMemory. A call to this routine looks like this:
+
+	DECLARE FUNCTION AllocMem& LIBRARY
+	LIBRARY "exec.library"
+
+	form&=100 '100 bytes please!
+	GetMemory form&
+
+	(....)
+
+	FreeMemory form& 'memory released.
+	LIBRARY CLOSE
+
+These six routines make working with patterns remarkably easy. Here are the
+routines along with a small demonstration program.
+
+	'###################################
+	'#
+	'# Section : 3.7.1a
+	'# Program : Mono-pattern Module.
+	'# Date    : 12/27/86
+	'# Author  : tob
+	'# Version : 1.0
+	'#
+	'#####################################
+
+	'easy definition of modules using 
+	'binary character strings.
+
+	PRINT "Searching for .bmap file ....."
+
+	'Exec library
+	DECLARE FUNCTION AllocMem& LIBRARY
+
+				PAGE 131
+
+----------------------------------------------------------------------------
+
+	'FREEMEM
+
+	LIBRARY "exec.library"
+
+	init:	'Activate system.
+		CLS
+		InitPattern 4
+
+		'Set pattern.
+		SetPat 0,"BBBBBBBBBBBBBBBB"
+		SetPat 1,"BAAAAAAAAAAAAAAB"
+		SetPat 2,"BAAAABBBBBBAAAAB"
+		SetPat 3,"BAAAABBBBBBAAAAB"
+
+		'Enable new pattern
+		MonoPattern
+
+		'Display Pattern on screen
+		LINE (10,10)-(100,100),1,bf
+		CIRCLE (300,100),100
+		PAINT (300,100),2,1
+
+		'Switch system back off
+		EndPattern
+
+	endprog: LIBRARY CLOSE
+		 END
+
+	SUB InitPattern(howmany%) STATIC
+		SHARED form&,plane1%,plane2%,kolor%
+
+		'* is it a power of 2 ??
+		IF LOG(howmany%)/LOG(2)<>INT(LOG(howmany%)/LOG(2) THEN
+		    PRINT "2^x! Power of two for InitPattern! 1,2,4,8,16.."
+		    ERROR 17
+		END IF
+
+		'Read PArameters.
+		planes% = PEEK(PEEKL(WINDOW(8)+4)+5)	
+		DIM SHARED p&(howmany%*planes%)
+		plane1% = planes%
+		plane2% = howmany%
+		kolor% = 2^plane1%-1
+
+		'Definition pattern Buffer allocate.
+		form& = howmany%*2*planes%
+		GetMemory form&
+	END SUB
+
+	SUB SetPat(number%,pat$) STATIC
+		SHARED form&,plane1%,plane2%
+
+		'Too many rows????
+		IF number%>=plane2% THEN
+		    PRINT "More rows than you can define with InitPattern!"
+		    EndPattern
+		    ERROR 175
+		END IF
+
+				PAGE 132
+
+----------------------------------------------------------------------------
+
+		'* Error handling. Limit string to 16 bytes.
+		IF LEN(pat$)<16 THEN
+		    pat$=pat$+STRING(16-LEN(pat$),"A")
+		END IF
+
+		'Read Definition pattern
+		FOR loop1% = 0 TO 15
+		    check$ = UCASE$(MID$(pat$,loop1%+1,1)
+		    col% = ASC(check$)-65
+		    IF col%>=2^plane1% OR col%<0 THEN col% = 0
+		    FOR loop2% = col% TO 0 STEP -1
+			IF col% >= 2^loop2% THEN
+			    col% = = col%-2^loop2%
+			    p&(number%+loop2%*plane2%) =
+			       p&(number%+loop2%*plane2%)+2^(15-loop1%)
+			END IF
+		    NEXT loop2%
+		NEXT loop1%
+
+		'* Write value to buffer
+		FOR loop3% = 0 TO plane2%*plane1%
+		    POKEW form&+2*loop3%,p&(loop3%)
+		NEXT loop3%
+	    END SUB
+
+	    SUB MonoPattern STATIC
+		SHARED form&,plane2%
+		planes% = LOG(planes2%)/LOG(2)
+		POKEL WINDOW(8)+8,form&
+		POKEL WINDOW(8)+29,planes%
+	    END SUB
+
+	    SUB EndPattern STATIC
+	 	SHARED form&
+
+		'Pattern off and release memory.
+		POKEL WINDOW(8)+8,0
+		POKE WINDOW(8)+29,0
+		FreeMemory form&
+	    END SUB
+
+	    SUB GetMemory(size&) STATIC
+		mem.opt& = 2^0+2^1+2^16
+		RealSize& = size&+4
+		size& = AllocMem&(RealSize&,opt&)
+		IF size& = 0 THEN ERROR 255
+		POKEL size&,RealSize&
+		size& = size& + 4
+	    END SUB
+
+				PAGE 133
+
+-----------------------------------------------------------------------------
+	
+	SUB FreeMemory(add&) STATIC
+		add& = add& - 4
+		RealSize& = PEEKL(add&)
+		CALL FreeMem(add&,RealSize)
+	END SUB
+
+So far our SUB programs do not provide colour patterns. To fix this we will 
+add the routine ColorPattern to our program. If replaces MonoPattern and 
+activated the multicolor system. Depending on your screen depth, you can
+use up to 32 colors in your patterns. Additional characters are available now
+for defining your patterns:
+
+	Color 1    A Color Register 0 (background)	
+	Color 2	   B Color Register 1 
+	Color 3	   C Color Register 2
+	Color 4	   D Color Register 3
+	(for the workbench screen)
+
+The following program demonstrates multi-colour patterns.
+
+	'############################
+	'#
+	'# Section: 3.7.1b
+	'# Program: Mono &Colour pattern.
+	'# Date   : 12/27/86
+	'# Author : tob
+	'# Version: 1.0
+	'#
+	'##############################
+	
+
+	'Makes "multi-colour" patterns possible.
+	'Via RastPort manipulation.
+
+	PRINT "Searching for .bmap file ......."
+
+	'EXEC library
+	'DECLARE FUNCTION AllocMem& LIBRARY
+	'FreeMem()
+
+	LIBRARY "exec.library"
+	
+	init:	CLS
+		rows%=8
+		InitPattern rows%
+		'         0123456789ABCDEF'
+		SetPat 0,"DCDAAAAAAABBAAAA"
+		SetPat 1,"DCDAAAAAABBBBAAA"
+		SetPat 2,"DCDAAAAABAABBAAA"
+		SetPat 3,"DCDAAAABAAAABBAA"
+		SetPat 4,"DCDAAABBBBBBBBBA"
+		SetPat 5,"DCDAABAAAAAAABBA"
+		SetPat 6,"DCDBBBBAAAAABBBB"
+		SetPat 7,"CCCCCCCCCCCCCCCC"
+
+				PAGE 134
+
+----------------------------------------------------------------------------
+
+	drawing:PRINT TAB(7);"MONO";TAB(36);"COLOR!"
+
+		MonoPattern
+		CIRCLE (60,60),60
+		PAINT (60,60),kolor%,1
+
+		ColorPattern
+		CIRCLE (310,100),100
+		PAINT (310,100),kolor%,1
+
+	endprog:EndPattern
+		LIBRARY CLOSE
+		END
+
+	SUB ColorPattern STATIC
+		SHARED form&,plane2%
+		planes% = LOG(plane2%)/LOG(2)
+		POKEL WINDOW(8)+8,form&
+		POKE WINDOW(8)+29,256-planes%
+	END SUB
+
+	SUB InitPattern(howmany%) STATIC
+		SHARED form&,plane1%,plane2%,kolor%
+
+		'Is it a power of two ???
+		IF LOG(howmany%)/LOG(2)<>INT(LOG(howmany%)/LOG(2)) THEN
+		    PRINT "2^x! A power of two for initpattern! 1,2,4,8,16"
+		    ERROR 17
+		END IF
+
+		'* Read parameters.
+		planes% = PEEK(PEEKL(WINDOW(8)+4)+5)
+		DIM SHARED p&(howmany%*planes%)
+		plane1% = planes%
+		plane2% = howmany%
+		kolor% = 2^plane1%-1
+
+		'* Reserve definition pattern buffer.
+		form& = howmany%*2*planes%
+		GetMemory form&
+	END SUB
+
+	SUB SetPat(number%,pat$) STATIC
+		SHARED form&,plane1%,plane2%
+
+		'Too many rows?
+		IF number%>=plane2% THEN
+		    PRINT "More rows than can be defined with InitPattern!"
+		    EndPattern
+		    ERROR 17
+		END IF
+
+				PAGE 135
+
+------------------------------------------------------------------------------
+
+		'* Error-handling: Limit string to 16 bytes,
+		IF LEN(pat$)<16 THEN
+		    pat$=pat$+STRING$(16-LEN(pat$),"A")
+		END IF
+
+		'* Read Pattern Definition.
+		FOR loop1% = 0 TO 15
+		    check$ = UCASE$(MID$(pat$,loop1%+1,1))
+		    col% = ASC(check$)-65
+		    IF col%>=2^plane1% OR col1%<0 THEN col% = 0
+		    FOR loop2% = col% TO 0 STEP -1
+			IF col%>=2^loop2% THEN
+			    col% = col%-2^loop2%
+			    p&(number%+loop2%*plane2%) =
+			       p&(numer%,+loop2%*plane2%)+2^(15-loop1%)
+			END IF
+		    NEXT loop2%
+		NEXT loop1%
+
+		'* Write value to buffer.
+		FOR loop3% = 0 TO plane2%*plane1%
+		    POKEW form&+2*loop3%,p&(loop3%)
+		NEXT loop3%
+	END SUB
+	
+	SUB MonoPattern STATIC
+		SHARED form&,plane2%
+		planes% = LOG(plane2%)/LOG(2)
+		POKEL WINDOW(8)+8, form&
+		POKE WINDOW(8)+29, planes%
+	END SUB
+
+	SUB EndPattern STATIC
+		SHARED form&
+
+		'*Pattern off and release memory.
+		POKEL WINDOW(8)+8,0	
+		POKEW WINDOW(8)+29,0	
+		FreeMemory form&
+	END SUB
+
+	SUB GetMemory(size&) STATIC
+		mem.opt& = 2^0+2^1+2^16
+		RealSize&= size&+4
+		size& = AllocMem&(RealSize&,opt&)
+		IF size& = 0 THEN ERROR 255
+		POKEL size&,RealSize&
+		size& = size&+4
+	END SUB
+
+	SUB FreeMemory(add&) STATIC
+		add& = add&-4
+		RealSize& = PEEKL(add&)
+		Call FreeMem(add&,RealSize&)
+	END SUB
+
+				PAGE 136
+
+----------------------------------------------------------------------------
+
+If the four workbench screens are not enough, you can create your own 
+screens with more than 2 bit-planes. The following program does just this.
+After the initialisation you will see, as a fill pattern, a familiar logo
+in 11 colors. If you hold down the left mouse button you can draw using this
+pattern.
+
+
+	'############################
+	'#
+	'# Section: 3.7.1c
+	'# Program: Multi-Colour-Pattern
+	'# Date   : 12/27/86
+	'# Author : tob
+	'# Version: 1.0
+	'#
+	'##############################
+	
+	'Demonstrates the use of a multi-colour pattern with 
+	' up to 16 Colors (Screen Depth = 4), ; up to 32 colours
+	' possible.
+	'Color value: A=0 to Z=25, Colors 26-32 = chr$(91)-chr$(97)
+	' On "out of heap space" close other window!
+
+	PRINT "Searching for .bmap file ......."
+
+	'EXEC library
+	'DECLARE FUNCTION AllocMem& LIBRARY
+	'FreeMem()
+
+	LIBRARY "exec.library"
+	
+	init:	SCREEN 1,640,200,4,2
+		WINDOW 1,"Hello!",,,1		
+
+		LOCATE 4,15
+		PRINT "** Patience ! **"
+
+		rows%=8
+		InitPattern rows%
+		'         0123456789ABCDEF'
+		SetPat 0,"AAAAAAAAAAABBABB"
+		SetPat 1,"AAAAAAAAAABBABBA"
+		SetPat 2,"AAAAAAAAACCACCAA"
+		SetPat 3,"AAAAAAAADDADDAAA"
+		SetPat 4,"FFAFFAAEEAEEAAAA"
+		SetPat 5,"AGGAGGHHAHHAAAAA"
+		SetPat 6,"AAKKAIIAIIAAAAAA"
+		SetPat 7,"AAAJJJJJJAAAAAAA"
+
+				PAGE 137
+
+----------------------------------------------------------------------------
+
+	patcol:	'* Colour choices for the pattern.
+		PALETTE 0,0,0,0		'A
+		PALETTE 1,.9,.3,.4	'B
+		PALETTE 2,.8,.5,.4	'C
+		PALETTE	3,.8,.6,0	'D
+		PALETTE	4,1,.8,0	'E
+		PALETTE 5,0,0,.6	'F
+		PALETTE 6,0,.3,.6	'G
+		PALETTE 7,.7,.9,0	'H
+		PALETTE 8,.3,.9,0	'I
+		PALETTE 9,0,.5,0	'J
+		PALETTE 10,0,.3,0!	'K
+
+
+	drawing:ColorPattern
+		LOCATE (3,10)
+
+		PRINT "Press Left mouse button to draw"
+		PRINT TAB(10);"Touch left screen border to exit."	
+		CIRCLE (310,100),100
+		PAINT (310,100),kolor%,1
+
+
+	mousecontr:test% = MOUSE(0)
+		WHILE MOUSE(1)<>0
+		    x%=MOUSE(1)
+		    y%=MOUSE(2)
+		    IF test%<>0 THEN
+			LINE (x%,y%)-(x%+10,y%+5),kolor%,bf
+		    END IF
+		    test% = MOUSE(0)
+		WEND
+
+
+	endprog:EndPattern
+		WINDOW 1,"Demo Over !!!",,,-1
+		LIBRARY CLOSE
+		END
+
+
+	SUB ColorPattern STATIC
+		SHARED form&,plane2%
+		planes% = LOG(plane2%)/LOG(2)
+		POKEL WINDOW(8)+8,form&
+		POKE WINDOW(8)+29,256-planes%
+	END SUB
+
+	SUB InitPattern(howmany%) STATIC
+		SHARED form&,plane1%,plane2%,kolor%
+
+		'Is it a power of two ???
+		IF LOG(howmany%)/LOG(2)<>INT(LOG(howmany%)/LOG(2)) THEN
+		    PRINT "2^x! A power of two for initpattern! 1,2,4,8,16"
+		    ERROR 17
+		END IF
+
+				PAGE 138
+
+----------------------------------------------------------------------------
+
+		'* Read parameters.
+		planes% = PEEK(PEEKL(WINDOW(8)+4)+5)
+		DIM SHARED p&(howmany%*planes%)
+		plane1% = planes%
+		plane2% = howmany%
+		kolor% = 2^plane1%-1
+
+		'* Reserve definition pattern buffer.
+		form& = howmany%*2*planes%
+		GetMemory form&
+	END SUB
+
+	SUB SetPat(number%,pat$) STATIC
+		SHARED form&,plane1%,plane2%
+
+		'Too many rows?
+		IF number%>=plane2% THEN
+		    PRINT "More rows than can be defined with InitPattern!"
+		    EndPattern
+		    ERROR 17
+		END IF
+
+
+		'* Error-handling: Limit string to 16 bytes,
+		IF LEN(pat$)<16 THEN
+		    pat$=pat$+STRING$(16-LEN(pat$),"A")
+		END IF
+
+		'* Read Pattern Definition.
+		FOR loop1% = 0 TO 15
+		    check$ = UCASE$(MID$(pat$,loop1%+1,1))
+		    col% = ASC(check$)-65
+		    IF col%>=2^plane1% OR col1%<0 THEN col% = 0
+		    FOR loop2% = col% TO 0 STEP -1
+			IF col%>=2^loop2% THEN
+			    col% = col%-2^loop2%
+			    p&(number%+loop2%*plane2%) =
+			       p&(numer%,+loop2%*plane2%)+2^(15-loop1%)
+			END IF
+		    NEXT loop2%
+		NEXT loop1%
+
+		'* Write value to buffer.
+		FOR loop3% = 0 TO plane2%*plane1%
+		    POKEW form&+2*loop3%,p&(loop3%)
+		NEXT loop3%
+	END SUB
+	
+	SUB MonoPattern STATIC
+		SHARED form&,plane2%
+		planes% = LOG(plane2%)/LOG(2)
+		POKEL WINDOW(8)+8, form&
+		POKE WINDOW(8)+29, planes%
+	END SUB
+
+
+				PAGE 139
+
+----------------------------------------------------------------------------
+
+	SUB EndPattern STATIC
+		SHARED form&
+
+		'*Pattern off and release memory.
+		POKEL WINDOW(8)+8,0	
+		POKEW WINDOW(8)+29,0	
+		FreeMemory form&
+	END SUB
+
+	SUB GetMemory(size&) STATIC
+		mem.opt& = 2^0+2^1+2^16
+		RealSize&= size&+4
+		size& = AllocMem&(RealSize&,opt&)
+		IF size& = 0 THEN ERROR 255
+		POKEL size&,RealSize&
+		size& = size&+4
+	END SUB
+
+	SUB FreeMemory(add&) STATIC
+		add& = add&-4
+		RealSize& = PEEKL(add&)
+		Call FreeMem(add&,RealSize&)
+	END SUB
+
+		----------------------------------------------------
+
+3.7.2 SHADOWS USING CURSOR POSITIONING.
+
+The multi-coloured patterns in the last section were created by skillfully
+manipulating the rastports. With some creativity you can do a lot more with 
+these data structures. To demonstrate this we will show you what can be done
+with a little help from offset fields 28,36 and 38.
+
+These fields manage:
+
+Offset	Type	Description
+------- ------- ---------------------------------------
++028	Byte	Drawing modes:
+		JAM1		= 0
+		JAM2		= 1
+		COMPLEMENT	= 2
+	 	INVERSE VID	= 4
+
++036	Word	Coordinate of graphic cursor.
++038	Word	Coordinate of graphic cursor.
+
+With these offsets we will create a shadowed text effect. You may have seen 
+this method on television, which has used it for a long time. First the 
+text is printed in black, then the text is printed again in white over the 
+black but slightly offset. This creates a shadow effect that makes the text
+visibly stand out. It doesnt matter if the background is dark or light, the
+contrast is still visible.
+
+				PAGE 140
+
+----------------------------------------------------------------------------
+
+We will use three routines from the graphic library to create our effect:
+
+	SetDrMd()
+	Text()
+	Move()
+
+The first routine, SetDrMd(), sets the drawing mode and directly affects 
+RastPort offset 28, (see section 3.6.1). The text routine Text(), which
+was discussed in chapter 2, prints text on the screen. The move routine 
+Move(), puts the graphic cursor at a selected position and affects Rastport
+offsets 36 and 38. Instead of using the Move() routine, you could poke the
+values into the memory offsets.
+
+Our routine is named "shadows" and it requires two arguments:
+
+	Shadow text$,mode%
+
+	text$:	The text that is to be displayed.
+	mode%:	0 = PRINT text$
+		1 = PRINT text$;
+
+	Here is the program:
+
+	'#########################################	
+	'#
+	'# Section : 3.7.2
+	'# Program : Shadow Print.
+	'# Datum   : 12/25/86
+	'# Author  : tob
+	'# Version : 1.0
+	'#
+	'###########################################
+
+	PRINT "Searching for .bmap file ....."
+
+	'GRAPHICS-Library
+	'Text()
+	'Move()
+	'SetDrMd()
+
+	LIBRARY "graphics.library"
+
+	main: 	'* Contrast color
+		PALETTE 0,.5,.5,.5
+		CLS
+		LOCATE 5,1
+		PRINT "This is normal text without contrast."
+		PRINT "Not very exciting ....."		
+
+				PAGE 141
+
+-----------------------------------------------------------------------------
+
+		PRINT 
+		Shadow "Shadow print is just a fast as print !",0
+		Shadow "It works due to the actions of the ",0
+		Shadow "Text() function of the Graphic-Library",0
+		PRINT
+		Shadow "The text effectively appears to float",0
+		Shadow "in FRONT of the screen.",0
+
+	endprog: LIBRARY CLOSE
+		 END
+
+	SUB Shadow(Text$,mode%) STATIC
+
+		'* Lock in parameters.
+		textlen% = LEN(Text$)
+		depth% = 2
+		cx% = PEEKW(WINDOW(8)+36)
+		cy% = PEEKW(WINDOW(8)+38)
+
+		'* Draw shadows.
+		COLOR 2,0
+		CALL Move(WINDOW(8),cx%+depth%,cy%+depth%)
+		CALL Text(WINDOW(8),SADD(Text$),textlen%)
+
+		'* Draw JAM1 and Foreground.
+		CALL SetDrMd(WINDOW(8),0)
+		COLOR 0M2
+		CALL Move(WINDOW(8),cX%,cY%)
+		CALL Text(WINDOW(8),SADD(Text$),textlen%)
+
+		'* CR as desired.
+		IF mode% = 0 THEN
+			PRINT
+		END IF
+
+		'* And again with JAM2 and finish.
+		CALL SetDrMd(WINDOW(8),1)
+	END SUB
+
+During the drawing process it is necessary to switch the drawing mode from
+JAM2 to JAM1. Otherwise the white text would completely cover the black 
+text.
+
+We use the Text() function instead of the PRINT statement to gain more speed
+. Text() is more than 3 times faster than PRINT. This is why our shadow
+text is displayed faster than the normal text. To see the difference just
+switch the lines around:
+
+	CALL Text(WINDOW(8),SADD(text$),textlen%)
+
+for the line:
+		
+	PRINT text$
+
+The difference in speed is enormous.
+
+		----------------------------------------------
+
+3.7.3 OUTLINE PRINT - A SPECIAL FLAIR.
+
+This type of text displays only the silhouette of the characters. It 
+quickly catches the eye and is especially useful for creating titles.
+
+You can access this mode by using the following technique. The text is 
+output using the drawing mode JAM1 and, while being displayed, is moved
+one pixel in all directions. The result is a smeared character. Now the 
+text is output again in the original position using the background color.
+The final result is a silhouette of a character.
+
+Here is a routine named OUTLINE which is very similar to the previous 
+shadow routine.
+
+
+	'#########################################	
+	'#
+	'# Section : 3.7.3
+	'# Program : Outlne Print.
+	'# Datum   : 12/25/86
+	'# Author  : tob
+	'# Version : 1.0
+	'#
+	'###########################################
+
+	PRINT "Searching for .bmap file ....."
+
+	'GRAPHICS-Library
+	'Text()
+	'Move()
+	'SetDrMd()
+
+	LIBRARY "graphics.library"
+
+	main: 	CLS
+		LOCATE 5,1
+		Outline " OUTLINE PRINT stands out and catches the eye!",0
+		Outline " Although the drawing process is complicated, ",0
+		Outline "it is extremely fast due to the Text() function",0
+		Outline "Outline will also work with other character sets",0
+
+	endprog: LIBRARY CLOSE
+		 END
+
+				PAGE 144
+
+----------------------------------------------------------------------------
+
+	SUB Outline(Text$,mode%) STATIC
+
+		'* Lock in parameters.
+		textlen% = LEN(Text$)
+		cx% = PEEKW(WINDOW(8)+36)
+		cy% = PEEKW(WINDOW(8)+38)
+
+		'* JAM1 and smear text.
+		'* A loop is faster and more effective.
+		CALL SetDrMd(WINDOW(8),0)
+		CALL Move(WINDOW(8),cx%+1,cy%)
+		CALL Text(WINDOW(8),SADD(Text$),textlen%)
+		CALL Move(WINDOW(8),cx%-1,cy%)
+		CALL Text(WINDOW(8),SADD(text$),textlen%)
+		CALL Move(WINDOW(8),cx%,cy%+1)
+		CALL Text(WINDOW(8),SADD(Text$),textlen%)
+		CALL Move(WINDOW(8),cx%,cy%-1)
+		CALL Text(WINDOW(8),SADD(text$),textlen%)		
+		CALL Move(WINDOW(8),cx%-1,cy%-1)
+		CALL Text(WINDOW(8),SADD(Text$),textlen%)
+		CALL Move(WINDOW(8),cx%+1,cy%+1)
+		CALL Text(WINDOW(8),SADD(text$),textlen%)
+		CALL Move(WINDOW(8),cx%+1,cy%-1)
+		CALL Text(WINDOW(8),SADD(Text$),textlen%)
+		CALL Move(WINDOW(8),cx%-1,cy%+1)
+		CALL Text(WINDOW(8),SADD(text$),textlen%)
+
+		'* Background colour and hollow text.
+		COLOR 0,0
+		CALL Move(WINDOW(8),cx%,cy%)
+		CALL Text(WINDOW(8),SADD(text$),textlen%)
+
+		'* Reset Modes and colour, CR as needed
+		COLOR 1,0
+		IF mode%=0 THEN
+			PRINT
+		END IF
+		CALL SetDrMd(WINDOW(8),1)
+	END SUB
+
+		--------------------------------------------------
+
+3.7.4 TEXT STYLES
+
+The four different text styles of the Amiga can be program controlled. The 
+value stored at RastPort offset 56 controls how the Amiga displays the text.
+
+				PAGE 144
+
+----------------------------------------------------------------------------
+
+		A.) normal
+		B.) BOLD
+		C.) underlined.
+		D.) Italics.
+
+In addition to these, you can combine the styles. These are basically two
+ways to switch between these styles:
+
+A.) Direct RastPort Manipulation.
+
+    With this method you POKE directly to the RastPort to switch. It works
+    like this:
+
+		normal% = 0
+		underline% = 2^0
+		bold% = 2^1
+		italic% = 2^2
+
+		POKE WINDOW(8)+56,underline%
+		PRINT "Underlined text"
+
+		POKE WINDOW(8)+56,bold%
+		PRINT "Bold Text"
+
+		POKE WINDOW(8)+56,italic%+underline%
+		PRINT "Combined: Italic and Underlined"
+
+		POKE WINDOW(8)+56,normal%
+
+b.) Via graphic libraries:
+
+The library has two functions that handle text styles:
+
+	AskSoftStyle() and SetSoftStyle()
+
+The principle is similar. Again the four types are available and can be 
+mixed. The call to SetSoftStyle requires a third parameter:
+
+	newStyle% = SetSoftStyle%(RastPort,mode,enable)
+
+	RastPort :	Address of RastPort.
+	mode	 :	The desired style.
+	enable   :	The available styles.
+
+If is possible that a font won't be compatible with a specific style and 
+therefore, will not be legible. To prevent this, the graphic library 
+provides the enable field. The AskSoftStyle function checks a mask that 
+returns all the legal styles available for the current font. This value
+is then returned to SetSoftStyle. Here is a sample program:
+
+				PAGE 145
+
+----------------------------------------------------------------------------
+
+	'##################################
+	'#
+	'# Section : 3.7.4
+	'# Program : SoftStyle.
+	'# Date    : 12/20/86
+	'# Author  : tob
+	'# Version : 1.0
+	'#
+	'####################################
+
+	' Demonstrates the use of different text styles
+	' named 'softstyles' that are software controlled.
+
+	PRINT "Searching for .bmap file .........."
+
+	'GRAPHICS LIBRARY
+	DECLARE FUNCTION AskSoftStyle& LIBRARY
+	DECLARE FUNCTION SetSoftStyle& LIBRARY
+	'SetDrMd
+
+	LIBRARY "graphics.library"
+
+	init:	normal = 0
+		underline = 2^0
+		bold = 2^1
+		italic = 2^2
+		CLS
+
+	main: '* JAM1 for legible slanted text.
+		CALL SetDrMd(WINDOW(8),0)
+		LOCATE 4,1
+		SetStyle underline+bold
+		PRINT TAB(8);"ALGORITHM GENERATED TEXT STYLES"
+		PRINT
+		SetStyle normal
+		PRINT "The Amiga can do a lot the the existing fonts."
+		PRINT "without a ";
+		SetStyle underline
+		PRINT "Definition Change";
+		SetStyle normal
+		PRINT "You can use these styles:"
+		PRINT
+		SetStyle bold
+		PRINT "BOLD Print"
+		SetStyle italic
+		PRINT "ITALIC Print"
+		SetStyle underline
+		PRINT "UNDERLINED text"
+		SetStyle underline+italic
+		PRINT "and MIXED."
+		PRINT
+		SetStyle normal
+		PRINT "These tricks let you display text professionally."
+
+				PAGE 146
+
+----------------------------------------------------------------------------
+
+		CALL SetDrMd(WINDOW(8),1)
+
+		LIBRARY CLOSE
+		END
+
+	SUB SetStlye(mode) STATIC
+		'0   = normal
+		'2^0 = underline
+		'2^1 = bold
+		'2^2 = italic
+		mode%=CINT(mode)
+
+		'* Check font and if possible set new style.
+		enable%   = AskSoftStyle&(WINDOW(8))
+		newstyle% = SetSoftStyle&(WINDOW(8),mode%,enable%)
+	END SUB
+
+You probably noticed that the italic print in the first example was 
+somewhat deformed but in the above example the italics looked much better.
+The reason for this is that italics only work correctly in JAM1 mode. When
+characters are slanted, the right side of each character extends slightly 
+into the next character's position. If the normal JAM2 mode is active,
+this overlap is covered by the background colour making the character look
+chopped off.
+
+				PAGE 147
+
+----------------------------------------------------------------------------
+
+3.8 THE RASTPORT AND THE GRAPHIC SYSTEM.
+
+We'll now look at the RastPort an relation to the graphic system if the 
+Amiga. Youll see that the RastPort becomes a component of windows and 
+screens.
+
+		__________________________________
+	       |                                  |
+ 	       |     R  A  S  T  P  O  R  T       |
+      Bitmap --|---                               |
+	       |                        |         |
+	       |________________________|_________|
+					|
+					Layer
+
+With this we can represent the entire system much better. Below we have 
+added a RastPort to the figure from Section 3.5:
+
+               __________________________
+              |                          |
+       _______|____ S  C  R  E  E  N   __|_________________  
+      |       |	                         |                 |
+      |       |	          	       __|___________      |
+   Viewport.  |___|_____|________________|           |     |
+		  |     |		          ___|_____|_______|__ 
+		  |     |     _____               |		   |  |
+		  |     |____|     |	          |    W I N D O W    |
+                  |      ____| R P |              |                ---|---
+		  |     |    |_____|	          |                   |
+		  |     |                         |   |            |  |
+					          |___|____________|__|
+						      |            |
+						   ___|___
+					          |       |
+					 BitMap<--|  R P  |
+					          |_______|
+						       |
+						       |
+
+We still need information about ViewPort, Bit-Map and Layers. However, the 
+picture we are building of the Amiga operating system is becoming much 
+clearer. Our next subject is the bit-map data structure.
+
+				PAGE 148
+
+----------------------------------------------------------------------------
+
+3.9 THE BIT-MAP STRUCTURE.
+
+Through this structure we gain access to the RAM banks where the screen 
+contents are stored. This data structure is 40 bytes long:
+
+Offset	Type	Description.
+------- ------- -----------------------------------
++000	Word	Bytes per display line.
++002	Word	Number of display lines.
++004	Byte	System flag (unused)
++005	Byte	Number of bit-planes (depth)
++006 	Word	Unused.
++008	Long	Pointer to 1st bitplane.
++012	Long	Pointer to 2nd bitplane.
++016	Long	Pointer to 3rd bitplane.
++020	Long	Pointer to 4th bitplane.
++024	Long	Pointer to 5th bitplane.
++028	Long	Pointer to 6th bitplane.
++032	Long	Pointer to 7th bitplane.
++036	Long	Pointer to 8th bitplane.
+
+You obtain the starting address of the data structure like this:
+
+	bitmap& = PEEKL(WINDOW(8)+4)
+
+The first two fields contain the screen measurements stored by the 
+bit-planes:
+
+	bitmap& = PEEKL(WINDOW(8)+4)
+	x%=PEEKW(bitmap&)*8
+	y%=PEEKW(bitmap&+2)
+	PRINT "Extent : horiz. ";x%;
+	PRINT "vert. ";y%
+
+The fourt field contains the number of used bit-planes. Presently you can
+only have up to six active bit-planes. The pointers for planes seven and
+eight are for future expansion compatibility of the Amiga.
+
+				PAGE 149
+
+----------------------------------------------------------------------------
+
+                       CHAPTER 4 - THE VIEWPORT
+ 
+ 
+We have now covered almost all of the graphic hardware. The ViewPort which
+consists of a data block of 40 bytes, represents the most elementary 
+display of the Amiga.
+ 
+Data Structure - Viewport/graphics/40 bytes.
+ 
+Offset  Type    Description.
+------- ------- ------------------------------------------
++000    Long    Pointer to next viewport.
++004    Long    Pointer to ColorMap.
++008    Long    DspIns: Copper list from Make View.
++012    Long    SprIns: Copper list for sprites.
++016    Long    ClrIns: Copper list for sprites.
++020    Long    UCopIns: User copper list.
++024    Word    Width of display
++026    Word    Height of display.
++028    Word    X Offset from (0,0) of bit-plane.
++030    Word    Y Offset from (0,0) of bit-plane.
++032    Word    ViewPort mode:
+                    Bit 1  :  1 = GENLOCK VIDEO.
+                    Bit 2  :  1 = INTERLACE.
+                    Bit 6  :  1 = PFBA
+                    Bit 7  :  1 = EXTRA HALFBRITE
+                    Bit 8  :  1 = GENLOCK VIDEO.
+                    Bit 10 :  1 = DUALPF
+                    Bit 11 :  1 = HAM
+                    Bit 13 :  1 = VP_HIDE.
+                    Bit 14 :  1 = SPRITES.
+                    Bit 15 :  1 = HIRES.
++034    Word    reserved.
++036    Long    Pointer to RasInfo structure.
+ 
+Before we cover the offset description, we must explain the importance of
+a ViewPort.
+ 
+A ViewPort is a data structure in RAM which represents a part of what you 
+see on the screen. If you take a close look at the screen structure in
+section 3.4 you will see that the ViewPort is part of this structure. The
+reason for this is that an Intuition screen is really a ViewPort with 
+accessories. So the heart of every screen is a ViewPort.
+ 
+                                PAGE 151
+ 
+---------------------------------------------------------------------------------
+ 
+A display consists of one or more ViewPorts. The following diagram 
+illustrates this :
+ 
+ 
+    ********************************************************************
+    *                                                                  *
+    *    --------------------------                                    *
+    *   |                          |                                   *
+    *   |                          |                                   *
+    *   |       VIEWPORT 1         |                                   *
+    *   |                          |                                   *
+    *   |__________________________|                                   *
+    *                                                                  *
+    *      ______________________________________________              *
+    *     |                                              |             *
+    *     |                                              |             *
+    *     |                                              |             *
+    *     |               VIEWPORT 2                     |             *
+    *     |                                              |             *
+    *     |                                              |             *
+    *     |______________________________________________|             *
+    *                                                                  *
+    *                                    ___________________________   *
+    *                                   |                           |  *
+    *                                   |         VIEWPORT 3        |  *
+    *                                   |                           |  *
+    *                                   |___________________________|  *
+    *                                                                  *
+    ********************************************************************
+ 
+ViewPorts have the following restrictions : 1.) it is not possible to place
+viewports next to each other. 2.) A ViewPort cannot overlap another 
+ViewPort. 3.) there must be at least one pixel row betwen them.
+ 
+Each ViewPort can have it's own graphic attributes like colour and 
+bit-plane. Also, the ViewPort is further divided among several areas called
+windows. However, windows do not have the same limitations as ViewPorts and
+they can overlap each other.
+ 
+Now we will present a detailed description of the data structure.
+ 
+                                PAGE 152
+ 
+-----------------------------------------------------------------------------
+ 
+ 
+4.1 THE VIEWPORT DATA STRUCTURE.
+ 
+OFFSET 0 : NEXT VIEWPORT.
+ 
+A display can consist of one or more ViewPorts connected in a chain. This
+field points to the next ViewPort of a display. If there are no further 
+ViewPorts, this field equals zero.
+ 
+OFFSET 4: COLOUR MAP.
+ 
+Every ViewPort can define it's own colour. This offset points to a data
+structure called "colormap" which stores the RGB value if this colour.
+Depending on how many bit-planes are available, a ViewPort can use up to 32
+individual colours (without using special modes).
+ 
+OFFSET 8, 12, 16 AND 20: COPPER LIST.
+ 
+The Copper, which is one of three Amiga graphic coprocessors, controls the
+entire display, manipulates registers, moves sprites and programs the 
+blitter (the copy processor). A special programming language designed 
+exclusively for the Copper consists of three commands. This field of the 
+ViewPort structure contains the copper command list which the Copper uses
+to build a display. The first list determines how to link the other three
+lists and use them to display the ViewPort.
+ 
+OFFSET 24 AND 26: WIDTH AND HEIGHT.
+ 
+These two offsets contain the width and height of the display section 
+controlled by this ViewPort.
+ 
+OFFSET 28 AND 30: BITMAP OFFSET.
+ 
+At this offset we find the coordinates of the upper left hand corner of the
+ViewPort relative to the complete display. These values are used to position
+the ViewPort. DyOffset can vary between -16 and +200 (interlace -32 to +400)
+DxOffset can vary between -16 and +352 (in hires -32 to +704).
+ 
+OFFSET 32: THE VIEWPORT MODES.
+ 
+The amiga has many different graphic modes. The most well known are hi-res
+(640 pixels horizontal) and interlace (400 pixels vertically). This 
+field contains a value for the current mode. 
+ 
+ 
+                                PAGE 153
+ 
+-----------------------------------------------------------------------------
+ 
+OFFSET 36: THE RASINFO BLOCK.
+ 
+Every ViewPort has at least one RasInfo data structure connected to it. We 
+will discuss this further on. 
+ 
+                                 PAGE 154
+ 
+-----------------------------------------------------------------------------
+ 
+4.2 THE GRAPHIC MODES OF THE AMIGA.
+ 
+The amiga has the following nine special graphic modes :
+ 
+        Genlock Video.
+        Interlace.
+        PFBA.
+        Extra halfbrite.
+        DUALPF
+        HAM
+        VP-Hide
+        SPrites
+        Hi-res
+ 
+You should already be familiar with the hi-res and interlace modes supported
+by AmigaBASIC. The AmigaBASIC SCREEN statement can specify screens from 
+lo-res (normal 320 pixels wide), hi-res (640 pixels wide) to interlace 
+(400 instead of 200 pixels high).
+ 
+If the ViewPort will contain sprites or Vsprites, you must set the sprite 
+flag (this is normally true).
+ 
+VP-Hide is set whenver this ViewPort is covered by other ViewPorts (for
+example, a screen covers another screen). The other viewport is not 
+displayed.
+ 
+Genlock Video means that instead of the background colour, an external
+video signal, like a video recorder or camera, provides the background.
+You need a genlock interface to use this mode.
+ 
+DUALPF stands for "dual playfield". This mode allows you to display two
+different planes in one ViewPort. The background of the top plane becomes
+transparent to show the plane underneath.
+ 
+PFBA works with the dual playfield mode. It determines the video priority 
+of the two planes.
+ 
+HAM stands for Hold and Modify. This mode allows you to display all 4096
+colours of the Amiga on the screen at the same time. However, this display
+mode is very difficult to program. More on this subject shortly.
+ 
+Extra halfbrite is a new graphic mode that allows you to display up to 64
+colors at the same time instead of the normal 32.
+ 
+                                PAGE 155
+ 
+-----------------------------------------------------------------------------
+ 
+4.2.1 THE HALFBRITE MODE.
+ 
+Extra halfbrite is one of the special graphic modes not supported by the 
+BASIC SCREEN statement. It is therefore impossible to create a screen in 
+this mode using SCREEN.
+ 
+It is possible to convert an existing screen to a halfbrite screen. Before 
+we show you how to do this we are going to explain the halfbrite technique.
+ 
+Normally the Amiga can only display up to 32 colors at one time. This is 
+because of two factors: 1.) The number of available colours is determined
+by the number of bit-planes (5, 2^5=32)and 2). The Amiga has 32 colour 
+registers to store colour values that were defined using the AmigaBASIC 
+PALETTE statement.
+ 
+When the halfbrite mode is active, you have six bit-planes available and the
+number of available colours increases accordingly from 2^5=32 to 2^6=64.
+However, since there are only 32 colour registers, there isnt space for the
+other 32 colours. To  solve this problem we use the 32 registers twice. We
+obtain colours 0 to 31 directly from registers 0 to 31. Colours 32 to 63 
+are also obtained from registers 0 to 31 but the RGB values in the registers
+are shifted one bit to the right.
+ 
+However, this causes three effects: 1.) The extra 32 halfbrite colours 
+cannot be freely defined because they rely on the values of the first 32
+colours. 2.) the extra colours are copies of the existing colours but are
+darker (therefore the name halfbrite), and 3.) if the first 32 colours are
+very dark there will be little visible difference between them and the 
+second 32 colors.
+ 
+Although these limits may sound troublesome, the halfbrite mode is still 
+reqarding because you can have an extra 32 slightly darker variations of 
+your first 32 colours to work with.
+ 
+Since we cannot normally active the halfbrite mode with BASIC, we are going
+to create a screen with a depth of five bit-planes. From the information
+in the previous chapters, we know the Amiga graphics system fairly well by
+now. Therefore, it should not be difficult to set up a sixth bit-plane in
+the bit-map structure of the screen. Finally, set the halfbrite flags in 
+the ViewPort. (There is just one small problem that we will cover shortly).
+ 
+To mke our screen a reality, we have to access two system libraries :
+We need the following functions :
+ 
+        RemakeDisplay()
+        AllocMem()
+        FreeMem()
+ 
+                                PAGE 156
+ 
+-----------------------------------------------------------------------------
+ 
+ 
+Our program, the halfbrite activator, follows. In addition to the 
+demonstration program there are two SUB programs, HalfBriteOn and 
+HalfBriteOff. Neither SUB requires any arguments.
+ 
+        '#####################################
+        '#
+        '# Section : 4.2.1
+        '# Program : Halfbrite Activator.
+        '# Date    : 01/17/87
+        '# Author  : tob
+        '# Version : 1.1
+        '#
+        '#######################################
+        '
+        ' Activates the Amiga special graphic mode "halfbrite"
+        ' Not normally available in BASIC. With 6 bit-planes
+        ' there are a total of 64 different colours available.
+        ' We will explain the functions and the most effective
+        ' programming methods for this mode in this book. NOTE :
+        ' This mode only functions in LoRes mode.
+ 
+        PRINT "Searching for .bmap file ..... "
+ 
+        'EXEC-Library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem
+        'INTUITION-LIBRARY
+        'RemakeDisplay()
+        
+        LIBRARY "intuition.library"
+        LIBRARY "exec.library"
+ 
+        main:
+            loRes            = 1
+            screen.nr%       = 1
+            screen.x%        = 320
+            screen.y%        = 200
+            screen.depth%    = 5 '5 planes required'
+            screen.resolution% = loRes
+            SCREEN screen.nr%,screen.x%,screen.y%,screen.depth%,
+screen.resolution%
+ 
+            'Open a window in the new screen.
+            windo.nr%          = 1
+            windo.name$        = "Halfbrite!"
+            WINDOW windo.nr%,windo.name$,,,screen.nr%
+ 
+ 
+                                PAGE 157
+ 
+-----------------------------------------------------------------------------
+ 
+        demo: 'Activate Halfbrite
+            HalfBriteOn
+ 
+            PRINT TAB(10);"The HalfBrite Mode!"
+             
+            'The original colours.
+            LOCATE 3,2:COLOR 1,0
+ 
+            PRINT "A ";
+            FOR loop%=0 TO 31
+                COLOR 0,loop%
+                PRINT " ";
+            NEXT loop%
+ 
+            '*  ... and the halfbrite colours.
+            PRINT "B ";
+            FOR loop% = 32 TO 63
+                COLOR 0,loop%
+                PRINT " ";
+            NEXT loop%
+ 
+            LINE (22,15)-(280,32),1,b
+            LOCATE 7,2:COLOR 1,0
+            PRINT "A: The 32 original colours, stored"
+            PRINT "   in the hardware colour registers."
+ 
+            LOCATE 10,2
+            PRINT "B: The additional 32 HalfBrite "
+            PRINT "   colours, corresponding to the "
+            PRINT "   original colours at half intensity"
+ 
+            LOCATE 14,2
+            PRINT " The blinking sample shows when the"
+            PRINT " Colour register of the original colour"
+            PRINT " is changed, the HalfBrite colour is"
+            PRINT " changed accordingly."
+ 
+            LOCATE 19,4
+            PRINT "Press the left mouse button"
+ 
+            WHILE check% = 0
+                check% = MOUSE(0)
+                PALETTE 30,.7,.2,.9
+                FOR t = 1 TO 500 : NEXT t
+                PALETTE 30,.3,.8,.1
+                FOR t = 1 TO 500 : NEXT t
+            WEND
+ 
+            FOR loop% = 0 TO 31
+                COLOR loop%,loop%+32
+                LOCATE 20,1
+                PRINT "TEST COLOUR ";loop%
+                PRINT "Text Colour            - Original colour"
+                PRINT "Background Colour      - Halfbrite colour"
+                FOR t = 1 TO 500: NEXT t
+            NEXT loop%
+            CLS
+            COLOR 1,0
+ 
+ 
+                                PAGE 158
+ 
+---------------------------------------------------------------------------
+ 
+        endprog:   ' Halfbrite off and close screen. '
+            HalfBriteOff
+            WINDOW windo.nr%,windo.name$,,,-1
+            SCREEN CLOSE screen.nr%
+            PRINT "End of DEMO !"
+            LIBRARY CLOSE
+            END
+ 
+        SUB HalfBriteOn STATIC
+            SHARED screen.mode%
+            SHARED screen.viewport&
+ 
+            ' Define variables.
+            MEM.CHIP    = 2^1
+            MEM.CLEAR   = 2^16
+            memory.option& = MEM.CHIP + MEM.CLEAR
+            window.base&   = WINDOW(7)
+            screen.base&   = PEEKL(window.base&+46)
+            screen.bitmap& = screen.base&+184
+            screen.viewport&=screen.base& + 44
+            screen.rastport&=screen.base& + 84
+            screen.width%   = PEEKW(screen.bitmap&)
+            screen.height%  = PEEKW(screen.bitmap&+2)
+            screen.size&    = screen.width%*screen.height%
+            screen.depth%   = PEEK(screen.bitmap&+5)
+            screen.mode%    = PEEKW(screen.viewport&+32)
+ 
+            '* SCREEN already has 6 bitplanes ????
+            IF screen.depth%>5  THEN screen.depth%=2^8
+ 
+            '* add missing Bitplanes.
+            FOR loop1% = screen.depth%+1 TO 6
+                plane&(loop1%)   = AllocMem&(screen.size&,memory.options&)
+                IF plane&(loop1%) = 0 THEN
+                    FOR loop2% = screen.depth%+1 TO loop1%-1
+                        CALL FreeMem(plane&(loop2%),screen.size&)
+                    NEXT loop2%
+                    ERROR 7
+                END IF
+                POKEL screen.bitmap&+4+4*loop1%,plane&(loop1%)
+            NEXT loop1%
+            POKE screen.bitmap&+5,6
+ 
+            'Halfbrite on
+            POKEW screen.viewport&+32,(screen.mode% OR 2^7)
+            CALL RemakeDisplay
+        END SUB
+ 
+        SUB HalfBriteOff STATIC
+            SHARED screen.mode%
+            SHARED screen.viewport&
+ 
+            'Reset Halfbrite Flag
+            POKEW screen.viewport&+32,screen.mode%
+            CALL RemakeDisplay
+        END SUB
+ 
+                                PAGE 159
+ 
+-----------------------------------------------------------------------------
+ 
+Working with the halfbrite program :
+ 
+After you call the SUB "HalfBriteOn" you will have 64 different colours
+available. You can freely define the first 32 colours using the BASIC 
+PALETTE statement:
+ 
+        PALETTE register, reg, green, blue
+ 
+        register : 0,31
+        red,green,blue : 0.0 - 1.0
+ 
+Colours 32 to 63 are defined at the same time except they are half as 
+bright.
+ 
+With the COLOR statement you can select any colour from 0 TO 63, draw, 
+print text and fill. But you should remember that for AmigaBASIC, the 
+screen still only has five bit-planes. When BASIC scrolls the screen (when
+you write text in the last row) only five planes will scroll; the sixth
+plane stays in place. To avoid this problem do not print to the last screen
+line.
+ 
+When you no longer need the HalfBrite mode you can deactivate it by using
+the SUB "HalfBriteOff".
+ 
+At the beginning of this section we mentioned a problem involving changes 
+to the HalfBrite flag in the ViewPort. Setting this flag does not do 
+anything. It doesn't matter what type of manipulation you perform in the 
+ViewPort, nothing is changed in the display. 
+ 
+This happens because the display is only changed by the hardware registers.
+Since ViewPort is a data block in RAM and not a hardware register, the 
+display isn't changed. In order to affect the display. the information
+in ViewPort about how the display is formed must first be sent to the 
+Copper. This is because the Copper controls and programs the hardware.
+ 
+We make ViewPort changes effective when we call the Intuition function
+"RemakeDisplay". This function creates a new Copper list and reflects the 
+change in the ViewPort structure. Finally, this list is sent to the 
+Copper.
+ 
+                                PAGE 160
+ 
+-----------------------------------------------------------------------------
+ 
+4.2.2 THE HOLD AND MODIFY MODE : 4096 COLOURS.
+ 
+The Hold and Modify mode (abbr. HAM) is also not supported by AmigaBASIC.
+You cannot access it by using the SCREEN statement.
+ 
+We can activate this mode for a screen that already exists. Before we do 
+this, let's take a look at the principles for using this mode.
+ 
+When the HAM mode is active, you can display up to 4096 colours at the 
+same time. If we follow the normal rules for displaying 4096 colours, we 
+would require 12 bit-planes. This would require a large amount of memory 
+(1 bit-plane = 64000 bytes in lo-res, 12 bit-planes = 768000 bytes!). Also
+the Amiga's DMA (Direct Memory Access) is not fast enough to retrieve and 
+build a new screen every 1/60th of a second from 12 different RAM areas. 
+Obviously, we need a special procedure.
+ 
+Actually, HAM works with only 6 bit-planes just as the halfbrite mode. The 
+first 16 colours are the exact colours that were defined for the first 16
+colour registers. All other colours are determined by the HAM principle.
+They use the colour of the pixel to the left and modify the RGB value.
+ 
+Before we undertake the complex arrangement of a HAM graphic, we need to 
+activate the mode. This is very similar to the halfbrite mode. We create
+a sixth bit-plane, add it to the bit-map and then set the HAM flag in the
+ViewPort. A call to RemakeDisplay switches the display to HAM. Again, there
+are two SUB programs, HAMon and HAMoff.
+ 
+        '#####################################
+        '#
+        '# Section : 4.2.2
+        '# Program : HAM activator.
+        '# Date    : 02/16/87
+        '# Author  : tob
+        '# Version : 1.4
+        '#
+        '#######################################
+        '
+        ' Activates the Amiga special graphic mode "HAM" (Hold 
+        ' And Modify) not normally availble to BASIC. Provides 
+        ' up to 4096 colours at the same time (with 6
+        'bit-planes. NOTE : only functions in lores mode.
+ 
+        PRINT "Searching for .bmap file ..... "
+ 
+                                PAGE 161
+ 
+-----------------------------------------------------------------------------
+ 
+        'EXEC-Library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem
+        'INTUITION-LIBRARY
+        'RemakeDisplay()
+        
+        LIBRARY "intuition.library"
+        LIBRARY "exec.library"
+ 
+        main:
+            loRes            = 1
+            screen.nr%       = 1
+            screen.x%        = 320
+            screen.y%        = 200
+            screen.depth%    = 5 '5 planes required'
+            screen.resolution% = loRes
+            SCREEN screen.nr%,screen.x%,screen.y%,screen.depth%,
+screen.resolution%
+ 
+            'Open a window in the new screen.
+            windo.nr%          = 1
+            windo.name$        = "HAM! 4096 colours available.!"
+            WINDOW windo.nr%,windo.name$,,,screen.nr%
+ 
+        demo: 'Activate HAM
+            HAMon
+ 
+            PRINT TAB(7);"256 of 4096 colours"
+             
+            s = 10                ' box size
+            x = 40                ' Position of upper
+            y = 20                ' left corner of demo.
+            PALETTE 3,0,0,0       ' FRAME COLOUR.
+            PALETTE 4,.5,0,.5     ' DARK PURPLE.
+            PALETTE 5,1,0,1       ' LIGHT PURPLE.
+            PALETTE 6,1,0,0       ' LIGHT RED.
+            PALETTE 7,0,0,1       ' LIGHT BLUE.
+ 
+            'SET ORIENTATION MARKS.
+            LINE (5,y)-(5+8,y+8),4,bf
+            LINE (240,y)-(240+8,y+8),7,bf
+            LINE (5,166)-(5+8,166+8),6,bf
+            LINE (240,166)-(240+8,166+8),5,bf
+ 
+            ' DRAW FRAME.
+            LINE (x-1,y-1)-(x+17*s+1,y+16*s+1),3,b
+ 
+            ' Draw first 256 HAM colours.
+            FOR loop% = 0 TO 15
+                LINE (x,loop%*s+y)-(s+x,loop%*s+s+y),32+loop%,bf
+                FOR loop2% = 0 TO 15
+                    LINE (s+loop2%*s+x,loop%*s+y)-(2*s+loop2%*s+x,
+loop%*s+s+y),loop2%+16,bf
+                NEXT loop2%
+            NEXT loop%
+ 
+                                PAGE 162
+ 
+-----------------------------------------------------------------------------
+ 
+        '* Raise Green Level.
+        FOR loop2% = 0 TO 15
+            PALETTE 3,0,loop2%*(1/15),0
+            LOCATE 10,28
+            PRINT "Green Level: "
+            PRINT TAB(31) loop2%
+            FOR t = 1 TO 3000: NEXT t
+        NEXT loop2%
+ 
+        LOCATE 2,7
+        PRINT "Please Press a Key ! "
+        WHILE INKEY$ = "": WEND
+ 
+        endprog:   ' HAM off and close screen. '
+            HAMOff
+            WINDOW windo.nr%,windo.name$,,,-1
+            SCREEN CLOSE screen.nr%
+            PRINT "End of DEMO !"
+            LIBRARY CLOSE
+            END
+ 
+        SUB HAMOn STATIC
+            SHARED screen.mode%
+            SHARED screen.viewport&
+ 
+            ' Define variables.
+            MEM.CHIP    = 2^1
+            MEM.CLEAR   = 2^16
+            memory.option& = MEM.CHIP + MEM.CLEAR
+            window.base&   = WINDOW(7)
+            screen.base&   = PEEKL(window.base&+46)
+            screen.bitmap& = screen.base&+184
+            screen.viewport&=screen.base& + 44
+            screen.rastport&=screen.base& + 84
+            screen.width%   = PEEKW(screen.bitmap&)
+            screen.height%  = PEEKW(screen.bitmap&+2)
+            screen.size&    = screen.width%*screen.height%
+            screen.depth%   = PEEK(screen.bitmap&+5)
+            screen.mode%    = PEEKW(screen.viewport&+32)
+ 
+            '* SCREEN already has 6 bitplanes ????
+            IF screen.depth%>5  THEN screen.depth%=2^8
+ 
+            '* add missing Bitplanes.
+            FOR loop1% = screen.depth%+1 TO 6
+                plane&(loop1%)   = AllocMem&(screen.size&,memory.options&)
+                IF plane&(loop1%) = 0 THEN
+                    FOR loop2% = screen.depth%+1 TO loop1%-1
+                        CALL FreeMem(plane&(loop2%),screen.size&)
+                    NEXT loop2%
+                    ERROR 7
+                END IF
+                POKEL screen.bitmap&+4+4*loop1%,plane&(loop1%)
+ 
+                                page 163
+ 
+-----------------------------------------------------------------------------
+
+            NEXT loop1%
+            POKE screen.bitmap&+5,6
+ 
+            'HAM on
+            POKEW screen.viewport&+32,(screen.mode% OR 2^11)
+            CALL RemakeDisplay
+        END SUB
+ 
+        SUB HAMOff STATIC
+            SHARED screen.mode%
+            SHARED screen.viewport&
+ 
+            'Reset HAM Flag
+            POKEW screen.viewport&+32,screen.mode%
+            CALL RemakeDisplay
+        END SUB
+ 
+ 
+After you start this program you will see a field of 256 colours that were
+created by using only red and blue. In the top left hand corner is a dark
+purple colour and in the lower right hand corner, a light purple colour.
+Light red is in the lower left hand corner and light blue is in the upper
+right hand corner.
+ 
+Now we blend a green slowly and evenly with other colours to display all 
+4096.
+ 
+This mass of colours looks very impressive but programming them is not easy.
+But, as you will see, it is not too complicated.
+ 
+First, lets define the difference between real colours and HAM colours. Real
+colors, the colours 0-15, actually display the values in colour registers
+0-15. These colours are permanent and can only be changed with the 
+PALETTE statement. The HAM colours, 16-63 are different because they are 
+always affected by their neighbouring colour to the left. A HAM colour takes
+the colour of the pixel to the left and modifies the RGB components. Which
+of the three components that is changed depends on the HAM colour itself.
+ 
+        Color 0           - 15         Real Colour.
+        Color 16+0        - 16+15      HAM type 1.
+        Color 32+0        - 32+15      HAM type 2.
+        Color 48+0        - 48+15      HAM type 3.
+ 
+HAM colour type 1 takes the neighbouring colour and changes the blue 
+component. The blue component of the HAM colour corresponds to a value 
+higher than 16. The HAM colour 16+12=28 uses the neighbouring colour
+and makes a value of 12 for blue.
+ 
+                                PAGE 164
+ 
+-----------------------------------------------------------------------------
+ 
+HAM colour type 2 takes the nieghbouring colour and modifies the red 
+component. The HAM colour 32+8 = 40 takes the nighbouring colour and makes
+a value of 8 in the red component.
+ 
+HAM colour type 3 performs exactly the same function for colours 48 and up,
+changing the green component.
+ 
+In our example program we created a black frame making red, green and 
+blue = 0. Directly to the right of the frame we drew with a HAM colour
+of type 2. This colour checks the pixel colour to the left, the black 
+frame and uses the same color. Reg,Green and Blue are still zero. The Blue
+field is set by the HAM colour itself. This blue value increases in a loop
+that changes every screen row.
+ 
+Directly to the right of this HAM colour we drew 16 HAM colours of type 1.
+These add in a red value of one.
+ 
+This creates the colourpattern. The red intensity increases to the right
+and the blue intensity increases downward.
+ 
+Now we change the colour of the frme by making the previously black frame 
+greener with the PALETTE command. The green value of the frame passes 
+immediately to the HAM colours. The entire colour graphic effect results
+from an increasing green intensity.
+ 
+                                PAGE 165 
+
+-----------------------------------------------------------------------------
+ 
+4.3 THE VIEWPORT IN THE SYSTEM.
+ 
+We now have a clearer picture of the amiga system. You shouldbe familiar 
+with two components; the bit-map and the ViewPort. Both are easily 
+illustrated.                
+                        	
+					__________________________
+				       |                          |
+			               |          BitMap          |   
+				       |                          |
+                                       |_____________|_|_|_|_|_|__|
+		 ______________           |   |      | | | | | | bitplanes
+		|              | _________|   |                  (max 8)
+		| bitplane 1   |              |         
+                |______________|              |   
+                                              |  
+ 	         ______________		      |  
+		|              | _____________|  
+                | bitplane 2   |
+                |______________|                        next viewport
+                
+					_____________________|____
+				       |                     |    |
+				       |     ViewPort             |
+				   ----|			  |-----
+		          Color map    |__________________________|Rasinfo
+
+
+ 
+Now the system connection with these components.
+ 
+
+		__|_____________
+               |                | 
+               |  Screen        |<----------------
+	    ___|                |                 |  
+           |   |                |------           |
+           |   |________________|      |          |
+           |       |    |   ____       |          |
+           |       |    |__|    |   ___|__________|__|__
+           |       |     __|R P |  |                 |  |
+           |       |__  |  |____|  |   Window          -|---
+           |          | |          |_________________|__|
+           |          | |              |             |
+     ______|____|__   | |              |
+    |           |  |  | |              |
+    | ViewPort     |  | |              |
+ ---|              |- | |              |
+    |______________|  | |              |
+                      | |              |
+		______|_|_____      ___|___
+	       |              |    |       |
+               |  BitMap      | <--| R P   |
+	       |______________|    |_______|
+
+ 
+                                PAGE 166
+ 
+-----------------------------------------------------------------------------
+ 
+The most elemental part if a display, the ViewPort, is controlled by 
+Intuition with the help of a screen. The screen and window are displayed
+through a private RastPort in a shared video RAM, the bit-planes.
+ 
+We still hane not explained the Layer, Colormap and RasInfo components. 
+ 
+Before we continue our study of the graphics system, we have one more point
+to discuss. There is an additional data structure called VIEW that seems to 
+appear out of nowhere. 
+ 
+                                PAGE 167
+        
+-----------------------------------------------------------------------------
+
+4.4 VIEW: THE GRAPHIC BRAIN.
+ 
+It is not surprising that the address of View, or even it's name has not
+appeared yet. View is the contact point between the graphic software and
+the graphic hardware of the Amiga. It is where everything begins. You can 
+obtain the address of View by calling an Intuition function name 
+ViewAddress. 
+ 
+        DECLARE FUNCTION ViewAddress& LIBRARY
+        LIBRARY "intuition.library"
+ 
+        view& = ViewAddress&
+ 
+NOTE : Remember that the Intuition routine ViewPortAddress provides you 
+with the address of the ViewPort where your actual output window is 
+located:        
+        
+        DECLARE FUNTION ViewPortAddress& LIBRARY
+        LIBRARY "intuition.library"
+        
+        vp& = ViewPortAddress&(WINDOW(7))
+ 
+Here is the View data structure :
+ 
+Data structure : View/graphics/18 bytes.
+ 
+Offset  Type    Description
+------- ------- -------------------------------------------------
++000    Long    Pointer to the first ViewPort.
++004    Long    LongFrame Copper List.
++008    Long    ShortFrame Copper List.
++012    Word    DyOffset
++014    Word    DxOffset
++016    Word    Mode
+ 
+Although View doesn't seem like an essential part of the graphics system,
+the entire display (including all screens) is dependant on it. A detailed
+description of the data fields follows :
+ 
+OFFSET 0 : NEXT VIEWPORT
+ 
+This offset contains the address pointer to the first ViewPort structure
+of the display. From that structure you can obtain the addresses of further
+ViewPorts, if there are any.
+        
+                                PAGE 168
+        
+---------------------------------------------------------------------------
+ 
+OFFSET 4 AND 8 : COPPER LISTS.
+ 
+We have dealt with Copper lists before when discussing the ViewPorts. Just 
+as the Copper list of the ViewPorts is responsible for the drawing region
+of the ViewPort, the Copper list controls the entire display (or in other
+words ; all the ViewPorts). A normal display requires only the LongFrame
+list. The second Copper list is only necessary when using the Interlace
+mode.
+ 
+The rest of the fields are self explanatory since they have exactly the 
+same funtions as the same name fields in the ViewPort.
+ 
+Now that we've added View to our explanation of the graphics system, we
+have covered the most important components. The connection between 
+hardware and intuition is complete.
+ 
+
+		__|_____________
+               |                | 
+               |  Screen        |<----------------
+	    ___|                |                 |  
+           |   |                |------           |
+           |   |________________|      |          |
+           |       |    |   ____       |          |
+           |       |    |__|    |   ___|__________|__|__
+           |       |     __|R P |  |                 |  |
+           |       |__  |  |____|  |   Window          -|---
+           |          | |          |_________________|__|
+           |          | |              |             |
+     ______|____|__   | |              |
+    |           |  |  | |              |
+    | ViewPort     |  | |              |
+ ---|              |- | |              |
+    |______________|  | |              |
+       |              | |              |
+  _____|____	______|_|_____      ___|___
+ |          |  |              |    |       |
+ |  View    |  |  BitMap      | <--| R P   |
+ |__________|  |______________|    |_______|
+       |         | | | | | |         |
+       |			     |
+  _____|_______________		     |
+ | Instructions Copper |	     |
+ |_____________________|	     |
+       | 			     |
+ ______|_____________________________|____
+|__________________			  |
+|		   |			  |
+|    COPPER        |----> Blitter         |
+|		   |      other special   |
+|		   |----> CoProcessors    |
+|__________________|______________________| 
+ 
+                                PAGE 169
+ 
+-----------------------------------------------------------------------------
+ 
+Before we continue with the graphic system, we need to test our model of
+the system. Since we have now advanced far enough, we can create our
+own display. There are several functions from the graphic libraries that
+we need.
+ 
+        InitView()
+        InitVPort()
+        GetColorMap()
+        InitBitMap()
+        AllocRaster()
+        LoadRGB4()
+        MakeVPort()
+        MrgCop()
+        LoadView()
+        FreeRaster()
+        FreeColorMap()
+        FreeVPortCopLists()
+        FreeCprList()
+ 
+In the following program we are going to demostrate all the steps required
+to create a simple display using a ViewPort. Use our program as a model 
+that shows the correct programming methods. Since copper programming is the
+subject of the next chapter this program is a good practising excercise.
+        
+        
+        '################################################
+        '# 
+        '# Section : 4.4
+        '# Program : Graphic Primitive Display.
+        '# Date    : 01/01/87
+        '# Author  : tob
+        '# Version : 1.0
+        '#
+        '#################################################
+        
+        'Demonstrates the creation of a graphiv display on the Amiga
+        'using the "graphic primitives", the base commands of the 
+        'Graphic Library. This screen is Hires with one bitplane.        
+        'The contents of the first bit-plane of this screen is copied
+        'to the new display.
+        
+        PRINT "Searching for .bmap file .... "
+        
+        'GRAPHICS library
+        DECLARE FUNCTION AllocRaster& LIBRARY
+        DECLARE FUNCTION GetColorMap& LIBRARY
+        
+        
+                                PAGE 170
+ 
+-----------------------------------------------------------------------------
+ 
+        'FreeRaster()
+        'FreeColorMap()
+        'FreeVPortCopLists()
+        'FreeCprList()
+        'InitView()
+        'InitVPort()
+        'InitBitMap()
+        'LoadRGB4()
+        'MakeVPort()
+        'MrgCop()
+        'LoadView()
+        
+        'EXEC library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem()
+        
+        'INTUITION library
+        DECLARE FUNCTION ViewAddress& LIBRARY
+         
+        LIBRARY "exec.library"
+        LIBRARY "graphic.library"
+        LIBRARY "intuition.library"
+ 
+        init:  'Define screen parameters.
+            wide% = 640
+            height% = 200
+            depth%  = 1
+            o.bitplane1& = PEEKL(PEEKL(WINDOW(8)+4)+8)
+        
+            'Store our view pointer to enable us to 
+            'return to it later.
+            oldview& = ViewAddress&
+ 
+            'Reserve memory for required structures.
+            ' View - Brain of Displays.
+            view&    = 18
+            GetMemory view&
+        
+            ' ViewPort - Our Screen.
+            viewport& = 40
+            GetMemory viewport&
+        
+            ' BitMap - Manager of bit-planes.
+            bitmap&   = 40
+            GetMemory bitmap&
+        
+            ' RasInfo - Information about the ViewPort.
+            RasInfo&  = 12
+            GetMemory RasInfo&
+ 
+            'Prepare View and ViewPort for use.
+            CALL InitView(view&)
+            CALL InitVPort(viewport&)
+ 
+            'Hi-res.
+            hires& = &H8000
+            POKEW viewport&+32+hires&
+ 
+            'Place ViewPort is View.
+            POKEL view&,viewport&
+ 
+                                PAGE 171
+ 
+-----------------------------------------------------------------------------
+       
+            'Setup Color Table.
+            colroMap& = GetColorMap&(2)
+            If colorMap& = 0 THEN RETURN
+                        
+            'Fill ViewPort with our Parameters.
+            POKEW viewport&+24,wide%
+            POKEW viewport&+26,height%
+        
+            'Place RasInfo in ViewPort
+            POKEL viewport&+36,RasInfo&
+            
+            'Place color table in the ViewPort.
+            POKEL viewport&+4,colorMap&
+        
+            'Fill bitmap structure with our Parameters.
+            CALL InitBitMap(bitmap&,depth%,wide%,height%)
+            
+            'Get a bitplane.
+            plane&   = AllocRaster&(wide%,height%)
+            IF plane& = 0 THEN ERROR 7
+        
+            'Place bitplane in Bitmap.
+            POKEL bitmap&+8,plane&
+        
+            'Place bitmap in RasInfo
+            POKEL RasInfo&+4,bitmap&
+        
+            'Define colours.
+            red$         = CHR$(15)+CHR$(0)
+            black$       = CHR$(0) +CHR$(0)
+            colortable$  = red$ + black$
+        
+            'Load colours into colour table.
+            CALL LoadRGB4(viewport&,SADD(colortable$),2)
+        
+            'Constuct Copper instruction List.
+            CALL MakeVPort(view&,viewport&)
+            CALL MrCop(view&)
+        
+            ' Load new display into copper.
+            CALL LoadView(view&)
+            
+            'Play with the Display
+            BEEP
+            size& = wide% * height% / 8
+        
+            FOR loop& = 0 TO size&-1
+                POKE plane&+loop&,PEEK(o.bitplane1&+loop&)
+            NEXT loop&
+            BEEP
+            
+            'Restore Old Copper List.
+            CALL LoadView(oldview&)
+            
+                                PAGE 172
+        
+-----------------------------------------------------------------------------
+        
+            'Cleanup: Return Memory for bit plane.
+            CALL FreeRaster(plane&,wide%,height%)
+            ' Release Color Table
+            CALL FreeColorMap(colormap&)
+            ' Release Interim ViewPort lists.
+            CALL FreeVPortCopLists(viewport&)
+            ' Release Copper Instruction List.
+            copperlist& = PEEKL(view&+4)
+            CALL FreeCprList(copperlist&)
+            
+            ' Release Structure Memory.
+            FreeMemory view&
+            FreeMemory viewport&
+            FreeMemory RasInfo&
+            FreeMemory bitmap&
+        
+            ' AND THAT'S  IT ...
+            LIBRARY CLOSE
+            END
+            
+        SUB GetMemory(size&) STATIC
+            opt&         = 2^0+2^1+2^16
+            RealSize&    = size& + 4
+            size&        = AllocMem&(RealSize&, opt&)
+            IF size&     = 0 THEN ERROR 255
+            POKEL size&,RealSize&
+            size& = size&+4
+        END SUB
+        
+        SUB FreeMemory(add&) STATIC
+            add&       = add&-4
+            RealSize& = PEEKL(add&)
+            CALL FreeMem(add&,RealSize&)
+        END SUB
+        
+        
+THE PROGRAM.
+------------
+ 
+The first step in our program is to choose what kind of display we want
+to create (how wide and how high). Our choice is a high-res screen with 
+a standard resolution of 640*200 pixels and a depth of one bitplane.
+        
+To be able to return to our original display we must store the addresses
+of our structure in several variables. The intuition function 
+ViewAddress provides the requierd pointers.
+        
+To create our display we use the following structures:
+        
+        View (18 bytes)
+        ViewPort (40 bytes)
+        BitMap (40 bytes)
+        RasInfo (12 bytes)
+        
+The View structure forms the brain of our future display. There is only
+one active view and from this view you can have any number of ViewPort
+branches.
+                                
+                                PAGE 173
+        
+-----------------------------------------------------------------------------
+        
+View and ViewPort must be created ready to use. InitView fills the View
+structure with the standard values, which automatically sets the View
+structure to appear about a half inch from the edge of the screen. 
+InitVPort does the same thing with the ViewPort. It is normally set for
+lo-res and the pointer for the next ViewPort is set to zero because
+usually there are no additional ViewPorts.
+        
+Now we have to make a connection between View and ViewPort. To do this, we
+use the first field of the View structure to store the address of the first
+(and only) ViewPort structure.
+        
+Next we must have a colour table that will later be used by our screen.
+GetColorMap will take care of this. 
+        
+Then we store the resolution for our ViewPort and the RasInfo block is 
+placed in the ViewPort. Now we make the Bit-Map structure ready for use
+by using InitBitMap(). We write the address of our bitplane into the
+Bit-map structure.
+        
+Next we write the address of the Bitmap into the RasInfo structure. Then
+we use LoadRGB4 to store the colours to the ViewPort.
+        
+Now that all the required data has been stored, our display is ready to
+use. The Amiga creates the instructions for the graphic processor from
+our information with the following steps : 1.) the function MakeVPort
+creates the Copper list from the data in the viewports and writes the 
+pointer for this list into the ViewPort, and 2.) the function MrgCop 
+integrates the instructions of our ViewPort with those of all the displays
+(we have only one ViewPort).
+        
+The completed Copper list is stored in View. A list of copper commands has
+been created from the data and will be used for our display. We just have 
+to send the commands to the copper and our new display will appear. This 
+action is performed by LoadView and immediately we see our bright red
+display.        
+        
+To show you that this is a fully functional display, we copy the first 
+bit-plane of the workbench screen to it. This takes a few moments.
+        
+Everything worked, but now we want to get back to the original display. 
+Since we stored the address for our old View, we shouldn't have any 
+problems. We can use LoadView to send the old copper lists to the Copper
+and return to the original.        
+        
+Althouh the demonstration is over, we still need to "cleanup" because
+the display has used up a lot of memory that we will want to release again.
+                        
+                                PAGE 174
+        
+----------------------------------------------------------------------------
+        
+4.5 COPPER PROGRAMMING.
+        
+The Copper has just demonstrated how powerful it is. We are going to take
+advantage of that power with our next program, which will use a technique
+known as double buffering.
+        
+                --------------------------------------------
+        
+4.5.1 DOUBLE BUFFERING FOR LIGHTNING FAST GRAPHICS.
+        
+The drawing speed of the Amiga does not affect the Copper because the
+Copper operates independantly at full speed. Because of this you can
+amaze the users of your programs with lightning fast graphics created 
+with double buffering. To create this effect, show the user a display
+on which nothing is happening. While the user stares at this boring 
+display, build your graphics in a second, invisible display. When your
+graphics are complete, switch on the second display and your graphics 
+will instantly appear on the screen.        
+        
+We will now explain how this works. The pointer to the Copper lists of 
+the old display are read from View and stored. The pointer in View is
+erased. Now a new bit-map with new bit-planes is prepared for the second
+display. MakeVPort and MrgCop are used to generate the new copper lists, 
+which are then stored. To switch from one display to the other we just 
+write the new pointer to the View structure and use LoadView to activate
+it.        
+        
+Again we have designed a small program package. If consists of the 
+following SUB programs:
+        
+        MakeDoubleBuffer
+        DoubleBufferOn
+        DoubleBufferOff
+        AbortDoubleBuffer
+        transmit
+        
+                                PAGE 175
+        
+-----------------------------------------------------------------------------
+        
+        
+        '################################################
+        '#
+        '# Section : 4.5.1
+        '# Program : Double Buffered Display.
+        '# Author  : tob
+        '# Version : 1.0
+        '#
+        '################################################
+        '
+        ' This program creates a second screen that works
+        ' as a backup buffer for the normal screen.
+        '
+        
+        PRINT "Searching for .BMAP file ............"
+        
+        'GRAPHICS-library
+        DECLARE FUNCTION BltBitMap& LIBRARY
+        DECLARE FUNCTION AllocRaster& LIBRARY
+        'FreeRaster()
+        'MakeVPort()
+        'MrgCop()
+        'LoadView()
+        'FreeCprList()
+        
+        'EXEC-library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem()
+        'CopyMem()
+        
+        'INTUITION-library
+        DECLARE FUNCTION ViewPortAddress& LIBRARY
+        DECLARE FUNCTION ViewAddress& LIBRARY
+        
+        LIBRARY "intuition.library"
+        LIBRARY "graphics.library"
+        LIBRARY "exec.library"
+        
+        init:    CLS
+            PRINT "WITHOUT DOUBLE BUFFERING!"
+            FOR t = 1 TO 20
+                PRINT STRING$(80,"+")
+            NEXT t
+            FOR t = 1 TO 20
+                x%  = RND(1) * 600
+                y%  = RND(1) * 150
+                r%  = RND(1) * 100
+                CIRCLE (x%,y%),r%
+            NEXT t
+            CLS
+            PRINT "AND NOW WITH DOUBLE BUFFERING!!!"
+            MakeDoubleBuffer
+            DoubleBufferOn
+            FOR t = 1 TO 20
+                PRINT STRING$(80,"+")
+            NEXT t
+            transmit
+            LOCATE 1,1
+        
+                                   PAGE 176
+        
+-----------------------------------------------------------------------------
+        
+            FOR t = 1 TO 20
+                x% = RND(1) * 600
+                y% = RND(1) * 150
+                r% = RND(1) * 100
+                CIRCLE (x%,y%),r%
+            NEXT t
+            transmit
+            LOCATE 5,10
+            LINE (38,29)-(442,67),3,b
+            PRINT "Even this works!"
+            PRINT "Double Buffering = Backup Display"
+            PRInt "These are two separate screen that"
+            PRINT "are switched back and forth"
+            FOR loop% = 1 TO 15
+                DoubleBufferOn
+                FOR T = 1 TO 1000: NEXT t
+                DoubleBufferOff
+                FOR T = 1 TO 1000: NEXT t
+            NEXT loop%
+            PRINT
+            PRINT "PRESS THE LEFT MOUSEBUTTON!"
+            SLEEP:SLEEP
+            AbortDoubleBuffer
+            LIBRARY CLOSE
+            END
+        
+        
+    SUB MakeDoubleBuffer STATIC
+        '* Create second display.
+        SHARED TargetBitmap&, rasInfo&, SourceBitMap&, view&
+        SHARED bufferx%, buffery%, vp&
+        SHARED home1&, home2&, guest1&, guest2&
+        view&           = ViewAddress&
+        vp&             = ViewPortAddress&(WINDOW(7))
+        rasiInfo&       = PEEKL(vp&+36)
+        SourceBitMap&   = PEEKL(rasInfo&+4)
+        opt&            = 2^0 + 2^1 + 2^16
+        TargetBitmap&   = AllocMem&(40,opt&)
+        
+        '* Copy Bitmaps
+        IF TargetBitmap& = 0 THEN ERROR 7
+        '* NOTE: FOR KICKSTART VERSION 1.2 AND ABOVE.
+        '* FOR 1.0 AND 1.1 USE LINES BELOW.
+        '*
+        '*
+        '* For loop& = 0 TO 40 STEP 4
+        '*   POKEL TargetBitmap&+loop&,PEEKL(SourceBitMap&+loop&)
+        '* NEXT loop&
+        '
+        
+        CALL CopyMem(SourceBitMap&,TargetBitmap&,40)
+        
+        ' Get Planes.
+        bufferx%     = PEEKW(SourceBitMap&)*8
+        buffery%     = PEEKW(SourceBitMap&+2)
+        
+                                PAGE 177
+        
+-----------------------------------------------------------------------------
+        
+        depth%      = PEEK(SourceBitMap&+5)
+        FOR loop% = 0 TO depth% - 1
+            plane&(loop%) = AllocRaster&(bufferx%,buffery%)
+            IF plane&(loop%) = 0 THEN ERROR 7
+            POKEL TargetBitmap&+8+loop%*4,plane&(loop%)
+        NEXT loop%
+        
+        'Copy active display to buffer.
+        plc% = BltBitMap&(SourceBitMap&,0,0,TargetBitmap&,0,0,bufferx%
+    buffery%,200,255,0)
+        IF plc%<>depth% THEN ERROR 17
+        
+        ' Store original Copper List
+        home1& = PEEKL(view&+4)
+        home2& = PEEKL(view&+8)
+        
+        'Generate Second Copper List
+        POKEL view&+4,0
+        POKEL view&+8,0
+        POKEL rasInfo&+4,TargetBitmap&
+        CALL MakeVPort(view&,vp&)
+        CALL MrgCop(view&)
+        CALL LoadView(view&)
+        guest1& = PEEKL(view&+4)
+        guest2& = PEEKL(view&+8)
+        
+        'Reset
+        POKEL rasInfo&+4,SourceBitMap&
+        POKEL view&+4,home1&
+        POKEL view&+8,home2&
+        CALL LoadView(view&)
+    END SUB
+        
+        
+    SUB DoubleBufferOn STATIC
+        '* Activate new copper list.
+        SHARED view&, guest1&, guest2&
+        SHARED rasInfo&, TargetBitmap&
+        POKEL view&+4,guest1&
+        POKEL view&+8,guest2&
+        CALL LoadView(view&)
+    END SUB
+        
+    SUB DoubleBufferOff STATIC
+        '* ACtivate old Copper List
+        SHARED view&, home1&, home2&
+        SHARED rasInfo&, SourceBitMap&
+        POKEL view&+4,home1&
+        POKEL view&+8,home2&
+        CALL LoadView(view&)
+    END SUB
+        
+    SUB transmit STATIC 
+        'Copy old display to the new buffer.
+        SHARED SourceBitMap&,TargetBitmap&,bufferx%,buffery%
+        plc% = BltBitMap&(SourceBitMap&,0,0,TargetBitmap&,0,0,bufferx%,
+    buffery%,200,255,0)
+    END SUB
+        
+                                PAGE 178
+        
+-----------------------------------------------------------------------------
+        
+        SUB AbortDoubleBuffer STATIC
+        SHARED rasInfo&, view&, TargetBitmap&
+        SHARED vp&, bufferx%, buffery%
+        SHARED home1%, home2%, guest1%, guest2%
+        
+        '* Restore Old Display and VPort copperlists.
+        POKEL view&+4,home1&
+        POKEL view&+8,home2&
+        CALL MakeVPort(view&,vp&)
+        CALL MrgCop(view&)
+        CALL LoadView(view&)
+        
+        '* Delete new VPort Copper List Set
+        CALL FreeCprList(guest1&)
+        
+        '* Delete Second Copper list set.
+        IF guest2&<>0 THEN CALL FreeCprList(guest2&)
+        add& = TargetBitmap&+8
+        pl& = PEEKL(add&)
+    
+        '* Delete BitPlanes and BitMap
+        WHILE pl&<>0
+            CALL FreeRaster(pl&,bufferx%,buffery%)
+            add& = add&+4
+            pl&  = PEEKL(add&)
+        WEND
+        CALL FreeMem(TargetBitmap&,40)
+    END SUB
+        
+        
+DESCRIPTION: 
+ 
+You switch the double buffer system on with the command:
+ 
+        MakeDoubleBuffer
+ 
+The double buffer is used to create the invisible display. This command
+can only be used once. When you are ready to start, execute:
+        
+        DoubleBufferOn
+ 
+This command activates the hidden display. Your old display, where you are
+drawing, becomes invisible. Now you can take your time to create you
+graphics, no drawing can be seen on the screen.
+        
+As soon as your graphic is complete you only have to call:
+        
+        transmit
+        
+                                PAGE 179
+        
+-----------------------------------------------------------------------------
+        
+to display the contents of the hidden display (in other words, to send your
+graphic to the visible screen). You can use the transmit command as often
+as desired.
+        
+When you want to quickly switch to an unbuffered display simply call:
+        
+        DoubleBufferOff
+        
+All graphic and print commands will, from this point on, appear immediately
+on the screen. With DoubleBufferOn, you can activate the buffered system
+again.        
+        
+Should you desire to leave the system entirly because your program is 
+finished or you are tired of double buffer drawing, then use:
+        
+        AbortDoubleBuffer
+        
+All memory areas used for the buffer displays are returned to the system.
+        
+                --------------------------------------------
+        
+4.5.2  PROGRAMMING THE COPPER YOURSELF.
+        
+So far we have let the Amiga create the copper lists for us, from the data
+we provided. Another possibility is to program the copper ourselves.
+        
+Before you do this, you need to understand the Copper functions. The copper
+works very closely with the electronic beams of the display. These 
+electronic beams scan from the upper left hand corner to the lower right
+hand corner of the screen sixty (50 uk) times a second.        
+        
+The copper is capable of waiting for this electronic beam to reach a 
+specific position. This is handled by the WAIT instruction of the 
+processor. The instruction requires a Y and X coordinate and tells the 
+Copper to wait until the electronic beam has reached this coordinate.
+Until this occurs, the Copper will not process any more instructions.
+        
+The MOVE instruction allows the copper to directly address hardware 
+registers in the special purpose chips (the hardware registers are detailed
+in appendix C). The MOVE instruction requires an offset for the hardware
+register and a value to store in the register.        
+        
+The third and last instruction for the Copper is named SKIP. This 
+instruction is used to actually skip past items in the copper list.
+        
+        
+                                PAGE 180
+        
+-----------------------------------------------------------------------------
+        
+Writing a Copper list for an entire display would be a very tedious job.
+Fortunately, this isn't necessary because most of the work can be 
+accomplished easily by using MakeVPort. However, if you want to add your
+own Copper instructions to the Copper list for the displays, there is 
+another method. In the structure of every ViewPort you will find a pointer
+for a user copper list. When you want to integrate your own instructions
+with a display, create a stand alone Copper list with the desired commands.
+Then store the starting address of your list to the User Copper list 
+pointer. Now you can continue as usual. MakeVPort links the user list to
+the display list of the viewport, MrgCop links this list to the entire
+list in View and LoadView activates the manipulated copper lists.
+        
+We will now show you how to create your own Copper list. The next program
+contains 4 SUB programs for this purpose.
+        
+        InitCop
+        ActiCop
+        WaitC
+        MoveC
+        
+First you need to create a data structure name UCopList. This structure
+requires 12 bytes of memory which is reserved with InitCop.
+        
+We can program the user list with the commands MoveC and WaitC (skip is
+not necessary for our application).
+   
+The call to the wait command looks like this:
+        
+        WaitC y%,x%
+        
+The Y coordinate, which the Copper waits for, must be first. WaitC 
+requires that this coordinate is first because it is easier to combine
+the copper lists using MrgCop if they all have the same order.
+        
+MoveC can write any desired 16 bit value to a hardware register. In this
+chapter we use only a few of the many available registers. The complete 
+register list is located in Appendix C. Here is the call :
+        
+        MoveC register%, value%
+        
+        register%     : Offset of the desired hardware register.
+        value%        : 16 bit value.
+        
+Here is a selection of the most important hardware registers we are 
+going to use:
+        
+        
+                                PAGE 181
+        
+-----------------------------------------------------------------------------
+        
+        Register    Meaning
+        ---------   ------------------------------------------------
+           384      Colour Register 0 (Background colour)
+           386      Colour Register 1 (Drawing Colour)
+           388      Colour Register 2
+          (...)
+           444      Colour Register 30
+           446      Colour Register 30
+        -------------------------------------------------------------
+        
+Now we can add to our user Copper list. After calling InitCop you can 
+call as many MoveC's and WaitC's as you like. However, you must make
+sure that your WaitC's correspond with the screen coordinates you are 
+calling. The top left hand corner of the display is at (0,0). This is
+where the electronic beam starts. Your WaitC coordinates must be in 
+ascending X and Y coordinate sequence.
+        
+When your user Copper list is finished, it is linked to the existing display
+with ActiCop. Your assigments will then be executed by the copper.
+        
+In our example program, we open our new screen. In order to return the
+memory used by our copper instructions (including those in our reserved
+user list), we simply close the Intuition screen. Intuition automatically
+takes care of this. Do not attempt to create user instructions in the 
+Workbench screen because when the instructions are executed, there will be
+no way to restore the normal display and release the assigned memory.
+        
+The following program is an example of Copper programming basics.
+        
+        '##############################################
+        '#
+        '# Section: 4.5.2
+        '# Program: Copper Raster Interrupt.
+        '# Date   : 12/15/86
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '###############################################
+        
+        ' Demonstrates programming the Amiga graphic
+        ' co-processor (copper) from AmigaBASIC
+        
+        PRINT "Searching for .BMAP file ..........."
+        
+        'INTUITION-library
+        DECLARE FUNCTION ViewAddress& LIBRARY
+        DECLARE FUNCTION ViewPortAddress& LIBRARY
+        
+        
+                                PAGE 182
+        
+-----------------------------------------------------------------------------
+        
+        'RethinkDisplay()
+        
+        'EXEC-library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem()
+        
+        'GRAPHICS-library
+        'CWait()
+        'CMove()
+        'CBump()
+        
+        LIBRARY "intuition.library"
+        LIBRARY "graphics.library"
+        LIBRARY "exec.library"
+        
+    pre: CLS
+        SCREEN 1,640,200,2,2
+        WINDOW 2,"COPPER!",(0,0)-(630,186),16,1
+        PRINT "Raster Interrupt through Copper programming:A Split Screen!"
+        
+    init:
+        kolorregister%    = 384
+        red%              = 15,'0...15
+        green%            = 4 ,   '0 to 15'
+        blue%             = 4 ,   '0 .... 15'
+        kolorvalue%       = red%*2^8+green%*2^4+blue%
+        yCoordinate%      = 100
+        xCoordinate%      = 20
+        
+    main:
+        InitCop
+        WaitC yCoordinate%, xCoordinate%
+        moveC kolorregister%, kolorvalue%
+        ActiCop
+        
+        PRINT " Press a Key ! "
+        WHILE INKEY$ = "":WEND
+        
+        WINDOW CLOSE 2
+        SCREEN CLOSE 1
+        
+    endprog:
+        LIBRARY CLOSE
+        END
+        
+    SUB InitCop STATIC
+        SHARED UCopList&
+        opt&         = 2^0+2^1+2^16
+        UCopList&    = AllocMem&(12,opt&)
+        IF UCopList& = 0 THEN ERROR 7
+    END SUB
+        
+    SUB ActiCop STATIC
+        SHARED UCopList&
+        waitC 10000,256
+        
+                                PAGE 183
+        
+-----------------------------------------------------------------------------
+        
+        viewport& = ViewPortAddress&(WINDOW(7))
+        POKEL viewport&+20,UCopList&
+        CALL RethinkDisplay
+    END SUB
+        
+    SUB waitC(y%,x%) STATIC
+        SHARED UCopList&
+        CALL CWait(UCopList&,y%,x%)
+        CALL CBump(UCopList&)
+    END SUB
+        
+    SUB moveC(reg%,value%) STATIC
+        SHARED UCopList&
+        CALL CMove(UCopList&,reg%,value%)
+        CALL CBump(UCopList&)
+    END SUB
+        
+        
+SUB program descriptions:
+        
+InitCop :
+        The exec function AllocMem assigns a 12 byte memory area for the
+        UCopList data structure.
+        
+WaitC   :
+        A wait instruction is placed in the user list. The graphic library
+        command CWait, also called CBump(), raises the internal pointer
+        for the user list.
+        
+MoveC   :
+        Calls the function CMove, from the graphic library, which places
+        a move instruction in the user list. CBump() raises the user list
+        pointer again.
+        
+ActiCop :
+        a last WaitC is placed in the user list. This wait is for a screen
+        position that the electron beam will never reach. This assignment
+        closes the list and equals the macro CEND.
+        
+The address of our user list is written to the appropriate pointer in 
+ViewPort for the desired screen. The Intuition function RethinkDisplay
+generates the new copper list for View and sends it into the copper. The
+new display then appears.        
+        
+At the end, the screen is closed and the copper list is removed from the
+main copper list in View. All reserved memory is returned to the system.
+        
+        
+                                PAGE 184
+        
+-----------------------------------------------------------------------------
+        
+4.5.3 PROGRAMMING 400 SIMULTANEOUS COLOURS.
+        
+We now know the principle of Copper programming. The next program is a 
+small demonstration of this powerful technique. We are going to change
+the background colour for each screen row by using WaitC. At the same
+time we will also be changing the drawing colour for each row. With 200
+screen rows per display, we finish with 400 colours on the screen at the
+same time. Colours two and three remain normal.
+        
+NOTE : Do not use more than 1600 Copper instructions in one list.
+        
+        '##############################################
+        '#
+        '# Section: 4.5.3
+        '# Program: Copper Raster Interrupt II
+        '# Date   : 12/15/86
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '###############################################
+        
+        ' Copper programmning can create 400 different colours in the
+        ' background and foreground instead of the usual 4 colors
+         ' with 2 bit-planes.
+        
+        PRINT "Searching for .BMAP file ..........."
+        
+        'INTUITION-library
+        DECLARE FUNCTION ViewAddress& LIBRARY
+        DECLARE FUNCTION ViewPortAddress& LIBRARY
+        'RethinkDisplay()
+        
+        'EXEC-library
+        DECLARE FUNCTION AllocMem& LIBRARY
+        'FreeMem()
+        
+        'GRAPHICS-library
+        'CWait()
+        'CMove()
+        'CBump()
+        
+        LIBRARY "intuition.library"
+        LIBRARY "graphics.library"
+        LIBRARY "exec.library"
+        
+                                PAGE 185
+        
+-----------------------------------------------------------------------------
+    pre: CLS
+        SCREEN 1,640,200,2,2
+        WINDOW 2,"COPPER!",(0,0)-(630,186),16,1
+        PRINT "Direct copper programming makes it possible."
+        PRINT "200 background Colours!"
+        PRINT "Patience Please ... Calculating Instruction lists.."
+        
+    init:
+        kolorregister1%    = 384
+        kolorregister2%    = 386
+        xCoordinate%      = 20
+        maxY%             = 200
+        
+    main:
+        InitCop
+        FOR loop% = 1 TO maxY%
+            waitC loop%,xCoordinate%
+            moveC kolorregister1%,loop%
+            moveC kolorregister2%,4096-loop%
+        NEXT loop%
+        ActiCop
+        
+        ' Display text for this effect
+        LOCATE 5,1
+        PRINT  "The background colour shows 200 individual"
+        PRINT "Colors! The text colors are also not plain"
+        PRINT "anymore: 200 yellows, one per raster."
+        PRINT "line. Here a useful program could"
+        PRINT "take over the job instead of "
+        PRINT "this useless program loop!...."
+        LOCATE 15,1
+        PRINT "Please press a key when you"
+        PRINT "Have finished reading."
+        WHILE INKEY$="": WEND
+        
+        LOCATE 11,1
+        PRINT "Thats not going to happen this time!"
+        
+        FOR t=1 TO 2000: NEXT t
+        CLS
+        PRINT "Graphic Demo Coming up!"
+        
+        LINE (0,100)-(630,190),2,bf
+        FOR loop% = 0 TO 630 STEP 30
+            LINE (loop%*1.5,190)-(loop%,100),1
+        NEXT loop%
+        FOR loop% = 100 TO 190 STEP 20
+            LINE (0,loop%)-(630,loop%),1
+        NEXT loop%
+        
+        CIRCLE (300,80),120,3
+        
+                                PAGE 186
+        
+-----------------------------------------------------------------------------
+        
+            PAINT (300,80),3,3
+            
+            CIRCLE (300,80),100,1
+            PAINT (300,80),1,1
+        
+            CIRCLE (300,146),180,3,,,1/15
+            PAINT (300,146),1,3
+
+            LOCATE 1,1
+            PRINT "Press a Key!"+SPACE$(40)
+        WHILE INKEY$ = "":WEND
+        
+        WINDOW CLOSE 2
+        SCREEN CLOSE 1
+        
+    ende:
+        LIBRARY CLOSE
+        END
+        
+    SUB InitCop STATIC
+        SHARED UCopList&
+        opt&         = 2^0+2^1+2^16
+        UCopList&    = AllocMem&(12,opt&)
+        IF UCopList& = 0 THEN ERROR 7
+    END SUB
+        
+    SUB ActiCop STATIC
+        SHARED UCopList&
+        waitC 10000,256
+        viewport& = ViewPortAddress&(WINDOW(7))
+        POKEL viewport&+20,UCopList&
+        CALL RethinkDisplay
+    END SUB
+        
+    SUB waitC(y%,x%) STATIC
+        SHARED UCopList&
+        CALL CWait(UCopList&,y%,x%)
+        CALL CBump(UCopList&)
+    END SUB
+        
+    SUB moveC(reg%,value%) STATIC
+        SHARED UCopList&
+        CALL CMove(UCopList&,reg%,value%)
+        CALL CBump(UCopList&)
+    END SUB
+        
+        
+The text displayed by the program makes the details of the changed display
+clearer and more impressive. A simple graphic is created but it has a
+fascinatin appearance because of the Copper programming. This graphic is
+formed from more than 400 colors with only two bit-planes. After pressing
+a key the normal screen appears.
+        
+                                PAGE 187
+        
+-----------------------------------------------------------------------------
+        
+4.6 THE LAYERS: SOUL OF THE WINDOWS.
+        
+We will continue building our picture of the graphics system. In the
+RastPort structure there is a pointer to the LAYERS. Layers refer to the
+independant system components of the operating system that are controlled
+through the layer libraries.
+        
+To discover what layers are, take a look at your Amiga monitor. You 
+probably cannot see the layers because of all the windows. Actually, every
+window is a layer.
+        
+Just as the screen is simply another ViewPort, a window is just another
+layer. A layer handles most of the work required to create windows. One 
+problem which always occurs when a computer works with windows is that
+everything you see on screen, including the screen background and windows,
+is stored in the bit-planes of the bitmap. An ideal exampl of this problem
+is a display that contains the screen background and many window fragments.
+These windows can overlap, can be covered completely by others or can be
+displayed by themselves. As soon as one window overlaps another, this must
+be recorded because the overlapped portion consists of two windows divided
+within the same bit-map. The layers ensure that the covered window section
+is saved to another area of memory. Whenever the covered window, (or a 
+portion of it) becomes visible again, the layers copy the uncovered piece
+back into the screen bitmap.
+        
+Before we discuss this theory in more detail we are going to trap and 
+display a layer for you. The following small program performs this
+operation.
+        
+        
+        '##########################################
+        '#
+        '# Section: 4.6
+        '# Program: A layer.
+        '# Date   : 01/05/87
+        '# Author : tob
+        '# Version: 1.0
+        '#
+        '###########################################
+        
+        ' A simple layer - the basis of every window is 
+        ' generated.
+        
+        PRINT "Searching for .bmap files.............."
+        
+                                PAGE 188
+        
+-----------------------------------------------------------------------------
+        
+        'LAYERS-library
+        DECLARE FUNCTION CreateUpFrontLayer& LIBRARY
+        'DeleteLayer()
+        'MoveLayer()
+        
+        'GRAPHICS-library
+        'Text()
+        'Move()
+        
+        LIBRARY "graphics.library"
+        LIBRARY "layers.library"
+        
+        initpars:            
+            CLS
+            scrAdd&               = PEEKL(WINDOW(7)+46)
+            screenLayerInfo&       = scrAdd&+224
+            screenBitMap&         = scrAdd&+184
+            x0%                   = 10
+            y0%                   = 20
+            x1%                   = 400
+            y1%                   = 80
+            typ%                   = 1
+        
+        thatYou:     'can also see it
+            CLS
+            LINE (1,1)-(600,180),2,bf
+            
+        LayerHer:
+            layer& = CreateUpFrontLayer(screenLayerInfo&,screenBitMap&,
+ x0%,y0%,x1%,y1%,typ%,0)
+        
+        whatToDo:
+            layerRast& = PEEKL(layer&+12)
+            text$ = "This is the soul of a window: A Layer!"
+            CALL Move(layerRast&,3,8)
+            CALL Text(layerRast&,SADD(text$),LEN(text$))
+        
+        moveit:        
+            dx%   = 2
+            dy%   = 1
+            FOR loop1% = 1 TO 30
+                CALL MoveLayer(screenLayerInfo&,layer&,dx%,dy%)
+            NEXT loop1%
+        
+        wiatlp:
+            LOCATE 1,1
+            5
+            PRINT "Press any key to End"
+            WHILE in$= ""
+                in$ = INKEY$
+            WEND
+        
+        removeIt:
+            CALL DeleteLayer(screenLayerInfo&, layer&)
+            
+        thatsIt:
+            LIBRARY CLOSE
+            END
+        
+                                PAGE 189
+        
+-----------------------------------------------------------------------------
+        
+As you can see, our small layer acts much like a large window. When you 
+move the mouse pointer over the layer and click the left mouse button, the
+layer is activated and the window ripples. In order for the layer to be 
+a complete window, it would need the frame, the gadgets and a menu.
+        
+When you press a key the layer completely dissappears.
+        
+To create the above program, we used functions from both the graphic and
+layers libraries. However, the layers library is more important in this
+application. The layers function, CreateUpFrontLayer, which generates our
+layer, requires eight arguments and returns the start address of the layer
+block to the BASIC program.
+        
+        layer&=CreateUpFrontLayer&(layerInfo&,bitmap&,x0%,y0%,x1%,y1%,
+   typ%,sbitmap&)
+        
+        layer&     : The address of our new layer data block.
+        layerInfo& : The address of the structure LayerInfo.
+        bitmap&    : The address of the bit-map where the new layer is
+                     to be produced.
+        x0%,y0%    : Coordinates of the upper left hand corner of the 
+                     layer.
+        x1%,y1%    : Coordinates of the lower right hand corner.
+        
+The LayerInfo structure address and the bitmap structure address are found
+in our well known screen structure (Section 3.6). By using the functions
+text and move from the graphic library (see section 3.6.1), we can display
+text through this RastPort.        
+        
+After studying the layer we close the layer again by using DeleteLayer.
+        
+Now we can take a look at the Layer's data structure. Just like every 
+window, the layers also have this structure. It is constructed like 
+this :
+        
+                                PAGE 190
+        
+-----------------------------------------------------------------------------
+        
+Data Structure/Layer/layers/192 bytes.
+        
+Offset  Type    Description.
+------- ------- -------------------------------------------------------
++000    Long    Pointer to layer in foreground.
++004    Long    Pointer to layer in Background.
++008    Long    Pointer to first ClipRect.
++012    Long    Pointer to the first rastport of this layer.
++016     --     Rectangle structure, the limits of the layer.
+                +016   Word   MinX
+                +018   Word   MinY
+                +020   Word   MaxX
+                +022   Word   MaxY
++024    Byte    Lock
++025    Byte    LockCount
++026    Byte    LayerLockCount
++027    Byte    Reserved.
++028    Word    Reserved
++030    Word    Layer Flags.
++032    Long    Pointer to superbitmap, when available.
++036    Long    SuperClipRect
++040    Long    Pointer to Window
++044    Word    ScrollX
++046    Word    ScrollY
++048     --     Message Port "Lock Port"
++082     --     Message "LockMessage"
++102     --     Message Port "ReplyPort"
++136     --     Message " 1 LockMessage"
++156    Long    Pointer to first rectangle of DamageList
++160    Long    Pointer to ClipRects
++164    Long    Pointer to LayerInfo structure
++168    Long    Pointer to Task with actual lock
++172    Long    Pointer to SuperSaveClipRects
++176    Long    Pointer to CR ClipRects
++180    Long    Pointer to CR2 CLipRects
++184    Long    Pointer to CRNEW ClipRects
++188    Long    System use.
+        
+                --------------------------------------------
+        
+4.6.1 THE LAYER DATA STRUCTURE.
+        
+The data structure we just introduced requires further explanation.
+We will examine it field by field with the same format we have been using.
+        
+To obtain the starting address for the layer of your actual output window
+use the following:
+        
+                                PAGE 191
+        
+-----------------------------------------------------------------------------
+        
+        layer& = PEEKL(WINDOW(8))
+        
+The startin address of the layer data structure you have created is 
+automatically returned by the appropriate layer functions. Later we will
+come back to this subject.
+        
+OFFSET 0 AND 4: POINTER TO OTHER LAYERS.
+        
+This pointer contains the startin address of the layer data block for a 
+layer that is behind or in front of your layer. The same relationship
+applies to layers as to windows; you can move from one layer to all other
+layers in the system.
+        
+OFFSET 8: FIRST CLIPRECT
+        
+ClipRect is another data structure which ddescribes a current rectangular
+pic of a layer. This pointer is to the first ClipRect structure of this 
+layer, from which you can obtain the next and the following ClipRect
+address. This chain of ClipRects describes the visible portion of this
+layer.
+        
+OFFSET 12: THE RASTPORT
+        
+This offset contains the starting address of the RastPort for this layer.
+Most functions of the graphic library require the RastPort address with 
+which they will be working.
+        
+Since every Intuition window has a layer, it also has its own Layer 
+RastPort. This RastPort is identical with the RastPort of the window data
+structure:
+        
+        RastPort1& = PEEKL(WINDOW(7)+50)
+        RastPort2& = WINDOW(8)
+        layer& = PEEKL(WINDOW(8))
+        RastPort3& = PEEKL(layer&+12)
+        PRINT RastPort1&
+        PRINT RastPort2&
+        PRINT RastPort3&
+        
+The starting addresses returned for the RastPorts are the same.
+        
+        
+OFFSET 16, 18, 20, and 22: BOUNDS
+        
+The X and Y values stored here set the layer limits. Any drawing function
+that uses coordinates is clipped off if it passes outside there boundaries.
+Let's first determine the limits of our own layers:
+        
+        windo& = WINDOW(7)
+        RastPort& = WINDOW(8)
+        layer& = PEEKL(RastPort&)
+        
+        
+                                PAGE 192
+        
+-----------------------------------------------------------------------------
+        
+        x0% = PEEKW(layer&+16)
+        y0% = PEEKW(layer&+18)
+        x1% = PEEKW(layer&+20)
+        y1% = PEEKW(layer&+22)
+        
+        PRINT x0%,y0%
+        PRINT x1%,y1%
+        
+        END
+        
+The result is the coordinates of the upper left hand and the lower right
+hand corners of our drawing plane.
+        
+Naturally, you could use this method to define your own drawing plane.
+Everything outside of this area would be clipped off.
+        
+        REM 4.6.1 Offsets 16-22 Example B
+        
+        PRINT "Searching for .bmap file..."
+        
+        init:
+            '* Address of the data structures
+            CLS
+            windo&    = WINDOW(7)
+            RastPort& = WINDOW(8)
+            layer&    = PEEKL(RastPort&)
+        
+            '* Current Valid Limits.
+            x0%       = PEEKW(layer&+16)
+            y0%       = PEEKW(layer&+18)
+            x1%       = PEEKW(layer&+20)
+            y1%       = PEEKW(layer&+22)
+        
+            scrWidth% = x1% - x0%
+            scrHeight% = y1% - y0%
+            
+            main: '* DEMO
+            LINE (x0%,y0%)-(x1%,y1%),2,bf
+            
+            'Set new limits.
+            nx0% = x0% + .25*scrWidth%
+            nx1% = x1% - .25*scrWidth%
+            ny0% = y0% + .25*scrHeight%
+            ny1% = y1% - .25*scrHeight%
+            
+            POKEW layer&+16,nx0%
+            POKEW layer&+18,ny0%
+            POKEW layer&+20,nx1%
+            POKEW layer&+22,ny1%
+            
+            ' It look like This:
+            FOR test% = 0 TO 40
+                PRINT STRING$(50,"*")
+            NEXT test%
+            
+            CLS
+            
+                                PAGE 193
+        
+-----------------------------------------------------------------------------
+        
+            PRINT "Enter CONT!"
+        
+            STOP
+            
+            '* Restore original limits.
+            POKEW layer&+16,x0%
+            POKEW layer&+18,y0%
+            POKEW layer&+20,x1%
+            POKEW layer&+22,y1%
+        END
+        
+OFFSET 24,25 AND 26: LOCK FIELDS.
+        
+The Amiga is a multi-tasking computer, which means that many programs can 
+be running at the same time. So, it is possible for several programs to 
+to attempt to access the same layer at the same time. These conflicting
+access attempts would cause the program to abort. To prevent this from 
+happening there are the layer functions, LockLayer and UnLockLayer. Through
+these functions the tasks have unlimited access to the layers. As long as 
+a task utilises Lock, another task cannot change the contents of the 
+layer data structure.
+        
+These fields control the lock technique. The first field determines whether
+this layer is currently locked. The second is a counter for the program 
+that is now using the layer. The third is a counter that keeps track of
+other tasks attempting access to the layer.
+        
+        
+OFFSET 30: FLAGS.
+        
+There are various layer types that we will discuss shortly. This field
+contains an identity flag for this layer:
+        
+        Bit 0 : 1 = LayerSimple
+        Bit 1 : 1 = LayerSmart
+        Bit 2 : 1 = Layersuper
+        Bit 6 : 1 = Layerbackdrop
+        Bit 7 : 1 = Layerrefresh
+        
+        
+OFFSET 32 : SUPERBITMAP
+        
+A layer has its own drawing plane and bitmap when it is in the layersuper
+mode. The pointer to these is stored in this offset. We will explain this
+in detail later.
+        
+        
+OFFSET 36: SUPERCLIPRECT
+        
+When they are used, the ClipRects for the superbitmap are here (see offset 
+8.)
+        
+                                PAGE 194
+        
+-----------------------------------------------------------------------------
+        
+OFFSET 40: WINDOW
+        
+Normally layers are linked with Intuition windows. When this happens,
+this pointer contains the address of the corresponding window data 
+structure.
+        
+This field is extremely important when you wnat to integrate layers with 
+existing windows. We are going to cover this in more detail shortly.
+        
+        
+OFFSET 44 AND 46 : SCOLLING
+        
+The referenced drawing line for a layer of type layersuper can be much
+larger than the layer limit parameters. You can then use the layer like
+a peephole that moves around a giant graphic. More on this later.
+        
+        
+OFFSETS 48 - 136 : MESSAGES AND MESSAGE PORTS.
+        
+Messages and message ports are handled by the EXEC.library. Different 
+tasks can communicate with each other through the message and message 
+ports, which are similar to a mailbox and transmitter. Messages are their
+letters. The reply port is the mailbox and the other message port sends the
+message.
+        
+        
+OFFSET 156: DAMAGE LIST
+        
+We mentioned before that layers are responsible for restoring covered 
+portions of windows once they are no longer covered. Because of this, we
+have a damage list which consists of a chain of data structures called
+"regions".  These regions represent the rectangular portions of a layer.
+The damage list contains all the damaged portions of its own window
+(or layer) that is overlapped by other windows (or layers).
+        
+The remaining offset fields contain system information that BASIC cannot
+use.
+        
+                                PAGE 195
+        
+-----------------------------------------------------------------------------
+			    Now load part 3.
+-----------------------------------------------------------------------------
+

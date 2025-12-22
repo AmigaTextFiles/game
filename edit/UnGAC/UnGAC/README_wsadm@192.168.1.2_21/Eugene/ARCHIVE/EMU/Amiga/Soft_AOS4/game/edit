@@ -1,0 +1,383 @@
+UNGAC(1)							      UNGAC(1)
+
+
+
+NAME
+       ungac - Disassemble games written with Graphic Adventure Creator.
+
+
+SYNOPSIS
+       ungac { -option { -option  ... }} inputfile
+
+
+DESCRIPTION
+       UnGAC  takes  snapshot  files  of Spectrum games written with Incentive
+       Software's Graphic Adventure Creator, and produces textual listings  of
+       the  data tables which control them. From this it is possible to deter-
+       mine how to solve the game (ie cheat :-)) or how to reconstruct	it  on
+       another gamewriting system.
+
+       spconv  (1)  can	 be  used to convert many Spectrum snapshot formats to
+       .SNA.  Note that spconv v1.08 or later is needed to  convert  the  most
+       recent format of .Z80 snapshots.
+
+       The supplied .COM file runs under CP/M and DOS. If you only want to run
+       it under one operating  system,	the  command  FBSTRIP  UNGAC.COM  will
+       remove the code which does not apply to your OS.
+
+
+COPYING
+       UnGAC is copyright 2006 by John Elliott.
+
+       This program is free software; you can redistribute it and/or modify it
+       under the terms of the GNU General Public License as published  by  the
+       Free  Software Foundation; either version 2 of the License, or (at your
+       option) any later version.
+
+       This program is distributed in the hope that it	will  be  useful,  but
+       WITHOUT	ANY  WARRANTY;	without	 even  the  implied  warranty  of MER-
+       CHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU  General
+       Public License for more details.
+
+       You should have received a copy of the GNU General Public License along
+       with this program; if not, write to the Free Software Foundation, Inc.,
+       675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+
+
+OPTIONS
+       -O     Redirect	output	to  a  file rather than stdout. CP/M users can
+	      include user numbers in filenames thus:  4:A:FILENAME.SNA
+
+       -V     Verbose. If part of  the	game  refers  to  a  particular	 room,
+	      object,  word or message, the dump of that part of the game will
+	      be annotated with the text of the respective room, object,  word
+	      or message.
+
+       -Sx    Do not output a section of text.	x can be:
+
+	      A	     Adverbs.
+
+	      B	     "Begin Here" room.
+
+	      C	     Local conditions.
+
+	      F	     User-defined font (if present).
+
+	      G	     Location graphics.
+
+	      H	     Low-priority conditions.
+
+	      L	     Low-priority conditions.
+
+	      M	     Messages.
+
+	      N	     Nouns.
+
+	      O	     Objects.
+
+	      R	     Rooms.
+
+	      V	     Verbs.
+
+
+OUTPUT FORMAT (Normal mode)
+       Output will be in the form of several tables:
+
+
+   Verbs / Nouns / Adverbs table
+       text of the verb. Synonyms (eg, GET and TAKE) have the same ID.
+
+
+   Conditions tables:
+       There are three condition tables. High priority conditions are executed
+       before player input. After player input, local conditions for the  cur-
+       rent room are executed, and then low-priority conditions.
+
+       Therefore, you may see sequences of instructions such as this one (from
+       the sample adventure, Ransom ): PUSH 7 VERB PUSH 5 NOUN AND  IF	(mean-
+       ing:  continue  only if verb is 7 and noun is 5). In verbose mode UnGAC
+       will try to keep track of the values on the stack and annotate instruc-
+       tions with what the numbers refer to.
+
+       In  the following table, S0 is the word at the top of the operand stack
+       and S1 is the word below it.
+
+
+   The opcodes are:
+       PUSH x Pushes the constant x onto the operand stack.
+
+       AND    Pops S0 and S1. Pushes the binary AND of S0 and S1.
+
+       OR     Pops S0 and S1. Pushes the binary AND of S0 and S1.
+
+       NOT    Pops S0. Pushes the logical NOT of S0; nonzero values go	to  0,
+	      zero goes to 1.
+
+       XOR    Pops S0 and S1. Pushes the binary XOR of S0 and S1.
+
+       HOLD   Pops  S0.	 Waits	for  S0	 50ths	of a second, or until a key is
+	      pressed.
+
+       GET    Pops S0. Attempts to get object number S0. This can fail if  the
+	      object  is not present, or already carried, or too heavy; if so,
+	      the appropriate message is shown.
+
+       DROP   Pops S0. Attempts to drop object number S0. Prints the appropri-
+	      ate message if the object is not held.
+
+       SWAP   Pops S0 and S1. Swaps the locations of these two objects. Unlike
+	      GET, this does not do any checks of weight  or  player  carrying
+	      capacity; the total weight carried remains unchanged.
+
+       TO     Pops  S0	and  S1. Moves object S1 to location S0. As with SWAP,
+	      does not recalculate the total weight carried.  The  GAC	sample
+	      Ransom deals with this by dropping the object before using TO.
+
+       OBJ    Pops S0. Displays the description of object S0.
+
+       SET    Pops  S0. Sets marker number S0 to 1. Markers are boolean flags,
+	      of which GAC has 256. Markers 0-3 are used by the system:	 0  is
+	      set when a room is described, 1 should be set if the room is not
+	      dark, 2 should be set if the player has a light  source,	and  3
+	      should be set not to print the score at the end of a game.
+
+       RESE   Pops S0. Sets marker number S0 to 0.
+
+       SET?   Pops S0. Pushes 1 if marker S0 is 1, else 0.
+
+       RES?   Pops S0. Pushes 1 if marker S0 is 0, else 1.
+
+       CSET   Pops S0 and S1. Sets counter number S0 to value S1. Counters are
+	      byte variables, of which GAC has 128. Counters 0,	 126  and  127
+	      are  used	 by  the  system: 0 holds the score, and 126/127 are a
+	      16-bit count of player turns.
+
+       CTR    Pops S0, and pushes the value of counter S0.
+
+       DECR   Pops S0, and decrements counter S0.
+
+       INCR   Pops S0, and increments counter S0.
+
+       EQU?   Pops S0 and S1. Compares the value of counter S0	with  S1,  and
+	      pushes 1 if they're equal or 0 if not.
+
+       DESC   Pops S0, and prints the description of room S0.
+
+       LOOK   Prints the description of the current room.
+
+       MESS   Pops S0. Prints message S0.
+
+       PRIN   Pops S0. Prints its integer value.
+
+       RAND   Pops S0. Returns a random number modulo S0.
+
+       <      Pops S0 and S1. If (S1 - S0) < 0, pushes 0; else 1.
+
+       >      Pops S0 and S1. If (S0 - S1) < 0, pushes 0; else 1.
+
+       =      Pops S0 and S1. If (S0 = S1), pushes 1; else 0.
+
+       SAVE   Saves the state of the game to cassette.
+
+       LOAD   Loads the state of the game from cassette.
+
+       HERE   Pops  S0.	 Pushes	 1  if	object	S0  is in the same room as the
+	      player, else 0.
+
+       AVAI   Pops S0. Pushes 1 if object S0 is either in the same room as the
+	      player or carried, else 0.
+
+       CARR   Pops S0. Pushes 1 if object S0 is carried, else 0.
+
+       +      Pops S0 and S1. Pushes S0 + S1.
+
+       -      Pops S0 and S1. Pushes S0 - S1.
+
+       TURN   Pushes the contents of the turn counter.
+
+       AT     Pops S0. Pushes 1 if the current room is S0, 0 otherwise.
+
+       BRIN   Pops  S0. If object S0 exists and is not carried, move it to the
+	      player's current location.
+
+       FIND   Pops S0. Attempts to move the  player  to	 object	 S0's  current
+	      location, if it exists and is not carried.
+
+       IN     Pops S0 and S1. If object S0 is in room S1, push 1; otherwise 0.
+
+       OP28   OP28 is a no-op.
+
+       OP29   OP29 is a no-op.
+
+       OKAY   Prints "Okay", stops all condition processing,  and  requests  a
+	      new player input.
+
+       WAIT   Stops all condition processing, and requests a new player input.
+
+       QUIT   Asks the player if they want to quit. If they say yes,  end  the
+	      game.
+
+       EXIT   End the game without asking the player.
+
+       ROOM   Pushes the current room number.
+
+       NOUN   Pops S0. If the command line contains noun S0, pushes 1; else 0.
+
+       VERB   Pops S0. If the command line contains verb S0, pushes 1; else 0.
+
+       ADVE   Pops  S0. If the command line contains adverb S0, pushes 1; else
+	      0.
+
+       GOTO   Pops S0. Moves the player to room S0 and describes it.
+
+       NO1    Pushes the number of the first noun found in the player's input.
+
+       NO2    Pushes  the  number  of  the  second  noun found in the player's
+	      input.
+
+       VBNO   Pushes the number of the verb found in the player's input.
+
+       LIST   Pops S0. Lists objects in that location.
+
+       PICT   Enables graphics, if they are present.
+
+       TEXT   Disables graphics, if they are present.
+
+       CONN   Pops S0. Attempts to find a connection from the current location
+	      using  verb  S0.	If a connection is found, pushes the ID of the
+	      room it leads to; otherwise pushes 0.
+
+       WEIG   Pops S0. Pushes the weight of object number S0.
+
+       WITH   Pushes 32767, the ID of the "room" containing player  inventory.
+	      This is used in conjunction with "LIST" to list inventory.
+
+       STRE   Pops S0. Sets the maximum weight of objects carried to S0.
+
+       LF     Prints a carriage return and line feed.
+
+       IF     Pops  S0.	 If  S0 is zero, skip up to and including the next END
+	      instruction.
+
+       END    End of bytecode routine. Execution will continue with  the  next
+	      routine if one is present.
+
+
+   Objects.
+       Each object has a weight, a starting position and a description.
+
+
+   Rooms.
+       Each  room  has	a  graphics ID (specifying which picture - if any - to
+       display), a table of exits, and a textual description.
+
+       Rooms are numbered from	1  to  9999.  Room  0  is  the	'limbo'	 where
+       destroyed  and  non-created  objects  are  kept,	 and room 32767 is the
+       player's inventory.
+
+
+   Messages
+       Message 239-255 are printed by the game engine in  appropriate  circum-
+       stances.	 Messages 1-238 are only printed by condition code.
+
+
+   First room
+       Prints the number of the room in which the game starts.
+
+
+   User-Defined Font
+       Output as an X-Window bitmap, containing 96 8x8 characters (ASCII 32 to
+       127).  This will only be present if the game is using a custom font.
+
+
+   Location graphics
+       Location graphics are output as a series of drawing instructions.
+
+
+       BORDER n
+	      Set the border colour to n.
+
+       PLOT x,y
+	      Plot a point at coordinates x,y. The coordinate  system  is  the
+	      one  used	 by  Spectrum BASIC, so the bottom left-hand corner of
+	      the drawable area is (0,48) and the  top	right-hand  corner  is
+	      (255,175).
+
+       ELLIPSE x1,y1 x2,y2
+	      Draws  an	 ellipse,  whose  centre is at (x1,y1). It will extend
+	      horizontally to (x2,y1) and vertically to (x1,y2).
+
+       FILL x,y
+	      Does a solid flood fill, starting at (x,y).
+
+       BGFILL x,y
+	      Does a  background  flood	 fill,	starting  at  (x,y);  Spectrum
+	      attributes are drawn, but not pixels.
+
+       SHADE x,y
+	      As FILL, but shades with a 50% grey pattern.
+
+       CALL gfx
+	      Calls another graphics routine - for elements common to multiple
+	      pictures, such as a border.
+
+       RECT x1,y1 x2,y2
+	      Draws a rectangle whose opposite corners are  at	the  specified
+	      points.
+
+       LINE x1,y2 x2,y2
+	      Draws a line between the specified coordinates.
+
+       INK i  Sets the Spectrum ink colour to use, 0-9.
+
+       PAPER p
+	      Sets the Spectrum paper colour to use, 0-9.
+
+       BRIGHT b
+	      Sets the Spectrum brightness level - 0, 1 or 8.
+
+       FLASH f
+	      Sets the Spectrum flash attribute - 0, 1 or 8.
+
+
+EXAMPLES
+       A>ungac -Oransom.txt ransom.sna
+
+       Send the contents of Ransom to a text file.
+
+       D:GAMESCTRUM>ungac -sh -sl -sc -sm -so -sr -sb -sf ransom.sna
+
+       Display the verbs, nounds and adjectives used in Ransom.
+
+       % ungac -v cursecit.sna | more
+
+       List  the  workings  of	Cursed	Be  The City, annotating references to
+       rooms, messages and so on.
+
+
+
+BUGS
+       Report any bugs to John Elliott (jce@seasip.demon.co.uk). If a particu-
+       lar .sna file caused problems, include a copy of it.
+
+
+
+VERSION HISTORY
+       v0.1   Initial release.
+
+
+TO DO
+       Z-Code output format.
+
+       Add the ability to run the game.
+
+
+SEE ALSO
+       spconv(1), unquill(1)
+
+
+
+
+			       11 November 2006			      UNGAC(1)

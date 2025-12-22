@@ -1,0 +1,159 @@
+NoCli
+
+Screen 0,0,0,640,256,3,$8000,"MasterMind",0,1
+Window 0,0,11,640,245,$100D,"  ... der Amiga ermittelt",0,1
+
+#numtries=20
+#numdigits=4
+#firstascii=$41
+#numascii=26
+
+#joywait=0
+#showsearch=0
+
+DEFTYPE.w
+Dim c(#numtries,#numdigits)
+Dim uo(#numtries)
+Dim ux(#numtries)
+Dim co(#numtries)
+Dim cx(#numtries)
+
+Statement WaitMouse{}
+  While Joyb(1) BitTst 0
+  Wend
+  Repeat
+  Until Joyb(1) BitTst 0
+End Statement
+
+Statement GetAssess{try}
+  SHARED c(),ux(),uo()
+  wcx=WCursX
+  WLocate 0,WCursY
+  For n=0 To #numdigits-1
+    Print Chr$(c(try,n)+#firstascii)
+  Next n
+  Print "  "
+  assess$=LCase$(Edit$(#numdigits))
+  numx=0 : numo=0
+  For n=1 To Len(assess$)
+    If Mid$(assess$,n,1)="x"
+      numx+1
+    EndIf
+    If Mid$(assess$,n,1)="o"
+      numo+1
+    EndIf
+  Next n
+  ux(try)=numx
+  uo(try)=numo
+
+  CNIF #showsearch
+  For n=0 To #numdigits-1
+    Print Chr$(c(try,n)+#firstascii)
+  Next n
+  WLocate wcx,WCursY
+  CEND
+End Statement
+
+Function.w SearchValidCode{pos}
+  SHARED c(),uo(),ux(),co(),cx(),try
+  c(try,pos)-1
+  quit=False
+  While c(try,pos)<#numascii-1 AND quit=0
+    c(try,pos)+1
+    nodoub=True
+    m=0
+    While m<pos AND nodoub
+      If c(try,pos)=c(try,m) Then nodoub=False
+      m+1
+    Wend
+    If nodoub
+      CNIF #showsearch
+      Print Chr$(c(try,pos)+#firstascii)
+      WLocate WCursX-8,WCursY
+      CEND
+      CNIF #joywait:WaitMouse{}:CEND
+      For n=0 To try-1
+        For m=0 To #numdigits-1
+          If c(n,m)=c(try,pos)
+            If pos=m
+              cx(n)+1
+            Else
+              co(n)+1
+            EndIf
+          EndIf
+        Next m
+      Next n
+      valida=True
+      For n=0 To try-1
+        If cx(n)>ux(n) Then valida=False
+        If co(n)>uo(n) Then valida=False
+      Next n
+      If valida
+        If pos+1=#numdigits
+          validc=True
+          For n=0 To try-1
+            If cx(n)<>ux(n) Then validc=False
+            If co(n)<>uo(n) Then validc=False
+          Next n
+          If validc
+            GetAssess{try}
+            If ux(try)=#numdigits Then quit=1
+            try+1
+            If try<#numtries
+              For m=0 To #numdigits-1
+                c(try,m)=c(try-1,m)
+              Next m
+              cx(try-1)=#numdigits
+            Else
+              quit=2
+            EndIf
+          EndIf
+        Else
+          CNIF #showsearch : WLocate WCursX+8,WCursY : CEND
+          quit=SearchValidCode{pos+1}
+          CNIF #showsearch : WLocate WCursX-8,WCursY : CEND
+        EndIf
+      EndIf
+      For n=0 To try-1
+        For m=0 To #numdigits-1
+          If c(n,m)=c(try,pos)
+            If pos=m
+              cx(n)-1
+            Else
+              co(n)-1
+            EndIf
+          EndIf
+        Next m
+      Next n
+    EndIf
+  Wend
+  If c(try,pos)=#numascii-1 AND quit=0
+    c(try,pos)=0
+    CNIF #showsearch
+    Print " "
+    WLocate WCursX-8,WCursY
+    CEND
+  EndIf
+  Function Return quit
+End Function
+
+
+Main:
+
+For n=0 To #numdigits-1
+  c(0,n)=n
+Next n
+GetAssess{0}
+try=1
+
+Select SearchValidCode{0}
+Case 0
+  NPrint "Guck noch mal Deine Liste durch. Du hast Dich irgendwo vertan!"
+Case 1
+  NPrint "War mir doch sofort klar!"
+Case 2
+  NPrint "Mit den paar Versuchen war das ja auch nicht zu schaffen!"
+End Select
+
+MouseWait
+End

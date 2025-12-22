@@ -1,0 +1,39 @@
+ifeq (WINS, $(findstring WINS, $(PLATFORM)))
+ZDIR=$(EPOCROOT)epoc32\release\$(PLATFORM)\$(CFG)\z
+else
+ZDIR=$(EPOCROOT)epoc32\data\z
+endif
+
+TARGETDIR=$(ZDIR)\resource\apps
+ICONTARGETFILENAME=$(TARGETDIR)\bantumigl_icon.mif
+ICONDIR=..\aif
+ICONS=$(ICONDIR)\bantumi2.svg
+
+MAKMAKE:
+
+BLD:
+
+CLEAN:
+	del $(ICONTARGETFILENAME)
+
+LIB:
+
+CLEANLIB:
+
+RESOURCE: $(ICONTARGETFILENAME)
+
+$(ICONTARGETFILENAME): $(ICONS)
+	mifconv $(ICONTARGETFILENAME) /c32 $(ICONS)
+
+FREEZE:
+
+SAVESPACE:
+
+RELEASABLES:
+	@echo $(ICONTARGETFILENAME)
+
+FINAL:
+
+
+
+

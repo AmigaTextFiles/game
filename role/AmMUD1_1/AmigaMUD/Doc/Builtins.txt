@@ -1,0 +1,4402 @@
+AmigaMUD, Copyright 1997 by Chris Gray
+
+
+		    The AmigaMUD Builtin Functions
+
+
+This file documents all of the builtin functions in the AmigaMUD
+system. The functions are listed in alphabetical order. Each is given
+with the category it is in, along with its prototype. Each is then
+described and, if appropriate, examples are given. More general
+discussions can be found in the ProgConcepts.txt file. The "utility"
+in the prototypes indicates that the builtin function does not change
+the effective user when it is executed. Some builtins have "wizard" in
+their prototype, which means they can only be used by full wizards,
+and not by apprentices. Also, some functions can only be executed by
+SysAdmin, but this is not indicated in their header.
+
+
+AAn: output
+proc utility AAn(string s1, s2)string
+
+    AAn is used to make output look more like proper English. It
+    returns a string which is the concatenation of its two string
+    arguments, with either " a " or " an " inserted between them,
+    depending on whether the first letter of the second string is a
+    vowel or not. E.g.
+
+	AAn("You do not have", "apple") => "You do not have an apple"
+	AAn("You do not have", "tree")	=> "You do not have a tree"
+	AAn("", "whatzit") => "a whatzit"
+
+AbortEffect: effects
+proc utility AbortEffect(thing who; int kind, id)void
+
+    AbortEffect is used to abort an ongoing effect in a full client.
+    'who' is the thing of the client to be affected, or nil to mean
+    the active client. 'kind' is the kind of effect to be aborted,
+    with values: 0 => sound, 1 => speech, 2 => music. 'id' is the
+    identifier of the specific affect to be aborted. This id is
+    also given when the effect is started. Note that id 0 is special -
+    there will be no notification of id 0 completing, and an id 0
+    effect cannot be aborted. E.g.
+
+	VSpeak(nil, "Hello there!", 777);
+	...
+	AbortEffect(nil, EFFECT_SPEECH, 777);
+
+ABPrint: output
+proc utility ABPrint(thing location, agent1, agent2; string str)void
+
+    ABPrint outputs string 'str' to all clients with the given
+    location, except those whose things are identified by 'agent1' and
+    'agent2'. Either or both of these can be nil to be ignored. The
+    standard scenario uses ABPrint during combat, to allow three
+    different messages to be given: one to the attacker, one to the
+    victim, and one to any onlookers. The last uses ABPrint.
+
+AddButton: effects
+proc utility AddButton(fixed x, y; int n; string str)void
+AddButtonPixels: effects
+proc utility AddButtonPixels(int x, y, n; string str)void
+
+    AddButton and AddButtonPixels are used to add a mouse-button to
+    the graphics window of the active client. 'x' and 'y' give the co-
+    ordinates of the top-left corner of the button. With AddButton,
+    the co-ordinates are fixed-point values, representing a fraction
+    of the total graphics window sizes. With AddButtonPixels, the co-
+    ordinates are integers, giving the pixel position desired. 'n'
+    gives the identifier of the button, and 'str' is the text contents
+    of the button. The length of the text determines the width of the
+    button. Buttons are 16 pixels high and 16 + 8 * <text-length>
+    pixels wide. Empty buttons can be produced by using strings
+    containing only spaces. When the user clicks on the button, the
+    identifier, 'n', is sent to the server for processing by the
+    character's current "button action". If there is already a button
+    with the indicated id, then the new button is ignored. E.g.
+
+	AddButton(0.25, 0.45, RUN_BUTTON_ID, "Run");
+	AddButtonPixels(20, 10, HIT_BUTTON_ID, "Hit");
+
+AddHead: database
+proc utility AddHead(<any list> theList;
+    <corresponding element type> theElement)void
+
+    AddHead is used to add an element to the front of a list. It is a
+    generic function in that it works for any type of list. The new
+    element is inserted before any existing elements, so it will have
+    index 0 in the list. E.g.
+
+	private l CreateIntList()$
+	l[0]$ => error
+	AddHead(l, 10)$
+	l[0]$ => 10
+	l[1]$ => error
+	AddHead(l, 999)$
+	l[0]$ => 999
+	l[1]$ => 10
+
+AddRegion: effects
+proc utility AddRegion(fixed x1, y1, x2, y2; int n)void
+AddRegion: effects
+proc utility AddRegionPixels(int x1, y1, x2, y2, n)void
+
+    AddRegion and AddRegionPixels add a mouse sensitive rectangular
+    region to the graphics window of the active client. The region is
+    not visible, but a mouse-click inside of it (that doesn't hit a
+    button or a region with lower identifier) will return the
+    identifier of the region and the co-ordinates of the click
+    relative to the top-left corner of the region. 'x1' and 'y1' are
+    the co-ordinates of the top-left corner of the region, and 'x2'
+    and 'y2' are the co-ordinates of the bottom-right corner of the
+    region. With AddRegion, the co-ordinates are fixed-point values,
+    and with AddRegionPixels they are integer pixel values. With
+    AddRegionPixels, Point (x2, y2) is included in the region. 'n' is
+    the identifier for the region. With both kinds of regions, the
+    offset supplied for a user click is given as integer pixels
+    offsets.
+
+    Such a region is used in the standard scenario over the entire
+    map-view area of the graphics window. The position of the click
+    relative to the position of the player cursor determines which
+    direction the user wants to move in. Another region is used for
+    the icon editor. Attempting to add a region using an identifier
+    that is already in use has no effect. When regions are clicked in,
+    the "mouse click" action associated with the character for that
+    client is called, with the identifier 'n' and the offset of the
+    click in pixels within the region, given as parameters. E.g.
+
+	AddRegion(0.0, 0.0, 0.5, 1.0, REGION_ID_1);
+	AddRegionPixels(10, 10, 90, 150, REGION_ID_2);
+
+AddTail: database
+proc utility AddTail(<any list> theList;
+    <corresponding element type> theElement)void
+
+    AddTail adds the indicated element to the end of the list. It is
+    generic, in that it will work on any type of list. See also:
+    'AddHead'. E.g.
+
+	private l CreateIntList()$
+	l[0]$ => error
+	AddTail(l, 10)$
+	l[0]$ => 10
+	l[1]$ => error
+	AddTail(l, 999)$
+	l[0]$ => 10
+	l[1]$ => 999
+
+After: machine/character
+proc utility After(fixed seconds; action theAction)void
+
+    After is the heart of automatic activities in AmigaMUD. It
+    arranges things so that after 'seconds' seconds, function
+    'theAction' is called (with no parameters). The function must be
+    one which returns no result (void). When the function is called,
+    the active agent will be either the character who was active when
+    After was called, or the machine which was active when After was
+    called. Note that all such scheduled actions are cancelled when
+    the server is shut down - they are not automatically re-installed
+    when the server is restarted. Characters and machines have
+    activation actions, which are called when the server restarts,
+    which can be used to restart any 'After' actions. Any machine
+    which does things independently of players will normally have one
+    or more 'After' activities. Continuous scheduling of actions can
+    be done by using After as the last thing done in a function called
+    by After. E.g.
+
+	private proc machineStep()void:
+	    /* Do things based on the machine's state and what is
+	       happening around it. */
+	    ...
+	    After(IntToFixed(30 + Random(30)), machineStep);
+	corp;
+
+AgentLocation: machine/character
+proc utility AgentLocation(thing theAgent)thing
+
+    AgentLocation returns the thing which is the current location of
+    the agent whose thing is passed as 'theAgent'. 'theAgent' can be
+    the thing of a player character or of a machine. Note that it is
+    possible for an agent to be nowhere, so that AgentLocation returns
+    nil. Builtin "Here()" is similar to "AgentLocation(Me())". If a
+    player character thing is passed, and that character is not
+    currently connected, AgentLocation will return nil.
+
+APrint: output
+proc utility APrint(string message)void
+
+    APrint is the AmigaMUD broadcast facility. It sends the given
+    'message' to all active clients on the MUD. It is useful for use
+    by SysAdmin to make announcements, like "system going down in five
+    minutes". The standard scenario uses it to announce when a
+    character solves a quest. Note that the server flushes output to
+    any given client before it starts output to another client. Thus,
+    any messages printed using "APrint" should be done all at once,
+    otherwise unwanted newlines may appear.
+
+BootClient: machine/character
+proc utility BootClient(character who)void
+
+    BootClient can be used to force a player off of the system. It is
+    equivalent to code running for the player executing "Quit()". The
+    client will be shutdown when it is next non-active (which is
+    normally immediately). Note that BootClient allows the character
+    to execute any shutdown code. BootClient is a graceful boot. If
+    something is wrong (e.g. the shutdown code causes troubles), the
+    more forceful 'NukeClient' can be used. NukeClient will often mess
+    up the character, however.
+
+CallEffect: effects
+proc utility CallEffect(thing who; int whichEffect)void
+
+    CallEffect is used to execute an effect which has been defined
+    for the client 'who'. Effects are identified by an identifier
+    given when the effect is created using 'DefineEffect' and
+    'EndEffect'. If the identified effect is not known to the remote
+    client (the "MUD" program), then nothing is done. CallEffect
+    can be used inside an effect being defined, in which case it is
+    like an effect subroutine call. E.g.
+
+	DefineEffect(nil, EFFECT_ID);
+	...
+	/* graphics, sound, etc. effect calls */
+	...
+	CallEffect(nil, SUBROUTINE_EFFECT_ID);
+	...
+	EndEffect();
+	...
+	CallEffect(nil, EFFECT_ID);
+
+CanEdit: machine/character
+proc utility CanEdit()bool
+
+    CanEdit returns an indication of whether or not the active agent
+    can edit functions and strings. Thus, the scenario can use
+    'EditString' to allow editing of a description, or can use line-
+    by-line input to read it. In general, a player using "MUD" can
+    edit, as can a local player using "SMUD", and all others cannot.
+
+Capitalize: utility
+proc utility Capitalize(string str)string
+
+    Capitalize returns its string argument 'str', but with its first
+    character capitalized (made upper-case) if it is a letter. E.g.
+
+	Capitalize("hello") => "Hello"
+	Capitalize("123") => "123"
+
+ChangeName: machine/character
+proc utility wizard ChangeName(string newName)void
+
+    ChangeName allows the active character to change his/her name.
+    Just assigning to property "p_pName" does not work, and will
+    result in an inconsistent character. Valid names must be non-
+    empty, must not contain any punctuation, must be no more than 20
+    characters long, and must not match any existing character name.
+
+Character: machine/character
+proc utility Character(string name)character
+
+    Character looks up the passed 'name' in the 'Characters' table,
+    returning nil or the named character. The character does not have
+    to be connected. Note that the value returned is of type character
+    and not of type thing - use 'CharacterThing' to return the thing
+    for the character.
+
+CharacterLocation: machine/character
+proc utility CharacterLocation(character theCharacter)thing
+
+    CharacterLocation is similar to AgentLocation, in that it returns
+    the thing which is the location of 'theCharacter'. Only character
+    values can be passed, however, and the character's location is
+    returned even if the character is not currently connected to the
+    MUD.
+
+CharacterTable:  machine/character
+proc utility CharacterTable(character theCharacter)table
+
+    CharacterTable returns the table which is the private table of
+    'theCharacter'. All player characters have such a table.
+
+CharacterThing: machine/character
+proc utility CharacterThing(character theCharacter)thing
+
+    CharacterThing returns the thing associated with player character
+    'theCharacter'. All characters have such a thing. The reverse
+    action is performated by 'ThingCharacter'.
+
+ClearButtons: effects
+proc utility ClearButtons()void
+
+    ClearButtons removes all buttons from the active client's display,
+    and also removes the corresponding data structures. This is used
+    when a new set of buttons is to be drawn. When the buttons are
+    removed, the spaces they occupied are filled in with colour 0.
+
+ClearRegions: effects
+proc utility ClearRegions()void
+
+    ClearRegions removes all mouse-hit regions from the active client.
+    Since such regions are not visible, this operation is not visible.
+
+ClearThing: database
+proc utility ClearThing(thing theThing)void
+
+    ClearThing removes all properties from the passed thing. Even
+    properties which cannot normally be changed by the effective user
+    are removed. The use-counts on the properties themselves and on
+    their values (if appropriate) are decremented appropriately. If
+    the thing has a usecount of 0, it will be released, and the space
+    it occupied in the database will be available for reuse.
+    Similarly, any properties or values whose usecounts become 0 will
+    also be freed. ClearThing is normally used for operations like
+    destroying objects and rooms. Note that a local variable (or
+    function parameter) pointing to a thing does not consititute a
+    formal use of that that thing, so that variable becomes invalid if
+    there are no uses of the thing and it is ClearThing'd. E.g.
+
+	th := CreateThing(nil); /* thing has no uses yet! */
+	ClearThing(th); 	/* thing is now gone! th is invalid */
+	th@prop := 6;		/* this can crash the system! */
+
+    In most circumstances, it is not even necessary to use ClearThing,
+    since the thing will automatically be cleared when the last
+    reference to it is removed. If you are not certain about any other
+    references, however, the proper sequence is something like:
+
+	th := thingList[index];
+	ClearThing(th);
+	DelElement(thingList, th);
+
+    where the 'DelElement' is carefully done *after* the ClearThing,
+    since that call may be the one that removes the last reference, and
+    hence results in the thing being destroyed.
+
+ClientsActive: utility
+proc utility ClientsActive()bool
+
+    ClientsActive returns 'true' if there are currently any player
+    characters active in the MUD, and 'false' otherwise. It is useful
+    in the step functions of machines to determine whether or not they
+    should be normally active or should go quiescent for a while.
+    Well-behaved machines go mostly quiescent when there are no active
+    clients, to minimize the load that the AmigaMUD server puts on the
+    system when there are no players. E.g.
+
+	define tp_myMachine proc machineStep()void:
+
+	    doLotsOfNeatThings();
+	    if ClientsActive() then
+		After(IntToFixed(10 + Random(10)), machineStep);
+	    else
+		After(100.0, machineStep);
+	    fi;
+	corp;
+
+ClientVersion: machine/character
+proc utility ClientVersion(thing who)int
+
+    ClientVersion returns the version number of the indicated client
+    program. This allows scenarios to do different actions depending
+    on that version. E.g. if newer versions of the clients offer more
+    capabilities, then they can be used, and older versions can use
+    older capabilities. The version number is the integral part of the
+    displayed version number times ten plus the decimal part. E.g. for
+    release V0.6 ClientVersion returns 6. Unfortunately, this builtin
+    returned an incorrect value in version 0.5. Also unfortunately,
+    the version released as V0.7 still contained internal version
+    numbers of 0.6 . Version information has been correct since then.
+    E.g.
+
+	if ClientVersion(nil) >= 20 then
+	    doFancyNewSuperNeatEffect(nil);
+	else
+	    doGrungyOldUglyEffect(nil);
+	fi;
+
+Count: utility
+proc utility Count(<any list> theList)int
+
+    Count is a generic function, accepting any type of list. It
+    returns the count of the number of elements in that list. E.g.
+
+	for i from 0 upto Count(theList) - 1 do
+	    doSomethingWith(theList[i]);
+	od;
+
+CreateActionList: database
+proc utility CreateActionList()list action
+
+    CreateActionList returns a new, empty list of actions.
+
+CreateActionListProp: database
+proc utility CreateActionListProp()property list action
+
+    CreateActionListProp returns a new property which can be used to
+    attach a list of actions to a thing. The new property has no name,
+    so it should be put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateActionListProp()$
+	myTestThing@myNewProp := CreateActionList()$
+	AddTail(myTestThing@myNewProp, myNeatFunction)$
+
+CreateActionProp: database
+proc utility CreateActionProp()property action
+
+    CreateActionProp returns a new property which can be used to
+    attach a single action to a thing. The new property has no name,
+    so it should be put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateActionProp()$
+	myTestThing@myNewProp := myNeatFunction$
+
+CreateBoolProp: database
+proc utility CreateBoolProp()property bool
+
+    CreateBoolProp returns a new property which can be used to attach
+    a bool flag to a thing. The new property has no name, so it should
+    be put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateBoolProp()$
+	myTestThing@myNewProp := true$
+
+CreateCharacter: machine/character
+proc utility CreateCharacter(string name, password)void
+
+    CreateCharacter creates a new character. The other way that
+    characters can be created is by players themselves when they are
+    connecting to the system. The latter requires that they know the
+    creation password (if one is set) and that the creation password
+    not start with an asterisk ("*"). If the system administrator
+    decides to disallow such character creations, then all characters
+    must be explicitly created using CreateCharacter. 'name' is the
+    desired name of the new character, and as usual, must not contain
+    any spaces or punctuation characters. 'password' is the initial
+    password for the character - the player can change it later. E.g.
+
+	CreateCharacter("Fred_Smith", "xyzzy")$
+
+CreateFixedList: database
+proc utility CreateFixedList()list fixed
+
+    CreateFixedList returns a new, empty list of fixeds.
+
+CreateFixedListProp: database
+proc utility CreateFixedListProp()property list fixed
+
+    CreateFixedListProp returns a new property which can be used to
+    attach a list of fixeds to a thing. The new property has no
+    name, so it should be put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateFixedListProp()$
+	myTestThing@myNewProp := CreateFixedList()$
+	AddTail(myTestThing@myNewProp, 0.01)$
+
+CreateFixedProp: database
+proc utility CreateFixedProp()property fixed
+
+    CreateFixedProp returns a new property which can be used to
+    attach a fixed to a thing. The new property has no name, so it
+    should be put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateFixedProp()$
+	myTestThing@myNewProp := 12.75$
+
+CreateGrammar: parsing
+proc utility CreateGrammar()grammar
+
+    CreateGrammar returns a new, empty grammar. A grammar in AmigaMUD
+    is a type of table used to hold command words, and the information
+    on how to handle those words. Grammars separate from the main
+    grammar are useful for implementing "subcommands" like the build
+    commands, and for implementing sets of special commands for use in
+    special locations or on special occasions.
+
+CreateGrammarProp: database
+proc utility CreateGrammarProp()property grammar
+
+    CreateGrammarProp returns a new property which can be used to
+    attach a grammar to a thing. The new property has no name, so it
+    should be put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateGrammarProp()$
+	myTestThing@myNewProp := CreateGrammar()$
+	VerbTail(myTestThing@myNewProp, "spelunk", doSpelunk)$
+
+CreateIntArray: database
+proc utility CreateIntArray(int size)list int
+
+    CreateIntArray returns and fills in a new list of integers. Unlike
+    'CreateIntList', the list returned by CreateIntArray is not empty.
+    It has space for 'size' elements, and those elements are all
+    initialized to 0. This routine is a convenient way to initialize
+    such things as icons and mapping tables for coordinate based
+    areas. E.g.
+
+	list int li;
+
+	li := CreateIntArray(10);
+	li[5] := 7;
+
+CreateIntList: database
+proc utility CreateIntList()list int
+
+    CreateIntList returns a new, empty list of integers.
+
+CreateIntListProp: database
+proc utility CreateIntListProp()property list int
+
+    CreateIntListProp returns a new property which can be used to
+    attach a list of ints to a thing. The new property has no name,
+    so it should be put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateIntListProp()$
+	myTestThing@myNewProp := CreateIntList()$
+	AddTail(myTestThing@myNewProp, 27)$
+
+CreateIntProp: database
+proc utility CreateIntProp()property int
+
+    CreateIntProp returns a new property which can be used to attach
+    an int to a thing. The new property has no name, so it should be
+    put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateIntProp()$
+	myTestThing@myNewProp := 145$
+
+CreateMachine: machine/character
+proc utility CreateMachine(string name; thing theThing, location;
+    action startup)void
+
+    CreateMachine is used to create a new machine. Machines are used
+    in AmigaMUD to perform actions independent of any players. Each
+    machine has a corresponding thing, just like players do. The name
+    of a machine can be similar to a player's name, like "Packrat", or
+    it can be more like an object's name, like "rat;big,hairy".
+    Machines can also have empty names, in which case they will not
+    show up in rooms, unless 'ForEachAgent' is used to scan agents.
+    'theThing' is the thing which holds all of the machine's
+    properties. 'location' is the initial location for the machine; it
+    can be nil. 'startup' is an action, having no parameters and no
+    result, which will be called when the machine has been created.
+    It is normally used to start up any "step" routine which the
+    machine uses to perform periodic action. 'startup' can be nil.
+    E.g.
+
+	private tp_witches CreateTable()$
+	use tp_witches
+	define tp_witches witchSpell CreateActionProp()$
+	define tp_witches witchCharacter CreateIntProp()$
+	define tp_witches WC_GOOD 0$
+	define tp_witches WC_NEUTRAL 1$
+	define tp_witches WC_EVIL 2$
+	define tp_witches proc spellTurnNosePurple(thing who)void:
+	    /* turn somebody's nose purple */
+	corp;
+	define tp_witches proc witchStep()void:
+	    /* various and sundry nasty stuff */
+	    After(10.0, witchStep);
+	corp;
+	define tp_witches proc witchInit()void:
+	    After(10.0, witchStep);
+	corp;
+	define tp_witches proc createWitch()void:
+	    thing theWitch;
+
+	    theWitch := CreateThing(modelWitch);
+	    theWitch@witchSpell := spellTurnNosePurple;
+	    theWitch@witchCharacter := WC_EVIL;
+	    CreateMachine("Krondik;Witch", theWitch, r_blackPit,
+			  witchInit);
+	corp;
+
+CreateStringProp: database
+proc utility CreateStringProp()property string
+
+    CreateStringProp returns a new property which can be used to
+    attach a string to a thing. The new property has no name, so it
+    should be put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateStringProp()$
+	myTestThing@myNewProp := "hello there world"$
+
+CreateTable: database
+proc utility CreateTable()table
+
+    CreateTable returns a new empty table. The table can be used to
+    store symbols. Separate tables are used so that the number of
+    symbols in your private table (or the public one) does not get too
+    large. Having too many symbols in a single table can cause
+    problems for the database cache, uses a lot of memory, and is hard
+    to handle for the user. The source files for the standard scenario
+    create quite a few new tables, usually one or more per major
+    source file. The symbols defined in that source file that are not
+    needed outside of that source file are put into that table. See
+    the example given with 'CreateMachine' for an example of using
+    such a table.
+
+CreateTableProp: database
+proc utility CreateTableProp()property table
+
+    CreateTableProp returns a new property which can be used to attach
+    a table to a thing. The new property has no name, so it should be
+    put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateTableProp()$
+	myTestThing@myNewProp := CreateTable()$
+
+CreateThing: database
+proc utility CreateThing(thing parent)thing
+
+    CreateThing returns a new thing in the database. The new thing's
+    parent is set to 'parent', which can be nil. CreateThing is used
+    to create nearly all items that a player will interact with in
+    AmigaMUD: rooms, objects, monsters, etc. A newly created thing has
+    no properties other than any inherited from its parent (and its
+    parent's parent, etc.)
+
+CreateThingList: database
+proc utility CreateThingList()list thing
+
+    CreateThingList returns a new, empty list of things.
+
+CreateThingListProp: database
+proc utility CreateThingListProp()property list thing
+
+    CreateThingListProp returns a new property which can be used to
+    attach a list of things to a thing. The new property has no name,
+    so it should be put into a table to give it one. E.g.
+
+	define myTable myNewProp CreateThingListProp()$
+	myTestThing@myNewProp := CreateThingList()$
+	AddTail(myTestThing@myNewProp, myOtherTestThing)$
+
+CreateThingProp: database
+proc utility CreateThingProp()property thing
+
+    CreateThingProp returns a new property which can be used to attach
+    a thing to another thing. The new property has no name, so it
+    should be put into a table to give it one. This kind of property
+    is used, for example, to point from one room to another, to
+    indicate a connection between the rooms. E.g.
+
+	define myTable myNewProp CreateThingProp()$
+	myTestThing@myNewProp := myOtherThing$
+
+Date: utility
+proc utility Date()string
+
+    Date returns a string containing the current time and date. E.g.
+
+	Date() => "Fri Nov  1 16:49:14 1996"
+
+DateShort: utility
+proc utility DateShort()string
+
+    Date returns a string containing the current time and date. The
+    form returned is shorter than that returned by 'Date', and is
+    sortable. The date portion is in the order of year/month/day.
+
+	DateShort() => "1996/11/01 16:49:17"
+
+DefineAction: symbols
+proc utility DefineAction(table theTable; string name;
+    action theAction)bool
+
+    DefineAction adds an entry to the 'theTable', with name 'name'
+    which is a new name for the passed action 'theAction'. This
+    routine is mainly of use in the builder code. The value returned
+    is 'true' if the definition was successful, else 'false'.
+
+DefineCounter: symbols
+proc utility DefineCounter(table theTable; string name;
+    property int theCounter)bool
+
+    DefineCounter adds a new int property symbol to the indicated
+    table. It is mainly used in the builder code. DefineCounter
+    returns 'true' if the definition succeeded.
+
+DefineEffect: effects
+proc utility DefineEffect(thing who; int whichEffect)void
+
+    DefineEffect starts the definition of a new effect for the client
+    indicated by 'who'. 'whichEffect' is an identifier for the new
+    effect; it must either be 0 or be different for each effect
+    defined. Defining an effect sends the "code" for the effect to the
+    client, and the client adds that effect code to its effect cache.
+    From then on, unless that effect is flushed from the effect cache,
+    the effect can be called in that client by simply sending a
+    CallEffect request. Effects with code 0 are never cached in the
+    client - code 0 is thus used as a temporary effect, and can be re-
+    used as needed. An effect can be an entire global effect, such as
+    the standard scenario's view of the streets scene, or can be an
+    "effects subroutine" such as one for a horizontal door. The
+    scenario can test whether or not a client has a copy of an effect
+    with a given id using the 'KnowsEffect' builtin. For example, here
+    is the code in the standard scenario for displaying one of the
+    locations in the Squirrel quest area:
+
+	if not KnowsEffect(nil, SQ_VALLEY13_ID) then
+	    DefineEffect(nil, SQ_VALLEY13_ID);
+	    GSetImage(nil, "Squirrel/valley13");
+	    IfFound(nil);
+		GShowImage(nil, "", 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.5, 1.0);
+	    Else(nil);
+		AutoOpenSpace();
+		GSetPen(nil, C_FOREST_GREEN);
+		GAMove(nil, 0.25, 0.5);
+		GEllipsePixels(nil, 0.22, 0.4, true);
+	    Fi(nil);
+	    EndEffect();
+	fi;
+	CallEffect(nil, SQ_VALLEY13_ID);
+
+    If the current client (nil) does not know the effect indicated by
+    int constant "SQ_VALLEY13_ID", then the definition of that effect
+    is sent to the client. After that definition, if needed, the
+    effect is called to display the image. Inside the effect, the
+    client program is asked to look for an image called "valley13" in
+    the "Squirrel" subdirectory of the Images directory. If that image
+    is found, then it is displayed, and the effect is complete. If the
+    image is not found, then an approximation of the image is drawn
+    using the "AutoOpenSpace" autographics routine, and adding a green
+    ellipse to it, representing the oak tree.
+
+DefineFlag: symbols
+proc utility DefineFlag(table theTable; string name;
+    property bool theFlag)bool
+
+    DefineFlag adds a new bool property symbol to the indicated
+    table. It is mainly used in the builder code. DefineFlag returns
+    true if the definition succeeded.
+
+DefineString: symbols
+proc utility DefineString(table theTable; string name;
+    property string theString)bool
+
+    DefineString adds a new string property symbol to the indicated
+    table. It is mainly used in the builder code. DefineString returns
+    true if the definition succeeded.
+
+DefineTable: symbols
+proc utility DefineTable(table theTable; string name; table newTable)bool
+
+    DefineTable adds a reference to a table, 'newTable', to another
+    table, 'theTable', with name 'name'. Thus, 'theTable' now contains
+    'newTable' as one of its entries. This function is mostly used by
+    the builder code.
+
+DefineThing: symbols
+proc utility DefineThing(table theTable; string name; thing theThing)bool
+
+    DefineThing adds a reference to a thing, 'theThing', to a table,
+    'theTable', with name 'name'. Thus, 'theTable' now contains
+    'theThing' as one of its entries. This function is mostly used by
+    the builder code.
+
+DelElement: database
+proc utility DelElement(<any list> theList;
+    <corresponding element type> valu)void
+
+    DelElement is used to delete an element from a list. It is a
+    generic function in that it works for any kind of list. 'valu',
+    the element to be deleted, must be of the corresponding type. It
+    is not an error if the element is not found in the list. If the
+    list contains more than one occurrence of the element, only the
+    first one (the one with the lowest index) is deleted. E.g.
+
+	private th CreateThing(nil)$
+	private intListProp CreateIntListProp()$
+	th@intListProp := CreateIntArray(5)$
+	th@intListProp[0] := 7$
+	th@intListProp[4] := 7$
+	th@intListProp$
+	==> {7, 0, 0, 0, 7}
+	DelElement(th@listInt, 7)$
+	th@intListProp$
+	==> {0, 0, 0, 7}
+	DelElement(th@listInt, 7)$
+	th@intListProp$
+	==> {0, 0, 0}
+
+DeleteSymbol: symbols
+proc utility DeleteSymbol(table theTable; string name)bool
+
+    DeleteSymbol attempts to delete symbol 'name' from table
+    'theTable'. If it can, it does so and returns 'true', otherwise
+    it returns 'false'. If it fails to delete the symbol, an error
+    comment will have been printed to the active client. This routine
+    is intended only for interactive use.
+
+DeleteWord: parsing
+proc utility DeleteWord(grammar theGrammar; string theWord)void
+
+    DeleteWord deletes word 'theWord' from grammar 'theGrammar'. It is
+    an error to try to delete a word that is not in the grammar, or if
+    you do not own the grammar. Also, if the word has any existing
+    synonyms, it cannot be deleted - those synonyms must be deleted
+    first. This routine is intended only for interactive use - it has
+    no real use when constructing a scenario from source files.
+
+DescribeKey: database
+proc utility DescribeKey(int key)void
+
+    DescribeKey considers the int argument passed to it to be a valid
+    AmigaMUD internal key, and attempts to describe the value of that
+    key. This function can be run ONLY by SysAdmin, since it is
+    potentially dangerous. SysAdmin should be careful to only use key
+    values that are known to be valid, since invalid keys can result
+    in aborts in the database code. Keys are usually expressed as
+    hexadecimal int constants for this purpose. This routine is
+    intended only for interactive use.
+
+DescribeSymbol: symbols
+proc utility DescribeSymbol(table theTable; string name)void
+
+    DescribeSymbol will print out a description of the value of symbol
+    'name' in table 'theTable', provided that that symbol is in the
+    table. This is very similar to the "describe" wizard-mode command,
+    except that only one specific table is searched for the key. This
+    function is used to implement the "@describe" builder command.
+
+DestroyCharacter: machine/character
+proc utility DestroyCharacter(string theCharacter)void
+
+    DestroyCharacter is used to remove an unwanted player character
+    from the database. If the character is currently connected, they
+    will be disconnected (as in 'BootClient') and the destruction will
+    happen after the connection is gone. This function deletes the
+    character from the 'Characters' table, but does little else. This
+    is because any things, functions, tables or grammars that the
+    character may have created all point to the character data
+    structure, which in turn points to the character's private symbol
+    table and thing. To avoid problems with scenario code which
+    accesses these values after the character has been made unuseable,
+    DestroyCharacter does not even remove any properties from the
+    character's thing. Only SysAdmin, or code that SysAdmin writes,
+    can use DestroyCharacter. E.g.
+
+	DestroyCharacter("Bad_Boy")$
+
+DestroyMachine: machine/character
+proc utility DestroyMachine(thing machine)void
+
+    DestroyMachine is used to destroy a machine that is no longer
+    needed. For example, in the standard scenario DestroyMachine is
+    used to destroy monsters in the Proving Grounds that are killed.
+    The thing of the specific machine to be destroyed is passed. If
+    there is still a reference to the machine's thing when this
+    function is called, the machine data structure and all properties
+    of the thing are deleted, but the thing itself will stay until all
+    references to it are gone. Note that whatever references to the
+    thing are left are now pointing at a thing with no properties
+    other than those inherited from parents. Scenario code should be
+    aware of this.
+
+DumpThing: utility
+proc utility DumpThing(thing key)void
+
+    DumpThing can only be executed by SysAdmin, directly at the
+    wizard-mode prompt. It symbolically dumps out everything about the
+    passed thing. It does not matter what tables the needed symbols
+    are in - they will be found. This operation can be quite
+    expensive, in that it may have to access all of the tables in the
+    system. The operation could also crash the server if not enough
+    cache space or memory is available. This is why the function is so
+    restricted. The symbols are printed as "paths" if they are not in
+    the public symbol table. A path starts with the name of the player
+    who owns the table, followed by possibly more table names, and
+    finally a symbol, all separated by slashes. If a private symbol
+    table itself is printed, then it is printed as the name of the
+    character followed by "/PRIVATE". All of these paths are enclosed
+    in angle brackets ("<" and ">") to distinguish them from normal
+    symbolic output. Here is some example output:
+
+> DumpThing(Parent(Me()@p_pWeapon))$
+<THING:08000953>: thing, parent <NIL-THING>, owner SysAdmin, useCount 2,
+    propCount 8, ts_readonly:
+  <p_oName>: "Thor;Hammer,of.hammer"
+  <t_base/p_oDesc>:
+"The Hammer of Thor appears to be a special weapon. It smashes instead of "
+"slashes, but that is likely to be just as effective. It appears to be quite "
+"heavy and unwieldy, but you seem to have no trouble with it."
+  <t_base/p_oPrice>: 1000000
+  <t_base/p_oHome>: <SysAdmin/tp_misc/r_lostAndFound>
+  <t_fight/p_oStrBonus>: 3
+  <t_fight/p_oAccuracy>: 10
+  <t_fight/p_oDamage>: 15
+  <t_fight/p_oWieldAction>: <SysAdmin/tp_fight/weaponWield>
+
+Editing: utility
+proc utility Editing()bool
+
+    Editing returns 'true' if the active client is currently using an
+    editor within the AmigaMUD system. This happens when the user
+    edits a string or a function. Editing a string can be triggered by
+    the scenario code calling 'EditString', or by a wizard or
+    apprentice calling it directly. Editing a function can be
+    triggered by the "edit" wizard-mode command or by using the
+    'EditProc' builtin. 'Editing' is useful to prevent attempts to
+    start a second edit when one is already in progress.
+
+EditProc: utility
+proc utility EditProc(action theProc)void
+
+    EditProc is a way for executing AmigaMUD code to trigger editing
+    of an AmigaMUD function. This has the same effect as a user in
+    wizard mode using the "edit" command.
+
+EditString: utility
+proc utility EditString(string str; action handler; int mode;
+    string prompt)void
+
+    EditString throws the active client into an editor (either the
+    internal one or an external one), editing the string given by
+    'str'. 'handler' must be supplied, and must be a function of type:
+
+	proc editHandler(string newString; bool success)void
+
+    'prompt' is the string that will appear in the message bar at the
+    bottom of the editing window in the internal editor. 'mode' can be
+    one of the following values, which the standard scenario defines:
+
+	0 - EDIT_COOKED
+	1 - EDIT_RAW
+	2 - EDIT_CODE
+
+    'mode' controls the way the string is processed on output to the
+    editor and input from the editor. If 'mode' is EDIT_CODE, then the
+    string is given as-is to the editor, otherwise backslashes,
+    newlines and tabs in the string are escaped with a backslash. If
+    'mode' is EDIT_RAW or EDIT_CODE then when the string is read back
+    from the edit session, any newlines in the string are copied
+    directly, as are any occurences of '\'. If mode is EDIT_COOKED,
+    then any newlines in the string are converted to spaces, if not
+    following another space (in the latter case they are just
+    discarded), and any '\' escape sequences are replaced by the
+    character they represent. When the editing and any post-processing
+    are all done, the resulting string is passed to the 'handler'
+    function, along with a flag saying whether or not the edit was
+    successful. The edit can fail if the user aborts out of the
+    builtin editor, or if the AmigaMUD system has any problem starting
+    an external editor. Also, if the builtin editor fails to allocate
+    memory to hold the string, the edit will fail. So, if the handler
+    is called with 'success' 'false', it should not modify anything.
+    The standard scenario uses 'mode' EDIT_RAW for news articles and
+    mail, and uses EDIT_COOKED for everything else (descriptions,
+    etc.). All of this is done by the "GetDocument" function defined
+    in "util2.m". 'mode' EDIT_CODE is useful when using EditString to
+    edit a string produced by builtin "ProcToString".
+
+Else: effects
+proc utility Else(thing who)void
+
+    Else is used in effects routines to switch to an alternative.
+    The Else is executed at effect generation time, in the remote
+    client program, not at any time in the server. Currently, the only
+    condition that it can work with is that set up by 'IfFound', which
+    tests for the success of one of: GLoadBackGround, GSetImage,
+    GShowImage with a name included, GShowBrush, SPlaySound or
+    MPlaySong.
+
+EndEffect: effects
+proc utility EndEffect()void
+
+    EndEffect marks the end of an effect definition. See the
+    description of DefineEffect for an example.
+
+EraseButton: effects
+proc utility EraseButton(int n)void
+
+    EraseButton removes and erases the mouse button identified by 'n'
+    from the display of the active client.
+
+EraseRegion: effects
+proc utility EraseRegion(int n)void
+
+    EraseRegion removes the mouse-select region identified by 'n' from
+    the records of the active client.
+
+Execute: utility
+proc utility Execute(string command)void
+
+    Execute attempts to execute the passed 'command' as an AmigaOS
+    shell command line. The command is executed on the server machine.
+    Only SysAdmin, or a function written by SysAdmin, can use this
+    function. SysAdmin is warned to never write a function that allows
+    any users to execute an arbitrary command. Technically, the call
+    to AmigaOS used is:
+
+	nilHandle := Open("nil:", MODE_READWRITE);
+	Execute(command, 0, nilHandle);
+
+    The sample scenario sources use Execute to call on the UUCP
+    programs to post usenet mail and news. The "backup" command in the
+    scenario also uses Execute to copy the flushed database files to a
+    backup directory.
+
+    WARNING: Do not try to Execute the MUDShut program - that will
+    result in a deadlock between it and MUDServ!
+
+FailText: effects
+proc utility FailText(thing who; string message)void
+
+    FailText can be used in a scenario to indicate to the remote user
+    which file, requested as part of an effect, could not be opened.
+    The standard scenario uses it to print "The birds sing." if the
+    sound file "AmigaMUD:Sounds/birds" cannot be opened when needed.
+    The failure message, preceeded by the path to the file, is printed
+    in the text window of the client. E.g.
+
+	define tp_surface proc birdsSingOnce(thing client)void:
+	    if SOn(client) then
+		SPlaySound(client, "birds", 1, BIRDS_SING_ID);
+		IfFound(client);
+		Else(client);
+		    FailText(client, "The birds sing.");
+		Fi(client);
+	    else
+		SPrint(client, "The birds sing.\n");
+	    fi;
+	corp;
+
+    Note that this code only tries to find and play the file if the
+    client has sound enabled.
+
+Fi: effects
+proc utility Fi(thing who)void
+
+    Fi is used to end a condition inside an effect. See the
+    description of IfFound for more details, and the description of
+    GPolygonStart for an example.
+
+FileClose: utility
+proc utility FileClose(int fileId)void
+
+    FileClose closes the indicated file. Any buffered output data is
+    written to the real file. The file indicated by 'fileId' is no
+    longer valid for 'FileRead'/'FileWrite' operations. Only SysAdmin,
+    or code written by SysAdmin, may use this function.
+
+FileOpenForRead: utility
+proc utility FileOpenForRead(string fileName)int
+
+    FileOpenForRead will open the named file for reading. 'fileName'
+    is a full path or is relative to where MUDServ was started. The
+    value returned is 0 to indicate some kind of failure, or some
+    other value to indicate success. The resulting identifier can be
+    used with 'FileRead', and should eventually be closed with
+    'FileClose'. Only SysAdmin, or code written by SysAdmin, can use
+    FileOpenForRead.
+
+FileOpenForWrite: utility
+proc utility FileOpenForWrite(string fileName)int
+
+    FileOpenForWrite will open the named file for reading. 'fileName'
+    is a full path or is relative to where MUDServ was started. The
+    value returned is 0 to indicate some kind of failure, or some
+    other value to indicate success. The resulting identifier can be
+    used with 'FileWrite', and should eventually be closed with
+    'FileClose'. Only SysAdmin, or code written by SysAdmin, can use
+    FileOpenForWrite. Note that this routine opens the file in the
+    Amiga's exclusive mode, and empties the file.
+
+FileOpenForUpdate: utility
+proc utility FileOpenForUpdate(string fileName)int
+
+    FileOpenForUpdate will open the named file for update. 'fileName'
+    is a full path or is relative to where MUDServ was started. The
+    value returned is 0 to indicate some kind of failure, or some
+    other value to indicate success. The resulting identifier can be
+    used with 'FileReadBinary', 'FileWrite', 'FileWriteBinary' and
+    'FileSeek', and should eventually be closed with 'FileClose'. Only
+    SysAdmin, or code written by SysAdmin, can use FileOpenForUpdate.
+
+FileRead: utility
+proc utility FileRead(int fileId)string
+
+    FileRead reads and returns a line from the indicated file. The
+    file must have been opened for reading. If the line in the file is
+    longer than 512 characters, then only the first 512 are returned,
+    but the entire line is consumed from the file. Reading an empty
+    line returns a string containing a single space. An end-of-file
+    condition on the file returns an empty string. FileRead can only
+    be used on a file that was opened using 'FileOpenForRead'.
+
+FileReadBinary: utility
+proc utility FileReadBinary(int fileId; list int data)int
+
+    FileReadBinary reads binary data from the indicated file. The
+    amount of data read is determined by the size of the passed list.
+    For each element in the list, 4 bytes will be read and placed in
+    that element of the list. If there is not enough data in the file,
+    then some elements of the list may not be updated, and one may be
+    only partially updated. The number of bytes read will be returned.
+    This will be no more than 4 times the number of elements in the
+    list. FileReadBinary can only be used with a file that was opened
+    using 'FileOpenForUpdate'.
+
+FileSeek: utility
+proc utility FileSeek(int fileId, position)void:
+
+    The current position in the indicated file will be moved to the
+    given position. Subsequent 'FileReadBinary', 'FileWriteBinary' or
+    'FileWrite' calls will start at that position. FileSeek can only
+    be used on files opened with 'FileOpenForUpdate'.
+
+FileWrite: utility
+proc utility FileWrite(int fileId; string theString)void
+
+    FileWrite writes string 'theString' to the open file identified by
+    'fileId'. No modifications are made to the string - it is written
+    exactly as it is given. A runtime error results if 'fileId' is not
+    currently valid, or was not opened for writing. Only SysAdmin, or
+    code owned by SysAdmin, can use FileWrite.
+
+FileWriteBinary: utility
+proc utility FileWriteBinary(int fileId; list int data)void
+
+    The data in the list is written as binary data to the file. The
+    data in the list is not modified. The file must have been opened
+    with 'FileOpenForUpdate'. Four bytes of data are written for each
+    element of the list.
+
+FindActionSymbol: symbols
+proc utility FindActionSymbol(table theTable; action theAction)string
+
+    FindActionSymbol is used to try to find a symbol, in table
+    'theTable' for action 'theAction'. If such a symbol is found, it
+    is returned, else an empty string is returned. This function is
+    used in the builder code to try to print a symbolic name for an
+    action in a checker list.
+
+FindAgent: machine/character
+proc utility FindAgent(string name)thing
+
+    FindAgent is the basic means of identifying a reference to an
+    agent (a player character or a machine) by a user command. It
+    searches the lists of active players and active machines, looking
+    for one in the same room as the active agent, whose name matches
+    that given. If 'name' is the name of a player character, then that
+    character is looked for and returned if found in the room.
+    Otherwise, 'name' is matched, using 'MatchName', against all of
+    the machines in the room. The first one matched, if any, is
+    returned. As a special case, the strings "me", "myself", "self"
+    and "yourself" return either the active character or the active
+    machine. This search is done by substituting the "MeString" value
+    for 'name'. Thus, if 'SetMeString' has been used to alter that
+    name, then the altered version is searched for. This technique is
+    used with Packrat, so that commands such as "Give xxx to me" will
+    do the expected thing. If no such agent is found, nil is returned.
+
+FindAgentAsChild: machine/character
+proc utility FindAgentAsChild(thing room, parent)thing
+
+    FindAgentAsChild searches for a machine in the indicated room
+    which is a direct child of the thing 'parent'. For example, in the
+    standard scenario, the monsters in the Proving Grounds are
+    normally direct children of the generic monsters defined in
+    "monsters.m". Thus, FindAgentAsChild can be used to search a room
+    for a monster cloned from one of those original models. If no such
+    machine is found, nil is returned.
+
+FindAgentAsDescendant: machine/character
+proc utility FindAgentAsDescendant(thing room, parent)thing
+
+    FindAgentAsDescendant is very similar to FindAgentAsChild. The
+    difference is that FindAgentAsDescendant will look all the way
+    back through the parentage chain of each machine it checks, to see
+    if 'parent' is on that chain. Thus if machine "three" inherits
+    from machine "two" which inherits from machine "one" and machine
+    "three" is in the room being searched, then FindAgentAsDescendant
+    will find it, but FindAgentAsChild will not. Both will find
+    machine "two".
+
+FindAgentAt: machine/character
+proc utility FindAgentAt(thing location; string name)thing
+
+    FindAgentAt is related to FindAgent. It looks in the given room
+    for a player character or machine whose name matches 'name'.
+    FindAgentAt does NOT do the special handling of "me", etc.
+    however. It is most useful for code which wants to determine if
+    someone or something is in some other specific room. If no such
+    agent is found, nil is returned.
+
+FindAgentWithChildOnList: machine/character
+proc utility FindAgentWithChildOnList(thing room;
+    property list thing listProp; thing parent)thing
+
+    FindAgentWithChildOnList performs a search of the form 'look for
+    an agent which has an XXX'. 'room' is the room to search in.
+    'listProp' is the property on the agents which points to a list of
+    things, in which to search for a thing which is a child of
+    'parent'. For example, if a magic fountain is only active if
+    someone or something in the room is carrying the magic doodad,
+    then "FindAgentWithChildOnList(room, p_oCarrying, o_doodad)" will
+    perform the required search. Note that the search will not find
+    the doodad inside a container being carried, nor will it find it
+    in any list other than the one indicated. This, and other similar
+    searches, can be done using AmigaMUD code, but the builtin is much
+    more efficient, provided it performs the required search.
+
+FindAgentWithFlag: machine/character
+proc utility FindAgentWithFlag(thing room; property bool flagProp)thing
+
+    FindAgentWithFlag looks for an agent (player character or machine)
+    in the given room which has property 'flagProp' set to true. For
+    example, if a scenario were to define a flag "p_pHasCold",
+    indicating that the player has a cold, then the search for
+    infection could be done by "FindAgentWithFlag(room, p_pHasCold)".
+    If no such agent is found, nil is returned.
+
+FindAgentWithFlagOnList: machine/character
+proc utility FindAgentWithFlagOnList(thing room;
+    property list thing listProp; property bool flagProp)thing
+
+    FindAgentWithFlagOnList performs a search of the form 'look for an
+    agent who has something which is XXX". 'room' is the room to
+    search in. 'listProp' is the property on the agents which points
+    to a list of things, in which to search for a thing which has
+    property 'flagProp' set to 'true'. The standard scenario uses this
+    routine to see if anyone in a given room is carrying a light with
+    "FindAgentWithFlagOnList(room, p_pCarrying, p_oLight)". Note that
+    the search will not find a light source that is inside a container
+    being carried. If no such agent is found, then nil is returned.
+
+FindAgentWithNameOnList: machine/character
+proc utility FindAgentWithNameOnList(thing room;
+    property list thing listProp;
+    property string nameProp; string name)thing
+
+    FindAgentWithNameOnList performs a search of the form 'look for an
+    agent who has something called XXX". 'room' is the room to search
+    in. 'listProp' is the property on the agents which points to a
+    list of things, in which to search for a thing which has string
+    property 'nameProp' which matches 'name'. The searching of the
+    lists is done using 'FindName'. This function is a bit more
+    general than 'FindAgentWithFlagOnList', but it is also quite a bit
+    more expensive to use. Instead of looking for someone with one of
+    a specific type of "apple", this function can look for someone
+    with any kind of "apple", for example.
+
+FindAnyWord: parsing
+proc utility FindAnyWord(grammar theGrammar; string theWord)int
+
+    FindAnyWord is a generalization of 'FindWord'. It looks for word
+    'theWord' in the indicated grammar. The id code for the word is
+    returned if it is found, else 0 is returned. If the word is a
+    synonym of another word, then the code of that other word is
+    returned.
+
+FindChildOnList: database
+proc utility FindChildOnList(list thing theList; thing parent)bool
+
+    FindChildOnList looks through the elements of 'theList', looking
+    for a thing which is a direct child of 'parent'. If one is found,
+    then FindChildOnList returns 'true', and 'FindResult' can be used
+    to retrieve the actual thing, else 'false' is returned.
+
+FindElement: database
+proc utility FindElement(<any list> theList;
+    <corresponding element type> valu)int
+
+    FindElement is a generic routine used to search lists. It works on
+    any kind of list, searching for the corresponding type of value.
+    If the value is found in the list, then the index of the first one
+    is returned, else -1 is returned.
+
+FindFlagOnList: database
+proc utility FindFlagOnList(list thing theList; property bool flagProp)
+    bool
+
+    FindFlagOnList is used to search a list of things for a thing
+    which has property 'flagProp' set to true. Note that this search
+    searches for the flag on the things in the list as well as on all
+    of their ancestors. Thus, its result is 'true' if and only if the
+    found thing yields 'true' when looking up the property on it. If
+    such a thing is found, then it can be retrieved with 'FindResult'.
+
+FindIntOnList: database
+proc utility FindIntOnList(list thing theList; property int intProp;
+    int valu, compType)thing
+
+    FindIntOnList can be used to search a list of things for a thing
+    which has the given int value for the given property, as compared
+    with the comparison specified by 'compType'. The comparisons
+    available are:
+
+	compType	comparison
+	--------------------------------------------------
+	   0		value of property on thing = valu
+	   1		value of property on thing ~= valu
+	   2		value of property on thing < valu
+	   3		value of property on thing <= valu
+	   4		value of property on thing > valu
+	   5		value of property on thing >= valu
+
+    For example, give a list in local variable 'lt', and a property
+    named 'ip', we could search for a thing on 'lt' with value for
+    'ip' exactly equal to 12 by:
+
+	FindIntOnList(lt, ip, 12, 0)
+
+    We could search for any positive, nonzero value by:
+
+	FindIntOnList(lt, ip, 0, 4)
+
+    The standard scenario defines standard names for the comparison
+    types: COMP_EQUAL, COMP_NOT_EQUAL, COMP_LESS_THAN,
+    COMP_LESS_OR_EQUAL, COMP_GREATER_THAN, COMP_GREATER_OR_EQUAL.
+
+FindKey: utility
+proc utility FindKey(int key)void
+
+    FindKey is a very powerful and very expensive routine. It will
+    search the entire database for a symbol whose value is the passed
+    key. The key is normally given as a hexadecimal int constant. All
+    definitions of the key are printed out, one per line, showing the
+    paths of tables to the key. Because of the expense of this
+    function, only SysAdmin can execute it. E.g. if wizard "Fred" has
+    the key in his table "lower" in his table "castle" as "rose", and
+    wizard "Joe" has the key in his table "rooms" as symbol "redRose",
+    then the output would be:
+
+	FindKey(0xXXXXXXXX)$
+	Fred/castle/lower/rose
+	Joe/rooms/redRose
+
+FindMachineIndexed: machine/character
+proc utility FindMachineIndexed(string name; int index)thing
+
+    FindMachineIndexed returns the 'index'th machine whose name
+    matches (using MatchName) 'name'. If no such machine exists, then
+    nil is returned. Thus, we can scan through all of the goblins
+    currently active in the scenario with:
+
+	i := 1;
+	while
+	    goblin := FindMachineIndexed("goblin", i);
+	    goblin ~= nil
+	do
+	    processGoblin(goblin);
+	    i := i + 1;
+	od;
+
+    Note that if "processGoblin" deletes the goblin, this simple loop
+    will skip the next one, so "processGoblin" should return a value
+    indicating that it has done so, and "i" should not be incremented.
+    If it is known beforehand that scanning through all of the goblins
+    is needed, then it is probably easier to just link them together
+    in a big linked list as they are created/destroyed.
+
+FindName: parsing
+proc utility FindName(list thing theList; property string nameProp;
+    string theName)status
+
+    FindName is the general string-searching routine in AmigaMUD. It
+    searches the elements of 'theList', looking for a value of string
+    property 'nameProp' which matches 'theName'. Matching is
+    determined by builtin function 'MatchName'. If no such element is
+    found, then 'fail' is returned. If one such element is found, then
+    'succeed' is found, and if more than one is found, 'continue' is
+    returned. If either 'succeed' or 'continue' is returned, then
+    builtin 'FindResult' can be used to return the found thing. Note
+    that the string 'theName' is in the internal "noun;adj,adj" form.
+    If the string begins with a decimal number and a colon, which is
+    the form that 'GetNounPhrase' and 'Parse' yield for the syntax
+    "adj adj noun #number", then the 'continue' result is not
+    possible, and the 'number'th matching thing is returned. 'number'
+    is treated as one-origin here. E.g.
+
+	st := FindName(Me()@p_pCarrying, p_oName, name);
+	if st = fail then
+	    Print("You aren't carrying any " + FormatName(name));
+	elif st = continue then
+	    Print(FormatName(name) + " is ambiguous here");
+	else
+	    theThing := FindResult();
+	    /* process theThing */
+	fi;
+
+FindResult: parsing
+proc utility FindResult()thing
+
+    FindResult is used to return the matching thing from three kinds
+    kinds of searches. These are: 'FindName', 'FindFlagOnList', and
+    'FindChildOnList'.
+
+FindThingSymbol: symbols
+proc utility FindThingSymbol(table theTable; thing theThing)string
+
+    FindThingSymbol is used to try to find a symbol, in table
+    'theTable' for thing 'theThing'. If such a symbol is found, it
+    is returned, else an empty string is returned. This function is
+    used in the builder code to supply a symbol for the "current"
+    object.
+
+FindWord: parsing
+proc utility FindWord(grammar theGrammar; string theWord)int
+
+    FindWord looks up word 'theWord' in grammar 'theGrammar'. If the
+    word is found, then its unique identifier in the grammar is
+    returned. If the word is not found, then 0 is returned. If the
+    word is not a base definition, i.e. it is a synonym of some other
+    word, then 0 is also returned. See 'FindAnyWord'.
+
+Flush: database
+proc utility Flush()void
+
+    Flush forces the internal server caches to be written through to
+    the database files. Its effect is very transitory, however, in
+    that further execution in the server, including by machines, can
+    modify the internal cached forms, thus making the stored forms
+    invalid again. Flush performs the same action as the "MUDFlush"
+    program.
+
+    It is possible to arrange a time-driven event in AmigaMUD which
+    will call Flush, then use "Execute" to copy the database files to
+    a backup location. This saved copy will be fully complete and
+    valid, as far as the AmigaMUD server is concerned. However, the
+    machines will not have called their "idle actions", nor will any
+    active players. Thus, the saved copy may not be consistent from
+    the point of view of the scenario. An example in the standard
+    scenario could be a Flush when a player is in Questor's office.
+    The stored database has that player present, and therefore will
+    lock others out of that room. If that saved copy of the database
+    is used, then when the server starts up the player will not be
+    active, even though the scenario code thinks he/she/it is in
+    Questor's office. Hence, Questor's office will be unusable until
+    that character is logged in and leaves it. Worse problems will
+    occur with the TimeKeeper machine, since it will not be able to
+    compensate for the time passed while the scenario was not running.
+
+    To allow this kind of backup operation to work, the standard
+    scenario implements a number of special activities in its main
+    startup, and in the startup of some machines. These special
+    activities check for situations such as those mentioned above and
+    attempt to fix them up. In the case of Questor's Office, the
+    character is moved out of the office, and the office is reset. A
+    temporary action (one which removes itself after executing) is
+    added to the player's startup action list. This action informs the
+    player of what happened.
+
+ForceAction: machine/character
+proc utility ForceAction(thing theAgent; action theAction)status
+
+    ForceAction is used to force another agent, either a player
+    character or a machine, to perform an action. The action to be
+    performed is the function 'theAction' which must have no
+    parameters and must return a "status" result. That result is
+    returned by ForceAction. When the action is forced, it is executed
+    on behalf of the agent, so that, for example, "Me()" will be that
+    agent, and "Here()" will be that agent's location. "TrueMe()" can
+    still be used to find the agent which is active at the time of the
+    call to ForceAction. The standard scenario uses ForceAction for a
+    number of purposes, including activities relating to killing
+    monsters in combat.
+
+ForEachAgent: machine/character
+proc utility ForEachAgent(thing location; action theAction)void
+
+    ForEachAgent is a general routine which can be used to perform
+    searches that the specific 'FindAgentXXX' routines cannot. It can
+    also be used to perform actions on a number of agents. It scans
+    through the active agents, both player characters and machines,
+    and for each one which is in the given location (or for each one
+    if 'location' is nil) calls the passed action with that agent as
+    its parameter. E.g. we can write a routine which will have each
+    agent announce its location:
+
+	private proc announce(thing theAgent)void:
+	    thing where;
+	    string m;
+
+	    m := FormatName(theAgent@p_pName) + " is ";
+	    where := AgentLocation(theAgent);
+	    if where = nil then
+		m := m + "nowhere";
+	    else
+		m := m + where@p_rName;
+	    fi;
+	    APrint(m + ".\n");
+	corp;
+	ForEachAgent(nil, announce)$
+
+ForEachClient: machine/character
+proc utility ForEachClient(action theAction)void
+
+    ForEachClient is like ForEachAgent, except that it simply scans
+    through all of the active clients in the system. This, in
+    combination with 'ScanTable' used with 'Characters', allows just
+    about any kind of scan needed. Here is some sample code which does
+    the same as the builtin 'APrint':
+
+	private p_pAnnouncement CreateStringProp()$
+
+	private proc announce(thing who)void:
+	    SPrint(who, Me()@p_pAnnouncement);
+	corp;
+
+	private proc myAPrint(string message)void:
+	    Me()@p_pAnnouncement := message;
+	    ForEachClient(announce);
+	    Me() -- p_pAnnouncement;
+	corp;
+
+    Note that ForEachClient does not scan through the active machines.
+
+FormatName: output
+proc utility FormatName(string theName)string
+
+    FormatName converts a string in "internal" noun-phrase form to one
+    in "external" form. The internal form is the form that consists of
+    a noun (or a set of alternatives, separated by commas), optionally
+    followed by a semicolon and a comma-separated list of adjectives.
+    Any number of those complete forms can be given as alternatives,
+    separated by periods. The external form uses only the first
+    complete alternative. It consists of the adjectives, separated by
+    spaces, followed by another space and the first noun alternative.
+    E.g.
+
+	FormatName("dog") => "dog"
+	FormatName("dog;big,black") => "big black dog"
+	FormatName("dog,pooch;big,black") => "big black dog"
+	FormatName("Spot.dog,pooch;big,black") => "Spot"
+
+FixedToInt: utility
+proc utility FixedToInt(fixed f)int
+
+    The fixed value 'f' is converted to int. This is done by
+    truncation - i.e. the part after the decimal point is discarded.
+
+FixedToString: utility
+proc utility FixedToString(fixed f)string
+
+    Fixed value 'f' is formatted as a string, possibly including a
+    leading minus sign, and that string is returned. The resulting
+    value will always include the decimal point, and at least one
+    digit before and after the decimal point.
+
+GADraw: effects
+proc utility GADraw(thing who; fixed x, y)void
+GADrawPixels: effects
+proc utility GADrawPixels(thing who; int x, y)void
+
+    GADraw and GADrawPixels are the basic line-drawing primitives in
+    AmigaMUD. They draw a line in the current colour, from the current
+    drawing position to the indicated drawing position, and leave the
+    "current drawing position" at that point. GADraw takes fixed point
+    co-ordinates, representing fractions of the full graphics window.
+    GADrawPixels takes pixel co-ordinates. Movement outside of the
+    pixel range of the active client is ignored.
+
+GAMove: effects
+proc utility GAMove(thing who; fixed x, y)void
+GAMovePixels: effects
+proc utility GAMovePixels(thing who; int x, y)void
+
+    GAMove and GAMovePixels move the drawing cursor (not any displayed
+    curser) of the given client to the given absolute position. These
+    are the same as the GADraw and GADrawPixels builtins, except no
+    line is drawn.
+
+GCircle: effects
+proc utility GCircle(thing who; fixed r; bool fill)void
+
+    GCircle draws a circle on the graphics window of the given client.
+    The circle is of radius 'r', and is centered at the current
+    drawing cursor position. The circle is drawn using the currently
+    selected graphics pen. If 'fill' is true, then the circle is
+    filled in, else just an outline is drawn. Note that the entire
+    circle must be within the graphics drawing area, or it will not be
+    drawn.
+
+GClear: effects
+proc utility GClear(thing who)void
+
+    GClear clears the entire graphics area of the selected client to
+    the background colour (pen 0).
+
+GColours: effects
+proc utility GColours(thing who)int
+
+    GColours returns the number of colours that the indicated client
+    can display. For the V1.0 Amiga "MUD" client, this is 32.
+
+GCols: effects
+proc utility GCols(thing who)int
+
+    GCols returns the number of graphics columns that the indicated
+    client can display.
+
+GDefineTile: effects
+proc utility GDefineTile(thing who; int id, width, height;
+    list int data)void
+
+    GDefineTile sends a tile definition to the indicated client. From
+    then on, that tile can be referenced by 'GDisplayTile' without
+    being sent from the server again. 'id' is a unique identifier for
+    that tile pattern. 'width' and 'height' are the width and height
+    of the tile in pixels. 'data' is an int array whose size must be
+    equal to (width * height + 3) / 4, i.e. the number of pixels
+    rounded up to the nearest 4. Each int in the list represents 4
+    pixels, with 8 bits used for each one. The pixels are stored row
+    by row. For example, here is a routine to return a 32 pixel wide
+    by 20 pixel high tile which is a miniature of the town view in the
+    standard scenario:
+
+	define t_tiles proc makeTownTile()list int:
+	    list int tile;
+	
+	    tile := CreateIntArray(160);
+	    tile[0] := 0x1d1d1d1d;
+	    tile[1] := 0x1d1d1d1d;
+	    tile[2] := 0x1d1d1d1d;
+	    tile[3] := 0x1d1d0301;
+	    tile[4] := 0x0101031d;
+	    tile[5] := 0x1d1d1d1d;
+	    tile[6] := 0x1d1d1d1d;
+	    tile[7] := 0x1d1d1d1d;
+	    tile[8] := 0x1d1d1d1d;
+	    tile[9] := 0x1d1d1d1d;
+	    tile[10] := 0x1d1d1d1d;
+	    tile[11] := 0x1d1d0301;
+	    tile[12] := 0x0101031d;
+	    tile[13] := 0x1d1d1d1d;
+	    tile[14] := 0x1d1d1d1d;
+	    tile[15] := 0x1d1d1d1d;
+	    tile[16] := 0x1d1d1d1d;
+	    tile[17] := 0x1d1d1d1d;
+	    tile[18] := 0x1d1d1d1d;
+	    tile[19] := 0x1d1d0301;
+	    tile[20] := 0x0101031d;
+	    tile[21] := 0x1d1d1d1d;
+	    tile[22] := 0x1d1d1d1d;
+	    tile[23] := 0x1d1d1d1d;
+	    tile[24] := 0x1d1d1d1d;
+	    tile[25] := 0x1d1d1d1d;
+	    tile[26] := 0x1d1d1d1d;
+	    tile[27] := 0x1d1d0301;
+	    tile[28] := 0x0101031d;
+	    tile[29] := 0x1d1d1d1d;
+	    tile[30] := 0x1d1d1d1d;
+	    tile[31] := 0x1d1d1d1d;
+	    tile[32] := 0x1d1d1d1d;
+	    tile[33] := 0x1d1d1d1d;
+	    tile[34] := 0x1d1d1d1d;
+	    tile[35] := 0x1d1d0301;
+	    tile[36] := 0x0101031d;
+	    tile[37] := 0x1d1d1d1d;
+	    tile[38] := 0x1d1d1d1d;
+	    tile[39] := 0x1d1d1d1d;
+	    tile[40] := 0x1d1d1d1d;
+	    tile[41] := 0x1d1d1d1d;
+	    tile[42] := 0x1d1d1d1d;
+	    tile[43] := 0x1d1d0301;
+	    tile[44] := 0x0101031d;
+	    tile[45] := 0x1d1d1d1d;
+	    tile[46] := 0x1d1d1d1d;
+	    tile[47] := 0x1d1d1d1d;
+	    tile[48] := 0x1d1d1d1d;
+	    tile[49] := 0x1d1d1d1d;
+	    tile[50] := 0x1d1d1d1d;
+	    tile[51] := 0x1d1d0301;
+	    tile[52] := 0x0101031d;
+	    tile[53] := 0x1d1d1d1d;
+	    tile[54] := 0x1d1d1d1d;
+	    tile[55] := 0x1d1d1d1d;
+	    tile[56] := 0x1d1d1d1d;
+	    tile[57] := 0x1d1d1d1d;
+	    tile[58] := 0x1d1d1d1d;
+	    tile[59] := 0x1d1d0301;
+	    tile[60] := 0x0101031d;
+	    tile[61] := 0x1d1d1d1d;
+	    tile[62] := 0x1d1d1d1d;
+	    tile[63] := 0x1d1d1d1d;
+	    tile[64] := 0x03030303;
+	    tile[65] := 0x03030303;
+	    tile[66] := 0x03030303;
+	    tile[67] := 0x03030301;
+	    tile[68] := 0x01010303;
+	    tile[69] := 0x03030303;
+	    tile[70] := 0x03030303;
+	    tile[71] := 0x03030303;
+	    tile[72] := 0x01010101;
+	    tile[73] := 0x01010101;
+	    tile[74] := 0x01010101;
+	    tile[75] := 0x01010101;
+	    tile[76] := 0x01010101;
+	    tile[77] := 0x01010101;
+	    tile[78] := 0x01010101;
+	    tile[79] := 0x01010101;
+	    tile[80] := 0x01010101;
+	    tile[81] := 0x01010101;
+	    tile[82] := 0x01010101;
+	    tile[83] := 0x01010101;
+	    tile[84] := 0x01010101;
+	    tile[85] := 0x01010101;
+	    tile[86] := 0x01010101;
+	    tile[87] := 0x01010101;
+	    tile[88] := 0x03030303;
+	    tile[89] := 0x03030303;
+	    tile[90] := 0x03030303;
+	    tile[91] := 0x03030301;
+	    tile[92] := 0x01010303;
+	    tile[93] := 0x03030303;
+	    tile[94] := 0x03030303;
+	    tile[95] := 0x03030303;
+	    tile[96] := 0x1d1d1d1d;
+	    tile[97] := 0x1d1d1d1d;
+	    tile[98] := 0x1d1d1d1d;
+	    tile[99] := 0x1d1d0301;
+	    tile[100] := 0x0101030d;
+	    tile[101] := 0x0f0d0d0e;
+	    tile[102] := 0x0d030d0d;
+	    tile[103] := 0x0f0d0d03;
+	    tile[104] := 0x1d1d1d1d;
+	    tile[105] := 0x1d1d1d1d;
+	    tile[106] := 0x1d1d1d1d;
+	    tile[107] := 0x1d1d0301;
+	    tile[108] := 0x0101030f;
+	    tile[109] := 0x0f0f0e0e;
+	    tile[110] := 0x0e030d0f;
+	    tile[111] := 0x0f0f0d03;
+	    tile[112] := 0x1d1d1d1d;
+	    tile[113] := 0x1d1d1d1d;
+	    tile[114] := 0x1d1d1d1d;
+	    tile[115] := 0x1d1d0301;
+	    tile[116] := 0x0101030e;
+	    tile[117] := 0x0f0d0d0e;
+	    tile[118] := 0x0303030d;
+	    tile[119] := 0x0f0d0d03;
+	    tile[120] := 0x1d1d1d1d;
+	    tile[121] := 0x1d1d1d1d;
+	    tile[122] := 0x1d1d1d1d;
+	    tile[123] := 0x1d1d0301;
+	    tile[124] := 0x01010e0e;
+	    tile[125] := 0x0e0d0d1d;
+	    tile[126] := 0x0316031d;
+	    tile[127] := 0x0d0d0d03;
+	    tile[128] := 0x1d1d1d1d;
+	    tile[129] := 0x1d1d1d1d;
+	    tile[130] := 0x1d1d1d1d;
+	    tile[131] := 0x1d1d0301;
+	    tile[132] := 0x0101030e;
+	    tile[133] := 0x0d0f0d0d;
+	    tile[134] := 0x0303030d;
+	    tile[135] := 0x0d0f0d03;
+	    tile[136] := 0x1d1d1d1d;
+	    tile[137] := 0x1d1d1d1d;
+	    tile[138] := 0x1d1d1d1d;
+	    tile[139] := 0x1d1d0301;
+	    tile[140] := 0x0101030d;
+	    tile[141] := 0x0f0f0f0d;
+	    tile[142] := 0x0d030d0d;
+	    tile[143] := 0x0f0f0f03;
+	    tile[144] := 0x1d1d1d1d;
+	    tile[145] := 0x1d1d1d1d;
+	    tile[146] := 0x1d1d1d1d;
+	    tile[147] := 0x1d1d0301;
+	    tile[148] := 0x0101030d;
+	    tile[149] := 0x0d0f0d0d;
+	    tile[150] := 0x0d030d0d;
+	    tile[151] := 0x0d0f0d03;
+	    tile[152] := 0x1d1d1d1d;
+	    tile[153] := 0x1d1d1d1d;
+	    tile[154] := 0x1d1d1d1d;
+	    tile[155] := 0x1d1d0301;
+	    tile[156] := 0x01010303;
+	    tile[157] := 0x03030303;
+	    tile[158] := 0x03030303;
+	    tile[159] := 0x03030303;
+	    tile
+	corp;
+
+    The use of hexadecimal for the numbers makes it easier to see the
+    individual pixels, since there are two hexadecimal digits for each
+    one. The value for the pixel is the pen to use to draw that pixel.
+    If the width of the tile is not a multiple of 4, then the values
+    get quite a bit harder to see in this form. This routine was
+    produced by a short program which reads an IFF ILBM image of the
+    tile and writes out the definition of the tile for AmigaMUD. As of
+    the V1.1 release, the scenario does not make use of the tile
+    facility.
+
+    If the tile facility is used, there is one small thing to watch
+    out for. If the custom client is running in Workbench windows, it
+    cannot choose the colours to use for graphics, and so must map the
+    colours it is given onto the user's Workbench colours. When the
+    client caches a tile, the mapping of colours is done once, when
+    the tile is cached. So, if a scenario is to use tiles, and wants
+    to change some of the colours, it should make sure it sends all of
+    the colour changes to the clients before it sends any tiles, so
+    that the tiles will use the proper colours.
+
+GDeleteIcon: effects
+proc utility GDeleteIcon(thing who, whoseIcon)void
+
+    GDeleteIcon removes the icon for agent 'whoseIcon' from the
+    display of agent 'who'. The "MUD" program for 'who' also forgets
+    the definition of the icon. This variant is used when the icon is
+    that of a transient machine (like a monster), so that if the same
+    thing key happens to get re-used for another machine, the system
+    will not accidentally display the icon for the old use of that
+    key, rather than the new one. See GRemoveIcon for an example.
+
+GDisplayTile: effects
+proc utility GDisplayTile(thing who; int id)void
+
+    GDisplayTile instructs the "MUD" program of 'who' to display the
+    indicated tile at the current drawing position. The top-left
+    corner pixel of the tile will go at the drawing position, and the
+    drawing position will not be changed.
+
+GEllipse: effects
+proc utility GEllipse(thing who; fixed a, b; bool fill)void
+
+    GEllipse is very similar to GCircle, except that it draws an
+    ellipse with major radius 'a' and minor radius 'b'.
+
+GetIndent: output
+proc utility GetIndent()int
+
+    GetIndent returns the current output indent value for the active
+    client. See 'SetIndent' for more information.
+
+GetNounPhrase: parsing
+proc utility GetNounPhrase(grammar theGrammar; string theString;
+    int separator)string
+
+    GetNounPhase is part of the AmigaMUD input parsing facility. It is
+    normally called internal to 'Parse' as part of parsing a verb with
+    a direct object or both direct and indirect objects. It can be
+    called directly by user code however. It basically strips one noun
+    phrase from the front of the passed string. The noun phrase is
+    terminated by the end of the string, a punctuation mark such as
+    ".", ",", or ";", or by the occurrence of the given separator
+    word, as defined in the given grammar. Note that GetNounPhrase can
+    return an empty string if a terminator is found at the beginning
+    of the passed string. Any leading "a", "an" or "the" will be
+    stripped from the noun phrase. Any leading "#<number>" will be
+    placed at the beginning of the returned noun-phrase, separated
+    from the rest of the phrase by a ":". If the scanned input
+    contained only articles ("a", "an", "the") and "#<number>", but no
+    other words, then GetNounPhrase will print "I need a noun in that
+    sentence." and return an empty string. In a successful operation,
+    the part of the input string not consumed by the noun phrase will
+    be left in the "tail buffer" (see 'GetTail', 'SetTail',
+    'GetWord'). The returned string is the parsed noun phrase in
+    AmigaMUD internal form, i.e. <noun;adj,adj,...>.
+
+    GetNounPhrase is typically used in a 'VerbTail' verb, which is
+    doing nonstandard parsing of an input command. See, for example,
+    its use in Caretaker's input parsing or the "with" verb in the
+    standard scenario. GetNounPhrase can also be used as the inverse
+    of 'FormatName'.
+
+GetSeed: utility
+proc utility GetSeed()int
+
+    GetSeed returns the current value of the server's random number
+    seed. This, in combination with 'SetSeed' can be used to generate
+    reproducible pseudo-random events or structures.
+
+GetString: utility
+proc utility GetString(string initial; action handler; string prompt)void
+
+    GetString is used to prompt the user for a string value, and to
+    supply it to the scenario code. Note, however, that GetString does
+    not return the string from the user. The server cannot wait for
+    the user to type the string in, so the result comes back
+    indirectly. GetString is passed a handler action, which will be
+    called with the string the user typed in, when the user has
+    finished typing in that string. Because 'GetString' invokes a
+    string requester in the "MUD" client program, it can only be used
+    when the player is using that client program, either locally or
+    remotely. The 'GOn' builtin can be used to test this. 'prompt'
+    will appear as a prompt in the top of the string requester, and
+    'initial' will be the initial contents of the string requester's
+    input area. When the handler action is called, it is called with
+    two parameters. The first is the string, and the second is a bool
+    value indicating whether or not the user aborted out of the string
+    requester. GetString is used in several places in the button
+    operated building code. For example:
+
+	proc gotNameString(string s; bool ok)void:
+	    if ok then
+		if s = "" then
+		    Me()@p_pWhichThing -- p_oNameProp;
+		else
+		    Me()@p_pWhichThing@p_oNameProp := s;
+		fi;
+	    fi;
+	    Me() -- p_pWhichThing;
+	corp;
+
+	proc requestNewName(thing theThing)void:
+	    Me()@p_pWhichThing := thing;
+	    GetString(theThing@p_oNameProp, gotNameString,
+		      "Enter new name:");
+	corp;
+
+GetTail: parsing
+proc utility GetTail()string
+
+    GetTail returns the current contents of the server's "tail
+    buffer". This value can be set by 'SetTail', or 'GetNounPhrase',
+    but is usually set by the internal parsing code. When a 'VerbTail'
+    verb is being parsed, the tail buffer is set to contain the
+    remainder of the input command, after the verb. 'GetWord' can be
+    used to pull "words" out of the tail buffer, one at a time. This
+    allows such a verb to do whatever kind of parsing it wants on the
+    input command.
+
+GetThingStatus: database
+proc utility GetThingStatus(thing theThing)<thing status>
+
+    GetThingStatus returns the access status of the passed thing. This
+    can be one of: 'ts_public', 'ts_private', 'ts_readonly', and
+    'ts_wizard', as explained in previous documents.
+
+GettingString: utility
+proc utility GettingString()bool
+
+    GettingString returns 'true' if there is currently an active
+    client (i.e. the code running is not that for a machine, triggered
+    independently), and that client is already involved in a
+    'GetString' call. Otherwise, it returns 'false'. This can be used
+    to avoid getting run-time errors from trying to use 'GetString'
+    when it is already in use.
+
+GetWord: parsing
+proc utility GetWord()string
+
+    GetWord returns the next "word" from the current tail buffer. For
+    this purpose, a "word" is either a string enclosed in quotation
+    marks (") or a word ended with a space. GetWord does not strip off
+    leading spaces before looking for a word. It assumes that that
+    has already been done, which is the case when 'SetTail', or
+    'GetNounPhrase' sets up the tail buffer, and when a VerbTail is
+    being handled. GetWord removes any trailing spaces after the word
+    it returns, thus preserving the assumption. GetWord can return an
+    empty string if the tail buffer is empty, or if it encountered a
+    pair of adjacent quotation marks. GetWord is most often used
+    inside VerbTail verbs, which require special parsing.
+
+GiveThing: database
+proc utility GiveThing(thing theThing; character theCharacter)void
+
+    GiveThing changes the ownership of the passed thing to be the
+    passed character. The operation will fail with a runtime error if
+    either is nil, or the current owner of the thing is not the
+    effective player, and the effective player is not SysAdmin.
+    Changing the owner of a thing can be used when giving an object to
+    a different player. It effects the access rights to the thing.
+
+GLoadBackGround: effects
+proc utility GLoadBackGround(thing who; string name)void
+
+    GLoadBackGround is a graphic effect routine which instructs the
+    remote "MUD" client to load in a background image. This image is
+    loaded from "AmigaMUD:BackGrounds/<name>" on the client machine.
+    If the image is not the same size as the client display, then it
+    will be scaled to the proper size. This can be a slow operation on
+    lesser-powered systems. On pre-V2.04 systems, the routine used for
+    scaling is not available, so the unscaled image will be used,
+    which likely won't produce the desired display. For those systems,
+    the image file should be of the correct size. If the IFF file
+    contains a colour palette, then that palette is loaded, and
+    replaces the current one for the entire graphics window. If the
+    file's palette does not have the correct number of entries, then
+    a default palette will be used and the image will be remapped to
+    that palette. This operation can also take some time. If the
+    background file is not found, nothing is done, but the "failure"
+    flag is set in the client, and can be tested via 'IfFound'.
+
+    If the client is running using one or more custom screens, such
+    that it can change the colour palette in use, then loading a new
+    background with a colour palette different from the active one
+    will cause the client to remove all images and brushes from its
+    cache. This is because those images and brushes were colour
+    remapped against the old palette, and that remapping will not be
+    correct for the new palette. Deleting them from the cache causes
+    them to be reloaded and remapped when next referenced. This
+    remapping from the original file data may produce a better final
+    image than trying to remap them from the old palette to the new
+    palette, without reference to the file palette.
+
+GNewIcon: effects
+proc utility GNewIcon(thing theCharacter; list int newIcon)void
+
+    GNewIcon associates a new icon with the specified character. Icons
+    are attached to the thing as property 'p_pIcon', which is of type
+    "property list int". The list of ints given must be exactly 8
+    elements long. This function is used to assign the new icon value
+    instead of just using a direct assignment statement, since it
+    checks for a valid icon, and it will update the display of any
+    clients who are currently displaying the icon for this character,
+    and will invalidate any copies of the icon in the icon caches of
+    other clients. Icons are 16 pixel by 16 pixel bitmaps which are
+    displayed on top of client graphics images to indicate the
+    presence of the character in the same room as the client's
+    character. Note that icons are not full-colour - they are shown
+    using the currently selected icon colour only. The client "MUD"
+    programs keep a backup copy of the graphics imagery behind the
+    icon, so removing an icon can be done without having to redraw the
+    graphics imagery. Also, the clients keep a cache of all icons that
+    they have seen, so that the icon data does not have to be resent
+    to redisplay the icon.
+
+GOn: effects
+proc utility GOn(thing who)bool
+
+    GOn returns 'true' if the indicated client can display graphics.
+    This is currently true only if the client is running the "MUD"
+    client, either locally or remotely. Note that the "MUD" program
+    can hide the graphics window (e.g. while editing), but it will
+    indicate that graphics are "on" at that time, and will update the
+    hidden graphics window appropriately. The "MUD" program can turn
+    graphics off altogether, in which case 'GOn' on that client will
+    return 'false', and graphics effects operations for that client
+    are not sent.
+
+    GOn is really just an efficiency measure, allowing the scenario to
+    avoid executing a bunch of graphics-related code if the results
+    would be discarded anyway.
+
+GPalette: effects
+proc utility GPalette(thing who)bool
+
+    GPalette on a given client returns 'true' if that client has a
+    palette containing alterable graphics pens. A client running on a
+    system which has only fixed colours would return 'false'. The
+    scenario does not currently use this information.
+
+GPixel: effects
+proc utility GPixel(thing who)void
+
+    GPixel writes a single pixel, using the current graphics pen, at
+    the current graphics position, on the indicated client. Neither
+    the pen nor the position are changed.
+
+GPolygonEnd: effects
+proc utility GPolygonEnd(thing who)void
+
+    GPolygonEnd is used to close off and draw the current polygon. See
+    GPolygonStart for an example.
+
+GPolygonStart: effects
+proc utility GPolygonStart(thing who)void
+
+    GPolygonStart starts drawing a polygon on the indicated client.
+    The polygon will be filled with the current graphics pen. The
+    sides of the polygon are defined using and of the "Draw" buildin
+    functions. Multiple polygons can be drawn at once by using the
+    "Move" builtins to move without drawing. For example, the
+    following code uses polygon drawing to draw part of the "doors
+    room" in the Proving Grounds, as seen from beyond the doors:
+
+	define tp_doorsRoom PR_DOORS2_ID NextEffectId()$
+	define tp_doorsRoom proc drawDoors2()void:
+	
+	    if not KnowsEffect(nil, PR_DOORS2_ID) then
+		DefineEffect(nil, PR_DOORS2_ID);
+		GSetImage(nil, "Proving/doors2");
+		IfFound(nil);
+		    GShowImage(nil, "", 0.0,0.0,1.0,1.0,0.0,0.0,0.5,1.0);
+		Else(nil);
+		    GSetPen(nil, C_DARK_GREY);
+		    GAMove(nil, 0.0, 0.0);
+		    GRectangle(nil, 0.5, 1.0, true);
+	
+		    GSetPen(nil, C_LIGHT_GREY);
+		    GPolygonStart(nil);
+		    GAMove(nil, 0.219, 0.999);
+		    GADraw(nil, 0.1875, 0.8);
+		    GADraw(nil, 0.129, 0.8);
+		    GADraw(nil, 0.129, 0.6);
+		    GADraw(nil, 0.1875, 0.405);
+		    GADraw(nil, 0.3125, 0.405);
+		    GADraw(nil, 0.374, 0.6);
+		    GADraw(nil, 0.374, 0.8);
+		    GADraw(nil, 0.3125, 0.8);
+		    GADraw(nil, 0.28125, 0.999);
+		    GPolygonEnd(nil);
+	
+		    drawDoors1();
+		Fi(nil);
+		EndEffect();
+	    fi;
+	    CallEffect(nil, PR_DOORS2_ID);
+	corp;
+
+GRDraw: effects
+proc utility GRDraw(thing who; fixed deltaX, deltaY)void
+GRDrawPixels: effects
+proc utility GRDrawPixels(thing who; int deltaX, deltaY)void
+
+    GRDraw and GRDrawPixels are used to draw a line, starting at the
+    current graphics position, moving the relative X-Y distance
+    specified by the passed delta values. The graphics drawing
+    position is updated to the new position. The line is drawn using
+    the current graphics pen. These builtins are also used when
+    drawing polygons - see 'GPolygonStart'.
+
+GRectangle: effects
+proc utility GRectangle(thing who; fixed width, height; bool fill)void
+GRectanglePixels: effects
+proc utility GRectanglePixels(thing who; int width, height; bool fill)void
+
+    GRectangle and GRectanglePixels are used to draw a rectangle in
+    the graphics window of the indicated client. The top-left corner
+    of the rectangle is at the current graphics position. The bottom-
+    right corner is determined by the passed 'width' and 'height'
+    values. If 'fill' is 'true', then the rectangle is filled with the
+    current graphics pen, else only the border of the rectangle is
+    drawn with that pen. Note that with GRectanglePixels the rectangle
+    is actually drawn as one larger than the indicated 'width' and
+    'height', since both the top-left and the bottom-right corners are
+    considered to be within the rectangle. This can be a little
+    misleading, but it was felt to be simpler then describing the
+    subtraction of 1 from the values to get the coordinates of the
+    lower-right corner. Thus, to fill the entire graphics window on
+    the "MUD" client, one could use:
+
+	GSetPen(nil, <colour>);
+	GAMove(nil, 0.0, 0.0);
+	GRectangle(nil, 1.0, 1.0);
+
+    or
+
+	GSetPen(nil, <colour>);
+	GAMovePixels(nil, 0, 0);
+	GRectanglePixels(nil, GCols(nil) - 1, GRows(nil) - 1);
+
+GRedrawIcons: effects
+proc utility GRedrawIcons(thing who)void
+
+    GRedrawIcons causes the selected client "MUD" program to redisplay
+    all of the icons that it believes should currently be displayed.
+    This, in combination with 'GUndrawIcons', allows the graphics
+    imagery behind the icons to be changed without having to manually
+    remove and then re-draw all of the icons. Note that 'PlaceCursor'
+    and 'RemoveCursor' should also be used, to make sure that the
+    cursor appears again. If the entire graphics display is going to
+    be redrawn, then 'GUndrawIcons' and 'RemoveCursor' need not be
+    used. For example, to make a small change to the graphics display,
+    e.g. opening or closing a door, etc., the following could be used:
+
+	...
+	RemoveCursor();
+	GUndrawIcons(nil);
+	/* modify picture */
+	GRedrawIcons(nil);
+	PlaceCursor(cursorX, cursorY);
+	...
+
+    Note that 'RemoveCursor' and 'PlaceCursor' operate implicitly on
+    the active client, so most situations of changing the display for
+    a given room should use 'ForEachAgent' to cause the displays of
+    all clients whose characters are in the room to be properly
+    updated.
+
+GRemoveIcon: effects
+proc utility GRemoveIcon(thing who, whoseIcon)void
+
+    GRemoveIcon removes the display of the icon for character
+    'whoseIcon' from the display of client 'who'. The pattern of the
+    icon is not removed from 'who's icon cache. This is the normal way
+    to remove an icon from a display - 'GDeleteIcon' is used when the
+    client should also forget the definition of the icon. This needs
+    to be done, for example, when 'whoseIcon' represents a monster
+    being killed, in which case the thing for the monster might be
+    soon re-used for another monster that should have a different
+    icon. Here is how this is handled in the standard scenario:
+
+	/*
+	 * UnShowIcon - remove my icon from anyone else here.
+	 */
+	
+	define t_icons proc utility UnShowIconOnce(thing th)void:
+	    thing me;
+	
+	    me := Me();
+	    if (me@p_pIcon ~= nil or me@p_pStandard) and Parent(me) = nil
+	    then
+		/* If the player or machine has a specific icon, or
+		   this is a player or a "standard" machine (Packrat,
+		   etc.), and this is not a cloned entity, then we
+		   just tell the client to undisplay the icon, but to
+		   remember it for later use. */
+		GRemoveIcon(th, me);
+	    else
+		/* Otherwise, we tell the client to undisplay the icon, 
+		   but also to forget it, since the thing associated
+		   with it may be reused later for something with a
+		   different icon. */
+		GDeleteIcon(th, me);
+	    fi;
+	corp;
+	
+	define t_icons proc utility public UnShowIcon()void:
+	
+	    ForEachAgent(Here(), UnShowIconOnce);
+	corp;
+
+GResetColours: effects
+proc utility GResetColours(thing who)void
+
+    GResetColours resets the graphics palette of the indicated client
+    to the default set of colours:
+
+	0x000,	    /* 00 - black */
+	0x777,	    /* 01 - dark grey */
+	0x999,	    /* 02 - medium grey */
+	0xccc,	    /* 03 - light grey */
+	0xfff,	    /* 04 - white */
+	0xd00,	    /* 05 - brick red */
+	0xf00,	    /* 06 - red */
+	0xf80,	    /* 07 - red-orange */
+	0xf90,	    /* 08 - orange */
+	0xfc0,	    /* 09 - gold */
+	0xfd0,	    /* 10 - cadmium yellow */
+	0xff0,	    /* 11 - lemon yellow */
+	0xbf0,	    /* 12 - lime green */
+	0x0f0,	    /* 13 - green */
+	0x8e0,	    /* 14 - light green */
+	0x2c0,	    /* 15 - dark green */
+	0x0b1,	    /* 16 - forest green */
+	0x0bb,	    /* 17 - blue green */
+	0x0db,	    /* 18 - aqua */
+	0x1fb,	    /* 19 - light aqua */
+	0x6fe,	    /* 20 - sky blue */
+	0x6ce,	    /* 21 - light blue */
+	0x00f,	    /* 22 - blue */
+	0x69f,	    /* 23 - dark blue */
+	0xc1f,	    /* 24 - violet */
+	0xc0e,	    /* 25 - purple */
+	0xf99,	    /* 26 - flesh */
+	0xfad,	    /* 27 - pink */
+	0xdb9,	    /* 28 - tan */
+	0xc80,	    /* 29 - brown */
+	0xa70,	    /* 30 - medium brown */
+	0xa87	    /* 31 - dark brown */
+
+GResetIcons: effects
+proc utility GResetIcons(thing who)void
+
+    GResetIcons instructs the indicated client to believe that it
+    currently has no icons displayed. This is quicker when moving from
+    room to room (i.e. icon-set to icon-set) than removing all of the
+    individual icons. Note that this routine does not remove the icon
+    imagery from the graphics window. Any icons which were initially
+    displayed as "temporary" (see 'GShowIcon'), are removed from the
+    client's icon cache.
+
+GRMove: effects
+proc utility GRMove(thing who; fixed deltaX, deltaY)void
+GRMovePixels: effects
+proc utility GRMovePixels(thing who; int deltaX, deltaY)void
+
+    GRMove and GRMovePixels move the graphics cursor in the indicated
+    direction from its current position. No drawing on the screen
+    takes place. This routine can also be used while drawing a
+    polygon, and has a similar effect.
+
+GRows: effects
+proc utility GRows(thing who)int
+
+    GRows returns the number of rows of pixels in the graphics window
+    of the indicated client. If the client in use does not support
+    graphics, then 0 is returned.
+
+GScrollRectangle: effects
+proc utility GScrollRectangle(thing who;
+    int xDeltaPixels, yDeltaPixels; fixed x1, y1, x2, y2)void
+
+    GScrollRectangle instructs the client to shift a rectangular
+    region of its graphics window. The coordinates of the top-left and
+    bottom-right corners of the affected rectangle are given. The
+    delta values indicate the direction in which to scroll the
+    rectangle. Positive values for the deltas indicate scrolling away
+    from the top-left corner in that direction. Data scrolled out of a
+    side of the rectangle is lost. The contents of the region of the
+    rectangle scrolled away from is undefined. One good use of
+    GScrollRectangle is in implementing a scrolling map-view type of
+    display: when the character walks off of the edge of the visible
+    area (or comes close), use GScrollRectangle to scroll the entire
+    graphics window, and then fill in the scrolled-from area with
+    tiles or imagery for newly visible terrain. Note the mixture of
+    int and fixed values in this routine. A typical use is:
+
+	GScrollRectangle(nil, 0, - TILE_HEIGHT, 0.0, 0.0, 0.5, 1.0);
+
+GSetColour: effects
+proc utility GSetColour(thing who; int which, colour)void
+
+    GSetColour sets graphics pen 'which' in client 'who' to colour
+    'colour'. For the Amiga "MUD" client, the 'which' values can range
+    from 0 to 31, and the 'colour' value is a 12 bit RGB value (4 bits
+    of red, 4 bits of green, and 4 bits of blue).
+
+GSetIconPen: effects
+proc utility GSetIconPen(thing who; int colour)void
+
+    GSetIconPen sets which pen (colour) is to be used to draw icons in
+    the graphics window. The entire set of icons currently displayed
+    by the client is redrawn using the new pen.
+
+GSetImage: effects
+proc utility GSetImage(thing who; string name)void
+
+    GSetImage sets the given image name to be the current "active"
+    image. The active image is used by 'GShowImage' if 'GShowImage' is
+    passed an empty string. With the Amiga "MUD" client program, path
+    "AmigaMUD:Images/" is prepended to the image name. If the image
+    file is found, it is loaded into the client's cache. If it is not
+    found, nothing happens, but the "failed" flag is set in the
+    client, and can be tested by subsequent 'IfFound' tests. Note that
+    no scaling is done when the image file is loaded, but that its
+    colours will be remapped to those of the active palette, which can
+    take a while on lesser-powered sustems.
+
+GSetPen: effects
+proc utility GSetPen(thing who; int pen)void
+
+    GSetPen sets the pen to use for subsequent graphics operations,
+    such as line drawing, rectangles, circles, polygons, etc.
+
+GSetTextColour: effects
+proc utility GSetTextColour(thing who; int which, colour)void
+
+    GSetTextColour sets the colour of pen 'which' in client 'who',
+    used in the text window. In the Amiga "MUD" client, pen numbers
+    can be from 0 to 3, and 'colour' is a 12 bit RGB value, with 4
+    bits for red, 4 bits for green, and 4 bits for blue. Note that
+    setting the text colours will also affect either the background of
+    the text window, or one of the border-and-menu colours, so the
+    colours used should be selected carefully.
+
+    When the "MUD" client is running on a V2.0 or above Amiga system,
+    it will ignore these requests, on the theory that the user's
+    selected Workbench colours are always preferable.
+
+GShowBrush: effects
+proc utility GShowBrush(thing who; string name;
+    fixed displayX, displayY)void
+
+    GShowBrush overlays a brush image onto the graphics window at the
+    indicated position. The brush is loaded from "AmigaMUD:Brushes/
+    <name>". If the brush file cannot be found, then nothing happens,
+    but the "not found" flag is set, and can be tested by 'IfFound'.
+    The difference between a brush and an image is that a brush has
+    either a mask plane or a background colour, so that it can be
+    overlayed on top of the existing graphics as a non-rectangular
+    shape.
+
+GShowIcon: effects
+proc utility GShowIcon(thing who, whoseIcon;
+    bool isMonster, isTemporary)void
+
+    GShowIcon shows the icon for character (or NPC) 'whoseIcon' on the
+    graphics window of client 'who'. If the client has no record of
+    the indicated icon, then it will either use the default non-
+    monster icon (the smiley face) or the default monster icon (the
+    growly thing), depending on 'isMonster'. If the icon is displayed
+    as temporary, then when a 'GResetIcons' is done, the icon is
+    deleted from the client completely. This is used when 'whoseIcon'
+    is inheriting its icon from a parent thing, since then 'whoseIcon'
+    is not a unique identifier for the icon.
+
+GShowImage: effects
+proc utility GShowImage(thing who; string name;
+    fixed imageX, imageY, imageWidth, imageHeight,
+	displayX, displayY, displayWidth, displayHeight)void
+GShowImagePixels: effects
+proc utility GShowImagePixels(thing who; string name;
+    int imageX, imageY, imageWidth, imageHeight, displayX, displayY)void
+
+    GShowImage and GShowImagePixels load an IFF image file from
+    "AmigaMUD:Images/<name>" onto the graphics window. The image is
+    placed with its top-left corner at 'displayX', 'displayY', and is
+    taken from the whole image file at offset 'imageX', 'imageY', with
+    size 'imageWidth' by 'imageHeight'. Being able to display a
+    smaller segment from a large image file allows one image file to
+    contain several images. For example, one file could contain all of
+    the needed images to represent a 3D maze view. This allows the
+    entire set of images to be accessed quickly, and treated as a
+    whole in the client's cache. Also, making changes to the set of
+    images can be easier if they are all displayed at once in a paint
+    program. GShowImage also has parameters 'imageWidth' and
+    'imageHeight'. These specify how much of the image is to be used.
+    The specified rectangle of the image will be scaled to fit into
+    the specified rectangle of the display. The function used for this
+    is only available under V2.04 and above of the Amiga system, so
+    displays requiring scaling for proper view will not look right
+    under older versions of the OS. Common use of this builtin has an
+    empty string for the name of the image file. In that case, the
+    last image name set using 'GSetImage' is used. This is useful when
+    using 'IfFound' to provide alternate graphics for a missing image,
+    or when using a single image file for multiple GShowImage calls.
+
+GText: effects
+proc utility GText(thing who; string text)void
+
+    GText displays the given string as text, using the default system
+    font, in the current graphics pen, at the current graphics
+    position, in the given client's graphics window. The graphics
+    position is moved up to just past the end of the text (such that
+    another GText would append the text properly). Note that, in the
+    Amiga "MUD" client, the current position row is used as the
+    position for the baseline of the font, which is the conceptual
+    line drawn at the bottom of the non-descending part of the
+    characters.
+
+GType: effects
+proc utility GType(thing who)string
+
+    GType returns the name of the graphics display of the client.
+    Since the Amiga "MUD" client is the only client so far, the value
+    returned is either "Amiga", or an empty string.
+
+GUndrawIcons: effects
+proc utility GUndrawIcons(thing who)void
+
+    GUndrawIcons instructs the specified client to remove all of the
+    currently displayed icons from the graphics window. The client
+    does not forget about the icons, it only undraws them (by
+    replacing the background imagery which was saved when the icons
+    were drawn). GUndrawIcons, in combination with 'GRedrawIcons', can
+    be used to allow easy modification of the imagery that is "behind"
+    the icons. See GRedrawIcons.
+
+HasAdjective: parsing
+proc utility HasAdjective(string name, adjective)bool
+
+    HasAdjective returns 'true' if the given 'name', which must be in
+    the standard AmigaMUD "noun;adj,adj..." form, contains 'adjective'
+    as one of its adjectives. Note that HasAdjective handles only a
+    simple internal form for the name - multiple alternatives are not
+    handled.
+
+Here: machine/character
+proc utility Here()thing
+
+    Here returns the current location of the active character (or
+    machine.) The return value can be nil if the character has no
+    location. The location of something can be set by the calls
+    'SetLocation', 'SetCharacterLocation' and 'SetAgentLocation'.
+
+IfFound: effects
+proc utility IfFound(thing who)void
+
+    This effect routine causes the specified client to test the last-
+    set value of its "not found" flag, and either enable or disable
+    the execution of effects code as a result. See GPolygonStart for a
+    typical example of using IfFound.
+
+Index: utility
+proc utility Index(string s1, s2)int
+
+    Index returns the index in string 's1' of the first (leftmost)
+    occurrence of string 's2'. Index positions, like string substring
+    positions, start with index 0. If string 's2' cannot be found in
+    string 's1', then Index returns -1.
+
+IntToFixed: utility
+proc utility IntToFixed(int n)fixed
+
+    The integer 'n' is converted to a fixed. If the value is too
+    large, high order bits are lost.
+
+IntToString: utility
+proc utility IntToString(int n)string
+
+    IntToString returns a string containing the decimal form of the
+    passed int value. If the value is negative, the returned string
+    will start with a minus sign, but no plus sign is inserted for
+    positive values of 'n'.
+
+IPrint: output
+proc utility IPrint(int number)void
+
+    IPrint prints the decimal form of 'number' to the current client.
+    It is equivalent to "Print(IntToString(number))", but a bit more
+    efficient, since it doesn't have to allocate and free a string,
+    and is only one call instead of two.
+
+IsAncestor: database
+proc utility IsAncestor(thing myKey, parentKey)bool
+
+    IsAncestor returns 'true' if 'parentKey' is the parent of 'myKey',
+    or the parent of the parent of 'myKey', or the parent of... i.e.
+    it returns 'true' if 'parentKey' is on the ancestor chain of
+    'myKey'.
+
+IsApprentice: machine/character
+proc utility IsApprentice()bool
+
+    IsApprentice returns 'true' if the active client is a player, and
+    that player is an apprentice.
+
+IsAre: output
+proc utility IsAre(string s1, s2, s3, s4)string
+
+    IsAre eases the output of correct English for plural nouns. This
+    is perhaps best described by examples:
+
+    IsAre("There", "no", "pie", "here.")  => "There is no pie here."
+    IsAre("There", "no", "pies", "here.") => "There are no pies here."
+    IsAre("There", "", "pie", "here.")	  => "There is a pie here."
+    IsAre("There", "", "apple", "here.")  => "There is an apple here."
+    IsAre("There", "", "pies", "here.")   => "There are some pies here."
+
+    If 's2' is empty, then IsAre uses either "a" or "an", depending on
+    whether 's3' starts with a consonant or a vowel ("aeiou"). It uses
+    "is" or "are" depending on whether 's3' ends in an "s" or not.
+    Note that this test for plurality can easily be wrong. Note also
+    that IsAre inserts all needed spaces.
+
+IsDefined: symbols
+proc utility IsDefined(table theTable; string name)bool
+
+    IsDefined returns 'true' if string 'name' is defined in table
+    'theTable', else it returns 'false'. If 'theTable' is nil, then
+    'name' is looked up in all "in-use" tables.
+
+IsNormal: machine/character
+proc utility IsNormal()bool
+
+    IsNormal returns 'true' if the active agent is a player who has
+    status 'normal'.
+
+IsProgrammer: machine/character
+proc utility IsProgrammer()bool
+
+    IsProgrammer returns 'true' if the active agent is a player who
+    has status 'wizard' or 'apprentice', i.e. is someone who can do
+    programming.
+
+IsWizard: machine/character
+proc utility IsWizard()bool
+
+    IsWizard returns 'true' if the active agent is a player who has
+    status 'wizard'.
+
+It: utility
+proc utility It()thing
+
+    It returns the thing last set via 'SetIt'. The thing stored in
+    this special "global variable" is reset to nil whenever a message
+    arrives at the server, and whenever 'Parse' starts a new command.
+    Thus It is valid only during the parsing of one input command. By
+    convention, It is the object (in the English language sense) of
+    the current input sentence, if there is one. See the description
+    of programming within the standard scenario for information on how
+    It is used in that scenario. See also: 'ItName' and 'WhoName'.
+
+ItName: parsing
+proc utility ItName()string
+
+    ItName returns a string containing the internal form of the noun
+    phrase used with a 'Verb1' verb, or the first noun phrase (the
+    direct object) used with a 'Verb2' verb. ItName is maintained
+    directly by the AmigaMUD parser ('Parse'). Similarly, 'WhoName'
+    returns the internal form string of the indirect object (the
+    second noun phrase) associated with a 'Verb2' verb. The only use
+    of ItName in the standard scenario is in a "getaction" attached to
+    a fake bugtape piece in the toolshed - it is used to see if the
+    phrase the player gave for the object contained the words "long"
+    or "longer", via 'HasAdjective'. See also: 'WhoName'.
+
+KnowsEffect: effects
+proc utility KnowsEffect(thing who; int whichEffect)bool
+
+    KnowEffect returns 'true' if client 'who' knows the contents of
+    effect 'whichEffect'. This is asking if the client "MUD" program
+    has already been sent the definition of the effect, so that it
+    doesn't have to be sent again (via 'DefineEffect') before being
+    called up (via 'CallEffect').
+
+Length: utility
+proc utility Length(string str)int
+
+    Length returns the number of characters in the passed string. This
+    includes any special newline or tab characters. The length of an
+    empty string is 0.
+
+Log: utility
+proc utility wizard Log(string message)void
+
+    Log causes the passed string to be appended to the server's "MUD.
+    log" file. This is used in the standard scenario for commands like
+    "complain", "typo", etc. Log can also be used to record error
+    situations. Care should be taken, however, to not Log too much,
+    else the MUD.log file can grow very large. That is why this
+    function is restricted to full wizards.
+
+LookupAction: symbols
+proc utility LookupAction(table theTable; string name)action
+
+    'name' is looked up in 'theTable'. If it is found, and the symbol
+    is an action, then that action is returned, else nil is returned.
+    If 'theTable' is nil, then 'name' is looked up in all currently
+    "in-use" tables.
+
+LookupCounter: symbols
+proc utility LookupCounter(table theTable; string name)property int
+
+    'name' is looked up in 'theTable'. If it is found, and the symbol
+    is an int property, then that property is returned, else nil is
+    returned. If 'theTable' is nil, then 'name' is looked up in all
+    currently "in-use" tables.
+
+LookupFlag: symbols
+proc utility LookupFlag(table theTable; string name)property bool
+
+    'name' is looked up in 'theTable'. If it is found, and the symbol
+    is a bool property, then that property is returned, else nil is
+    returned. If 'theTable' is nil, then 'name' is looked up in all
+    currently "in-use" tables.
+
+LookupString: symbols
+proc utility LookupString(table theTable; string name)property string
+
+    'name' is looked up in 'theTable'. If it is found, and the symbol
+    is a string property, then that property is returned, else nil is
+    returned. If 'theTable' is nil, then 'name' is looked up in all
+    currently "in-use" tables.
+
+LookupTable: symbols
+proc utility LookupTable(table theTable; string name)table
+
+    'name' is looked up in 'theTable'. If it is found, and the symbol
+    is a table, then that table is returned, else nil is returned. If
+    'theTable' is nil, then 'name' is looked up in all currently "in-
+    use" tables.
+
+LookupThing: symbols
+proc utility LookupThing(table theTable; string name)thing
+
+    'name' is looked up in 'theTable'. If it is found, and the symbol
+    is a thing, then that thing is returned, else nil is returned. If
+    'theTable' is nil, then 'name' is looked up in all currently "in-
+    use" tables.
+
+MakeApprentice: machine/character
+proc utility MakeApprentice(character who; bool doNow)void
+
+    The given character is made into an apprentice. If 'doNow' is
+    'true', and the character is currently connected, then the client
+    the character is connected through is immediately put into "wizard
+    mode". The status of SysAdmin cannot be changed, and only full
+    wizards can change someone's status. The wizard who promotes a
+    character is recorded as that character's sponsor.
+
+MakeNormal: machine/character
+proc utility MakeNormal(character who)void
+
+    The given player is made into a normal player. Only SysAdmin can
+    demote someone, and SysAdmin cannot demote himself. If the player
+    was an apprentice or wizard, and was currently active in wizard
+    mode, then the character's client is immediately forced out of
+    wizard mode.
+
+MakeWizard: machine/character
+proc utility MakeWizard(character who; bool doNow)void
+
+    The given character is made into a full wizard. If 'doNow' is
+    'true', and the character is currently connected, then the client
+    the character is connected through is immediately put into "wizard
+    mode". The status of SysAdmin cannot be changed, and only full
+    wizards can change someone's status. The wizard who promotes a
+    character is recorded as that character's sponsor.
+
+MatchName: parsing
+proc utility MatchName(string stored, parsed)int
+
+    MatchName is the bottom-level of the AmigaMUD routines which tie
+    together input commands and the database. It matches an internal
+    form of a user input noun phrase against an internal form of a
+    stored one. The stored internal form can have several noun phrase
+    alternatives, separated by periods. Each internal form consists of
+    a comma-separated list of noun alternatives, possibly followed by
+    a semicolon and a comma-separated list of adjectives. There must
+    be no spaces anywhere. If the parsed form can be matched by any of
+    the stored forms, then the index of that stored form (the first is
+    index 0) is returned. If none of the stored forms can match the
+    parsed form, then -1 is returned. Examples:
+
+	stored					parsed		result
+    ------------------------------------------------------------------
+    dog,pooch,canine;large,black.Fido		pooch;black	0
+    dog,pooch,canine;large,black.Fido		fido		1
+    dog,pooch,canine;large,black.Fido		Fido;black	-1
+    dog,pooch,canine;large,black.Fido		dog;black,large 0
+    dog,pooch,canine;large,black.Fido		canine		0
+    shelf;wooden.shelf,shelve,shelving;wood,wooden
+						shelves;wood	1
+						shelf;wooden	0
+						shelves;wooden	1
+						shelving;wood	1
+
+    Note that excess trailing 's's on the parsed nouns are assumed to
+    be for pluralization and are ignored. Also, case is ignored. The
+    'shelf' example illustrates the use of two alternatives, the first
+    of which is "clean", in that it will come out nicely via
+    'FormatName', and the second of which contains lots of forms, so a
+    variety of user input forms will work.
+
+Me: utility
+proc utility Me()thing
+
+    Me returns the thing associated with the active agent. This can be
+    a player character or a machine. Me can never return nil.
+
+MeCharacter: utility
+proc utility MeCharacter()character
+
+    MeCharacter returns the character for an active player character.
+    If the active agent is a machine, then MeCharacter returns the
+    character of the owner of the active machine.
+
+Mine: database
+proc utility Mine(thing theThing)bool
+
+    Mine returns 'true' if the passed thing is owned by the current
+    effective player.
+
+MOn: effects
+proc utility MOn(thing who)bool
+
+    MOn returns 'true' if the indicated client currently has music
+    playing enabled. As of version 1.0, music is not implemented in
+    the "MUD" client, so this function is irrelevant.
+
+MoveSymbol: symbols
+proc utility MoveSymbol(table fromTable, toTable; string name)bool
+
+    MoveSymbol moves symbol 'name' from table 'fromTable' to table
+    'toTable'. MoveSymbol will not move symbols to or from the
+    Character or Builtin tables, and will not add a duplicate symbol
+    to 'toTable'. Each table must either be the public table, or owned
+    by the effective player, or the effective player must be SysAdmin.
+
+MPlaySong: effects
+proc utility MPlaySong(thing who; string name; int id)void
+
+    MPlaySong starts the playing of a song in the indicated client.
+    The song is loaded from "AmigaMUD:Music/<name>". If the indicated
+    song cannot be found, then nothing is done, and the "not found"
+    flag is set, and can be tested by 'IfFound'. 'id' is an identifier
+    associated with the playing of the song, and will be given as the
+    second parameter to a call to the character's "effectdone action"
+    triggered when the song finishes playing or is aborted with
+    'AbortEffect'. The first parameter will be 2 for a music effect.
+    As of V1.1 of the "MUD" client, music playing is not implemented.
+
+MVolume: effects
+proc utility MVolume(thing who; int volume)void
+
+    MVolume sets the volume for music that is played in the indicated
+    client. The default volume is full volume, which is represented as
+    10000; thus a value of 5000 is half volume.
+
+NewCharacterPassword: utility
+proc utility wizard NewCharacterPassword()void
+
+    NewCharacterPassword triggers a sequence of events between the
+    server and the client whereby the client is asked to enter and
+    verify a new password. If verified, the new password is entered as
+    the character's password.
+
+NewCreationPassword: utility
+proc utility NewCreationPassword()void
+
+    NewCreationPassword triggers a sequence of events between the
+    server and the client whereby the client is asked to enter and
+    verify a new password. If verified, the new password is entered as
+    the new character creation password. This builtin can only be
+    called directly by SysAdmin. If the character creation password is
+    empty, then no password is needed to create a new character. If
+    the new password starts with an asterisk ('*'), then new
+    characters cannot be created by clients, but must be manually
+    created by SysAdmin, using 'CreateCharacter'.
+
+Normal: utility
+proc utility Normal()void
+
+    Normal puts the active client into normal (non-wizard) mode, if it
+    is not already in that mode. If the active character is a newly
+    created one that has not yet connected, then the new character
+    action is run for that character. Normal will fail at that point
+    if the scenario does not have a handler proc for text input.
+
+Note: utility
+proc utility Note()void
+
+    Note prints a copyright notice to the active client.
+
+NPrint: output
+proc utility NPrint(string str)void
+
+    NPrint is much the same as 'Print', except that it will not print
+    newlines. It will stop before any newline in the string that it is
+    passed. NPrint prints a single newline at the end of the string.
+    NPrint also temporarily sets the status of the active client to
+    "wizard", so that no '@'s will appear in front of the output line.
+    NPrint is used to print an arbitrarily retrieved string, in a way
+    that doesn't unnecessarily include the leading '@'s, but in a way
+    that precludes most "spoofing" by apprentices and wizards.
+
+NukeClient: machine/character
+proc utility NukeClient(character who)void
+
+    NukeClient violently forces the indicated character out of the
+    game. No attempt is made to nicely shut the character down by
+    allowing the character's "inactive action" to run. This routine
+    should be used only as a last resort, since it can leave things in
+    a confused state.
+
+OPrint: output
+proc utility OPrint(string str)void
+
+    OPrint prints the passed string to all clients in the same room
+    (with the same location) as the active client, except the active
+    client. If used from a machine, then the string is printed to all
+    clients in the same room as the machine.
+
+Owner: database
+proc utility Owner(thing theThing)character
+
+    Owner returns the character who owns the passed thing. Note that
+    it is a character value that is returned, not that character's
+    thing.
+
+Parent: database
+proc utility Parent(thing theThing)thing
+
+    Parent returns the parent thing of the passed thing. The returned
+    value can be nil if the thing has no parent. A thing's parent is
+    the first in the chain of other things that it will inherit
+    properties from. See also 'SetParent'.
+
+Parse: parsing
+proc utility Parse(grammar theGrammar; string sentence)int
+
+    Parse is the starting point for the internal parsing capabilities
+    of AmigaMUD. It is passed a grammar to parse with, and a string
+    containing one or more commands to be parsed. The commands in the
+    string are separated by periods or semicolons. Each command is
+    assumed to start with a verb, and that verb is looked up in the
+    grammar. If the verb is not found, then Parse will complain "I
+    don't know the word XXX.\n" and will return without parsing any
+    more sentences. Similar errors in handling the expected noun
+    phrases for the verb also result in early termination. Parse
+    returns the number of commands that were successfully parsed and
+    executed. Note that early termination can also be triggered by the
+    semantic code associated with the verbs. See the section on
+    parsing in file "ProgConcepts.txt" for much more information.
+
+PlaceCursor: effects
+proc utility PlaceCursor(fixed x, y)void
+PlaceCursorPixels: effects
+proc utility PlaceCursorPixels(int x, y)void
+
+    PlaceCursor and PlaceCursorPixels instruct the "MUD" client
+    program for the active client to place the cursor at position 'x',
+    'y'. If the cursor was already shown somewhere, then it is removed
+    from that location, and the background imagery and icons replaced,
+    before it is redrawn at the new location.
+
+Pluralize: output
+proc utility Pluralize(string str)string
+
+    Pluralize uses simple checks to attempt to pluralize the passed
+    string, and return the new result. The rules that Pluralize uses
+    are:
+
+	if the string ends in "y" then
+	    if there is a vowel before the "y", add "s"
+	    else replace the "y" with "ies"
+	if the string ends in "x", "s", "i" or "o", add "es"
+	otherwise, add "s"
+
+    Note: the rules here have changed since the early releases.
+
+    Examples:
+	toy => toys, day => days, guy => guys
+	fly => flies, try => tries
+	box => boxes, kiss => kisses, potato => potatoes
+	dog => dogs, bill => bills
+
+Pose: machine/character
+proc utility Pose(string alternateName, what)void
+
+    If 'alternateName' is an empty string, the name of the active
+    agent is used. That name, formatted, followed by a space and then
+    string "what", is printed to all clients in the same room as the
+    active agent. Also, the same string is passed to a generated call
+    to the "poseAction" of all machines in the same room which have
+    one. The order in which these things happen is not defined.
+
+Print: output
+proc utility Print(string str)void
+
+    Print is the basic output function in AmigaMUD. The passed string
+    is printed to the active client, if there is one. As with all
+    other output to a client, the system will word-wrap and indent the
+    output text into the output width of the client's display.
+
+PrintAction: output
+proc utility PrintAction(action theAction)void
+
+    A textual, pretty-printed representation of the passed action is
+    printed to the active client. The only current use for this
+    builtin is in the standard scenario's building code, when the user
+    asks to describe the direction checkers on an exit.
+
+PrintNoAts: output
+proc utility PrintNoAts(bool flag)bool
+
+    This builtin allows the selection of whether or not '@'s are
+    prepended to all output lines which contain text produced by
+    AmigaMUD code written by apprentices rather than full wizards.
+    This provision is made so that players who wish to be protected
+    from possible "spoofing" by apprentices can be, while those who
+    like such things as part of the game can allow it to be unmarked.
+    In the standard scenario, this is used by the "ats" verb.
+
+PrivateTable: utility
+proc utility PrivateTable()table
+
+    PrivateTable returns the private symbol table of the active
+    client. Machines do not have symbol tables. The private symbol
+    table, like the public symbol table and the Builtin table, is
+    always "in-use".
+
+ProcToString: utility
+proc utility ProcToString(action theProc)string
+
+    ProcToString is the reverse of 'StringToProc'. It returns a string
+    containing a printed form of the passed action. The form will
+    include the full header and closing "corp". It will not include
+    any name for the action, so will just start with "proc(". The
+    string will contain newlines and leading spaces - the form used is
+    exactly the same as that produced by "describing" the action.
+    ProcToString will fail if the action contains references to any
+    values not pointed to by a symbol in any of the in-use tables,
+    just like 'EditProc' and the "edit" wizard-mode command will.
+
+PublicTable: utility
+proc utility PublicTable()table
+
+    PublicTable returns the public symbol table. The public symbol
+    table, like the client's private symbol table and the Builtin
+    table, is always "in-use".
+
+Punctuation: parsing
+proc utility Punctuation()string
+
+    This builtin returns the character that was used to punctuate the
+    current input command. Normally, this will be a space, but if the
+    user entered multiple commands, it can vary. The parser accepts
+    any of '.', ';' or '!' to separate input commands. The programmer
+    can use the punctation to modify the behaviour of the command. For
+    example, if an action is potentially dangerous, the scenario may
+    warn the user and not do the action. However, if the user ends the
+    command with '!', the scenario could then not warn the user and go
+    ahead with the command. This would allow the user to override the
+    scenario's caution.
+
+QueryFile: effects
+proc utility QueryFile(string path; action handler)void
+
+    QueryFile can be used (with some difficulty) by a scenario to find
+    out if the remote client has a given file under the AmigaMUD:
+    directory tree. The 'path' should not contain the "AmigaMUD:"
+    prefix - this is added on by the system. A request is sent off to
+    the client to check for the file. The client checks, then sends a
+    reply back. When the reply arrives, the server will call the
+    supplied 'handler' action, passing a single bool parameter, which
+    is 'true' if the file was found, and 'false' otherwise. This test
+    can be used to make a quick check for an image or tiles file, so
+    that the server can avoid sending over a large effect or set of
+    tiles, which are not actually needed. Remember that the server can
+    never wait for a client, thus this indirect way of getting an
+    answer from the client must be used. The file querying capability
+    exists only in the full 'MUD' client. GOn can be used to see if
+    the user is running the full client.
+
+Quit: utility
+proc utility Quit()void
+
+    Quit sets a flag on the active client, so that when the processing
+    of the current message is complete, that client will be shut down
+    and terminated. This is the standard way for a client to exit from
+    the MUD via a command. Exiting in this way, like an exit request
+    directly from a client (e.g. the close box in "MUD"), allows the
+    client's "idle action" to be executed. In the standard scenario
+    this action is used to do any area specific exit actions, such as
+    moving the character out of SysAdmin's office; to make the current
+    room dark if the character had the only source of light; to print
+    a message indicating the character is exiting; and to clear some
+    properties on the client thing.
+
+Random: utility
+proc utility Random(int range)int
+
+    Random returns a random integer between zero and one less than the
+    passed range. E.g. Random(2) will return 0 or 1. The random number
+    seed used by Random can be accessed via 'GetSeed' and 'SetSeed'.
+    The random number generator used is seeded by the time of day at
+    the server, and is a version of the minimal standard generator as
+    described in "Random Number Generators: Good Ones are Hard to
+    Find" by Stephen K. Park and Keith W. Miller in Volume 31 Number
+    10 of the Communications of the ACM.
+
+RemHead: database
+proc utility RemHead(<any list> theList)void
+
+    RemHead removes the head (first) element from the passed list. The
+    list will now have one less element then it had before, and all
+    elements will be shuffled one position towards the front.
+
+RemoveCursor: effects
+proc utility RemoveCursor()void
+
+    RemoveCursor removes the cursor from the active client's graphics
+    window. The background and icons behind the cursor are put back as
+    of when the cursor was drawn.
+
+RemTail: database
+proc utility RemTail(<any list> theList)void
+
+    RemTail removes the tail (last) element from the passed list. The
+    list will now have one less element then it had before, but all
+    other elements are still at the same place as they were.
+
+RenameSymbol: symbols
+proc utility RenameSymbol(table theTable; string oldName, newName)bool
+
+    RenameSymbol changes the name of symbol 'oldName' in table
+    'theTable' to be 'newName'. The effective user must own the table
+    or be SysAdmin, or the table must be the public table. 'oldName'
+    must exist in the table, and 'newName' must not.
+
+RunLimit: utility
+proc utility RunLimit(int newValue)int
+
+    RunLimit sets the execution time limit within the MUD to be the
+    given number of seconds. The old limit is returned. MUDServ
+    enforces this limit for the processing of each message from a
+    client (and hence of the processing of each input line, keypad
+    keypress, mouse action, effect completion, etc.) and for the
+    processing resulting from a machine or client's 'After' code. If
+    the limit is exceeded, the execution is aborted and MUDServ goes
+    on to the next input message or 'After' event. Time spent in the
+    database code flushing the cache does not count as execution time.
+    This limit should be fairly large (I use 100 seconds) while
+    compiling a large scenario, but should be smaller (I use 10
+    seconds) during normal operation. An even smaller limit may be
+    appropriate on faster processors.
+
+Say: machine/character
+proc utility Say(string alternateName, what)void
+
+    If 'alternateName' is an empty string, then the name of the active
+    agent is used. That name, formatted, followed by " says: ", and
+    string "what" is printed to all clients in the same room as the
+    active agent. Also, the same string is passed to a generated call
+    to the "sayAction" of all machines in the same room which have
+    one. The order in which these things happen is not defined. The
+    standard scenario has a wrapper, 'DoSay', around Say, which checks
+    for and calls a "sayChecker" in the current room, and which will
+    optionally echo the say back to the active client.
+
+ScanTable: symbols
+proc utility wizard ScanTable(table theTable; action theAction)void
+
+    The symbols in the table are scanned (in no defined order), and
+    the name of each is passed as the parameter to a call to action
+    'theAction'. This allows code to do something for each symbol in a
+    table. In particular, the "Characters" table can be scanned to get
+    the names of all characters in the MUD, active or inactive.
+
+SelectName: parsing
+proc utility SelectName(string names; int which)string
+
+    SelectName returns a substring of 'names' which is the 'which'th
+    internal-form name within it. Indexing starts at 0, and if the
+    index is out of range, an empty string is returned. E.g.
+
+	"dog;big.puppy;red.canine;large,ferocious" 0 => "dog;big"
+	"dog;big.puppy;red.canine;large,ferocious" 1 => "puppy;red"
+	"dog;big.puppy;red.canine;large,ferocious" 2 =>
+		"canine;large,ferocious"
+	"dog;big.puppy;red.canine;large,ferocious" 4 => ""
+
+    Actually, SelectName simply returns the 'which'th period-separated
+    substring of a string. SelectName is useful for extracting the
+    name indicated by a successful 'MatchName' call.
+
+SelectWord: parsing
+proc utility SelectWord(string words; int which)string
+
+    SelectWord returns the 'which'th comma- or period- separated
+    substring of the passed 'words' string. E.g.
+
+	"red,blue,green.yellow,cyan"	0 => "red"
+	"red,blue,green.yellow,cyan"	1 => "blue"
+	"red,blue,green.yellow,cyan"	2 => "green"
+	"red,blue,green.yellow,cyan"	3 => "yellow"
+	"red,blue,green.yellow,cyan"	4 => "cyan"
+	"red,blue,green.yellow,cyan"	5 => ""
+
+ServerVersion: utility
+proc utility ServerVersion()int
+
+    ServerVersion returns the version of the MUDServ server, as an
+    integer. The integer is the actual version number times 10. E.g.
+    for V0.7 of the server, ServerVersion returned 7, and for V1.1 it
+    returns 11.
+
+SetAgentLocation: machine/character
+proc utility wizard SetAgentLocation(thing agent, where)void
+
+    SetAgentLocation sets the location of the passed agent to be the
+    passed thing. This can be used to "teleport" a player or machine
+    to some other location. Note that other things would have to be
+    done in a typical scenario. SetAgentLocation will only work on an
+    active character - inactive characters are not agents.
+
+SetButtonPen: effects
+proc utility SetButtonPen(int which, pen)void
+
+    SetButtonPen selects pen 'pen' of the graphics pens to be the
+    'which'th button pen. The button pens are as follows:
+
+	pen	default 	    use
+	-------------------------------------------------
+	 0	1 - dark grey	    background of letters
+	 1	9 - gold	    letters
+	 2	2 - medium grey     outer border colour
+	 3	3 - light grey	    middle border colour
+	 4	4 - white	    inner border colour
+	 5	9 - gold	    background of highlighted letters
+	 6	1 - dark grey	    highlighted letters
+
+SetCharacterActiveAction: machine/character
+proc utility wizard SetCharacterActiveAction(action newAction)action
+
+    SetCharacterActiveAction sets the action that is executed whenever
+    the character becomes active, i.e. connects to the MUD after not
+    being connected. It is NOT called when the character is first
+    being initialized - the "new character action" set by
+    'SetNewCharacterAction' is executed then, and that is when the
+    "active action" is usually set up. The old "active action", if
+    any, is returned. The "active action" is usually used to do
+    something like a "look around" command to display graphics, etc.
+    for the user, and to create a standard set of mouse-buttons. The
+    action used must have no parameters and no result.
+
+SetCharacterButtonAction: machine/character
+proc utility wizard SetCharacterButtonAction(action newAction)action
+
+    SetCharacterButtonAction sets the action that will be called by
+    the system in response to a button-click in the Amiga "MUD" client
+    program. The action must have one int parameter (the identifier
+    of the button clicked) and no result. The old "button action", if
+    any, is returned.
+
+SetCharacterEffectDoneAction: machine/character
+proc utility wizard SetCharacterEffectDoneAction(action newAction)action
+
+    SetCharacterEffectDoneAction sets the action that is called by the
+    system when an effect completes on the client for the active
+    character, or is aborted using 'AbortEffect'. The action must have
+    two int parameters. The first is a code indicating which kind of
+    action is completing:
+
+	0 => sound
+	1 => speech
+	2 => music
+
+    The second parameter is the identifier for the particular effect
+    that is completing (or has been aborted with 'AbortEffect'), as
+    given when the effect was started. This routine can be used to
+    create continuously-running or looping graphical, sound and
+    musical effects. The old such action, if any, is returned.
+
+SetCharacterIdleAction: machine/character
+proc utility wizard SetCharacterIdleAction(action newAction)action
+
+    SetCharacterIdleAction sets on the active character the action to
+    be called by the system when the character leaves the game. The
+    action must have no parameters and no result. Note that the action
+    is not called if the client is forced out of the game with
+    'NukeClient' (that is how to get rid of a client when its "idle
+    action" goes into an infinite loop when there is a very long
+    timeout in effect!) The "idle action" will often do things like
+    taking the character out of single-occupancy areas like Questor's
+    Office in the standard scenario, and other scenario-dependent
+    character shutdown things. The previous "idle action" for the
+    character, if any, is returned.
+
+SetCharacterInputAction: machine/character
+proc utility wizard SetCharacterInputAction(action newAction)action
+
+    SetCharacterInputAction sets on the active character the action to
+    be called by the system when the player running the character
+    enters an input line when not in "wizard mode". The action must
+    have one string parameter - the input line entered, and no result.
+    The action will typically check for one or two special cases (like
+    a leading " or :), and then pass most lines to the AmigaMUD
+    'Parse' function for general parsing. The character's previous
+    "input action", if any, is returned.
+
+SetCharacterLocation: machine/character
+proc utility SetCharacterLocation(character theCharacter;
+    thing newLocation)void
+
+    SetCharacterLocation sets the location of character 'theCharacter'
+    to be the given thing. Unlike 'SetAgentLocation', this routine can
+    be used on a character that is not currently active. It cannot,
+    however, be used on a machine. See also: 'SetLocation'.
+
+SetCharacterMouseDownAction: machine/character
+proc utility wizard SetCharacterMouseDownAction(action newAction)action
+
+    SetCharacterMouseDownAction sets on the active character the
+    action that the system will call when the user clicks the left
+    mouse button and releases it inside a defined rectangular "mouse
+    region" set up with 'AddRegion'. The action must have 3 int
+    parameters and no result. When called, it is passed the identifier
+    of the region clicked in (supplied to 'AddRegion') and the x and y
+    coordinates of the click relative to the top-left corner of the
+    region. "mouse down" actions are used for things like the icon
+    editor in the standard scenario. The previous "mouse down" action,
+    if any, is returned.
+
+SetCharacterRawKeyAction: machine/character
+proc utility wizard SetCharacterRawKeyAction(action newAction)action
+
+    SetCharacterRawKeyAction sets on the active character the action
+    that the system will call when the user presses a numeric keypad
+    key or other special key supported by the system. This allows the
+    scenario to control the shortcut actions performed in response to
+    those keypresses. The keycodes supported in this way are:
+
+	scenario symbol   value (hex)	meaning
+	-------------------------------------------
+	KEY_HELP	    0x0020	HELP key
+	KEY_KP_UL	    0x0001	keypad 7
+	KEY_KP_U	    0x0002	keypad 8
+	KEY_KP_UR	    0x0003	keypad 9
+	KEY_KP_L	    0x0004	keypad 4
+	KEY_KP_C	    0x0005	keypad 5
+	KEY_KP_R	    0x0006	keypad 6
+	KEY_KP_DL	    0x0007	keypad 1
+	KEY_KP_D	    0x0008	keypad 2
+	KEY_KP_DR	    0x0009	keypad 3
+	KEY_KP_PLUS	    0x000a	keypad +
+	KEY_KP_MINUS	    0x000b	keypad -
+	
+    The previous "rawkey action", if any, is returned.
+
+SetContinue: utility
+proc utility SetContinue(bool state)void
+
+    SetContinue instructs the parser whether or not to allow the
+    definition of actions that contain errors. If the state is set to
+    'true', then such actions are defined and entered into the
+    database. They cannot be executed, however. If the state is set to
+    'false', then an error in defining an action (proc) prevents it
+    from being entered into any symbol tables. The normal state will
+    be 'false'. The 'true' state is useful when sourcing large source
+    files so that an error in one function will not cause further
+    errors, in functions which call the first, due to the first not
+    being defined.
+
+SetCursorPattern: effects
+proc utility SetCursorPattern(list int newPattern)void
+
+    SetCursorPattern sets the pattern to be used for the graphics
+    cursor available in the graphics window. Like icons, the cursor,
+    manipulated by 'PlaceCursor' and 'RemoveCursor', is a 16 pixel by
+    16 pixel pattern in a single colour ('SetCursorPen'). The list of
+    ints used to define the cursor must have exactly 8 elements (16 *
+    16 / 32), even if the defined cursor is not fully 16 x 16. The
+    cursor pattern is sent to the client, and will take effect
+    immediately if the cursor is currently visible.
+
+SetCursorPen: effects
+proc utility SetCursorPen(int pen)void
+
+    SetCursorPen selects the pen to be used for drawing the cursor in
+    the graphics window. The pen is any of the graphics drawing pens.
+    If the cursor is currently visible, it will be redrawn in the new
+    colour. Note that neither SetCursorPen nor SetCursorPattern can
+    directly affect a client other than the one for the active player.
+    If needed, that can be accomplished using 'ForceAction'.
+
+SetEffectiveTo: utility
+proc utility SetEffectiveTo(character thePlayer)void
+
+    SetEffectiveTo sets the "effective character", i.e. the one whose
+    access rights are to be in effect, to 'thePlayer'. For obvious
+    security reasons, only SysAdmin, or code written by SysAdmin, can
+    use this function. In other words, the effective player can only
+    be changed in this way if it is currently SysAdmin. The effective
+    player is usually set automatically to the owner of any function
+    called, if that function is not marked as 'utility'. The
+    "effective status" is set to 'apprentice', giving only apprentice
+    access rights.
+
+SetEffectiveToNone: utility
+proc utility SetEffectiveToNone()void
+
+    SetEffectiveToNone sets the "effective character" to be no-one.
+    This removes any access that was previously available via the
+    effective player. Any wizard or apprentice can use this function,
+    since it only removes access rights. The "effective status" is set
+    to 'normal', giving neither apprentice nor wizard access rights.
+
+SetEffectiveToReal: utility
+proc utility SetEffectiveToReal()void
+
+    SetEffectiveToReal sets the "effective character" back to the real
+    character, i.e. the active character or the owner of the active
+    machine. This is only allowed if the effective character is
+    SysAdmin, since it involves the addition of access rights. The
+    "effective status" is set to the status of the real player, giving
+    whatever access that real player has.
+
+SetIndent: output
+proc utility wizard SetIndent(int newIndent)void
+
+    SetIndent sets the current output indentation column. Subsequent
+    lines of output, via 'Print', or any other mechanism, will be
+    indented on the left by 'newIndent'. This is useful when printing
+    lists of things, such as inventories, contents, etc. This, in
+    combination with automatic word wrap and the ability to set the
+    output width, almost makes AmigaMUD seem like a little text
+    formatter. The programmer is advised to check that things are
+    working out correctly, however, since things get complicated with
+    text going to multiple clients, and with some clients desiring
+    '@'s in front of any line containing apprentice-generated output.
+    Because of the buffering of output text that is done (each use of
+    'Print', etc. does not cause a separate message to the remote
+    client), the effect of SetIndent will not take place until after a
+    newline has been output. SetIndent should be called before
+    outputting the newline that the indent is desired after. The
+    indent amount is a very short-lived value. It is cleared at the
+    end of each top-level handler call done by the server. See also:
+    'SetPrefix'.
+
+SetIt: utility
+proc utility SetIt(thing theThing)void
+
+    SetIt sets the value of the 'It' global variable, which is
+    accessible via the 'It' builtin. See the description of 'It' for
+    more details.
+
+SetLocation: machine/character
+proc utility wizard SetLocation(thing where)void
+
+    SetLocation sets the location of the active character or machine
+    to the given thing. This is the most common way of moving from one
+    room to another (in conjunction with other scenario-specific
+    things of course).
+
+SetMachineActive: machine/character
+proc utility SetMachineActive(thing machine; action theAction)action
+
+    SetMachineActive sets, on the machine structure associated with
+    'machine', the action that will be called by the system on behalf
+    of that machine (with 'Me' set accordingly) when the server is
+    restarted. This allows the machine to restart its periodic
+    actions, and do any other system-startup initializations. The
+    machine's previous "active action", if any, is returned.
+
+SetMachineIdle: machine/character
+proc utility SetMachineIdle(thing machine; action theAction)action
+
+    SetMachineIdle sets, on the machine structure associated with
+    'machine', the action that will be called by the system on behalf
+    of that machine (with 'Me' set accordingly) when the server is
+    being shut down. This allows the machine to do any shutdown
+    activities that the scenario might need. The old "idle action", if
+    any, is returned. The standard scenario uses this capability with
+    the 'TimeKeeper' machine to subtract off the shutdown time from
+    the wait time of each of its events.
+
+SetMachineOther: machine/character
+proc utility SetMachineOther(thing machine; action theAction)action
+
+    SetMachineOther sets, on the machine structure associated with
+    'machine', the action that will be called by the system whenever
+    any agent in the same room as the machine calls 'OPrint',
+    'ABPrint', 'Pose' or 'Say'. The text passed to those routines is
+    passed to the action setup by SetMachineOther, and can then be
+    processed by the machine. This allows the programmer to set up
+    machines that watch what is happening in a given room, and which
+    can then pass it on (e.g. a TV camera), record it, or perform
+    actions based on it. Note that this facility, being quite general,
+    is fairly expensive. Thus, programmers should seek less general,
+    but cheaper alternatives wherever possible. Also note that it is
+    unwise to use either of 'OPrint' or 'ABPrint' from inside a
+    handler set up by SetMachineOther, as this can, if care is not
+    taken, result in an infinite recursion loop.
+
+SetMachinePose: machine/character
+proc utility SetMachinePose(thing machine; action theAction)action
+
+    SetMachinePose sets, on the machine structure associated with
+    'machine', the action that will be called by the system whenever
+    any agent does a 'Pose' in the room the machine is in. The action
+    must have one string parameter, which will be the string passed to
+    the 'Pose' builtin, with the posing agent's name prefixed. This
+    allows a machine to respond to things like people waving, etc. The
+    previous "pose action", if any, is returned. The standard scenario
+    uses a "pose action" on Packrat to allow her to copy any pose that
+    anyone nearby does.
+
+SetMachinesActive: machine/character
+proc utility SetMachinesActive(bool state)void
+
+    SetMachinesActive controls whether or not machines are to be
+    active at all in the scenario. A value of 'false' for 'state'
+    makes machines inactive. This control is useful for debugging, and
+    for controlling wayward machines.
+
+    If this flag is 'false', then the time until a machine action is
+    to happen is never decreased for any machines. Thus, if an action
+    for a machine is scheduled for 2 seconds, it will never actually
+    happen. However, if the flag is set to 'true', the action will
+    again be scheduled for 2 seconds in the future. This provides a
+    way to keep machines from executing, without stopping them
+    completely, and without changing their timing relationships.
+
+SetMachineSay: machine/character
+proc utility SetMachineSay(thing machine; action theAction)action
+
+    SetMachineSay sets, on the machine structure associated with
+    'machine', the action that will be called by the system whenever
+    any agent does a 'Say' in the room the machine is in. The action
+    must have one string parameter, which will be the string passed to
+    the 'Say' builtin, with the speaking agent's name prefixed. This
+    allows machines to respond to spoken commands and comments. The
+    previous "say action", if any, is returned. The standard scenario
+    uses machine "say actions" in a number of places. 'SetSay' can be
+    used to easily pull off the added parts of the string.
+
+SetMachineWhisperMe: machine/character
+proc utility SetMachineWhisperMe(thing machine; action theAction)action
+
+    SetMachineWhisperMe sets, on the machine structure associated with
+    'machine', the action that will be called by the system whenever
+    any agent whispers directly to the machine. The action must have
+    one string parameter, which will be the text whispered, preceeded
+    by "<name> whispers:", where <name> is the formatted name of the
+    agent doing the whispering. The previous "whisperme action", if
+    any, is returned. 'SetWhisperMe' can be used to pull the string
+    apart easily.
+
+SetMachineWhisperOther: machine/character
+proc utility SetMachineWhisperOther(thing machine; action theAction)action
+
+    SetMachineWhisperOther sets, on the machine structure associated
+    with 'machine', the action that will be called by the system
+    whenever the machine "overhears" an agent whispering to another
+    agent. The chance of the overhearing is controlled by the call to
+    'Whisper' used. The action must have one string parameter and no
+    result. The parameter will the the string whispered, preceeded by
+    "<name1> whispers to <name2>:", where <name1> is the formatted
+    name of the agent doing the whispering, and <name2> is the
+    formatted name of who they are whispering to. The previous
+    "whisperother action", if any, is returned. 'SetWhisperOther' can
+    be used to pull apart the argument string.
+
+SetMeString: utility
+proc utility SetMeString(string name)void
+
+    SetMeString sets the string that is used as the name of the active
+    client when FindAgent is asked to find "self", "myself",
+    "yourself" or "me". This string is set by the system to the name
+    of the active client when any action is started on behalf of the
+    client. Modifying the value is useful for some situations
+    involving 'ForceAction'.
+
+SetNewCharacterAction: machine/character
+proc utility SetNewCharacterAction(action newAction)action
+
+    SetNewCharacter sets the global action which is executed whenever
+    a new character is initialized. This is done when a player first
+    connects to that character in non-wizard mode, or when 'Normal' is
+    first executed by the character. The old value of the
+    "newcharacter action" is returned. This action will typically do
+    things like initializing the character for properties that the
+    scenario assumes all characters have, moving the character to the
+    entry location, etc.
+
+SetParent: database
+proc utility SetParent(thing theThing, newParent)void
+
+    SetParent sets the parent (in terms of property inheritance) of
+    thing 'theThing' to be thing 'newParent'. This can be used in a
+    scenario to change what an object or room inherits from, thus
+    changing its basic nature. SetParent will not allow the setting if
+    'newParent', or any of its parents, is equal to 'theThing'. This
+    is to prevent the programmer from creating an inheritance loop in
+    the system.
+
+SetPrefix: utility
+proc utility SetPrefix(string newPrefix)void
+
+    SetPrefix sets a prefix which will be printed in front of output
+    lines. The new prefix will appear before the next output line.
+    Note that output lines can be caused by explicit newlines, or by
+    the word wrapping of text that does not contain any newlines.
+    There are three optional things that can be inserted at the front
+    of output lines: an '@', a prefix, and an indent. They are
+    inserted in that order. Note that any prefix is a very short-lived
+    thing - it is cleared at the end of the current top-level call
+    done by the server. They are not saved with the client structure,
+    and are not saved on the character. Thus, code which desires a
+    prefix in all or most places must set the prefix explicitly at the
+    beginning of each handler call. See also: 'SetIndent'.
+
+SetPrompt: utility
+proc utility wizard SetPrompt(string prompt)string
+
+    SetPrompt sets the prompt for the active client. The old prompt is
+    returned. The default prompt is "input> ". Note that "wizard mode"
+    has prompts of its own, not related to the character's prompt. The
+    prompt will change immediately, unless there is currently a
+    partial input line typed. The prompt associated with a character
+    is saved in the database.
+
+SetRemoteSysAdminOK: utility
+proc utility SetRemoteSysAdminOK(bool state)void
+
+    SetRemoteSysAdminOK sets whether or not the server will accept a
+    login of SysAdmin via a remote connection. A connection via
+    'MUDAgent' is always a remote connection, and a connection via
+    'SMUD' is remote if the '-r' flag is given to 'SMUD'. The default
+    is to not accept a remote SysAdmin connection, and it is highly
+    recommended that you never change the setting. Doing so makes it
+    possible for someone to learn or guess your SysAdmin password,
+    which makes your entire system (not just AmigaMUD) wide open to
+    that person.
+
+SetSay: parsing
+proc utility SetSay(string what)string
+
+    SetSay is useful for interpreting a string passed to a machine
+    "say action". It takes a string of the form "xxx says: yyy",
+    returns "xxx" and puts "yyy" into the tail buffer, where it can be
+    accessed with 'GetTail' and 'GetWord'.
+
+SetSeed: utility
+proc utility SetSeed(int newSeed)void
+
+    SetSeed sets the seed for the server's random number generator.
+    The value of the seed can be obtained via 'GetSeed'. Setting the
+    seed allows for the generation of repeatable pseudo-random
+    sequences, which can be used to reproduce a randomly generated
+    area each time it is needed.
+
+SetSingleUser: utility
+proc utility SetSingleUser(bool state)void
+
+    SetSingleUser sets a flag inside the database that controls
+    whether the database represents a single-user "Adventure"-style
+    game or a multi-user MUD. In single-user mode, the concept of
+    "characters" does't really exist - when a client connects (only
+    one is ever allowed at a time), no character name or password is
+    required - the game goes right into handling user input. Note that
+    because of the way MUDServ operates, the current state is always
+    saved implicitly, and in order to make a saved position, the
+    entire MUD database (MUD.data, MUD.index) must be backed up.
+
+SetTail: parsing
+proc utility SetTail(string str)void
+
+    SetTail directly sets the value of the server's "tail" string.
+    This string is set implicitly by a number of actions, including
+    the parsing of a 'VerbTail' verb. The value of the string can be
+    retrieved using 'GetTail', and individual words in it can be
+    retrieved one at a time using 'GetWord'.
+
+SetThingStatus: database
+proc utility SetThingStatus(thing theThing; <thing status> status)void
+
+    SetThingStatus sets the status of 'theThing' to 'status'. The
+    "effective player" must own the thing, or the effective and real
+    players must both be SysAdmin (i.e. SysAdmin is typing directly in
+    wizard mode, or is running his own actions). The value of 'status'
+    must be one of: 'ts_public', 'ts_private', 'ts_readonly', and
+    'ts_wizard', as explained in previous documents.
+
+SetWhisperMe: parsing
+proc utility SetWhisperMe(string what)string
+
+    SetWhisperMe is useful for interpreting a string passed to a
+    machine "whisperme action". It takes a string of the form "xxx
+    whispers: yyy", returns "xxx" and puts "yyy" into the tail buffer,
+    where it can be accessed with 'GetTail' and 'GetWord'.
+
+SetWhisperOther: parsing
+proc utility SetWhisperOther(string what)string
+
+    SetWhisperOther is useful for interpreting a string passed to a
+    machine "whisperother action". It takes a string of the form "xxx
+    whispers to yyy: zzz", returns "xxx" and puts "yyy zzz" into the
+    tail buffer, where it can be accessed with 'GetWord' and
+    'GetTail'.
+
+ShowCharacter: utility
+proc utility ShowCharacter(character who)void
+
+    ShowCharacter prints to the active client the status of the
+    indicated character. This includes the connection status, the
+    character status (normal/apprentice/wizard), and an indication of
+    whether or not the character is "new" (has executed the "newplayer
+    action").
+
+ShowCharacters: utility
+proc utility ShowCharacters(bool longForm)int
+
+    If 'longForm' is 'true', then ShowCharacters effectively calls
+    'ShowCharacter' for each existing character. If 'longForm' is
+    'false', then ShowCharacters prints just the names of all of the
+    existing characters. Both lists are preceeded by "Existing
+    characters as of " and the time and date. ShowCharacters returns
+    the number of existing characters.
+
+ShowClients: utility
+proc utility ShowClients(bool longForm)int
+
+    If 'longForm' is 'true' then ShowClients shows the name of all
+    active clients, followed by their connection time and whether or
+    not they are currently in "wizard mode". If 'longForm' is 'false',
+    then ShowClients just shows the names of all active clients. Both
+    forms are preceeded by "Active clients as of " and the current
+    time and date. ShowClients returns the number of active clients.
+
+ShowTable: symbols
+proc utility ShowTable(table theTable)void
+
+    ShowTable shows the symbols in the passed table. Only the names of
+    the symbols are shown - 'DescribeSymbol' can be used to show the
+    definition of a given symbol.
+
+ShowWord: parsing
+proc utility ShowWord(grammar theGrammar; string theWord)void
+
+    ShowWord looks 'theWord' up in 'theGrammar' and prints, to the
+    active client, the definition of that word. The output is one of:
+
+	- not in grammar
+	- code <n> {a separator word}
+	- synonym of "xxx"
+	- code <n> string tail verb => <action>
+	- code <n> verb with alternatives:
+	    - no object
+	    - direct object
+	    - direct and indirect objects
+	    separator {<NONE> or "yyy"}
+	    => <action>
+
+ShowWords: parsing
+proc utility ShowWords(grammar theGrammar)void
+
+    ShowWords prints, to the active client, the words in 'theGrammar'.
+    The list is not sorted, but is in multiple columns. 'ShowWord' can
+    be used to see the definition of a given word in the grammar.
+
+ShutDown: utility
+proc utility ShutDown(bool yesNo)bool
+
+    ShutDown can be used by SysAdmin to set or clear the "shutdown
+    flag". If this flag is set when the server reaches the state of
+    having no clients, the server will shut itself down and exit.
+
+SOn: effects
+proc utility SOn(thing who)bool
+
+    SOn returns 'true' if the indicated client ('who') has sound
+    output enabled, and 'false' otherwise. A text-only client will
+    always have all effects disabled.
+
+SPlaySound: effects
+proc utility SPlaySound(thing who; string name; int cycles, id)void
+
+    SPlaySound instructs client 'who' to start playing an IFF 8SVX
+    sound sample from "AmigaMUD:Sounds/<name>". The operation of the
+    effect is given identifier 'id', and proceeds without the server
+    or client waiting for it. When the sound is complete (or is
+    aborted with 'AbortEffect'), the server will call the client's
+    "effect done" action with parameters 0 and 'id'. As a special
+    case, no callback is ever done for an id of 0. 'cycles' should
+    normally be 1, to play the sample once. A value of 0 means to play
+    the sample continuously until it is aborted, or the player leaves
+    the game.
+
+SPrint: output
+proc utility SPrint(thing agent; string str)void
+
+    SPrint prints string 'str' to client 'agent'. This is typically
+    used when one character or machine is affecting another. As usual,
+    the string will be word-wrapped into the client's display width.
+
+StringReplace: utility
+proc utility StringReplace(string s1; int pos; string s2)string
+
+    StringReplace returns a string which is a copy of 's1', but with
+    the characters starting at position 'pos' (zero origin) replaced
+    by the characters of 's2'. If there is more of 's1' beyond the
+    end of the 's2' replacement, it remains unchanged.
+
+StringToAction: utility
+proc utility StringToAction(string str)action
+
+    StringToAction is one of the more powerful features of AmigaMUD.
+    It takes a string, generated in whatever manner is needed, and
+    attempts to parse and compile it into an action. The set of "in-
+    use" tables controls the set of symbols that can be used, as
+    usual. Any error messages generated as a result of the compilation
+    will go to the active client (if any). If the compilation is
+    successful, the newly created action is returned, else nil is
+    returned. The standard scenario uses StringToAction to compile
+    "builder actions" created by builders.
+
+    The action accepted by StringToAction must consist of just a
+    series of valid AmigaMUD statements, separated by semicolons as
+    usual, optionally followed by a result expression. Essentially, it
+    is just the body of a normal AmigaMUD proc.
+
+    Users of StringToAction should be careful. The newly created
+    action can explicitly reference symbols, such as things, other
+    actions, etc. It also takes up space in the database. So, it is
+    wise to make sure that the dynamically created action is actually
+    destroyed when you are done with it. The way to do this is to
+    attach it as a property somewhere (e.g. on the active character),
+    and explicitly delete that property when you are done with the
+    action.
+
+StringToFixed: utility
+proc utility StringToFixed(string str)fixed
+
+    StringToFixed tries to decode a fixed value from the passed
+    string. The string must contain zero or more digits representing
+    the integer portion of the fixed, optionally followed by a
+    decimal point and zero or more digits representing the fractional
+    portion. No leading sign is handled. If the string cannot properly
+    be decoded, then the value -1.0 is returned.
+
+StringToInt: utility
+proc utility StringToInt(string str)int
+
+    StringToInt attempts to turn string 'str' into an integer value,
+    which it returns. If the string cannot be decoded into a decimal
+    integer, then the value -1 is returned. Note that StringToInt
+    simply stops at the first non-digit, as long as at least one digit
+    is present. No leading '+' or '-' is handled - the caller must
+    handle those externally.
+
+StringToProc: utility
+proc utility StringToProc(string str)action
+
+    StringToProc is very similar to StringToAction. The difference is
+    in the form that is accepted in the string. StringToProc expects
+    the full form of the proc, starting with 'proc', '(', a parameter
+    list, ')', a result type, ':', any local variable declarations,
+    the body of the proc (as is accepted by 'StringToAction'), and a
+    closing 'corp'. StringToProc allows procs with parameters and
+    local variables to be constructed dynamically. See 'ProcToString'.
+
+Strip: utility
+proc utility Strip(string st)string
+
+    Strip will remove quotation marks (") from around a string and
+    will expand escaped characters ('\n' and '\t') from the passed
+    string, returning the processed result. The result is also left in
+    the "tail buffer", where it can be accessed with 'GetWord'. If the
+    string starts with a quotation mark, then that mark is stripped
+    off, and any trailing mark is also stripped off, but internal
+    marks are kept. If the first character of the string was not a
+    quotation mark, then all marks are kept intact.
+
+SubString: utility
+proc utility SubString(string str; int start, length)string
+
+    SubString returns a substring of 'str', starting at position
+    'start' (zero origin) for length 'length'. If 'start' + 'length'
+    is greater than the length of 'str', then the resulting substring
+    will be cut short. SubString will only abort execution if either
+    'start' or 'length' is less than zero.
+
+SVolume: effects
+proc utility SVolume(thing who; int volume)void
+
+    SVolume sets the sound playback volume in client 'who'. 'volume'
+    is a value from 0 - 10000, with, e.g. 5000 representing half of
+    the full volume.
+
+SymbolType: symbols:
+proc utility SymbolType(table TheTable; string theSymbol)string
+
+    This builtin returns, as a string, the type of the given symbol in
+    the given table. If the symbol is not in the table, then an empty
+    string is returned. Note that the returned string can have spaces
+    in it, such as "property list fixed". This routine, in
+    combination with "ScanTable", allows the scenario to dynamically
+    determine the nature of all symbols in a table. The various Lookup
+    routines can be used to get the actual table values, as can
+    dynamically compiled code.
+
+Synonym: parsing
+proc utility Synonym(grammar theGrammar; string oldWord, newWord)void
+
+    Synonym defines a synonym in 'theGrammar'. 'oldWord' is looked up
+    in the grammar, and must be found, else a run-time error is
+    produced. 'newWord', which must not exist in the grammar, is made
+    to be a synonym of that word. Note that you cannot make a synonym
+    of a synomym - you must make another synonym of the original word
+    instead.
+
+TextHeight: output
+proc utility wizard TextHeight(int newHeight)int
+
+    TextHeight sets the active client's text output height to
+    'newHeight' lines of text, returning the old value. A client using
+    the Amiga "MUD" program has the text height set to the height of
+    the full text window, which will vary depending on overscan and
+    PAL versus NTSC. For other clients, the default height is 23
+    lines. The number of lines is useful for code which wants to
+    paginate output, such as the email and news readers in the
+    standard scenario. As a special case, if the passed height is 0,
+    then the height is not changed, but is still returned.
+
+TextWidth: output
+proc utility wizard TextWidth(int newWidth)int
+
+    TextWidth sets the active client's text output width to 'newWidth'
+    columns, returning the old value. A client using the Amiga "MUD"
+    program has the text width set to the width of the text window,
+    which will vary depending on overscan. For other clients, the
+    default width is 76 characters. The text output width is the width
+    to which the server's output code will wrap output text going to
+    the client. Note that the Amiga "MUD" client program will also
+    wrap output text to its actual text window width, so making the
+    client's text width value too large makes a real mess. As a
+    special case, if the passed width is 0, then the width is not
+    changed, but is still returned.
+
+ThingCharacter: machine/character
+proc utility ThingCharacter(thing theThing)character
+
+    ThingCharacter returns the character associated with 'theThing',
+    if there is one. If there isn't one, then nil is returned. The
+    opposite conversion, from character to thing, is done by
+    'CharacterThing'. Note that 'ThingCharacter' is quite a bit more
+    expensive than 'CharacterThing', since it has to search for the
+    associated character structure.
+
+Time: utility
+proc utility Time()int
+
+    Time returns the current time in seconds, from some arbitrary
+    start point, as an integer. This is useful for comparing when
+    events happen, by storing the time value as the event happens.
+
+Trace: utility
+proc utility wizard Trace(int n)void
+
+    Trace will add an entry to the server's trace buffer, titled "user
+    trace", and with numerical value 'n'. This trace buffer is a
+    circular buffer, currently of size 100 entries (although this may
+    change in the future), in which the server records a history of
+    recent events. This trace buffer is dumped out, latest event to
+    earliest event, if the server aborts. The entire trace facility
+    may be compiled out of the server in some future release.
+
+Trim: utility
+proc utility Trim(string str)string
+
+    Trim returns a copy of its argument string, but with any leading
+    and trailing spaces removed. Internal spaces are not altered.
+
+TrueMe: utility
+proc utility TrueMe()thing
+
+    TrueMe returns the identity of the original character or machine
+    for this execution. The use of 'ForceAction' will not change the
+    value returned, unlike that returned from 'Me'. The standard
+    scenario uses TrueMe from some of the Packrat code, to determine
+    the identity of the player who instructs her to do something.
+
+UnUseTable: symbols
+proc utility UnUseTable(table theTable)bool
+
+    UnUseTable removes 'theTable' from the set of "in-use" tables.
+    Symbols defined in that table, and not in any other in-use table,
+    will no longer be available for use when compiling. This is the
+    same as the "unuse" command in wizard mode.
+
+    Note: there is a minor bug in the AmigaMUD system relating to the
+    inuse set of tables and the symbol cache in a client. Clients like
+    "MUD" and "SMUD" can cache the meaning of symbols (see their
+    documentation for how to enable or disable this caching), so that
+    they do not have to ask MUDServ each time a symbol is referenced.
+    When a table is "unused", all symbols in the table are "uncached"
+    from the client. However, when a table is "used", it may contain
+    symbols that are also contained in tables that are already in use.
+    The order of table searches in MUDServ is not specified, so that
+    it is possible that when looking for a symbol that has multiple
+    definitions, MUDServ will find a different definition than one
+    cached in the client. I don't currently plan to fix this "bug".
+    So, you should be careful to never have tables in use such that
+    multiple tables contain definitions for a given symbol.
+
+UseTable: symbols
+proc utility UseTable(table theTable)bool
+
+    UseTable adds 'theTable' to the set of "in-use" tables. Symbols in
+    the table will now be available for use when compiling. This is
+    the same as the "use" command in wizard mode.
+
+Verb: parsing
+proc utility Verb()string
+
+    Verb returns the string which the user entered as the verb for the
+    current command. In the presence of synonyms for a verb, this
+    allows the scenario code to know which form of a verb the user
+    typed. This can be useful when making minor distinctions of
+    meaning or usage.
+
+Verb0: parsing
+proc utility Verb0(grammar theGrammar; string theVerb; int separatorCode;
+    action theAction)void
+
+    Verb0 enters string 'theVerb' into grammer 'theGrammar' as a verb
+    which takes no (0) objects (in the English language sense). If
+    'separatorCode' is nonzero, then it is the code for a word which
+    can be given with this verb in order to distinguish it from other
+    possible uses of the same word as a verb. The AmigaMUD parser will
+    call action 'theAction' with no parameters when it parses this
+    verb/separator combination. The action should return a boolean
+    value, with 'false' indicating that something has gone wrong, and
+    any remaining commands on the input line should not be processed.
+    Some examples:
+
+	private proc goNorth()bool:
+	    if Here()@p_rNorth = nil then
+		Print("You can't go that way.\n");
+		false
+	    else
+		SetLocation(Here()@p_rNorth);
+		true
+	    fi
+	corp;
+	Verb0(G, "north", 0, goNorth)$
+	Synonym(G, "north", "n")$
+
+	private proc sitUp()bool:
+	    ...
+	corp;
+	Verb0(G, "sit", FindWord(G, "up"), sitUp)$
+
+Verb1: parsing
+proc utility Verb1(grammar theGrammar; string theVerb; int separatorCode;
+    action theAction)void
+
+    Verb1 adds to grammar 'theGrammar' verb 'theVerb' which expects a
+    direct object when it is used. 'separatorCode', if not zero, is a
+    word which can be between the verb and its direct object noun-
+    phrase, or after the noun-phrase. The AmigaMUD parser will
+    automatically handle multiple noun phrases, separated by commas or
+    "and"s, and will pass them, in internal "noun;adj,adj,..." form,
+    in turn to action 'theAction'. The action should return a bool,
+    with 'false' indicating that some error has occurred, and no more
+    calls to it should be made for this command, and that no more
+    commands from the current input line should be processed. It is
+    possible for 'theAction' to be called with an empty string if the
+    verb is used by itself, and no object-less variant of that verb
+    exists. Examples:
+
+	private proc pickUp(string what)bool:
+	    status st;
+	    thing th;
+
+	    if what = "" then
+		Print("Pick up what?\n");
+		false
+	    else
+		st := FindName(Here()@p_rContents, what);
+		if st = continue then
+		    Print(FormatName(what) + " is ambiguous.\n");
+		    false
+		elif st = fail then
+		    Print("There is no " + FormatName(what) + " here.\n");
+		    false
+		else
+		    th := FindResult();
+		    AddTail(Me()@p_pCarrying, th);
+		    DelElement(Here()@p_rContents, th);
+		    Print(FormatName(what) + " picked up.\n");
+		    true
+		fi
+	    fi
+	corp;
+	Verb1(G, "pick", FindWord(G, "up"), pickUp)$
+	Verb1(G, "take", 0, pickUp)$
+
+    Note that it is important to do the 'AddTail' before the
+    'DelElement', so that if there are no other references to the
+    object, it doesn't get deleted by the database code. Assume the
+    player is in a room containing:
+
+	small whisk broom
+	straw broom
+	pewter mug
+	brass bell
+	large red ball
+
+    then, the following commands should produce:
+
+	pick up the pewter mug
+	    -> pewter mug picked up.
+	pick the basket up.
+	    -> There is no basket here.
+	take
+	    -> Pick up what?
+	Pick the broom up.
+	    -> broom is ambiguous.
+	Take small broom, straw broom and the large red ball.
+	    -> small whisk broom picked up.
+	    -> straw broom picked up.
+	    -> large red ball picked up.
+	Pick up the brass bell and mug.
+	    -> brass bell picked up.
+	    -> pewter mug picked up.
+
+Verb2: parsing
+proc utility Verb2(grammar theGrammar; string theVerb; int separatorCode;
+    action theAction)void
+
+    Verb2 adds to 'theGrammar' verb 'theVerb' as a verb which takes
+    both a direct object and an indirect object. 'separatorCode' must
+    be nonzero, and the word it is the code for (or a synonym) must be
+    present in an input command that matches the verb. The separator
+    word separates the direct object noun-phrase from the indirect
+    object noun-phrase, as in "Put the marble INTO the bag.".
+    'theAction' is an action which the parser will call to handle the
+    verb. It will be passed two strings - the internal form of the
+    direct object, and the internal form of the indirect object. The
+    AmigaMUD parser will automatically handle input commands with
+    multiple direct objects, separated by commas or "and"s and will
+    call the action sequentially with them and the single indirect
+    object. If no objects of either kind are given, the parser will
+    complain with "<verb> who/what <separator> who/what?". If a direct
+    object is given, but no indirect object, then the complaint will
+    be of the form "<verb> <direct object> <separator> who/what?". If
+    an indirect object but no direct object is given, then the parser
+    will complain "<verb> who/what <separator> <indirect object>?".
+    Thus, a Verb2 handler does not have to worry about handling empty
+    strings. The handler returns a bool value, with 'false' indicating
+    that something has gone wrong, and the parser should not call it
+    for any further objects in this command, and any further commands
+    in the current input line should also be cancelled. An example:
+
+    private proc doPutIn(string itemRaw, containerRaw)bool:
+	thing item, container;
+	string itemName, containerName;
+	status st;
+
+	itemName := FormatName(itemRaw);
+	containerName := FormatName(containerRaw);
+	st := MatchName(Me()@p_pCarrying, itemRaw);
+	if st = continue then
+	    Print(Capitalize(itemName) + " is ambiguous.\n");
+	    false
+	elif st = fail then
+	    Print("You have no " + itemName + ".\n");
+	    false
+	else
+	    item := FindResult();
+	    st := FindName(Me()@p_pCarrying, containerRaw);
+	    if st = continue then
+		Print(Capitalize(containerName) + " is ambiguous.\n");
+		false
+	    elif st = fail then
+		Print("You have no " + containerName + ".\n");
+		false
+	    else
+		container := FindResult();
+		if container@p_oContents = nil then
+		    Print("You can't put things into the " +
+			containerName + ".\n");
+		    false
+		else
+		    AddTail(container@p_oContents, item);
+		    DelElement(Me()@p_pCarrying, item);
+		    Print("You put the " + itemName + " into the " +
+			containerName + ".\n");
+		    true
+		fi
+	    fi
+	fi
+    corp;
+    Verb2(G, "put", FindWord(G, "in"), doPutIn)$
+    Verb2(G, "put", FindWord(G, "into"), doPutIn)$
+    Synonym(G, "put", "place")$
+
+    Assume the player is carrying:
+
+	small whisk broom
+	straw broom
+	pewter mug
+	brass bell
+	large red ball
+	canvas sack
+
+    then, the following commands should produce:
+
+	put mug in sack
+	    -> You put the pewter mug into the canvas sack.
+	Place the large red ball into the brass bell.
+	    -> You can't put things into the brass bell.
+	put broom in sack
+	    -> Broom is ambiguous.
+	place the bell into broom
+	    -> Broom is ambiguous.
+	put bell, ball and whisk broom into sack
+	    -> You put the brass bell into the canvas sack.
+	    -> You put the large red ball into the canvas sack.
+	    -> You put the small whisk broom into the canvas sack.
+
+VerbTail: parsing
+proc utility VerbTail(grammar theGrammar; string theVerb;
+    action theAction)void
+
+    VerbTail adds verb 'theVerb' to grammar 'theGrammar' as a verb
+    which is simply given the rest of the command to interpret as it
+    sees fit. 'theAction' must have no parameters and return a bool
+    result, with 'false' meaning that any further commands in the
+    current input line should be skipped. When 'theAction' is called,
+    the rest of the command will be in the "tail buffer", where it can
+    be accessed using 'GetWord' and 'GetTail'. VerbTail verbs are used
+    to handle verb forms which do not fit into the Verb0, Verb1 or
+    Verb2 formats. The standard scenario uses VerbTail forms for many
+    of the building commands (and the build command itself), since
+    their formats do not involve noun-phrases at all. An example:
+
+	private proc doTell()bool:
+	    string name, word;
+	    thing who;
+
+	    name := GetWord();
+	    if name = "" then
+		Print("Tell who to what?\n");
+		false
+	    else
+		who := FindAgent(name);
+		if who = nil then
+		    Print("There is no-one here by that name.\n");
+		    false
+		else
+		    word := GetWord();
+		    if word == "to" then
+			Say(name + "," + GetTail());
+		    else
+			Say(name + "," + word + " " + GetTail());
+		    fi;
+		    true
+		fi
+	    fi
+	corp;
+	VerbTail(G, "tell", doTell)$
+	Synonym(G, "tell", "instruct")$
+
+    This makes the form "tell xxx [to] yyy" an alternate way to try to
+    speak commands to others in the room. The following inputs could
+    result in the given spoken output or complaints:
+
+	tell SysAdmin to go away
+	    -> "SysAdmin, go away
+	tell
+	    -> Tell who to what?
+	tell Furklewitz to snybuld the whulsyp.
+	    -> There is no-one here by that name.
+	Instruct SysAdmin go north.
+	    -> "SysAdmin, go north
+
+VNarrate: effects
+proc utility VNarrate(thing who; string phonemes; int id)void
+
+    VNarrate instructs the specified client to use its narrator.device
+    to speak the given phoneme sequence. If that client doesn't have
+    the device, then nothing happens except a small error comment in
+    the client's text window. This will only happen if the client has
+    voice output enabled, however. 'id' is supplied as an identifier
+    for this effect. When the effect completes, or is aborted, the
+    system will call the character's "effects done" action, if any,
+    passing it the values 1 and 'id'. As a special case, no callback
+    is done if id is 0. See the Amiga manuals for a description of the
+    format of a phoneme sequence. Phoneme sequences can be produced by
+    using the 'VTranslate' builtin, provided the server is running on
+    a system containing 'translator.library' in its LIBS: directory.
+    For example:
+
+	define tp_mall proc bankSay()status:
+	    if VOn(nil) then
+		VParams(nil, 150, 120, 0, 0, 64);
+		VNarrate(nil,
+		    "WEH5LKAHM KAH4STAHMER. DIH4PAAZIHT MAH4NIY TUWDEY1.",
+		    BANK_SPEECH_ID);
+		VReset(nil);
+	    fi;
+	    continue
+	corp;
+
+VOn: effects
+proc utility VOn(thing who)bool
+
+    VOn returns 'true' if the specified client can accept voice
+    output, and that feature has not been disabled by the user. Note
+    that the presence of 'narrator.device' is NOT checked.
+
+VParams: effects
+proc utility VParams(thing who; int rate, pitch, mode, sex, volume)void
+
+    VParams sets the parameters for voice output on the specified
+    client. These parameters are only the old, pre 2.0 'narrator.
+    device' parameters, and are:
+
+	rate - the speed of the speech, default 150
+	pitch - the pitch of the speech, default 110
+	mode - the mode (natural = 0, robotic = 1), default natural
+	sex - the speaker sex (male = 0, female = 1), default male
+	volume - the volume of the speech, with 64 being full volume
+
+VReset: effects
+proc utility VReset(thing who)void
+
+    VReset instructs the specified client to reset its voice
+    parameters to the default values. See 'VParams' for those values.
+
+VSpeak: effects
+proc utility VSpeak(thing who; string words; int id)void
+
+    VSpeak instructs the specified client to speak the given English
+    text. The text is translated to phonemes in the server, and will
+    thus fail if the server does not have "LIBS:translator.library".
+    The speaking is given effects identifier 'id', and the system will
+    arrange to call the character's "effects done" action with
+    parameters 1 and 'id' when it completes or is aborted. No callback
+    will be done if id is 0. No speech will be produced if the client
+    does not have "narrator.device" available. Example:
+
+	VSpeak(CharacterThing(Character("SysAdmin")),
+	    "Hey wimp! Your mother wears army boots!", 1234)$
+
+VTranslate: effects
+proc utility VTranslate(string words)string
+
+    VTranslate translates English text string 'words' into a phoneme
+    sequence, which it returns. If the server does not have access to
+    "LIBS:translator.library", then an empty string is returned.
+    Output phoneme sequences are restricted to 999 characters.
+
+VVolume: effects
+proc utility VVolume(thing who; int volume)void
+
+    VVolume sets the overall speech volume for the given client. A
+    value of 10000 is full volume, 5000 is half volume, etc. This
+    value is a long-term value, and is used to scale any individual
+    volume set via 'VParams'.
+
+Whisper: machine/character
+proc utility Whisper(string alternateName, what; thing who;
+    int percent)bool
+
+    Whisper is used to attempt to whisper to a specific other agent in
+    the same room as the active one. 'what' is what is to be
+    whispered, 'who' is who to whisper it to, and 'percent' is the
+    likelihood that any other agent in the room will overhear the
+    whisper (evaluated once for each other agent in the room). If
+    'who' is a player, they will see: "<name> whispers: <what>", where
+    <name> is either 'alternateName', or the name of the active agent
+    if 'alternateName' is an empty string. If 'who' is a machine, then
+    that machine's "whisperme action", if any, is called with a string
+    of the same format. If 'percent' is greater than zero then each
+    other character or machine in the same room may overhear the
+    whisper ('percent' = 50 gives a 50 percent chance, etc.). Players
+    will see a message of the form "<name> whispers to <who-name>: <
+    what>". Machines will have their "whisperother action", if any,
+    called with a string of that form. For example, if player "Fred"
+    whispers to player "Joe" the string "help me fool sam", then Joe
+    will see:
+
+	Fred whispers: help me fool sam
+
+    and any overhearer will see:
+
+	Fred whispers to Joe: help me fool sam
+
+WhoName: parsing
+proc utility WhoName()string
+
+    WhoName returns the internal form of the indirect object given by
+    the user for a Verb2 verb. This can be used for special checks for
+    particular adjectives, etc. See also: 'ItName'.
+
+WizardMode: utility
+proc utility WizardMode()bool
+
+    WizardMode attempts to put the active client into "wizard mode",
+    where input lines go directly to the AmigaMUD programming language
+    parser, rather than to the character's "input action". The attempt
+    will fail (silently) if the active agent is a machine, or if the
+    active client is not enabled for wizarding (has status normal), or
+    if the client program in use is not capable of going into wizard
+    mode. There currently aren't any such client programs, but it is
+    easier to produce a client for a machine other than the Amiga if
+    the wizard-mode stuff (programming language parsing, etc.) can be
+    left out.
+
+Word: parsing
+proc utility Word(grammar theGrammar; string theWord)int
+
+    Word adds word 'theWord' to grammar 'theGrammar'. The word is not
+    a verb, but is available for use as a "separator word" with a
+    verb, or for whatever other use is needed. The identifying code
+    for the word is returned. If the word cannot be added to the
+    grammar, then 0 is returned.
+
+ZapAction: utility
+proc utility ZapAction(action theAction)void:
+
+    ZapAction replaces the body of the specified action with an empty
+    body, as appropriate for the result type of the action. The header
+    for the action is not changed. This replacement results in all of
+    the references to other entities, held by the original body, going
+    away. This can allow those other entities to be deleted. Only the
+    owner of the action, or (effective) SysAdmin, can ZapAction it.
+
+ZapCharacter: utility
+proc utility ZapCharacter(character theCharacter)void:
+
+    ZapCharacter does cleanup of a character, in preparation for some
+    kind of re-initialization. All properties are deleted from the
+    character's thing; the character's location is set to 'nil'; all
+    of the input-handling functions on the character are set to 'nil';
+    and the character is set back to being a "new" character, so that
+    when it connects, the new player action will be triggered. This
+    builtin is typically used when the whole scenario is to be
+    reloaded without deleting the existing characters. Note that the
+    character's password is not changed, and it status (normal,
+    apprentice or wizard) is not altered. Also note that *all*
+    properties are removed from the character's thing, including the
+    pre-defined properties "p_pName" and "p_pIcon". It is recommended
+    that the character name be replaced before the character tries to
+    play in a scenario. ZapCharacter can only be called when the
+    effective user is SysAdmin.
+
+ZapGrammar: utility
+proc utility ZapGrammar(grammar theGrammar)void:
+
+    ZapGrammer deletes all of the words from the given grammar. In so
+    doing, all of the database space occupied by those words is
+    reclaimed. Similarly, any actions associated with those words
+    become no longer referenced by the grammar, so that they may
+    become deleteable. ZapGrammar can only be used by the owner of the
+    grammar, or when the effective user is SysAdmin.
+
+ZapTable: utility
+proc utility ZapTable(table theTable)void:
+
+    ZapTable deletes all entries from the given table (exceptions:
+    characters are not deleted from "Characters", and none of
+    "Characters", "Builtin", "p_pName" or "p_pIcon" are deleted from
+    the public table). In so doing, further "zapping" is done on those
+    entries, depending on their types, and on whether or not the
+    active player has the needed access:
+
+	action: ZapAction is called
+
+	thing: ClearThing is called
+
+	grammar: ZapGrammar is called
+
+	character: ZapCharacter is called
+
+	table: ZapTable is called (recursively)
+
+    Not even SysAdmin can ZapTable the builtin table. Neither the
+    "Characters" nor "Builtin" table will be zapped by a recursive
+    call to ZapTable - this must be done explicitly.

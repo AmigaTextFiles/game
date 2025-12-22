@@ -1,0 +1,119 @@
+\ Play a just intoned chord that responds to the
+\ graphic activity.  The waveform will be set
+\ to the Y values of the points.  The pitch will be
+\ set to the average x position.
+\
+\ The DA.xxx words can be found in HMSL which
+\ is a music language written Phil Burk, Larry Polansky,
+\ and David Rosenboom at the Mills College Center for
+\ Contemporary music.  A set of stubs are provided
+\ for JForth users who do not have HMSL.
+\
+\ Author: Phil Burk
+\ Copyright 1987 Phil Burk
+\ This code is considered to be in the public domain and
+\ may be freely distributed but may not be sold for profit.
+
+ANEW TASK-MMM_SOUND
+
+variable WAVEFORM-1
+16 constant WAVELENGTH
+
+: ALLOC.WAVE  ( -- , allocate CHIP RAM for waveform )
+    MEMF_CHIP wavelength allocblock ?dup
+    IF waveform-1 !
+    ELSE ." Couldn't allocate waveform." cr
+         abort
+    THEN
+;
+
+: FREE.WAVE ( -- )
+    waveform-1 @ ?dup
+    IF freeblock  waveform-1 off
+    THEN
+;
+
+: CHANGE.TIMBRE  ( -- , copy y positions )
+    ham_num_points wavelength min 0
+    DO  120 i ham-y-pos @ -
+        waveform-1 @ i + c!
+    LOOP
+;
+
+\ Use ratiometric tuning to get chord.
+CREATE CHORD-DENOMS 1 , 2 , 4 , 7 ,
+CREATE CHORD-NUMERS 1 , 3 , 5 , 12 ,
+
+: NEW.RATIO  ( -- numer denom , ratio between 1 and 2 )
+    9 choose 1+
+    dup choose
+    over + 1+ swap
+;
+
+: CHANGE.CHORD  ( -- , randomly change chord )
+    4 1
+    DO  new.ratio
+        i cells chord-denoms + !
+        i cells chord-numers + !
+    LOOP
+;
+
+: SET.WAVEFORMS ( -- , use same waveform on all four channels )
+    4 0
+    DO  i da.channel!
+        waveform-1 @ wavelength da.sample!
+    LOOP
+;
+
+: START.SOUND ( -- , start all four channels sounding )
+    4 0
+    DO  i da.channel!
+        da.start
+    LOOP
+;
+
+: SET.PITCH ( period -- , play chord )
+    4 0
+    DO  i da.channel!
+        dup i cells chord-numers + @
+        i cells chord-denoms + @ */
+        da.period!
+        da.start
+    LOOP drop
+;
+
+: AVERAGE.X.POS ( -- x , calculate it )
+    0 ham_num_points 0
+    DO i ham-x-pos @ +
+    LOOP
+    ham_num_points /
+;
+
+: CHANGE.PITCH ( -- , set pitch to average x )
+    average.x.pos
+    4 * 500 +
+    set.pitch
+;
+
+: CHANGE.SOUND ( -- , make all changes )
+    change.timbre
+    change.pitch
+;
+
+: STOP.SOUND ( -- )
+    da.kill
+;
+
+: SOUND.INIT ( -- )
+    da.init
+    alloc.wave
+    set.waveforms
+    change.sound
+    start.sound
+;
+
+: SOUND.TERM ( -- )
+    stop.sound
+    free.wave
+    da.term
+;

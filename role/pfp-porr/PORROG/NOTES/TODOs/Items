@@ -1,0 +1,128 @@
+TODO list for items
+===================
+
+ -So that random item generation can take more control over the things
+  it can create, ditch the add_item() function that created an item
+  and placed it on the map. ITS NOT NEEDED! We already have new_item()
+  to create an item and return its pointer, and place_item() to put
+  a specified item on the map. We don't want the new_item() function
+  to take it upon itself to arbitrarily give items special status
+  (such as curses, specific quantities, enchantments, etc).
+   --DONE (replacing all usage of add_item()). Haven't tested it yet.
+    And haven't made add_room_items() modify the placed items yet.
+
+ -Work out exactly which situations you need to have a display of lists
+  of items. There's things on the floor, things in your inventory,
+  and things in containers; might consider mosnter inventories, if we
+  have stealing or summat. So what are the situations for these?
+  Some involve just looking, some involve choosing items, etc etc.
+  With that info, we can actually make some more decent generic
+  functions to do with item displays. display_heap() sucks.
+  Inventory items have fixed letters; items in other heaps have
+  position-specific letters; In many cases, you wouldn't even
+  want to see any letters!
+
+ -Do the describe_item() function. Must take quantity into account.
+  Must take item knowledge into account (for flavoured items).
+  Might also have helper functions that describe item's qualities
+  in detail, or something???
+
+ -Have flavoured items. This *appears* not so hard, as you just have a
+  flag in the itemtype to say if you recognise it, plus a pointer to
+  the associated structure, which gets randomised... Except: In the
+  potions, there's beverages (such as water) that I'd like to act
+  such that one game, they're already recognised and have description
+  and type the same, and other games, they're unrecognised, but have
+  a specific description (that would otherwise be available for other
+  potions). Potion's descriptions and types would likely be defined
+  together, and then randomised, so this requires we have N phony
+  potions defined? I dunno.
+  --DONE; But only for potions so far. The prerecognised items thing
+   is implemented, seems to work. Would be nice to be able to have
+   certain types have a separate probability of being fixed (mutually
+   exclusive with being prerecognised, which decides the fixed status
+   automatically), whereby the potion would be more likely to hold its
+   associated description, but could hold any other and wouldn't be
+   prerecognised.
+
+ -Have cursed items (would need random item generation to be able
+  to create items more directly)
+  --Done; some types should not be cursed; cursed/uncursed status should
+   not be visible to player until it's made obvious.
+
+ -Monster equipment, and then have combat routines notice it.
+
+ -Have some items (sometimes) generated in quantity (stacks).
+  --Done.
+
+ -Add a "drinks dispenser" tool... requires an empty bottle, prompts
+  user for a drink, fills the bottle! Hmm, might require cash...
+  Make machine very very heavy, like fridge-freezer. Either have it
+  need charges or cash, or both. Consider making it very expensive?
+  Possibly have different drinks cost different amounts? Maybe allow
+  it to be raided or destroyed for the cash? Perhaps allow it to
+  give change?
+
+ -Have stacks of items. Need a function to combine items (take a heap,
+  and an item to put in the heap; if items are already in heap, do it
+  one way, otherwise do it the other way.), and a function to separate
+  items (I don't know how)...
+  ...Would you only take off several items at a time when dropping things
+  (as in d3p to drop 3 items of p)? There are situations when the game
+  would separate them for you, but that'd be different.
+
+ Separating items happens when:
+ ==============================
+ -You use up one of a stack, eg: quaffing potion, reading scroll, eating
+  food, firing projectile.
+ -You choose to drop less than a whole stack (by pressing a number), but
+  I don't know when I'll implement that.
+ -You choose to put less than a whole stack in a container, but I don't
+  know when I'll implement that, either.
+ -When some destructive event causes you to lose some of a stack.
+
+ Ah, I think I've identified the problem!
+ If you've got a heap of things, and you do something that might separate
+ items, you'd want to be able to deal with the possibility that you might
+ end up with a stack of 0 items in that heap, and that means reorganising
+ it. That could get messy. But I realise now, we could have the code that
+ calls divide_stack() (or whatever we call it) check the quantity of the
+ remaining stack, and if it's 0... call skim_item() or p_discard() on that
+ item!
+ The other problem, IIRC, was in combining stacks, you may or may not end
+ up with the new item on top of the heap. I think that combine_stacks()
+ should return pointer to the top of the heap, and should only be called
+ by p_get and place_item() and whatever.
+
+
+ -OK, so now I've made a "combinable_item()" function that just returns
+ a pointer to any item in the heap that could be combined with, and
+ the caller must do combining. Why? Because p_pick_up() has to know if
+ it can merge stacks or not to know if you'll have enough inventory
+ slots. With the other approach, there was a chicken-and-egg situation.
+
+ -With this, p_get_item() and place_item() must be changed AGAIN,
+ bearing in mind that this function doesn't do the combining any more.
+ Also make the changes to p_pick_up() to check combinability before
+ trying to add stuff to a full inventory.
+
+ -I still have to change the container code to do stack combining.
+
+ -I need to change combinable_item() to check whether the items have
+ different cursed/uncursed status- so far it just checks the itemtype.
+  --DONE, seems to work on tools, so if tools are normally combinable,
+  this is good?
+
+ -Seems that for splitting items, I just need the pickup and drop
+ functions to allow the player to specify a quantity to pickup or drop,
+ and then check that quantity is from 1 to total-1. If so, create a
+ copy of the speicified item, to either place on floor or add to the
+ player's inventory. Other cases where items get used up do not have
+ this system of splitting, as new item structures are never created
+ for that, the function using the item just decrements quantity, and
+ if quantity==0, discards/skims and then frees the item. This is
+ already done for quaffing potions.
+
+ -Work out system for scrolls and for books. Books should prolly be in
+ different types, that do different things...?
+

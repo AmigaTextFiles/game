@@ -1,0 +1,85 @@
+/****************************\
+** Maze v1.0 for Solitarexx **
+**   by Michal Szafranski   **
+\****************************/
+OPTIONS RESULTS
+
+tex = '"Maze v1.0"'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 tex 6
+SELECTGUI 1
+SCREENSIZE 6 0 10 0
+DO i = 0 TO 53
+	NEWSTACK i 0 0 (i//9) (i%9)
+	stack.i = RESULT
+END
+NEWSTACK 54 0 1 9 0
+deck = RESULT
+NEWSTACK 55 0 1 9 1
+waste = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SELECTGUI 4
+	CALL DODECK
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sid < 54 & card > 0 THEN CALL DOMOVE
+			OTHERWISE ERRBEEP
+		END
+		IF act = 3 THEN DO
+			SELECTGUI 1
+			RETURN
+		END
+	END
+RETURN
+DODECK:
+	DO i = 0 TO 53
+		IF i~=8 & i~=17 THEN DO
+			CARDSELECT deck 1
+			PARSE VAR RESULT kol.i war.i .
+			mm = stack.i
+			IF war.i = 12 THEN mm = waste
+			MOVECARDS deck mm REVERSE
+		END
+		ELSE war.i = 12
+	END
+RETURN
+DOMOVE:
+	CARDSELECT stack 1
+	PARSE VAR RESULT kol war .
+	i = sid
+	l = (sid+53)//54
+	ok = 0
+	DO WHILE ok = 0 & i~= l
+		i = (i+1)//54
+		IF war.i = 12 THEN DO
+			in = (i+1)//54
+			IF war.in>0 & war.in<12 & war.in - war =1 & kol.in = kol THEN ok = 1
+			IF war.in=0 & war = 11 THEN ok = 1
+			ip = (i+53)//54
+			IF war.ip<11 & war - war.ip = 1 & kol.ip = kol THEN ok = 1
+			IF war.ip=11 & war=0 THEN ok = 1
+		END
+	END
+	IF ok=1 THEN DO
+		war.sid = 12
+		war.i = war
+		kol.i = kol
+		MOVECARDS stack stack.i
+	END
+	ELSE ERRBEEP
+RETURN

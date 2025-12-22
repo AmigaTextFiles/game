@@ -1,0 +1,408 @@
+/* Othello Spot v1.3 by Derek James 19/11/94 */
+/* Fidonet: 2:250/366.24 Internet: djames@draig.demom.co.uk */
+
+Address Spot
+options results
+
+cr = '0d'x
+TEMPDIR = 'T:'
+WONSTRING = "Congratulations"
+
+'IsMessages' /* Can only be played from message window */
+If RC>0 Then Do
+  'RequestNotify PROMPT "Use only from message window"'
+   Exit
+End
+
+'SaveAscii TO "'TEMPDIR'Othello.temp" OVERWRITE NOHEADER NOORIGIN NOKLUDGES'
+
+If ~Open('Inp',TEMPDIR'Othello.temp','r') Then Do
+   'RequestNotify PROMPT "Cannot open temporary file:'TEMPDIR'Othello.temp"'
+   Exit
+   End
+
+do y=1 to 8
+    do x=1 to 8
+        POS.x.y='_'
+    end
+end
+
+/* Find the Othello data */
+
+do until pos('* Othello Spot',LINE)>0
+        if EOF('Inp') then do
+                'requestnotify PROMPT "Message contains no Othello Spot data!"'
+                'RequestResponse PROMPT "Start new game?" GADGETS "_Yes|_No"'
+                if RC=1 then do
+                        'requestnotify PROMPT "> * Othello Spot'cr'>   1 2 3 4 5 6 7 8'cr'>1 |_|_|_|_|_|_|_|_|'cr'>2 |_|_|_|_|_|_|_|_|'cr'>3 |_|_|_|_|_|_|_|_|'cr'>4 |_|_|_|X|O|_|_|_|'cr'>5 |_|_|_|O|X|_|_|_|'cr'>6 |_|_|_|_|_|_|_|_|'cr'>7 |_|_|_|_|_|_|_|_|'cr'>8 |_|_|_|_|_|_|_|_|'cr''cr'This is the start position.'cr'You can be either X or O.'cr'Decide your move.'cr'Remember the co-ordinates!'cr'Then click OK."'
+                        pos.4.4='X'
+                        pos.4.5='O'
+                        pos.5.4='O'
+                        pos.5.5='X'
+                        call close('Inp')
+                        Address Command
+                        'Delete >NIL: T:Othello.temp'
+                        Address Spot
+                        signal Playmove
+                end
+                exit
+        end
+        line=readln('Inp')
+end
+
+call readln('Inp')
+
+do y=1 to 8
+line.y=readln('Inp')
+end
+
+call close('Inp')
+Address Command
+'Delete >NIL: T:Othello.temp'
+Address Spot
+
+do y=1 to 8
+parse var line.y '|'pos1'|'pos.2.y'|'pos.3.y'|'pos.4.y'|'pos.5.y'|'pos.6.y'|'pos.7.y'|'pos8
+pos.1.y=right(pos1,1)
+pos.8.y=left(pos8,1)
+end
+
+/* Make the move */
+
+Playmove:
+'requestresponse Title "Piece" prompt "Are you O or X?" gadgets "_O | _X "'
+d=rc
+if d=0 then piece='X'
+if d=1 then piece='O'
+if d=0 then piece1='O'
+if d=1 then piece1='X'
+
+dab=3
+dib=3
+done = 0
+legal=0
+
+do until done=1
+valid =0
+do until valid=1
+
+'RequestResponse TITLE "Your Move." Prompt "Which column?" gadgets " _1 | _2 | _3 | _4 | _5 | _6 | _7 | _8 | _Quit "'
+x = RC
+
+if x = 0 then EXIT
+
+'RequestResponse TITLE "Your Move." Prompt "Which row?" gadgets " _1 | _2 | _3 | _4 | _5 | _6 | _7 | _8 | _Quit "'
+y = RC
+
+if y = 0 then EXIT
+
+if pos.x.y ~="_" then do
+        'Requestnotify Title "Error" Prompt "Space is full"'
+        valid=0
+end
+if pos.x.y ="_" then break
+end
+
+valid = 1
+
+pos.x.y=piece
+done =1
+xc=x
+yr=y
+end
+
+/* Update the board */
+
+x1=x+1
+check=0
+
+if x1<8 then do
+    if pos.x1.y=piece1 then
+      do while (x1<=8)
+        x1=x1+1
+        if pos.x1.y="_" then break
+        if pos.x1.y=piece then check=1
+        end
+    end
+x1=x
+
+if check=1 then 
+    do while (x1<=8)
+    x1=x1+1
+    if pos.x1.y=piece then break
+    if pos.x1.y=piece1 then pos.x1.y=piece
+    end
+
+if check=1 then legal=legal+1
+y1=y+1
+check=0
+
+if y1<8 then do
+    if pos.x.y1=piece1 then
+    do while (y1<=8)
+        y1=y1+1
+        if pos.x.y1="_" then break
+        if pos.x.y1=piece then check=1
+        end
+       end
+y1=y
+
+if check=1 then
+    do while (y1<=8)
+    y1=y1+1
+    if pos.x.y1=piece then break
+    if pos.x.y1=piece1 then pos.x.y1=piece
+    end
+
+if check=1 then legal=legal+1
+x1=x-1
+check=0
+
+if x1>0 then do
+    if pos.x1.y=piece1 then
+    do while (x1>=1)
+        x1=x1-1
+        if pos.x1.y="_" then break
+        if pos.x1.y=piece then check=1
+        end
+    end
+x1=x
+
+if check=1 then 
+    do while (x1>=1)
+    x1=x1-1
+    if pos.x1.y=piece then break
+    if pos.x1.y=piece1 then pos.x1.y=piece
+    end
+
+if check=1 then legal=legal+1
+y1=y-1
+check=0
+fin=0
+
+if y1>0 then do
+    if pos.x.y1=piece1 then
+    do while (y1>=1)
+        y1=y1-1
+        if pos.x.y1="_" then break
+        if pos.x.y1=piece then check=1
+        end
+    end
+y1=y
+
+if check=1 then 
+    do while (y1>=1)
+    y1=y1-1
+    if pos.x.y1=piece then break
+    if pos.x.y1=piece1 then pos.x.y1=piece
+    end
+
+if check=1 then legal=legal+1
+y1=y+1
+x1=x+1
+check=0
+
+if y1<8 and x1<8 then do
+    if pos.x1.y1=piece1 then
+    do while ((x1<=8) & (y1<=8))
+    x1=x1+1
+    y1=y1+1
+    if pos.x1.y1="_" then break
+    if pos.x1.y1=piece then check=1
+    end
+end
+x1=x
+y1=y
+
+if check=1 then 
+    do while ((x1<=8) & (y1<=8))
+    y1=y1+1
+    x1=x1+1
+    if pos.x1.y1=piece then break
+    if pos.x1.y1=piece1 then pos.x1.y1=piece
+    end
+
+if check=1 then legal=legal+1
+y1=y-1
+x1=x-1
+check=0
+
+if y1>0 and x1>0 then do
+    if pos.x1.y1=piece1 then
+    do while ((x1>=1) & (y1>=1))
+    x1=x1-1
+    y1=y1-1
+    if pos.x1.y1="_" then break
+    if pos.x1.y1=piece then check=1
+    end
+end
+
+x1=x
+y1=y
+
+if check=1 then 
+    do while ((x1>=1) & (y1>=1))
+    y1=y1-1
+    x1=x1-1
+    if pos.x1.y1=piece then break
+    if pos.x1.y1=piece1 then pos.x1.y1=piece
+    end
+
+if check=1 then legal=legal+1
+y1=y+1
+x1=x-1
+check=0
+
+if y1<8 and x1>0 then do
+    if pos.x1.y1=piece1 then
+    do while ((x1>=1) & (y1<=8))
+    x1=x1-1
+    y1=y1+1
+    if pos.x1.y1="_" then break
+    if pos.x1.y1=piece then check=1
+    end
+end
+
+x1=x
+y1=y
+
+if check=1 then 
+    do while ((x1>=1) & (y1<=8))
+    y1=y1+1
+    x1=x1-1
+    if pos.x1.y1=piece then break
+    if pos.x1.y1=piece1 then pos.x1.y1=piece
+    end
+
+if check=1 then legal=legal+1
+y1=y-1
+x1=x+1
+check=0
+
+if y1>0 and x1<8 then do
+    if pos.x1.y1=piece1 then
+    do while ((x1<=8) & (y1>=1))
+    x1=x1+1
+    y1=y1-1
+    if pos.x1.y1="_" then break
+    if pos.x1.y1=piece then check=1
+    end
+end
+
+x1=x
+y1=y
+
+if check=1 then 
+   do while ((x1<=8) & (y1>=1))
+    y1=y1-1
+    x1=x1+1
+    if pos.x1.y1=piece then break
+    if pos.x1.y1=piece1 then pos.x1.y1=piece
+    end
+
+if check=1 then legal=legal+1
+
+/* Check if the move was legal */
+
+if legal=0 then do
+     pos.x.y="_"
+     'requestresponse TITLE "Illegal Move" PROMPT "Try again?" gadgets "_Yes | _No (Quit) "'
+     dib=rc
+     if dib=0 then do
+     'requestresponse TITLE "Quit" PROMPT "Is it end of game?" gadgets "_Yes | _No "'
+     dab=rc
+     if dab=0 then EXIT
+     end
+     if dib=1 then do
+        signal Playmove
+        end
+     end
+
+/* Check for winner */
+
+count=0
+count1=0
+
+do x=1 to 8
+    do y=1 to 8
+        if pos.x.y=piece then count=count+1
+        if pos.x.y=piece1 then count1=count1+1
+        end
+    end
+
+
+if count1=0 then wonstring="You are a winner"
+if ((count+count1=64) | (dab=1)) then do
+    if count>count1 then wonstring="You are a winner!"
+    if count<count1 then wonstring="You are a loser!"
+    if count=count1 then wonstring="It's a tie!"
+    end
+
+if wonstring ~= 'Congratulations' then 'requestnotify Title "We have a Result..." Prompt "'wonstring'" center'
+
+/* Prepare output file */
+
+call open('oup',tempdir'Othtemp.TEMP','w')
+
+LINE.1=' >1 '
+LINE.2=' >2 '
+LINE.3=' >3 '
+LINE.4=' >4 '
+LINE.5=' >5 '
+LINE.6=' >6 '
+LINE.7=' >7 '
+LINE.8=' >8 '
+
+do y=1 to 8
+    do x=1 to 8
+        line.y = line.y||'|'||pos.x.y
+        end
+    line.y = line.y||'|'
+end
+
+call writeln('oup',' ')
+Call Writeln('oup',' > * Othello Spot')
+Call Writeln('oup',' >   1 2 3 4 5 6 7 8')
+
+do y=1 to 8
+call writeln('oup',line.y)
+end
+Call Writeln('oup',' >')
+Call Writeln('oup',' >')
+if dab=3 then do
+call Writech('oup',' > Last move was ')
+call writech('oup',piece)
+call writech('oup',' to position ')
+call writech('oup',xc)
+call writech('oup',',')
+call writech('oup',yr)
+call writeln('oup','.')
+end
+call writeln('oup',' >')
+call writech('oup',' > Score to date is ')
+call writech('oup',piece)
+call writech('oup',', ')
+call writech('oup',count)
+call writech('oup','  vs  ')
+call writech('oup',piece1)
+call writech('oup',', ')
+call writech('oup',count1)
+call writeln('oup','.')
+call close('oup')
+
+/* Write the message back to the message base */
+
+'RequestResponse PROMPT "Edit message?" GADGETS "_Yes|_No"'
+wib = RC
+
+'GetFrom'
+FROM=Result
+
+'getfromaddress'
+fromaddr = Result
+'clearflags UNREPLIED'
+
+If wib=1 Then 'Write TO "'FROM'" TOADDR "'fromaddr'" SUBJECT "Othello Spot" FILE "'TEMPDIR'Othtemp.temp" NOGUI'
+If wib=0 Then 'Write TO "'FROM'" TOADDR "'fromaddr'" SUBJECT "Othello Spot" FILE "'TEMPDIR'Othtemp.temp" NOEDIT NOGUI'
+Address Command
+'Delete >NIL: T:Othtemp.temp'

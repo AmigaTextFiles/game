@@ -1,0 +1,2 @@
+#define	MECH1_COUNT	1
+#define	MECH1_COLORS	32

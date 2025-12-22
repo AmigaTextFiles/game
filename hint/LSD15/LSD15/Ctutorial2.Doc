@@ -1,0 +1,612 @@
+          ANOTHER C TUTURIAL (WHERE DO THEY ALL COME FROM?)
+
+By Joseph M. Hinkle.
+
+
+        This is raw text prepared for articles and a book on programming the
+Amiga for novices with the intent of quickly getting the reader into the
+more powerful features fairly quickly.  There are some errors of
+explanation of more abstruse things which I need to clean up, but in the
+main() (Ha! a little c joke) you will find this useful.  Because it is a
+kind of super-outline of the book it moves along at a pace you may find
+breathtaking if you are new to programming the machine, but careful study
+of this and the ROM Kernel Manuals will help you greatly.
+        The tutorial explains lists, tasks, and startup code with comments on
+programming style and example programs which I have tested thoroughly.  The
+discussion and examples are valid for Workbench v1.2 (v1.3 is just becoming
+available as I post this, so I haven't seen anything on it yet, but I doubt
+there would be much trouble using that version).  I use the Lattice v4.01
+compiler and don't have Manx, so can't say much about compiling with that
+one.  Expect some minor trouble, but the examples are Amiga specific, not
+compiler specific, for the most part.
+        I hang around A-Link in Everett, Washington at (206) 774-4735, run by
+the charming and gracious John (He paid me to say this) Willott, and I go
+by the name Marty Hinkle on the board.  Please send me questions and
+comments there.
+        I also have a tutorial on making shared libraries yourself without using
+assembly code (other than the skeleton in the RKM) which does not require
+you to be proficient in assembly coding.  If someone is interested in that,
+I'll straighten it up and upload it.
+This production comes from extensive study of the machine itself with
+little input from Commodore (It is probably quite shortsighted of me to not
+e in their developer's program).  A shareware style donation will not be
+inappropriate, and you will get a free copy of the whole book if I can ever
+get a publisher.
+
+                                                  Joseph M. Hinkle
+                                                  Route 2, Box 2647
+                                                  Lopez, Washington 98261
+
+PROGRAMMING THE AMIGA - FROM NOVICE TO ADVANCED
+        Anyone getting the idea to write a useful program on the Amiga decides
+to get the Rom Kernel Manual and DOS manual to learn how the system works.
+The size of the manuals gives one pause.  Reading them is daunting.  After
+a bit of study one realizes there is no good overview of the executive and
+disk operating system, but there is plenty of detail.  Trying out some of
+the example programs can lead to odd results as there are many small
+mistakes in them which one can overlook.  After getting something to work
+many questions are left, such as "What will make this program work under
+Workbench?", "How can this program be made to multitask?", "What is a
+process?", and "How can this program be loaded by another?".  All of these
+are mentioned in the books and there is much discussion of them, but
+nowhere are there clear examples of useful programs that implement these
+things.  You will find, after some experience with the machine, that nearly
+every point is mentioned somewhere in the books.  Tying them all together
+is the difficult part.
+        I will cover these questions and more by showing a simple program to
+establish a style, then using that program to build ever more involved
+programs which will take you through the heart of the Amiga.  I will refer
+to the RKM (ROM Kernel Manual, Addison-Wesley, in four volumes: ROM Kernel
+Reference Manual: Libraries and Devices,  ROM Kernel Reference
+Manual:Exec, Intuition Reference Manual, and Hardware Reference Manual),
+and the AmigaDOS Manual, Bantam Books.  These might appear pricey, but for
+serious programming on the Amiga they are indispensable.  If you are new
+to the c programming language you should also have a text on c such as the
+original language definition "The c Programming Language" by Kernighan and
+Ritchie, Prentice-Hall, or another textbook on the subject.  Make sure you
+understand data structures because there will be a lot of references to
+them.  Let's get started:
+        We will need a timer for this experiment, something that goes tick,
+tick, tick, every second or so.  There is a section in the RKM: Libraries
+and Devices called Timer Device. To see if everything will work as
+advertised, let's try a simple delay.  We need to open a timer, run it,
+and then close it.  In order to open a timer we need to fill in a
+timerequest structure (RKM:Libraries and Devices, Include Files,
+devices/timers.h.  Note the .i structures are for assembly language
+writers).  Note the structure is tagged timerequest, not timeRequest as in
+the text.  The structure is:
+
+struct timerequest {
+        struct IORequest tr_node;
+        struct timeval  tr_time;
+}
+
+Aha! A typical Amiga data structure!  It consists of nothing more than
+other structures!  Sigh.  There is hope, though.  The struct timeval is in
+the same include file:
+
+struct timeval {
+        ULONG tv_secs;
+        ULONG tv_micro;
+}
+
+But what is a ULONG?  Look in RKM:Exec, Include Files, exec/types.h:
+
+typedef unsigned long ULONG;
+
+Now we know the timerequest structure is a template for an IORequest
+structure and two 32 bit quantities.  At the top of the file timer.h there
+is a line:
+
+#include exec/io.h
+
+So, while you're thumbing through RKM:Exec, look at exec/io.h.  You will
+find:
+
+struct IORequest {
+        struct Message  io_Message;
+        struct Device   *io_Device;
+        struct Unit             *io_Unit;
+        UWORD   io_Command;
+        UBYTE   io_Flags;
+        BYTE    io_Error;
+}
+
+That file #includes exec/ports.h, which defines the struct Message and
+struct MsgPort.  That file in turn references exec/nodes.h, exec/lists.h
+and exec/tasks.h, which contain the definitions needed to completely
+specify the struct timerequest (In my compiler's include files there is
+no mention of #including exec/types.h, so I have to do that myself.
+#including devices/timer.h gets all the rest).  The reason for belaboring
+all the various data structures is to show you what happens when a request
+is made, that is, just what data is passed around the machine and what
+Exec does with it.  Exec, the executive program, supervises the use of the
+microprocessor, responding to interrupts and checking tables of things to
+do.  It is generally invisible to you but it helps to know it is there,
+and we will be using its library of functions often.
+        This exercise also gets you used to referencing the RKM, which you will
+also be doing often.  Continuing with the full definition of struct
+timerequest,  we see it is a template for memory arranged like this,
+assuming we call the structure TR:
+
+LONG TR.tr_node.io_Message.mn_Node.ln_Succ ; points to the following node
+LONG TR.tr_node.io_Message.mn_Node.ln_Pred ; points to the preceding node
+BYTE TR.tr_node.io_Message.mn_Node.ln_Type ; defines the type of node
+BYTE TR.tr_node.io_Message.mn_Node.ln_Pri  ; this node's priority
+LONG TR.tr_node.io_Message.mn_Node.ln_Name ; points to a text string name
+LONG TR.tr_node.io_Message.mn_ReplyPort    ; points to a message port
+WORD TR.tr_node.io_Message.mn_Length       ; length of this whole block
+LONG TR.tr_node.io_Device                  ; points to a struct Device
+LONG TR.tr_node.io_Unit                    ; points to a struct Unit
+WORD TR.tr_node.io_Command                 ; a command
+BYTE TR.tr_node.io_Flags                   ; flags set
+BYTE TR.tr_node.io_Error                   ; error returned
+LONG TR.tr_time.tv_secs                    ; seconds requested
+LONG TR.tr_time.tv_micro                   ; microseconds requested
+
+        These 40 bytes are the complete timerequest structure.  We fill in some
+members ourselves and functions provided in the system fill in others.  In
+particular, we need to fill in what kind of timer it is, how we want the
+timer to behave (the command), and when we want the timer to reply to us.
+        First, however, we have to allocate some memory for the structure.
+There is a routine available which will do that for us, CreateExtIO(), but
+one of the things it needs is the address of a message port (struct
+MsgPort), which, as you recall from looking in exec/ports.h, is a little
+structure itself, starting with a Node structure.  Are you getting the
+idea that everything starts with a Node structure?  Just about everything
+does, because Exec uses these to link them into Lists (RKM:Exec, Lists)
+which are scanned periodically to see if anything needs doing, or when a
+routine wants to see if it has any mail.  Whole data structures are not
+passed around in the machine, just addresses of nodes, which also happen
+to be the first addresses of most structures.  We will get into detail on
+that later; suffice to say that if we ever get this memory allocated we
+will ask somebody to link our structure into some list or another so it
+will get processed.
+        There is a good discussion of memory allocation in RKM:Exec, Memory
+Allocation but fortunately there is a routine for that, too, for certain
+cases such as we need now.  CreatePort(), which needs only a name and a
+priority (RKM:Exec, Tasks, et al), will provide us with the address of a
+MsgPort structure we can use to call CreateExtIO(), which will provide us
+with an address of a timerequest structure, which in turn we will use to
+open a timer device.  For now, we will make everything priority 0.
+        These routines should be declared as functions returning something to
+make life easier as we write the program.  Some, like CreatePort(), always
+return the address of a MsgPort structure, so we can declare them
+globally. Others, like CreateExtIO() return the address of differently
+sized blocks, depending on what we are doing, so they should be cast as
+the type we need as we call them.
+        We also have to remember to free up the memory when we are done, and
+the routines DeletePort() and DeleteExtIO() will do that for us.  After
+all this discussion, the problem is again beginning to look simpler.  We
+will eventually fix things so they will get simpler yet.  These routines,
+by the way, are described in RKM:Libraries and Devices, Library Summaries.
+        So here it is:
+
+/***** Tick.c ***********************************************************/
+
+#include "exec/types.h"
+#include "devices/timer.h"
+
+struct MsgPort *CreatePort();
+
+void
+main()
+{
+        struct MsgPort *TP;
+        struct timerequest *TR;
+        int error;
+
+        TP = CreatePort(NULL, 0);
+        if (TP == NULL) {
+                printf("Not enough memory for the Message Port\n");
+                exit(0);
+        }
+
+        TR = (struct timerequest *)
+                                        CreateExtIO(TP, sizeof(struct timerequest));
+        if (TR == NULL) {
+                printf("Not enough memory for the timerequest\n");
+                DeletePort(TP);
+                exit(0);
+        }
+
+        error = OpenDevice("timer.device", UNIT_VBLANK, TR, 0);
+        if (error > 0) {
+                printf("The timer won't open\n");
+                DeleteExtIO(TR, sizeof(struct timerequest));
+                DeletePort(TP);
+                exit(0);
+        }
+
+        TR->tr_node.io_Command = TR_ADDREQUEST;
+        TR->tr_time.tv_secs = 5;
+        TR->tr_time.tv_micro = 0;
+
+        DoIO(TR);
+
+        printf("Tick\n");
+
+        CloseDevice(TR);
+        DeleteExtIO(TR, sizeof(struct timerequest));
+        DeletePort(TP);
+
+}
+
+/***********************************************************************/
+
+        You did read the section RKM: Timer Device didn't you?  So you know
+what a UNIT_VBLANK is, and that the constants in capital letters are
+defined in the appropriate include files.  I also included error checks
+in a crude way for good programming practice.  Compile this and play with
+it a minute or two.
+        All we have done here is allocate memory for the two structures that we
+use, initialized them with our values, requested the system to link them
+into the appropriate lists, and waited.  Five seconds later, our routine
+wakes up, prints a "Tick" message, and exits.  If you don't believe that,
+change the value of TR->tr_time.tv_secs to about ten or fifteen, recompile
+it, and RUN Tick.  A new CLI will be created, and for the time you have
+called for you will be able to perform a DOS command like Date in your
+original CLI.  In the time you have specified, the "Tick" message will
+appear and the background CLI will end.  You've been multitasking!  The
+trouble is that the manuals don't clearly show how you can accomplish
+that from within a program.
+        You have read the RKM: Exec, Input/Output so you saw the mention of
+DoIO() and the other functions for doing IO.  In the program we tried, the
+function DoIO() was used to make things simple.  We built the appropriate
+structures and DoIO() requested the timerequest structure to be linked
+into a message port somewhere.  Did you notice in your earlier perusal of
+the exec/ports.h file that the last item in a struct MsgPort is a struct
+List?  Not a pointer to a structure, but an actual structure.  The ln_Pred
+and ln_Succ fields of your timerequest structure are changed by Exec to
+point to the proper elements of that list.  When your time is up Exec
+changes the pointers to link the message (timerequest structure) onto the
+MsgPort you called for in CreatePort().  DoIO() sees there is mail, sets
+any error codes or flags, and exits.  We will be doing quite a bit with
+this timer program, so it would be better if we had more convenient
+routines to handle allocation and deallocation for us, as well as setting
+and stopping a timer.  So, before we continue, let's build a file of timer
+utilities to help us.  You might want to modify these somewhat to suit your
+specific needs.  In particular, SetTimer() does not now set the
+microseconds part of the timerequest so only even second periods are
+available.  If you wanted, you could change the formal variable to a double
+and do the math to get microseconds right in the routine.
+        An important note about compilers:  The stack checking routines
+various compilers put into the code will not work in task code.  Since we
+expect to be using these routines within tasks, they and any of the following
+routines which will become part of task code must be compiled with stack
+checking disabled.  There is a further consideration if you are using Lattice
+v4.0: When task code is added to the system task list, register A4 is not
+preserved, thereby destroying the code's reference to its data sections.
+There is a compiler option to cause it to generate register saving code at
+the beginning of each function call.  It costs only 24 bytes per function,
+and is necessary only for functions referenced by AddTask() or
+CreateTask() (q.v.).  It's unlikely any of these would be, but you never
+know.  For Lattice 4.0 the compiler command line would be:
+
+        lc -v -y TimerUtilities
+
+        Carefully check your compiler documentation for any special treatment
+required for task code.
+
+/***** TimerUtilities.c *************************************************/
+/*                                                                                                                               */
+/*              A package of utilities to control timer devices.        /*
+/*
+/*              This package contains:                                 /*                                                         */
+/*                                                                                                                               */
+/*              CreateTimer(unit, priority)                                                                                */
+/*                      returns: Pointer to a struct timerequest or zero if trouble             */
+/*              AbortTimer(timerequest)                                                                                     */
+/*                      returns: Nothing                                                                                      */
+/*              SetTimer(time)                                                                                                */
+/*                      returns: Nothing                                                                                      */
+/*              DeleteTimer(timerequest)                                                                                    */
+/*                      returns: Nothing                                                                                      */
+/*                                                                                                                               */
+/************************************************************************/
+
+#include "exec/types.h"
+#include "devices/timer.h"
+
+extern struct MsgPort * CreatePort();
+
+struct timerequest *
+CreateTimer(unit, priority)
+        ULONG unit;
+        LONG priority;
+{
+        struct MsgPort *TP;
+        struct timerequest *TR;
+
+        if ((TP = CreatePort(NULL, priority)) == NULL)
+                return(NULL);
+
+        if ((TR = (struct timerequest *)
+                        CreateExtIO(TP, sizeof(struct timerequest))) == NULL) {
+                DeletePort(TP);
+                return(NULL);
+        }
+
+        if (OpenDevice(TIMERNAME, unit, TR, 0) != NULL) {
+                DeleteExtIO(TR, sizeof(struct timerequest));
+                DeletePort(TP);
+                return(NULL);
+        }
+
+        return(TR);
+}
+
+void
+AbortTimer(T)
+        struct timerequest *T;
+{
+        if (AbortIO(T) == NULL) {
+                Wait(1 << T->tr_node.io_Message.mn_ReplyPort->mp_SigBit);
+                GetMsg(T->tr_node.io_Message.mn_ReplyPort);
+        }
+}
+
+void
+SetTimer(T, time)
+        struct timerequest *T;
+        int time;
+{
+                AbortTimer(T);
+                T->tr_node.io_Command = TR_ADDREQUEST;
+                T->tr_time.tv_secs = time;
+                T->tr_time.tv_micro = 0;
+                SendIO(T);
+}
+
+void
+DeleteTimer(TR)
+        struct timerequest *TR;
+{
+        struct MsgPort *TP;
+
+        if (TR != 0) {
+                AbortTimer(TR);
+                TP = TR->tr_node.io_Message.mn_ReplyPort;
+                CloseDevice(TR);
+                DeleteExtIO(TR, sizeof(struct timerequest));
+                DeletePort(TP);
+        }
+}
+
+/************************************************************************/
+
+        Compile these, but don't link them.  There's nothing to link to yet.
+Notice the routines don't use DoIO().  They use SendIO() instead.  That
+will allow us to use them in a task we will create Real Soon Now.  First,
+let's write a test routine to see if everything works.  We'll include an
+argument this time so we will be able to set the timer to anything we
+want.  We'll use the function WaitPort() to wait for completion of the
+timer.  This gets us closer to a full multitasking program.  The reason it
+isn't full multitasking is that we aren't doing anything else while
+waiting for a message (the timerequest structure) to arrive at our message
+port.
+
+/***** Test.c ***********************************************************/
+
+#include "exec/types.h"
+#include "devices/timer.h"
+
+struct timerequest *CreateTimer();
+
+void
+main(argc, argv)
+        int argc;
+        char *argv[];
+{
+        struct timerequest *T;
+        struct MsgPort *P;
+        int delay;
+
+        if (argc != 2) {
+                printf("Please provide a delay time\n");
+                exit(0);
+        }
+
+        delay = atoi(argv[1]);
+
+        T = CreateTimer(UNIT_VBLANK, 0);
+        P = T->tr_node.io_Message.mn_ReplyPort;
+        SetTimer(T, delay);
+        WaitPort(P);
+        printf("Tock\n");
+        DeleteTimer(T);
+}
+
+/************************************************************************/
+
+        Compile this and link it with TimerUtilities.o to get a complete
+program.  Alternatively, you could combine both files together just for
+test purposes.  Now run the test program, remembering to include a delay
+value: Test 3, for example.
+        Allright! The utility package is quite a help.  Now, look carefully at
+AbortTimer().  A brief mention should be made here about the function
+AbortIO().  It isn't described in some books.  If the IO has completed
+when AbortIO() is called, it returns a -1 from a timer device (or  a
+meaningless value from some other devices), and no message is attached to
+the message port.  If the IO has not completed and is aborted, the
+function returns a 0 and the timerequest structure (our message) is
+attached to the message port.  We then call GetMsg() to remove it from the
+port, something unnecessary in this application, but possibly required in
+others that use this routine.  We will see more of GetMsg() later.  The
+way AbortTimer() waits for completion is Wait().  This function waits for
+a particular bit to be set.  While waiting, of course, just as in the case
+of WaitPort() and WaitIO(), Exec can be doing other things.  To see that
+effect, try Running several copies of Test at the same time: Run Test 30
+<CR> Run Test 20 <CR> Run Test 10 <CR>.  You should see the word "Tock"
+printed three times, ten seconds apart.
+        I said Wait() waits for a particular bit to be set.  This bit is
+called a signal, and every message port gets one allocated.  They have to be
+allocated because for every task, like the one we are running when we run
+Test, has a longword (32 bits) in a structure available for signalling.
+Each bit has to have a unique meaning.  Exec takes the lower sixteen for
+itself, leaving the upper sixteen available to us.  We don't know which
+bits have been allocated already, or to what, so we use a routine
+AllocSignal() to find out our bit number.  The signal must be freed with
+FreeSignal() when we don't need it any more.  These details have been
+taken care of for us by CreatePort() and DeletePort().  The point is that
+there is a number in a message port that is the number of a bit (from 0 to
+31) that says when this bit is set in a certain location, mail has arrived
+at the port.  It stays set until you Wait() for it in some fashion or
+another ( WaitPort() or WaitIO() ).  We can recreate that bit by shifting
+a 1 left the number of times equal to the signal number.  The signal
+number is in a struct MsgPort, element mp_SigBit.  Remembering that in our
+timerequest structure there is an IORequest structure containing a
+Message structure which contains a pointer to a message port, the
+reference is mn_ReplyPort->mp_SigBit.  Since that Message structure is
+part of an IORequest structure we have to say
+io_Message.mn_ReplyPort.mp_SigBit.  That IORequest in turn is a named part
+of a timerequest structure called tr_node.  So, we obtain the number,
+shift a 1 left that number of times, and Wait() for it to be set, which
+yields the mouthful operation:
+
+Wait(1 << T->tr_node.io_Message.mn_ReplyPort->mp_SigBit);
+
+        We won't say that very often, but we will be using Wait() on specific
+bits.
+        Let's review what we've done.  We allocated and initialized a MsgPort
+structure.  That sits off to the side as our mailbox.  We allocated and
+initialized a timerequest structure, among other things putting the
+address of our mailbox in it so the system will know where to send the
+structure back to when it's done with it, a return address, if you like.
+That's our message.  We put some stuff in the message (the command and
+time values), sent it off to Exec, and waited for mail to arrive at our
+mailbox.  Because of the particular functions used for waiting, the
+microprocessor can go to sleep if Exec isn't doing anything else.  We
+could have done busy loop waiting, which consists of looking at some value
+in the MsgPort to see if it has changed, and if it hasn't, looking again.
+That kind of program won't quite choke up the machine, depending on the
+priority it has, but it eats up all the spare processor time and can make
+some operations very slow.  We will demonstrate that with our timer
+routines by and by.
+        We have been operating as a task spawned by the CLI (A process,
+actually, but that is a sort of super task run by DOS.  More on that
+later).  We communicated with the rest of the system by sending messages
+and looking for signals.  You cannot write a function and call it with
+values as in ordinary c programming and have it be a separate task.  You
+must use the message passing system.  Exec, whose name we have been
+invoking all along, is primarily a program which manipulates lists, lists
+of messages being a large part of a busy program.  It is properly called
+the executive.  Every time a clock interrupt occurs, Exec is activated,
+and it goes looking for things to do by scanning various lists.  You
+don't ever call Exec, you just readdress a message.  Exec will know about
+it soon enough and take suitable action.
+        Let's examine lists more closely (You have been diving into the RKM
+to look things up all along, haven't you?  See RKM: Exec, Lists).  A list is
+a simple little structure of three pointers and a byte defining its type:
+
+LONG lh_Head            ; points to the first node in the list
+LONG lh_Tail            ; is always zero
+LONG lh_TailPred        ; points to the last node in the list
+BYTE lh_Type            ; defines the types of nodes in the list
+BYTE lh_pad                     ; is here to make the structure an even number of bytes
+
+        The lh_Type field signifies what kind of a list it is.  Those
+definitions are in the include file exec/nodes.h, and can be tasks,
+interrupts, memory, all the things that Exec keeps track of.
+        If the list is empty the lh_Head element points to its lh_Tail and the
+lh_TailPred points to its lh_Head.
+
+        ---- lh_Head <------
+        |                  |
+        ---> lh_Tail = 0   |
+                           |
+             lh_TailPred ---
+
+                                Figure 1
+
+        Now if a node is added to the list, the list's head is made to point
+to the node, that is, the first location of the node.  The node has no
+successors, so the ln_Succ field is made to point to the list's lh_Tail,
+which is always zero so a search routine has a place to stop.  The node's
+predecessor is the list, so that field is made to point to the first
+location of the list.  As more nodes are added on to the list, the ln_Succ
+field is made to point to the first location of the following node and the
+following node's ln_Pred field is made to point to the first location of
+the preceding node.  That way all nodes are linked forwards and backwards.
+A list and the nodes linked into it could be represented like this:
+
+                                     Node:
+                              -------> ln_Succ -------<-|
+                              |   ---- ln_Pred       |  |
+              List:           |   |    ln_Type       |  |
+                lh_Head -------<---    ln_Pri        |  |
+         (zero) lh_Tail <--------      ln_Name       |  |
+                lh_TailPred --- |                    |  |
+                              | |                    |  |
+                              | |    Node:           |  |
+                              | |      ln_Succ <======<-+--|
+                              | |      ln_Pred ------+--|  |
+                              | |                    |     |
+                              | |                    |     |
+                              | |    Node:           |     |
+                              |_====>  ln_Succ <-----|     |
+                                       ln_Pred ------------|
+
+                                                                Figure 2
+
+        A node has a type, just like a list, and generally agrees with the
+type of list it is in.  It also has a priority so that Exec can establish the
+order in which it will process a node.  There is a name field which can be
+a pointer to a character string such as "Initial CLI" to give the
+structure an identifier that can be searched for without knowing which
+list it is in.
+        Nodes by themselves aren't of any use, but they are the beginning
+structure of almost every structure in the system.  Recalling the
+discussion of messages and the timerequest structure, you can see how
+messages can be sent to a message port just by finding where the
+lh_TailPred field of the message port points, putting that address in the
+ln_Pred of the message, and changing the contents of that address to point
+to the first location of the message.  Since it will be the latest message
+attached to the port, its ln_Succ field will be filled with the address of
+the lh_TailPred field of the message port.  Exec has to change just those
+three addresses and three more in the list the message came from, if it
+was in one, to send it, no matter how large the message.  You don't have
+to bother yourself with these details as there are routines that perform
+these functions, allowing you to think of "sending" or "putting" a message
+somewhere and waiting for a "reply".  The list structure comes more
+readily to mind when we link something into one, such as a task (See RKM:
+Exec, Tasks and include/exec/tasks.h).
+        Tasks are jobs that Exec performs when the conditions warrant, such
+as a timer running out, or a key being pressed.  There are certain
+limitations to tasks as such.  They are procedures which cannot be called
+by another function (Exec does that when the time is right, and it is best
+not to interfere with the opertion of Exec.  It bytes).  A task cannot
+return a result, and as you shall see, should probably not return at all.
+A task cannot call any DOS related input or output functions that require
+multitasking like printf(), although way down the line I'll give some
+pointers on accomplishing those functions.
+  Communication with a task is done by message passing.  There are
+standard system messages like we have been using (the timerequest
+structure), and you can construct messages to suit your taste as long as
+Exec understands them (the beginning structure is a Message structure) and
+your task understands them (the remainder of the structure contains
+information meaningful to it).  There is a special kind of message called
+a semaphore, used to provide a means of mutual exclusion, and
+communication is also done by signals, which are single bits of an
+unsigned longword. One other means not supported by Exec is by global
+variables.  If your task can see a variable changed by another program,
+your task can act on it.  However, a very important point for a
+multitasking system, you must not busy wait in a task as you will eat up
+all the spare time the microprocessor has.  Notice I said spare time and
+not necessarily all its time.  That depends on your task's priority.  Busy
+waiting is exemplified by this:
+
+        s = 0;
+        while (s != 999999999) {
+                s = s + 1;
+        }
+
+Later on we will try a busy waiting routine to see what happens.
+        Signals are the simplest executive system for intertask communication.
+Every task has available an unsigned longword called tc_SigAlloc.  I'm
+sure you have your RKM:Exec book open to the include/exec/tasks section
+this very moment, so have a look at the other signal related elememts
+tc_SigWait and tc_SigRecvd.  Signals are single bits of the longword
+tc_SigAlloc.  As I mentioned earlier in the di^C
+
+End.

@@ -1,0 +1,230 @@
+;
+; $VER: Scions Preview Installation script 1.3 (1997-01-13)
+; (c) Copyright DSP 1996-97
+;
+
+; FS Set Requirements Strings
+;--------------------------------------------------------------------------------------------------------
+;
+(set #mincpu "68020")
+(set #minos  "39")
+(set #mindisk 1400000)
+(set #minchip "AA")
+
+(if (>= @installer-version 42)
+	(set #choicehead (cat "\x1b[2p"))
+	(set #choicehead (cat ""))
+)
+; FE
+
+; FS English strings
+;--------------------------------------------------------------------------------------------------------
+;
+(set #DirName "Scions_PreviewII")
+(set #Welcome   (cat              "Welcome to the\n"
+						"'Almagica - Scions of a Forgotten World'\n"
+							 "Preview installation script.\n"
+					 "This Preview will require atleast this equipment:\n"
+							 "A " #mincpu " cpu or better\n"
+						   "AmigaDOS V" #minos " of better\n"
+					  (/ #mindisk 1024) " KBytes of free harddisk space\n"
+					 "AGA Chipset or A CyberGraphX compatible graphics card\n"))
+
+
+(set #OldOS     (cat "You need V" #minos "+ of AmigaDOS to run this preview."))
+(set #LowCpu    (cat "You need a " #mincpu " or better to run this preview."))
+(set #OldChip   (cat "You need AGA chipset to run this preview."))
+(set #LowDisk   (cat "This preview requires atleast " (/ #mindisk 1024) "KBytes of free disk space."))
+(set #Exists    (cat "An Installation of " #DirName " has already been done."))
+
+
+(set #Location  (cat "Where do you wish to install this preview? A directory named "
+							  #DirName " will be created here."))
+
+(set #LocationH (cat "Please select where on your harddisk you wish to place "
+					  "'Almagica - Scions of a Forgotten World'. A directory "
+					   "called '" #DirName "' will be created there and all "
+						"files needed will be placed inside that directory."))
+
+;
+; CybGfx strings
+;
+
+(set #cyberquestion (cat "Do you have a CyberGraphX installed?"))
+(set #cyberhelp     (cat "I can see that you don't have the AGA chipset. In order to be able to "
+						 "play Almagica, you will need a CyberGraphX card."))
+
+;
+; AHI strings
+;
+
+
+(set #ahiinstall     (cat "Do you wish to install Audio Hardware Interface (AHI) ?"))
+(set #ahiinstallhelp (cat "Audio Hardware Interface (AHI) is a system for hardware independent audio. "
+						  "AHI supports most soundcards for the Amiga. If you do not have AHI installed "
+						  "you will not be able to use any sound or music in the game."))
+
+(set #ahideviceprompt (cat "Do you wish to install the file ahi.device into your DEVS: drawer?"))
+
+(set #ahiprompt     (cat "Going to install Audio Hardware Interface (AHI) into your DEVS: drawer.\n\n"
+						 "Current file : "))
+
+(set #ahihelp       (cat "Almagica uses the Audio Hardware Interface (AHI) to play sounds and music. "
+						 "AHI is the CyberGraphX of the audio, meaning that AHI supports a number of "
+						 "diffrent audio cards."))
+
+(set #yes           (cat "Yes"))
+(set #no            (cat "No"))
+
+; FE
+
+; FS P_TestRequrements
+;
+(procedure P_TestRequrements
+
+	(if (< (/ (getversion) 65536) #minos) (abort #OldOs))   ; Test OS-version
+	(if (< (database "cpu") #mincpu)      (abort #LowCPU))  ; Test CPU
+
+	(if (not (patmatch #minchip (database "chiprev")))      ; Test Graphics
+		(set #usecyber                                      ;
+			(askchoice                                      ;
+				(prompt #cyberquestion)                     ;  No AGA chips found, ask if user got
+				(help   #cyberhelp)                         ;   Cybergraphics
+				(choices (cat #choicehead #yes) #no)        ;
+			)                                               ;
+		)                                                   ;
+	)                                                       ;
+
+)
+; FE
+
+; FS P_SetDest
+(procedure P_SetDest
+
+	(set @default-dest                  ; Ask for the destinition
+		(askdir                         ;
+			(prompt     #Location)      ;
+			(help       #LocationH)     ;
+			(default    @default-dest)  ;
+		)
+	)
+
+)
+; FE
+
+; FS P_CheckDiskSpace
+(procedure P_CheckDiskSpace
+
+	(if (< (getdiskspace @default-dest) #mindisk) (abort #LowDisk))
+
+)
+; FE
+
+; FS P_CheckOtherInstallation
+(procedure P_CheckOtherInstallation
+
+	(if (<> 0 (exists @default-dest)) (exit #Exists))
+
+)
+; FE
+
+; FS P_InstallAHI
+(procedure P_InstallAHI
+
+	(if (askbool                                                ; Ask if we should install AHI
+			(prompt     #ahiinstall)                            ;
+			(help       #ahiinstallhelp)                        ;
+			(default    1)                                      ;
+			(choices    #yes #no)                               ;
+		)
+		(
+			(copylib                                            ; Copy the ahi.device file
+				(prompt     (cat #ahideviceprompt))             ;
+				(help       #ahihelp)                           ;
+				(source     "ahi/ahi.device")                   ;
+				(dest       "Devs:")                            ;
+				(optional   oknodelete)                         ;
+				(confirm)                                       ;
+			)
+
+			(makedir "Devs:AudioModes")                         ; Create needed directories in DEVS:
+			(makedir "Devs:AHI")                                ;
+
+			(set #t 0)
+			(while (< #t 2)
+				(set #file (select #t   "FileSave"                          ; The files we shall copy
+										"Paula"))                           ;
+				(set #src (cat (tackon "ahi/ahi"  #file) ".audio"))
+				(set #dst (cat (tackon "DEVS:ahi" #file) ".audio"))
+
+				(set #srcv (/ (getversion #src) 65536))                     ; Get source and dest
+				(set #dstv (/ (getversion #dst) 65536))                     ;  versions and revisions
+				(set #srcr (- (getversion #src) (* #srcv 65536)))           ;
+				(set #dstr (- (getversion #dst) (* #dstv 65536)))           ;
+
+				(if (or (> #srcv #dstv) (and (= #srcv #dstv) (> #srcr dstr)))
+					(
+						(copyfiles                                          ; Copy driver file
+							(source #src)                                   ;
+							(dest   "DEVS:Ahi")                             ;
+						)
+					)
+				)
+				(if (not (exists (tackon "DEVS:AudioModes" #file)))         ; Make sure the prefs file
+					(copyfiles                                              ;  exists
+						(source (tackon "ahi/AudioModes"  #file))           ;
+						;(dest   (tackon "DEVS:AudioModes" #file))          ;
+						(dest "DEVS:AudioModes")                            ;
+					)
+				)
+
+				(set #t (+ #t 1))
+			)
+		)
+	)
+)
+; FE
+
+; FS P_CopyMain
+(procedure P_CopyMain
+
+	(makedir @default-dest (infos))
+
+	(copyfiles
+		(source "")
+		(dest   @default-dest)
+		(all)
+	)
+)
+; FE
+
+
+; FS Main
+
+(message #Welcome)
+(complete 0)
+
+(P_TestRequrements)
+(complete 5)
+
+(P_SetDest)
+(complete 10)
+
+(P_CheckDiskSpace)
+(set @default-dest (tackon @default-dest #DirName))     ; Append Our directory name to the choosen path
+(complete 15)
+
+(P_CheckOtherInstallation)
+(P_InstallAHI)
+(complete 30)
+
+(P_CopyMain)
+(complete 99)
+
+(message "Please remember to run the SETUP program before you start Almagica the first time.")
+(complete 100)
+(exit)
+
+
+; FE
+

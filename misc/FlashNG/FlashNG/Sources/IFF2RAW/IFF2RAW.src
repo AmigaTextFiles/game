@@ -1,0 +1,99 @@
+; This small VERY badwritten proggy is FREE !!
+; It has been written a LONG TIME AGO !!!
+; My recent programs are still bad but not that bad !!
+
+  WBStartup
+
+  IFFsource$=RTEZLoadFile("IFF File to convert in RAW ?","")
+  destination$=RTEZLoadFile("Destination name (without .raw)","")
+  Pal$=destination$+".PAL"
+  destination$=destination$+".RAW"
+  If IFFsource$<>"" AND Pal$<>".PAL"
+    res=RTEZRequest("IFF2RAW v0.3","["+IFFsource$+"] => ["+destination$+"]"+Chr$(10)+Chr$(10)+"Begin conversion ?","Ok|No")
+
+    If res=1
+
+      Screen 0,0,0,640,512,8,$8004,"Test",1,2
+      ScreensBitMap 0,0
+
+
+      NEWTYPE .byte
+        r.b
+        g.b
+        b.b
+      End NEWTYPE
+      Fields 0,rty.byte
+
+      LoadBitMap 0,IFFsource$,0
+      Use Palette 0
+
+
+      RAWFile=WriteFile(0,destination$)
+      PALFile=WriteFile(1,Pal$)
+
+      FileOutput(0)
+      Print "RAW-0320x0200x08-"
+
+      ;Number of colors in Palette: 01000000=256
+      cmap.b=1
+      WriteMem 1,&cmap,1
+      cmap.b=0
+      For a=1 To 3
+        WriteMem 1,&cmap,1
+      Next a
+
+
+      For  b=0 To 255
+        rty\r=AGARed(b)
+        rty\g=AGAGreen(b)
+        rty\b=AGABlue(b)
+
+        ; Writes 32BIT palette to the PAL file
+        WriteMem 1,&rty\r,1
+        For a=1 To 3
+          WriteMem 1,&cmap,1
+        Next a
+
+        WriteMem 1,&rty\g,1
+        For a=1 To 3
+          WriteMem 1,&cmap,1
+        Next a
+
+        WriteMem 1,&rty\b,1
+        For a=1 To 3
+          WriteMem 1,&cmap,1
+        Next a
+
+        ; Writes 8BIT palette to the RAW file
+        WriteMem 0,&rty\r,1
+        WriteMem 0,&rty\g,1
+        WriteMem 0,&rty\b,1
+
+      Next b
+
+      ; This must be present at the end of the palette file
+      For a=1 To 4
+        WriteMem 1,&cmap,1
+      Next a
+
+      ; Now we write the Pixel colors in the RAW File line per line
+      For a=0 To 199
+
+        For b=0 To 319
+          rty\r=Point(b,a)
+          WriteMem 0,&rty\r,1
+        Next b
+
+      Next a
+
+      CloseFile 0
+      CloseFile 1
+      DefaultOutput
+      CloseScreen 0
+      result=RTEZRequest("IFF2RAW v0.3","Conversion Successfull.","Ok")
+      Else result=RTEZRequest("Error !","Conversion Aborded.","Ok") ;NPrint"Conversion Aborded"
+    EndIf ;if res...
+    Else result=RTEZRequest("IFF2RAW v0.3","No Input/Output file","Ok")
+  EndIf ;if IFF...
+End
+

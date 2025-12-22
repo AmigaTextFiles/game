@@ -1,0 +1,122 @@
+(if (= @language "français")
+(
+
+(set #askbindest "Où désirez-vous que les fichiers binaires\n(JST, créateurs d'images disque, fichiers code) soient installés?\nAucun tiroir ne sera crée\n\nLe tiroir doit être dans votre PATH (ex. C:)")
+(set #askdocdest "Où désirez-vous que les fichiers auxiliaires (docs,exemples) soient installés?\nUn tiroir JST sera créé.")
+
+(set #docdrawer "french")
+
+)
+)
+
+(if (= @language "english")
+(
+
+(set #askbindest "Where would you like the binary files (JST, disk imagers, auxiliary files) installed?\nA drawer will NOT be created\n\nThe location should be in your path (e.g. C:)")
+(set #askdocdest "Where would you like the auxiliary files (docs,examples) installed?\nA drawer called JST will be created.")
+
+(set #docdrawer "english")
+)
+)
+
+(set bin-dest
+     (askdir (prompt #askbindest)
+                     (help @askdir-help)
+                     (default "C:")
+                     (newpath)
+      )
+)
+
+
+(if (exists "Work:" (noreq) )
+    (set @default-dest "Work:")
+    (if (exists "SYS:Work" (noreq) )
+        (set @default-dest "SYS:Work")
+    )
+     (set @default-dest "SYS:")
+)
+
+
+
+;ask the user to select a directory to install the other files
+
+(set default-dest
+     (tackon (askdir (prompt #askdocdest)
+                     (help @askdir-help)
+                     (default @default-dest)
+                     (newpath)
+             )
+     "JST"
+     )
+)
+(set @default-dest default-dest)
+
+;create the selected directory
+(makedir @default-dest
+         (infos)
+)
+
+(set doc-dest (tackon @default-dest "docs"))
+
+
+(makedir doc-dest
+         (infos)
+)
+
+(if (exists "sources" )
+  (
+    (set source-dest (tackon @default-dest "sources"))
+
+    (makedir source-dest
+           (infos)
+    )
+    (copyfiles (source "sources")
+             (dest source-dest)
+	     (all)
+    )
+  )
+
+
+)
+
+
+(copyfiles (source "bin")
+           (dest bin-dest)
+	   (all)
+)
+
+(if (exists "docs/engonly")
+(copyfiles (source "docs/engonly")
+           (dest doc-dest)
+	   (all)
+)
+)
+
+(if (exists "installwizard")
+(
+(set iw-dest (tackon @default-dest "installwizard"))
+
+(copyfiles (source "installwizard/binary/OSEmu.400")
+           (dest bin-dest)
+)
+(copyfiles (source "installwizard")
+           (dest iw-dest)
+	   (all)
+)
+)
+)
+
+(copyfiles (source ("docs/%s" #docdrawer))
+           (dest doc-dest)
+	   (all)
+)
+
+(copyfiles (source "docs/common")
+           (dest doc-dest)
+	   (all)
+)
+
+; cleanup
+
+(delete (tackon bin-dest "README"))
+(delete (tackon bin-dest "README.info"))

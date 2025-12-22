@@ -1,0 +1,221 @@
+OK, I've written (most of) the initial AI system.
+
+Obvious problems:
+
+You are in a maze of twisty passages, all alike
+===============================================
+
+I haven't yet written the bit to get mobs in a tunnel to be able
+to go from where they are to the target entrance.
+This obviously needs traversing of the list of tunnel sections
+to find the route, then find the closest waypoint to the monster.
+
+{
+monster coords:mx,my      target coords: tx,ty
+
+If monster and target are orthogonally in line and there's
+no blockages between them, just go towards target.
+ Else, if we have a waypoint set, go towards that.
+
+  [SNIP MEANINGLESS RAMBLING ALGORITHM
+  THAT I WROTE WHILST LACKING SLEEP]
+
+}
+
+There is, alas, a problem with this: The tunnel sections don't
+necessarily cross, they may meet instead. This makes it pretty
+difficult to know if there's an intersection between 2 tunnels.
+
+Possible solutions to this:
+  -Change the map generator code so that if tunnel sections meet
+  to form a junction (such as:
+      then the tunnel that        #b#
+      meets at its end            #b#
+      is extended...          #####b#####
+      but hold it, that       aaaaaaaaaaa
+      arrangement pretty      ###########
+      much guarantees that the tunnels cross!
+   but tunnel sections that meet like:
+        would... also have                #a#
+        them crossing as                  #a#
+        well. So what types           #####a#####
+        would actually fall foul?     bbbbbaaaaaa
+                                      ###########
+   This type:          ###########
+               #########aaaaaaaaaa
+               bbbbbbbbbb#########
+               ###########
+   And for that, you don't extend either section, as that
+   simply doesn't help. Instead, you add another section,
+   that goes from one to the other!
+   -Add extra tests to the routine for working out if 2 tunnels
+   intersect. Bit painful. Worse?
+   -Ignore it. It shouldn't happen that often anyway... should it?
+   And as said, if an obvious route cant be found, a random waypoint
+   can be picked, that might get the monster towards a point from
+   which a route CAN be found, or might get it through a different
+   door, at which point it simply doesn't matter.
+   -Have a fallback routine if route isn't found, that simply goes
+   roughly towards the entrance, as it originally did!
+
+OK, most of this is done now, in ai_set_waypoint(), which (for
+tunnels, at least), works out the next point that a monster
+should aim for to reach a given target. It was originally to use
+a weird algorithm using a 4x4 grid of elements that'd map to
+the coords of (all tunnels the monster was in, plus all tunnels
+the target was in), which tried to find points in that grid where
+the tunnels were likely to join. The reason for this was that
+(a)it had *bounded* complexity, and (b) I could think of it :P
+
+When I'd done 90% of that, I twigged that not only would it be
+a bit slow, and there would be various times when it couldn't
+find a direct connection, but it would screw up abysmally
+when the required path was a U shape...
+
+So I just implemented a plain old breadth-first search; it turned
+out not too arduous, and appears to work all the time?
+
+
+Kick out the Jams
+=================
+
+The other obvious problem, that seems far more serious, is that
+monsters in tunnels often seem to get stuck in "mexican standoffs"
+with other monsters going the other way... Far too often.
+ Solutions? One that springs to mind, is that the monster should
+ check its neighbours to see how many free spaces there are.
+ If there is exactly one, then that direction should really be
+ the way out. Unless we want the monsters to fight each other.
+ The monster should choose another target.
+
+ Now, I don't know how it can ensure that the target chosen will
+ be accessible from the available direction. It probably cant.
+ However, it could (a)- just pick a target that isn't the current
+ target, and hope for the best, or (b)-override the "go to a
+ target" code, and set some waypoint that's in the direction of
+ free movement. But that isn't necessarily very good.
+
+ A good algorithm that occurrs to me: tunnel intersections are
+ points where it should be possible for monsters to get around
+ each other. So when there's a blockage, work out:
+  -How many doors in this region? If only 2 (shouldn't be less!)
+   then simply pick the other door as a target. Means going back
+   through the way we came in... And when reaching the room, the
+   monster will be least likely to go back to that region next!
+  -If more than 2, then work out what tunnel(s) we're in. Should
+   really be only one tunnel, but in exceptional circumstances...
+   Now, work out whether there are entrances or intersections
+   in the tunnel, and how close. Pick a waypoint of whichever
+   one of those is closest. Doesn't matter which side of the
+   obstruction it is. It's most likely that the other monster(s)
+   has picked the same waypoint, if it finds itself blocked too,
+   so both monsters *should* end up going to the waypoint.
+   Increase the monster's "annoyance" value. If the annoyance
+   value is high enough considering the respect accorded the
+   other monster, then attack the other monster. If not, wait
+   still till the next turn, and it's likely the monster will
+   move by then.
+
+   Respect between monsters: Towards observed monsters, beholding
+   monsters have a respect of (10*observedlevel)/beholderlevel
+   (where 10 is kind of neutral mutual respect).
+   This scale means that a higher level monster will have at least
+   a vague amount of patience towards a lower level one, and won't
+   just beat them to a pulp the second they get in their way.
+   NB- the increase in annoyance isn't necessarily 1 per turn, it
+   would likely be more. In cases where the monster is in a
+   panic, the increase might be quite a bit more still. And if
+   the monster is hunting down the player? Possibly more than
+   usual, but probably not much more- it isn't really vital
+   to monsters to kill the player, compared to staying alive!
+
+
+What did I just do?
+===================
+
+Haha. There's yet another obvious problem: When the caches are
+full, if a mob goes into a region/room of order 2 (for instance)
+and it doesn't get cached (because the existing entries are higher
+order), then not only will the mob not remember where it went
+when it comes back to it...
+...but it won't even remember the door it just entered the previous
+turn!!! Mobs can go into a tunnel, and then turn round and come straight
+back out again!!!
+
+The solution that occurs to me is to have a part of the mobs memory
+that is a cache entry (like the others) that is not really part
+of the cache at all- it instead just stores the place the mob is
+currently in, so the rest of the AI code doesn't have to be changed
+to deal with cache misses differently to cache hits. In this way,
+when the ai routine wants to tag the doorway its in, it can ALWAYS
+do so, and when the target acquiring routine wants to check the
+cache for the most suitable doors to target (ie- the ones least
+recently entered), there will always be at least one that can't
+be chosen.
+
+Now, there's 2 ways of doing this:
+ a)There can be a buffer entry that the current location is always
+ placed into if it isn't in the rest of the cache, and only when
+ that buffer is replaced is it possible that the contents might
+ be placed in the cache. I feel as though this allows the ai
+ to be more space efficient... But I'm not sure this is the case.
+ I can't seem to explain why it would be so, so mebbe I'm just
+ misleading myself.
+ b)There can be a buffer entry that the current location is only
+ placed in if it isn't in the rest of the cache AND doesnt have
+ high enough priority to replace anything. Because of this,
+ the buffer will sometimes contain nothing. This is why I feel
+ it is less space efficient, but I'm just getting a headache now,
+ it's late. Anyways, this method is surely less processor intensive
+ (no copying buffer to entries), and probably easier to code.
+
+As I noted in the source, there's no point in updating timestamps
+on buffer entries, as they don't get stored. Yup, I'm choosing
+method b until I can figure out whether a really is more space
+efficient. If I choose method a, then some buffer entries do
+get stored after, so not updating them would be bad.
+
+As also noted, there is ONE time that a mob wont have any entry
+to return for the location- that's when the mob is created: The
+cache entries are normally stored and updated when the mob is
+in a doorway, and then consulted (to get a new target) when the
+mob steps out of the doorway. The monster creation code has
+the monsters act as though they've just stepped out of some
+imaginary doorway in order to bootstrap them with some target.
+Unfortunately, if we change things to assume that something
+is always returned from the cache, this will collapse horribly!
+2 solutions again:
+ a)-Don't just assume it, but leave code to handle this rare
+ exception (that only happens when mob first appears). This
+ will slow things down all the rest of the time, and the AI is
+ one of the slowest parts (not much else to be slow!!!)
+ b)-Have the initialisation code create a usable entry for
+ the buffer. This will make map generation relatively slower
+ (as it has to create numerous monsters per level! But this
+ number will likely be toned down A LOT later), but make
+ everything else faster. Unfortunately I'm not clear how best
+ to initialise things. OK, I plan:
+ add_mob() malloc()s the buffer entries for the mob, but doesn't
+ validate them; it gets changed to return pointer to the mob.
+ Whatever calls it (currently add_room_mobs() ) then does
+ aicache_trycacheroom() or aicache_trycacheregion() on the mob,
+ passing the appropriate room or region. Why not have add_mob
+ do this? Too messy. Would need to have a room AND region
+ argument, and a way to specify which is relevant. Sod that.
+
+ Ah, there's the problem with that. Currently, add_room_mobs()
+ is called before the rooms are joined. So there are no
+ entrances. So aicache_trycacheroom() flubs when it tries to
+ convert the entrance info for the cache entry- Theres none
+ to do! Possible solutions: - Dont have cache initialised with
+ the monster after all, or have monsters created after the rest
+ of the map is done.
+ Doing the latter makes much more sense, as we dont REALLY
+ want to have a monster created in every single room, do we?
+ Well, eventually we won't. But for the time being, having
+ lots helps to show up the inability of the AI to disentangle
+ traffic jams. So for the time being, we'll have add_room_mobs
+ called for every room in the level, but after mkmap_p4().
+
+OK, this is implemented now.
+

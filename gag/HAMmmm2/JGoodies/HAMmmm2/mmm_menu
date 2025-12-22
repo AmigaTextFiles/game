@@ -1,0 +1,178 @@
+\ Provide Pull Down menus for HAMmmm
+\ Use the EZMenu system in JForth
+\
+\ Author: Phil Burk
+\ Copyright 1987 Phil Burk
+\ This code is considered to be in the public domain and
+\ may be freely distributed but may not be sold for profit.
+\
+\ MOD: PLB 7/18/89 Changed addresses in Abouts....
+\      Added check in TERM for safety.
+
+ANEW TASK-MMM_MENU
+
+\ Use to terminate demo.
+variable HAM-DEMO-QUIT
+\ Controls double buffering which must be turned off
+\ when menus displayed. Otherwise menus will be drawn in
+\ only one surface and flash terribly.
+
+variable HAM-ENABLE-GRAPHICS
+
+\ Declare EZMenu structure.
+EZMENU CONTROL-MENU
+
+defer HAM.RESTORE.ITEMS  ( for late bound call )
+
+: HAM.CONTINUE ( -- , resume drawing )
+    ham.restore.items
+    ham-enable-graphics on
+;
+
+\ When an 'about' is displayed, replace it in the menu
+\ with a command to continue.
+: HAM.SET.CONTINUE ( index -- , set menu item to be CONTINUE )
+    ham.restore.items
+    0" Continue" over control-menu ezmenu.text!
+    ' ham.continue swap control-menu ezmenu.cfa[] !
+;
+
+variable HAM-YLINE   ( baseline for text )
+: HAM.CLEAR.INFO ( -- , prepare area for  displaying info )
+    0 gr.color!
+    ham_xmin ham_ymin ham_xmax ham_ymax gr.rect
+    20 ham-yline !
+;
+
+: GCR ( $addr -- )
+    6 ham-yline @ rot gr.xytext
+    10 ham-yline +!
+;
+    
+: HAM.ABOUT.GRAPH ( -- , tell about JForth )
+    ham.clear.info
+    8 gr.color!
+    " HAMmmm draws lines between bouncing" gcr
+    " points in a double buffered HAM screen." gcr
+    "  " gcr
+    " HAMmmm is written in JForth." gcr
+    " JForth compiles to machine code" gcr
+    " from high level, gives complete" gcr
+    " access to Amiga libraries and include" gcr
+    " files, and has many tools to simplify" gcr
+    " Amiga programming." gcr
+    "  " gcr
+    15 gr.color!
+    " JForth available from your local dealer, or:" gcr
+    "     Delta Research" gcr
+    "     P.O. Box 1051" gcr
+    "     San Rafael, CA" gcr
+    "     94915" gcr
+    0 ham.set.continue
+;
+
+: HAM.ABOUT.SOUND ( -- , tell about HMSL )
+    ham.clear.info
+    8 gr.color!
+    " The timbre is changed by building the" gcr
+    " waveform from the point's Y values." gcr
+    " The average X value determines pitch." gcr
+    "  " gcr
+    " Uses local sound toolbox from HMSL -" gcr
+    "       Hierarchical Music" gcr
+    "     Specification Language." gcr
+    " HMSL is an object oriented" gcr
+    " experimental composition language" gcr
+    " with full MIDI I/O, graphic editing," gcr
+    " user programmable sequencer, etc." gcr
+    " It was developed at the Mills College" gcr
+    " Center for Contemporary Music." gcr
+    "  " gcr
+    15 gr.color!
+    " Distributed by:" gcr
+    "     Frog Peak Music" gcr
+    "     P.O. Box 9911" gcr
+    "     Oakland, CA  94613" gcr
+    1 ham.set.continue
+;
+
+variable HAM-SHOW-TITLES
+1 ham-show-titles !
+
+: HAM.ERASE.TITLE  ( -- , get rid of titles in both buffers )
+    0 gr.color!
+    2 0
+    DO  0 0 ham_xmax 30 gr.rect
+        swap.buffers
+    LOOP
+;
+
+: HAM.TOGGLE.TITLE ( -- , turn on or off screen title )
+    ham-show-titles @
+    1 xor  ( toggle )
+    dup ham.show&swap
+    dup ham.show&swap
+    dup 0=
+    IF ham.erase.title
+    THEN
+    dup ham-show-titles !
+\
+\ Change menu command name to reflect new state.
+    IF 0" Hide Title Bar"
+    ELSE 0" Show Title Bar"
+    THEN 2 control-menu ezmenu.text!
+    ham.continue
+;
+
+: IQUIT ( -- , set termination flag )
+    true ham-demo-quit !
+    ham-show-titles @ 0=
+    IF ham.toggle.title  ( make sure it's on )
+       ( IF you are experimenting and turn off title bar )
+       ( you can get stuck in a screen. )
+    THEN
+;
+
+4 constant HAM_NUM_ITEMS
+
+: HAM.SET.MENUITEM  ( 0string cfa index -- )
+    dup>r  control-menu ezmenu.cfa[] !
+    r> control-menu ezmenu.text!
+;
+
+: HAM.SETUP.ABOUTS ( -- , setup info commands )
+    0" About Graphics" ' ham.about.graph 0 ham.set.menuitem
+    0" About Sound" ' ham.about.sound 1 ham.set.menuitem
+;
+
+: HAM.MENU.INIT ( -- )
+\ Change sizes from default.
+    160 menuitem-defwidth !
+    140 menu-defwidth !
+\
+\ Allocate and setup menu structure, make links.
+    ham_num_items control-menu ezmenu.alloc
+    0" Control" 0 control-menu ezmenu.setup
+\
+\ Build menu items.
+    ham.setup.abouts
+    0" Hide Title Bar" ' ham.toggle.title 2 ham.set.menuitem
+    0" Quit"  ' iquit 3 ham.set.menuitem
+    ' ham.setup.abouts is ham.restore.items
+\
+\ Set colors in Menu for reasonable HAM COMPLEMENT.
+    ham_num_items 0
+    DO i control-menu ezmenu.text[]
+       8 swap ..! it_frontpen
+    LOOP
+\
+\ Attach to backdrop window.
+    gr-curwindow @ control-menu setmenustrip()
+;
+
+: HAM.MENU.TERM ( -- )
+    gr-curwindow @ ?dup
+    IF  clearmenustrip()
+        control-menu ezmenu.free  ( free all associated structures )
+    THEN
+;

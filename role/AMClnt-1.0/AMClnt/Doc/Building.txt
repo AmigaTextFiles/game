@@ -1,0 +1,2363 @@
+AmigaMUD, Copyright 1996 by Chris Gray
+
+
+		Online Building With the Standard Scenario
+
+The standard AmigaMUD scenario contains a set of commands (the "build"
+commands) which allow players to add rooms and objects to the
+scenario, from within the scenario itself. In order to use these
+commands, a character must be a "builder". Only SysAdmin can make
+someone a builder, using the command
+
+    cast makebuilder <character-name>
+
+where <character-name> is the name of the character who is to be given
+builder privileges. Builder privileges can be removed with the command
+
+    cast unmakebuilder <character-name>
+
+The build commands do not provide the full power of construction and
+programming that is available to wizards and apprentices, but they
+provide enough to allow potential wizards to try out some of their
+ideas. If the player is using the AmigaMUD remote client interface,
+many of the build commands are available as mouse-clicks, and a few
+additional ones are available for customizing the automatically
+generated room graphics.
+
+This document is divided into the following sections:
+
+    - basic concepts
+
+    - miscellaneous build commands
+
+    - building rooms using commands
+
+    - building objects using commands
+
+    - miscellaneous operations using the mouse
+
+    - building rooms using the mouse
+
+    - building objects using the mouse
+
+    - defining and attaching special actions
+
+The basic "build" command, which can also be abbreviated as "b", "@"
+or "construct", swallows the remainder of the input line (or upto a
+period on the line), and parses it as a complete command. If the first
+word in the build command (after the "build", etc.) is "room" or
+"object", then this idea is applied again. Thus, in the build command:
+
+    build room new north indoors in a test room
+
+which can be abbreviated as:
+
+    @r new n indoors in a test room
+
+the real verb is the "new". The "build room" just identifies the set
+of commands (called a "grammar" in AmigaMUD) to use.
+
+The command forms of the build commands are described before the
+mouse-oriented forms since the command forms are likely to be more
+familiar to users of other MUDs. Also, many users will learn the
+mouse commands by experimentation, and will not need to read about
+them. Most of the build commands will show a usage line if they are
+used without the proper parameters. This is often quite helpful.
+
+It must be noted that the build commands do not even come close to
+allowing builders to do everything that they might want to do. There
+are many things that can be done by a wizard or apprentice that cannot
+be done using the build commands. I am open to suggestions for
+important things to add to the set of build commands, but such new
+commands must add significantly to the capabilities of builders,
+since there is a very large number of such possible new build
+commands.
+
+
+Basic Concepts
+
+The basic entity in an AmigaMUD database is called a "thing". Things
+are little more than a pointer to a parent thing and a list of
+properties and values. Rooms and objects are just things. What makes
+them different is the set of properties they have. Rooms have
+properties that are pointers to other rooms they connect to, the name
+of the room, its description, etc. Objects also have names and
+descriptions, but can also have text that can be read, messages
+printed when they are touched or smelled, etc.
+
+When some code in the scenario wants to find the value of a property
+of a thing, it doesn't just look at that thing. If the thing has a
+value for the property, then it is done, but if it doesn't have a
+value, then AmigaMUD will look at the parent of the thing (if it has
+one), looking for the property there. This will continue until a
+value is found for the property or there are no more parents. This
+type of searching for properties through ancestors is called
+"inheritance" in object-orient programming languages. Thus, AmigaMUD
+is sort-of an object-oriented system.
+
+All rooms in the standard scenario present some sort of graphics to a
+player using the full graphics client. Much of the graphics is
+generated automatically, based on the type of room and the obvious
+exits from it. The AmigaMUD procedures to do the drawing are attached
+to empty rooms as properties. These "model" rooms are then made the
+parents of new rooms, and thus the new rooms will inherit the
+procedures to draw them. The connections to other rooms are examined
+in both the new rooms and the model rooms, but this works fine since
+the model rooms don't connect to any other rooms. The model rooms also
+contain the basic "scenery" words, as appropriate. For example, the
+indoor models include "floor" and "ceiling", while the outdoor models
+include "sky" and "ground".
+
+Creating a new room in the scenario requires creating a new "thing";
+making it inherit scenery and graphics from the appropriate model
+room; and adding connections to other rooms. The room can also be
+decorated, by adding a general description, descriptions specific to
+directions, etc.
+
+Creating a new object usually requires creating a new model object.
+This is so that several characters can have copies or clones of the
+object. For example, most characters will have a pen and a pad,
+purchased in the store in the mall. These are just nearly empty
+"things" which inherit their descriptions from the models. When the
+scenario is checking to see if a character has a pen and pad in order
+to write a letter, it isn't looking at the names of things - it is
+checking that the character has an object whose parent is the pen
+model and another object whose parent is the pad model. The scenario
+could just check names if it was appropriate, and in some cases it
+does.
+
+Ambitious players may want to add large, well-decorated areas to the
+database. It is convenient (almost required, when building) to have
+single-word symbols used to name the rooms and objects that are built.
+If a lot of building is done, the set of these symbols can be large
+and unwieldy. This situation arose during the construction of the
+standard scenario itself. To get around this problem, AmigaMUD has the
+concept of a "table", which is like a symbol table in a programming
+language. A table contains a bunch of symbols or names, and is
+independent of any other table. Thus, if a player has constructed two
+separate areas, he or she can use separate tables for their symbols,
+and thus have two rooms called "northRoom" without conflict. Several
+of the miscellaneous building commands deal with these tables.
+
+The system uses tables itself for some internal purposes. There is a
+single "global table", which is the starting point for finding
+anything. This global table is always accessible, and is used to look
+up symbols if they aren't found anywhere else. Each character has
+their own "private table", which is not accessible to other
+characters. Builders can create other tables within their private
+tables. It is not desireable to always search all tables when looking
+for a symbol, otherwise the point of having separate ones is lost. So,
+there is the idea of a table being "in use". A table in use will be
+searched when looking up a symbol; all other tables are not searched.
+The character's private table and the public table are always in use,
+and are searched, in that order, after any other in use tables.
+
+Things that can be put into tables include the names of rooms, the
+names of objects and the names of new properties that the builder
+creates. The AmigaMUD system also allows wizards and apprentices to
+define new AmigaMUD programs, and the names of these can also be put
+into tables. The build commands allow builders to define actions that
+can be attached to rooms and objects. These are actually converted
+into AmigaMUD programs by the build commands, and so can also be
+stored in builders' tables. Builders are shielded from the much more
+complex (and much more powerful) AmigaMUD programming language,
+however. Those interested in trying actual AmigaMUD programming must
+be raised to wizard or apprentice level by another wizard or
+apprentice. Initially, there are no apprentices in the system, and the
+only wizard is SysAdmin.
+
+Here is a log of a sample build session. Commentary is indented and
+surrounded with square brackets.
+
+input> look around
+You are west of the fountain.
+You see nothing special here.
+Obvious exits: north south
+
+    [I am in the park in the standard scenario.]
+
+input> build table private park
+input> @use park
+
+    [I create a new table, in my private table, called "park", and add
+    the new table to my set of "in use" tables.]
+
+input> build room new west indoors in the ice-cream parlour
+New room created and linked.
+
+    [I create a new room, which is of type 'indoors'. It is to the
+    west of where I am now, and it is called "in the ice-cream
+    parlour".]
+
+input> look
+You are west of the fountain.
+You see nothing special here.
+Obvious exits: north south west 
+
+    [The exit to the new room shows up.]
+
+input> west
+You are in the ice-cream parlour.
+You see nothing special here.
+Obvious exits: east
+
+    [I go into the new room.]
+
+input> @r same east out
+Link made.
+input> exits
+Obvious exits: east out 
+
+    [I make the 'out' direction go the same place as 'east'.]
+
+input> @r newdesc
+Room decorated.
+input> l
+You are in the ice-cream parlour.
+This is a small ice-cream parlour in the park. It serves several flavours of
+ice-cream, along with hot dogs and candy bars. The service counter is along
+the west wall, and includes the ice-cream freezers and covered racks for the
+candy bars. There are a half-dozen red metal tables in the front part of the
+parlour. Each table has four matching chairs. The door out is to the east.
+Obvious exits: east out 
+
+    [I put a whole new description (it didn't have one before) on the
+    new room. Since I was using the full client program, it put me
+    into its internal editor to type in the description. If I hadn't
+    been using the full client, I would have been prompted to type the
+    description in line by line.]
+
+input> @r dirdesc west
+Direction decorated.
+input> look west
+To the west is the service counter. Behind it is another counter for the
+servers to work on, a couple of refrigerators, a hot dog rotisserie and some
+storage cupboards.
+
+    [I similarly add a direction-specific description.]
+
+input> build object new park tables "tables;red,metal"
+Object created - you are carrying it.
+input> drop tables
+red metal tables: dropped.
+input> l tables
+You see nothing special about the red metal tables.
+input> @o newdesc tables
+Object description entered.
+input> look tables
+The tables are nothing special. They have curved metal legs with a bit of
+scrollwork, and a flat metal top.
+
+    [I create a 'tables' object, and decorate it. Note that I call it
+    "tables" and not just "table", since there are more than one in
+    the room, and I want the messages to come out right. The symbol I
+    use for it/them in my symbol table doesn't matter, however.]
+
+input> @o new park chairs "chairs;red,metal"
+Object created - you are carrying it.
+input> drop chairs
+red metal chairs: dropped.
+input> @o newdesc chairs
+Object description entered.
+input> l chairs
+The chairs are as simple as the tables. They have a solid metal seat and a
+mesh metal back, all held in place by curved tubes, which also form the legs.
+
+    [Some chairs to go along with the tables.]
+
+input> @o gettable tables no
+tables marked as not gettable.
+input> @o gettable chairs no
+chairs marked as not gettable.
+input> get tables
+You cannot get the red metal tables.
+
+    [Don't want people stealing my decorations!]
+
+input> look
+You are in the ice-cream parlour.
+This is a small ice-cream parlour in the park. It serves several flavours of
+ice-cream, along with hot dogs and candy bars. The service counter is along
+the west wall, and includes the ice-cream freezers and covered racks for the
+candy bars. There are a half-dozen red metal tables in the front part of the
+parlour. Each table has four matching chairs. The door out is to the east.
+Obvious exits: east out 
+Nearby:
+  red metal tables
+  red metal chairs
+
+    [Hmmm. I don't want them showing up this way.]
+
+input> @o invisible tables true
+tables marked as invisible.
+input> @o invisible chairs true
+chairs marked as invisible.
+input> l
+You are in the ice-cream parlour.
+This is a small ice-cream parlour in the park. It serves several flavours of
+ice-cream, along with hot dogs and candy bars. The service counter is along
+the west wall, and includes the ice-cream freezers and covered racks for the
+candy bars. There are a half-dozen red metal tables in the front part of the
+parlour. Each table has four matching chairs. The door out is to the east.
+Obvious exits: east out 
+
+    [That's better.]
+
+input> out
+You are west of the fountain.
+You see nothing special here.
+Obvious exits: north south west 
+input> @r adddesc
+Room redecorated.
+input> look
+You are west of the fountain.
+There is an ice-cream parlour to the west.
+Obvious exits: north south west 
+
+    [Let people outside know that my new room is here.]
+
+input> @showtable park
+Symbols in table:
+ chairs 	   tables	
+
+    [What symbols do I have in my 'park' table?]
+
+input> @describe park chairs
+chairs: thing, parent <NIL-THING>, owner SysAdmin, useCount 2, propCount 7,
+    ts_public:
+  p_oName: "chairs;red,metal"
+  p_oCreator: <THING>
+
+    [I'll add a public table to my 'in use' list and redo that.]
+
+input> @use t_base
+input> @describe park chairs
+chairs: thing, parent <NIL-THING>, owner SysAdmin, useCount 2, propCount 7,
+    ts_public:
+  p_oName: "chairs;red,metal"
+  p_oHome: <THING>
+  p_oCreator: <THING>
+  p_oWhere: <THING>
+  p_oDesc:
+"The chairs are as simple as the tables. They have a solid metal seat and a "
+"mesh metal back, all held in place by curved tubes, which also form the "
+"legs."
+  p_oNotGettable: true
+  p_oInvisible: true
+
+
+Miscellaneous Build Commands
+
+A summary of these commands can be found on-line by going into the
+Builder's Guild library and reading the "Book of Introduction". In
+these commands <table> refers to any table that you have access to.
+Initially this is just "private" or "public", but if you create new
+tables using the "@table" command, you can use them too. <symbol>
+refers to any valid symbol. Valid symbols start with a letter or an
+underscore (_) and contain only letters, underscores and digits. Note
+that the system will actually allow other symbols, e.g. ones with
+spaces in them, but it is not advisable to use such symbols, for a
+couple of reasons. One is that you will always have to put them in
+quotes to refer to them. The other is that they cannot be referred to
+from the AmigaMUD programming language, so you would have trouble with
+them if you ever became a wizard or apprentice.
+
+Note that many of these commands are only of use to those who will be
+writing actions to attach to rooms and objects. Beginning readers may
+wish to skip the descriptions of "@flag", "@counter", and "@string",
+and much of the description of "@use".
+
+The miscellaneous build commands are:
+
+    @showtable <table> - this command shows the symbols defined in a
+	given table. The <table> can be a symbol which is defined in a
+	table which is currently in use, or can be "public" (referring
+	to the system-wide global table) or "private" (referring to
+	your private symbol table).
+
+    @describesymbol <table> <symbol> - this command will dump out the
+	value of the given symbol defined in the given table. The
+	output format will vary, depending on the nature of the symbol
+	being defined. Some details of the output may not be obvious -
+	they are explained in the "Wizard" document. "@describesymbol"
+	can be abbreviated as "@describe" or just "@d". When
+	describing "things" (e.g. rooms and objects), only those
+	properties that are defined in an in-use table will show up.
+
+    @deletesymbol <table> <symbol> - the given symbol is deleted from
+	the table. The system will not let you delete symbols which
+	are the only pointer to something that it cannot delete. For
+	example, if you have a property called "frotz" which you have
+	used on some of your objects, then you cannot delete the
+	symbol table entry for "frotz" until all of those objects (and
+	any descendants of them) are gone. "@deletesymbol" can be
+	abbreviated as "@delete".
+
+    @movesymbol <from-table> <to-table> <symbol> - this command is
+	used to move symbols from one table to another. This is useful
+	if a table is getting too full for convenient use, and you
+	want to split it up and move symbols to another, new table.
+	Alternatively, if a table created for some purpose proved to
+	be not necessary, the symbols can be moved out of it and the
+	table deleted. "@movesymbol" can be abbreviated as "@move".
+
+    @renamesymbol <table> <old-symbol> <new-symbol> - this command
+	allows you to change the name of a symbol. The new name must
+	not already exist in the table. Beware of changing a symbol
+	to a name that already exists in another table that you might
+	need to "use" at the same time. There is no restriction on
+	doing so, but it can cause troubles when trying to refer to a
+	specific one of the symbols. "@renamesymbol" can be
+	abbreviated as "@rename".
+
+    @flag <table> <symbol> - this command creates a new "flag"
+	property. Flag properties are those which can hold only a
+	"true" or "false" value, and which can be tested in actions.
+	In the terminology of the AmigaMUD programming language, flags
+	are of type "property bool". In the above example,
+	"p_oNotGettable" and "p_oInvisible" are flags. The naming
+	convention I have used there is that property names start with
+	"p_", and properties specifically for objects start with
+	"p_o". You need not follow this convention, but others might
+	be able to understand your creations better if you do.
+
+    @counter <table> <symbol> - this command creates a new "counter"
+	property. Counter properties hold numbers, either positive or
+	negative. In AmigaMUD terminology they are "property int".
+	Note that the numbers that they hold cannot have a decimal
+	point in them - AmigaMUD has no provisions for that.
+
+    @string <table> <symbol> - this command creates a new "string"
+	property. String properties hold character strings, such as
+	"this is a string" or "Fred". In AmigaMUD terminology they are
+	"property string". In AmigaMUD, strings are limited to about
+	4000 characters.
+
+    @table <existing-table-name> <new-table-name> - this command is
+	used to create new tables, as in the example above. If you
+	find yourself doing a lot of building and defining a lot of
+	symbols, you should probably create some tables to put some of
+	the symbols in, so that you can organize them better. For
+	example, if you build a castle to the north of the town, you
+	might want to create a table called "castle" and put all of
+	the castle-related symbols in there. Then, they won't get
+	mixed up with symbols for, say, a tunnel area, the symbols
+	for which you can keep in a table called "tunnels".
+
+    @use <table> - this command adds a table to your set of "in use"
+	tables. This concept might be a bit foreign for some, so I'll
+	try to explain in more detail. Lets say that you have created
+	a castle area, whose symbols you have put into a "castle"
+	table, and you have created a tunnel area, whose symbols you
+	have put into a "tunnels" table. Now you want to make the
+	castle bigger by adding a dungeon. To keep the new dungeon
+	symbols from getting mixed up with the rest of the castle
+	(both might have a "northEastCorner" room for example), you
+	create a table called "dungeon", in the "castle" table, and
+	put the new symbols in it. If we then draw your set of
+	symbols, it looks like an upside-down tree, as in:
+
+		public		   private
+		/ | \		   /  |  \ \ \
+	       /  |  \		  /   |   \ \ \
+	      /   |   \ 	 /    |    \ \ \
+	 "t_base"		/     |     \ \ \
+			 "tunnels" "castle"  others
+			  / |  \    /  | \
+			 /  |	\  /   |  \
+			/   |	|  |   |  "dungeon"
+
+	If you want to rename symbol "room1" in "dungeon" to "room2",
+	how do you do it? The @rename command only takes a table name,
+	and the system can only find "tunnels" and "castle" in your
+	private table. We don't want the system to search all tables,
+	since then there is no point in having multiple ones. Also, in
+	the AmigaMUD programming language, and when using build
+	commands to write actions, there is no opportunity to specify
+	a table - the name must be found directly. Instead, the system
+	has a list of "in use" tables which it will search in for
+	symbols. So, to do the rename mentioned above, you could do:
+
+	    @use castle
+	    @rename dungeon room1 room2
+
+	and to then be able to refer to "room2" in an action, you
+	could do:
+
+	    @use castle
+	    @use dungeon
+	    ... refer to "room2" ...
+
+	Note the use of "@use t_base" in the example at the end of the
+	previous section. "t_base" is a table inside the global table
+	("public") which contains such things as "p_oNotGettable",
+	"p_oName", etc. Most of the public symbols that a builder
+	might want to know about are in that table, but if you want to
+	really explore the standard scenario, you can do something
+	like this:
+
+	    @showtable public
+	    @describe public t_fight
+	    @showtable t_fight
+	    @describe t_fight p_pHitMax
+	    ... etc. ...
+
+	Doing this, you will soon end up @describe-ing AmigaMUD
+	procedures. In them, you will see a lot of "<REF>"'s. This
+	means that the procedure references a symbol that is not
+	defined in your current set of "in use" tables. When exploring
+	like this, it is useful to have the table you are looking at
+	"in use", (here "t_fight"), along with "t_base", "t_util",
+	"t_graphics" and "t_icons".
+
+    @unuse <table> - this command removes a table from your list of
+	"in use" tables.
+
+    @symbolhere <table> <symbol> - this command defines a symbol as a
+	name for the current location. This allows you to name the
+	rooms that you create, which allows you to "@poof" to them.
+
+    @poof <symbol> - this command allows you to instantaneously
+	teleport from the current room, which you must have built, to
+	the named room (named with "@symbolhere"), which you must also
+	have built. This is very handy when you are building large
+	areas, since it can be quite tedious to have to go back and
+	forth in the area to add connections between rooms, etc. It's
+	also great for impressing players that aren't builders and
+	can't do it, or who don't know about it.
+
+
+Building Rooms Using Commands
+
+Commands for building rooms are all under the "room" (or just "r")
+build command. A summary of them can be found on-line by reading the
+"Book of Rooms" in the Builder's Guild library. In order to be able to
+build in or onto a room, one of the following must be true:
+
+    - you are SysAdmin
+    - you own the room (you built it)
+    - the room's thing has status "ts_public"
+    - the room's thing has status "ts_wizard" and you are a wizard
+
+The last condition allows wizards to protect critical areas from
+mistakes made by beginners, while at the same time allowing other
+wizards to build from them. The room-building commands are:
+
+    @r new <dir> <kind> <room-name> - this is the basic command for
+	building new rooms, and it was illustrated in the initial
+	building example. It builds a new room in the direction <dir>
+	from the current room. <dir> can be a full direction name or
+	an abbreviation. <kind> is the kind of room, which controls
+	what its default automatic graphics will look like, and what
+	it has for default scenery. <kind> can be one of: indoors,
+	outdoors, forest, field, path, road, sidewalk, park or tunnel.
+	<room-name> is a sequence of words (does not need to be
+	quoted), which makes sense as the short description of the
+	room when used in the form "You are <room-name>.". The
+	scenario adds the "You are " and the period and newline when
+	it is printing the message - there is no way to get rid of
+	them. This was a deliberate choice, to prevent confusion. When
+	a room is created, the current room is given an obvious exit
+	to it (the direction shows up in the "exits" list), and the
+	new room is given an obvious exit in the reverse direction
+	back to the current room.
+
+    @r newname <room-name> - allows you to change the name of the
+	current room. See the "@r new" discussion for the format of
+	room names.
+
+    @r hide <dir> - allows you to hide or unhide an exit from the
+	current room. A hidden exit does not appear in the "exits"
+	list. Hiding a hidden exit makes it unhidden.
+
+    @r same <old-dir> <new-dir> - this command makes a new obvious
+	exit from the current room in direction <new-dir> that goes to
+	the same room as <old-dir>. This is most often used to make
+	directions "in" and "out" work. Note that the connection made
+	is only in the one direction - the reverse link is not
+	automatically made, as it is in "@r new".
+
+    @r scenery <word> ... <word> - the <word>'s are made available in
+	this location as scenery words. That is, they can be used in
+	commands by a player, but cannot be manipulated. This is like
+	"ceiling" or "sky". This setup is used to avoid having to
+	build objects for everything in the room's description, so
+	that player's don't get annoyed by the repeated "There is no
+	<whatever> here." messages. The <word>'s can be full object
+	names as in "book;big,black" (see the later section on
+	building objects), but must then be quoted. The object names
+	should not contain periods, since periods are used to separate
+	the individual scenery <word>'s internally.
+
+    @r newdesc - this command allows you to replace the description of
+	the current room. The scenario prints this long description
+	exactly as you type it. As with all such descriptions in
+	AmigaMUD, however, the exact line structure of the description
+	is not preserved - it is reformatted according to the width of
+	the user's display (not the builder's display!). If you are
+	using the full AmigaMUD client program, you will be put into
+	either the internal editor or your external editor to edit the
+	description, otherwise you will be prompted to enter the
+	description line by line. Also, if an editor is used, the old
+	description is put into the editor for you. If you delete the
+	entire description, or enter no lines for the new description,
+	then the room is left with no long description.
+
+    @r adddesc - this command allows you to append to the current
+	description. It is very similar to "@r newdesc". The
+	differences are that if you are using the full client, and you
+	end with an empty buffer, then the description is not changed;
+	and if you are not using the full client, then any lines you
+	enter are appended (with a space added if needed) to any
+	existing description.
+
+    @r linkto <dir> <room-name> - this command makes a link from the
+	current room, in the indicated direction, to the room which
+	has been named <room-name> (using the @symbolhere command).
+	This command is useful for building circular room structures,
+	non-flat interconnections, etc.
+
+    @r unlink <dir> - use this command to remove an exit from the
+	current room. Be careful not to remove all exits to or from a
+	given room unless you have a symbol for it, or you want it to
+	disappear.
+
+    @r dark [y|n] - use this command to make a room dark or not dark.
+	All rooms created with these commands are initially not dark.
+	If no 'y' or 'n' is given, then 'y' is assumed.
+
+    @r lock [y|n] - this command allows you to "lock" the current
+	room. Locking a room prevents anyone other than you or
+	SysAdmin from entering it. This is useful when you are just
+	building an area and you don't want people in it until you are
+	finished with it. Usually, just locking the entrance room to
+	an area is sufficient.
+
+    @r status {readonly|wizard|public} - this command sets the "thing
+	status" of the current room. A room which is "readonly" cannot
+	be changed by anyone other than you and SysAdmin. A room which
+	has status "wizard" can only be changed by wizards, and a room
+	with status "public" can be changed by any builder. As a vague
+	rule, rooms should be public if things built on to them would
+	not harm the consistency or flavour of your area. They should
+	be "wizard" if careful construction wouldn't hurt, but random
+	changes would.
+
+    @r dirdesc <dir> - this command allows you to enter a direction
+	specific description to the current room. This is a message
+	that will be seen by characters who look in that direction
+	from the room. An example direction description would be
+	something like "There is a dark tunnel to the north.".
+
+    @r dirmessage <dir> - this command adds a direction specific
+	message to the room. This is a message which is seen by
+	characters as they leave the room in that direction. This can
+	be used for things like "You enter the dark tunnel.".
+
+    @r diromessage <dir> - this command adds a direction specific
+	message for other characters. This is a message which is shown
+	to other characters in the room when someone leaves in the
+	indicated direction. The name of the character leaving and a
+	space is printed before the text of the message. An example
+	would be "enters the dark tunnel.".
+
+    @r diremessage <dir> - this command adds a direction specific
+	entering message. This is a message seen by other characters
+	in the room when a character enters the room from the given
+	direction. An example would be "comes out of the dark
+	tunnel.".
+
+    @r makebank - this command makes the current room into a bank.
+	This adds the special commands "balance", "deposit" and
+	"withdraw" to the room. Note that all banks are independent -
+	funds in one cannot be accessed from another. Using this
+	command on a bank will make it not be a bank, so long as no
+	character has an account at it.
+
+    @r makestore - this command makes the current room into a store.
+	This makes it possible for characters to use the "shop"
+	command, and to "buy" items which are for sale. If used in a
+	room which is already a store, then the room will be made not
+	a store, but only if there is nothing for sale in it yet.
+
+    @r addforsale <object-symbol> <price> - this will make the given
+	object (see the next section for how to create objects) for
+	sale at this store for the indicated price. Note that when a
+	character buys at a store, they get a copy (actually a thing
+	whose parent is the one you specify here) of the object, and
+	not the object itself. Thus, there is no limit to the number
+	of objects which various characters can buy.
+
+    @r subforsale <object-symbol> - make the object be no longer for
+	sale in this room. Note that there is no button corresponding
+	to this command.
+
+    @r descaction <table> <action-symbol> - this command is used to
+	define actions which are suitable for use as room description
+	actions.
+
+    @r setdescaction <action-symbol> - this command sets the
+	description of the current room to be the named action (see a
+	later section on creating actions). Using an action as a
+	description instead of a string allows the description to
+	change, based on whatever the action chooses to test. If
+	<action-symbol> is "nil", then the description action is
+	removed.
+
+    @r checker <table> <action-symbol> - this command allows you to
+	define a room action. It is placed in the indicated table.
+	Actions are discussed later. An action produced this way is
+	suitable for use as a "direction checker".
+
+    @r adddircheck <dir> <action-symbol> - this command adds a
+	"checker" action to the indicated direction from the current
+	room. Such an action is called when a character attempts to
+	leave in the indicated direction. The action (actions are
+	described later) can prevent the character from leaving, based
+	on some conditions as determined by the checker, and can print
+	to the character and others messages depending on the success
+	or failure of the exiting. The action can also modify the
+	character or the room. The <dir> in this case can also be
+	"anyenter" or "anyexit", indicating that the checker is called
+	when a character attempts to enter the room from any
+	direction, or attempts to leave the room by any direction,
+	respectively. There can be more than one "checker" associated
+	with any direction. All can block passage.
+
+    @r subdircheck <dir> <action-symbol> - this command allows a
+	builder to remove a specific checker from the indicated
+	direction.
+
+    @r showdirchecks <dir> - this command shows the direction
+	"checkers" attached to the given direction from this room. If
+	a particular checker is yours, then just its symbol is
+	printed, otherwise a printout of the AmigaMUD programming
+	language code of the checker is produced. In the latter, it is
+	likely that you will see "<REF>"'s, since flags, etc. tested
+	will be in other builders' private symbol tables.
+
+    @r specialaction <table> <action-symbol> - define an action that
+	can be used to execute a special command in a room. The
+	special commands can be added using "@r addspecialaction".
+
+    @r addspecialaction <action-symbol> <verb-form> - this command
+	allows you to add special commands to the current room. This
+	is the same internal technique which was used to add the
+	special commands to banks. <action-symbol> is the name of an
+	action, defined using "@r specialaction", which is to be
+	executed to do the command. <verb-form> is either a single
+	word or a quoted, comma-separated list of words giving the
+	word or words that are to operate in this room. E.g. if a
+	special action named "doSmoogle" is defined in an in-use
+	table, then:
+
+	    @r addspecialaction doSmoogle "smoogle,frink"
+
+	would enable commands "smoogle" and "frink" in the current
+	room, with action "doSmoogle" setup to handle the command.
+	Actions are described in a later section. More than one
+	special action can be added to a given room.
+
+    @r subspecialaction <action-symbol> <verb-form> - this is the
+	reverse of the previous command - it allows special commands
+	to be removed from the current room.
+
+
+Building Objects Using Commands
+
+Commands for building objects are all under the "object" (or just "o")
+build command. A summary of them can be found on-line by reading the
+"Book of Objects" in the Builder's Guild library. In many cases,
+copies or clones of objects will exist. E.g. if a builder creates a
+"glass vase" and makes it available for sale in a store, any number of
+characters can buy such vases. Each will be a simple "thing" with the
+master vase as its parent. This means that any changes made to the
+main vase object, using the object building commands, will be
+immediately reflected in all of the purchased ones. This can be quite
+confusing to players who don't understand what is happening, so it is
+a good idea to not make your new objects accessible in this way until
+you have finished modifying them.
+
+One aspect of objects should be handled carefully. This is the name of
+the object (not the symbol you define, but the name by which they will
+appear to players). These are given in a standardized, internal form.
+This form is handled by several builtin AmigaMUD functions, including
+the parser, and the code which searches for matching objects on lists
+of them. The basic form is that of a noun, optionally followed by a
+semicolon and a comma-separated list of adjectives. The example above
+shows two examples of this form. Additionally, the noun can be a
+comma-separated list of alternative forms. E.g.
+
+    rock,stone;large,granite
+
+When the system shows an object with this name in a room or being
+carried, etc., it will be printed as "large granite rock". Only the
+first noun alternative is printed, and the adjectives are printed
+before it. When referred to by a player, any of the following forms
+will match it:
+
+    stone
+    rock
+    granite rock
+    large stone
+    large granite rock
+    granite large large large stone
+    ...
+
+Additionally, the names given to objects can be a period-separated
+list of the above internal forms. E.g.
+
+    shelf;wooden,book.shelve,shelf,bookshelf,book-shelf;book,wooden,wood
+
+This example would be printed as "wooden book shelf". The second
+alternative will not be printed by the system (which is good, since it
+would come out as "book wooden wood shelve"). It is there to allow a
+good selection of alternative inputs by players, like:
+
+    wooden book shelf
+    wooden book-shelf
+    wood book shelves
+    ...
+
+The system will automatically handle simple plurals when matching. In
+the following descriptions, this general form will be indicated by
+using "<name-alternatives>".
+
+The object-building commands are:
+
+    @o new <table> <object-symbol> "<name-alternatives>" - this
+	command creates a new object. The object will have no
+	properties other than its name, and the builder will be
+	carrying it. The builder must have carrying capacity for the
+	additional object. A symbol for the object is added to the
+	given table. The object's "thing" will have no parent, i.e.
+	the object will not inherit any properties. The <name-
+	alternatives> should be given in quotes since otherwise the
+	punctuation inside it would prematurely terminate the entire
+	command.
+
+    @o destroy <table> <object-symbol> - this command is used to
+	destroy an object that is no longer needed. You must be
+	carrying the object in order to destroy it (carrying a clone
+	of the object is not good enough). The "usecount" of an object
+	should be '2' in order to properly destroy it (one use is the
+	symbol which names the object, and the other is that of the
+	object being carried). Being for sale in a store adds to an
+	object's usecount, so it should not be destroyed if it is for
+	sale. This command will let you destroy an object which has
+	existing clones, but this is not a good thing to do, and will
+	leave a mess that SysAdmin will have to try to clean up. There
+	is no way within the system to find all objects which are
+	clones of another, so this command cannot check for them.
+
+    @o newname <object-symbol> "<name-alternatives>" - this command
+	simply provides a new name for an existing object. This
+	command can be abbreviated as "@o name".
+
+    @o newdesc <object-symbol> - this command allows you to enter a
+	description of the object. As in entering room descriptions,
+	players using the full AmigaMUD client program will be put
+	into the editor to edit the description. Finishing with an
+	empty description will delete the description from the object.
+	"@o newdesc" can be abbreviated as "@o desc".
+
+    @o readstring <object-symbol> - this command allows you to enter a
+	string that is the readable message on the indicated object.
+	Finishing with an empty readstring will delete the readstring
+	from the object.
+
+    @o gettable <object-symbol> [yes|no] - this command allows the
+	builder to control whether or not an object can be picked up.
+	Typically, objects which are part of the scenery in a room are
+	made not gettable. If no "yes" or "no" is given, then "yes" is
+	assumed.
+
+    @o islight <object-symbol> [yes|no] - this command controls
+	whether or not an object emits light. For example, a
+	flashlight emits light. Using this command, there is no way to
+	make a light which can be turned on and off. If no "yes" or
+	"no" is given, then "yes" is assumed. "@o islight" can be
+	abbreviated as "@o light".
+
+    @o invisible <object-symbol> [yes|no] - this command is used to
+	make an object invisible or not. Invisible objects do not show
+	up in a room's contents or in the inventory of a character.
+	They are mostly used in rooms as decorations, such as the
+	tables and chairs in the above example. If no "yes" or "no" is
+	given, then "yes" is assumed.
+
+    @o container <object-symbol> <count> - this command controls
+	whether or not an object is a container. <count> is the number
+	of objects that the container can hold. If count is 0, then
+	the object is made to be no longer a container. Note that when
+	objects which are containers are purchased in a store, the
+	"containerness" of them is attached to the newly created
+	purchased object. Thus, making an object no longer a container
+	does not make any existing clones not be containers.
+
+    @o sitin <object-symbol> <count>
+    @o siton <object-symbol> <count>
+    @o liein <object-symbol> <count>
+    @o lieon <object-symbol> <count>
+    @o standin <object-symbol> <count>
+    @o standon <object-symbol> <count> - these commands are used to
+	make an object available for the indicated action. A count of
+	0 removes the action. A non-zero count indicates how many
+	characters can simultaneously use the action. For example:
+
+	    @o new private bench "bench;short,wooden"
+	    @o gettable bench no
+	    @o invisible bench yes
+	    @o siton bench 2
+	    drop bench
+
+	sets up a bench in the current room, such that two characters
+	can sit on it. Such characters will be described as sitting on
+	the bench when others look around the room.
+
+    @o setactword <object-symbol> "word,synonym,..." - this command
+	allows the builder to add a single arbitrary action that can
+	be performed when the object is being carried. Either a single
+	word that is the new command is given, or a list of alternate
+	words separated by commas is given. For example, using:
+
+	    @o setactword vase "blorple,snooble"
+
+	makes new command "blorple" (or its equivalent, "snooble")
+	available to any character carrying the vase. The command can
+	either just print a string or can be an action, as described
+	below.
+
+    @o setactstring <object-symbol> - this commands enters a string
+	which is to be shown to a character who uses the special "act"
+	command of the object. Printing the string will be the only
+	result of using the "act" command.
+
+    @o actaction <table> <action-symbol> - this command defines a new
+	"act" action, which is suitable for use with the
+	"@o setactaction" command. Actions in general are described in
+	a later section.
+
+    @o setactaction <object-symbol> <action-symbol> - this command
+	sets the given action to be done as the result of a player
+	using the "act" command of the object. The action is created
+	using the "@o actaction" command. If <action-symbol> is "nil"
+	then any actaction on the object is removed.
+
+    @o descaction <table> <action-symbol> - this command defines a new
+	object description action, which is suitable for use with the
+	"@o setdescaction" and "@o setreadaction" commands.
+
+    @o setdescaction <object-symbol> <action-symbol> - this command
+	sets an object description action as the description for the
+	named object. Using an action as the description allows the
+	description to change, depending on circumstances. The action
+	can be created using "@o descaction". If <action-symbol> is
+	"nil", then any description action on the object is removed.
+
+    @o setreadaction <object-symbol> <action-symbol> - this command
+	sets an object read action as the readable text for the named
+	object. The action can be created using "@o descaction". If
+	<action-symbol> is "nil", then any read action is removed.
+
+    @o playstring <object-symbol>
+    @o erasestring <object-symbol>
+    @o eatstring <object-symbol>
+    @o usestring <object-symbol>
+    @o activatestring <object-symbol>
+    @o deactivatestring <object-symbol>
+    @o lightstring <object-symbol>
+    @o extinguishstring <object-symbol>
+    @o wearstring <object-symbol>
+    @o touchstring <object-symbol>
+    @o smellstring <object-symbol>
+    @o listenstring <object-symbol>
+    @o openstring <object-symbol>
+    @o closestring <object-symbol>
+    @o pushstring <object-symbol>
+    @o pullstring <object-symbol>
+    @o turnstring <object-symbol>
+    @o liftstring <object-symbol>
+    @o lowerstring <object-symbol>
+    @o getstring <object-symbol>
+    @o unlockstring <object-symbol> - these commands allow the builder
+	to set a string on an object which is displayed when a
+	character applies the corresponding command to that object.
+	E.g.
+
+	    input> eat vase
+	    You cannot eat the vase.
+	    input> @o eatstring vase
+	    Object eat string entered.
+	    input> eat vase
+	    The vase is much too valuable to waste by eating it.
+	    Besides, the glaze is probably poisonous.
+	    input>
+
+	As usual, builders using the AmigaMUD client program will be
+	put into an editor to enter or change the string, while others
+	will be prompted to enter it line by line.
+
+	The 'get' string is a special case. It is the string that will
+	be printed to inform the user that they failed to 'get' the
+	object. I.e. it replaces the "You cannot get the XXX."
+	message.
+
+    @o checker <table> <action-symbol> - this command defines a new
+	object checker action, which is suitable for use with the set
+	of "@o XXXchecker" commands described immediately below.
+
+    @o playchecker <object-symbol> <action-symbol>
+    @o erasechecker <object-symbol> <action-symbol>
+    @o eatchecker <object-symbol> <action-symbol>
+    @o usechecker <object-symbol> <action-symbol>
+    @o activatechecker <object-symbol> <action-symbol>
+    @o deactivatechecker <object-symbol> <action-symbol>
+    @o lightchecker <object-symbol> <action-symbol>
+    @o extinguishchecker <object-symbol> <action-symbol>
+    @o wearchecker <object-symbol> <action-symbol>
+    @o touchchecker <object-symbol> <action-symbol>
+    @o smellchecker <object-symbol> <action-symbol>
+    @o listenchecker <object-symbol> <action-symbol>
+    @o openchecker <object-symbol> <action-symbol>
+    @o closechecker <object-symbol> <action-symbol>
+    @o pushchecker <object-symbol> <action-symbol>
+    @o pullchecker <object-symbol> <action-symbol>
+    @o turnchecker <object-symbol> <action-symbol>
+    @o liftchecker <object-symbol> <action-symbol>
+    @o lowerchecker <object-symbol> <action-symbol> - these build
+	commands will enter an action as the response to using the
+	given verb on the indicated object. Appropriate actions can be
+	built using the "@o checker" command. There are no "getaction"
+	or "unlockaction" commands - the options here are more complex
+	and can only be setup by a wizard or apprentice. Note that the
+	combat code in the standard scenario uses the "use" and "wear"
+	verbs for shields and armour respectively. That code uses
+	internal use/wear actions that reference internal properties
+	indicating the item's effectiveness. If <action-symbol> is
+	"nil" then any such action on the object is removed.
+
+
+Miscellaneous Operations Using the Mouse
+
+The build buttons in the standard AmigaMUD scenario often require more
+complex interaction from the user. Some, such as making a room light
+or dark, can happen without further interaction. Most buttons will
+indicate their activity through messages in the text window. Some
+buttons will simply bring up a different set of buttons. Others will
+bring up a simple requester, into which you must type the required
+value. Clicking on the 'CANCEL' gadget in the requester will abort the
+current build operation. Some buttons (such as changing the
+description of the current room) will put you into the visual editor
+to edit something. This can either be the client program's internal
+editor, or an external editor, depending on how you have configured
+the client program.
+
+Users of the AmigaMUD client program can do most building activities
+using mouse-clicks instead of hard-to-remember commands. When a
+character is enabled as a builder, the standard set of buttons
+appearing on the screen will look somewhat like this:
+
+		 +-+	  +--+ +-+ +--+
+		 |@|	  |NW| |N| |NE|
+		 +-+  +-+ +--+ +-+ +--+ +-+
+		      |I|		|U|
+		      +-+ +-+  +-+  +-+ +-+
+			  |W|  |L|  |E|
+		      +-+ +-+  +-+  +-+ +-+
+		      |O|		|D|
+		      +-+ +--+ +-+ +--+ +-+
+			  |SW| |S| |SE|
+			  +--+ +-+ +--+
+
+The only difference from the buttons available to a non-builder is the
+'@' button in the top-left corner. Clicking on the '@' button will
+bring up the top-level build buttons:
+
+		+----+	+----+	+------+
+		|EXIT|	|Room|	|Object|
+		+----+	+----+	+------+
+
+		+----+	   +-----------+
+		|Poof|	   |Symbol Here|
+		+----+	   +-----------+
+
+		+------+
+		|Tables|
+		+------+
+
+Clicking on 'EXIT' removes the build buttons and restores the standard
+movement/look button set. Clicking on 'Room' brings up the top of the
+room-building buttons, which are discussed later. Clicking on 'Object'
+brings up the top of the object-building buttons, also discussed
+later. Clicking 'Poof' will bring up a requester for the symbol of a
+room to "Poof" to (to teleport to). You can only Poof from rooms you
+own (have built) to other rooms you own. Note that the symbol for the
+room must be in a table that is currently in use. Tables can be made
+in use through the 'Tables' items, or via the '@use' command. Clicking
+on 'Symbol Here' will request a symbol to enter into the currently
+selected table as a symbol for the current room. Clicking on the
+'Tables' button will bring up the symbol table manipulation buttons,
+as follows:
+
+		+----+	 +---+	 +------+
+		|EXIT|	 |New|	 |Select|
+		+----+	 +---+	 +------+
+		
+		+---+		  +-----+
+		|Use|		  |UnUse|
+		+---+		  +-----+
+		
+		+-------+      +--------+
+		|Symbols|      |Describe|
+		+-------+      +--------+
+
+    EXIT - return to the top-level build buttons.
+
+    New - create a new symbol table in the current table. A requester
+	will appear for the name of the new table.
+
+    Select - a requester requests the symbol for a table to be made
+	the selected table. The selected table is the one used for all
+	symbol operations using buttons. By default, the selected
+	table is your private table. The name of the table can also be
+	'public' or 'private', selecting the system global symbol
+	table or your private table.
+
+    Use - requests the name of a table to add to your current set of
+	in-use tables. Note that the set of in-use tables is NOT
+	preserved across sessions.
+
+    UnUse - requests the name of a table to remove from your current
+	set of in-use tables.
+
+    Symbols - shows (in the text window) the symbols in the currently
+	selected table. Note that some tables (e.g. the system
+	'Builtin' table) have a large number of symbols in them, and
+	the output will not fit in the default-sized output history of
+	the AmigaMUD client program.
+
+    Describe - requests a symbol to describe. The symbol must be
+	defined in the currently selected table. See the discussion
+	above on the '@describe' command, and the Wizard documentation
+	for more details on the output from this button.
+
+
+Building Rooms Using the Mouse
+
+Clicking on 'Rooms' in the top-level set of build buttons will bring
+up the top level of the room-building buttons, as follows:
+
+		+----+		  +----+
+		|EXIT|		  |MORE|
+		+----+		  +----+
+		+---+  +----+	+------+
+		|New|  |Link|	|Unlink|
+		+---+  +----+	+------+
+		+----++----++----++----+
+		|Same||Hide||Shop||Sell|
+		+----++----++----++----+
+		+----++----++----++----+
+		|Bank||Name||Desc||Auto|
+		+----++----++----++----+
+
+    EXIT - goes back to the top-level build buttons.
+
+    New - used to build a new room. The sequence of operations is as
+	follows:
+
+	- the standard direction buttons (minus the 'L' and the '@')
+	    with added 'EXIT' and 'HELP' buttons is displayed. You
+	    must select a direction from the current room that the new
+	    room is to be constructed in.
+
+	- a set of buttons containing 'Indoors', 'Outdoors', 'Forest',
+	    'Field', 'Path', 'Road' 'Sidewalk', 'Park' and 'Tunnel' is
+	    displayed. You must select the type of room for the new
+	    room. This type controls the default autographics that
+	    will be used for the room, along with setting the default
+	    scenery (sky, ceiling, etc.) for the room.
+
+	- a requester appears for the name of the room. This room name
+	    must be something that makes sense in a sentence by itself
+	    starting with "You are". The requester shows the example
+	    of "in the pawnshop".
+
+	At this point (unless you cancelled or exited somewhere in the
+	sequence, or something else prevented construction of the
+	room) the new room will be built. If the current room is one
+	which shows autographics, then the new exit direction will be
+	shown right away. You will typically then go into the new room
+	in order to build on to it or to decorate it, etc. This button
+	automatically builds a reverse link from the new room to the
+	current room.
+
+    Link - this button creates a connection from the current room to a
+	selected other room. It first puts up the direction buttons,
+	and you must select the direction for the link to go from the
+	current room. After that, you must enter the symbol for the
+	room to link to. The link built is a one-way only link.
+
+    UnLink - this button puts up the direction buttons, asking for the
+	direction of the link to remove. If a reverse link exists, it
+	is not removed.
+
+    Same - this button is used to create a link from the current room
+	that goes to the same room as an already existing link, but
+	via a different direction. Typically, it is used to make 'OUT'
+	go to the outside room. First, the set of direction buttons is
+	put up to select the direction of the existing link to copy,
+	then they are put up again to select the new direction that is
+	to receive a copy of the link.
+
+    Hide - this button is used to make a link be hidden, or to unhide
+	an already hidden link. A hidden link does not show up on the
+	exits list, and does not appear on autographics. The standard
+	set of direction buttons selects the link to hide.
+
+    Shop - this button will toggle the current room between being a
+	store and not being a store. A store can only be made not a
+	store if there is nothing for sale at it.
+
+    Sell - this button is used to put specific items up for sale at
+	the current location, which must be a store. There is no
+	button to make something be no longer for sale. You must use
+	the "@r subforsale" command to do that.
+
+    Bank - this button will toggle the current room between being a
+	bank and not being a bank. A bank can not be unmade if some
+	character has opened an account at it. All banks are separate
+	- they do not share accounts.
+
+    Name - this button allows you to change the name of the current
+	room. The name entered into the requester must be of the same
+	form as discussed under the 'New' button.
+
+    Desc - this button allows you to change the description of the
+	current room. Either the built-in editor or an external editor
+	will be called up to edit the description, depending on your
+	AmigaMUD client options.
+
+    Auto - clicking on this button will bring up buttons dealing with
+	the autographics for the current room, as follows:
+
+		+----+		  +----+
+		|EXIT|		  |Kind|
+		+----+		  +----+
+		+--------+    +--------+
+		|Bgnd Pen|    |Fgnd pen|
+		+--------+    +--------+
+		+--------+    +--------+
+		|Edge Pen|    |Door Pen|
+		+--------+    +--------+
+		+-----+  +-----+ +-----+
+		|Name1|  |Name2| |Image|
+		+-----+  +-----+ +-----+
+
+	EXIT - returns to the first page of room-building buttons.
+
+	Kind - brings up a set of buttons which allows you to choose
+	    the style of autographics for the current room. The
+	    available styles are:
+
+		'Road' - wide rectangles drawn with TAN foreground
+		    on DARK GREEN background.
+
+		'Path' - narrow rectangles drawn with TAN foreground
+		    on FOREST GREEN background.
+
+		'HallRoom' - a central BLACK rectangle, with smaller
+		    rectangles going off in the obvious exits, drawn
+		    on a MEDIUM GREY background.
+
+		'DoorRoom' - a central BLACK rectangle on a MEDIUM
+		    GREY background, outlined with a TAN border. Doors
+		    to obvious exits are drawn in BROWN.
+
+		'Hallway' - this style will not handle the diagonal
+		    direction. This is in a style similar to that of
+		    'HallRoom' - black rectangles, outlined in TAN, on
+		    a MEDIUM GREY background.
+
+		'OpenArea' - this style is intended to represent open
+		    fields, etc. It consists of a small border of DARK
+		    BROWN around a large rectangle of DARK GREEN. In
+		    the directions of obvious exits, the border is
+		    replaced by more of the foreground DARK GREEN.
+
+		'Tunnel' - this style consists of medium-width LIGHT
+		    GREY passages drawn on a DARK GREY background.
+
+		'Chamber' - this style draws underground tunnels
+		    around a large central chamber. The tunnels and
+		    chamber are drawn in the foreground LIGHT GREY,
+		    and the "solid rock" is drawn in the background
+		    DARK GREY.
+
+	Bgnd Pen
+	Fgnd Pen
+	Edge Pen
+	Door Pen - these buttons bring up a requester which lets you
+	    change the pen (colour) to be used for the corresponding
+	    drawing of autographics. Note that most autographics only
+	    use the background and foreground pens. The defined colour
+	    names are: BLACK, DARK GREY, MEDIUM GREY, LIGHT GREY,
+	    WHITE, BRICK RED, RED, RED-ORANGE, ORANGE, GOLD, CADMIUM
+	    YELLOW, LEMON YELLOW, LIME GREEN, GREEN, LIGHT GREEN, DARK
+	    GREEN, FOREST GREEN, GREEN-BLUE, AQUA, LIGHT AQUA, SKY
+	    BLUE, LIGHT BLUE, BLUE, DARK BLUE, VIOLET, PURPLE,
+	    FLESH, PINK, TAN, BROWN, MEDIUM BROWN and DARK BROWN.
+
+	Name1
+	Name1 - these buttons let you change the name of the room as
+	    it appears in the box above the movement buttons.
+	    Normally, this is the last word in the room name,
+	    capitalized. If you specify Name1 and not Name2, then
+	    Name1 is used, centered in the room name box. If you give
+	    both Name1 and Name2, then two lines of room name are
+	    displayed, taken from the centered forms of both.
+
+	Image - this button brings up a string requester which lets
+	    the builder specify the name of an image file, relative to
+	    path "AmigaMUD:Images/" that will be shown as the image
+	    for this room. The standard direction buttons, with a
+	    button labelled 'H' in the center, will come up. The 'H'
+	    button selects an image for the room as a whole. The other
+	    direction buttons select images for looking in that
+	    direction from this room. Note that some locations have
+	    custom graphics of other kinds, and will ignore an image
+	    setting for the room as a whole.
+
+    MORE - goes to the second set of room-building buttons:
+
+		+----+		  +----+
+		|EXIT|		  |MORE|
+		+----+		  +----+
+		+----+ +----+ +--------+
+		|Dark| |Lock| |Readonly|
+		+----+ +----+ +--------+
+		+------+	+------+
+		|Wizard|	|Public|
+		+------+	+------+
+		+--+   +--+  +--+   +--+
+		|DD|   |DM|  |OM|   |EM|
+		+--+   +--+  +--+   +--+
+
+	EXIT - returns to the top level of building buttons.
+
+	MORE - returns to the first page of room-building buttons.
+
+	Dark - toggles the current room between being dark and not
+	    being dark.
+
+	Lock - toggles the locking of the current room on and off.
+	    Players other than the room's owner and SysAdmin cannot go
+	    into a locked room. This is useful for keeping other
+	    characters out of an area while it is under construction.
+
+	Readonly
+	Wizard
+	Public - these buttons set the status of the thing underlying
+	    the room. If the thing is 'Readonly', then only the owner
+	    of the room (and SysAdmin) can perform any room-building
+	    actions here. If it is 'Wizard', then any full wizard can
+	    also build here, and if it is 'Public', apprentices and
+	    builders can build here. In general, a room needs to be
+	    'Readonly' only if any modifications, no matter how
+	    carefully done, will destroy the concept of the room.
+	    Making a room 'Wizard' allows full-fledged wizards to
+	    build onto the room, under the assumption that they didn't
+	    get to be wizards without showing their own skill in
+	    building, and thus won't mess it up.
+
+	DD - this button enters the editor to add a direction-specific
+	    description to the room. This is a description that
+	    characters will see if they look in the specified
+	    direction. The direction buttons will appear to allow
+	    selection of the direction, followed by the builder being
+	    put into an editor to edit the direction description. An
+	    example would be "You see a dark passage to the north."
+
+	DM - this allows entry of a direction-specific message. This
+	    message will be displayed to a character when he/she
+	    leaves in the chosen direction. An example would be "You
+	    enter the dark passage."
+
+	OM - this allows entry of a direction-specific message that
+	    will be displayed to other characters in the room as a
+	    character exits in the chosen direction. The name of the
+	    exiting character is printed before the message. An
+	    example would be "enters the dark passage.".
+
+	EM - this allows entry of a direction-specific message that
+	    will be displayed to other characters in the room as a
+	    character enters from the chosen direction. The name of
+	    the entering character is printed before the message. An
+	    example would be "comes out of the dark passage.".
+
+
+Building Objects Using the Mouse
+
+Clicking on 'Objects' in the top-level set of build buttons will bring
+up the top level of the object-building buttons, as follows:
+
+		+----+	+---+  +------+
+		|EXIT|	|New|  |Select|
+		+----+	+---+  +------+
+		+----++----++---++----+
+		|Desc||Name||Act||Cont|
+		+----++----++---++----+
+		+---++----++-----++---+
+		|Get||Lite||Invis||Pos|
+		+---++----++-----++---+
+		+------+ +---+ +------+
+		|ActWrd| |Img| |ActStr|
+		+------+ +---+ +------+
+
+    EXIT - returns to the top-level build buttons.
+
+    New - used to create a new object. First, a string requester will
+	appear, requesting the symbol for the new object. That symbol
+	will be entered into the currently selected table. Next, a
+	requester will ask for the name of the object, suggesting an
+	example of the form "vase;blue,glass'. See the beginning of
+	the "Building Objects Using Commands" section above for a
+	description of how to format object names.
+
+    Select - this button requests the symbol of an object to make into
+	the currently selected object. All of the remaining object
+	building buttons operate on the selected object. The table
+	containing the symbol for the object must be 'in-use'. The
+	default table, your private symbol table, is always 'in-use'.
+
+    Desc - this lets you edit the description of the object. This is
+	the string which is printed when a character looks at the
+	object. An explicit build command ("@o setdescaction") allows
+	an action to be used as the description of an object, so that
+	it can change depending on circumstances.
+
+    Name - this lets you change the name of the object. This is the
+	name as entered in 'New' above.
+
+    Act - this brings up the first of two pages of buttons which let
+	you set the string which is the object's response to
+	performing the indicated action on it. The two pages both have
+	an 'EXIT' button to return to this set of buttons, and a
+	'MORE' button to switch to the other set of 'Act' buttons. The
+	'Act' buttons are: 'Get', 'Play', 'Erase', 'Eat', 'Read',
+	'Open', 'Close', 'Turn', 'Lift', 'Use', 'Unlock', 'Activate',
+	'Listen', 'Wear', 'Push', 'Pull', 'Lower', 'Touch', and
+	'Smell'. Explicit build commands add 'Deactivate', 'Light',
+	and 'Extinguish'. Explicit build commands can also make the
+	response be an action, so that it can change depending on
+	circumstances. Note: the 'Get' button sets the string that is
+	printed when a player tries to get an ungettable object.
+
+    Cont - controls whether or not the selected object is a container.
+	A requester will ask for the capacity of the object. This is
+	the number of other objects that it can contain. A capacity of
+	zero will make the object no longer a container.
+
+    Get - this button toggles whether or not the current object is
+	"gettable". An object which is not gettable cannot be picked
+	up from the room it is in. This is useful for objects which
+	are part of the scenery, and not meant to be carried around.
+
+    Lite - this button toggles whether or not the current object emits
+	light. An object which emits light will, unless it is inside a
+	container, light up any dark room it is in. All occupants of
+	the room will be able to see. This kind of light object cannot
+	be switched on and off except by its builder.
+
+    Invis - this button toggles whether or not the current object is
+	invisible. Invisible objects do not show up in a room or in an
+	inventory. They can be used as decorations in rooms since they
+	can have descriptions, etc. which characters can see when they
+	look at them.
+
+    Pos - this button brings up a set of buttons which are used to
+	control the object's occupancy capabilities. The buttons,
+	asside from the usual 'EXIT' are: 'Sit In', 'Sit On', 'Lie
+	In', 'Lie On', 'Stand In' and 'Stand On'. Each will bring up a
+	requester for the maximum number of occupants the object can
+	have. A value of 0 means that the object cannot be occupied in
+	that manner.
+
+    ActWrd - this button is used to define a special action that can
+	be done with the object. It is entered into the requester as a
+	comma-separated list of synonyms for the action.
+
+    ActStr - this button brings up the editor (or line-by-line
+	entry) for the message to be given to the character when the
+	object's special action is performed. More complex operation
+	can be setup using the '@o setactaction' build command.
+
+    Img - this button brings up a requestor asking for the name of an
+	image file, relative to "AmigaMUD:images/", that should be
+	used to display the current object.
+
+
+Defining and Attaching Special Actions
+
+The building commands and buttons discussed above allow a reasonable
+amount of creativity in what can be built. All of the constructions
+are quite static, however, in that they do not change over time or as
+characters interact with them. A full wizard or an apprentice can use
+the AmigaMUD programming language (described separately) to produce
+just about any kind of effect they can imagine, but that power is not
+available to normal characters. Also, many builders do not want to
+learn a full programming language, with all of its concerns with
+syntax and declarations, etc. In an attempt to bridge these gaps
+somewhat, the standard AmigaMUD scenario provides the capability of
+writing "actions" which have limited capabilities for variation, but
+are much simpler than the full programming language. Do not confuse
+these actions with full procedures in the programming language, which
+are values of AmigaMUD type 'action'. As they are implemented, these
+builder actions are in fact translated by the scenario into full
+AmigaMUD procedures, but the builder does not have to be concerned
+about that when setting up actions.
+
+When the already discussed commands and buttons are used to build
+rooms and objects, the only reactions to character operations that are
+possible are fixed messages to the character. Using builder actions,
+it is possible to remember pieces of information over time, give
+messages to other characters in the room, modify characters, objects
+and rooms, and do all of these things depending on conditions tested
+on the character, object or room involved.
+
+The building code knows about six kinds of actions:
+
+    room checkers - these actions are chiefly used to determine
+	whether or not a character can leave the room in a given
+	direction, but can also do all of the things mentioned above.
+
+    object checkers - these actions are set up to be performed when a
+	character does a given operation on an object. They determine
+	the success or failure of the operation.
+
+    room descriptions - these actions return a string value which is
+	printed when the character looks around the room. The string,
+	or parts of it, can include names, etc. stored with the room
+	or character.
+
+    object descriptions - these are similar to room descriptions, but
+	can also make reference to the object being examined.
+
+    room actions - these are actions performed when a character enters
+	one of the special commands that has been associated with the
+	room he/she is in. They neither succeed nor fail, but can do
+	all of the things mentioned in the paragraph above.
+
+    object actions - these are actions performed when a character does
+	the special action associated with an object.
+
+The basic structure of an action is that of a simple condition with
+both success and failure parts:
+
+	unconditional things to do
+	the condition(s) to test
+	the things to do if the condition succeeds
+	the things to do if the condition fails
+
+In the case of room and object actions, there is no condition in the
+action (unless introduced with an internal 'if', discussed below), and
+all of the action's commands are in the unconditional portion.
+
+For description actions, the total result of the entire action must be
+a string, which is the description of the room or object. Each branch
+(success and failure) of the condition must be followed by a string
+which is the returned description. The prompt for these will be set to
+"* description result> ".
+
+Actions are always entered line by line - editors are not used. The
+prompt changes as different parts of the total action are entered.
+Each section is ended by entering a line consisting only of a period.
+Here is a log of a session where a room checker is built, installed,
+and tested. The checker will not let the character pass unless the
+character is carrying something whose name matches the form "apple;
+juicy,red". The line numbers to the left are used in the following
+more detailed discussion of this log.
+
+01  input> @r checker private entercheck
+02  Enter the pre-condition actions:
+03  * pre-condition actions> .
+04  Now enter the conditions for the test:
+05  * condition> characterhasname "apple;juicy,red"
+06  * condition> .
+07  Now enter the actions to do if condition is true:
+08  * true actions> saycharacter
+09  Enter the text to be shown to the character:
+10  * character text> You pass into the test room.
+11  * character text> .
+12  Continue entering the true actions:
+13  * true actions> sayothers
+14  Enter the text to be shown to others:
+15  * others text> @charactername
+16  * others text> passes into the test room.
+17  * others text> .
+18  Continue entering the true actions:
+19  * true actions> .
+20  Now enter the actions to do if condition is false:
+21  * false actions> saycharacter
+22  Enter the text to be shown to the character:
+23  * character text> Something prevents you from entering.
+24  * character text> .
+25  Continue entering the false actions:
+26  * false actions> .
+27  Action 'entercheck' defined.
+28  input> @r adddircheck south entercheck
+29  Dircheck entered.
+30  input> south
+31  Something prevents you from entering.
+32  input> @o new private apple "apple;juicy,red"
+33  Object created - you are carrying it.
+34  input> south
+35  You pass into the test room.
+36  You are in a test room.
+37  You see nothing special here.
+38  Obvious exits: north
+39  input>
+
+In more detail:
+
+01  I start creating the action. It is a room checker action, whose
+    symbol will be 'entercheck' in my private symbol table.
+02  I am supposed to enter the unconditional actions to be done before
+    the condition is tested.
+03  There aren't any actions I want to do unconditionally, so I enter
+    just a period to end this phase. Note that the prompt had changed
+    for this.
+04  Now I should enter the conditions for the test.
+05  I enter the first (and only) condition for this test. The word
+    "characterhasname" indicates a test that the character is carrying
+    an object whose name matches the internal form given. Another
+    prompt change occurred.
+06  There are no more conditions, so I enter just a period.
+07  Now I should enter the actions that I want done if the condition
+    is true, i.e. if the character is to be allowed to use the exit.
+    Note that these actions will be performed while the character is
+    in the current room, before he/she moves into the other one.
+08  I want to output some text to the character. "saycharacter" is the
+    build action command to do that.
+09  I now must enter the text that I want shown to the character.
+10  The prompt changes as usual, and I enter the simple message.
+11  There can be several lines of text, so I must enter a single
+    period to end the total text.
+12  I am now back entering the actions to be done on success.
+13  I want to output a message to others in the same room.
+14
+15  I want the first thing output to others to be the name of the
+    character who is taking the checked exit.
+16  The character name is followed by some fixed text. I do not enter
+    a leading space - the build action code will do that for me.
+17  I am now done with the text to be shown to others...
+18  ... and am back entering actions to do upon success
+19  There are no more success actions.
+20  Now I must enter the actions to do if the condition for the exit
+    fails, i.e. if the character is prevented from taking the exit.
+21  I want to show a failure message to the character.
+22
+23  It is just a simple string.
+24
+25
+26  There are no more false actions. (I don't want to tell others that
+    the character failed to take the exit.)
+27  The checker action is completed successfully. It is now entered
+    into my private symbol table.
+28  I attach the new checker action as a direction checker going south
+29  from the current room.
+30  I now try to go south, triggering the checker.
+31  I don't have an apple, so am prevented from going south.
+32  I am a builder - I have the power. So, I make an apple.
+33
+34
+35  Now I can pass through. Others in the room I was in would have
+    seen the message saying I was passing into the test room.
+36  The regular stuff, done whenever a character enters a room, is now
+    done.
+
+The simplest thing that a builder action can do is to output a
+message, either to the character who triggered the action, or to other
+characters in the same room. Messages can consist of fixed text and
+information from the character or room, or, in the case of object
+actions, from the object being manipulated. When a message is being
+entered, the prompt switches to either "character text> " or "others
+text> ", as appropriate. If a line of input for message output begins
+with an '@', then it is a special item to be inserted into the
+message. Values of special items are determined when the action is
+running, not when it is being defined. A quick summary of these string
+escapes can be found online in the "Book of Strings" in the Builder's
+Guild library. The following special items are available (the 'object'
+variants are only available when defining object actions):
+
+    @characterstring <string-symbol>
+    @roomstring <string-symbol>
+    @objectstring <string-symbol> - these escapes insert the value of
+	a string property (as defined using "@string") retrieved from
+	the character, room or object, as appropriate. Values for
+	these strings can be set by build actions using the
+	"XXXsetstring" action commands.
+
+    @charactercounter <counter-symbol>
+    @roomcounter <counter-symbol>
+    @objectcounter <counter-symbol> - these escapes are similar to the
+	above ones, except that the string inserted is the string form
+	of the counter (number) property indicated. These values can
+	be set using the "XXXsetcounter", "XXXinccounter" and
+	"XXXdeccounter" action commands.
+
+    @charactername
+    @roomname
+    @objectname - these escapes insert the name of the character, room
+	or object. Object names are converted from the internal form
+	to the external form, as are character names (so they work out
+	properly for non-player-characters with multi-word names).
+
+The tests which control whether or not a checker action allows the
+operation are called 'conditionals'. A checker action succeeds only if
+all of its conditionals succeed. Each conditional is a simple name and
+parameters on a single input line. The sense of a conditional can be
+reversed by putting the word "not" before it (with a separating
+space). For example, in the above log, if the conditional had been
+entered as 'not characterhasname "apple;juicy,red"', then the player
+would be allowed to take the exit only if he/she is not carrying any
+object whose name matches "apple;juicy,red".
+
+As with string escapes, conditionals referencing objects can only be
+used with actions which are intended to be attached to objects. The
+available conditionals are:
+
+    fail - this conditional always fails.
+
+    characterflag <flag-symbol>
+    roomflag <flag-symbol>
+    objectflag <flag-symbol> - these conditionals test for the
+	presense of the named flag on the character, room or object,
+	as appropriate. The flags can be set using the corresponding
+	"setflag" action commands. If the flag is present, then the
+	conditional succeeds, else it fails.
+
+    charactercounter <counter-symbol> <value>
+    roomcounter <counter-symbol> <value>
+    objectcounter <counter-symbol> <value> - these conditionals test
+	whether or not the counter is equal to the given value, which
+	must be a valid number (positive or negative). E.g. the
+	conditional   "roomcounter passcount 10"   succeeds only when
+	the "passcount" counter attached to the room is equal to 10.
+
+    characterhasspecific <object-symbol>
+    roomhasspecific <object-symbol>
+    objecthasspecific <object-symbol> - these conditionals are used to
+	test for the presense (or absense with "not") of a specific
+	object. Note that this is THE specific object named - a clone
+	of it (as purchased at a store) is not sufficient. This is
+	useful when a unique object is being used as a key, etc. When
+	testing a character, the object must be being carried directly
+	(not in a container being carried) by the character. When
+	testing a room, the object must be directly in the room. When
+	testing an object, the named object must be inside the object
+	that the action is attached to.
+
+    characterhaschild <object-symbol>
+    roomhaschild <object-symbol>
+    objecthaschild <object-symbol> - these conditionals are very
+	similar to the previous set, except that here, any child of
+	the named object (e.g. as purchased in a store) is sufficient,
+	and the original object is not.
+
+    characterhasname <object-name>
+    roomhasname <object-name>
+    objecthasname <object-name> - these conditionals are again
+	similar, except that any object whose name matches the given
+	<object-symbol> is sufficient, regardless of which true object
+	has the name. As usual, the name must be given in the internal
+	form, as "noun;adjective,adjective,...".
+
+    characterhasflag <flag-symbol>
+    roomhasflag <flag-symbol>
+    objecthasflag <flag-symbol> - these conditionals are quite
+	different from the above "XXXflag" conditionals. In those, the
+	character, room or object itself had to have the flag set. In
+	these, the flag must be set on at least one object which is
+	being carried by the character, is present in the room, or is
+	contained in the object, as appropriate.
+
+    random <chance> - this conditional is used to add randomness to
+	the way actions work. A random number between 0 and 999 is
+	generated. If that value is less than the given <chance>, then
+	the conditional succeeds, else it fails. Thus "random 10" has
+	a one percent chance of succeeding and "random 500" has a
+	fifty percent chance.
+
+The actual condition for an action can consist of any number of these
+conditionals, given one after another. The total condition succeeds
+only if ALL of the individual conditionals succeed. E.g.
+
+    * condition> not characterflag p_pKilledBalrog
+    * condition> roomhasspecific o_BalrogCorpse
+    * condition> .
+
+would succeed only if the character does not have flag
+"p_pKilledBalrog" and the object "o_BalrogCorpse" is in the room.
+
+If no conditionals are entered (an ending "dot-line" is given on the
+first prompt for a conditional), then the condition will be omitted in
+the resulting action, and the action will always succeed. An action
+that always fails can be set up using just the "fail" conditional.
+
+Actions can have any number of action commands, some conditional,
+others not. The actions are done in the same order that they are
+entered. Sometimes the order doesn't matter (such as giving messages
+to the character and others) but sometimes it does. As usual, object
+action commands are only available when defining actions to be
+attached to objects. The action commands available are:
+
+    charactersetflag <flag-symbol>
+    roomsetflag <flag-symbol>
+    objectsetflag <flag-symbol>
+    characterclearflag <flag-symbol>
+    roomclearflag <flag-symbol>
+    objectclearflag <flag-symbol> - these action commands simply set
+	or clear the named flag directly on the character, room or
+	object, as appropriate. Using a flag on a character, for
+	example, allows the builder's actions to record that the
+	character has performed a given task, or that some other
+	important condition has occurred.
+
+    characterinccounter <counter-symbol>[<value>]
+    roominccounter <counter-symbol> [<value>]
+    objectinccounter <counter-symbol> [<value>]
+    characterdeccounter <counter-symbol> [<value>]
+    roomdeccounter <counter-symbol> [<value>]
+    objectdeccounter <counter-symbol> [<value>] - these action
+	commands are useful for modifying counters. If no <value> is
+	given, then the named counter is incremented (decremented) by
+	one. If a <value> is given (it must be a positive number),
+	then the named counter is incremented or decremented by that
+	value.
+
+    charactersetcounter <counter-symbol> <value>
+    roomsetcounter <counter-symbol> <value>
+    objectsetcounter <counter-symbol> <value> - these action commands
+	give an explicit value to a counter property. The <value> can
+	be either positive or negative.
+
+    charactersetstring <string-name> <string-identifier>
+    roomsetstring <string-name> <string-identifier>
+    objectsetstring <string-name> <string-identifier> - these action
+	commands store a string value in a string property. The values
+	for <string-identifier> can be:
+	
+	    date/time - the time and date are stored
+	    charactername - the name of the character is stored. It
+		is stored in external format, not internal.
+	    roomname - the name of the room (e.g. "in the PlayPen") is
+		stored.
+	    objectname - the external form of the object name is
+		stored. This form can only be used with object
+		actions.
+
+    characterclearstring <string-name>
+    roomclearstring <string-name>
+    objectclearstring <string-name> - these action commands remove a
+	string property from the character, room or object, as
+	appropriate. This is equivalent to setting its value to be an
+	empty string.
+
+    clonehere <object-symbol>
+    cloneat <room-symbol> <object-symbol> - these action commands have
+	a more noticeable effect on the world. They create a copy of
+	the named object, and deposit it either in the current room, or
+	in the named room. The new object will have whatever properties
+	the specified one does, and is in most ways exactly the same
+	as an object purchased at a store. The newly created object is
+	made the current object, and from this point on, object
+	actions commands can be used, and object references will
+	refer to the new object.
+
+    destruct - this action command can only be used with object
+	actions. It results in the object itself being destroyed. This
+	would normally be arranged to destroy a cloned object, and not
+	an original object.
+
+    drop - this action command can also only be used with object
+	actions. It arranges for the object to be dropped, and thus
+	assumes that the object is being carried.
+
+    dropto <room-symbol> - this action command is the same as 'drop',
+	except that the current object is dropped in the named room.
+	This is useful for "resetting" things back to their proper
+	places.
+
+    setit <object-kind> {<object-symbol>|<flag-symbol>|<string>} -
+	these action commands are used to change the object that the
+	commands in an action can refer to. This can be used in a room
+	action to turn it into an object action, and from then on,
+	object references can be used and will refer to the designated
+	object. <object-kind> is one of the following:
+
+	    specific - the second argument must be the symbol of an
+		object, which will become the new current object.
+
+	    characterchild
+	    roomchild
+	    objectchild - the second argument must be the symbol of an
+		object, a child of which is carried by the character,
+		present in the room, or contained in the previous
+		current object. The action ASSUMES that there is such
+		an object, so you are wise to check for it first, with
+		a conditional in this action. That object becomes the
+		new current object.
+
+	    characterflag
+	    roomflag
+	    objectflag - this is similar to the previous set of
+		<object-kind>'s, except that instead of looking for a
+		specific object, any object with the <flag-symbol> set
+		on it is made the current object.
+
+	    charactername
+	    roomname
+	    objectname - this set of <object-kind>'s is also similar -
+		the new current object is the first whose name matches
+		the object name string given (which must, as usual, be
+		given in the internal form).
+
+    saycharacter - this is the simplest and most common action
+	command. It switches input processing to expect string escapes
+	and fixed portions of strings, as described previously. The
+	resulting string will be displayed to the character whose
+	activities triggered this action.
+
+    sayothers - this action command is very similar to 'saycharacter',
+	except that the resulting message is displayed to all other
+	characters in the same room, instead of to the character.
+
+    if - this action command allows the builder to add internal
+	conditional actions to an action, whether the action normally
+	countains a condition or not. The input mode will change to
+	expect the conditionals for this internal 'if'. The rules for
+	conditionals, and how to end the conditionals and the success
+	and failure halves of the 'if' are the same as those for
+	normal conditions in checker and description actions.
+
+
+Example Log of Building Session
+
+This section contains a log of an AmigaMUD session in which a player
+used the building commands to create a small area of four rooms,
+several objects, and a trivial puzzle. To create this log, I used the
+'-E' option on MUD, so that no editor was available, and I was
+prompted for the various description strings directly. If you actually
+build on-line, you will use an editor for description strings if you
+are using the full MUD client. In truth, this is not a log of a fully
+interactive session, but rather is a log of sourcing an input file
+containing the session - even I don't know the building commands well
+enough to get it all correct in an interactive session! Comments about
+what is going on are indented beneath the lines they describe.
+
+::Sourcing file 'st:buildtest.so'...
+input> look around
+You are on the north sidewalk, east of the main intersection.
+You see nothing special here.
+Obvious exits: west east
+
+    I'm adding this little area just to the east of the intersection,
+    on the north side of the east-west road.
+
+input> @table private newTable
+input> @use newTable
+input> @showtable newTable
+Table has no entries.
+input> @describe private newTable
+newTable: table, owner SysAdmin, useCount 1, entries 0
+
+    a new table to put my symbols in
+
+input> @room new north indoors in the entrance room
+New room created and linked.
+
+    create a new room as the start of my little area
+
+input> @room adddesc
+Edit room description. End with a line containing only a single period.
+* add room desc> A plain wooden door leads north into the building.
+* add room desc> .
+Room redecorated.
+input> @room scenery "door;plain,wooden,wood" building
+New scenery words added.
+input> look around
+You are on the north sidewalk, east of the main intersection.
+A plain wooden door leads north into the building.
+Obvious exits: west east north
+input> Examine the plain wood door.
+You see nothing special about the plain wood door.
+
+    I've fixed up the outside area. The use of scenery makes things
+    look more polished.
+
+input> north
+You are in the entrance room.
+You see nothing special here.
+Obvious exits: south
+input> @room newdesc
+Enter room description. End with a line containing only a single period.
+* new room desc> This is the entry foyer to a small office. There are a few
+* new room desc> comfortable looking chairs for waiting in, and a magazine
+* new room desc> rack full of magazines. Interior doors lead further north,
+* new room desc> northeast and east, while the door out is to the south.
+* new room desc> .
+Room decorated.
+input> look around
+You are in the entrance room.
+This is the entry foyer to a small office. There are a few comfortable looking
+chairs for waiting in, and a magazine rack full of magazines. Interior doors
+lead further north, northeast and east, while the door out is to the south.
+Obvious exits: south
+input> @room scenery entry foyer "office;small"
+New scenery words added.
+input> @room same south out
+Link made.
+
+    some initial setup of the first room
+
+input> @object new newTable chairs "chair;few,comfortable,looking"
+Object created - you are carrying it.
+input> @object gettable chairs no
+chairs marked as not gettable.
+input> @object invisible chairs yes
+chairs marked as invisible.
+input> @object siton chairs 3
+3 can now 'siton' 'chairs'
+input> @object newdesc chairs
+Enter new description. End with a line containing only a single period.
+* new object desc> The chairs are large, and well padded. They are uphostered
+* new object desc> in drab looking tan material.
+* new object desc> .
+Object description entered.
+input> drop chairs
+few comfortable looking chair: dropped.
+input> look chairs
+The chairs are large, and well padded. They are uphostered in drab looking tan
+material.
+
+    The chairs are really just scenery, but I've made them usuable.
+
+input> @object new newTable rack "rack;magazine"
+Object created - you are carrying it.
+input> @object gettable rack no
+rack marked as not gettable.
+input> @object invisible rack yes
+rack marked as invisible.
+input> @object newdesc rack
+Enter new description. End with a line containing only a single period.
+* new object desc> The magazine rack is just a U-shaped wooden bin full of
+* new object desc> magazines.
+* new object desc> .
+Object description entered.
+input> drop rack
+magazine rack: dropped.
+
+    The magazine rack is also just scenery, but it is there to point
+    the player towards the magazines:
+
+input> @object new newTable magazines magazine
+Object created - you are carrying it.
+input> @object invisible magazines yes
+magazines marked as invisible.
+input> @object gettable magazines no
+magazines marked as not gettable.
+input> @object getstring magazines
+Enter get string. End with a line containing only a single period.
+* get string> Please leave the magazines here for others to read.
+* get string> .
+Object get string entered.
+input> @object readstring magazines
+Enter read string. End with a line containing only a single period.
+* new object readstring> The magazines are mostly about etiquette. They talk
+* new object readstring> about such things as properly using your knife
+* new object readstring> and fork.
+* new object readstring> .
+Object read string entered.
+input> @object newdesc magazines
+Enter new description. End with a line containing only a single period.
+* new object desc> The magazines are well-thumbed, but still quite readable.
+* new object desc> .
+Object description entered.
+input> drop magazines
+magazine: dropped.
+input> get magazine
+Please leave the magazines here for others to read.
+input> look magazine
+The magazines are well-thumbed, but still quite readable.
+input> read magazine
+The magazines are mostly about etiquette. They talk about such things as
+properly using your knife and fork.
+
+    The magazines are there to provide the clue about the cutlery.
+
+input> @room new north indoors "in the north office"
+New room created and linked.
+input> north
+You are in the north office.
+You see nothing special here.
+Obvious exits: south
+input> @room newdesc
+Enter room description. End with a line containing only a single period.
+* new room desc> This appears to be the office of someone in middle
+* new room desc> management. There is a computer on the desk, but it looks
+* new room desc> to be a power-user status symbol more than anything else.
+* new room desc> .
+Room decorated.
+input> @room scenery computer desk chair door
+New scenery words added.
+input> @room scenery "symbol;power-user,power,user,status"
+New scenery words added.
+
+    Scenery words just add on to whatever is already there.
+
+input> look at the power-user status symbol
+You see nothing special about the power-user status symbol.
+input> l power user symbol
+You see nothing special about the power user symbol.
+
+    The parser's full flexibility works on scenery words.
+
+input> @room same south out
+Link made.
+input> @object new newTable knife "knife;simple,table"
+Object created - you are carrying it.
+input> drop knife
+simple table knife: dropped.
+input> @symbolhere newTable r_north
+
+    I need to name this room so I can reset the knife back to here.
+
+input> south
+You are in the entrance room.
+This is the entry foyer to a small office. There are a few comfortable looking
+chairs for waiting in, and a magazine rack full of magazines. Interior doors
+lead further north, northeast and east, while the door out is to the south.
+Obvious exits: south out north
+input> @room new east indoors "in the east office"
+New room created and linked.
+input> east
+You are in the east office.
+You see nothing special here.
+Obvious exits: west
+input> @room newdesc
+Enter room description. End with a line containing only a single period.
+* new room desc> This office looks quite practical. It must be used by a
+* new room desc> secretary or some other useful person.
+* new room desc> .
+Room decorated.
+input> @object new newTable plants "plant.plant-pot.pot;plant"
+Object created - you are carrying it.
+input> @object gettable plants no
+plants marked as not gettable.
+input> @object getstring plants
+Enter get string. End with a line containing only a single period.
+* get string> Please leave the plants here - the owner of this office will
+* get string> probably take better care of them than you would.
+* get string> .
+Object get string entered.
+input> @object smellstring plants
+Enter smell string. End with a line containing only a single period.
+* smell string> The plants smell slightly minty.
+* smell string> .
+Object smell string entered.
+input> @object touchstring plants
+Enter touch string. End with a line containing only a single period.
+* touch string> The plants feel like plants.
+* touch string> .
+Object touch string entered.
+input> @object newdesc plants
+Enter new description. End with a line containing only a single period.
+* new object desc> The plants are pretty plain-looking. They don't seem to
+* new object desc> have any flowers at the moment (if they ever do!).
+* new object desc> .
+Object description entered.
+input> drop plants
+plant: dropped.
+input> @object new newTable fork "fork;simple,table"
+Object created - you are carrying it.
+input> drop fork
+simple table fork: dropped.
+input> @symbolhere newTable r_east
+input> @room same west out
+Link made.
+
+    This east office is setup similarly to the north office.
+
+input> west
+You are in the entrance room.
+This is the entry foyer to a small office. There are a few comfortable looking
+chairs for waiting in, and a magazine rack full of magazines. Interior doors
+lead further north, northeast and east, while the door out is to the south.
+Obvious exits: south out north east
+input> @room new northeast indoors "in the boss's office"
+New room created and linked.
+input> northeast
+You are in the boss's office.
+You see nothing special here.
+Obvious exits: southwest
+input> @room newdesc
+Enter room description. End with a line containing only a single period.
+* new room desc> You can tell this is the boss's office by the size of the
+* new room desc> desk and chair, and by the fact that it doesn't look like
+* new room desc> any work goes on here.
+* new room desc> .
+Room decorated.
+input> @room same southwest out
+Link made.
+input> @object new newTable desk "desk;large,massive,big,redish,red,wood"
+Object created - you are carrying it.
+input> @object newdesc desk
+Enter new description. End with a line containing only a single period.
+* new object desc> The desk is quite massive. It is made from some kind of
+* new object desc> very pretty redish wood. There don't seem to be any
+* new object desc> scratches on the highly-polished top, but there are some
+* new object desc> ugly coffee-cup rings there.
+* new object desc> .
+Object description entered.
+input> @room scenery "stain,ring;ugly,coffee-cup,coffee,cup"
+New scenery words added.
+input> @object gettable desk no
+desk marked as not gettable.
+input> @object invisible desk yes
+desk marked as invisible.
+input> drop desk
+large massive big redish red wood desk: dropped.
+
+    Because the desk is invisible, I can have an ugly name string like
+    that; no-one can ever see the string - it is only used to match
+    against to find the object.
+
+input> @object new newTable chair "chair;large,big,black,leather"
+Object created - you are carrying it.
+input> @object newdesc chair
+Enter new description. End with a line containing only a single period.
+* new object desc> The chair looks extremely comfortable. It is on casters,
+* new object desc> pivots, and rocks back and forth. It is finished in what
+* new object desc> looks like very fine black leather.
+* new object desc> .
+Object description entered.
+input> @object gettable chair no
+chair marked as not gettable.
+input> @object invisible chair yes
+chair marked as invisible.
+input> drop chair
+large big black leather chair: dropped.
+input> southwest
+You are in the entrance room.
+This is the entry foyer to a small office. There are a few comfortable looking
+chairs for waiting in, and a magazine rack full of magazines. Interior doors
+lead further north, northeast and east, while the door out is to the south.
+Obvious exits: south out north east northeast
+
+    Now comes the "puzzle" part: the character must be carrying the
+    knife but not the fork in order to enter the boss's office.
+
+input> @room checker newTable bossEnter
+Enter the pre-condition actions:
+* pre-condition actions> .
+Now enter the conditions for the test:
+* condition> characterhasspecific knife
+* condition> not characterhasspecific fork
+* condition> .
+Now enter the actions to do if condition is true:
+* true actions> saycharacter
+Enter the text to be shown to the character:
+* character text> Congratulations on properly using your cutlery!
+* character text> .
+Continue entering the true actions:
+* true actions> .
+Now enter the actions to do if condition is false:
+* false actions> saycharacter
+Enter the text to be shown to the character:
+* character text> Something prevents you from entering the room. Perhaps
+* character text> bad etiquette?
+* character text> .
+Continue entering the false actions:
+* false actions> .
+Action 'bossEnter' defined.
+input> @room adddircheck northeast bossEnter
+Dircheck entered.
+
+    OK, the puzzle exists. Now I want to make sure that when any
+    character leaves my little area with one of my special objects
+    that are gettable, the object is put back where it started from.
+
+input> @room checker newTable resetAll
+Enter the pre-condition actions:
+* pre-condition actions> .
+Now enter the conditions for the test:
+* condition> not fail
+* condition> .
+Now enter the actions to do if condition is true:
+* true actions> if
+Enter the condition for the if:
+* condition> characterhasspecific knife
+* condition> .
+Now enter the actions to do if condition is true:
+* true actions> setit specific knife
+* true actions> dropto r_north
+* true actions> .
+Now enter the actions to do if condition is false:
+* false actions> .
+Continue entering the true actions:
+* true actions> if
+Enter the condition for the if:
+* condition> characterhasspecific fork
+* condition> .
+Now enter the actions to do if condition is true:
+* true actions> setit specific fork
+* true actions> dropto r_east
+* true actions> .
+Now enter the actions to do if condition is false:
+* false actions> .
+Continue entering the true actions:
+* true actions> .
+Now enter the actions to do if condition is false:
+* false actions> .
+Action 'resetAll' defined.
+input> @room adddircheck south resetAll
+Dircheck entered.
+input> @room adddircheck out resetAll
+Dircheck entered.
+
+    There are two directions that can be used to leave, so I put the
+    checker on both of them. I don't want the checker run if the
+    character leaves this room to one of my other three, so I don't
+    want an 'anyexit' checker.
+
+input> @showtable newTable
+Symbols in table:
+ magazines	   fork 	     desk	       bossEnter	
+ resetAll	   chairs	     plants	       r_east		
+ r_north	   chair	     knife	       rack		
+
+    All of these symbols were defined during this build session.
+
+input> @describe newTable resetAll
+resetAll: proc, owner SysAdmin, useCount 3:
+proc resetAll()status:
+    if not false then
+	if FindElement(Me()@p_pCarrying, knife) ~= - 1 then
+	    SetIt(knife);
+	    ignore DoDrop(r_north, Me(), It());
+	fi;
+	if FindElement(Me()@p_pCarrying, fork) ~= - 1 then
+	    SetIt(fork);
+	    ignore DoDrop(r_east, Me(), It());
+	fi;
+	succeed
+    else
+	fail
+    fi
+corp
+
+    This is how AmigaMUD actually sees my 'resetAll' action.
+    Programmers will notice that it is clearly machine-generated.
+
+::...done

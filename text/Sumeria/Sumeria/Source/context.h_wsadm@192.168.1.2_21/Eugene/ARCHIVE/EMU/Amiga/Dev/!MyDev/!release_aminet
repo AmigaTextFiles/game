@@ -1,0 +1,178 @@
+#pragma once
+#ifndef CONTEXT_H
+#define CONTEXT_H
+
+/*  Context.h
+ *  Header with functions for AMiGA catalogs support
+ */
+
+// catalog_name.catalog
+#define CATALOG_NAME "sumeria.catalog"
+
+// locale.version
+#ifndef __amigaos4__
+#define LVER 44
+#else
+#define LVER 50
+#endif
+
+#include <stdio.h>       // for puts, sprintf
+#include <stdlib.h>
+#include <string.h>      // for memcpy
+
+#ifdef __amigaos4__
+#include <proto/exec.h>
+#include <proto/dos.h>
+#include <libraries/locale.h>
+#include <proto/locale.h>
+
+#elif __AROS__
+#include <exec/types.h>
+#include <proto/exec.h>
+#include <libraries/locale.h>
+#include <proto/locale.h>
+
+#elif __CYGWIN__ 
+#include <locale.h>
+
+#elif __MINGW32__
+#include <locale.h>
+
+#else    // AmigaOS 3
+#include <libraries/locale.h>
+#endif
+
+// AMIGA code
+#ifndef __MINGW32__
+#ifndef __CYGWIN__
+
+// Default is 0 = any version of the catalog that is found
+#define CATALOG_VERSION 0
+
+// Libraries stuff
+struct library {
+    struct Library **lib;
+    struct Interface **interface;
+    long version;
+    char *libname;
+};
+
+#ifndef __AROS__
+struct Library *LocaleBase;
+#endif
+
+struct LocaleIFace *ILocale;
+
+struct library libs[] = {
+    {   &LocaleBase, (struct Interface **) &ILocale, LVER, "locale.library" },
+    {  0, 0, 0, 0 }
+};
+
+#include "Catalogs/catalogs.h"
+
+/* Some not localized strings */
+char OPENING_LIBRARY_ERROR_STRING[] = "Error opening library %s version %ld";
+
+STRPTR GetLocaleString (long i)
+{
+     STRPTR defstring = strings[i];
+     if (catalog)
+#ifdef __amigaos4__
+         return (STRPTR) ILocale->GetCatalogStr (catalog, i, defstring);
+#else
+         return (STRPTR) GetCatalogStr (catalog, i, defstring);
+#endif
+     else
+         return defstring;
+}
+
+void alert (CONST_STRPTR message) { puts (message); }
+
+void lib_alert (char *lib, long ver)
+{
+     char m[256];
+
+     sprintf (m, GetLocaleString (OPENING_LIBRARY_ERROR_STRING), lib, ver);
+     alert (m);
+}
+
+#ifdef __amigaos4__
+struct Library *open_lib (char *libname, long version, struct Interface **interface)
+{
+    struct Library *lib = IExec->OpenLibrary (libname, version);
+    if (lib)
+    {
+        *interface = IExec->GetInterface (lib, "main", 1, 0);
+        if (* interface)
+            return lib;
+        IExec->CloseLibrary (lib);
+    }
+    return 0;
+}
+#else
+struct Library *open_lib (char *libname, ULONG version)
+{
+    struct Library *lib;
+    lib = OpenLibrary (libname, version);
+    if (! lib)
+    {
+        printf ("ERROR: needs %s version %d\n", libname, version);
+        return 0;
+    }
+    return (lib);
+}
+#endif
+
+static BOOL OpenContext(void)
+{
+    struct library *lib = libs;
+
+    while (lib->lib)
+#ifdef __amigaos4__
+        if (! (*lib->lib = open_lib (lib->libname, lib->version, lib->interface)))
+#else
+        if (! (*lib->lib = open_lib (lib->libname, lib->version)))
+#endif
+        {
+            lib_alert (lib->libname, lib->version);
+            return 0;
+        }
+        else
+            lib++;
+#ifdef __amigaos4__
+     catalog = ILocale->OpenCatalog (NULL, CATALOG_NAME, OC_Version, CATALOG_VERSION, TAG_DONE);
+#else
+     catalog = OpenCatalog (NULL, CATALOG_NAME, OC_Version, CATALOG_VERSION, TAG_DONE);
+#endif
+     return 1;
+}
+
+
+static void CloseContext(void)
+{
+    struct library *lib = libs;
+
+#ifdef __amigaos4__
+    ILocale->CloseCatalog (catalog);
+#else
+    CloseCatalog (catalog);
+#endif
+    while (lib->lib)
+    {
+#ifdef __amigaos4__
+        IExec->DropInterface (*lib->interface);
+        IExec->CloseLibrary (*lib->lib);
+#else
+        if (lib) CloseLibrary(*lib->lib);
+#endif
+        lib++;
+    }
+}
+
+#endif
+
+// WINDOWS code
+#else
+
+#endif
+#endif

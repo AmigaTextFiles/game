@@ -1,0 +1,36 @@
+SUBDIRS = template info
+
+CPPFLAGS = -Dsysconfdir=\"$(sysconfdir)\" @CPPFLAGS@
+
+bin_PROGRAMS = qstat
+
+qstat_SOURCES = \
+	config.c config.h \
+	debug.c debug.h \
+	hcache.c \
+	md5.c md5.h \
+	qserver.c qserver.h \
+	qstat.c qstat.h \
+	template.c \
+	a2s.c a2s.h \
+	packet_manip.c packet_manip.h \
+	ut2004.c ut2004.h \
+	doom3.c doom3.h \
+	gps.c gps.h \
+	gs2.c gs2.h \
+	gs3.c gs3.h \
+	ts2.c ts2.h \
+	tm.c tm.h
+
+dist_configfiles_DATA = qstat.cfg
+configfilesdir = $(sysconfdir)
+
+EXTRA_DIST = CHANGES.txt COMPILE.txt LICENSE.txt \
+	Makefile.noauto \
+	ChangeLog \
+	qstatdoc.html \
+	contrib.cfg
+
+cl:
+	cvs2cl.pl --utc --no-wrap --separate-header --no-times -f ChangeLog.cvs
+	rm -f ChangeLog.cvs.bak

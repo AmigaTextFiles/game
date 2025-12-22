@@ -1,0 +1,370 @@
+
+trains.c by Guru Meditation!
+Amiga Central! BBS (615)383-9679
+
+Description:
+------------
+
+With this code, you'll be able to add a complete transporter/train to your
+CircleMUD, including a token machine & conductor, and 2 trains running
+simultaneously. The transporters are perfect for newbies, because they
+can use the transporters to get places quickly and easily.
+
+I got the IDEA for writing a train/transporter system from JediMUD @
+marble.bu.edu 4000.
+
+If you have any questions, mail me at:
+
+tashiacm@ctrvax.vanderbilt.edu
+        <or>
+root@amicent.raider.net
+
+or you can find me on JediMUD @ marble.bu.edu 4000, usually as "Gm".
+
+
+How it works:
+-------------
+
+The transporter stations and transporter rooms are just regular rooms..
+
+It works by modifing the exits on your transporter station and transporter
+rooms every 25 seconds. Example:
+
+Open an exit going east from the first transporter station to the
+transporter, and one going west from the transporter to the first
+transporter station.
+
+Then 25 seconds later,
+
+Close the exits from the transporter and first transporter station, making
+the transporter "leave" the station.
+
+Then 25 seconds later,
+
+Open an exit going east from the second transporter station to the
+transporter, and one going west from the transporter to the second
+transporter station.
+
+etc...
+
+Quick? and easy? installation:
+------------------------------
+
+The installation process assumes that you can use a text editor and know
+C, because you'll have to edit some of the CircleMUD source code to
+install this.
+
+It takes a while to install a transporter system, but it is WELL WORTH IT.
+
+First, edit your makefile so that it compiles trains.c and includes it
+when everything is linked to make /bin/circle.
+
+Then, make these changes to these files:
+
+- In comm.c:
+
+-- Near the beginning of the file, find this:
+/* extern fcnts */
+void    boot_db(void);
+[....]
+void    weather_and_time(int mode);
+
+-- On the line after weather_and_time, add:
+void    train_upd(void); /* in trains.c */
+
+-- Then, search for "pulse++", and you should find something like this:
+
+      pulse++;
+
+      if (!(pulse % PULSE_ZONE))        zone_update();
+      if (!(pulse % PULSE_MOBILE))      mobile_activity();
+      if (!(pulse % PULSE_VIOLENCE))    perform_violence();
+
+      if (!(pulse % (SECS_PER_MUD_HOUR * 4))) {
+         weather_and_time(1);
+         affect_update();
+         point_update();
+         fflush(player_fl);
+      }
+
+-- After that last }, add:
+
+      if (!(pulse % (25 * 4)))
+         train_upd();
+
+-- That makes the train_upd(); function get called every 25 seconds. If you
+   want to change the time between calls, just change the 25 to whatever.
+
+
+- In spec_procs.c:
+
+-- Find this:
+
+/* ********************************************************************
+*  Special procedures for objects                                     *
+******************************************************************** */
+
+-- And right after it, add this special procedure:
+
+SPECIAL(tokens)
+{ /* token machines & conductors in one proc! */
+   struct obj_data *o, *obj, *temptok;
+   bool has_token;
+   int tokennum, transroom, transroom1, transroom2;
+   ACMD(do_look);
+   tokennum = 9016; /* obj number of your tokens! */
+   transroom1 = real_room(3070); /* transporter rooms */
+   transroom2 = real_room(3072);
+
+   if (cmd == 59) {
+    send_to_char("Type 'buy' to buy a token.\n\r", ch);
+    return(TRUE); }
+   else if (cmd == 56) {
+    if (GET_GOLD(ch) < 500) {
+     send_to_char("You don't have enough gold! A token costs 500 coins.\n\r", ch);
+     return(TRUE);
+    }
+    send_to_char("You buy a transporter token.\n\r", ch);
+    act("$n buys a transporter token.",
+    FALSE, ch, 0, 0, TO_ROOM);
+    GET_GOLD(ch) -= 500;
+    temptok = read_object(9016, VIRTUAL);
+    obj_to_char(temptok, ch);
+    return(TRUE);
+   }
+   else if (cmd == 2) {
+     /* transporter there? */
+     if (world[ch->in_room].dir_option[1]->to_room != NOWHERE)
+       {
+     /* if so, which one? */
+     if (world[ch->in_room].dir_option[1]->to_room == transroom1)
+       transroom = transroom1;
+     else if (world[ch->in_room].dir_option[1]->to_room == transroom2)
+       transroom = transroom2;
+     has_token = FALSE;
+     for (obj = ch->carrying; obj; obj = obj->next_content)
+      if (obj_index[obj->item_number].virtual == tokennum) {
+         has_token = TRUE;
+         o = obj; }
+     if (!has_token) {
+        send_to_char("You need a token to use the transporter.\n\r", ch);
+        return(TRUE);
+      }
+      else {
+        send_to_char("The conductor takes your token, and you enter the transporter\n\r", ch);
+        act("The conductor takes $n's token, and $e leaves east.\n\r", FALSE, ch, 0, 0, TO_ROOM);
+        obj_from_char(o);
+        extract_obj(o);
+        char_from_room(ch);
+        char_to_room(ch, transroom);
+        do_look(ch, "", 0, 0);
+        return(TRUE);
+      }
+    } /* end if transporter is there */
+  } /* end if cmd = 2 */
+  return(FALSE); /* all other cmds */
+} /* end spec proc */
+
+- In spec_assign.c:
+
+-- Find this:
+
+SPECIAL(gen_board);
+
+-- And add this:
+
+SPECIAL(tokens);
+
+ASSIGNOBJ(###, tokens);
+
+-- ...where ### is the virtual number of the token machine object,
+   ofcourse. (NOTE: Make SURE the token machine is ALWAYS at the
+   transporter station. If you don't load the token machine into
+   each statin, transporter rides will be free for whatever stations
+   you don't load token machines.
+
+
+- In trains.c
+
+This is where the C knowledge comes in..
+
+You'll have to change a lot of stuff, because it will be
+different for each MUD.
+
+Briefly, here's what you'll have to change:
+
+On the station[] assignments, change the real_room()s to whatever
+transporter station rooms you have.
+
+Down where it switches transpath, change each case to say what it's
+supposed to say. One case is executed each 25 seconds. Once it runs
+case 9, it goes back to case 1 again.
+
+On move_from(), the name in quotes is the name of the station that
+the transporter is going TO.
+
+On enter_stat(), the first name is where the transporter is coming
+FROM, and the second is what station the transporter is entering.
+
+On both move_from() and enter_stat(), the last number is the
+transporter number (1st or 2nd).. so that 2 transporters can
+move simultaneously.
+
+Under BOTH the enter_stat and move_from functions, change the
+transroom = real_room(whatever) assignments to whatever rooms your
+transporters are.
+
+To add or remove transporter stations, you have to add more or remove
+some of the case statements, and change the line that says:
+
+if (transpath==10)
+  transpath=0;
+
+to:
+
+if (transpath==(the number of case statements you have + 1))
+  transpath=0;
+
+
+Once you've made these changes to those files, you have to add the
+transporter stations, the transporters themselves, the token machine
+object, and the token object.
+
+
+- Examples:
+
+For the transporter station, I usually make it so that you enter from above.
+Whatever you do, don't make any transporter station that has an exit to the
+east, because that's where the transporter itself is.
+
+-- Example transporter room:
+
+#3072
+The Transporter~
+You're inside the transporter--a compact pod that floats through deep
+underground tunnels all around the MUD. There are no windows to look out
+of (and not much to see if there were any), but the transporter seats
+are comfortable, and it will get you to your destination quickly.
+There's a map on the wall.
+~
+30 8 0
+D3
+~
+~
+0 -1 3069
+E
+map wall~
+The map says:
+
+"CircleMUD transporter loop:
+
+
+      M\    /\
+      | \__K  \
+      |       W
+      |       |
+      S       |
+      \___R_/\/
+             
+  |  [M]idgaard Central Station
+  |  [S]outh Midgaard Station
+  |  [R]ome Station
+  |  [W]ayhouse Station
+  V  [K]erofk Station"
+~
+S
+
+-- Example transporter station room:
+
+#3069
+Midgaard Transporter Station~
+You're inside the newest addition to Midgaard-- the Transporter Station.
+It's a large underground room, much like a subway station. From what you
+can see, this station is very popular, as there are many people here
+waiting for the next transporter to wherever their destination may be.
+There is a map on the wall, and a plaque bolted to a post.
+~
+30 8 0
+D1
+~
+~
+0 -1 3070
+D4
+You see the Market Square.
+~
+~
+0 -1 3014
+E
+map wall~
+The map says:
+
+"Transporter tokens cost 500 coins each. Use the buy command to buy one.
+
+CircleMUD transporter loop:
+
+
+      M\    /\
+      | \__K  \
+      |       W
+      |       |
+      S       |
+      \___R_/\/
+             
+  | * [M]idgaard Central Station
+  |   [S]outh Midgaard Station
+  |   [R]ome Station
+  |   [W]ayhouse Station
+  V   [K]erofk Station
+
+   * = You Are Here.
+
+    The 2 transporters run between 5 stations. The next transporter
+should arrive very soon. Enjoy your trip!"
+~
+E
+plaque post~
+The plaque reads:
+
+  All Transporter stations, the transporters, the conductor, the token
+machines, and their special C procedures were written by Guru Meditation.
+The idea for the transporter came from the trains at JediMUD
+(marble.bu.edu port 4000.)
+~
+S
+
+-- Example token machine object: (make it not takeable so that it stays
+                                  on the wall :)
+
+#9017
+machine~
+a token machine~
+A transporter token machine is mounted on the wall.~
+~
+13 0 0
+0 0 0 0
+1000 0 0
+E
+machine~
+There is a note stuck to the side of it that says:
+
+    CircleMUD transporter tokens cost 500 coins each, and once you board
+the transporter, you can stay on it as long as you like.
+~
+
+-- Example token object:
+
+#9016
+token~
+a transporter token~
+A small round token has been left here.~
+~
+13 4096 16385
+0 0 0 0
+2 100 10
+
+
+-- Now reboot your MUD, and enjoy your transporter/train! :)
+
+If you can't get it working, try again.. if you still can't get it
+working, send me e-mail with a DETAILED description of your problem.
+

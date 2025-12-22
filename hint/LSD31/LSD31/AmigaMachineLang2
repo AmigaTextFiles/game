@@ -1,0 +1,3545 @@
+              _____          _________________________________
+             /    /\        /                                 \
+            /    / /       /    ___________________________    \
+           /    / /       /    / _________________________/\    \
+          /    / /       /    /_/___________      _____   \ \    \
+         /    / /       /                   \    /\    \   \ \    \
+        /    / /       /_________________    \   \ \    \   \ \    \
+       /    / /        \________________/\    \   \ \    \   \ \    \
+      /    /_/__________________________\_\    \   \ \    \___\/     \
+     /                                          \   \ \              / 
+    /____________________________________________\   \ \____________/
+    \____________________________________________/    \/___________/FISH
+
+                                P R E S E N T
+
+                 AMIGA MACHINE LANGUAGE - FROM ABACUS BOOKS
+
+                                P A R T  I I
+
+
+                     Typed by DEE JAY of X-CELL for LSD
+
+
+
+
+      CHAPTER 5.
+      ---------
+      5.Hardware Registers.
+      --------------------
+        You can get information about hardware functions without using
+        library functions.You can use the hardware registers instead.These
+        are memory locations at particular addresses that are neither in
+        RAM nor in ROM.They are direct interfaces between the processor
+        and its peripheral devices.
+        Each device has a number of hardware registers that the processor
+        accesses to control graphics,sound and input/output.There are lots
+        of possibilities for assembly language programmers.We'll only be
+        able to go into a few examples.
+        The registers are generally used in byte-wise fashion.You'll find
+        an example in the next chapter.
+
+      5.1.Checking For Special Keys.
+      -----------------------------
+        Load AssemPro and enter the debugger,select "Parameter-Display-
+        From-Address"and enter $BFEC00.Next select "Parameter-Display-Hex
+        -Dump"to display the memory.(To use the SEKA assembler or a similar
+        monitor program,enter "q $bfec00".)
+        Yoy'll see a byte-wise listing of the addresses starting at
+        $BFEC00 in which two bytes always repeat.These two bytes represent
+        the status of the two hardware registers.
+        The mirroring occurs because not all the address bits are used in
+        decoding the address.In addressing this register,only the upper
+        two bytes of the address and the low bit,bit 0,are used.The
+        address of the two registers goes like this:$BFECxx,where the
+        lower address byte xx doesn't contain any information in bits 1-7.
+        Only bit 0 contains information about the desired register.You'll
+        find this odd form of addressing with most hardware registers.
+        Let's look at the information in these registers.Let's look at the
+        second register,$BFEC01.Hold down the<ALT>key and select"Parameter
+        -Display-HEX-Dump"to redisplay the screen.(SEKA owners must enter
+        "q $bfec00"and press the<ALT>key right after pressing the<Return>
+        key.)You'll see that contents of every two bytes($BFEC01,$BFEC03,
+        etc...)have been changed to $37.This is the status of the special
+        keys.This is also true for the other special keys.The following
+        keys produce the bytes:
+
+            Shift left      $3F
+            Shift right     $3D
+            Control         $39
+            Alternate       $37
+            Amiga left      $33
+            Amiga right     $31
+
+        You can use this register to have a machine language program check
+        if one of these keys was pressed and then respond by calling or
+        ending a function.A program section might look like this:
+
+        skeys=$bfec01
+              ...
+              cmp.b   #$37,skeys   ;Alternate pressed?
+              beq     function1    ;Yes!
+              cmp.b   #$31,skeys   ;or right Amiga?
+              beq     function2    ;Yes!
+              ...                  ;and so on...
+
+      5.2.Timing.
+      ----------
+        If you want to find out how much time elapsed between two events,
+        you can use a hardware register to keep track of time quickly and
+        precisely.The Amiga contains just such a timekeeper:the I/O port
+        componant.The chip has a 24 bit wide counter that has a 60 Hertz
+        clock.
+        These 24 bits can't be read at once,for instance with a MOVE.L
+        command,because the register is divided into three bytes.The low 
+        byte is at address $BFE801,the middle at $BFE901,and the high byte
+        with bits 16-23 at $BFEA01.
+        Here's an example of a way to use this register:finding out how
+        long a subroutine takes to run.
+
+        test:
+               bsr     gettime     ;put current time in D7
+               move.l  d7,d6       ;save it in D6
+               bsr     routine     ;routine to be timed
+               bsr     gettime     ;get the time again
+               sub.l   d6,d7       ;elapsed time in
+               ...                 ;1/50 seconds in D7!
+               nop                 ;set break point here to stop
+
+        routine:                   ;test routine
+               move    #500,d0     ;delay counter
+          
+        loop:
+               dbra    d0,loop     ;count down
+               rts
+
+        gettime:
+               move.b  $bfea01,d7  ;hi-byte in D0
+               lsl.l   #4,d7       ;shift twice by 4 bits
+               lsl.l   #4,d7       ;(8 bits shifted)
+               move.b  $bfe901,d7  ;get mid-byte
+               lsl.l   #4,d7       
+               lsl.l   #4,d7       ;shift again
+               move.b  $bfe801,d7  ;get the lo-byte
+               rts                 ;done
+         
+      5.3.Reading The Mouse-Joystick.
+      -------------------------------
+        There are two hardware registers for the mouse and the joystick.
+        They contain the state(or the position)of these input devices.Its
+        interesting that the same port is used with both the mouse and the
+        joystick even through they work completely different.
+        The joystick as four switches that are closed during movement and
+        give off a potential(-)that is related to the movement of the
+        joystick/mouse.The mouses movements give off lots of quick signals
+        -two for horizontal and two for vertical movements.
+        The computor must keep an eye on the ports so that it can evaluate
+        the signals and calculate the new mouse position.This isn't the
+        work of the processor though;it already has too much to do.
+        You find the status of the mouse/joystick port at address $DFF00A
+        for port 1 and $DFF00C for port 2.The information in these words
+        is for vertical mouse movement in the lower byte and for
+        horizontal movement in the upper byte.
+        AssemPro owners be careful!Don't read these addresses,because for
+        some reason that causes the computor to crash.This looks
+        interesting(the screen begins to dance)but you can only recover by
+        pressing <RESET>and losing all your data.
+        To read this register,lets write a short program:
+
+        ;(5.3A) mouse
+
+        test:
+              jsr     run       ;test subroutine
+              jmp     test      ;continue until broken
+              nop               ;breakpoint here
+
+        joy= $dff00a
+         
+        run:
+              move    joy,d6    ;data item 1 in D6
+              move    joy+2,d7  ;data item 2 in D7
+              jmp     run       ;rts for SEKA and other
+
+              end
+
+        If you assemble the program and start breakable in the debugger
+        (SEKA-"j run"),D6 and D7 contain the contents of the two registers
+        Move the mouse a bit and watch the register contents.
+        As you see,the value in D6 is different.If you just move the mouse
+        horizontaly,only the upper bytes value is different,if just moved
+        vertically only the upper byte is different.
+        You are not getting the absolute position of the mouse pointer on
+        the screen.You can see that easily by moving the mouse in the
+        upper left corner,then reading the value by restarting the program
+        and moving the mouse left again.As you can see,the registers
+        contents are always relative.
+        Change the program as follows:
+
+        ;(5.3B)                   mouse difference
+
+        test:
+              jsr      run        ;test subroutine
+              jmp      test       ;continue until broken
+              nop                 ;breakpoint here
+
+        joy= $dff00a
+
+        run:
+              move     d7,d6      ;old position in D6
+              move     joy,d7     ;new position in D7
+              sub      d7,d6      ;difference in D6
+              jmp      run        ;rts for SEKA and other
+
+              end
+
+        Start Breakable(right-Amiga-A)in the AssemPro debugger and watch
+        D6,the result is zero or D7.(SEKA owners have to start the program
+        two times.The result in D6 is zero.)If you move the mouse,D6
+        contains the difference between the old and new positions since
+        the start.You'll find the vertical and horizontal positions of the
+        mouse relative to the last time you looked.In this way,you can use
+        this register to find the relative mouse movement between two
+        checks.
+        Now to check the joysticks.Put a joystick in port 2 and change the
+        address $DFF00A to $DFF00C in the program.Start Breakable in the
+        AssemPro debugger and watch D6,the result is zero or D7.(SEKA
+        owners have to start the program two times.The result in D6 is
+        zero.)
+        Move the joystick up.You'll get the value $FF00.One was subtracted
+        from the upper byte.Let the joystick loose.This time you get the
+        value $100-one is added.You'll get the same effect if you move the
+        joystick left-after you let go,one is subtracted.
+        The individual movements and their effects on the joystick program
+        are:
+
+                       UP      $FF00       HI-BYTE -1
+                       DOWN    $FFFF       LO-BYTE -1
+                       LEFT    $0100       HI-BYTE +1
+                       RIGHT   $0001       LO-BYTE +1
+
+        These values aren't terribly reliable.If you move the joystick a
+        lot and then look at the value,you'll find a crazy value in D6.
+        This is because the input driver thinks that a mouse is attached.
+        Nevertheless,this is the quickest way to read a joystick.In this
+        way,an external device that gives off evaluatable TTL signals can
+        be connected to the port and watched by a machine language
+        program.
+        Now you just need to find out whether the fire button has been
+        pressed,and you'll know how to get all the information you need
+        from the joystick.The buttons state is in bit 7 of the byte that
+        is in memory location $BFE001.If the bit is set,the button was'nt
+        pressed.That's true for the joystick connected to port 2.Bit 6 of
+        this byte contains the buttons state when the joystick is in port
+        1 or the state of the left mouse button.
+        Let's stay on port 2.You can test bit 7 to execute a function when
+        the joystick button is pressed without any problems.Bit 7 is the
+        sign bit.You can use this program segment:
+
+             tst.b   $bfe001     ;was fire button 2 hit?
+             bpl     fire        ;yes!branch
+
+        The TST.B instruction tests the addressed byte and sets the Z and
+        the N flag.If the N flag is set,you know that bit 7 of the tested
+        byte is set.Since the fire button turns on LO potential,the bit is
+        erased when the button is pressed.The N flag works that way with
+        the TST command as well.The BPL command in the program above
+        branches if the button was pressed.The PL stands for plus and is
+        set when the sign bit is cleared.
+        Here is the complete program to check the fire button and joystick
+        difference:
+
+        ;(5.3C) fire button and joy difference
+
+        test:
+               jsr     run        ;test subroutine
+               tst.b   $bfe001    ;was fire button 2 hit?
+               bpl     fire       ;yes! branch
+               jmp     test       ;continue until broken
+
+        joy = $dff00a
+        run:
+               move    d7,d6      ;old position in D6
+               move    joy,d7     ;new position in D7
+               sub     d7,d6      ;difference in D6
+               jmp     run        ;rts for SEKA and other
+
+        fire:
+               nop                ;breakpoint here
+
+               end
+
+      5.4.Tone Production.
+      -------------------
+        It's fun to make noises and sounds.The Amiga lets you use Audio
+        Devices and various I\O structures to play tones,noises and/or
+        music pieces in the background.You'll leave this method to C or
+        Basic programmers,since you can use short machine language
+        programs to directly program the audio hardware.
+        The Paula chip has all the capabilities needed for tone production
+        This chip can be accessed using the hardware registers of the
+        processor.No library of any high level language can do more than
+        you can-program the chip.
+        How does it work?Since the disk uses Direct Memory Access(DMA)to
+        get information,you just need to tell it where to look for the
+        tone or tone sequences that you would like played.You also need to
+        tell it how to interpret the data.
+        Lets start with the easiest case-producing a constant tone.A tone
+        like this consists of a single oscillation that is repeated over
+        and over.If you make a diagram of the oscillation,you see the wave
+        form of the oscillation.There are several standard waves: sine,
+        square,triangle and saw tooth.The simplest is the square wave.
+        To produce a square wave,you just need to turn the loud speaker on
+        and off.The frequency that occurs here is the frequency of the
+        tone. 
+        You want to produce such a tone using the Amiga.First you need to
+        make a table that contains the amplitude of the tone you wish to
+        produce.For a square wave,you only need two entries in the table,a
+        large and a small value.Since the sound chip in the Amiga has
+        amplitude values between -128 and +127,our table looks like this:
+
+        soundtab:
+               dc.b -100,100
+
+        You need to give the address of the table to the sound chip.You
+        have four choices,since the Amiga as four sound channels.The
+        address of the hardware register in which the table address for
+        channel 0 must be written is $DFF0A0;for channel 1 it is $DFF0B0;
+        for channel 2 its $DFF0C0;for channel 3 its $DFF0D0.For stereo
+        output,channels 0 and 3 control the left loud speaker.Channels 1
+        and 2 control the right loud speaker.For example,choose channel 0
+        and write the following:
+
+               move.l  #soundtab,$DFF0A0   ;address of the table
+
+        Next you need to tell the sound chip how many items there are in
+        the table.The data is read from beginning to end and sent to the
+        loud speaker.Once it reaches the end,it starts over at the
+        beginning.Since the sound chip gets this one word at a time,even
+        though the data is in bytes,the table must always have an even
+        number of bytes.The length that you give it is the number of words
+        the number of bytes/2.
+        You put the length for channel 0 in the register at address
+        $DFF0A4(for channel x just add x*$10!):
+
+               move  #1,$dff0a4   ;length of table in words
+
+        Now you have to tell it how quickly to read the data and output it
+        to the loud speaker.This word determines the frequency.However,it
+        does this "backwards".The larger the value,the lower the frequency
+        Choose the value 600 for this example:
+
+               move  #600,$dff0a6   ;read in rate
+
+        Now you need to decide the loudness level for the tone or noise.
+        You have 65 different levels to choose from.Lets choose the middle
+        value 40 for our example:
+
+               move  #40,$dff0a8    ;loudness level
+
+        Thats the data that the sound chip needs to produce the tone.
+        However nothing happens yet.What next?The chip can't tell if the
+        data thats in the registers is valid,so it doesn't know if it
+        should use the data.
+        You need to work with the DMA control register at address $DFF096
+        to let it know.You only need six bits of this word for your
+        purposes:
+
+        Bit 15 ($8000)  If this bit is set,every bit that is written to
+                        this internal register is set.Otherwise the bits
+                        are erased.Zero bits aren't affected.This is very
+                        useful because this word also contains DMA
+                        information for disk operations that should'nt be
+                        changed.
+
+        Bit 9 ($200)    This bit makes it posible for the chip to access
+                        DMA memory.If you want to start playing the tone,
+                        you need to set this bit.
+
+        Bit 0-3         Turn channel 0-3 on when bits are set.
+
+        You'll start your tone by setting bits 15,9 and 0:
+
+               move   #$8000+$200+1,$dff096   ;start DMA
+
+        Heres an example of tone production-this time with tone using a
+        sine wave:
+
+        ;**Sound Generation using hardware registers** (5.5A)
+
+        ctlw = $dff096              ;DMA control
+        cothi = $dff0a0             ;table address HI
+        c0tlo = $c0thi+2            ;table address LO
+        c0tl = $c0thi+4             ;table length
+        c0per = $c0thi+6            ;read in rate
+        c0vol = $c0thi+8            ;loudness level
+        
+        run:                        ;*Produce a simple tone
+             move.l  #table,c0thi   ;table beginning
+             move    #8,c0tl        ;table length--8 words
+             move    #400,c0per     ;read in rate
+             move    #40,c0vol      ;loudness level (volume)
+             move    #$8201,ctlw    ;DMA/Start sound
+             rts
+
+        data                        ;>500K place in CHIP memory
+        table:                      ;sound table:sine
+         dc.b -40,-70,-40,0,40,70,40,0
+
+             end
+
+        To test this subroutine,use AssemPro to assemble the routine,save
+        the program and load it into the debugger.Next set a breakpoint at
+        the RTS,to set the breakpoint in AssemPro select the correct
+        address with the mouse and press the right-Amiga-B keys.Start the
+        program and listen to the tone.You need another routine to turn
+        the tone off,turn your sound down for now.
+        To turn the tone off,you just need to erase bit 0 of the DMA
+        control register.To do this,you just need to write a 0 in bit 15
+        and all the set bits in this register are erased.To erase bit 0,
+        just write a one to the memory location:bit 15=0=> bit 0 is erased
+        Heres a small routine to stop the tone coming from channel 0:
+
+        still:                   ;*turn off tone
+               move    #1,ctlw   ;turn off channel 1
+               rts
+
+        Now lets use the routine in a program to produce a short peep tone
+        that you culd,for instance,use as a key click:
+
+        ;** Producing a Peep Tone **
+        ctlw = $dff096                ;DMA control
+        c0thi = $dff0a0               ;HI table address
+        c0tlo = $c0thi+2              ;LO table address
+        c0tl = $c0thi+4               ;table length
+        c0per = $c0thi+6              ;read in rate
+        c0vol = $c0thi+8              ;volume
+
+        beep:                         ;*Produce a short peep tone
+               move.l  #table,c0thi   ;table beginning
+               move    #8,c0tl        ;table length
+               move    #400,c0per     ;read in rate
+               move    #65,c0vol      ;volume
+               move    #$8201,ctlw    ;Start DMA (sound)
+               move.l  #20000,d0      ;delay counter
+
+        loop:
+               dbra    d0,loop        ;count down
+        
+        still:
+               move    #1,ctlw        ;turn off tone
+               rts
+
+        table:
+               dc.b 40,70,90,100,90,70,40,0,-4,0
+               end
+
+        You can play upto four tones at the same time in such a way that
+        they are independant of each other.The Amiga also offers another
+        method of making the sound more interesting:you can modulate the
+        tone.
+        Lets produce a siren tone.You could do this by figuring out the
+        entire sequence and programming it.However,as you can well imagine
+        thats a lot of work.
+        Its much easier to use two tone channels.Lets use channel 1 for
+        the bass tone and channel 0 for its modulation.Channel 0 needs to
+        hold the envelope of the siren tone.It needs to give the expanding
+        and contracting of the tone at the right speed.
+        You then have two ways that you can have channel zero work with
+        channel one.You can control the volume via channel 0,the read in
+        rate(frequency),or both.For our example,you'll use frequency
+        modulation.
+
+        Change the program as follows:
+
+        ;** Modulated sound generation via hardware registers **
+        ctlw = $dff096                   ;DMA control
+        adcon = $dff09e                  ;Audio/Disk control
+        c0thi = $dff0a0                  ;HI table address
+        c0tlo = c0thi+2                  ;LO table address
+        c0tl = c0thi+4                   ;table length
+        c0per = c0thi+6                  ;read in rate
+        c0vol = c0thi+8                  ;volume
+
+        run:
+                move.l  #table,c0thi+16  ;table start for channel 1
+                move    #8,c0tl+16       ;table length--8 words
+                move    #300,c0per+16    ;read in rate
+                move    #40,c0vol+16     ;volume
+
+                move.l  #table2,c0thi    ;table start for channel 0
+                move    #8,c0tl          ;table length
+                move    #60000,c0per     ;read in rate
+                move    #30,c0vol        ;volume
+
+                move    #$8010,adcon     ;modulation mode:FM
+                move    #$8203,ctlw      ;start DMA
+                rts
+
+        still:                           ;*Turn Off Tone
+                move    #$10,adcon       ;no more modulations
+                move    #3,ctlw          ;turn off channels
+                rts
+
+        table:                           ;data for basic tone
+         dc.b -40,-70,-90,-100,-90,-70,-40,0
+         dc.b 40,70,90,100,90,70,40,0
+
+        table2:                          ;data for modulation
+         dc.w 400,430,470,500,530,500,470,430
+
+                end
+
+        When you start the program,you'll here a siren.You can change this
+        tone to your hearts content.
+        Did you notice the added "adcon"register.This register controls
+        the modulation of the audio channel as well as handling disk
+        functions.The same technique is used here as for the DMA control
+        register,bits can only be set if bit 15 is.As a result,you don't
+        have to worry about the disk bits.I'd recommend against
+        experimentation.
+        Control bit 15 isn't the only one of interest to you.You can also 
+        use bits 0-7,because they determine which audio channel modulates
+        another channel.There is a restriction,though.A channel can only
+        modulate the next higher numbered channel.For this reason you use
+        channel 1 for the basic tone and channel 0 for the modulation in
+        the example.You can't for example,modulate channel three with
+        channel zero.Channel 3 can't be used to modulate any other
+        channel.
+
+        Here is an overview of bits 0-7 of the "adcon"register.
+
+        Bit       Function
+        -----------------------------------------------------------------
+         0        Channel 0 modulates the volume of channel 1
+         1        Channel 1 modulates the volume of channel 2
+         2        Channel 2 modulates the volume of channel 3
+         3        Turn of channel 3
+         4        Channel 0 modulates the frequency of channel 1
+         5        Channel 1 modulates the frequency of channel 2
+         6        Channel 2 modulates the frequency of channel 3
+         7        Turn off channel 3
+
+        In the example,you set bit 4,which put channel 0 in charge of
+        channel one's frequency modulations.
+        When you've chosen a channel for use in modulating another channel
+        some of the parameters of the channel change.You don't need to
+        give volume for this channel,so you can omit it.Now the tables
+        data is looked at as words instead of as bytes.These words are
+        read into the register of the modulated register at a
+        predetermined rate.The Read in Rate Register determines the rate.
+        If you want to modulate the frequency and the volume of another
+        channel,(In the example,set bits 0 and 4 of "adcon"),the data is
+        interpreted a little differently.The first word in the table is
+        the volume,the second is the read in rate,and so on.It alternates
+        back and forth.In this way,you can for instance,produce the siren
+        tone.
+
+      5.5.Hardware Registers Overview.
+      -------------------------------
+        The following tables should give you an overview of the most
+        important hardware registers.Theres not enough room to describe
+        each register,so I'd recommend getting a hold of the appropriate
+        literature.If you experiment with these registers,you should keep
+        in mind that this can cause the computor to crash.Save your data
+        to disk and then take the disk out of the drive,because you might
+        cause the disk drive to execute some wierd functions.
+        Lets start with the PIA's.This covers the PIA type 8520.You should
+        keep in mind that some functions and connection of the 8520 are
+        integrated into the Amiga and so there are limitations on what you
+        can do with the PIA's.
+
+        PIA A       PIA B       Registers Meaning
+        ------------------------------------------------------------------
+        BFE001      BFE000      Data register A
+        BFE101      BFE100      Data register B
+        BFE201      BFE200      Data direction register A
+        BFE301      BFE300      Data direction register B
+        BFE401      BFE400      Timer A LO
+        BFE501      BFE500      Timer A HI
+        BFE601      BFE600      Timer B LO
+        BFE701      BFE700      Timer B HI
+        BFE801      BFE800      Event register Bits 0-7
+        BFE901      BFE900      Event register Bits 8-15
+        BFEA01      BFEA00      Event register Bits 16-23
+        BFEB01      BFEB00      Unused
+        BFEC01      BFEC00      Serial data register
+        BFED01      BFED00      Interrupt control register
+        BFEE01      BFEE00      Control register A
+        BFEF01      BFEF00      Control register B
+
+        Some internal meanings:
+
+        $BFE101    Data register for parallel interface
+        $BFE301    Data direction register for the parallel interface
+        $BFEC01    State of the keyboard,contains the last special key
+                   pressed(Shift,Alternate,Control,Amiga)
+
+        Now come the registers that are used for tone production.The first
+        two registers should be treated especially carefully-if they are
+        used wrong,very nasty effects can occur.
+        These registers can be either read or written only.This
+        information is included under R/W in the table.
+
+        Address       R/W    Meaning
+        ------------------------------------------------------------------
+        DFF096         W     Write DMA Control
+        DFF002         R     Read DMA Control and Blitter Status
+        --Audio Channel 0--
+        DFF0AA         W     Data register
+        DFF0A0         W     Pointer to table beginning Bits 16-18
+        DFF0A2         W     Pointer to table beginning Bits 0-15
+        DFF0A4         W     Table length
+        DFF0A6         W     Read in Rate
+        DFF0A8         W     Volume
+        --Audio Channel 1--
+        DFF0BA         W     Data register
+        DFF0B0         W     Pointer to table beginning Bits 16-18
+        DFF0B2         W     Pointer to table beginning Bits 0-15
+        DFF0B4         W     Table length
+        DFF0B6         W     Read in Rate
+        DFF0B8         W     Volume
+        --Audio Channel 3--
+        DFF0CA         W     Data register
+        DFF0C0         W     Pointer to table beginning Bits 16-18
+        DFF0C2         W     Pointer to table beginning Bits 0-15
+        DFF0C4         W     Table length
+        DFF0C6         W     Read in Rate
+        DFF0C8         W     Volume
+        --Audio Channel 4--
+        DFF0DA         W     Data register
+        DFF0D0         W     Pointer to table beginning Bits 16-18
+        DFF0D2         W     Pointer to table beginning Bits 0-15
+        DFF0D4         W     Table length
+        DFF0D6         W     Read in Rate
+        DFF0D8         W     Volume
+
+        Now for the registers that contain information about the joystick,
+        mouse or potentiometer.These addresses have been gone over in part
+        previously.
+
+        Address       R/W    Meaning
+        ------------------------------------------------------------------
+        DFF00A         R     Joystick/Mouse Port 1
+        DFF00C         R     Joystick/Mouse Port 2
+        DFF012         R     Potentiometer pair 1 Counter
+        DFF014         R     Potentiometer pair 2 Counter
+        DFF018         R     Potentiometer connection
+        DFF034         W     Potentiometer port direction
+         
+
+
+
+      Chapter 6
+      ---------
+      6.The Operating System.
+      -----------------------
+        Now lets take a step forward in your ability to write assembly
+        language programs.Its not enough to put a piece of text in memory 
+        someplace.You want to be able to put it on the screen.Do you know
+        how to write a character on the screen?Do you know how to draw a
+        window on the screen that can be modified by the mouse?Actually
+        you don't have to have terribly precise knowledge about such
+        topics.
+        Fortunately,the Amigas operating system supplies routines that
+        take care of common tasks like this.It can seem quite complicated
+        due to the number of routines necessary.These routines are in
+        libraries.We'll look at the libraries in some depth now.
+
+      6.1.Load Libraries.
+      -------------------
+        Before you can use a library,it must be available.It has to be
+        loaded into memory.Unfortunately,the whole library must be loaded,
+        even if you only need one of the functions.
+        First you need to decide what the program must be able to do,so
+        you can see which libraries you'll need.For simple I/O text,you
+        don't need a library that contains routines for moving graphics!
+        There are a number of libraries onj a normal Workbench disk.Heres
+        an overview of the names and the sort of functions they do:
+   
+      Exec.Library;
+        This library is needed to load the other libraries.It is already
+        in memory and doesn't need to be loaded.Its in charge of basic
+        functions like reserving memory and working with I/O channels.
+  
+      Dos.Library;
+        Contains all the functions for normal I/O operations,for instance
+        screen or disk access.
+  
+   
+      Intuition.Library;
+        Used for working with screens,windows,menus,etc...
+   
+      Clist.Library;
+        This contains routines for working with the Copper lists that are
+        used for controlling the screen.
+     
+      Console.Library;
+        Contains graphics routines for text output in console windows.
+   
+      Diskfont.Library;
+        Used for working with the character fonts that are stored on the
+        disk.
+     
+      Graphics.Library;
+        This library contains functions to control the Blitter(or graphics
+        )chip.Its used for basic graphics functions.
+ 
+      Icon.Library;
+        Used in the development and use of workbench symbols(icons).
+
+      Layers.Library;
+        Used for working with screen memory (layers).
+
+      Mathffp.Library;
+        Contains basic math floating point operations.
+
+      Mathieeedoubbas.Library;
+        Contains basic math functions for integers.
+
+      Mathtrans.Library;
+        Contains higher level mathmatical functions.
+
+      Potgo.Library;
+        Used for evaluating analog input to the Amiga.
+
+      Timer.Library;
+        Contains routines for time critical programs.They can be used to
+        program exact time intervals.
+
+      Translator.Library;
+        Contains the single function "Translate",that translates normal
+        text written phonetically for the narrator,the speech synthesisor.
+
+        You can open(load)all these libraries of course.You should
+        remember that this takes time and memory.For this reason,you
+        should always think about which functions you need and which
+        libraries they are in.
+        For example,lets say you want to write a program that does text
+        input/output.You need the "Dos.Library",so it can be loaded.
+        The "exec.library"is in charge of loading.This library contains
+        the OpenLib function that can be called once you've passed the
+        needed parameters.AssemPro Amiga includes all the libraries
+        necessary for the Amiga,it also includes files that contain the 
+        offsets for the operating system calls.The macros contained in
+        AssemPro ease assembly language programming considerably.To make
+        the programs in this book useful to the largest audience the
+        following examples are written for generic assemblers and do not
+        include AssemPro's macros.We have used the AssemPro ILABEL and the
+        macros INIT_AMIGA and EXIT_AMIGA so AssemPro owners can start the
+        programs from the desktop.(If you are using a different assembler
+        check your documentation for instructions on linking programs).
+
+      6.2.Calling Functions.
+      ----------------------
+        Since this chapter is rather complex we'll first describe the
+        fundamental routines necessary to use the Amiga's operating system
+        after a description a complete program is listed.Every library
+        begins in memory with a number of JMP commands.These JMPs branch
+        to the routines that are in the library.To call a function,you
+        need to find the beginning of this JMP table and call function x
+        by going to the xth JMP command.Usually you use an offset to get
+        to the right JMP command.Normally,you don't start at the beginning
+        but at the end of the JMP table,so use negative offsets.
+        It works out very easily.Now lets open the "dos.library"by using
+        "exec.library's"base address.This address is $000004.To call a
+        fuction from another library,you need to use another base address.
+        Now you need the offset for the function that you want.You want
+        the OpenLib function that has -408 as an offset.You'll find a list
+        of function offsets in the appendix.
+        You need a pointer to the name of the library you are loading for
+        the OpenLib function(in this case "dos.library")and a long word in
+        memory that you can use to store the base address of the DOS
+        library.You get this back from the OpenLib function.You need to be
+        sure to write the library name in lower case letters(dos.library),
+        otherwise you can't open it.I entered a name in capitol letters
+        once and spent a lot of time finding this error.
+
+        The routine looks like this:
+
+        ;** Load the DOS library 'dos.library' (6.2A) **
+        Execbase = 4                    ;base address of the EXEC library
+        OpenLib  = -408                 ;offset for the OpenLib function
+
+        IoErr    = -132                 ;offset for IoErr information
+
+        init:
+               move.l  Execbase,a6      ;base address in A6
+               lea     dosname,a1       ;address of library name
+               moveq   #0,d0            ;version number
+               jsr     OpenLib(a6)      ;open DOS library
+               move.l  d0,dosbase       ;save DOS base address
+               beq     error            ;if zero,then error!
+               ...                      ;your program goes here
+               ...                      ;more program...
+
+
+        error:                          ;error
+               move.l  dosbase,a6       ;address of library name
+               jsr     IoErr(a6)        ;call IoErr for error info
+               move.l  d0,d5            
+               ...                      ;your error routine goes here
+               rts
+
+
+        dosname:                        ;name of library to open
+               dc.b    'dos.library',0,0
+               align                    ;SEKA uses-even
+
+        dosbase:                        ;storage for DOS base address
+               blk.l   1
+
+               end
+
+        This is the way to load the DOS library so that you can use it.All
+        library functions are called this way.Parameters are put in
+        registers and passed to the function.When there is an error,when
+        the function doesn't run correctly,a zero is usually put in data
+        register D0.
+        Once your program is done with its work,you need to close the
+        libraries that are still open before you return to the CLI or 
+        Workbench.The CloseLib function (offset -414)takes care of this
+        job.This function is in the EXEC library just like the OpenLib.The
+        only parameter it needs is the base address of the library that is
+        closed.To close "dos.library",do the following:
+
+        CloseLib = -414               ; (6.2B)
+               ...
+               move.l  Execbase,a6    ;EXEC base address
+               move.l  dosbase,a1     ;DOS base address
+               jsr     CloseLib(a6)   ;close library
+
+      6.3.Program Initialization.
+      ---------------------------
+        Before you can start a program,you need to initialize many things
+        so that the program can run.
+        Lets take an example program that does some text editing.A program
+        like this must be able to store text,so it needs to be able to
+        access memory.It also needs to be able to accept keyboard input
+        and do screen output,so it needs an output window.
+        To do this,you need to open one or more of the libraries that we
+        talked about earlier.Lets assume that you've loaded the DOS
+        library,so that you can do the next steps.
+
+      6.3.1.Reserve Memory.
+      ---------------------
+        There are several ways to get the operating system to assign you a
+        chunk of memory.You need to use one of them,so that during multi-
+        tasking,you don't have one program overwriting another programs
+        memory area.
+        Lets look at the function that is normally used.This function is
+        in the resident EXEC library and has the name AllocMem (offset
+        -$c6).It reserves a memory area,using the value in D0 as the
+        length.The address that the memory area begins at is returned in
+        the D0 data register.If it returns zero,the program could'nt give
+        you that much memory.
+        You can also use a mode word in D1 to determine whether the memory
+        area that is reserved should be erased or not.
+        The routine looks like this:
+
+        ExecBase = 4                  ; (6.3.1A)
+        AllocMem = -$c6
+               ...
+               move.l  #number,d0     ;number of bytes to reserve
+               move    #mode,a6       ;mode word
+               move.l  ExecBase,a6    ;DOS base address in A6
+               jsr     AllocMem(a6)   ;call function
+               move.l  d0,address     ;save memory's start address
+               beq     error          ;memory not reserved
+               ...
+
+        The second way to reserve memory is to use the AllocAbs function
+        (offset -$CC).This function in contrast to the AllocMem function
+        reserves a particular memory area.The D0 register contains the
+        number of bytes that should be reserved.Address register A1
+        contains the desired start address.This function returns a zero in
+        D0 if the memory area can't be reserved.
+
+        ExecBase = 4                  ; (6.3.1B)
+        AllocAbs = -$cc
+               ...
+               move.l  #number,d0     ;number of bytes to reserve
+               lea     address,a1     ;desired start address
+               move.l  execbase,a6    ;EXEC base address
+               jsr     AllocAbs(a6)   ;reserve memory
+               tst.l   d0             ;everything ok?
+               beq     error          ;no!
+               ...
+
+        When the program has done its work and must return to the CLI or
+        the Workbench,it needs to return the memory it as reserved to the
+        system.The FreeMem function (offset -$D2) handles this.
+        The function works like AllocAbs in that the number of bytes is
+        put in D0 and the start address of the memory area is put in A1.
+        If you try to free up a memory area that was'nt reserved,you'll
+        usually crash the computor.
+        The routine to free up a memory area looks like this:
+
+        ExexBase = 4                  ; (6.3.1C)
+        FreeMem = -$d2
+               ...
+               move.l  #number,d0     ;number of bytes released
+               lea     address,a1     ;start address from AllocAbs
+               move.l  ExecBase,a6    ;ExecBase address
+               jsr     FreeMem(a6)    ;free up memory
+               tst.l   d0             ;everything ok?
+               beq     error          ;no!
+               ...
+
+      6.3.2.Opening a Simple Window.
+      ------------------------------
+        The title of this chapter may sound a bit strange.However,the
+        differences between the two different methods of opening a window
+        are so great that they should be handled in seperate chapters.
+        The method of opening a window presented here is very simple,but
+        it doesn't allow you to work with all the gadgets.These gadgets
+        include the close symbol in the upper left corner of a window and
+        the size symbol in the lower left corner.
+        If you open the window in the simple manner,almost all the gadgets
+        are present.However,the close symbol is not.As a result,this
+        method isn't appropriate for every application.Now lets look at
+        the method.
+        To open a window,use a function from the DOS library,so you need
+        to open the library first (see the section "Load Library").This
+        open function is an all purpose function that can be used for many
+        things.For this reason,it makes good sense to put a "open"
+        subroutine in your program.You can use it a lot.Lets do the basic
+        steps:
+
+        ;** Load the DOS Library 'dos.library'  (6.3.2A) **
+        ExecBase = 4                   ;base addres of the EXEC library
+        OpenLib = -408                 ;offset of OpenLib function
+        Open = -30                     ;Offset of the DOS function OPEN
+
+        init:
+               move.l  ExecBase,a6     ;base address in A6
+               lea     dosname(pc),a1  ;address of library name
+               move.q  #0,d0           ;version number:unimportant
+               jsr     OpenLib(a6)     ;call the function
+               move.l  d0,dosbase      ;save DOS base address
+               beq     error           ;if zero,then error!
+               ...                     ;more of your program
+               ...                     ;now open window,etc...
+
+
+        error:
+               ...                     ;error occured
+               ...                     ;your error routine
+
+
+        openfile:                      ;general open function
+               move.l  dosbase,a6      ;DOS base address in A6
+               jsr     Open(a6)        ;call OPEN function
+               tst.l   d0              ;test if ok
+               rts                     ;done,evaluate test later
+
+        dosname:                       ;name of library to be opened
+               dc.b    'dos.library',0,0
+               align                   ;even
+
+        dosbase:                       ;spot for DOS base address
+               blk.l   1
+
+        You call the Openfile routine,because the label "Open"is already
+        being used for the offset.This routine calls the Open function
+        that is in the DOS library.
+        This isn't everything.The function must be given some parameters
+        so that it knows what to open.The parameters are sent in registers
+        D1 and D2.D1 points to a definition block what specifies what
+        should be opened.You need to have a filename ended with a null
+        byte there.D1 must be passed as a long word like all addresses.D2
+        contains the mode that the function should run in.There is an old
+        (1005) and a new (1006) mode.This number must be passed in D2's
+        long word.
+        Heres an overview of how windows are opened.Fortunately,AmigaDos
+        allows you to use input and output channels in the same way.The
+        standard channels are disk files,the console (keyboard and screen)
+        the printer interface and the serial RS232 interface.
+        The console input/output is what you'll work with now.When you
+        specify the console as the filename of the channel to be opened,a
+        window is opened automatically.
+        The name must begin with CON:to do this.Its similar to DF0:for
+        disk operations.A little more infotmation about the window is
+        still needed.
+        You need to specify the X and Y coordinates of the upper left and
+        lower right corners of the window as well as the name that should
+        appear in the title line of the window.A complete definition block
+        for a window like this would appear like the following line:
+
+              consolname: dc.b 'CON:0/100/640/100/**Window**',0
+
+        To open this window,the line above needs to be inserted in the
+        following program:
+
+        mode_old = 1005
+
+        lea     consolname(pc),a1    ;consol definition
+        move.l  #mode_old,d0         ;mode
+        bsr     openfile             ;console open
+        beq     error                ;didn't work
+        move.l  d0,conhandle
+
+        rts
+                ...
+        conhandle:   dc.l 1          ;space for handle
+
+        There are two points to clear up yet.
+        You should use mode_old as the the mode when you open a window.
+        Logically the window doesn't exist before opening so this seems
+        wierd but it doesn't hurt anything.
+        The parameter that returns from "openfile"in D0 is zero in the
+        case of an error,in the case that opening didn't work.Otherwise
+        the value is the identification number (handle number) of the
+        opened channel.You need to store it away,because every function
+        that wants to use this channel must give the handle number.In the
+        example,you stored this number in the "conhandle"long word.
+        As mentioned,the window you've opened doesn't have a close symbol
+        but it can be made bigger and smaller and moved forward and back.
+        The manipulations that are carried out using the mouse are
+        completely taken care of by the Amiga (in contrast to the ATARI ST
+        where the programmer has to take care of these things).
+        An important function that uses the handle number is the one that
+        closes the channel (in your case the window).This function is also
+        in the DOS library and is called "Close".Its offset is -36 and it
+        only needs one parameter;the handle number of the channel that is
+        closed must be in the D1 register.
+        After your work is done,you need to put the following lines in
+        your program to close the window:
+
+        Close = -36                    ; (6.3.2C)
+                ...
+                move.l  conhandle,d1   ;handle number in D1
+                move.l  dosbase,a6     ;DOS base address in A6
+                jsr     Close(a6)      ;close channel!
+
+        The window disappears!
+
+        Now for a few remarks about opening and closing the window in this
+        way.If you open several windows in the same way,you'll get several
+        windows and thus several handle numbers.In this way,you can put as
+        many windows on the screen as you like.You can do your work with
+        them and close them individually.
+        Here is the complete program to open and close a simple window in
+        AssemPro format (We have used the AssemPro ILABEL and the macros
+        INIT_AMIGA and EXIT_AMIGA so AssemPro owners can start the program
+        from desktop.If you are using a different assembler check your
+        documentation for instructions on starting and exiting programs):
+
+        ;***** 6.3.2 S.D *****
+
+        OpenLib        =-30-378
+        closelib       =-414
+        ;execbase      =4                 ;defined in AssemPro macros
+
+
+        *calls to Amiga DOS:
+
+        open           =-30
+        close          =-30-6
+        IoErr          =-132
+        mode_old       = 1005
+        alloc_abs      =-$cc
+
+        ILABEL AssemPro:includes/Amiga.l  ;AssemPro only
+
+        INIT_AMIGA                        ;AssemPro only
+
+        run:
+               bsr     init               ;initialization
+               bra     test               ;system-test
+
+        init:                             ;system initialization and open
+               move.l  execbase,a6        ;number of execute-library
+               lea     dosname(pc),a1     
+               moveq   #0,d0
+               jsr     openlib(a6)        ;open DOS-Library
+               move.l  d0,dosbase
+               beq     error
+
+               lea     consolname(pc),a1  ;consol definition
+               move.l  #mode_old,d0
+               bsr     openfile           ;consol open
+               beq     error
+               move.l  d0,conhandle
+
+               rts
+
+        test:
+
+              bra qu                      ;quit and exit
+
+
+        error:
+              move.l  dosbase,a6
+              jsr     IoErr(a6)
+              move.l  d0,d5
+
+              move.l  #-1,d7              ;flag
+
+        qu:
+              move.l  conhandle,d1        ;window close
+              move.l  dosbase,a6
+              jsr     close(a6)
+              move.l  dosbase,a1          ;DOS.Lib close
+              move.l  execbase,a6
+              jsr     closelib(a6)
+
+              EXIT_AMIGA                  ;AssemPro only
+
+        openfile:                         ;open file
+              move.l  a1,d1               ;pointer to I/O-Definition-Text
+              move.l  d0,d2
+              move.l  dosbase,a6
+              jsr     open(a6)
+              tst.l   d0
+              rts
+
+        dosname: dc.b 'dos.library',0,0
+              Align.w
+        
+        dosbase: dc.l 0
+
+        consolname: dc.b 'CON:0/100/640/100/**CLI-Test**',0
+              Align.w
+
+        conhandle: dc.l 0
+
+
+              end
+
+        There is another way to open a window easily.Just use RAW:instead
+        of CON:as the channel designator.All the other parameters and
+        operations remain the same.
+        If you try them both out,you won't see any differences between the
+        two windows.They both look the same and can be worked with in the 
+        same way with the mouse.The difference comes when you input to the
+        window.In the RAW:window,the cursor keys are ignored.In the CON:
+        window and in CLI,they do work.
+
+      6.4.Input/Output.
+      -----------------
+        Besides managing and making calculations with data,the most
+        important work of a program is to input and output the data.There
+        are many methods of data transfer in and out of the computor,for
+        instance screen or printer output,keyboard input,using the serial
+        or the parallel interface,tone or speech output and finally disk
+        operations.
+        You want to learn about all these methods of data input and output
+        for programming and applications.We've written some programs as
+        subroutines that should be useful for later programs.It makes good
+        sense to make a library of these subroutines that can either be
+        directly integrated in a new program or linked to a program.At the
+        end of the sections there is a list of a complete program so you
+        can see how the subroutines are used.
+        To prepare for input/output,you need to have data to output and
+        space to input data.To get this ready,you need a correct program
+        beginning in which the EXEC and DOS libraries are opened and
+        memory is reserved.After this,you begin most programs by outputing
+        some text.The text can be a program title or the instruction to
+        input data over the keyboard.Lets start looking at screen output.
+
+      6.4.1.Screen Output.
+      --------------------
+        For a computor like the Amiga the first question is where should
+        the screen output be sent?The answer is simple for many computors;
+        they only have one screen,and output goes there.You need to
+        specify which window to write to when you use the Amiga,however.
+
+        There are two possibilites:
+
+        1.Output to CLI
+
+        2.Output to another window
+
+        The first posibillity only exists if the program that makes the
+        output was started from CLI.If not,you need to open your own
+        custom window for your program.If so,you can use the window that
+        was opened by the CLI for output.
+        If you use the second method,you need to open a window.As you've
+        already seen,there are three methods.For simple text and character
+        output,the difference between the three sorts of windows isn't
+        very great.Here you have a free hand in determining which sort of
+        window to use.Lets open a CON:window and put its handle number in
+        "conhandle".
+        You've opened your window and want to output a title.You choose
+        text to output and then put it in memory using a code segment like
+        this:
+
+              title: dc.b "** Welcome to this Program! **"
+              titleend:
+              align              ;even
+
+        The "align"(even) is a pseudo-op that should follow text when it
+        is followed by either word data or program lines.It causes the
+        assembler to insert a null byte if necessary to make the address
+        even.
+        To output this text you need another DOS function:Write.This has
+        an offset of -48 and needs three parameters:
+
+        In D1   the handle of an opened output channel that should be
+                written to (in your case,this is the handle number that
+                you go back from the Open command when you opened your
+                window.).
+        In D2   the address of the text to be output (in the example,the
+                address "title").
+        In D3   the number of characters to be output in bytes.
+
+        To find the number of bytes to output,you need to count the number
+        of characters in your text.Use "titleend"to calculate this.Using
+        this label,the assembler can calculate the length of your text for
+        itself (after all,why should you count when you have a computor?) 
+        if you write:
+
+             move.l  #titleend-title,d3
+
+        The advantage of specifying the length is that you can put control
+        characters between the beginning and end of the text.In this way,
+        you can execute certain functions using text output.You'll learn
+        about the control characters in a bit.
+
+        Heres the routine:
+
+        Write = -48                          ; (6.4.1A)
+                ...                          ;open window
+                ...
+                move.l  dosbase,a6           ;DOS base address
+                move.l  conhandle,d1         ;pass handle
+                move.l  #title,d2            ;text address
+                move.l  #titleend-title,d3   ;and length
+                jsr     Write(a6)            ;call function
+                ...
+
+
+        title: dc.b "** Welcome to this Program! **"
+         
+        titleend:
+        
+        align                                ;event
+
+                end
+
+        You'll certainly use this function a lot.You'll often want to
+        output just one character though.To allow you to do this and
+        similar text related tasks,there are four subroutines,each of
+        which do a different sort of output:
+
+      Pmsg;
+        Outputs the text from (D2) to the first null byte.
+
+      Pline;
+        Is the same as the routine above except that the text is
+        automatically followed by a CR,the cursor is positioned at the
+        beginning of the next line.
+
+      Pchar;
+        Outputs the character in D0
+
+      Pcrlf;
+        Puts the cursor at the beginning of the next line.
+
+        Heres the subroutine package:
+
+        Write = -48                  ; (6.4.1B)
+                ...
+
+        pline:                       ;*output line and then a CR
+                bsr     pmsg         ;output line
+
+        pcrlf:
+                move    #10,d0       ;line feed
+                bsr     pchar        ;output
+                move    #13,d0       ;and CR
+
+        pchar:
+                move.b  d0,outline   ;character in output buffer
+                move.l  #outline,d2  ;address of the character
+                 
+        pmsg:                        ;*output line (D2) upto null
+                move.l  d2,a0        ;address in A0
+                clr     d3           ;length = 0
+
+        ploop:
+                tst.b   (a0)+        ;null byte ?
+                beq     pmsg2        ;yes:length found
+                addq.l  #1,d3        ;else length + 1
+                bra     ploop        ;and continue looking
+
+        pmsg2:
+                move.l  dosbase,a6   ;DOS base address in A6
+                move.l  conhandle,d1 ;our window handle
+                jsr     Write(a6)    ;call write function
+                rts                  ;done!
+
+        outline:        dc.w 0       ;output buffer for 'pchar'
+
+        conhandle:      dc.l 0       ;windows handle
+
+        Here is an example program to open and close a simple window and
+        output a text message in AssemPro format (We have used the
+        AssemPro macros INIT_AMIGA and EXIT_AMIGA so AssemPro owners can
+        start the program from desktop.If you are using a different
+        assembler check your documentation for instructions on starting
+        and exiting programs.):
+
+        Here is the complete program in AssemPro format:
+
+        ;***** 6.4.1C.asm S.D. *****
+
+        Openlib     =-30-378
+        closelib    =-414
+        ;execbase   = 4                    ;Defined in AssemPro
+                                           ;Macros
+
+        * calls to Amiga Dos:
+
+        open        =-30
+        close       =-30-6
+        write       =-48
+        IoErr       =-132
+        mode_old    = 1005
+        alloc_abs   =-$cc
+
+               ILABEL AssemPro:include/Amiga.l ;AssemPro only
+
+               INIT_AMIGA                  ;AssemPro only
+
+        run:
+               bsr     init                ;initialization
+               bsr     test                ;system test
+               nop 
+               bra qu                      ;quit and exit
+
+        test:
+               move.l  #title,d0
+               bsr     pmsg
+               bsr     pcrlf
+               bsr     pcrlf
+
+               rts
+
+        init:                              ;system initialization and
+                                           ;open
+               move.l  execbase,a6         ;number of execute-library
+               lea     dosname(pc),a1
+               moveq   #0,d0
+               jsr     openlib(a6)         ;open DOS-library
+               move.l  d0,dosname
+               beq     error
+
+               lea     consolname(pc),a1   ;console definition
+               move.l  #mode_old,d0
+               bsr     openfile            ;console open
+               beq     error
+               move.l  d0,conhandle
+
+               rts
+
+        pmsg:                              ;print message (D0)
+               movem.l d0-d7/a0-a6,-(sp)
+               move.l  d0,a0
+               move.l  a0,d2
+               clr.l   d3
+
+        ploop:
+               tst.b   (a0)+
+               beq     pmsg2
+               addq.l  #1,d3
+               bra     ploop               ;length calculate
+
+        pmsg2:
+               move.l  conhandle,d1
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6
+               rts
+
+        pcrlf:
+               move    #10,d0
+               bsr     pchar
+               move    #13,d0
+
+        pchar:                             ;output char in D0
+               movem.l d0-d7/a0-a6,-(sp)   ;save all
+               move.l  conhandle,d1
+
+        pch1:
+               lea     outline,a1
+               move.b  d0,(a1)
+               move.l  a1,d2
+               move.l  #1,d3               ;1 letter
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6   ;restore all
+
+        error:
+               move.l  dosbase,a6
+               jsr     IoErr(a6)
+               move.l  d0,d5
+
+               move.l  #-1,d7              ;flag
+
+        qu:
+               move.l  conhandle,d1        ;window close
+               move.l  dosbase,a6
+               jsr     close(a6)
+
+               move.l  dosbase,a1          ;DOS.Lib close
+               move.l  execbase,a6
+               jsr     closelib(a6)
+
+               EXIT_AMIGA                  ;AssemPro only
+
+        openfile:                          ;open file
+               move.l  a1,d1               ;pointer to I/O-definition-
+                                           ;text
+               move.l  d0,d2
+               move.l  dosbase,a6
+               jsr     open(a6)
+               tst.l   d0
+               rts
+
+        dosname: dc.b 'dos.library',0,0
+               align.w
+
+        dosbase: dc.l 0
+
+        consolname: dc.b 'CON:0/100/640/100/** CLI-Test **',0
+               align.w
+
+        conhandle: dc.l 0
+
+        title: dc.b '** Welcome to this Program! **'
+
+        titleend:
+               align
+
+        outline: dc.w 0                    ;output buffer for char
+
+               end
+
+        Using this program,you can very easily put whatever you want in
+        the CON:window.These functions also work in RAW:window.You should
+        rename "conhandle"as "rawhandle",so that you don't get things
+        mixed up later.
+        Lets stay with the CON:window.As mentioned earlier,you can output
+        special characters that execute functions or change parameters for
+        output.These characters are called control characters.
+        You've already learned about one of these control characters,Line
+        Feed ($A).This character isn't just output;instead,it calls a
+        function that moves the cursor into the next line and moves the
+        screen up.This is very useful,but there are much more interesting
+        control characters.
+        Here's a list of control characters that execute functions.These
+        characters are given in hex.
+
+      Control Sequence;
+
+        Sequence     Function
+        ------------------------------------------------------------------
+         08          Backspace
+         0A          Line Feed,Cursor down
+         0B          Move Cursor up a line
+         0C          Clear screen
+         0D          Carrige return,cursor in the first column
+         0E          Turn on normal characters (Cancel Of Effects)
+         0F          Turn on special characters
+         1B          Escape
+
+        The following sequences begin with $9B,the CSI (Control Sequence
+        Introducer).The characters that follow execute a function.The
+        values in square brackets can be left off.The n's you see
+        represent one or more digit decimal numbers given using ASCII
+        characters.The value that is used when n is left off,is given in
+        the parenthesis that follow n in the description of the function
+        in the table.
+
+      Control Sequence Introducer;
+
+        Sequence       Function
+        ------------------------------------------------------------------
+        9B[n]40        Insert n blanks
+        9B[n]41        Move cursor n (1) lines up
+        9B[n]42        Move cursor n (1) lines down
+        9B[n]43        Move cursor n (1) characters to the right
+        9B[n]44        Move cursor n (1) characters to the left
+        9B[n]45        Move cursor down n (1) lines into column 1
+        9B[n]46        Move cursor up n (1) lines and into column 1
+        9B[n][3B n]48  Cursor in line;Set column
+        9B 4A          Erase screen from cursor
+        9B 4B          Erase line from the cursor
+        9B 4C          Insert line
+        9B 4D          Delete line
+        9B[n]50        Delete n characters starting at cursor
+        9B[n]53        Move up n lines
+        9B[n]54        Move down n lines
+        9B 32 30 68    Line feed => Line feed + return
+        9B 32 30 6C    Line feed => just Line feed
+        9B 6E          Sends the cursor position!A string of the following
+                       form is returned:
+                       9B (line) 3B (column) 52
+        9B(style);(foreground colour);(Background Colour)6D
+                       The three parameters are decimal numbers in ASCII
+                       format.They mean:
+                       Style:  0 = normal
+                               1 = bold
+                               3 = italic
+                               4 = underline
+                               7 = inverse
+                       Foreground colour: 30-37
+                       Colour 0-7 for Text
+                       Background colour: 40-47
+                       Colour 0-7 for background
+        9B(length)74   sets the maximum number of lines to be displayed
+        9B(width)75    sets the maximum line length
+        9B(distance)78 defines the distance in pixels from the left border
+                       of the window to the place where output should
+                       begin
+        9B(distance)79 defines the distance in pixels from the upper
+                       border of the window to the place where output
+                       should begin
+                       The last four functions yield the normal values if
+                       you leave off the parameters.
+
+        9B 30 20 70    Make cursor invisible
+        9B 20 70       Make cursor visible
+        9B 71          Sends window construction.A string of the following
+                       form is returned:
+                       9B 31 3B 31 3B (lines) 3B (columns) 73
+
+        To see how the control characters work,have "pmsg"output this text
+        to your window:
+
+        mytext: dc.b $9b,"4;31;40m"                ; (6.3.2D)
+                dc.b "underline"
+                dc.b $9b,"3;33;40m",$9b,"5;20H"
+                dc.b "** Hello World! **",0
+
+        The parameters for the control sequence are put in quotation marks
+        so they are treated as an ASCII string.Now you see,just how easy
+        it is to do text output!
+        Here is the complete program to open and output the text and
+        control codes to your window in AssemPro format (We have used the
+        AssemPro macros INIT_AMIGA and EXIT_AMIGA so AssemPro owners can
+        start the programs from desktop.If you are using a different
+        assembler check your documentation for instructions on starting
+        and exiting programs):
+
+        ; ***** 6.4.1D.ASM S.D. *****
+
+
+        openlib    =-30-378
+        closelib   =-414
+        ;execbase  = 4                     ;defined in AssemPro macros
+
+        * calls to Amiga Dos:
+
+        open       =-30
+        close      =-30-6
+        write      =-48
+        IoErr      =-132
+        mode_old   = 1005
+        alloc_abs  =-$cc
+
+               ILABEL AssemPro:includes/Amiga.l   ;AssemPro only
+
+               INIT_AMIGA                  ;AssemPro only
+
+        run:
+               bsr     init                ;initialization
+               bsr     test                ;system test
+               nop
+               bra qu                      ;quit and exit
+
+        test:
+               move.l  #mytext,d0
+               bsr     pmsg
+               bsr     pcrlf
+               bsr     pcrlf
+
+               rts
+
+        init:                              ;system initialization and open
+               move.l  execbase,a6         ;number of execute-library
+               lea     dosname(pc),a1
+               moveq   #0,d0
+               jsr     openlib(a6)         ;open DOS-Library
+               move.l  d0,dosbase
+               beq     error
+
+               lea     consolname(pc),a1   ;console definition
+               move.l  #mode_old,d0
+               bsr     openfile            ;console open
+               beq     error
+               move.l  d0,conhandle
+
+               rts
+
+        pmsg:                              ;print message (D0)
+               movem.l d0-d7/a0-a6,-(sp)
+               move.l  d0,a0
+               move.l  a0,d2
+               clr.l   d3
+
+        ploop: 
+               tst.b   (a0)+
+               beq     pmsg2
+               addq.l  #1,d3
+               bra     ploop
+
+        pmsg2:
+               move.l  conhandle,d1
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6
+               rts
+
+        pcrlf:
+               move    #10,d0
+               bsr     pchar
+               move    #13,d0
+
+        pchar:                             ;output char in D0
+               movem.l d0-d7/a0-a6,-(sp)   ;save all
+               move.l  conhandle,d1
+
+        pch1:
+               lea     outline,a1
+               move.b  d0,(a1)
+               move.l  a1,d2
+               move.l  #1,d3               ;one letter
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6   ;restore all
+               rts
+
+        error:
+               move.l  dosbase,a6
+               jsr     IoErr(a6)
+               move.l  d0,d5
+
+               move.l  #-1,d7              ;flag
+
+        qu:
+               move.l  conhandle,d1        ;window close
+               move.l  dosbase,a6
+               jsr     close(a6)
+
+               move.l  dosbase,a1          ;DOS.Lib close
+               move.l  execbase,a6
+               jsr     closelib(a6)
+
+               EXIT_AMIGA                  ;AssemPro only
+
+        openfile:                          ;open file
+               move.l  a1,d1               ;pointer to I/O-definition-
+                                           ;text
+               move.l  d0,d2
+               move.l  dosbase,a6
+               jsr     open(a6)
+               tst.l   d0
+               rts
+
+        dosname: dc.b 'dos.library',0,0
+               align.w
+
+        dosbase: dc.l 0
+
+        consolname: dc.b 'CON:0/100/640/100/ ** CLI-Test **',0
+               align.w
+
+        conhandle: dc.l 0
+
+        mytext:
+               dc.b $9b,'4;31;40m'
+               dc.b 'underline'
+               dc.b $9b,'3;33;40m',$9b,'5;20H'
+               dc.b '** Hello World !! **',0
+
+               align
+
+        outline: dc.w 0                    ;output buffer for pchar
+
+               end
+
+        Now that you've done text and character output,its time to move on
+        to text input.
+
+      6.4.2.Keyboard Input.
+      ---------------------
+        You can read keyboard input very easily.You just need to open the
+        I/O channel of the CON:window and read from it.You need the read 
+        function from the DOS library to do this.Its offset is -42.
+        The function has three parameters just like the WRITE function.
+
+        In D1   the handle number that you get from the WRITE function.
+        In D2   the address that the data read in is to start.
+        In D3   the number of bytes to read.
+
+        Here is a subroutine that reads the number of characters from the
+        keyboard that it finds in D3.It puts them in a buffer.
+
+        read    = -42                 ; (6.4.2A)
+               ...
+
+        getchr:                       ;* Get (D3) characters from the
+                                      ;keyboard
+               move.l  #inbuff,d2     ;address of buffer in D2
+               move.l  dosbase,a6     ;DOS base address in A6
+               move.l  conhandle,d1   ;our window handle
+               jsr     read(a6)       ;call read function
+               rts                    ;done!
+
+        inbuff:        blk.b 80,0     ;buffer for keyboard input
+
+        This routine returns to the main program when <Return> is entered.
+        If more than D3 characters are entered,"inbuff"only gets the first
+        characters.The routine gets the remaining characters when called a
+        second time.
+        This sort of input is fairly easy.You can backspace,because only
+        the characters that should be there are put in the memory block
+        starting at "inbuff".The number of characters moved into "inbuff"
+        is put in D0.
+         
+        Try the program out as follows:
+
+        After opening the CON:window,put the following lines in the main
+        program:
+
+               move   #80,d3          ;read 80 characters (6.4.2B)
+               bsr    readchr         ;get line from keyboard
+               lea    inline,a0       ;address of line in A0
+               clr.b  0(a0,d0)        ;null byte on the end
+               bsr    pmsg            ;output line again
+        
+        bp:
+
+        After this comes the code segment that closes the window again.
+        After loading the program into the AssemPro debugger,make "bp"a
+        breakpoint and start the program.(SEKA users start the program
+        with "g run"and enter "bp"as the breakpoint).The program quits at
+        the breakpoint and you can take a look at the results on the
+        screen.Then you can continue the program (SEKA with "j bp") and
+        let the window close.
+        After starting the program and opening the window,the cursor
+        appears in the upper left corner of the window.Enter some text and
+        press <Return>.The string that you just entered is output again on
+        the screen.
+        You use the "pmsg"routine from the previous chapter to do this
+        output.This routine needs a null byte at the end of the text to be
+        output.You put a null byte there by putting the address of the
+        input buffer in A0 and then erasing the byte at A0+D0 using the
+        CLR.B command.Since D0 contains the number of characters that were
+        entered,this byte is the first unused byte.
+        Since you're in the debugger you can redisplay the disassembled
+        output when the program ends to see what "getchr"put in "inbuff"
+        (SEKA owners can use "q inbuff"when the program ends to see what
+        "getchr"put there.)You'll find the characters that you typed plus
+        a closing $A.The $A stands for the <Return> key and its counted
+        too,so if you entered a 12 and then hit <Return>,for example,D0
+        will contain a 3.
+        Try this again with a RAW:window.Change the window definition from
+        CON: to RAW:and reassemble the program.You'll notice the diference
+        right away.After you've entered one character,a return is executed
+        D0 always as one bit in it.
+        The advantage of this form of input is that cursor and function
+        keys can be recognized.Using your own routine,you can repeatedly
+        accept input of characters using "getchr"and then work with the
+        special characters.
+        Theres another form of keyboard input:checking for a single key.
+        This is important when a program is about to execute an important
+        function and the user must say he wants it executed by entering
+        "Y"for yes.This can be treated as normal input,but in some cases,
+        there is a better method.
+        There is a function in the DOS library that waits a certain
+        specified length of time for a key to be pressed,and returns a
+        zero (FALSE) if no key was hit in this time period.It returns a -1
+        ($FFFFFFFF = TRUE) if one was.To find out which key it takes
+        another function.The WaitForChar function,is only good for tasks
+        like waiting for the user to let the program know that it can
+        continue scrolling text.
+
+        The function needs two parameters:
+
+        In D1    the handle number of the window or file from which the
+                 character should be read.It can also wait for a character
+                 from an interface.
+        In D2    you pass the length of time in microseconds that you
+                 should wait for a key stroke.
+
+        To wait one second for one key to be hit,you can use the following
+        routine:
+
+        WaitForCh=-30-174                 ; (6.4.2C)
+               ...
+
+        scankey:                          ;* Wait for a key stroke
+               move.l  conhandle,d1       ;in our window
+               move.l  #1000000,d2        ;waiting time 1 second
+               move.l  dosbase,a6         ;DOS base address
+               jsr     waitforch(a6)      ;wait...
+               tst.l   d0                 ;test result
+               rts
+
+        The TST command at the end of the program allows the calling
+        routine to use a BEQ or BNE command to evaluate the results of the
+        routine-BEQ branches if no key was hit.BNE doesn't.
+        Heres an example program in AssemPro format covering what you have
+        learned so far.Opening and closing a window,displaying text in the
+        window and inputting text:
+
+        ;***** 6.4.2A.ASM S.D *****
+
+        openlib    =-30-378
+        closelib   =-414
+        ;execbase  =4                      ;defined in AssemPro
+                                           ;Macros
+
+        * call to Amiga.Dos:
+
+        open       =-30
+        close      =-30-6
+        read       =-42
+        write      =-48
+        IoErr      =-132
+        mode_old   =1005
+        alloc_abs  =-$cc
+
+               ILABEL AssemPro:include/Amiga.l  ;AssemPro only
+
+               INIT_AMIGA                  ;AssemPro only
+
+        run:
+               bsr     init                ;initialization
+               bsr     test                ;system test
+               nop                         
+               bra     qu                  ;quit and exit
+
+        test:
+               move.l  #mytext,d0
+               bsr     pmsg
+               bsr     pcrlf
+               bsr     pcrlf
+               move.l  #80,d3              ;80 characters to read in (D3)
+               bsr     getchr              ;get character
+               bsr     pmsg                ;output line
+
+               rts
+
+        init:                              ;system initialization and open
+               move.l  execbase,a6         ;number of execute-library
+               lea     dosname(pc),a1
+               moveq   #0,d0
+               jsr     openlib             ;open DOS-Library
+               move.l  d0,dosbase
+               beq     error
+  
+               lea     consolname(pc),a1   ;console definition
+               move.l  #mode_old,d0
+               bsr     openfile            ;console open
+               beq     error
+               move.l  d0,conhandle
+
+               rts
+
+        pmsg:                              ;print message (D0)
+               movem.l d0-d7/a0-a6,-(sp)
+               move.l  d0,a0
+               move.l  a0,d2
+               clr.l   d3
+
+        ploop:
+               tst.b   (a0)+
+               beq     pmsg2
+               addq.l  #1,d3
+               bra     ploop               ;check length
+
+        pmsg2:
+               move.l  conhandle,d1
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6
+               rts
+
+        pcrlf:
+               move    #10,d0
+               bsr     pchar
+               move    #13,d0
+
+        pchar:                             ;character in D0 output
+               movem.l d0-d7/a0-a6,-(sp)   ;save all
+               move.l  conhandle,d1
+
+        pch1:
+               lea     outline,a1
+               move.b  d0,(a1)
+               move.l  a1,d2
+               move.l  #1,d3               ;1 letter
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6   ;restore all
+               rts
+
+        getchr:                            ;get character for keyboard
+               move.l  #1,d3               ;1 character
+               move.l  conhandle,d1
+               lea     inbuff,a1           ;buffer address
+               move.l  a1,d2
+               move.l  dosbase,a6
+               jsr     read(a6)
+               clr.l   d0
+               move.b  inbuff,d0
+               rts
+
+        error:
+               move.l  dosbase,a6
+               jsr     IoErr(a6)
+               move.l  d0,d5
+
+               move.l  #-1,d7              ;flag
+
+        qu:
+               move.l  conhandle,d1        ;window close
+               move.l  dosbase,a6
+               jsr     close(a6)
+
+               move.l  dosbase,a1          ;DOS.Lib close
+               move.l  execbase,a6 jsr     ;close lib (A6)
+
+               EXIT_AMIGA                  ;AssemPro only
+
+
+        openfile:                          ;open file
+               move.l  a1,d1               ;pointer to I/O-Definition-
+                                           ;Text
+               move.l  d0,d2               
+               move.l  dosbase,a6
+               jsr     open(a6)
+               tst.l   d0
+               rts
+
+        dosname: dc.b 'dos.library',0,0
+               align.w
+
+        dosbase: dc.l 0
+
+        consolname: dc.b 'CON:0/100/640/100/** CLI-TEST **',0
+               align.w
+
+        conhandle: dc.l 0
+
+        mytext: dc.b '** Hello World !! **',0
+
+               align
+
+        outline: dc.w 0                     ;output buffer for pchar 
+    
+        inbuff: blk.b 8                     ;input buffer
+
+               end
+
+
+      6.4.3.Printer Control.
+      ----------------------
+        Now that you've looked at console I/O,lets look at outputting data
+        from the computor.The first device that we'll discuss is the
+        printer.
+        Its very easy to use the printer.You just need to open another
+        channel.It goes just the way you learned it with CON: and RAW:
+        windows;the only difference is you enter PRT:instead.
+        You open this channel using the same lines that you used above for
+        the window except that the pointer is to the channel name PRT:in
+        D1.You pass the mode "new"(1006) in D2 in the "do_open"routine as
+        well.Save the handle number that comes back at a label called
+        "prthandle".
+        Now you can use the same output routines that you used with the
+        windows to send text to the printer.You need to put "prthandle"
+        instead of "conhandle"in the line with the "move.l conhandle,d1"
+        command.
+        Actually it would be better to eliminate this line from the
+        routine totally.Then you can use the same routine for window and
+        printer output.The calling procedure would then need to put
+        "conhandle"in D1 for window output.It would put "prthandle" in D1
+        for printer output.This is a very flexible output routine that can
+        be used for window and printer output now.You can't accept input
+        from the printer,because the printer doesn't send data.It just
+        accepts it and prints it.
+
+      6.4.4.Serial I/O.
+      -----------------
+        Its just as easy to use the serial interface as the printer.Just
+        enter SER:as the filename.Now you can use the DOS functions READ
+        and WRITE just as before to do I/O channels you've just opened.
+        You can set the parameters for the interface (like Hand shake and
+        Transfer rate) with the Preferences program. 
+
+      6.4.5.Speech Output.
+      --------------------
+        The Amiga has a speech synthesizer built in.This isn't quite as
+        easy to program as the I/O devices discussed earlier,however.You
+        use the "narrator.device"to do this.
+        This device requires several program steps to install it and then
+        causes it to speak.You need to open the device,start the I/O,etc..
+        Lets look at how to translate the text into the proper form and
+        then output the text.
+        First we need to do some initialization.Lets define the constants
+        now.Some of them are new.
+
+        ;***** Narrator Basic Functions 3/87 S.D ***** (6.4.5A)
+
+        openlib     =-408                   
+        closelib    =-414
+        execbase    = 4
+
+        open        =-30                    ;open file
+        close       =-36                    ;close file
+        mode_old    = 1005                  ;old mode
+        
+        opendevice  =-444                   ;open device
+        closedev    =-450                   ;close device
+
+        sendIo      =-462                   ;start I/O
+        abortIO     =-480                   ;abort I/O
+
+        translate   =-30                    ;translate text
+
+        ;The initialization routine follows:
+               
+        init:                               ;initialize and open system
+
+        ;* open DOS library * 
+
+               move.l  execbase,a6          ;pointer to execbase
+               lea     dosname,a1           ;pointer to DOS name
+               moveq   #0,d0                ;version unimportant
+               jsr     openlib(a6)          ;open DOS library
+               move.l  d0,dosbase           ;save handle
+               beq     error                ;error handle
+
+        ;* Open translator.library *
+
+               lea     transname,a1         ;pointer to translator name
+               clr.l   d0 
+               jsr     openlib(a6)          ;open translator
+               move.l  d0,transbase         ;save handle
+               beq     error                ;error handling
+
+        ;* Set up I/O area for Narrator *
+
+               lea     talkio,a1            ;pointer to I/O area in A1
+               move.l  #nwrrep,14(a1)       ;enter port address
+               move.l  #amaps,48+8(a1)      ;pointer to audio mask
+               move    #4,48+12(a1)         ;number of the mask
+               move.l  #512,36(a1)          ;length of the output area
+               move    #3,28(a1)            ;command:write
+               move.l  #outtext,40(a1)      ;address of output area
+
+        ;* Open Narrator device *
+
+               clr.l   d0                   ;number 0
+               clr.l   d1                   ;no flags
+               lea     nardevice,a0         ;pointer to device name
+               jsr     opendevice(a6)       ;open narrator.device
+               tst.l   d0                   :error?
+               bne     error                ;Yes!
+
+        ;* Open Window *
+
+               move.l  #consolname,d1       ;console definition
+               move.l  #mode_old,d2         ;old mode
+               move.l  dosbase,a6           ;DOS base address
+               jsr     open(a6)             ;open window
+               tst.l   d0                   ;error?
+               beq     error                ;Yes!
+               move.l  d0,conhandle         ;else save handle
+
+        After you've done this initialization,you can have the computor
+        save the text you have prepared for it.To see what the Amiga is
+        saying,use the "pmsg"function to have the text written to the
+        window:
+
+
+               move.l  #intext,d2           ;text for the Amiga to say
+               bsr     pmsg                 ;output in window also
+
+        sayit:                              ;have the text said
+
+        ;*Translate the text into a form that the computor can use *
+
+               lea     intext,a0            ;address of the text
+               move.l  #outtext-intext,d0   ;length of the text
+               lea     outtext,a1           ;address of output area
+               move.l  #512,d1              ;length of output area
+               move.l  tranbase,a6          ;translator base address
+               jsr     translate(a6)        ;translate text
+
+        ;* Speech output *
+
+               lea     talkio,a1            ;address of I/O structure
+               move.l  #512,36(a1)          ;length of output area
+               move.l  execbase,a6          ;EXEC base address
+               jsr     sendIO(a6)           ;start I/O (speech output)
+
+
+        Once the program ends,the I/O stops as well,so you need to put in
+        something that keeps the program going longer.You'll use the
+        "getchr"function that you programmed earlier to take care of this:
+
+
+               bsr     getchr               ;wait for keyboard input
+
+        The computor waits until the <Return> key is pressed.Now you can
+        listen to what the Amiga as to say.Once the <Return> key is
+        pressed,the program stops.
+
+
+        qu:                                 ; (6.4.5C)
+               move.l  execbase,a6          ;EXEC base address
+               lea     talkio,a1            ;pointer to I/O area
+               jsr     abortio(a6)          ;stop the I/O
+
+               move.l  conhandle,d1         
+               move.l  dosbase,a6
+               jsr     close(a6)            ;close window
+               
+               move.l  dosbase,d1
+               move.l  execbase,a6
+               jsr     closelib(a6)         ;close DOS library
+
+               lea     talkio,a1
+               jsr     closedev(a6)         ;close narrator.device
+
+               move.l  tranbase,a1              
+               jsr     closelib(a6)         ;close translator library
+
+               rts                          ;* end of program
+
+
+        Now comes the data that you need for the program above:
+
+
+        mytext:      dc.b  'This is a test text !',10,13,10,13,0,0
+        dosmame:     dc.b  'dos.library',0,0
+        transname:   dc.b  "translator.library",0
+        consolname:  dc.b  'RAW:0/100/640/100/** Test window',0
+        nardevice    dc.b  'narrator.device',0
+           align
+        dosbase:     dc.l  0
+        tranbase     dc.l  0
+        amaps:       dc.b  3,5,10,12
+           align
+        conhandle:   dc.l  0
+        talkio:      blk.l 20,0
+        nwrrep:      blk.l 8,0
+        intext:      dc.b  'hello,i am the amiga talking to you',0
+           align
+        outtext:     blk.b 512,0
+
+
+        This is quite a bit of work,but its worth it because it opens so
+        many possibilities for you.There are a lot of variations possible
+        if you modify parameters.These parameters are entries in the I/O
+        area starting at the "talkio"label.The area is built as follows:
+
+        Offset        Length       Meaning
+        ----------------------------------------------------------------
+        ** Port Data **
+          0             L          Pointer to next block 
+          4             L          Pointer to last block
+          8             B          I/O type
+          9             B          Priority
+          10            L          Pointer to I/O name
+          14            L          Pointer to port
+          18            W          Length
+        ** I/O Data **
+          20            L          Pointer to device
+          24            L          Pointer to device unit
+          28            W          Command word
+          30            B          I/O flags
+          31            B          I/O status
+          32            L          I/O pointer
+          36            L          I/O length
+          40            L          Pointer to Data
+          44            L          I/O offset
+        ** Narrator data items **
+          48            W          Speech speed
+          50            W          Highness of voice
+          52            W          Speech mode
+          54            W          Sex (male/female voice)
+          56            L          Pointer to audio mask
+          60            W          Number of mask
+          62            W          Volume
+          64            W          Read in rate
+          66            B          Flag for producing graphics (0=off)
+          67            B          Actual mask (internal use)
+          68            B          Channel used (internal use)
+
+        We would'nt recommend experimenting with the data in the first two
+        blocks.If you do,you can easily cause a system crash.You can use
+        the last entries of the structure to produce some interesting
+        effects though.
+        Heres an overview of the parameters you can use to vary the speech
+        output.The value in parenthesis is the standard value,the value
+        set when narrator.device is opened.
+
+      Speech speed (150);
+        You can use this to set the speed of speech.The pitch of the voice
+        is not affected by this value.
+
+      Pitch of voice (110);
+        You can choose a value between 65 and 320 for the pitch (from
+        Goofy to Mickey Mouse).  
+
+      Speech mode (0);
+        The zero gives half-way naturel speech.A one lets the Amiga speak
+        in monotone like a robot.
+
+      Sex (0);
+        A zero means masculine and a one means feminine (more or less..)
+
+      Volume (64);
+        The volume can range from 0 to 64.The standard value is the
+        loudest possible.
+
+      Read in rate (22200);
+        By lowering this value,the voice is lowered.If you change this
+        very much,you'll get some wierd voices!
+
+        You can experiment a bit until you find a interesting voice.Have
+        fun! 
+        Here is a complete talking program in AssemPro format:
+
+        ;***** Speech output S.D. *****
+
+        openlib      =-30-378
+        closelib     =-414
+        ;execbase    =4                     ;defined by AssemPro
+
+        * calls to Amiga Dos:         
+
+        open         =-30
+        close        =-30-6
+        opendevice   =-444
+        closedev     =-450
+        addport      =-354
+        remport      =-360
+        ;DoIo        =-456
+        sendIo       =-462
+        abortIo      =-480
+        read         =-30-12
+        write        =-30-18
+        ;myinput     =-30-24
+        ;output      =-30-30
+        ;currdir     =-30-96
+        ;exit        =-30-114
+        waitforch    =-30-174
+        findtask     =-294
+        translate    =-30
+        mode_old     = 1005
+        ;mode_new    = 1006
+        ;alloc_abs   =-$cc
+        ;free_mem    =-$d2
+
+        ;!!!when>500KB !!! or place in chip memory
+        ;org $40000
+        ;load $40000
+        ;!!!!!!!!!!!!!!!!!!!!!!!
+
+               
+               ILABEL AssemPro:includes/Amiga.l  ;AssemPro only
+
+               INIT_AMIGA                   ;AssemPro only
+
+        run:
+               bsr     init                 ;initialization
+               bra     test                 ;system-test
+
+        init:                               ;system initialization and
+                                            ;open
+               move.l  execbase,a6          ;pointer to exec library
+               lea     dosname(pc),a1       ;pointer to dos name
+               moveq   #0,d0                ;version:not important
+               jsr     openlib(a6)          ;open DOS-Library
+               move.l  d0,dosbase           ;save handle
+               beq     error                ;error routine
+
+        ;*                                  ;open translator library
+               move.l  execbase,a6          ;pointer to exec library
+               lea     transname,a1         ;pointer to translator library
+               clr.l   d0
+               jsr     openlib(a6)          ;open translator
+               move.l  d0,tranbase          ;save handle
+               beq     error                ;error routine
+
+        ;*                                  ;set up
+               sub.l   a1,a1
+               move.l  execbase,a6
+               jsr     findtask(a6)         ;find task
+               move.l  d0,nwrrep+2
+
+               lea     nwrrep,a1
+               jsr     addport(a6)          ;add port
+
+        ;*                                  ;open narrator device
+               lea     talkio,a1            ;pointer to I/O area in A1
+               move.l  #nwrrep,14(a1)       ;enter port address
+               clr.l   d0                   ;number 0
+               clr.l   d1                   ;no flags
+               lea     nardevice,a0         ;pointer to device name
+               jsr     opendevice(a6)       ;open narrator.device
+               tst.l   d0                   ;error?
+               bne     error                ;Yes!
+
+        ;*                                  ;set up I/O for narrator
+                                            ;device
+
+        bp:
+               lea     talkio,a1            ;pointer to I/O in A1
+               move.l  #nwrrep,14(a1)       ;enter port address
+               move.l  #amaps,48+8(a1)      ;pointer to audio mask
+               move    #4,48+12(a1)         ;size of mask
+
+               lea     consolname(pc),a1    ;console-definition
+               move.l  #mode_old,d0
+               bsr     openfile             ;console open
+               beq     error        
+               move.l  d0,conhandle
+
+               rts
+
+        test:
+               move.l  #mytext,d0           
+               bsr     pmsg                 ;test-text output 
+ 
+               bsr     sayit                ;say text
+
+               bsr     readin               ;input
+               move    #10,d0
+               bsr     pchar                ;LF output
+               move.l  #inline+2,d0
+               bsr     pmsg                 ;and again
+               bsr     pcrlf
+               bra     qu
+
+        error:
+               move.l  #-1,d7               ;flag
+
+        qu:
+               move.l  execbase,a6 
+               lea     talkio,a1
+               jsr     abortio(a6)
+        
+               move.l  conhandle,d1         ;window close
+               move.l  dosbase,a6
+               jsr     close(a6)
+
+               move.l  dosbase,a1           ;DOS.Lib close
+               move.l  execbase,a6
+               jsr     closelib(a6)
+
+               lea     nwrrep,a1
+               jsr     remport(a6)          ;remove port
+               lea     talkio,a1
+               jsr     closedev(a6)         ;close narrator device
+               move.l  tranbase,a1
+               jsr     closelib(a6)         ;close translator library
+
+               EXIT_AMIGA                   ;AssemPro only
+
+        openfile:                           ;open file
+               move.l  a1,d1                ;pointer to I/O definition-
+                                            ;text
+               move.l  d0,d2
+               move.l  dosbase,a6
+               jsr     open(a6)
+               tst.l   d0
+               rts
+
+        pmsg:                               ;print message (D0)
+               movem.l d0-d7/a0-a6,-(sp)    
+               move.l  d0,a0
+               move.l  a0,d2
+               clr.l   d3
+
+        mess1:
+               tst.b   (a0)+
+               beq     mess2
+               addq.l  #1,d3
+               bra     mess1                ;length calculate
+
+        mess2:
+               move.l  conhandle,d1
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6
+               rts
+
+        pcrlf:
+               move    #10,d0
+               bsr     pchar
+               move    #13,d0
+
+        pchar:                              ;output characters in D0
+               movem.l d0-d7/a0-a6,-(sp)    ;save all
+               move.l  conhandle,d1
+
+        pch1:
+               lea     chbuff,a1
+               move.b  d0,(a1)
+               move.l  a1,d2
+               move.l  #1,d3                ;1 letter
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6    ;restore all
+               rts
+
+        scankey:                            ;test key
+               move.l  conhandle,d1
+               move.l  #500,d2              ;wait value
+               move.l  dosbase,a6
+               jsr     waitforch(a6)
+               tst.l   d0
+               rts
+
+        readin:                             ;input from keyboard
+               movem.l d0-d7/a0-a6,-(sp)    ;save registers
+               lea     inline+2,a2          ;pointer to input buffer
+               clr.l   (a2)
+
+        inplop:
+               bsr     getchr
+               cmp.b   #8,d0
+               beq     backspace
+               cmp.b   #127,d0              ;delete?
+               beq     backspace
+               bsr     pchar                ;character output
+               cmp.b   #13,d0
+               beq     inputx
+               move.b  d0,(a2)+
+               bra     inplop
+
+        inputx:
+               clr.b   (a2)+
+               sub.l   #inline,a2
+               move    a2,inline            ;length in lines+1
+               movem.l (sp)+,d0-d7/a0-a6    ;registers
+               rts
+
+        backspace:
+               cmp.l   #inline,a2           ;at the beginning?
+               beq     inplop               ;yes
+               move.b  #8,d0
+               bsr     pchar                ;backspace
+               move    #32,d0
+               bsr     pchar                ;blank
+               move    #8,d0
+               bsr     pchar                ;backspace
+               clr.b   (a2)
+               subq.l  #1,a2
+               bra     inplop
+
+        getchr:                             ;get one character from
+                                            ;keyboard
+               move.l  #1,d3                ;one character
+               move.l  conhandle,d1      
+               lea     inbuff,a1            ;buffer address
+               move.l  a1,d2
+               move.l  dosbase,a6
+               jsr     read(a6)
+               clr.l   d0
+               move.b  inbuff,d0
+               rts
+
+        sayit:
+               lea     intext,a0
+               move.l  #outtext-intext,d0
+               lea     outtext,a1
+               move.l  #512,d1
+               move.l  tranbase,a6
+               jsr     translate(a6)
+
+        p:
+               lea     talkio,a1
+               move    #3,28(a1)            ;??
+               move.l  #512,36(a1)
+               move.l  #outtext,40(a1)
+               move.l  execbase,a6
+               jsr     sendio(a6)
+               
+               rts
+
+        mytext:        dc.b 'This is our Test-Text !',10,13,10,13,0,0
+
+        dosname:       dc.b 'dos.library',0,0
+ 
+        transname:     dc.b "translator.library",0
+               align.w
+
+        dosbase:       dc.l 0
+  
+        tranbase:      dc.l 0
+
+        consolname:    dc.b 'CON:0/100/640/100/* Speech-Test S.D.* ',0
+
+        nardevice:     dc.b 'narrator.device',0
+
+        amaps:         dc.b 3,5,10,12,0,0
+               align.w
+
+        conhandle:     dc.l 0
+
+        inbuff:        blk.b 8
+
+        inline:        blk.b 180,0
+     
+        chbuff:        blk.b 82,0
+
+        narread:       blk.l 20,0
+   
+        talkio:        blk.l 20,0
+
+        nwrrep:        blk.l 8,0
+
+        intext:        dc.b 'hello,i am the amiga computor',0
+               align.w
+
+        outtext:       blk.l 128,0
+
+        
+        end
+
+      6.5.Disk Operations.
+      --------------------
+        The most important peripheral device for a computor like the Amiga
+        is the disk drive.You use it to save data,so that you don't lose
+        it when you turn off the computor.We'll look at saving and
+        retrieving data in this chapter.                                  
+        Lets first look at the simple disk operations that are used for
+        data management.To gain access to a file,you must open it first.  
+        This is done using the OPEN function from the DOS library,a
+        function that you're already familiar with.I'll assume in the
+        following examples,that you've already opened the DOS library.
+
+      6.5.1.Open Files.
+      -----------------
+        The open function needs a parameter for the mode.The mode has a
+        particular meaning.If the file is opened for reading,it must
+        already exist.The mode for the OPEN function must be "old"(1005)
+        in this case.
+        If you want to produce a file,you must open it first.Since it does
+        not exist,you use the "new"(1006) mode.If a file is opened for
+        writing using this mode even though a file with this name already
+        exists,the old file with this name is erased and replaced.To avoid
+        loss of data,you should check if a file by that name already
+        exists and then output an error message if it does.
+        You're going to start with a subroutine that opens a file.Lets
+        assume that the filename starts at the label "filename",and that
+        it is closed with a null byte.You just need to pass the mode in
+        register D2.
+        The routine puts the file handle number in "filehd"and returns to
+        the main program.Since the operation with the handle is the last
+        one performed by the subroutine,the status of the operation can be
+        evaluated once the return has been executed.If the operation went
+        smoothly and the file is opened,the handle number has a non-zero
+        value.If it is zero and "bsr openfile"is followed by "beq error", 
+        you can branch to an error handling routine when problems occur.
+
+        Here is a subroutine for opening and closing a file:
+
+        open       =-30                   ; (6.5.1A)                    
+        close      =-36
+        mode_old   = 1005
+        mode_new   = 1006
+             ...
+        openfile:                       ;*open file,mode in D0
+               move.l  dosbase,a6       ;DOS base address in A6
+               move.l  #filename,d1     ;pointer to filename
+               jsr     open(a6)         ;open file
+               move.l  d0,filehd        ;save handle
+               rts
+
+        closefile:                      ;*close file
+               move.l  dosbase,a6       ;DOS base address in A6
+               move.l  filehd,d1        ;file handle in D1
+               jsr     close(a6)        ;close file
+               rts
+
+        filehd:     dc.l   0            ;storage for file handle
+        filename:   dc.b  "filename",0  ;file to be opened
+               align                    ;even
+
+        To use these subroutines,you must look at how you can load and
+        save data.                                                        
+                                                                          
+      6.5.2.Reading and Writing Data.                                     
+      -------------------------------                                     
+        Lets write a new file.To start,write the following lines:      
+
+                move.l  #mode_new,d2    ;open new file (6.5.2A)
+                bsr     openfile        ;open file
+                beq     error           ;did'nt work!
+
+        For the filename,write a name like "Testfile"in the line labelled 
+        "filename".After calling the "openfile"routine,a file with this
+        name is created on the disk.If one existed already,it is erased.
+
+        Lets assume you want to write a short text file.For the example
+        lets use:
+
+        text:  dc.b   "This is a test text for the Testfile",0
+        textend:
+
+        The "textend"label is used so that you can calculate the number of
+        data bytes by subtracting "text".
+        You want to write this text in the file.Use the WRITE function
+        which needs three parameters:
+
+        In D1   the file handle that you got back from the OPEN function.
+        In D2   a pointer to the data that should be written.
+        In D3   the number of bytes to be written.
+
+        For the example,you'll need another segment of code to put the
+        pointer to the data in D2 and the number of bytes in D3:
+
+        write  =-48                      ; (6.5.2B)
+              ...
+        writedata:                       ;*write data in the file
+              move.l  dosbase,a6         ;DOS base address
+              move.l  filehd,d1          ;file handle in D1
+              jsr     write(a6)          ;write data
+              rts
+
+        After opening the file,you can call the subroutine from the main
+        program with the following lines: 
+
+              move.l  #text,d2           ;pointer to data
+              move.l  #textend-text,d3   ;number of bytes
+              bsr     writedata          ;write data in the file
+
+        Then close the file with:
+
+              bsr     closefile          ;close file
+              bra     end                ;end program
+
+        After running the program,look at the directory of the diskette,  
+        you should find the file "testfile".It is just as long as your
+        text.You want to read this file in,to make sure it contains the
+        right data.
+        You need the DOS function READ,which needs the same parameters as
+        the WRITE function.You can use parameters for the number of bytes
+        to read just part of the file.If you give a larger number than the
+        file contains,the whole file is loaded.You'll find the number of
+        bytes read in D0.
+        Lets set up a field that as enough space for the data you want to
+        read.You can do this with the following line:
+
+        field: blk.b  100     ;reserve 100 bytes
+
+        For the example data,this is plenty.If you want to load another
+        file,you may need to reserve more space.
+        Now lets write a subroutine to read the data.You always want to
+        load whole files.You just need to pass the address of the buffer
+        so the data is loaded into the subroutine.In the example,its the
+        address "field".
+        Heres the subroutine that reads the entire opened file into the
+        memory area pointed to by D2:
+
+        read   = -42                  ; (6.5.2C)
+               ...
+        readdata:                     ;*read file
+               move.l  dosbase,a6     ;DOS base address in A6
+               move.l  filehd,d1      ;file handle in D1
+               move.l  #$ffffff,d3    ;read an arbitrary number of bytes
+               jsr     read(a6)       ;read data
+               rts
+
+        To use this routine to load the file into the buffer "field",use
+        the following main program:
+
+               move,l  #mode_old,d2   ;old file
+               bsr     openfile       ;open file
+               beq     error          ;did'nt work!
+               move.l  #field,d2      ;pointer to data buffer
+               bsr     readdata       ;read file
+               move.l  d0,d6          ;save number of bytes in D6
+               bsr     closefile      ;close file
+               bra     end            ;program end
+
+        After assembling and starting this program,you can use the
+        debugger to look at the data buffer that you filled with data from
+        the file.In D6,you'll find the number of bytes that were read from
+        the file. 
+
+      6.5.3.Erase Files.
+      ------------------
+        Once you've experimented enough with the program above,you'll
+        certainly want to erase the "Testfile"file.The DELETEFILE function
+        in the DOS library has an offset of -72.It only needs 1 parameter.
+        The parameter is passed in D1.The parameter is a pointer to the
+        filename.The name must be closed with a null byte.
+
+        To erase "Testfile",use the following lines:
+
+        deletefile  =-72                ; (6.5.3)
+               ...
+               move.l  dosbase,a6       ;DOS base address in A6
+               move.l  #filename,d1     ;pointer to filename in D1
+               jsr     deletefile(a6)   ;erase file
+
+        The file is deleted.You can't save the file with normal methods if
+        you accidently erase it!You can use a trick that saves the data.  
+        We'll take a look at this trick later.Its used in lots of programs
+
+      6.5.4.Rename Files.
+      -------------------
+        When a text editing program writes a text that as be altered back
+        to the disk,the old file usually isn't erased.Often the old file
+        is renamed.For example,it might get the name "Backup".The new file
+        is written to disk with the old name.
+        The function in the DOS library that allows you to change the
+        names of programs is called RENAME and has -78 as an offset.You
+        need to pass two parameters-D1 as a pointer to the old name and D2
+        as a pointer to the new name of the file.
+
+        To rename "Testfile"as "Backup"(before you erase it),use the
+        following lines: 
+
+        rename  =-78
+               ...
+               move.l  dosbase,a6    ;DOS base address in A6
+               move.l  #oldname,d1   ;pointer to old name in D1
+               move.l  #newname,d2   ;pointer to new name in D2
+               jsr     rename(a6)    ;rename file
+               ...
+        oldname: dc.b "testfile",0
+        newname: dc.b "backup",0
+
+      6.5.5.CLI Directory.
+      --------------------
+        Lets pretend you've programmed a text editor and started it.Now
+        you want to load a text from disk and edit it-but whats the name
+        of that file?
+        You need a function to read and display the directory of the disk.
+        There are several ways to do this.First lets use the easiest
+        method.It doesn't require much programming and can be quite
+        useful.
+        The trick is to call the Dir or List programs that are in the C   
+        directory.You'll use the CLI commands.The DOS library contains a
+        command called "Execute"with offset -222 that allows you to
+        execute CLI commands. 
+        The function needs three parameters:
+
+        In D1   a pointer to a string closed with a zero that contains the
+                name of the command to be executed.This string must
+                contain the same command that you would give in the CLI.It
+                can be a null pointer as well.
+        In D2   the input file is determined.Normally theres a zero here. 
+                If however,you give the file handle of a text file,though,
+                this file is read and interpreted as a command sequence.If
+                you define a window as the input medium,you've programmed
+                a new CLI window!
+        In D3   the output file is determined.If there a zero here,the
+                output of the commands (for example,DIR output) is sent to
+                the standard CLI window.
+
+        To try this out,insert this subroutine in a program that has
+        already opened the DOS library and a window.
+
+        execute  = -222              ; (6.5.5)
+              ...
+        dir: 
+              move.l  dosbase,a6     ;DOS base address in A6
+              move.l  #command,d1    ;pointer to command line
+              clr.l   d2             ;no input (CLI window)
+              move.l  conhandle,d3   ;output in our window
+              jsr     execute(a6)    ;execute command
+              rts
+
+        command:
+              dc.b    "dir",0
+
+        This program works with the List command as well.The disadvantage 
+        of this method is that the disk that the Workbench is loaded from 
+        must be in the drive or the system requests you to put it in.The  
+        Dir command is just a program,and the Amiga must load it before it
+        can run.
+        The disadvantage isn't too great.The program is short,and it
+        allows you to use any CLI command in a program.
+        Here is the complete program in AssemPro format that calls the dir
+        program:
+
+        ;***** 6.5.5A DIR.ASM S.D.*****   
+        
+        openlib      =-408
+        closelib     =-414
+        ;execbase    = 4                    ;defined in AssemPro
+                                            ;macros
+                       
+                                       
+        *calls to Amiga Dos:
+
+        open         =-30
+        close        =-36
+        execute      =-222
+        IoErr        =-132
+        mode_old     = 1005
+        alloc_abs    =-$cc
+
+               ILABEL AssemPro:includes/Amiga.l   ;AssemPro only
+
+               INIT_AMIGA                   ;AssemPro only                
+                                                                          
+        run:
+               bsr     init                 ;initialization
+               bra     test                 ;system test
+
+        init:                               ;system initialization and
+                                            ;open
+               move.l  execbase,a6          ;number of execute-library
+               lea     dosname(pc),a1
+               moveq   #0,d0
+               jsr     openlib(a6)          ;open DOS-library
+               move.l  d0,dosbase
+               beq     error
+
+               lea     consolname(pc),a1    ;console definition
+               move.l  #mode_old,d0
+               bsr     openfile             ;console open
+               beq     error
+               move.l  d0,conhandle
+
+               rts
+
+        test:
+               bsr     dir                  ;do directory
+               bra     qu                   ;quit and exit
+
+        dir:
+               move.l  dosbase,a6           ;DOS base address in A6
+               move.l  #command,d1          ;pointer to command line
+               clr.l   d2                   ;no input (CLI window)
+               move.l  conhandle,d3         ;output in our window
+               jsr     execute(a6)          ;execute command
+               rts
+
+        error:
+               move.l  dosbase,a6
+               jsr     IoErr(a6)
+               move.l  d0,d5
+
+               move.l  #-1,d7               ;flag
+
+        qu:
+               move.l  conhandle,d1         ;window close
+               move.l  dosbase,a6
+               jsr     close(a6)
+
+               move.l  dosbase,a1           ;DOS.Lib close
+               move.l  execbase,a6
+               jsr     closelib(a6)
+
+               EXIT_AMIGA                   ;AssemPro only
+
+        openfile:                           ;open file
+               move.l  a1,d1                ;pointer to I/O-Definition-
+                                            ;text
+               move.l  d0,d2
+               move.l  dosbase,a6
+               jsr     open(a6)
+               tst.l   d0
+               rts
+
+        dosname: dc.b 'dos.library',0,0
+               align.w
+        dosbase: dc.l 0
+        consolname: dc.b 'CON:0/100/640/100/** CLI-Test **',0
+               align.w
+        conhandle: dc.l 0
+        command:
+               dc.b    "dir",0
+
+               end
+
+      6.5.6.Read Directory.
+      ---------------------
+        Now,lets look at another method that doesn't need the CLI.In this
+        way,you can read the directory of any disk without having to play
+        Disk Jockey.                                                      
+        You need to writ a program that does what CLI's Dir program does. 
+        There are several steps.
+        First you must give the system a key to the desired directory.That
+        means you must call DOS'Lock function.It needs two parameters:
+
+        In D1    pass a pointer to a text that contains the name of the
+                 directory you wish to read.If,for example,you want to
+                 read the contents of the RAM disk,the text would be 
+                 'RAM:',0.
+        In D2    put the mode that determines whether to read or write.Let
+                 us use the "Read"(-2) mode.
+
+        You call the Lock function (offset -84) and get either a point to
+        the key or a zero returned to you in the D0 register.If you get a
+        zero,the call did'nt work,the file was'nt found.This function can
+        be used to find if a file is on the disk.You use this function
+        with the name and see if D0 comes back zero.If not,the file
+        exists.
+        Lets assume the file or path exists.You need to save the value
+        that came back in D0.You'll need it for both functions that you'll
+        call.
+        The next function you need is called Examine.You use it to search 
+        the disk for an acceptable entry.It returns parameters like name, 
+        length and date that correspond to the entry.You need to reserve a
+        memory block for this information and put the beginning of the
+        block in D2 before calling the Examine function.Put the key you
+        got from the Lock function in the D1 register.
+        The memory area that is filled with information is called a
+        FileInfoBlock.Its 260 bytes long and contains information about
+        the file.The name starts in the 9th byte and ends with a null byte
+        so you can easily print it with our "pmsg"routine.The information
+        that Examine gives isn't about a particular file,but about the
+        disk.The name in FileInfoBlock is the disk name.
+        The Examine function sends the status back in the D0 register.
+        Since the Lock function already tested if the file existed,evalua-
+        ting the status really isn't necessary.
+        Now to the function that you can use to read individual files from
+        the directory.The function is called ExNext (Examine Next).This   
+        function searches for the next entry that fits the key every time
+        it is called.ExNext gets the same parameters as Examine gets.     
+        However,the return parameter in D0 is more important here.
+        The ExNext function is always called in the same way.It always
+        gets the next entry of the directory.If no more entries exist in
+        the directory,ExNext puts a zero in the D0 register.
+        You need to continue performing this operation until there aren't 
+        any more entries.You can find this using the IoErr function from
+        the DOS library.
+        This function doesn't need any parameters.It returns the status of
+        the last I/O operation that was performed in the D0 register.After
+        the last ExNext,this value is 232,which means no_more_Entries.
+
+        Heres a complete routine for reading the directory of the disk in 
+        DFO:and displaying the contents in the window.
+
+        ; 6.5.5B.ASM
+        ;***** DOS-Sample function  3/87 S.D. *****
+
+        openlib      =-30-378
+        closelib     =-414
+        exbase       =4
+
+        * calls to amiga dos:
+
+        open         =-30
+        close        =-30-6
+        read         =-30-12
+        write        =-30-18
+        myinput      =-30-24
+        output       =-30-30
+        currdir      =-30-96
+        lock         =-30-54
+        examine      =-30-72
+        exnext       =-30-78
+        exit         =-30-114
+        IoErr        =-30-102
+        waitforch    =-30-174
+        mode         = 0
+        mode_old     = 1005
+        mode_new     = 1006
+        alloc_abs    =-$cc
+        free_mem     =-$d2
+
+               ILABEL AssemPro:includes/Amiga.l   ;AssemPro only
+
+               INIT_AMIGA                   ;AssemPro only
+
+        run:                                                              
+               bsr     init                 ;initialization
+               bra     test                 ;system-test
+
+        init:                               ;system initialization and
+                                            ;open
+               move.l  exbase,a6            ;pointer to exec.library
+               lea     dosname(pc),a1
+               moveq   #0,d0
+               jsr     openlib(a6)          ;open dos-library
+               move.l  do,dosbase
+               beq     error
+
+               lea     consolname(pc),a1    ;console definition
+               move.l  #mode_old,d0
+               bsr     openfile             ;console open
+               beq     error
+               moveq   d0,conhandle
+
+               rts
+
+        test:
+               move.l  #mytext,d0
+               bsr     pmsg                 ;test-text output
+
+               move.l  dosbase,a6
+               move.l  #name,d1
+               move.l  #-2,d2
+               jsr     lock(a6)
+               move.l  d0,d5
+               tst.l   d0
+               beq     error
+               move.l  d0,locksav
+
+               move.l  dosbase,a6
+               move.l  locksav,d1
+               move.l  #fileinfo,d2
+               jsr     examine(a6)
+               move.l  d0,d6
+               tst.l   d0
+               beq     error
+
+        loop:
+               move.l  dosbase,a6
+               move.l  locksav,d1
+               move.l  #fileinfo,d2
+               jsr     exnext(a6)
+               tst.l   d0
+               beq     error
+
+               move.l  #fileinfo+8,d0
+               bsr     pmsg
+               bsr     pcrlf
+               bra     loop
+
+        error:
+               move.l  dosbase,a6
+               jsr     ioerr(a6)
+               move.l  d0,d6
+
+               move.l  #presskey,d0
+               bsr     pmsg
+               bsr     getch
+               move.l  #-1,d7               ;flag
+
+        qu:
+               move.l  conhandle,d1         ;window close
+               move.l  dosbase,a6
+               jsr     close(a6)
+
+               move.l  dosbase,a1           ;dos.lib close
+               move.l  exbase,a6
+               jsr     closelib(a6)
+              
+               EXIT_AMIGA                   ;AssemPro only
+
+        openfile:                           ;open file
+               move.l  a1,d1                ;pointer to I/O-Definition-
+                                            ;Text
+               move.l  d0,d2
+               move.l  dosbase,a6
+               jsr     open(a6)
+               tst.l   d0
+               rts
+
+        pmsg:                               ;print message (D0)
+               movem.l d0-d7/a0-a6,-(sp)
+               move.l  d0,a0
+               move.l  a0,d2
+               clr.l   d3
+
+        mess1:
+               tst.b   (a0)+
+               beq     mess2
+               addq.l  #1,d3
+               bra     mess1
+
+        mess2:
+               move.l  conhandle,d1
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6
+               rts
+
+        pcrlf:
+               move    #10,d0
+               bsr     pchar
+               move    #13,d0
+
+        pchar:                              ;character in D0 output
+               movem.l d0-d7/a0-a6,-(sp)    ;save all
+               move.l  conhandle,d1
+
+        pch1:
+               lea     chbuff,a1
+               move.b  d0,(a1)
+               move.l  a1,d2
+               move.l  #1,d3
+               move.l  dosbase,a6
+               jsr     write(a6)
+               movem.l (sp)+,d0-d7/a0-a6    ;restore all
+               rts
+       
+        scankey:                            ;test key
+               move.l  conhandle,d1
+               move.l  #500,d2              ;wait value
+               move.l  dosbase,a6
+               jsr     waitforch(a6)
+               tst.l   d0
+               rts
+
+        readin:                             ;input from keyboard
+               movem.l d0-d7/a0-a6,-(sp)    ;registers
+               lea     inline+2,a2          ;pointer to input buffer
+               clr.l   (a2)
+
+        inplop:
+               bsr     getchr
+               cmp.b   #8,d0
+               beq     backspace
+               cmp.b   #127,d0              ;delete?
+               beq     backspace
+               bsr     pchar                ;character output
+               cmp.b   #13,d0
+               beq     inputx
+               move.b  d0,(a2)+
+               bra     inplop
+
+        input:
+               clr.b   (a2)+
+               sub.l   #inline,a2
+               move    a2,inline            ;length in inline+1
+               movem.l (sp)+,d0-d7/a0-a6    ;registers
+               rts
+
+        backspace:
+               cmp.l   #inline,a2           ;at beginning?
+               beq     inplop               ;yes
+               move.b  #8,d0
+               bsr     pchar                ;backspace
+               move    #32,d0
+               bsr     pchar                ;blank
+               move    #8,d0
+               bsr     pchar                ;backspace
+               clr.b   (a2)
+               subq.l  #1,a2
+               bra     inplop
+
+        getchr:                             ;get 1 character from keyboard
+               move.l  #1,d3                ;1 character
+               move.l  conhandle,d1
+               lea     inbuff,a1            ;buffer-address
+               move.l  a1,d2
+               move.l  dosbase,a6
+               jsr     read(a6)
+               clr.l   d0
+               move.b  inbuff,d0
+               rts
+
+
+        mytext:     dc.b 'Directory of Diskette: DFO:',10,13,10,13,0,0
+        dosname:    dc.b 'dos.library',0,0
+        presskey:   dc.b 'Press thr Return key!!',0
+               align.w
+        dosbase:    dc.l 0
+        consolname: dc.b 'CON:0/100/640/100/** Directory-Test **',0
+        name:       dc.b 'DFO:',0
+               align.w
+        locksav:    dc.l 0
+        fileinfo:   ds.l 20
+        conhandle:  dc.l 0
+        inbuff:     DS.B 8
+        inline:     DS.B 180
+        chbuff      DS.B 82
+
+               end
+
+        The FileInfoBlock contains the following entries:
+
+        Offset   Name             Meaning
+        ----------------------------------------------------------------
+          0      DiskKey.L        Disk Number
+          4      DieEntryType.L   Entry Type (+=Directory,-=File)
+          8      FileName         108 bytes with the filename
+         116     Protection.L     File Protected?
+         120     EntryType.L      Entry type
+         124     Size.L           Length of file in bytes
+         128     NumBlocks.L      Number of blocks
+         132     Days.L           Creation day
+         136     Minute.L         Creation time
+         140     Tick.L           Creation time
+         144     Comment          116 bytes with comments
+
+        If you want to have the program output the file length as well,you
+        can read the length with "move.l fileinfo+124,d0"and then use a
+        conversion routine to produce a decimal number.You can output this
+        result with the name.
+
+      6.5.7.Direct Access To Disk.
+      ----------------------------                                        
+        There isn't a simple function in the library for accessing single 
+        disk sectors.Here,you must work with a device just like you did
+        with speech output.This time you'll be working with the trackdisk.
+        device.
+        You want to work with this device to directly program the disk
+        drives.Once you've built up the necessary program machinery,you
+        can experiment with various commands for disk access.Remember that
+        an error can cause the disk to be modified and thus unusable.Make
+        sure you're using a non-essential disk.Don't use one which
+        contains your only copy of something.                             
+        The initialization here is similar to that for speech output.Here
+        is the initialization routine for your program:
+
+        ;** Direct disk access via trackdisk.device ** (6.5.7)
+
+        openlib    =-408
+        closelib   =-414
+        execbase   = 4
+        open       =-30
+        close      =-36
+        opendevice =-444
+        closedev   =-450
+        sendIo     =-462
+        read       =-30-12
+        write      =-30-18
+        waitforch  =-30-174
+        mode_old   = 1005
+
+        run:                             
+               bsr     init                 ;initialization                     
+               bra     test                 ;system-test
+
+        init:                               ;initialize and open system
+               move.l  execbase,a6          ;pointer to exec.library
+               lea     dosname,a1
+               moveq   #0,d0
+               jsr     openlib(a6)          ;open dos.library
+               move.l  d0,dosbase
+               beq     error
+               lea     diskio,a1            ;pointer to disk I/O area
+               move.l  #diskrep,14(a1)      ;pointer to port
+               clr.l   d0                   ;drive 0 (built in)
+               clr.l   d1                   ;no flags
+               lea     trddevice,a0         ;pointer to device name
+               jsr     opendevice(a6)       ;open trackdisk.device
+               tst.l   d0                   ;error?
+               bne     error                ;yes!
+               move.l  #consolname(pc),d1   ;console definition
+               move.l  #mode_old,d2         ;old mode
+               move.l  dosbase,a6           ;dos base address
+               jsr     open(a6)             ;open window
+               tst.l   d0                   ;error?
+               beq     error                ;yes!
+               move.l  d0,conhandle         ;else save handle
+               rts                          ;done
+
+        test:                               ;place for test routine
+
+
+        And now for the functions that take care of the various messages
+        at the end of the program.
+
+
+        error:
+               move.l  #-1,d7               ;flag for error (for SEKA)
+
+        qu:
+               move.l  execbase,a6          ;exec base address
+               lea     diskio,a1            ;pointer to disk I/O
+               move.l  32(a1),d7            ;IO_ACTUAL in D7 (for testing)
+               move    #9,28(a1)            ;command motor on/off
+               move.l  #0,36(a1)            ;0=off,1=on,so turn motor
+               jsr     sendio(a6)           ;off
+               move.l  conhandle,d1         ;close window
+               move.l  dosbase,a6
+               jsr     close(a6)
+               move.l  dosbase,d1           ;close dos.lib
+               move.l  execbase,a6
+               jsr     closelib(a6)
+               lea     diskio,a1
+               jsr     closedev(a6)         ;close trackdisk.device
+               rts
+
+
+        Lets not forget the routine that waits for the user to press
+        <Return>,so that you can watch the effects of the test function in
+        peace:
+
+        getchr:                             ;get a character from keyboard
+               move.l  #1,d3                ;1 character
+               move.l  conhandle,d1         ;window handle
+               move.l  #inbuff,d2           ;buffer address
+               move.l  dosbase,a6           ;dos base address
+               jsr     read(a6)             ;read character
+               rts                          ;thats it
+
+
+        The last thing you need is the section of code that declares the
+        text and data fields that your program needs:                     
+                                                                          
+        dosname:       dc.b  'dos.library',0
+               align
+        consolname:    dc.b  'RAW:0/100/640/50/** Wait window',0
+               align
+        trddevice:     dc.b  'trackdisk.device',0
+               align
+        dosbase:       dc.l 0               ;dos base address
+        conhandle:     dc.l 0               ;window handle
+        inbuff:        blk.b 80,0           ;keyboard buffer
+        diskio:        blk.l 20,0           ;I/O structure
+        diskrep:       blk.l 8,0            ;I/O port
+        diskbuff:      blk.b 512*2,0        ;place for 2 sectors
+
+        There,now you've done with the set up work.Lets look at how you
+        can give commands to the disk drives.The first and easiest command
+        is the one for turning the drive motor on and off.You've already
+        seen this command in the program.This is command number nine.This
+        number goes in the command word of the I/O structure (bytes 28 and
+        29 of the structure).
+        You need to pass a parameter that lets the computor know whether
+        to turn the motor off or on.This information goes in the I/O long
+        word that starts at byte 36:its zero for off,and one for on.
+        You already chose the motor that should be turned on or off when
+        you opened the device.You put the number of the chosen disk drive
+        in D0-in your case you put a zero there because you are using the
+        DFO:disk drive.
+        Heres an overview of the commands you can use to access
+        information on the disk:
+
+        No    Name          Function
+        -----------------------------------------------------------------
+        2     READ          Read one or more sectors
+        3     WRITE         Write sectors
+        4     UPDATE        Update the track buffer
+        5     CLEAR         Erase track buffer
+        9     MOTOR         Turn motor on/off
+        10    SEEK          Search for a track
+        11    FORMAT        Format tracks
+        12    REMOVE        Initialize routine that is called when you
+                            remove the disk
+        13    CHANGENUM     Find out number of disk changes
+        14    CHANGESTATE   Test if disk is in drive
+        15    PROTSTATUS    Test if disk is write protected
+
+        You've already learned about command number nine.Lets look at the
+        three commands you can use to make tests.These are the last three
+        commands.They put a return value in the long word that begins in
+        the 32nd byte in the I/O structure.This value was written in D7 in
+        the program above for testing purposes.You can read its contents  
+        directly if you ran the program with AssemPro.
+        Here is a simple routine that you can use to run one of these
+        commands with:
+
+        test:                               ; (6.5.7B)
+               lea     diskio,a1            ;pointer to I/O structure
+               move    #13,28(a1)           ;pass command (for example 13)
+               move.l  execbase,a6          ;execbase address in A6
+               jsr     sendio(a6)           ;call function
+
+        If CHANGENUM (command 13) is executed,in D7 you'll get the number
+        of times a disk was taken out and put in the drive.If you call the
+        program,you'll get a value back.If you take the disk out and put
+        it back in,the number is two higher the next time you call the
+        program.
+        The CHANGESTATE command (command 14) tells whether a disk is in
+        the drive or not.If one is,a zero comes back.Otherwise,a $FF is
+        returned.
+        You get the same values back from the PROTSTATUS function (command
+        15).Here a zero means that the disk isn't write protected,while
+        $FF means that it is.
+        Now lets look at the READ and WRITE functions.These operations
+        need a few more parameters than the status functions.You need to
+        pass the following parameters: 
+
+        The address of the I/O buffer in the data pointer,the number of
+        bytes to be transfered in I/O length,and the data address on the
+        disk in I/O offset. 
+
+        The number of data bytes must be a multiple of 512,since every
+        sector is 512 bytes,and only whole sectors can be read.
+
+        The data address is the number of the first byte in the sector.If 
+        you want to use the first sector,the offset is zero.For the second
+        sector,its 512,etc...The formula is:
+
+            offset = (sector_number -1) *512
+
+        Here is a routine that loads the first two sectors of the disk
+        into the buffer:
+
+        test:  (6.5.7C)
+               lea     diskio,a1           
+               move    #2,28(a1)           ;command:READ
+               move.l  #diskbuff,40(a1)    ;buffer
+               move.l  #2*512,36(a1)       ;length:2 sectors
+               move.l  #0*512,44(a1)       ;offset:0 sectors
+               move.l  execbase,a6         ;exec base address
+               jsr     sendio(a6)          ;start function
+
+        Start the program from the debugger and then look at the buffers  
+        contents after the program ends.You can find out the format of the
+        disk here.If you want to read a sector thats being used,change the
+        0 in the offset definition to 700 and start again.Its highly
+        probable that theres some data there.
+        To modify and write back the data that you've read from the disk, 
+        you need command number three,the WRITE command.The parameters are
+        the same.
+        If you've executed the WRITE commandyou're probably wondering why
+        the disk light did'nt go on.Thats because the Amiga writes a track
+        that as been read into a buffer on its own.It WRITE's data there
+        as well.It won't write the data to disk until another track is
+        accessed.
+        You can have the data updated directly as well using command four,
+        the UPDATE command.
+        Command 11,the FORMAT command,is also quite interesting.This
+        command needs a data field that is 11*512=5632 bytes long-the
+        length of a track.The offset must be a multiple of this number so 
+        that you start at the beginning of a track.
+        The length must be a multiple of 5632 as a result.If several
+        tracks are formatted,each track is filled with the same data.
+        You can use this function to easy write a disk copy program.You
+        READ the source disk and then FORMAT the corresponding track on
+        the destination disk.Thats how the DiskCopy program works-it
+        reformats the destination disk.
+        Command ten,the SEEK command,just needs the offset.It moves the
+        Read/Write head of the drive to the position specified without
+        making a disk access or testing if its at the right position.
+        Command 12,the REMOVE command,is used to install an interrupt
+        routine that is called when the disk is removed from the disk
+        drive.The address of the interrupt structure is passed in the data
+        pointer of the I/O structure.If theres a zero here,the interrupt  
+        routine is turned off.
+
+        Heres a complete example program in AssemPro format:
+
+        ;***** Track disk-Basic function  10/86 S.D. *****
+
+               ILABEL ASSEMPRO:includes/Amiga.l   :AssemPro only
+
+        openlib      =-30-378
+        closelib     =-414
+        ;execbase    = 4                    ;defined in INIT_AMIGA
+
+        * calls to amiga dos:
+
+        open         =-30
+        close        =-30-6
+        opendevice   =-444
+        closedev     =-450
+        sendIo       =-462
+        read         =-30-12
+        write        =-30-18
+        waitforch    =-30-174
+        mode_old     = 1005
+
+               INIT_AMIGA                   ;AssemPro only
+
+        run:
+               bsr     init                 ;initialization
+               bra     test                 ;system test
+
+        init:                               ;system initialization and
+                                            ;open 
+               move.l  execbase,a6          ;pointer to exec-library
+               lea     dosname,a1
+               moveq   #0,d0
+               jsr     openlib(a6)          ;open dos-library
+               move.l  d0,dosbase
+               beq     error
+
+               lea     diskio,a1
+               move.l  #diskrep,14(a1)
+               clr.l   d0
+               clr.l   d1
+               lea     trddevice,a0
+               jsr     opendevice(a6)       ;open trackdisk.device
+               tst.l   d0
+               bne     error
+
+        bp:
+               lea     consolname(pc),a1    ;console-definition
+               move.l  #mode_old,d0
+               bsr     openfile             ;console open
+               beq     error
+               move.l  d0,conhandle
+
+               rts
+
+        test:
+               bsr     accdisk
+
+               bsr     getchr               ;wait for character
+               bra     qu
+
+        error:
+               move.l  #-1,d7               ;flag
+
+        qu:
+               move.l  execbase,a6
+               lea     diskio,a1
+               move    #9,28(a1)
+               move.l  #0,36(a1)
+               jsr     sendio(a6)
+
+               move.l  conhandle,d1         ;window close
+               move.l  dosbase,a6
+               jsr     close(a6)
+
+               move.l  dosbase,a1           ;dos.lib close
+               move.l  execbase,a6
+               jsr     closelib(a6)
+
+               lea     diskio,a1
+               move.l  32(a1),d7
+               jsr     closedev(a6)
+
+               EXIT_AMIGA                   ;AssemPro only
+
+        openfile:                           ;open file
+               move.l  a1,d1                ;pointer to the I/O-definition
+                                            ;text
+               move.l  d0,d2
+               move.l  dosbase,a6
+               jsr     open(a6)
+               tst.l   d0
+               rts
+
+        scankey:                            ;test for key
+               move.l  conhandle,d1                      
+               move.l  #500,d2              ;wait value
+               move.l  dosbase,a6
+               jsr     waitforch(a6)
+               tst.l   d0
+               rts
+
+        getchr:                             ;get one character from
+                                            ;keyboard
+               move.l  #1,d3                ;1 character
+               move.l  conhandle,d1
+               lea     inbuff,a1            ;buffer-address
+               move.l  a1,d2
+               move.l  dosbase,a6
+               jsr     read(a6)
+               clr.l   d0
+               move.b  inbuff,d0
+               rts
+
+        accdisk:
+               lea     diskio,a1
+               move    #2,28(a1)            ;command:READ                 
+               move.l  #diskbuff,40(a1)     ;buffer
+               move.l  #2*512,36(a1)        ;length:2 sectors
+               move.l  #20*512,44(a1)       ;offset: n sectors
+               move.l  execbase,a6
+               jsr     sendio(a6)
+               rts
+
+        dosname:       dc.b 'dos.library',0,0
+               align.w
+        dosbase:       dc.l 0
+        consolname:    dc.b 'RAW:0/100/640/100/** Test-Window S.D.V0.1',0
+        trddevice:     dc.b 'trackdisk.device',0
+               align.w
+        conhandle      dc.l 0
+        inbuff:        ds.b 8                                             
+        diskio:        ds.l 20,0                                          
+        diskrep:       ds.l 8,0                                           
+        diskbuff:      ds.b 512*2,0                                       
+                                                                          
+               end
+           
+                            NOW LOAD PART THREE
+                            
+end.

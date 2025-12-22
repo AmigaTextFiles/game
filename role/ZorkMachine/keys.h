@@ -1,0 +1,29 @@
+/*
+*	@(#)keys.h	2.24
+*/
+
+#define	CLEFT	0x180
+#define	CRIGHT	0x181
+#define	START	0x182
+#define	END	0x183
+#define	BACKDEL	0x184
+#define	FORWDEL	0x185
+#define	KILL	0x186
+#define	INSERT	0x187
+#define	RETURN	0x188
+#define	RETYPE	0x189
+#define	CDOWN	0x18a
+#define	CUP	0x18b
+#define FPROG	0x18c
+#define CLEAR	0x18d
+#define	FSTART	0x200
+#define	F01	0x01
+#define	F02	0x02
+#define	F03	0x03
+#define	F04	0x04
+#define	F05	0x05
+#define	F06	0x06
+#define	F07	0x07
+#define	F08	0x08
+#define	F09	0x09
+#define	F10	0x0a

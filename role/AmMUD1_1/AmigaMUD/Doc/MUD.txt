@@ -1,0 +1,1437 @@
+AmigaMUD, Copyright 1997 by Chris Gray
+
+
+		    The 'MUD' Client Program
+
+The MUD client program (the file called "MUD") is used to connect to
+an AmigaMUD server, either locally on the same machine as the server,
+or remotely through a direct serial port or modem connection or via a
+TCP/IP internet connection. The operation of the program is the same
+in all cases, although some details of starting it up vary. This
+client program must be used in order to get graphics and audio output
+and to use mouse and keypad input. This is the recommended interface
+for use with AmigaMUD, although a remote user can operate in a simple
+text-only mode using just a terminal program or a telnet program in
+the case of an internet connection.
+
+The display that MUD produces depends on how it is configured. The
+default display uses two Amiga screens. The upper screen is for
+graphics, and is 320 pixels across by 100 pixels high by 32 colours.
+The lower screen is used for text, and is roughly 640 pixels across by
+100 pixels high by 4 colours. The text window has a scrollbar for
+viewing output history, and supports input history and line editing.
+Hires mode doubles both sizes of the graphics window and the vertical
+size of the text window. Onescreen mode puts both areas as windows on
+a single screen. Onewindow mode puts both areas as regions within a
+single window on the Workbench. Twowindow mode uses two Workbench
+windows, one for text and one for graphics. In Workbench modes, the
+text area is sizeable. See the "Display" section for more details.
+
+The bottom line of the text window is the input area. Output text
+lines appear on the line above this one, thus any partial input lines
+are not disturbed by output from other events taking place in the MUD.
+Input line editing and history retrieval is done in this line and will
+be described later. When RETURN is pressed, the current input line is
+sent to the server, and is echoed (along with the current prompt) in
+the output area. Note that the position of the command in the output
+area does not necessarily correspond to the point at which the server
+will process it, since the server may not get around to it for a
+while, and because the server may already have generated other output
+that hasn't arrived yet.
+
+MUD can be started either from the Workbench or from a CLI. All of the
+tool type values that can be put in the Workbench icon can also be
+given on a CLI command line. Additional, shorter, forms for many of
+the flags can also be used from a CLI. By default, MUD will attempt to
+make a connection to a server running on the local machine.
+
+NOTE: in order to run MUD, either locally or remotely, there must be a
+copy of "mud.library" in your LIBS: directory.
+
+NOTE: MUD requires a stack of at least 10000 bytes. It will exit right
+away if the stack is not at least that large. If you are running MUD
+from a shell, use the 'Stack' command (perhaps in your shell-startup)
+to set a sufficient stack size. If you are running MUD from the
+Workbench, use the "Icons"/"Information" Workbench menu item to set
+the stack size on the MUD icon to at least 10000.
+
+MUD is able to call up an external editor to edit strings (such as
+character and room descriptions) and procs (AmigaMUD procedures). What
+program to run as the editor can be controlled by setting the
+"MUDEditor" environment variable to the full path to the editor to
+use. If the variable is not set, variable "EDITOR" (also used by other
+software) is checked, and if that is not set, "Ed" is used. The editor
+used must accept the name of the text file to edit on the CLI command
+line, and must be a able to edit and write a simple text file. MUD
+does not understand text processor or word processor documents. The
+editor must not "auto detach", since that causes the edit process to
+terminate prematurely from MUD's point of view. Many users will prefer
+to just use the simple editor built-in to the MUD program.
+
+If an external editor is used, the AmigaDOS process created for it
+will by default have a stack size of 9996 bytes. If you wish to use
+more or less bytes, you can use the '-s' CLI flag, or the
+"EDITORSTACK" icon tooltype, to specify a different size. MUD will
+enforce a minimum size of 4096 bytes.
+
+The MUD client program can display background pictures and brush
+images loaded from the machine it is running on. It can also play
+sound samples, and, in the future, will be able to play SMUS (and
+perhaps CMUS) music. A single assign or volume name of "AmigaMUD:"
+must be present when MUD is started. It does not need to contain
+anything, but if it does, it should be arranged into the following
+subdirectories:
+
+    BackGrounds: background images (fill the graphics area)
+    Images: images of various sizes (often fill half the graphics)
+    Brushes: smaller brush images with a mask plane or with a
+	transparent colour specified
+    Sounds: IFF 8SVX sound samples
+    Music: IFF SMUS music scores
+    Instruments: IFF 8SVX instruments
+
+The text window in MUD has a close box. Clicking on this box will
+start an exit sequence, which will normally result in MUD exiting.
+This can also be done with a menu selection. If MUD is started from a
+shell, using the 'Break' command on its process will also cause it to
+exit. If MUD refuses to exit for some reason (such as the server
+having been aborted, or the serial connection being lost), then MUD
+can be exited with the Abort menu item. Note that you should not abort
+unless absolutely necessary, since this can confuse the server if it
+is still active. In particular, manual intervention on the server will
+be required before you can log in again.
+
+Following sections of this document will cover the CLI command line
+and icon tool type flags in more detail. Others will cover the use of
+the menus in MUD and the use of the internal editor. After that will
+be a discussion of the the various types of caching done by the
+program.
+
+
+Using MUD to Connect to an AmigaMUD Server
+
+When connecting to a server running on the same machine as MUD, the
+connection is direct and immediate. The prompt to enter a character
+name will appear right away, and the text window will be used only for
+MUD input and output.
+
+When connecting via a TCP/IP stack, the stack should be active before
+you start the MUD program. The name of the machine running the server
+(or its IP address) must be given, either on a CLI command line or via
+an icon tooltype. The TCP port number can also be given if it is
+different from the default 6667. Nothing else need be done with this
+kind of connection - status messages will be displayed in the text
+window as needed. Note: this MUD client program is *not* a suitable
+client for use with any MUD servers other than the AmigaMUD server.
+The connection to the server goes through an agent program, MUDBinary,
+on the server machine, but the client is not affected by this.
+
+When connecting via a serial port (with or without a modem), the text
+window will initially play the role of a very simple terminal program.
+This mode has no emulations, does not support any escape sequences,
+etc. You can, however, use the logging facility to do the equivalent
+of "ASCII capture". The "Serial" menu can also be used to change the
+CD (Carrier Detect) status, change the connection speed, and generate
+BREAK conditions. When in this "terminal mode", characters typed are
+not locally echoed (full duplex), and no special processing or
+translation is done on sent or received carriage return or linefeed
+characters. This mode will attempt to ignore any ANSI escape sequences
+that it sees, however.
+
+When serially connected, the MUD program on the remote machine uses a
+reliable bidirectional binary protocol to talk to a copy of the
+"MUDAgent" program running on the server machine. This means that
+information (messages) can be sent in both directions at the same
+time, and that messages are not limited to printable characters. Also,
+the programs will automatically retry messages that are not
+acknowledged by the other end, or are corrupted during transmission.
+
+This protocol operates quite differently from the simple "terminal
+mode", so the programs must recognize and agree on when they switch to
+the protocol. Normally, the MUDAgent on the server will attempt to
+enter the protocol as soon as it is started up (e.g. as a result of a
+menu option entered on a BBS). When the local MUD program recognizes
+the special sequence sent out, it will display "REMOTE END DETECTED"
+and switch into the protocol mode. If this message is not seen when
+expected, then something is wrong in the connection. You may see the
+data lights on a modem blink at one-second intervals - this is the
+remote end resending its startup characters. If, however, the remote
+end is setup to allow either a full binary or a text-only connection,
+then it will not try to start the protocol until it sees a request.
+In that case, you must use the 'Serial/Connect' menu item to start the
+protocol from your end. If you don't know how the other end is set up,
+just wait a few seconds to see if MUD connects automatically. If it
+doesn't, then force the connection.
+
+Because of the binary protocol, a serial connection for MUD must be an
+8-bit no-parity connection. Other modes will not work, and will most
+likely result in either a failure to connect, or a hung connection. In
+that case, you must disconnect by exiting MUD, and try again with a
+proper connection.
+
+In the serial case, that of using MUD to connect via modem to an
+AmigaMUD server running elsewhere, the sequence of operations goes
+something like this:
+
+    - start MUD, possibly specifying options to change the baud rate,
+	use a different serial port, etc.
+
+    - using MUD as a terminal program, dial the remote Amiga and log
+	on to it as normal.
+
+    - do any further operations with the remote system as needed, such
+	as using BBS menus to get to an AmigaMUD selection.
+
+    - instruct the remote system to run MUDAgent (e.g. select the
+	appropriate BBS menu item).
+
+    - you should see some modem activity, followed by the "REMOTE END
+	DETECTED" message, then some more modem activity, and the
+	prompt to enter a character name.
+
+    - enter your character name and start playing AmigaMUD
+
+The MUDAgent program is able to monitor a serial port and make
+connections itself. If the host machine is operating this way, then
+when the initial modem connection is made, MUDAgent will immediately
+connect with your MUD client. MUDAgent can also be started by the
+"Getty" program, in which case you will see a "login:" prompt when you
+connect. At that point, enter the "userid" that is used on that system
+to get to AmigaMUD. You may have to enter a password other than your
+character password to get into AmigaMUD.
+
+AmigaMUD also supports simple text-only connections. If you connect to
+one of these by, e.g. using the wrong BBS menu selection, then your
+MUD client and the MUDAgent program will not enter into the reliable
+protocol. You will not see the "REMOTE END DETECTED" message and will
+not get graphics/sound output and will not be able to use the normal
+features of the MUD program; instead, you will only have the "terminal
+mode" capabilities. Unless you will only be on the MUD for a short
+period, it is best if you disconnect and reconnect properly.
+
+The MUD program supports Christopher Wichura's OwnDevUnit library for
+sharing of serial ports. This should be all automatic. If you are
+running something like 'Getty' or 'MUDAgent' to answer incoming calls,
+then MUD will request the port from that other program, and will fail
+to start up if that program does not release the port. If your system
+does not run OwnDevUnit.library, then this paragraph does not apply
+and can be ignored.
+
+The MUD client program does not actually exit when you leave the
+scenario if you are connecting serially. Instead, it goes back into
+its "terminal mode", allowing you to do more connections in the one
+session. Note that it does NOT flush its cache of effects, so if you
+next connect to a different AmigaMUD, you should select the
+"Options/Effects/Zap Effects" menu item to empty the effects cache,
+since a given effect identifier is unlikely to mean the same thing on
+another AmigaMUD. If both AmigaMUD's are running the bare standard
+scenario, you are probably safe, however.
+
+
+Display
+
+The display types supported by MUD are influenced by the version of
+the OS that you are running, and the Amiga hardware you are running
+on. For example, systems running pre-2.0 versions of the OS will only
+get an "oldstyle" display. Non-AGA systems (i.e. not A1200 or A4000)
+can only get the lo-res "basic" display or the "Workbench" display.
+Note that the Amiga OS will happily attempt to open screens of
+unsupported types, and nothing serious goes wrong - you just won't see
+all of the colours you expect. For example, on my V1.3 A1000, trying
+to open a hi-res basic display simply produces a graphics screen on
+which only colour 0 is ever displayed. On my A3000, the same request
+gets a screen in which only half of the colours are displayed. It can
+also be dangerous to run with the maximum number of colours that your
+Amiga will display when in a Workbench type - this can affect the
+Amiga's ability to handle the built-in serial port, causing
+communication problems. Alternative serial drivers may help.
+
+As mentioned above, the on-Workbench display modes are only available
+on 2.0 and above systems. MUD's menus are designed to look most like
+standard 3.1 menus, but that appearance requires a 3.1 menu flag. So,
+on 2.0 and earlier systems, the menus will look like an intermediate
+between 2.0 style and 3.1 style (mostly 3.1 style with 2.0 colours).
+Other than that, MUD does not use any 3.1 features. In particular, it
+does not do any pen-locking, so on-Workbench colour handling is the
+same under 3.1 as it is under 2.0.
+
+There are ten distinct display types supported by the MUD program,
+although some are only minor variations. If not told otherwise, it will
+open up the "basic" display. In this type, a graphics screen that is
+320 pixels wide, 100 pixels high, and 5 bits deep (32 colours) is
+opened at the top of the display. It will be horizontally centered
+within your overscan range. The remainder of the display will be
+filled with a hi-res text screen, that is roughly as wide as your
+horizontal overscan, and roughly fills your vertical overscan. Note
+that this means that PAL systems will have more text lines than NTSC
+systems. The text display has a scroll-bar on the right hand side. All
+Amigas can use this display type with their built-in hardware.
+
+Unless you are running a pre-2.0 system, the text colours of the
+"basic" display will be taken from your Workbench colours, so the text
+window should look much like a shell window with a scrollbar. The
+input prompt will be in a different colour, however. With this type,
+the menu-bar is attached to the text window in the text screen, so the
+menus will be half-way down the display, which is a bit unusual. Since
+the text window is using your Workbench colours, the effects function
+which changes the pens of the text window, and the scenario commands
+which use it (e.g. 'normalgrey' and 'brightgold'), are all disabled.
+
+To the basic display type can be added the "oldstyle" modifier. This
+modifier makes MUD operate the way it used to, before the V1.1
+changes. With this display type, AmigaOS V2 and V3 features are not
+used, and the Workbench colours are ignored. Instead, the old gold
+colour scheme is used. When an oldstyle display is active, the
+function and commands for changing the text window colours are again
+active, and the 'dim' and 'bright' startup options are available.
+
+A second modifier is the "hires" modifier. With this modifier active,
+the basic display will have a graphics area that is 640 pixels across,
+200 pixels high, and 5 bits deep. The text screen will also be twice
+as many pixels high, giving twice as many lines of text. The "hires"
+modifier can be mixed with the "oldstyle" modifier to produce a total
+of four styles of "basic" display. Note that the hires displays use
+more memory and are a bit slower than the non-hires displays. As
+mentioned above, the hires displays require an AGA system, or a
+graphics card.
+
+The second major display type is the "onescreen" display type. In this
+type of display, MUD opens only one screen, and uses Intuition windows
+on that screen for the graphics and text areas. In order that the
+standard 32 colours be available for graphics, in addition to the four
+(or more) colours needed for your standard Workbench windows, this
+display type opens a 64 colour (6 bit) display. The upper 32 colours
+are used for the graphics window, and the lower 32 are used (if at
+all) only by the text display, window borders, etc. The "onescreen"
+display type works on AGA systems, but is very slow. It is intended
+for those with graphics cards which cannot open multi-resolution or
+multi-depth displays. The "hires" modifier can be used with
+"onescreen" displays, with the expected effect. The combined type is,
+in my opinion, unusably slow on my all-CBM A4000T/040. In "onescreen"
+displays, the menus are attached to the graphics window, and so are
+at the top of the display.
+
+The third major display type is the "twowindow" type. In this display,
+MUD opens up two windows on the Workbench screen (actually, on the
+default public screen). In the lores variant, the text window will
+open at the top of the screen, and will have room for 23 lines of text
+(the space needed for the builtin editor's HELP display) of 80 columns
+each. This will be reduced if it will not fit. The graphics window
+will have interior room for 320x100 pixels, and will be opened just
+inside the top-right-hand corner of the text window. In the hires
+variant of the "twowindow" type, the graphics window is double-size
+and opens at the top of the screen. The text window opens below it, if
+possible. If the text window doesn't fit there, it will be moved
+upwards, overlapping the graphics window, until it does fit. The text
+window can be resized from fullscreen to very small. The graphics
+window cannot be resized, since the MUD client does not maintain
+enough information to be able to redraw its contents at a different
+size. Scaling of non-bitmap graphics is actually done by scenario code
+running in the server.
+
+The final major display type is the "onewindow" type. In this display,
+MUD opens up only a single window on the Workbench screen. There will
+be a fake separator between the graphics up top and the text down
+below. The text scroll-bar will only be beside the text portion of the
+window, and some user interface hacks can mess that up a bit. The
+combined window can be sized, but not narrower than the full width
+needed for the graphics, or shorter than the full height of the
+graphics plus a few lines of text. The graphics are always in the top-
+left corner of the window, to allow for the most resizing. In the
+hires variant, the graphics is twice as large, thus occupying twice as
+much space in the window.
+
+Note that in both Workbench display types, MUD is constrained to only
+using the colours available on your Workbench screen. This can
+seriously affect the viewability of the graphics. MUD attempts to
+remap colours as best it can, but the results can be pretty bad,
+depending on the available colours. It is best to have a least one of
+each of the major colours: white, black, grey, red, blue, yellow,
+brown, etc. Four colour displays can be useable, and 8-colour ones can
+work not bad.
+
+The various sizes and depths of available graphics displays have
+required some additional features in MUD, and some changes to the
+basic AmigaMUD programming language and builtin functions. When
+loading bitmap images (backgrounds, images or brushes), MUD will scale
+them to the required size. On pre-V2.0 systems, the scaling routine
+(in the Amiga's "graphics.library") does not exist, however, so those
+systems will get a mess.
+
+With a Workbench display, MUD probably does not have its chosen set of
+32 colours available, and it is not allowed to alter the palette.
+Instead, MUD will map the 32 standard colours to the available
+colours. So, it will report a colour count of 32, regardless of the
+actual colour count. It will also report that it can change the
+palette, even though it never will. It can, however, change its colour
+mapping in response to palette change requests from the server.
+
+Remapping of IFF ILBM images is a slow process, and sometimes it
+doesn't work very well. The standard scenario is usable on my four-
+colour Workbench, but only just. Some images just do not come out at
+all. With an eight-colour display, things are much better, especially
+if the eight colours are chosen so as to give a good choice to MUD. A
+32 colour Workbench can be just as good as letting MUD create its own
+screens (but slower, on my A4000T). One way of getting a good set of
+colours into your Workbench palette (since the Preferences tool only
+lets you set the lower 8 colours), is to set the included file
+"palette" as your background image, and then save your palette using
+the Preferences tool. Once you have your palette preferences set up,
+you can go back to your normal background pattern. If you normally use
+a background image, then the colours from the palette for that file
+will be the ones that MUD will have to use in "workbench" mode.
+
+[The following is a technical note that is mostly relevant to
+designers of AmigaMUD scenarios.] When colour remapping is in effect,
+changing the colour of a pen doesn't work quite the same. Instead of
+changing a real pen, MUD simply takes the new colour, finds the best
+match for it in the real Workbench palette, and enters that value in
+the slot in its colour mapping table for the colour being changed.
+This will affect future drawing using that pen. In types other than
+"Workbench", all existing pixels in that pen will also be affected.
+So, it is best if a scenario does all colour palette changes before it
+does any drawing. This also holds true for tiles cached by MUD - they
+are mapped when they are cached, not each time they are used, so
+palette changes should be done before any tiles have to be sent to the
+clients.
+
+When a Workbench display type is selected, you can also tell MUD to
+not do the above-mentioned colour remapping. When remapping is turned
+off, MUD works directly in the Workbench colour palette. The standard
+scenario drawn images (as opposed to the bitmap files, which will
+still be remapped as normal) will be drawn directly with the pen-
+numbers that the scenario gives. This will make a mess for the
+standard scenario, since it assumes the default 32 colours. However,
+if you are making a new scenario, this mode may be desireable, as it
+lets you access the full 256 colours of a 256-colour AGA Workbench.
+This will be reported via the GColours builtin returning 256. Note,
+however, that anyone playing such a scenario must have the same
+Workbench palette, for *all* colours that you use, in order for the
+graphics to come out right.
+
+Setting the MUD display type can be done with command-line flags, icon
+tooltypes or shell environment variables. See the relevant sections
+of this document for details.
+
+
+MUD Icon Tool Types
+
+Some tool types accept a boolean (true/false) argument. MUD interprets
+any of YES/yes/ON/on/TRUE/true or an empty argument as true, and any
+other value as false. Note that on early versions of the AmigaOS,
+empty values are not valid. They ARE valid under V2.0. Other tool
+types require numeric arguments. These must be given in decimal.
+String arguments can have any value not containing spaces.
+
+    IPHOST (string) - this tooltype specifies the name (or IP address)
+	of the internet machine to connect to, and also forces MUD to
+	use only an internet connection through a TCP/IP stack. Use
+	this tooltype only on icons which you will use only when your
+	TCP/IP stack is active.
+
+    IPPORT (numeric) - this tooltype specifies a different IP port to
+	use when connecting over the internet. The default value is
+	6667. Like IPHOST, this tooltype forces an internet
+	connection.
+
+    MODE = { ONESCREEN | TWOSCREEN | ONEWINDOW | TWOWINDOW } - this
+	tooltype selects which display type the MUD program is to use.
+	See the above section on "Display" for details on the various
+	display types.
+
+    HIRES (boolean) - this tooltype controls whether or not MUD will
+	use higher resolution for its screens and windows. This
+	provides twice the vertical and horizontal graphics
+	resolution. In non-Workbench display types, this will also
+	provide twice the number of text lines. This option does not
+	work correctly on non-AGA systems, since the Amiga chips do
+	not support the needed graphics capability.
+
+    OLDSTYLE (boolean) - this tooltype controls whether or not MUD
+	will use the old-style gold text colours, and allow text
+	colour palette modification. The default is to not allow this
+	under V2.0 and above of the AmigaOS. This flag is only useful
+	with a "ONESCREEN" display.
+
+    MAPCOLOURS (boolean) - this tooltype is only relevant in a
+	Workbench display mode, and is normally enabled. Turning
+	this option off forces MUD to work directly in the Workbench
+	colours, and not attempt to remap colours.
+
+    FULLREDRAW (boolean) - this tooltype should not be needed. MUD
+	makes some undocumented assumptions about what happens when
+	a window is resized. This allows it to do faster operations
+	when showing or hiding the graphics window. If your display is
+	messed up when doing those operations, try setting this flag,
+	and let me know about it.
+
+    EFFECTSQUIET (boolean) - this tooltype controls whether or not MUD
+	prints a warning message in the text window whenever the
+	scenario references an effects file (background, image, brush
+	or sound) that is not available on this system. Seeing the
+	warnings is useful in order to know what files the active
+	scenario can use, but the warnings can be annoying.
+
+    SERIAL (boolean) - this tool type tells MUD to connect to a remote
+	server over a serial port. Using any of the serial-specific
+	tool types will also imply the setting of this tool type.
+
+    LOCAL (boolean) - this tool type tells MUD to connect to a server
+	running on the local machine, rather than trying to connect to
+	a remote server via a serial port or via a TCP/IP stack. This
+	is the default action.
+
+    CLOSEWORKBENCH (boolean) - this tool type tells MUD to try to
+	close the Workbench screen after it has started up. This will
+	normally only work from a Workbench startup, and only if there
+	are no other programs active that were started from the
+	Workbench. Using this option can recover system memory for use
+	in caching effects, images, sounds, etc. The Workbench can
+	also be closed (and opened) using menu items.
+
+    BRIGHT (boolean) - this tool type tells MUD to start up using a
+	brighter than normal set of colours for the text window. This
+	is useful on bright sunny days. Only relevant for an
+	"oldstyle" display.
+
+    DIM (boolean) - this tool type tells MUD to start up using a
+	dimmer than normal set of colours for the text window. This is
+	useful for nighttime MUDding. Only relevant for an "oldstyle"
+	display.
+
+    EDITOR = { INTERNAL | SELECTED | EXTERNAL } - this tool type sets
+	the default setting for the similar menu item. If INTERNAL is
+	set, then all editing will use the built-in editor. If
+	SELECTED is set, then MUD will use the built-in editor for
+	editing strings, and an external editor for editing procs. If
+	EXTERNAL is set, then MUD will use an external editor for
+	everything.
+
+    OHISTORY (numeric) - this tool type sets the size of the output
+	history buffer that MUD maintains. This is the text that can
+	be reviewed using the scroll bar in the text output window.
+	The minimum size is 1920 characters. Note that giving too
+	large a value can result in significant slowdown, as new text
+	is inserted at the end of a large buffer. The default value is
+	5000 characters.
+
+    IHISTORY (numeric) - this tool type sets the size of the input
+	history buffer that MUD maintains. This is the command lines
+	that can be retrieved using the up-arrow key, in the same
+	method that is used in a shell window. As described later, the
+	shell's input editing functions can also be used. The default
+	size of the input history buffer is 1024 characters, and the
+	minimum size is 160 characters.
+
+    PORTNAME (string) - this tool type allows the user to change the
+	name of the Amiga OS port that MUD will try to connect to for
+	a local connection. By default, this name is "MUD port". Using
+	a different name allows the simultaneous use of multiple
+	AmigaMUDs on a given system. This tool type lets MUD select
+	which one to connect to. Note that this is *not* an internet
+	IP port number or service name.
+
+    TEST - this tool type is a short way of picking "MUD test port" as
+	the name of the Amiga OS port to connect to.
+
+    BAUD (numeric) - this tool type allows the setting of the baud
+	rate (more properly called bps) to use for a connection on a
+	serial port. The default value is 19200. Note that the Amiga's
+	internal serial port can accept a wide range of values, but
+	standard values of 300, 1200, 2400, 9600, 19200 or 38400
+	should be used for compatibility. If a value that does not
+	appear on MUD's serial menu is used, then none of the speeds
+	in the menu will be checked.
+
+    IGNORECD (boolean) - this tool type tells MUD to ignore the state
+	of the CD (Carrier Detect) serial port control signal.
+	Normally, MUD will exit when the CD signal is lost, since this
+	means that the modem connection has been lost. Setting this
+	flag is needed with modems that cannot (or have been
+	instructed to not) properly generate the signal, or with
+	serial cables that do not pass the signal. Also, when
+	connecting two Amigas directly via their serial ports (and a
+	"null modem"), this option is usually needed.
+
+    7WIRE (boolean) - this tool type tells MUD to instruct the serial
+	driver to pay attention to the hardware flow control signals
+	on the serial port. This is recommended for use with direct
+	connections or high-speed modems. It should not be used if the
+	modem is not generating and paying attention to the signals,
+	or if the connecting cable is not carrying the signals.
+
+    SHARED (boolean) - this tool type tells MUD to open the serial
+	port in "shared" mode. This means that other programs can have
+	the port open at the same time. MUD (and the MUDAgent program
+	at the other end) will become confused if any other program
+	actually reads from or writes to the port while MUD is
+	connected, so this flag should be used with care.
+
+    RETRIES (numeric) - this tool type specifies the number of times
+	that MUD should attempt to send or receive any given message
+	via the serial port connection. The default value is 10.
+	Larger values may be needed for reliable operation over noisy
+	telephone lines. Too large a value should not be given,
+	however, since then MUD won't give up soon enough on a true
+	lost connection.
+
+    DIAL (string) - this tool type allows the specification of a
+	string to be sent over the serial port (usually to a modem) on
+	startup. With most modems, a dial string of the form
+	ATD1234567 will cause the modem to start dialing a telephone
+	number. This is handy to set up an icon for MUD to connect to
+	a specific remote AmigaMUD, or in a shell alias.
+
+    NAME (string) - specify the name of the character to log in as.
+	Note that this is an AmigaMUD login, not a BBS or other one.
+
+    PASSWORD (string) - specify the password for your character. It is
+	not recommended that you use this flag if your system is open
+	to use by others, since they can find your password easily. If
+	the password given this way is incorrect, it counts as the
+	first of your three attempts at getting it right.
+
+    DEVICE (string) - this tool type allows the specification of the
+	name of an alternative serial device to use for a connection.
+	The default name is "serial.device", which refers to the
+	standard built-in serial port.
+
+    UNIT (numeric) - this tool type allows the specification of a
+	particular serial port unit on a device with several ports.
+	The default value is 0.
+
+    FLAGS (numeric) - this tool type is used to specify some special
+	flag values which MUD passes on to "mud.library". The flag
+	values only effect the operation of some caching mechanisms
+	which are of value to wizards. The value is the sum of the
+	following:
+
+	    1 - cache procs. This remote client will cache the
+		definitions (but not the bodies) of builtin and user
+		procs in the AmigaMUD language. This saves refetching
+		them when parsing procs (such as after editing one).
+
+	    2 - cache symbols. This remote client will cache the
+		values of symbols that it has fetched from the server.
+		Again, this cuts down on communications when parsing
+		AmigaMUD procs.
+
+	Note that both of these flags increase the amount of memory
+	consumed by MUD. This memory is not freed until MUD exits.
+	The default value of 'FLAGS' is 0, i.e. both caches off.
+
+    EDITORSTACK (numeric) - this is the size of stack to use for an
+	external editor process. The default is 9996 bytes, and the
+	minimum is 4096 bytes.
+
+    Examples:
+
+	IPHOST=mud.myrias.com
+	MODE=onescreen
+	IHISTORY=10000
+
+	This requests a connection over the internet to a machine
+	named "mud.myrias.com", using the default IP port. The display
+	is to be on a single custom screen (useful mostly with
+	graphics cards), and a large 10000 byte input history is used.
+
+	MODE=twowindow
+	HIRES=true
+	LOCAL=true
+	PORTNAME=MUD2
+	OHISTORY=10000
+
+	This requests a connection on the local machine to a server
+	running with Amiga OS port name "MUD2". An output history
+	buffer of 10000 characters will be allocated and used. The
+	display will use a high resolution graphics window and a
+	separate text window on the Workbench screen.
+
+	MODE=twoscreen
+	OLDSTYLE=true
+	BAUD=9600
+	7WIRE
+	DEVICE=siosbx.device
+	UNIT=1
+
+	This requests a 9600 bps connection, using hardware flow
+	control, on the second port of an ASDG dual-port board. The
+	display will be the oldstyle gold text display in a pair of
+	custom screens.
+
+
+MUD CLI Command Line Flags
+
+All of the above icon tool types can be given on a CLI command line,
+as in:
+
+    MUD HIRES BAUD=19200 7WIRE IHISTORY=2000 DIAL=atd1234567
+
+In addition, there are short forms for many of the flags and some
+additional flags that are only meaningful from a CLI command line.
+In these flags, any needed value must directly follow the flag
+letter, i.e. there must not be any spaces between them. More detailed
+descriptions of these settings can be found in the previous section
+on icon tool types.
+
+When started from a CLI, the name and optional port number of an
+internet host to connect to can be given, without being preceeded by a
+minus sign. E.g.    "mud supersys.com"	  will attempt a TCP/IP
+connection to a remote machine named "supersys.com", using the default
+IP port of 6667, and using all other default values (as modified by
+any environment variables set).
+
+The flags supported are:
+
+    -w - open in one or two Workbench windows
+
+    -1 - open in one window or screen, not two
+
+    -h - hires display
+
+    -O - oldstyle display
+
+    -m - open on workbench, do not remap colours
+
+    -f - fullredraw
+
+    -q - effects quiet
+
+    -w - try to close the Workbench on startup
+
+    -L - make a local connection
+
+    -T - make a local connection using port "MUD test port"
+
+    -B - use the bright text window colours (oldstyle only)
+
+    -D - use the dim text window colours (oldstyle only)
+
+    -F <flags> - set the mud.library flags - see FLAGS tool type
+
+    -P <portname> - use the given name as the local port to connect to
+
+    -S - do a serial connection with the port opened in shared mode
+
+    -d <device> - use the named device instead of "serial.device"
+
+    -u <unit> - use the given device unit instead of unit 0
+
+    -b <speed> - use the given serial speed instead of 19200
+
+    -i - ignore the Carrier Detect serial signal
+
+    -7 - use 7-wire hardware serial handshaking
+
+    -N <name> - use <name> as the name of the character for the
+	playing sessions, rather than prompting for a name
+
+    -W <word> - use <word> as the password for the playing sessions.
+	If it is incorrect, it counts as the first attempt, and only
+	two attempts remain. This is normally used in conjunction with
+	-N, but can be used without it.
+
+    -r <count> - retry each failing message the given number of times
+
+    -E - this flag was useful to me when I was testing the sample
+	online building sessions - it starts up MUD with its editing
+	capability disabled, so that text must be entered in the line-
+	by-line mode. The disabling is known to the MUD server, and
+	hence to the scenario.
+
+    -s <size> - this flags specifies the size of stack to use for an
+	external editor process. The default size is 9996 bytes, and
+	the minimum size is 4096 bytes.
+
+An interesting combination is to combine a DIAL= with -N and -W. If
+the system you are calling is directly running MUDAgent for a binary
+connection, then the call will happen and you will end up being
+connected to your character, without having to do anything else.
+
+The following flags are included for compatibility with the "Getty"
+program. There is currently no real use for this support, but I
+believe that it may become desireable to have a terminal program which
+can call out to the MUD client program, much as Getty or BBS's call
+out to the MUDAgent program. This is because the terminal support in
+MUD is minimal, and the user may want to do other activities during a
+BBS connection which require more functionality. A terminal program
+which supports callouts in this manner could then be used to provide
+both levels of functionality in a given connection. Most people can
+ignore these flags, at least for now. See Getty documentation for
+details. The flags are:
+
+    -Getty - supresses any port initialization, and opens shared
+    -DEVICE <name> - name of device to use
+    -UNIT <number> - unit number on device
+    -HLINK - ignore carrier detect
+    -BAUD <speed> - set connection speed
+    -USER <name> - parameter ignored
+
+
+Environment Variables
+
+MUD checks for a number of environment variables (as set with the
+shell 'setenv' command). These values can override some default
+settings in MUD, and can be in turn overriden by icon tooltypes or
+command-line flags. All environment variables are of boolean type.
+The following variables are recognized:
+
+    MUDLocal - if true, forces a local connection (no longer really
+	needed, now that the default is a local connection)
+
+    MUDMode - can contain the name of the display type to be used
+
+    MUDHiRes - if true, forces hires display
+
+    MUDMapColours - if false, turns of colour remapping
+
+    MUDFullRedraw - if true, forces full redraw mode
+
+    MUDEffectsQuiet - if true, supresses effects warnings
+
+    MUDEditor - path to the text editor to use an external editor
+
+    EDITOR - editor path to use if MUDEditor is not specified
+
+See the previous sections for discussion of the detailed meanings of
+these options.
+
+
+Menus in MUD
+
+Some of the menu items in MUD have function key shortcuts. Others have
+right-amiga command key shortcuts. Both types of shortcuts will work
+regardless of which of the windows (graphics or text) is currently the
+active one. Most of the "Serial" menus will only work while in
+"terminal mode", and some others will not work in terminal mode.
+Inactive menus are shown ghosted. Key shortcuts for menu items are
+shown here inside square brackets.
+
+    Project - the Project menu contains general utility operations.
+
+	Log [F7] - this item will enable or disable logging of text
+	    input and output. If no logfile name has been selected
+	    when logging is turned on, one will be requested.
+
+	Log File - allows selection of a file to log to. Logging will
+	    be turned on after the selection of a name.
+
+	Log Mode - the two modes, Both and Input, control what will be
+	    logged to a log file. If 'Both' is checked, then both the
+	    user's input and the game's output is logged. If 'Input'
+	    is checked, then only the user's input is logged, with any
+	    passwords omitted.
+
+	Source - a file name is requested, and the contents of the
+	    file is read and inserted as input from the user. This
+	    operation works in either "wizard" mode (the user is
+	    operating directly with the AmigaMUD interpreter) or in
+	    normal mode, where input is being parsed as commands for
+	    the scenario. Do not attempt to change modes inside a
+	    sourced file, however, since the changing of modes is
+	    not a synchronous event, and a few commands will end up
+	    being given to the wrong mode.
+
+	SnapShot
+
+	    Text - a file name is requested, and the entire contents
+		of the output history buffer is written to the file.
+
+	    Graphics - a file name is requested, and the current
+		contents of the graphics window is written to the file
+		as an IFF ILBM image. The current graphics palette is
+		included in the IFF file.
+
+	Quit [R-A Q] - MUD disconnects from the server and either
+	    exits, or goes back to the "terminal mode", depending on
+	    whether you are running the client locally or remotely.
+	    Using the close box on the text window has the same
+	    effect, unless you are currently editing something, in
+	    which case only the edit is aborted, as with typing a ^C.
+
+	Abort - MUD exits immediately. This is useful if the server
+	    has hung, or something has gone wrong with the connection
+	    to it. Using this instead of 'Quit' may prevent you from
+	    reconnecting to your character until the server times out
+	    and shuts the connection down at its end. In some cases,
+	    manual intervention on the server may be required before
+	    you can connect to your character again.
+
+    Modes - the Modes menu controls various parts of MUD that can be
+	enabled and disabled, or which give a choice of behaviours.
+
+	History - this item allows you to control which of your input
+	    lines is entered into the input history buffer. In 'Full'
+	    mode, all input lines are entered, regardless of how they
+	    were generated. In 'New' mode, input lines are entered
+	    only if they were not taken unchanged from the input
+	    history. In 'Minimal' mode, input lines are entered into
+	    the history only if they did not originate from that
+	    history, i.e. only if they were typed in completely. I
+	    recommend 'New' mode.
+
+	Scroll On - this item allows you to control when the output
+	    window is scrolled. If 'Input' is chosen, then the output
+	    window scrolls only when a new input line is entered, or
+	    when it must be scrolled because it is full and an output
+	    line must be added. If 'Output' is chosen, then the output
+	    window is scrolled whenever a new line of output is added
+	    to the bottom. If 'Either' is chosen, then both input and
+	    output lines will cause the scrolling. If 'Neither' is
+	    chosen, then the output window does not scroll unless the
+	    user scrolls it or it is full. This last mode is useful
+	    when typing input lines based on output history that has
+	    already scrolled out of the text window.
+
+	Editor - this item allows you to choose when to use the
+	    internal editor and when to use an external editor. If
+	    'Internal' is chosen, then the internal editor is used for
+	    editing strings (such as descriptions) and when editing
+	    AmigaMUD functions when in wizard mode. If 'Selected' is
+	    chosen, then strings are edited with the internal editor
+	    and functions with an external one. If 'External' is
+	    chosen, then an external editor is used for everything. If
+	    you are not familiar with running a text editor such as
+	    'Ed' on the Amiga, I recommend using 'Internal'. When
+	    editing AmigaMUD functions, the internal editor can move
+	    the cursor to the position of errors when the function is
+	    submitted for parsing. Some external editors support this
+	    kind of operation using ARexx commands, but MUD does not
+	    currently support this.
+
+	Picture [F1] - this item controls whether or not the graphics
+	    window is visible. A full screen text window can be useful
+	    when wizarding or when chatting with a number of other
+	    players. Note that the picture cannot be hidden when MUD
+	    is running in a Workbench window.
+
+	Graphics [F2] - this items allows the user to disable all
+	    graphics operations in the MUD client. This setting is
+	    sent to the server, so it will not even send graphics
+	    output messages. Note that turning graphics off and then
+	    on again at a later time can result in an out-of-date or
+	    inconsistent graphics view.
+
+	Sound [F3] - this item allows the user to disable all playing
+	    of sound samples. The setting is sent to the server so
+	    that it doesn't even send sound requests to the client.
+
+	Music [F4] - this item allows the user to disable all playing
+	    of music scores. The setting is sent to the server so that
+	    it doesn't even send music requests to the client.
+
+	Voice [F5] - this item allows the user to disable all speech
+	    output. The setting is sent to the server so that it
+	    doesn't even send speech requests to the client.
+
+	Edit Win [F6] - this menu item is the only way to switch
+	    between the full-screen internal editor window and the
+	    normal split-screen playing view. The item is not enabled
+	    when nothing is being edited. By switching to the normal
+	    view when editing, you can continue to operate in the MUD,
+	    but this shouldn't be done long, since you might suddenly
+	    need to edit something else.
+
+    Options - these menu items select some supplementary functions.
+
+	ScreenToBack [R-A B] - this item sends the MUD client screens
+	    (the graphics and text windows) to the back of the stack
+	    of screens on your Amiga. Unless you are running other
+	    programs, this will just result in the normal Workbench
+	    screen coming to the front. It is useful during testing,
+	    however, since then there might be several MUD clients
+	    running on the same system as a server. Sending a ^F
+	    signal to MUD will cause it to move its screens to the
+	    front of the display. This function is not active when MUD
+	    is running in a Workbench window.
+
+	Workbench - this item allows you to try to turn the Amiga's
+	    Workbench on and off. Turning the Workbench off is useful
+	    to conserve memory. The Workbench will not turn off if
+	    other applications are open on the Workbench screen, or if
+	    MUD itself is running in a Workbench window.
+
+	Effects - this item allows you to examine and manipulate the
+	    local caches of graphics and sound effects that the MUD
+	    client maintains.
+
+	    Free File - a single cached IFF file will be freed. This
+		can be a background, brush or image, a sound sample,
+		or a music score. The next time the selected file is
+		needed, it will have to be reloaded from disk. The
+		system will chose the least recently used file.
+
+	    Free Effect - free the single least recently used
+		unreferenced effect. See a later section on 'Caches'
+		for more details.
+
+	    Zap Effects [R-A Z] - free all effects
+
+	    Show Status - show the status of all cached files and
+		effects. This status is affected by requests coming
+		from the server and by the above three menu items. See
+		the 'Caches' section for more information.
+
+	    Quiet - when active (checked), this flag tells MUD to not
+		print warning messages about not being able to find
+		effects files. These messages let you know what files
+		the scenario is trying to use, but can be annoying.
+
+	Memory - the amount of available chip and total memory is
+	    shown. This can be useful in understanding why effects
+	    aren't happening (lack of memory), and to get a feel for
+	    the amount of memory that the MUD client can consume.
+
+    Serial - these items are mostly of use only during an initial
+	"terminal mode" with a serial connection.
+
+	IgnoreCD - controls whether or not MUD will expect a valid CD
+	    (Carrier Detect) signal. This hardware signal should be
+	    generated by a modem when it detects a carrier signal on
+	    the telephone line. If your modem does not do this, or if
+	    you have told it not to, or if your serial cable does not
+	    transmit the signal, you should instruct MUD to ignore the
+	    signal, else it will not think a connection has been made.
+
+	Speed - provides a few manually-selectable speeds for use when
+	    in terminal mode. Other values can be entered from an icon
+	    tool type or a CLI command line.
+
+	Break [R-A .] - requests that a break condition be sent over
+	    the serial line. This condition is a lengthy pause in the
+	    raw transmit data stream that is detectable at the other
+	    end of the line. You can see it as an "on" pulse in your
+	    modem's TX light.
+
+	Connect [R-A C] - this item forces MUD to attempt to initiate
+	    a binary connection with the other end. If the other end
+	    is set up to only handle a binary connection, this will
+	    not be necessary, since the other end will start things
+	    up. If, however the other end is waiting to distinguish
+	    either a binary or a text-only connection, then this menu
+	    item is used to start up a binary connection.
+
+	Stats [R-A S] - this item shows some statistics maintained by
+	    the serial protocol code:
+
+		Packets TX: - total number of packets (messages) sent
+		    out from this end.
+
+		ACKs TX: number of positive acknowledgements of
+		    correctly received packets that this end has sent.
+
+		NAKs TX: number of negative acknowledgements of
+		    incorrectly received packets that this end has
+		    sent. Incorrectly received packets must be resent
+		    by the sender.
+
+		Packets RX: total number of packets that this end has
+		    received.
+
+		ACKs RX: number of positive acknowledgements received.
+
+		NAKs RX: number of negative acknowledgements received.
+
+		Waits timed out: MUD puts a time limit on any of its
+		    waits for receiving something over the serial
+		    port. This number indicated how many times that
+		    time limit went off. Normally, this means that a
+		    packet sent from this end was completely lost, so
+		    the other end didn't either ACK or NAK it.
+
+		Read no bytes: indicates the number of times a serial
+		    port read request returned, but indicated that no
+		    bytes were received. This can happen if a BREAK
+		    condition is received.
+
+		Writes failed: indicates the number of times that a
+		    serial port write request did not complete due to
+		    some error, such as a loss of carrier signal.
+
+
+History Manipulation and Input Line Editing
+
+MUD maintains two forms of history. One is a history of commands
+entered by the user, and the other is a history of both input lines
+and output text from the server.
+
+The output history is straightforward - it can be accessed by using
+the scroll bar on the right hand side of the text window. Also,
+pressing an ALT key and an up or down arrow key at the same time will
+scroll the output window a line at a time. Additionally pressing a
+shift key (along with the ALT key and the arrow key) will scroll by a
+full window at a time.
+
+Input history and input line editing is very similar to that done in
+the standard Amiga shell, with some minor additions. The available
+operations are as follows:
+
+    up-arrow - scroll backward in the input history
+
+    down-arrow - scroll forward in the input history
+
+    shift-up-arrow - search backward in the input history for a line
+	which matches the input text to the left of the cursor. If any
+	is found, insert it into the input region in place of what was
+	previously there.
+
+    shift-down-arrow - move the current history search point to the
+	end of the input history and clear the input region
+
+    HELP, and numeric keypad keys - these are sent as is to the
+	AmigaMUD server, where they can be used as desired by the
+	currently running scenario
+
+    right-arrow - move the cursor right one column
+
+    left-arrow - move the cursor left one column
+
+    shift-right-arrow - move the cursor to the end of the current
+	input
+
+    shift-left-arrow - move the cursor to the beginning of the input
+	region
+
+    cntl-A - move the cursor to the beginning of the input region
+
+    cntl-B - move the cursor left one column
+
+    cntl-E - move the cursor to the end of the current input
+
+    cntl-F - move the cursor right one column
+
+    cntl-H (backspace) - delete the character before the cursor
+
+    cntl-I (tab) - move the cursor forward to the next 8 column
+	boundary
+
+    cntl-K - delete all characters from the one under the cursor to
+	the end of the current input. The deleted characters are saved
+	in the "undo buffer".
+
+    cntl-M (carriage return) - send the current input to the server
+	and clear the input region ready for another line. The line
+	may be added to the input history, depending on the setting of
+	the history choice, and on whether any editing of the line had
+	been done.
+
+    cntl-N - go forward one line in the input history
+
+    cntl-P - go backward one line in the input history
+
+    cntl-R - search backward through the input history. Same as
+	shift-up-arrow.
+
+    cntl-U - delete all input characters to the left of the current
+	cursor position.
+
+    cntl-W - delete the "word" to the left of the cursor
+
+    cntl-X - clear the input region
+
+    cntl-Y - insert from the undo buffer at the current cursor
+	position, and move the cursor to the end of the input data.
+
+    DEL - delete the character under the cursor
+
+
+Using the Internal Editor
+
+The internal editor in the MUD client program can be started to edit a
+simple text string, such as a character description, a room
+description, etc. or to edit an AmigaMUD function while in wizard
+mode. The initial startup varies slightly between the two situations,
+mostly relating to the quoting and escaping of things, but the main
+operation of the editor is the same in both cases.
+
+The edit session is actually started by messages from the server, but
+the server is normally just responding to user requests. When editing
+is to be done, the text to be edited must first be sent from the
+server to the MUD client program. This can take a few seconds for a
+large function or description operating over a slow link. When all of
+the data has arrived, MUD will switch to a single full-screen text
+window (if it wasn't already) containing the first windowfull of the
+text. A menu item, or function key F6, can be used to temporarily
+switch back to the normal mode of operation. The switch-back should be
+short, however, since MUD will not allow multiple things to be edited
+at once by any given client.
+
+While editing, the normal function keys and menus still operate, but
+their effect may not be immediately visible. Normal input and output
+history do not work, however, as they are replaced by an expanded set
+of editing operations. In edit mode, pressing the HELP key will
+display a short summary of the editing operations available.
+
+The internal editor is always in "insert mode"; that is, characters
+typed will always be inserted before any characters at or after the
+cursor on the current line, shifting those other characters to the
+right. The editor limits lines being edited to 160 characters (two
+displayed lines). Lines coming from the server will never be longer
+than can be displayed in the window, so longer lines can only be
+created by editing. There is no need to use long lines in AmigaMUD -
+lines of descriptions are all joined when the description is sent
+back to the server, and the spacing of functions is thrown away when
+the function is parsed. When editing things like letters and
+bulletins, the user's lines are preserved, but long ones will be
+wrapped when sent to any clients reading them.
+
+When editing an AmigaMUD function in wizard mode, the editor can work
+with the parser to identify the location of errors. When the user
+types the cntl-Q key combination, the text in the editor is parsed (on
+the local machine, by code in mud.library) into an internal data
+structure. If any errors are encountered, the parser gives an error
+message and a position to the editor. The editor displays the message
+in reverse video at the bottom of the window, and moves the cursor to
+the reported position, redrawing the window if necessary. The user can
+then immediately do editing to correct the error. If a further cntl-Q
+is entered, the parsing will be restarted from the beginning of the
+function. If, however, a cntl-G is entered, the parsing will continue
+from the first error, perhaps showing further errors in the function.
+A cntl-R combination can be entered to abort the parsing, but not
+start another parse. At any point in editing, a cntl-C can be entered
+to abort the entire edit session. Similarly, clicking on the edit
+window close box will abort the edit session, but will not cause MUD
+to exit.
+
+The text window's scroll bar is active while editing, and can be used
+to scroll around in a long function or description. Also, the same
+alt-up-arrow, alt-down-arrow, shift-alt-up-arrow and shift-alt-down-
+arrow key combinations that work in normal mode also operate while
+editing. When scrolling this way, the text cursor may have to move to
+remain visible in the window.
+
+The available editing operations are:
+
+    Control operations:
+
+	HELP - display a short summary of operations
+
+	cntl-C - abort the edit. If editing a description, the
+	    scenario code is informed that the edit was aborted. If
+	    editing an AmigaMUD function, the function will be
+	    unchanged from before the edit. The edit can also be
+	    aborted by clicking on the close box of the edit window.
+	    This will not cause MUD to exit.
+
+	cntl-Q - if editing a description, then the description as it
+	    is in the editor is sent to the server as the result of
+	    editing, and the MUD client program switches back to
+	    normal operation. If editing a function, then MUD starts
+	    parsing the function. If no errors are encountered, the
+	    function is sent to the server where the new definition
+	    immediately replaces the old one. If an error is
+	    encountered, its message is displayed at the bottom of the
+	    window, and the cursor is moved to the location of the
+	    error.
+
+	cntl-G - this combination does nothing unless a function is
+	    being editing, and an error has been encountered. In that
+	    situation, the parsing continues and the next error is
+	    reported. If there are no more errors, that is indicated.
+
+	cntl-R - this combination does nothing unless a function is
+	    being edited, and an error has been encountered. In that
+	    case, all further errors from this parse of the function
+	    are discarded.
+
+    Cursor motion operations:
+
+	left-arrow - move cursor left one column
+
+	right-arrow - move cursor right one column
+
+	shift-left-arrow - move cursor to the beginning of the line
+
+	shift-right-arrow - move cursor to just past the end of the
+	    line
+
+	down-arrow - move cursor down one line, scrolling the window
+	    if necessary
+
+	up-arrow - move cursor up one line, scrolling the window if
+	    necessary
+
+	shift-down-arrow - move cursor to the bottom of the window
+
+	shift-up-arrow - move cursor to the top of the window
+
+	cntl-A - move cursor to the beginning of the line
+
+	cntl-B - move cursor back one column
+
+	cntl-E - move cursor to the end of the current line
+
+	cntl-F - move cursor forward one column
+
+	cntl-I (tab) - move cursor forward to the next 8-column
+	    tabstop
+
+	cntl-L - move cursor to the beginning of the next line
+
+	cntl-N - move cursor to the next line
+
+	cntl-P - move cursor to the previous line
+
+	cntl-T - move cursor to the line at the top of the window
+
+	cntl-Z - move cursor to the line at the bottom of the window
+
+    Editing operations:
+
+	cntl-D - delete the current line
+
+	cntl-H (backspace) - delete the character before the cursor
+
+	cntl-J - join this line with the next line. The text of the
+	    next line is appended to the end of the current line.
+
+	cntl-K - characters from the current one under the cursor to
+	    the end of the line are deleted (killed)
+
+	cntl-M (carriage return) - a new line is inserted after the
+	    current one and the cursor moves to the beginning of that
+	    empty line
+
+	cntl-S - split the current line. Characters from the one under
+	    the cursor to the end of the line are moved into a new
+	    line inserted after the current one.
+
+	cntl-U - characters from the beginning of the current line
+	    upto the one just before the cursor are deleted
+
+	cntl-W - the previous "word" is deleted. A word is a sequence
+	    of non-spaces delimited by spaces or the beginning or end
+	    of the line.
+
+	cntl-X - the current line is cleared, or emptied
+
+	cntl-Y - the line is put back to the same state it had before
+	    any changes were made to it. This backup copy of the line
+	    is discarded if the cursor is moved out of the line, i.e.
+	    only changes made to the line while the cursor is in the
+	    line can be undone.
+
+
+Caches in the MUD Client Program
+
+In computer usage, a cache is a set of local copies of things that are
+expensive to get. An instruction cache in a CPU is a small memory
+which contains some of the instructions executed most recently. This
+cache memory can be accessed much faster than the main RAM memory
+external to the CPU chip. This same technique is used in AmigaMUD to
+speed up operation. This section will discuss the caches used in the
+MUD client program. The symbol cache and the function header cache are
+of benefit only to wizards, and were discussed earlier.
+
+AmigaMUD uses the term "effect" to refer to any of the non-text output
+items that are possible: graphics, sound, voice and music. Scenes in a
+scenario can be drawn in a variety of ways. The simplest way is to
+simply load an IFF ILBM image produced using a paint program. This
+image must be present on the remote client machines, however, since
+sending such an image over the serial connection every time it is
+needed would be too slow. Many players of an AmigaMUD scenario will
+not have the pictures, however, so an alternate method of drawing a
+scene is needed.
+
+As directed by code in AmigaMUD functions, the server can send
+messages to remote clients directing them to draw various simple
+graphical elements in the graphics window. These include lines,
+rectangles, circles, etc. A simple form of a scene can be drawn using
+these elements, and can be sent from the server to the client in less
+time than sending a full bitmap of a similar scene. It is useful,
+however, if a given scene needs to be sent over only once per session.
+Then, the scene can be called up by a short command from the server,
+thus greatly speeding up the play of the game.
+
+This storing of graphics elements (and commands to play sounds, etc.
+as well) by the remote clients is the "effects cache". Each effect is
+uniquely identified, and can be called up much like a subroutine or
+function can be called in a programming language. In fact, they ARE
+effects subroutines, and can in turn call on other, lower-level
+effects subroutines.
+
+Many Amiga systems have a megabyte or more of RAM, but have only a
+single floppy disk drive for permanent storage. Having to load up an
+IFF image or sound sample every time they are needed could make for
+slow and unpleasant playing of a graphics MUD. To alleviate this, the
+MUD client program will cache such items in RAM. This is termed the
+"file cache".
+
+The menu item "Effects"/"Show Status" displays the status of the
+caches in the client program. Here is a sample of its output:
+
+Files:
+  Sounds/clang >0<
+  Images/Town/mall >0<
+Effects: 4/18>2< 5/18>2< 3/18>10< 2/18>8< 13/240(7) 8/12 20/416(15) 6/112 1/48
+Tiles:
+
+Here there are currently two files loaded in the file cache. One is an
+image (IFF ILBM) called 'Town/Mall'. The other is a sound sample (IFF
+8SVX) called 'clang'. The printed name shows the directory within the
+"AmigaMUD:" assign that the file came from. The '>0<' indicates that
+there are currently no references to the files, and thus they can be
+flushed from the cache as desired. Files can be flushed from the file
+cache using the "Effects"/"Free File" menu item, and can also be
+flushed by the program itself if it runs out of memory (e.g. to load
+in another file). When a file is flushed, the Least Recently Used one
+(the one such that all others have been used more recently) is chosen
+for flushing. A file cannot be flushed if its reference count is
+greater than zero. This will be true while a sound sample is playing,
+while a music score is playing, or while an instrument is referenced
+by a score in the file cache.
+
+There are nine effects subroutines currently stored in the effects
+cache. For each one, the first number displayed (before the '/') is
+the unique identifier for the effect. For a given compilation of the
+scenario, these numbers will not change. The number after the '/' is
+the size in bytes of the effect. The four length-18 effects in the
+above display are for the four styles of doors used in the standard
+scenario. A following number as in '>2<' shows the number of
+references to the effect subroutine from other effects subroutines.
+The various doors are used by both the 'streets' and the 'mall'
+effects subroutines. A following number as in '(15)' shows the number
+of references to other effects subroutines that this effect makes.
+The list of effects subroutines is shown in order of the most recently
+used one to the least recently used one. Thus, in this case, using the
+"Effects"/"Free Effect" item would free the effect with key 1 and size
+48. Again, affects with non-zero reference counts cannot be freed.
+
+Freeing an effect is not instantaneous. The server keeps track of
+which effects each client has in its cache, so that it knows when it
+has to send a copy of an effect to a client. So, when the client wants
+to free an effect, it sends a request to the server, which will always
+reply in the affirmative. This allows the server to try to keep its
+records accurate. It is, however, still possible for the two to get
+out of agreement. If the server sends an effect that the client
+already has in its cache, the client just ignores the new copy. This
+can happen even in proper operation, because of timing issues. If an
+effect manages to call an effect that is not in the cache (this should
+not happen), the call is ignored.
+
+The "Tiles:" line in the output will currently always show nothing,
+since no current scenario uses the tiling facility of the system. When
+in use, each entry is simply the numeric identifier of the cached
+tile.
+
+The "Effects"/"Zap Effects" menu item sends a request to the server
+saying that all of the effects subroutines cached by this client are
+to be freed. When the reply gets back to the client, it in turn will
+free all of the effects subroutines it has cached. This can be useful
+if for some reason, the server and the client seem to get out of
+agreement and the proper displays are not appearing. More likely,
+however, is a bug in the scenario which is not displaying the scenes
+correctly.
+
+There is one circumstance where all of your cached images and brushes
+will be removed. This is when you are running MUD with one or two
+custom screens (as opposed to in WorkBench windows), and a new
+background is loaded which has a different colour palette than the
+currently in-use palette. In this situation, the remapping of the
+colours of the images and brushes to the active palette becomes
+invalid, and needs to be rebuilt. This is currently side-stepped, by
+simply removing all of them from the cache, which will cause them to
+be reloaded if needed, and remapped at that time. This is arguably the
+best solution, since the images as mapped to the current palette may
+have lost information from their in-file forms, which can perhaps be
+fully utilized if they are remapped against the new palette.

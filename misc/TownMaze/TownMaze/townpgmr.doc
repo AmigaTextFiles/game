@@ -1,0 +1,839 @@
+File townpgmr.doc, the programmers' documentation for townmaze Release 1.1.
+
+
+This file documents the C code; see file README for compile and
+execute instructions, copyright restrictions, etc.
+
+Since townmaze is meant to be a set of software for use by programmers,
+there is going to be a _lot_ of programmer documentation.  Each of the
+following source code files will be separately described.
+
+ townmaze.h       townproto.h
+
+ cleanupmap.c     closedoors.c       closegates.c       connectst.c
+ filllist.c       fillmaze.c         finishalleys.c     freespace.c
+ getargs.c        interiorcell.c     makecourts.c       makegates.c
+ makestreet.c     makespace.c        makeunused.c       movefromto.c
+ nhbrexists.c     nhbris.c           showdbmaze.c       showlistdet.c
+ showlistsum.c    showmaze.c         townmain.c         usage.c
+
+But first, an overview.
+
+Townmaze works conceptually on a structure of maze cells in a
+four-connected (each cell has four neighbors) grid with one of five
+statuses:
+
+ISOLATED - no neighbor of this cell is a street.
+
+LIVE - some neighbor of this cell is a street, and some neighbor of
+this cell is an isolated cell. 
+
+DEAD - some neighbor of this cell is a street, but no neighbor of this
+cell is an isolated cell. 
+
+STREET - the passageways for the adventurers; this cell is connected
+by a series of other street cells to some origin point for a street. 
+
+UNUSED - this cell is solid rock, it may neither become a room nor a
+street, nor have a street cell as a neighbor. 
+
+The goal is to build a town maze like the upper level of Bard's Tale I,
+with a street to every door, and a fairly "double row of brownstones" 
+appearance, by looking two neighbor links away, to preserve where
+possible room cells in back to back rows.
+
+To accomplish this, LIVE cells are used to indicate when at least one
+direction from the live cell, the next street is separated by an
+ISOLATED cell and some other non-STREET cell on the far side.  This
+works fairly well when the streets run very parallel, not so well when
+they don't.  Better strategies may well exist, but this one does very
+nice mazes for some parameter values. 
+
+The basic plan of townmaze is to
+
+1) Accept a set of command line parameters.
+
+2) Allocate two major data structures of the appropriate size in
+accordance with those parameters, one a two dimensional array of
+characters which will be used to build and display the completed maze,
+the other a one dimensional array of structures which is used as a
+status list to store the status of each maze cell, and to link maze
+cells together in sublists for speed of processing. 
+
+3) Fill in the maze as a solid array of rooms except the corners,
+which are blocked off (they're too hard to use), each room without
+doors, and fill in the status list and link it together as a list of
+ISOLATED cells, except again for the corners, which become UNUSED
+cells. 
+
+4) Seed the maze with uniquely numbered street origins at border or
+interior cells, and obstacles at interior cells only.  Assure that
+different seed cells are far enough apart to allow successful maze
+creation.  Update display to match; rooms beside streets get doors
+facing the streets; the outside wall next to a street becomes a
+"gate".
+
+4a) Seed any UNUSED cells in the interior of the maze.
+
+4b) Seed any "gate" STREET cells along the border of the maze.
+
+4c) Seed any "courtyard" STREET cells in the interior of the maze.
+
+5) Connect the streets by extending them until all streets have the
+same street number; merge street numbers when two streets meet.  Again
+update the display array to match; rooms are converted to streets by
+removing all doors.  Rooms newly adjacent to streets gain a new door
+on that street. 
+
+6) When all streets are connected, continue to extend them as "alleys"
+until no isolated room cells remain. 
+
+7) Close most of the doors, leaving one open door per room, by
+replacing doors by walls.
+
+8) Possibly close some or all gates by replacing them with walls.
+
+9) Clean up "pillars"; bits of wall that have been isolated by being
+surrounded by streets.
+
+10) Display the maze.
+
+11) Free the allocated space.
+
+12) Exit.
+
+Detailed source module descriptions.
+
+-----------------------------------------------------------------------
+| townmaze.h 
+-----------------------------------------------------------------------
+
+This header file is where all the #ifdef controlling #defines are done
+(except MAINLINE, in townmain.c, and RAND48, in the make file), the
+structures are defined, the defined constants are declared, and the
+external variables are declared or defined under #ifdef control. 
+
+In particular, the cmaze two dimensional character array for maze
+display, the statlist one dimensional structure array for cell
+statuses, and the various cell type link list head pointers isolated,
+live, dead, street, and unused, and their corresponding cell counters
+isolatedct, livect, deadct, streetct, and unusedct, are all defined
+here. As well, streetnumct, the count of how many different street
+numbers exist, is defined here.
+
+As well, the global parameters mazeheight, mazewidth, mazegates,
+leftgates, mazecourts, mazeunused, with their appropriate defaults
+when not read in from the command line, and randomseed without a
+default value, and the derived global parameter listsize, are declared
+and defined here.
+
+In addition, the integer constants ISOLATED, LIVE, DEAD, STREET, and
+UNUSED are defined, and the character constants WALL, VDOOR, HDOOR,
+and BLANK.  Also defined here is NOPOINTER, which acts as a null
+pointer in the statlist double linked lists, which use indices rather
+than pointers for links.
+
+
+-----------------------------------------------------------------------
+| townproto.h
+-----------------------------------------------------------------------
+
+This header file contains all the function prototypes, since each
+function is in its own separate source module, done in both ANSI C and
+old K&R form, conditioned on __STDC__, the compiler defined constant
+to identify ANSI C compilers.  The same conditioning is done in each
+*.c module for compatibility.
+
+
+-----------------------------------------------------------------------
+| cleanupmap.c -- cleanmap()
+-----------------------------------------------------------------------
+
+This is the routine that accomplishes step 9) above.  It does this by
+moving to each intersection point in the cmaze display array interior
+for the horizontal and vertical walls (see fillmaze.c, below) of the
+rooms, and looking at the north, south, east and west display
+characters; if they are all blanks, then this is an isolated "pillar"
+piece of wall, so it is replaced by a blank.
+
+
+-----------------------------------------------------------------------
+| closedoors.c -- closedoors()
+-----------------------------------------------------------------------
+
+This is the routine that accomplishes step 7) above.  It does this by
+walking the DEAD list from list head pointer dead until a NOPOINTER
+next pointer is found.  At each room on the dead list, it counts the
+doors by looking north, east, south, and west, then if more than one
+exists, picks one at random to survive and replaces the others with
+WALL symbols.  Most of the nasty looking arithmetic is just the
+translation from statlist indices to cmaze locations; all the code is
+rife with them.
+
+The necessity for this routine is that when the previous street
+creation routines are complete, most of the room cells have most walls
+as doors, which doesn't make for much of a challenge, the adventurer
+doesn't have to work down the street, but can instead just walk
+through the row of rooms to the street behind. 
+
+Also, games like Bard's Tale are simpler to design if all normal rooms
+have only one exit, since then only one viewpoint and no choices need
+be presented to the player. 
+
+-----------------------------------------------------------------------
+| closegates.c -- closegates()
+-----------------------------------------------------------------------
+
+This is the routine that accomplishes step 8) above.  It does this in
+response to a comparision between the -g mazegates paramenter and the
+-l leftgates parameter; if more gates were seeded than were requested
+in the final maze, then gates are closed at random until only
+leftgates of them remain.
+
+How many places along the maze periphery must be checked for gates is
+precomputed into possiblegates, which becomes the inner (for) loop
+limit.
+
+The gate closing task is done by keeping track of how many gates are
+left with gatesleft, conditioning an outer while loop on gatesleft
+being greater than leftgates, then withing the loop rolling a random
+gate number into chosengate as a modulus of RANDOM() by gatesleft, and
+then walking the periphery of the maze in and inner for loop, looking
+for VDOOR or HDOOR elements in the outer wall, and counting how many
+gates have been encountered in foundgate.
+
+When the gate encountered matches the number found, the gate is
+closed, the gatesleft decremented, and the inner loop broken.
+
+The messy interior of the inner loop is unavoidable unless a link list
+of gate cells is kept, which would have messed up statlist too much;
+the arithmetic to walk around the border of a rectangle when the
+indices are in row major order instead of some nice inturning spiral
+is just that ugly.
+
+
+-----------------------------------------------------------------------
+| connectst.c -- connectstreets()
+-----------------------------------------------------------------------
+
+This is the routine that accomplishes step 5), above.  The goal is to
+make all the streets in the maze into one connected street, decreasing
+streetnumct to 1, and this is where townmaze spends most of its time,
+since adding new street cells is what makes the maze.
+
+This is one of the biggest routines in townmaze, because it needs
+three separate strategies to connect streets.  First it tries to
+connect all the streets by only using cells from the LIVE list in
+statlist.  If all the LIVE cells are used up and there are still more
+than one street noted in streetnumct, then the second strategy is to
+use only DEAD cells that touch two different streets as new street
+cells.  If worst comes to worst, if streetnumct is still greater than
+one, then in the third strategy, the entire DEAD cell list is used as
+targets to connect the streets.
+
+This routine runs a lot slower than first glance might suggest,
+because called routine makestreet() can succeed as infrequently as
+once in a thousand calls, depending on the current configuration of
+the maze, and the mazestraightness parameter setting.
+
+The first phase is done by picking a random LIVE list element, walking
+the live list to that element, and asking makestreet() to make a
+street of it.  The outer loop doing this is conditioned on both
+streetnumct being greater than 1, and livect being greater than zero.
+The fact that makestreet() might refuse to make a street on
+straightness criteria is hidden by just running the outer loop until
+one of the conditions fails. 
+
+Afterthe outerloop selects a targetcell from the LIVE list based on a
+modulus of RANDOM() against the livect, the middle loop is used to
+walk livewalk down the LIVE list. This is where the maintenance of the
+links lists pays off; without them, the walk to find the targetcell
+among the LIVE list cells would have to walk the whole statlist, a
+much longer list. 
+
+In the inner loop, nhbrexists is used, here as elsewhere, to avoid
+indexing an invalid entry of statlist, while nhbris is used to
+translate simply from a neighbor number 0-3 to a statlist cell index.
+If you want to be nice about it you could call this data abstraction.
+
+The call to makestreet() contains "-1" as the last parameter, which
+enables the straightness checks there.
+
+The second phase is done by walking the DEAD list, seeking DEAD cells
+whose neighbors include streets with two or more different numbers.
+This could probably have been done more cleanly with the "for(i" loop
+replaced by a "while (deadwalk != NOPOINTER)" loop, but this one
+works.  Because the DEAD list is changing size while the list is
+walked, there are some hyper-defensive checks going on to make sure
+the DEAD list end isn't exceeded.  For the same reason, deadwalk has
+to be moved past the current cell before it is possibly yanked out
+from under by makestreet (which will move it from the DEAD list to
+the STREET list if called), so lastdead is used to access the current
+cell and then not used after the makestreet call.
+
+At the top of the loops, a check is made that this cell is interior;
+the goal is to avoid running streets along the city wall, a boring
+kind of design; take this check out if you want the occasional wall
+hugger.  The double loop on j and k is comparing neighbors, where they
+exist, looking for streets with different numbers. 
+
+To avoid trying to break out of a double loop, not one of C's strong
+points, another trick was used.  The reason this loop doesn't keep
+trying to make a street out of the chosen cell after it has done so
+once is that makestreet() causes all the adjacent streets to be merged
+and have the same street number, so that the inner if test always
+fails after the first success. 
+
+he call to makestreet is with a forcing actual direction last
+parameter (see below about cheapdir) so the street is always created
+on the first try. Except, that if the street is a neighbor of an
+UNUSED cell, then the check at the very top of makestreet() means
+intsead that it will never be made into a street. 
+
+The double j, k loop can thus in either case safely be let run to
+completion, since it will never ask makestreet() to make a street into
+a street.  Letting it spin through to completion is no big deal since
+phase two is a very minor part of the overall time in any case, doing
+no random calls. 
+
+The little trick down inside the loop with cheapdir is to adopt the
+direction of one of the streets whether this cell continues it or not,
+and the second one if it happens to continue the street.  This is not
+perfectly fair, but it doesn't seem to hurt anything, and with at
+least two sides already streets, this cell is less likely than many to
+want to continue its direction into a subsequently-started-here alley
+or street.
+
+The third phase is much like the first, except that now the DEAD list
+is being randomly used to extend the streets, rather than the live
+list.  This tends to make the town maze more open, and to destroy the
+back to back rooms that are the whole goal of townmaze, but it is
+sometimes the only way to "make ends meet" and get all the streets
+connected, an absolute requirement. for townmaze.  The only difference
+from the first phase is that, unlike LIVE cells, which are always
+interior (to keep the streets from running down the city wall again),
+DEAD cells may be border cells, and we want explicitly to exclude the
+border cells from consideration for extending the streets.
+
+
+-----------------------------------------------------------------------
+| filllist.c -- filllist()
+-----------------------------------------------------------------------
+
+This routine does half of step 3), above.  This function takes the raw
+space allocated for statlist by makespace(), and turns it into an
+array which is also five doubly linked lists, all but the ISOLATED
+list empty and with list heads set to NOPOINTER, and list counts set
+to zero, to start.  The ISOLATED list count is set to listsize, and
+the list header pointing to the zeroth element of statlist.  Just at
+the end it puts the four corner cells into the UNUSED list using
+movefromto(), and sets the streetnumct to zero (it needed to be done
+somewhere in setup, or static set there, and I prefer the self
+documentation of an explicit action). 
+
+
+-----------------------------------------------------------------------
+| fillmaze.c -- fillmaze()
+-----------------------------------------------------------------------
+
+
+This routine does the other half of step 3), above.  This function
+makes every even (zero origin, remember) row and column of the cmaze
+character array a WALL symbol, and the remaining doubly odd coordinate
+interstices BLANK symbols, and at the end fills in WALL symbols in the
+four corner cells' centers to make them UNUSED looking. 
+
+
+-----------------------------------------------------------------------
+| finishalleys.c -- finishalleys()
+-----------------------------------------------------------------------
+
+This is the routine that accomplishes step 6), above.  After
+connectstreets() has made sure that all the streets in town are
+interconnected, there may still be ISOLATED (and thus LIVE) cells
+remaining.  This routine continues to turn LIVE cells into streets,
+and thus ISOLATED cells into LIVE or DEAD cells and possible
+consequently LIVE cells into DEAD cells (from lack of a neighboring
+ISOLATED cell and more) until no LIVE or ISOLATED cells remain. 
+
+This works just like the first phase of connectstreets(), except that
+it is no longer conditioned on streetnumct > 1, just on livect > 0. 
+
+[By the way, there's no special significance to "alleys" as opposed to
+"streets", the name just seemed homeyer.]
+
+
+-----------------------------------------------------------------------
+| freespace.c -- freespace()
+-----------------------------------------------------------------------
+
+This routine does step 11), above.  Sigh.  There really ought to be a
+library routine to allocate, and another to free, the ugly messes C
+uses for multidimensional arrays.  So far as I can figure, you can
+allocate a fixed size array without the intermediate pointer list only
+at compile time, since there is no way to convince the compiled code
+at run time that it knows the major dimension, so regular indexing
+won't work for an array dynamically allocated into an array declared
+"cmaze[][]", and the compiler complains if you try. 
+
+In any case, this does the standard stuff to give back the storage for
+statlist and cmaze.  On a Unix box this is excessive neatness, but on
+an Amiga that doesn't do resource tracking, this is mandatory to avoid
+"leaking" memory and forcing an eventual reboot. 
+
+Error checking is done on the free() calls; I don't have any recourse
+if an error occurs in any case, but at least I can complain before
+dying. 
+
+
+-----------------------------------------------------------------------
+| getargs.c -- getargs(argc,argv)
+-----------------------------------------------------------------------
+
+This routine accomplishes step 1) above.  Sigh again.  Lattice C for
+the Amiga doesn't have getopts() as a library routine, so I wrote this
+special purpose beast.  To avoid intensely ugly code, the nice
+getopts() feature of accepting both spaces and no spaces between the
+flag and the value is foregone here; I just don't have that much
+patience.  Leaving the space only option makes this code neat and
+easy. 
+
+The routine starts by checking for any arguments, and if none just
+goes down to compute listsize and (compile time ooptionally) do a
+header and return.  If there are an odd number of argv entries (the
+function name is counted in argc, so this means that flags and values
+come in pairs), the parameters are fetched in order into the
+appropriate global parameter variables.  If an even number of argv
+entries exist, the routine complains and exits.
+
+The switch statement is pretty standard; the only interesting element
+is the -r switch, which loads a long instead of an integer, and also
+calls SEEDRANDOM(randomseed) to override the previous (in main()) call
+to SEEDRANDOM(time()).  This lets the random seed be forced, allowing
+duplicate runs for debugging or for inclusion in a game where the code
+and seeds are cheaper to store than the rooms. (Big game!)
+
+The check below the switch is about half of the sanity in the whole
+program:
+
+(mazeheight < 11) -- The maze must be at least five cells wide to
+leave room for one interior row of buildings. 
+
+((mazeheight%2) != 1) -- The maze height must be odd.
+
+(mazewidth < 11) -- The maze must be at least five cells high to leave
+room for one interior row of buildings. 
+
+((mazewidth%2) != 1) -- The maze width must be odd.
+
+The above four checks are order sensitive in the error messages they
+produce, because C (at least the ones I have here) implements modulus
+of a negative number wrong, so that ((-1)%2 != 1) comes out true.
+
+(mazegates < 0) -- There must be at least zero gates.
+
+(mazegates > (2*((mazeheight - 6)/7) + 2*((mazewidth- 6)/7))) -- There
+can be no more gates than one per three side cells between the unused
+corner cells, to assure that all gates will fit. 
+
+(leftgates < 0) -- There must be at least zero gates left at the end.
+
+(leftgates > mazegates) -- There cannot be more gates left than there
+were to begin. 
+
+(mazecourts < 0) -- There must be at least zero courtyards.
+
+(mazecourts > (((mazeheight - 5)/6)*((mazewidth - 5)/6))) --
+Courtyards must have room for at least two spaces between them,
+otherwise they won't fit when makecourts() is run.
+
+((mazecourts + mazegates) < 1) -- There must be at least one street.
+
+(mazeunused < 0) -- There must be at least zero unused cells.
+
+(mazeunused > (((mazeheight - 1)/14)*((mazewidth - 1)/14))) -- Unused
+cells must have room for at least three squares between them,
+otherwise they can trap DEAD cells away from streets and won't fit when
+makeunused() is run.. 
+
+(mazestraightness < 0) -- Negative straightness makes no sense.  [Zero
+means don't do straightening, and that's OK.]
+
+(mazestraightness > 998) -- There must be at least one chance per
+thousand of accepting a bend in the street, or an infinite loop might
+occur. 999 is the highest value returned by the random roll modded
+against 1000, so 998 is the largest accpetable straightness parameter. 
+
+The above checks now bump an error counter, and if the sanity check
+drops out for any reason, an appropriate message telling which parameter
+was wrong, and why, is printed. Since the values read in OK, but were
+just inappropriate, the header line optional below to stdout is forced
+here to stderr to show the user what the program thinks s/he said.
+
+Similar error reporting is now in the switch statement cases for
+unreadable parameters.
+
+If all the parameters are right, the listsize (number of cell
+structures in statlist) is computed from the requested maze width and
+height. If the HEADER option is on (I always use it) a single line of
+parameters is printed to standard out along with the eventual maze.
+[All other output goes to the standard error unit.]
+
+
+
+
+-----------------------------------------------------------------------
+| interiorcell.c -- interiorcell(cellid)
+-----------------------------------------------------------------------
+
+This simple function just checks that the passed cell has all four
+neighbors using nhbrexists().  Lots of stuff in townmaze specifies
+interior cells only. 
+
+
+-----------------------------------------------------------------------
+| makecourts.c -- makecourts()
+-----------------------------------------------------------------------
+
+This routine does step 4c), above.  In response to the mazecourts
+parameter value, this routine places "courtyards", STREET cells in the
+interior of the town maze, spaces them out by making sure before they
+are placed that all neighbor cells and the randomly chosen cell are
+ISOLATED cells, and uses a side effect of makestreet() to turn them
+into LIVE or DEAD cells as each courtyard is placed, effectively
+fending off neighbors a bit. 
+
+Because there are so many ISOLATED cells when this is done, it is
+better to roll the randomizer agains the whole maze and accept the
+misses where a non-ISOLATED cell is chosen, than to roll against the
+length of the ISOLATED list and walk it from the end each time.  If
+one habitually made the courtyard cells very high, it might be better
+to do this the other way. 
+
+The random roll could be improved, but for small mazes it doesn't
+matter much.  The bias of ignoring the mismatch between the modulus
+and the length of the interval returned by RANDOM() in a maze 32K on a
+side would probably be pretty obvious. 
+
+Because it was easier than explicitly compensating for the
+interference from UNUSED cells, a MAXTRIES limit is enforced for
+placing each courtyard cell.  The limit is kept very high to prevent
+interference with the straightness parameter other places that it is
+used, but with it in here, makecourts is guaranteed to terminate
+eventually.  On the other hand, it is not guaranteed to place as many
+courtyards as the user specified, which is one reason for the sanity
+check at the start of connectstreets(). 
+
+
+-----------------------------------------------------------------------
+| makegates.c
+-----------------------------------------------------------------------
+
+This routine does step 4b), above.  In response to the makegates
+parameter value, this routine places "gates", STREET cells along the
+border of the town maze, spacing them apart by insisting that all the
+existing neighbors when each gate cell is placed be ISOLATED cells,
+including the chosen cell itself.  It uses makestreet() as each gate
+cell is placed, to turn the chosen cell into a street, its border cell
+neighbors into DEAD cells, and its interior neighbor into a LIVE or
+DEAD cell depending on that neighbor's neighbors. 
+
+It would have been possible to just roll a randomizer against the
+whole statlist array, and then check the border and isolated
+properties, but for a very large town maze, this would have been
+grossly inefficient and slow, so the more complex method seen is used,
+instead.  The random roll is effectively done against the number of
+cell wallss in the town maze border, the border is walked using the
+logic that comprises the whole middle of this routine, and if the
+chosen wall meets the criteria of ISOLATED self and neighbors, it is
+selected.  This can still be slow if gates are dense, but not nearly
+as bad as scattershooting at the whole area. 
+
+As explained above for closegates(), the ugly arithmetic in the middle
+border walking logic is fairly inevitable, though perhaps it should be
+hidden like nhbrexists() hides similar arithmetic.  Maybe next time.
+
+Notice that, because we can't abstract away with interiorcell(), we
+must explicitly check nhbrexists() for each cell before using
+nhbris() to index statlist.
+
+Also, the test against MAXTRIES may not be needed here, but it was
+easier to put in the check than to do the analysis to prove it wasn't
+needed, and it makes future code changes like allowing non-corner
+UNUSED border cells more robust.
+
+
+-----------------------------------------------------------------------
+| makestreet.c -- makestreet(chosencell,streetid,streetpoints)
+-----------------------------------------------------------------------
+
+This routine is charged with doing all the work to make a single cell
+into a street cell, including updating all the neighbor cells whose
+status changes because this cell became a street cell, and doing all
+the corresponding architectural changes.  It is also tasked with
+enforcing the straightness parameter, which means that it gets to say
+"no I won't" a lot when told to make a street, and all the routines
+that call it have to either override that option with a explicit
+direction in the "streetpoints" parameter, or survive not being
+obeyed.  Not surprising that makestreet is a big routine.
+
+It starts out by refusing to build a street alongside an UNUSED cell,
+since the point of an UNUSED cell is to have all neighbors be rooms.
+It just returns immediately.
+
+Next, it checks the last parameter, and if it is "-1" (no street
+direction selected) enables the straightness check and does it by
+making sure that the selected cell can continue some street's current
+direction.  If not, it returns immediately.
+
+Next, it moves the chosen cell to the STREET list using movefromto().
+
+Next, it copies the streetid parameter to the cells
+statlist[].streetnum field. 
+
+Next, it updates the cmaze display version of the town maze.  As a
+first guess, it makes all four walls into doors. 
+
+Next, it starts working on the first order neighbors.  If the neighbor
+is a STREET, then the door becomes a BLANK or passageway.  If the
+chosen cell would continue the street direction, adopt that neighbor's
+street direction for this cell; keep the last one thus adopted.  If it
+wouldn't continue an existing street direction, defer this matter for
+the bottom of the routine.
+
+Next, a very important check is done to see if a detected neighbor
+street has a different street number than this streets number (passed
+in as streetdir).  If so, the higher number street is updated by a
+walk of the streetlist with the street number of the lower numbered
+street, and the streetnumct is decremented.  The two driving goals of
+the whole townmaze routine are to make streetnumct 1 and isolatedct 0.
+
+If the neighbor is LIVE, make it DEAD and then check its neighbors and
+if one is still ISOLATED, make it LIVE again.
+
+If the neighbor is ISOLATED, things get complicated.  This was hard
+enough to see that it was the last big logic bug in the program.  If
+the neighbor is ISOLATED, it becomes LIVE or DEAD, as appropriate,
+except that border cells always become dead to keep the roads off the
+walls as mentioned previously, and neighbors of UNUSED cells never
+become LIVE (because they aren't eligible to become streets), but
+always go from ISOLATED to DEAD. 
+
+This change, however, might mean that the formerly ISOLATED cells LIVE
+neighbors, if any, no longer qualify as LIVE.  So, each of those
+secondary neighbors is checked, and if it is LIVE, made DEAD, and then
+each of its (now tertiary) neighbors is checked in turn, and if it is
+ISOLATED, the DEAD cell is revived to LIVE again.  Whew! Making this
+work was what achieved back to back rows of rooms in the town maze
+after long programming effort.
+
+Next, the question of street direction for the new STREET cell is
+revived.  If some of the above overroad the "-1" that was installed by
+filllist(), that value is retained.  If not, and a valid (not -1)
+direction was passed in streetpoints, that value is adopted.  If not,
+the direction from a neighboring street is adopted, and this becomes a
+turning point in the street.  Note that the effect of the whole
+routine is that if the straightness check near the top found a
+direction that this street could continue an existing street, then it
+does continue some street, so we only get down here and turn the
+street if the turn direction was passed in, or if the dice roll was
+such as to allow a bend.
+
+At the end, makestreet returns a True value; it several other places
+returns False; I'm not sure this is currently used anywhere, but if
+desired for your code, the return value tells whether a street cell
+was in fact created.
+
+
+-----------------------------------------------------------------------
+| makespace.c -- makespace()
+-----------------------------------------------------------------------
+
+This routine does step 2) above.  The predecessor to freespace(), this
+routine uses malloc() to allocate space for the statlist and cmaze
+arrays, using the usual grotesque C mechanisms.  It is very defensive
+of freeing every bit of acquired memory if a malloc() call fails,
+because on the Amiga, malloc()ed memory is lost if not free()d before
+exit. 
+
+
+-----------------------------------------------------------------------
+| makeunused.c -- makeunused()
+-----------------------------------------------------------------------
+
+This routine does step 4a), above.  In response to parameter
+mazeunused, this routine makes some of the interior cells of the town
+maze have UNUSED status and a WALL symbol in the center.  It looks
+grotesque, but that's just because it checks the chosen cell and its
+48 closest neighbors to be ISOLATED before accepting selection of the
+cell for the UNUSED list. 
+
+Attempts are controlled by MAXTRIES, and, since this is the hardest
+seed item to place, it should be done first.  The reason for the wide
+band of ISOLATED cells is to assure that UNUSED cells, which cannot
+have streets beside them, have at least three rows of cells between
+them, so street connection is not blocked. 
+
+At the top of the routine, a choice existed to use simple math and
+inefficient surplus random calls, or complex math so that only
+interior cells were eligible for the random call.  The simple,
+wasteful method was chosen, since the mazeunused parameter is
+carefully limited to make sure the UNUSED cells will actually fit, and
+the number used is zero by default.  So totalcells is just the list
+size, and is used for the modulus against the RANDOM() call. 
+
+The outer loop is pretty simple, it just counts the requested
+mazeunused cells whose creation is attempted, attempts to find one to
+create upto to MAXTRIES attempts, and if one is found, as opposed to
+falling through on MAXTRIES, moves it to the UNUSED list with
+movefromto(), and makes the center a WALL symbol in cmaze with the
+usual ugly arithmetic to convert from statlist to cmaze indices. 
+
+The inner loop is simpler yet, with just two statements, the random
+cell choice to try, and a bump of tries to check each round against
+MAXTRIES. 
+
+What was a set of guard conditions for the do{}while is now a separate
+routine, to allow smaller compilers to compile the code.
+
+The new routine wimpy_cc() does 59 guard conditions for the do{}while,
+perhaps some minor record.  Dijkstra would be proud. There is really a
+lot less than meets the eye.  First, the tries against MAXTRIES test
+is done in the do{}while condition.
+
+Next, wimpy_cc() is called.  There, enough interiorcell() checks are
+done to assure that all 49 cells exist, each check depending on some
+one before for the existance of the next cell to check.  Last, all 49
+cells are checked to be ISOLATED cells. The thing that makes it look
+messy is that the nbhris() method of finding a neighbor is used rather
+than defining several extra functions to accomplish the same thing
+with fewer lines of code.
+
+Again, mainly defended by this being a low cpu cost part of the code. 
+
+-----------------------------------------------------------------------
+| movefromto.c -- movefromto(&fromlist,&fromcount,&tolist,&tocount,
+|                            newstat,cellnum)
+-----------------------------------------------------------------------
+
+This lovely little routine is used to hide almost all of the details
+of fairly tricky double linked list maintenance from the rest of the
+code. 
+
+Nothing terribly original is going on here; the cell pointers are
+saved, the cell is unlinked from the (middle of the) from list and
+linked into the head of the to list, the saved pointers are used to
+repair the rest of the from list, and the cell status is updated and
+the from and to counts corrected.. 
+
+There is a little complexity because the list heads are "pointers"
+(indices really) rather than whole list elements, but that is one of
+the two standard approaches. 
+
+-----------------------------------------------------------------------
+| nhbrexists.c -- nhbrexists(cellid,nhbrid)
+-----------------------------------------------------------------------
+
+This simple little routine just converts the statlist cell index to
+cell row and cell column, something that corresponds to no existing
+array in the program, and then checks to see if the neighboring cell
+in the nhbrid direction (0==north==up; 1==east==right; 2==south==down;
+3==west==left) falls inside the bounds of the cell row and column
+limits and returns true or false. 
+
+-----------------------------------------------------------------------
+| nhbris.c -- nhbris(cellid,nhbrid)
+-----------------------------------------------------------------------
+
+This equally simple routine depends on the neighbor cell being known
+to exist, and returns its statlist cell index given the current cell
+index and the neighbor direction.
+
+-----------------------------------------------------------------------
+| showdbmaze.c -- showdebugmaze()
+-----------------------------------------------------------------------
+
+This routine is for debug, and is linked in but only called in error
+conditions unless the SHOWSTART define is compiled set to 1.
+
+It does give a very handy debugging display, though, with the cell
+centers of non-STREET cells replaced by letters showing the cell
+status, I, L, D, U, or ? for bad status, and the centers of STREET
+cells replaced by the direction of that street cell as ^ > v < or X
+for bad direction. 
+
+This lets one dump (in one case where I used it) a running list of
+mazes, with a single street cell more progress for each, and visualize
+how the algorithm is working. I used this display to find the problem
+with tertiary neighbors of ISOLATED cells mentioned above under
+makestreet(). 
+
+The method is to walk the entire cmaze character array, dumping the
+array contents for all but center-of-cell cmazearray characters (the
+ones with both indices odd), and, using a big switch statement on cell
+status and a nested smaller switch statement on street direction for
+status STREET, to chose the status or direction symbol to print in
+place of the usual BLANK or WALL center symbol. 
+
+The default: entries for the switch statements are bogosities, though
+cute, but it's hard to put obsessively detailed debug statements into
+what are already debug routines, so I didn't. 
+
+-----------------------------------------------------------------------
+| showlistdet.c -- showlistdetail()
+-----------------------------------------------------------------------
+
+Another debug routine, calls to which are commented out in main().
+This and showlistsummary() together dump a detailed printout of the
+contents of statlist.  Since mountains of data are useless for
+debugging, no attempt has been made to format this nicely for big
+mazes; do your debugging with little ones. This part dumps the
+contents of each cell of the statlist, the prev, next, status,
+streetnum and streetdir fields. 
+
+-----------------------------------------------------------------------
+| showlistsum.c -- showlistsummary()
+-----------------------------------------------------------------------
+
+Another debug routine, calls to which are commented out in main().
+This and showlistdetail() together dump a detailed printout of the
+contents of statlist and the list counts and pointers.  This routine
+dumps the list identifier integer value, the list header pointer
+contents, and the list count for each of the isolated, live, dead,
+street, and unused lists, and with the street list items, the
+streetnumct global contents as well. 
+
+-----------------------------------------------------------------------
+| showmaze.c -- showmaze()
+-----------------------------------------------------------------------
+
+The routine that does step 10), show the final product, is extremely
+simple, just a row by row dump of the cmaze array with trailing
+newlines.  The little #if condition on PROGRESS is so that the first
+line of the maze won't get dumped starting in midline when the
+optional progress reports are turned on and showmaze() is being used
+along with showdbmaze() for debugging in mid run. 
+
+-----------------------------------------------------------------------
+| townmain.c -- main(argc,argv)
+-----------------------------------------------------------------------
+
+This is the main routine for townmaze.  It just calls routines to do
+the steps listed at the top in order: seeds the random number
+generator, gets the arguments from the command line, allocates array
+space, fills the cmaze array, fills the statlist array, seeds the
+unused cells, seeds the gate cells, seeds the courtyard cells,
+connects the streets, runs alleys to the remaining isolated cells,
+closes off the extra doors open for each room, closes off any extra
+open gates, shows the maze, returns the allocated array space to the
+free list, and exits (step 12), uniquely a part of main()).
+
+-----------------------------------------------------------------------
+| usage.c -- usage()
+-----------------------------------------------------------------------
+
+This routine is called by getargs if any of the command line arguments
+are incorrect or unparsable, it just dumps a 22 or so line usage
+message on the screen describing the parameters and their purpose
+briefly. 
+

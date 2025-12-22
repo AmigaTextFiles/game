@@ -1,0 +1,254 @@
+
+;------------------------------------------------------------------------
+;
+; Install script for MUIMine
+;
+; $VER: MUIMine-Install 1.0 (3.12.98)
+;
+;------------------------------------------------------------------------
+
+;
+;   set strings for language
+;
+
+;-------- English --------
+(
+    (set #wrongversion
+        (cat "You have an old version of the program 'Installer' on your Amiga!\n\n"
+             "This installation procedure needs at least Installer V42.9.\n\n"
+             "Please check your configuration!"
+        )
+    )
+
+    (set #welcome "Welcome to the the Installation of the MUIMine!")
+
+
+    (set #getdestdir-prompt "Please select the drawer to install 'MUIMine' in, a drawer called 'MUIMine' will be created here.\n")
+    (set #getdestdir-help "This is where you wish to install MUIMine. A drawer named MUIMine will be created here to install the MUIMine files to.\n\n")
+
+    (set #col-imageset-name "Colour image set")
+    (set #mwb-imageset-name "Magic Workbench image set")
+    (set #bw-imageset-name  "Black and White image set")
+
+    (set #getimageset-prompt "Which image set do you wish to use for MUIMine")
+    (set #getimageset-help
+        (cat "Image sets define the appearence of MUIMine by changing the bitmap imagery used to render the main MUIMine window elements.\n\n"
+             "MUIMine comes with three standard image sets. These are :-\n"
+             "  Colour - recommended for 16 colour or greater Workbench\n"
+             "  Magic Workbench - recommended if using Magic Workbench\n"
+             "  Black & White - recommended for standard 4 colour Workbench\n\n"
+             "If a full set of image files already exists in the install destination you are given the option of retaining the current image set. "
+             "Any existing image file is backed up if a new image set is selected."
+        )
+    )
+
+    (set #doc-file-name "MUIMine.doc")
+    (set #catalog-file-name "")
+    (set #language-dir-name "english")
+
+) ; english
+
+
+;
+;   these strings are for file names and are independent of the language
+;
+(set #col-image-ext     ".col")
+(set #mwb-image-ext     ".mwb")
+(set #bw-image-ext      ".bw")
+(set #mf-image-name     "def_MineFieldImage")
+(set #face-image-name   "def_FaceButtonImage")
+(set #dig-image-name    "def_DigitsImage")
+
+
+
+;------------------------------------------------------------------------
+;
+; We can't handle this script without Installer 42.9 or better!
+;
+(if (< @installer-version 2752521)
+  (
+    ; Big problem!
+    (message #wrongversion)
+    (exit (quiet))
+  )
+)
+
+;------------------------------------------------------------------------
+;
+; find out how the user wants to install things
+;
+(welcome #welcome)
+
+(complete 0)
+
+
+;------------------------------------------------------------------------
+;
+; default instalation directories, these are searched for in the order
+; given, the first found will be the default installation directory or
+; if none are found then @default-dest is used unmodified
+;
+(set #def-dest-1    "Games:")
+(set #def-dest-2    "Apps:")
+(set #def-dest-3    "Applications:")
+(set #def-dest-4    "Progs:")
+(set #def-dest-5    "Programs:")
+;(set #max-def-dest  5)
+;
+;(set #def-dest  "")
+;(set #i 1)
+;(while (AND (<= #i #max-def-dest) (= "" #def-dest))
+;    (
+;        (set #def-dest-try (symbolval ("#def-dest-%ld" #i)))
+;        (if (exists #def-dest-try (noreq))
+;            (set #def-dest #def-dest-try)
+;        ) ; if
+;        (set #i (+ #i 1))
+;    )
+;) ; while
+;
+;(if (<> "" #def-dest)
+;    (set @default-dest #def-dest)
+;) ; if
+
+;
+;   The code commented out above works fine but causes Installer V43.3 to
+;   crash on exit after displaying the 'done with installation' message.
+;
+;   The following code works and does not cause a crash.
+;
+
+(if (exists #def-dest-1 (noreq))
+    (set @default-dest #def-dest-1)
+    (if (exists #def-dest-2 (noreq))
+        (set @default-dest #def-dest-2)
+        (if (exists #def-dest-3 (noreq))
+            (set @default-dest #def-dest-3)
+            (if (exists #def-dest-4 (noreq))
+                (set @default-dest #def-dest-4)
+                (if (exists #def-dest-5 (noreq))
+                    (set @default-dest #def-dest-5)
+                )
+            )
+        )
+    )
+)
+
+;
+;   prompt the user for the install directory if not novice
+;
+(if (<> 0 @user-level)
+    (set @default-dest
+        (expandpath
+            (askdir
+                (prompt #getdestdir-prompt)
+                (help (cat #getdestdir-help @askdir-help))
+                (default @default-dest)
+            )
+        )
+    )
+)
+
+;
+;   set the full names of the MUIMine directories
+;
+(set #MUIMine-dir (tackon @default-dest "MUIMine"))
+(set #Image-dir (tackon #MUIMine-dir "images"))
+(set #Catalog-dir (tackon (tackon #MUIMine-dir "Catalogs") #language-dir-name))
+;
+;   set the names of the default image files
+;
+(set #mf-image-file   (tackon #Image-dir #mf-image-name))
+(set #face-image-file (tackon #Image-dir #face-image-name))
+(set #dig-image-file  (tackon #Image-dir #dig-image-name))
+
+(if (AND (exists #mf-image-file) (exists #face-image-file) (exists #dig-image-file))
+    (
+        (set #keep-current "Keep current")
+        (set #image-ext "")
+        (set #image-set 0)
+    )
+
+    (
+        (set #keep-current "")
+        (set #image-ext #col-image-ext)
+        (set #image-set 1)
+    )
+)
+
+;
+;   prompt the user for the image set to use if expert
+;
+(if (= 2 @user-level)
+    (set #image-set
+        (askchoice
+            (prompt #getimageset-prompt)
+            (help #getimageset-help)
+            (choices
+                #keep-current
+                #col-imageset-name
+                #mwb-imageset-name
+                #bw-imageset-name
+            )
+            (default #image-set)
+        )
+    )
+)
+
+
+;
+;   copy program files
+;
+(copyfiles (source "progfiles") (all) (infos) (dest #MUIMine-dir))
+(complete 50)
+;
+;   copy doc file
+;
+(if (<> "" #doc-file-name)
+    (copyfiles (source (tackon "docfiles" #doc-file-name)) (infos) (dest #MUIMine-dir))
+)
+(complete 75)
+;
+;   copy the catalog file
+;
+(if (<> "" #catalog-file-name)
+    (copyfiles (source (tackon "Catalogs" #language-dir-name)) (dest #Catalog-dir))
+)
+(complete 85)
+;
+;   copy image files
+;
+(copyfiles (source "images") (all) (dest #Image-dir))
+(complete 95)
+;
+;   rename the appropriate image file set to use as default
+;
+(select #image-set
+    (set #image-ext "")
+    (set #image-ext #col-image-ext)
+    (set #image-ext #mwb-image-ext)
+    (set #image-ext #bw-image-ext)
+)
+(if (<> "" #image-ext)
+    (
+        (if (exists #mf-image-file)
+            (rename #mf-image-file (cat #mf-image-file ".bak"))
+        )
+        (rename (cat #mf-image-file #image-ext) #mf-image-file)
+
+        (if (exists #face-image-file)
+            (rename #face-image-file (cat #face-image-file ".bak"))
+        )
+        (rename (cat #face-image-file #image-ext) #face-image-file)
+
+        (if (exists #dig-image-file)
+            (rename #dig-image-file (cat #dig-image-file ".bak"))
+        )
+        (rename (cat #dig-image-file #image-ext) #dig-image-file)
+    )
+)
+
+(complete 100)
+
+(exit)
+

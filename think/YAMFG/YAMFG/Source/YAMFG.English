@@ -1,0 +1,868 @@
+; YAMFG 1.0 - ©1993 F.Delacroix- FreeWare
+; written on HiSoft Devpac 3
+
+; all system includes were included at assembly time using the
+; system.gs file of Devpac 3. If you use another assembly,just
+; include them individually
+
+	include	exec/execbase.i		; some more includes: ExecBase struct
+	include	hardware/custom.i	; custom hardware: for random numbers
+	include	libraries/reqtools.i	; includes for reqtools.library
+	include	libraries/reqtools_lib.i
+
+DEFAULT_WIDTH	EQU	20	; useful constants: self-explanatory...
+DEFAULT_HEIGHT	EQU	20
+DEFAULT_MINES	EQU	40
+MAX_WIDTH	EQU	24
+MAX_HEIGHT	EQU	21
+UP	EQU	$4c		; keys used to move the tank
+DOWN	EQU	$4d
+RIGHT	EQU	$4e
+LEFT	EQU	$4f
+STATUSX	EQU	4	; coordinates for the status-line
+STATUSY	EQU	18
+
+	move.l	4.w,a6
+	move.l	ThisTask(a6),a4	;find my task (same as FindTask(0))
+	moveq	#0,d0
+	tst.l	pr_CLI(a4)	; were we called from CLI ?
+	bne.s	FromCLI	; yes,we were...
+	lea	pr_MsgPort(a4),a0	; no: get the WBStartup message
+	jsr	_LVOWaitPort(a6)	; sent by the Workbench
+	lea	pr_MsgPort(a4),a0
+	jsr	_LVOGetMsg(a6)
+FromCLI	move.l	d0,WBStarter	; and store it (0 if from CLI)
+
+	lea	ReqTools.Name(pc),a1	; let's open the reqtools.library
+	moveq	#0,d0
+	jsr	_LVOOpenLibrary(a6)
+	move.l	d0,ReqTools.Base
+	beq	OutOfHere	; no reqtools.library: exit program
+
+	move.l	ReqTools.Base(pc),a0	; and get other library bases from it
+	move.l	rt_IntuitionBase(a0),Intuition.Base
+	move.l	rt_GfxBase(a0),Graphics.Base
+
+	lea	YAMFG.NewWindow(pc),a0	; let's open the window
+	move.l	Intuition.Base(pc),a6
+	jsr	_LVOOpenWindow(a6)
+	move.l	d0,YAMFG.Window
+	beq	CloseReqTools	; cannot open window !
+
+	move.l	YAMFG.Window(pc),a0	; let's attach the menues to the window
+	lea	Project.Menu(pc),a1
+	jsr	_LVOSetMenuStrip(a6)
+	tst.l	d0
+	beq	CloseWindow	; failed ! (shouldn't occur)
+
+	move.l	YAMFG.Window(pc),a0	; store important data from our window
+	move.l	wd_RPort(a0),YAMFG.RastPort	; RastPort for graphics
+	move.l	wd_UserPort(a0),YAMFG.UserPort	; UserPort for messages
+	bra	NewGame	; let's begin a new game...
+
+WaitMessage
+	move.l	YAMFG.UserPort(pc),a0	; let's wait for a message from
+	move.l	4.w,a6			; Intuition to our window...
+	jsr	_LVOWaitPort(a6)
+NextMessage
+	move.l	YAMFG.UserPort(pc),a0	; And get it!
+	move.l	4.w,a6
+	jsr	_LVOGetMsg(a6)
+	tst.l	d0
+	beq.s	WaitMessage	; Was there actually one ?
+	move.l	d0,a1		; Yeah !
+	move.l	im_Class(a1),d7		; Store important fields:Class
+	move.w	im_Code(a1),d6		; and Code
+	jsr	_LVOReplyMsg(a6)	; then reply to Intuition
+	cmp.l	#IDCMP_CLOSEWINDOW,d7	; Should we quit ?
+	beq	ClearMenus		; Yes? Then go...
+	cmp.w	#IDCMP_RAWKEY,d7	; Was a key pressed
+	bne	NoRawKey
+	btst	#IECODEB_UP_PREFIX,d6	; ignore if a key was released
+	bne	NextMessage
+	tst.b	FinishFlag	; was the game finished ?
+	bne	NewGame		; yes? then begin a new one
+	move.w	MinerX(pc),d0	; no: get the position of the tank
+	move.w	MinerY(pc),d1
+
+	cmp.w	#UP,d6		; Up ?
+	beq.s	GoUp
+	cmp.w	#DOWN,d6	; Down ?
+	beq.s	GoDown
+	cmp.w	#RIGHT,d6	; Right ?
+	beq.s	GoRight
+	cmp.w	#LEFT,d6	; Or left ?
+	bne	NextMessage	; None of that ?? then get next Message
+
+	subq.w	#1,d0		; 1 step left
+	bra.s	DirectionGot
+GoRight	addq.w	#1,d0		; 1 step right
+	bra.s	DirectionGot
+GoDown	addq.w	#1,d1		; 1 step down
+	bra.s	DirectionGot
+GoUp	subq.w	#1,d1		; 1 step up
+
+DirectionGot
+	bsr	CheckBounds	; check if tank does not go out of bounds
+	bsr	MoveMiner	; then move it
+	move.l	Width(pc),d0	; Is tank on the right edge ?
+	subq.l	#1,d0
+	cmp.w	MinerX(pc),d0
+	bne.s	NoGoal
+	move.l	Height(pc),d0	; Is it on the bottom ?
+	subq.l	#1,d0
+	cmp.w	MinerY(pc),d0
+	bne.s	NoGoal		; yes ! The goal is reached ! (Congrats!)
+	lea	Won.MSG(pc),a0	; Get winning message..
+	bra.s	EndOfGame	; and end the game
+
+NoGoal	moveq	#0,d0		; Target not reached yet...
+	move.w	MinerY(pc),d0	; Turn tank position into an offset for
+	mulu	Width+2(pc),d0	; the mine array: offset=Width*Y+X
+	add.w	MinerX(pc),d0
+	lea	Mines.Array(pc),a2
+	tst.b	(a2,d0)		; test if tank is on a mine
+	beq.s	ShowNumber	; No!!
+
+	lea	Lost.MSG(pc),a0	; Uh-Oh: a mine !
+EndOfGame
+	st	FinishFlag	; The game is finished
+	bsr	DisplayStatus	; Display the end message (won or lost)
+	bsr	RevealMines	; and display mine positions
+	bra	NextMessage	; go back to loop
+NewGame
+	clr.b	FinishFlag	; When a game begins,it is not finished yet
+	move.l	YAMFG.RastPort(pc),a1
+	moveq	#RP_JAM2,d0
+	move.l	Graphics.Base(pc),a6
+	jsr	_LVOSetDrMd(a6)	; set drawmode to RP_JAM2 (uses both pens)
+	move.l	YAMFG.RastPort(pc),a1
+	moveq	#0,d0
+	jsr	_LVOSetAPen(a6)	; select color 0
+	move.l	YAMFG.RastPort(pc),a1
+	move.l	#4,d0	; draw a big rectangle to clear all the display
+	move.l	#12,d1
+	move.l	#396,d2
+	move.l	#196,d3
+	jsr	_LVORectFill(a6)
+	bsr	DrawMinesBorder	; draw a border around play area
+	bsr	PlaceMines	; Generate random mine positions
+	clr.w	MinerX	; Place the tank in the upper left corner
+	clr.w	MinerY
+	bsr	ShowMiner	; draw the tank
+
+ShowNumber
+	lea	Mines.Array(pc),a2
+	moveq	#0,d0
+	move.w	MinerY(pc),d0	; turn tank position into offset for table
+	mulu	Width+2(pc),d0
+	add.w	MinerX(pc),d0
+	add.l	d0,a2		; tank emplacement within mine array
+	moveq	#0,d1
+	move.l	Width(pc),d3	; d3=Width of play area
+	move.l	Height(pc),d4
+	move.l	d3,d5		; d5=Width-1
+	subq.l	#1,d5
+	subq.l	#1,d4		; d4=Height-1
+	move.l	d3,d6
+	neg.l	d6		; d6=-Width
+	tst.w	MinerY		; is tank on upper edge ?
+	beq.s	No9		; yes? then don't test above tank!
+	tst.b	(a2,d6.l)	; mine in position 8 ?
+	beq.s	No8		; note: I follow these conventions within
+	addq.l	#1,d1		; the source: 789
+No8	tst.w	MinerX		;             4 6
+	beq.s	No7		;             123
+	tst.b	-1(a2,d6.l)	; if the array in tested position
+	beq.s	No7		; (in order of appearance:8,7,9,4,6,1,2,3)
+	addq.l	#1,d1		; is not zero, then there is a mine,and
+No7	cmp.w	MinerX(pc),d5	; the mine counter (d1) is incremented
+	beq.s	No9		; Of course,if the position does not make
+	tst.b	1(a2,d6.l)	; a sense (if the tank is on an edge of
+	beq.s	No9		; the play area),the position is not tested.
+	addq.l	#1,d1
+No9	tst.w	MinerX
+	beq.s	No4
+	tst.b	-1(a2)
+	beq.s	No4
+	addq.l	#1,d1
+No4	cmp.w	MinerX(pc),d5
+	beq.s	No6
+	tst.b	1(a2)
+	beq.s	No6
+	addq.l	#1,d1
+No6	cmp.w	MinerY(pc),d4
+	beq.s	No3
+	tst.w	MinerX
+	beq.s	No1
+	tst.b	-1(a2,d3)
+	beq.s	No1
+	addq.l	#1,d1
+No1	tst.b	(a2,d3)
+	beq.s	No2
+	addq.l	#1,d1
+No2	cmp.w	MinerX(pc),d5
+	beq.s	No3
+	tst.b	1(a2,d3)
+	beq.s	No3
+	addq.l	#1,d1
+No3
+	add.b	#'0',d1	; turn mine counter into a displayable digit
+	move.b	d1,Mines.Number	; and store it for printing
+	lea	MinesNumber.MSG(pc),a0	; This is the 'Mines around' message
+	bsr	DisplayStatus	; display it!
+	bra	NextMessage	; next user action...
+
+NoRawKey
+	cmp.l	#IDCMP_MENUPICK,d7	; was a menu selected ?
+	bne	NextMessage	; no: ignore that a strange message!
+DoNextSelect
+	move.w	d6,d0		; this is the menu number given by Intuition
+	lea	Project.Menu(pc),a0	; our menu strip
+	move.l	Intuition.Base(pc),a6
+	jsr	_LVOItemAddress(a6)	; get address of selected MenuItem
+	move.l	d0,a5
+	tst.l	d0	; was there one actually ?
+	beq	NextMessage	; No: end of menu treatment
+	move.w	mi_NextSelect(a5),d6	; store menunumber of next selected
+	move.l	mi_SIZEOF(a5),a1	; This is a custom field in the item
+	cmp.l	#0,a1	; structure: it points to the routine to execute..
+	beq	DoNextSelect	; if there is one of course
+	jsr	(a1)	; execute it !
+	bra.s	DoNextSelect	; then process next menu selection
+
+ClearMenus	; Time to quit the game !!
+	move.l	YAMFG.Window(pc),a0	; remove menues from our window
+	move.l	Intuition.Base(pc),a6
+	jsr	_LVOClearMenuStrip(a6)
+CloseWindow
+	move.l	YAMFG.Window(pc),a0	; close the window
+	move.l	Intuition.Base(pc),a6
+	jsr	_LVOCloseWindow(a6)
+CloseReqTools
+	move.l	ReqTools.Base(pc),a1	; close the reqtools.library
+	move.l	4.w,a6
+	jsr	_LVOCloseLibrary(a6)
+OutOfHere
+	move.l	WBStarter(pc),d1	; were we called from Workbench ?
+	beq.s	BackToCLI	; no: there is no more to be done
+	jsr	_LVOForbid(a6)	; yes: we must reply to the WBStartup
+	move.l	d1,a1	; message we received on start of the prog
+	move.l	4.w,a6		; note that the Forbid() call is absolutely
+	jsr	_LVOReplyMsg(a6)	; necessary.
+BackToCLI
+	moveq	#0,d0	; so that CLI does not display strangest codes...
+	rts	; This is the sad end ...
+
+; subroutine that initializes some display variables and draws the
+; rectangular border and displays the target picture
+DrawMinesBorder
+	movem.l	d0-d1/a0-a1/a6,-(sp)
+	move.l	Width(pc),d0	; Width in pixels=Width*16
+	lsl.l	#4,d0
+	move.l	Height(pc),d1	; Height in pixels=Height*8
+	lsl.l	#3,d1
+	addq.l	#1,d0
+	addq.l	#1,d1
+	move.w	d0,Border.Right1	; store these values for drawing the
+	move.w	d0,Border.Right2	; border
+	move.w	d0,Border.Right3
+	move.w	d1,Border.Bot1
+	move.w	d1,Border.Bot2
+	move.w	d1,Border.Bot3
+	move.l	YAMFG.RastPort(pc),a0	; the window RastPort
+	lea	YAMFG.Border(pc),a1	; the Border structure
+	move.l	Width(pc),d0	; Compute the PlayX variable to center
+	lsl.l	#3,d0	; the playing field: PlayX=(400-Width*16)/2
+	neg.l	d0	; PlayX=200-Width*8
+	add.l	#200,d0
+	move.l	d0,PlayX
+	move.l	Height(pc),d1	; Compute the PlayY variable in a similar
+	lsl.l	#2,d1	; way: PlayY=(200-Height*8)/2=100-Height*4
+	neg.l	d1
+	add.l	#100,d1
+	addq.l	#3,d1	; and add 3 pixels
+	cmp.l	#STATUSY+4,d1	; but do not overlap the Status Line
+	bge.s	NotTooLow	; area !!
+	move.l	#STATUSY+4,d1	; If it's the case,then lower it a bit
+NotTooLow
+	move.l	d1,PlayY
+	move.l	Intuition.Base(pc),a6
+	jsr	_LVODrawBorder(a6)	; Draw the damn border
+	move.l	YAMFG.RastPort(pc),a0	; Necessary for all graphic operations
+	lea	Target.Image,a1	; The image structure for the target
+	move.l	Width(pc),d0	; X Y positions of the target:
+	subq.l	#1,d0	; in the lower right corner
+	lsl.l	#4,d0
+	add.l	PlayX(pc),d0
+	move.l	Height(pc),d1
+	subq.l	#1,d1
+	lsl.l	#3,d1
+	add.l	PlayY(pc),d1
+	jsr	_LVODrawImage(a6)	; let Intuition draw it.
+	movem.l	(sp)+,d0-d1/a0-a1/a6
+	rts
+
+; this is the subroutine that randomly places the mines in the array
+; It is NOT guaranteed that there is a way out if the mines are too
+; numerous. The routine uses a classic FastRand() algorythm which takes
+; the position of the raster as seed
+PlaceMines
+	movem.l	d0/d3-d5/a2,-(sp)
+	lea	Mines.Array(pc),a2	; array to fill
+	move.l	Width(pc),d0
+	mulu	Height+2(pc),d0	; Size of the array
+	move.l	d0,d3
+	subq.l	#1,d0	; a dbra loop counts down to -1
+ClearMines
+	clr.b	(a2)+	; wipe all mines from the array
+	dbra	d0,ClearMines
+	moveq	#0,d5
+	move.w	$DFF000+vhposr,d5	; get the seed from the vhposr registr
+	lea	Mines.Array(pc),a2	; restore a2
+	move.l	Mines(pc),d4	; number of mines to place
+	cmp.l	d4,d3	; is it possible ??
+	bgt.s	AnotherRandom	; yes it is
+	move.l	d3,d4	; there are far too many mines !! Reduce the number
+	subq.l	#4,d4	; this is only for safety: who would want a game where
+AnotherRandom		; every move is loss ?
+	add.l	d5,d5	; This is the FastRand() routine that generates
+	bhi.s	.NoEOR	; a seemingly random series of numbers
+	eor.l	#$1D872B41,d5	; Why this number ? This is a good question.
+.NoEOR
+	moveq	#0,d0	; divide the random number by the array size so that
+	move.w	d5,d0	; the modulo reflects a valid position in the grid
+	divu	d3,d0
+	swap	d0
+	tst.w	d0	; I don't want a mine in the upper left corner!
+	beq	AnotherRandom
+	tst.b	(a2,d0.w)	; Is there already a mine there ?
+	bne.s	AnotherRandom	; Yes?? Well use another offset
+	move.b	#1,(a2,d0.w)	; No: well now there is one
+	subq	#1,d4	; Was it the last mine to be placed ?
+	bne	AnotherRandom	; No.
+	movem.l	(sp)+,d0/d3-d5/a2	; Yes: restore registers and
+	rts	; return
+
+; This displays the tank..
+ShowMiner
+	movem.l	d0-d1/a0-a1/a6,-(sp)
+	move.l	YAMFG.RastPort(pc),a0
+	lea	Tank.Image,a1	; Image structure for the tank
+	moveq	#0,d0
+	move.l	d0,d1
+	move.w	MinerX(pc),d0
+	move.w	MinerY(pc),d1
+	lsl.l	#4,d0
+	lsl.l	#3,d1
+	add.l	PlayX(pc),d0	; X=PlayX+MinerX*16
+	add.l	PlayY(pc),d1	; Y=PlayY+MinerY*8
+	move.l	Intuition.Base(pc),a6
+	jsr	_LVODrawImage(a6)	; Draw it. Easy no?
+	movem.l	(sp)+,d0-d1/a0-a1/a6
+	rts
+
+; This checks whether the tank has gone out of bounds,in which case it is
+; placed back on the edge of the grid. This routine is called with the
+; newly demanded position in D0 and D1 (X and Y respectively).
+CheckBounds
+	ext.l	d0	; Turn X position into a longword
+	cmp.l	Width(pc),d0	; Too far on the right ?
+	blt.s	NotRightEdge
+	move.l	Width(pc),d0
+	subq.l	#1,d0
+NotRightEdge
+	tst.l	d0		; Too far on the left ?
+	bge.s	NotLeftEdge
+	moveq	#0,d0
+NotLeftEdge
+	ext.l	d1	; Turn Y position into a longword
+	tst.l	d1		; Too far up ?
+	bge.s	NotUpEdge
+	moveq	#0,d1
+NotUpEdge
+	cmp.l	Height(pc),d1	; Too far down ?
+	blt.s	NoDownEdge
+	move.l	Height(pc),d1
+	subq.l	#1,d1
+NoDownEdge
+	rts
+
+; This routine erases the tank image and then draw it at the position
+; given by D0 and D1 (X and Y).It also updates the MinerX and MinerY vars.
+MoveMiner
+	bsr.s	EraseMiner
+	move.w	d0,MinerX
+	move.w	d1,MinerY
+	bra	ShowMiner
+
+; This erases the tank image by printing two spaces in color 3
+EraseMiner
+	movem.l	d0-d1/a0-a1/a6,-(sp)
+	move.l	YAMFG.RastPort(pc),a1
+	moveq	#0,d0	; X=PlayX+MinerX*16
+	move.l	d0,d1	; Y=PlayY+MinerY*8
+	move.w	MinerX(pc),d0
+	move.w	MinerY(pc),d1
+	lsl.l	#4,d0
+	lsl.l	#3,d1
+	add.l	PlayX(pc),d0
+	add.l	PlayY(pc),d1
+	addq.l	#6,d1	; Add 6 to the Y position to get the baseline of the
+	move.l	Graphics.Base(pc),a6	; standard topaz font.
+	jsr	_LVOMove(a6)	; Move the graphic cursor there
+	move.l	YAMFG.RastPort(pc),a1
+	moveq	#3,d0	; set the B pen to color 3 (orange or blue on
+	jsr	_LVOSetBPen(a6)	; normal-coloured workbenchs)
+	move.l	YAMFG.RastPort(pc),a1
+	moveq	#RP_JAM2,d0	; set the drawmode to RP_JAM2 so that
+	jsr	_LVOSetDrMd(a6)	; spaces are truly made blue
+	lea	Space.Text(pc),a0	; The spaces
+	move.l	YAMFG.RastPort(pc),a1
+	moveq	#2,d0	; there are two of them
+	jsr	_LVOText(a6)
+	movem.l	(sp)+,d0-d1/a0-a1/a6
+	rts	; That's it
+
+; This routine is used to erase the status line. It is called by DisplayStatus
+EraseStatus
+	movem.l	d0-d3/a0-a1/a6,-(sp)
+	move.l	YAMFG.RastPort(pc),a1
+	moveq	#RP_JAM2,d0
+	move.l	Graphics.Base(pc),a6
+	jsr	_LVOSetDrMd(a6)	; Drawmode to RP_JAM2
+	move.l	YAMFG.RastPort(pc),a1
+	moveq	#0,d0	; A pen to color 0
+	jsr	_LVOSetAPen(a6)
+	move.l	YAMFG.RastPort(pc),a1
+	move.l	#STATUSX,d0	; coordinates for the rectangle that will
+	move.l	#STATUSY-6,d1	; be drawn over the status line
+	move.l	#STATUSX+40*8,d2
+	move.l	#STATUSY+2,d3
+	jsr	_LVORectFill(a6)	; draw the rectangle
+	movem.l	(sp)+,d0-d3/a0-a1/a6
+	rts
+
+; This routine displays a message in the status line,which is first cleared.
+; On calling,A0 must be loaded with a pointer to the message to be displayed.
+DisplayStatus:			;DisplayStatus(Message)(A0)
+	movem.l	d0-d1/a0-a2/a6,-(sp)
+	bsr	EraseStatus	; First erase the status line
+	move.l	a0,a2	; Save the message pointer (A2 is guaranteed to
+	move.l	YAMFG.RastPort(pc),a1	; be preserved by library routines)
+	moveq	#RP_JAM1,d0
+	move.l	Graphics.Base(pc),a6
+	jsr	_LVOSetDrMd(a6)	; drawmode to RP_JAM1: only the A pen is used
+	move.l	YAMFG.RastPort(pc),a1
+	moveq	#1,d0
+	jsr	_LVOSetAPen(a6)	; A Pen to color 1 (normally black or white)
+	move.l	YAMFG.RastPort(pc),a1
+	move.l	#STATUSX,d0	; Coordinates of the status line
+	move.l	#STATUSY,d1
+	jsr	_LVOMove(a6)	; move the graphic cursor there
+	move.l	a2,a0
+.LenLoop		; count the length of the message
+	tst.b	(a2)+	; this is required for the Text() function
+	bne	.LenLoop
+	sub.l	a0,a2
+	subq.l	#1,a2
+	move.l	a2,d0
+	move.l	YAMFG.RastPort(pc),a1
+	jsr	_LVOText(a6)	; print the text
+	movem.l	(sp)+,d0-d1/a0-a2/a6
+	rts
+
+; This routine reveals where the mines were placed,it is called when the
+; game has ended (the player has won or lost)
+RevealMines
+	movem.l	d0-d3/a0-a2/a6,-(sp)
+	lea	Mines.Array(pc),a2	; The mines grid
+	moveq	#-1,d2		; The current position in the array
+	move.l	Intuition.Base(pc),a6
+	move.l	Width(pc),d3
+	mulu	Height+2(pc),d3	; d3 is the size of the array
+RevealLoop
+	addq.l	#1,d2	; increment position
+	cmp.l	d3,d2	; have we reached the end of the array ?
+	beq.s	EndOfReveal	; yes...then go.
+	tst.b	(a2)+	; is there a mine here ?
+	beq.s	RevealLoop	; No, check next position
+	move.l	d2,d0	; yes! Its position is in D0
+	divu	Width+2(pc),d0	; this is to split X and Y positions
+	moveq	#0,d1	; X position (the modulo of the division) is in D0
+	move.w	d0,d1	; and the Y is in D1 (the quotient of the division)
+	clr.w	d0
+	swap	d0
+	move.l	YAMFG.RastPort(pc),a0
+	lea	Mine.Image,a1	; Image structure for a mine
+	lsl.l	#4,d0	; Turn X and Y positions in the grid into true
+	lsl.l	#3,d1	; graphic places
+	add.l	PlayX(pc),d0
+	add.l	PlayY(pc),d1
+	jsr	_LVODrawImage(a6)	; Draw a mine
+	bra	RevealLoop	; check some more positions
+EndOfReveal
+	movem.l	(sp)+,d0-d3/a0-a2/a6	; all mines were displayed,our job
+	rts	; is finished
+
+; This routine is called when the corresponding menu is selected
+QuitYAMFG
+	addq.l	#4,sp	; There is no return for this routine
+	bra	ClearMenus	; We quit!
+
+; This is called when the player has chosen 'About' in the menues
+ShowAbout
+	movem.l	d0-d1/a0-a4/a6,-(sp)
+	lea	About.Body(pc),a1	; Main message
+	lea	About.Gad(pc),a2	; Text for the gadget
+	suba.l	a3,a3	; No ReqInfo structure
+	move.l	a3,a4	; And no formatting things
+	lea	About.TagList(pc),a0	; specific TagList
+	move.l	ReqTools.Base(pc),a6	; Let the great reqtools.library
+	jsr	_LVOrtEZRequestA(a6)	; do it..
+	movem.l	(sp)+,d0-d1/a0-a4/a6
+	rts
+
+; This is when the user wants to change the number of mines (with the menu)
+ModifyMines
+	lea	Mines(pc),a1	; Variable containing the number of mines
+	lea	HowManyMines.Title(pc),a2	; Title for the requester
+	suba.l	a3,a3	; No ReqInfo structure
+	lea	Mines.TagList(pc),a0	; but some tags...
+	move.l	ReqTools.Base(pc),a6	; Request the number of mines
+	jsr	_LVOrtGetLongA(a6)
+	tst.l	d0	; has the user entered a valid number ?
+	bne.s	NewMines	; yes, go for a new game
+	rts	; no,the requester was canceled
+
+; This user wants to change the width of the playfield
+ChangeWidth
+	lea	Width(pc),a1	; Variable for the width
+	lea	Width.Title(pc),a2	; Title of the requester
+	sub.l	a3,a3	; No ReqInfo structure
+	lea	Width.TagList(pc),a0	; some tags...
+	move.l	ReqTools.Base(pc),a6
+	jsr	_LVOrtGetLongA(a6)	; Get new width
+	tst.l	d0
+	bne.s	NewWidth	; New game if it is valid
+	rts	; return if the requester was canceled
+NewMines	; this is a branch for the routines that require a new
+NewWidth	; game to be started
+NewHeight
+	addq.l	#4,sp	; cancel the return address on the stack
+	bra	NewGame	; and branch to the main program
+
+; This is exactly the same routine as ChangeWidth(),I don't think comments
+; are needed.
+ChangeHeight
+	lea	Height(pc),a1
+	lea	Height.Title(pc),a2
+	sub.l	a3,a3
+	lea	Height.TagList(pc),a0
+	move.l	ReqTools.Base(pc),a6
+	jsr	_LVOrtGetLongA(a6)
+	tst.l	d0
+	bne.s	NewHeight
+	rts
+
+; This part contains some data for windows,menus,messages,and miscellane-
+; ous little things.
+YAMFG.NewWindow	; this is the NewWindow structure
+	dc.w	120,0	; XY origin
+	dc.w	400,200	; Width and Height in pixels
+	dc.b	0,1	; FrontPen and BackPen colors
+	dc.l	IDCMP_CLOSEWINDOW!IDCMP_RAWKEY!IDCMP_MENUPICK
+; The above line contains IDCMP flags, a message will be sent by intuition
+; to our program when such events occur.
+	dc.l	WINDOWDRAG!WINDOWDEPTH!WINDOWCLOSE!ACTIVATE!NOCAREREFRESH
+; This are standard window flags. There is no special strange flag,they
+; are self-explanatory,thus there is no need for further explanations,you
+; should understand these by yourself, so there is no need for any further
+; comments, so why should I bore you to death with this ?
+	dc.l	0	; No gadgets on that window
+	dc.l	0	; No custom CheckMark (we don't even use a checkmark)
+	dc.l	YAMFG.WindowName	; Name for our window
+	dc.l	0	; Screen: we will just use the Workbench screen
+	dc.l	0	; Bitmap: No bitmap.
+	dc.w	400,200	; Minimum dimensions (useless in our case)
+	dc.w	400,200	; Maximum dimensions (idem)
+	dc.w	WBENCHSCREEN	; yes,the Workbench screen
+
+YAMFG.Border	; Border structures for the rectangle around the play area
+	dc.w	-1,-1	; XY origin
+	dc.b	1,0,RP_JAM1,3	; FontPen,BackPen,DrawMode,Number of vectors
+	dc.l	YAMFG.Vectorsa,YAMFG.Borderb	; Vectors,Next border struct
+YAMFG.Borderb
+	dc.w	-1,-1		; we use two linked border structures in
+	dc.b	2,0,RP_JAM1,3	; order to create a simi-3D effect (one side
+	dc.l	YAMFG.Vectorsb,0	; is drawn in white,the other black)
+
+YAMFG.Vectorsa	; This are the XY coordinates for the vectors of the firs
+	dc.w	0	; border. Some fields will be altered by the program
+Border.Bot1
+	dc.w	DEFAULT_HEIGHT*8+1
+	dc.w	0,0
+Border.Right1
+	dc.w	DEFAULT_WIDTH*16+1,0
+
+YAMFG.Vectorsb	; The same for the second border
+Border.Right2
+	dc.w	DEFAULT_WIDTH*16+1,1
+Border.Right3
+	dc.w	DEFAULT_WIDTH*16+1
+Border.Bot2
+	dc.w	DEFAULT_HEIGHT*8+1
+	dc.w	1
+Border.Bot3
+	dc.w	DEFAULT_HEIGHT*8+1
+
+Project.Menu	; This is the menu structure for the project menu
+	dc.l	Options.Menu	; Next menu: the 'Options' menu
+	dc.w	0,0	; LeftEdge and TopEdge
+	dc.w	63,0	; Width and Height (Height is unused)
+	dc.w	MENUENABLED	; Flags: the menu is enabled
+	dc.l	Project.Name	; guess what this is
+	dc.l	About.MenuItem	; First item for that menu
+	dc.w	0,0,0,0	; mysterious Intuition variables
+
+About.MenuItem	; MenuItem structure for the 'About' Item
+	dc.l	Quit.MenuItem	; Next Item
+	dc.w	0,0	; LeftEdge,TopEdge
+	dc.w	104,8	; Width,Height
+	dc.w	ITEMTEXT!COMMSEQ!ITEMENABLED!HIGHCOMP	; menu flags:
+; ITEMTEXT means that an IntuiText structure will be used (it could have been
+; an Image),COMMSEQ means there will be a keyboard shortcut,ITEMENABLED means
+; that the item can actually be selected,HIGHCOMP tells Intuition to inverse
+; the colors of the menu when the mouse pointer is on it
+	dc.l	0	; No Mutual-Exclude
+	dc.l	About.IText	; Render: an IntuiText structure
+	dc.l	0	; No render for selected state
+	dc.b	'A'	; Keyboard shortcut
+	dc.b	0	; This is just a fill byte to make the address even
+	dc.l	0	; No SubItem list
+	dc.w	MENUNULL	; will be filled by Intuition for extended
+; selection
+	dc.l	ShowAbout	; This is a custom field,used by the prog to
+; determine which routine is to be executed when the menu is selected
+About.IText	; This is an IntuiText structure for rendering the MenuItem
+	dc.b	3,1,RP_COMPLEMENT,0	; DetailPen,BlockPen,DrawMode,FillByte
+	dc.w	0,0	; LeftEdge,TopEdge
+	dc.l	0	; No custom font
+	dc.l	About.MSG	; Message
+	dc.l	0	; No more IntuiText structure
+
+; The other Menu and MenuItem structures are made the same way,it would be a
+; waste of time to describe them all.
+
+Quit.MenuItem
+	dc.l	0
+	dc.w	0,8
+	dc.w	104,8
+	dc.w	ITEMTEXT!COMMSEQ!ITEMENABLED!HIGHCOMP
+	dc.l	0
+	dc.l	Quit.IText
+	dc.l	0
+	dc.b	'Q'
+	dc.b	0
+	dc.l	0
+	dc.w	MENUNULL
+	dc.l	QuitYAMFG
+Quit.IText
+	dc.b	3,1,RP_COMPLEMENT,0
+	dc.w	0,0
+	dc.l	0
+	dc.l	Quit.MSG
+	dc.l	0
+
+Options.Menu
+	dc.l	0
+	dc.w	70,0
+	dc.w	63,0
+	dc.w	MENUENABLED
+	dc.l	Options.Name
+	dc.l	Mines.MenuItem
+	dc.w	0,0,0,0
+
+Mines.MenuItem
+	dc.l	Width.MenuItem
+	dc.w	0,0
+	dc.w	184,8
+	dc.w	ITEMTEXT!COMMSEQ!ITEMENABLED!HIGHCOMP
+	dc.l	0
+	dc.l	Mines.IText
+	dc.l	0
+	dc.b	'M'
+	dc.b	0
+	dc.l	0
+	dc.w	MENUNULL
+	dc.l	ModifyMines
+Mines.IText
+	dc.b	3,1,RP_COMPLEMENT,0
+	dc.w	0,0
+	dc.l	0
+	dc.l	Mines.MSG
+	dc.l	0
+
+Width.MenuItem
+	dc.l	Height.MenuItem
+	dc.w	0,8
+	dc.w	184,8
+	dc.w	ITEMTEXT!COMMSEQ!ITEMENABLED!HIGHCOMP
+	dc.l	0
+	dc.l	Width.IText
+	dc.l	0
+	dc.b	'W'
+	dc.b	0
+	dc.l	0
+	dc.w	MENUNULL
+	dc.l	ChangeWidth
+Width.IText
+	dc.b	3,1,RP_COMPLEMENT,0
+	dc.w	0,0
+	dc.l	0
+	dc.l	Width.MSG
+	dc.l	0
+
+Height.MenuItem
+	dc.l	0
+	dc.w	0,16
+	dc.w	184,8
+	dc.w	ITEMTEXT!COMMSEQ!ITEMENABLED!HIGHCOMP
+	dc.l	0
+	dc.l	Height.IText
+	dc.l	0
+	dc.b	'H'
+	dc.b	0
+	dc.l	0
+	dc.w	MENUNULL
+	dc.l	ChangeHeight
+Height.IText
+	dc.b	3,1,RP_COMPLEMENT,0
+	dc.w	0,0
+	dc.l	0
+	dc.l	Height.MSG
+	dc.l	0
+
+About.TagList	; The tags for the about requester
+	dc.l	RT_IDCMPFlags,IDCMP_MOUSEBUTTONS!INACTIVEWINDOW
+; Some more IDCMP flags to react on
+	dc.l	RTEZ_Flags,EZREQF_CENTERTEXT	; Center Text in window
+	dc.l	TAG_END
+
+Mines.TagList	;Tags for the number of mines requester
+	dc.l	RTGL_Min,1	; Minimum 1
+	dc.l	RTGL_Max,100	; Maximum 100
+	dc.l	TAG_END
+
+Width.TagList	; For the width requester
+	dc.l	RTGL_Min,4	; Minimum 4
+	dc.l	RTGL_Max,MAX_WIDTH	; Maximum
+	dc.l	TAG_END
+
+Height.TagList	; For the height requester
+	dc.l	RTGL_Min,4	; Minimum
+	dc.l	RTGL_Max,MAX_HEIGHT	; Maximum
+	dc.l	TAG_END
+
+Project.Name	; No need for comments
+	dc.b	'Project',0
+About.MSG
+	dc.b	'About...',0
+Quit.MSG
+	dc.b	'Quit',0
+Options.Name
+	dc.b	'Options',0
+Mines.MSG
+	dc.b	'Number of mines...',0
+Width.MSG
+	dc.b	'Width...',0
+Height.MSG
+	dc.b	'Height...',0
+
+YAMFG.WindowName
+	dc.b	'YAMFG 1.0 © 1993 F.Delacroix -FreeWare',0
+ReqTools.Name
+	dc.b	'reqtools.library',0	; Name of the reqtools.library
+Space.Text
+	dc.b	'  '	; Used to erase the tank image
+Lost.MSG
+	dc.b	'You blew up ! Press a key...',0
+MinesNumber.MSG
+	dc.b	'Number of mines around you:'
+Mines.Number
+	dc.b	'0',0
+Won.MSG	dc.b	'Congratulations! You''ve reached the goal!',0
+
+About.Body	; The about message,please dont change this.
+	dc.b	'YAMFG 1.0 by F.Delacroix - FreeWare',10,10
+	dc.b	'This program may not be used for any profit',10
+	dc.b	'To contact me,write to:',10
+	dc.b	'Frédéric DELACROIX',10
+	dc.b	'5 rue d''Artres',10
+	dc.b	'59269 QUERENAING, FRANCE',0
+About.Gad
+	dc.b	'Ah-ha.',0
+
+HowManyMines.Title
+	dc.b	'How many mines ?',0
+Width.Title
+	dc.b	'New width ?',0
+Height.Title
+	dc.b	'New height ?',0
+
+WBStarter	dc.l	0	; WBStartup received (0 if from CLI)
+Graphics.Base	dc.l	0	; Base of the graphics.library
+Intuition.Base	dc.l	0	; Base of intuition.library
+ReqTools.Base	dc.l	0	; Base of the great reqtools.library
+YAMFG.Window	dc.l	0	; Window structure (not NewWindow)
+YAMFG.RastPort	dc.l	0	; RastPort for our window
+YAMFG.UserPort	dc.l	0	; UserPort for it
+Mines	dc.l	DEFAULT_MINES	; Number of mines
+MinerX	dc.w	0	; X position of the tank (from 0 to width-1)
+MinerY	dc.w	0	; Y position of the tank (from 0 to height-1)
+Width	dc.l	DEFAULT_WIDTH	; Width (in columns)
+Height	dc.l	DEFAULT_HEIGHT	; Height (in lines)
+PlayX	dc.l	0	; Graphic offset for the playfield
+PlayY	dc.l	0
+Mines.Array	dcb.b	MAX_WIDTH*MAX_HEIGHT,0	; Array containing the posi-
+; tions of the mines. Not that it may be that only a part of it is used as
+; Width and Height may not be equal to MAX_WIDTH and MAX_HEIGHT
+FinishFlag	dc.b	0	; Flag set when the game is over
+
+	section	Images,DATA_C
+; These are some structures that need to be in CHIP-ram:
+Tank.Image	; Image structure for the tank
+	dc.w	0,0	; LeftEdge,TopEdge
+	dc.w	16,8	; Width,Height
+	dc.w	2	; Depth: 4 colours
+	dc.l	Tank.ImageData	; Data for the picture
+	dc.b	$0003,$0000	; Patterns used for rendering in bitplanes
+	dc.l	0	; Next Image structure:none
+Tank.ImageData
+	dc.w	$0000,$001F,$0000,$7FFE,$FFFF,$FFFF,$FFFF,$7FFE
+; Data for the first bitplane
+	dc.w	$07C0,$0FE0,$0FE0,$7FFE,$FFFF,$8001,$7FFE,$0000
+; Data for the second bitplane
+
+Mine.Image	; Image structure for a mine
+	dc.w	0,0
+	dc.w	16,8
+	dc.w	2
+	dc.l	Mine.ImageData
+	dc.b	$0001,$0000
+	dc.l	0
+Mine.ImageData
+	dc.w	$0000,$0000,$0000,$0000,$0FF0,$7FFE,$7FFE,$0000
+; Only one bitplane here
+
+Target.Image	; Image structure for the target
+	dc.w	0,0
+	dc.w	16,8
+	dc.w	2
+	dc.l	Target.ImageData
+	dc.b	$0003,$0000
+	dc.l	0
+Target.ImageData
+	dc.w	$07E0,$0FF0,$1FF8,$3E7C,$3E7C,$1FF8,$0FF0,$07E0
+	dc.w	$07E0,$0C30,$1818,$318C,$318C,$1818,$0C30,$07E0
+

@@ -1,0 +1,220 @@
+The dungeon map making algorithm revisited:
+ The region data support
+
+----
+Definitions
+===========
+
+Each tunnel is part of exactly one _region_.
+Each region is part of exactly one _area_.
+
+Each room is part of exactly one area.
+Each room has any number of entrances.
+Each region has any number of entrances.
+Each region has any number of tunnels.
+  :A region is a set of tunnels that have (at least)
+  one path between them consisting only of tunnels.
+
+  If the only path from one tunnel to another goes
+  through a room, then those tunnels must be in
+  different regions, though they are the same area.
+
+  If the tunnels have *no* path between them, they
+  are not only different regions but different areas.
+
+Each entrance is part of exactly one region.
+Each entrance is part of exactly one room.
+
+Each room is part of the regions of all of its entrances.
+
+----
+
+Ramifications
+=============
+
+This data is now used in the code for working out which
+area rooms and tunnels are in (as needed previously so
+we can connect previously unconnected rooms/tunnels).
+
+It can also be used by monster's AI so they can work
+out which rooms are immediately accessible from the places
+they're at, and can find paths to any other point in the
+region they're in.
+
+It can also be used to augment the attempt_joining()
+function- I've been hoping to improve the overall
+algorithm such that the maps created weren't totally
+acyclical (so far they're technically trees, even if
+they don't look like them)
+How can the region data help? Well, if stype is a
+tunnel and you hit another tunnel that's the same
+area, then currently you choose that other tunnel
+as the new source. There is no chance that you'll
+connect the two tunnels.
+
+If you change the algorithm so that some proportion
+of the time it connects them, sometimes it will
+simply run a new 2-square long tunnel parallel with an
+old one. You could have it count the lenght of the new
+tunnel to determine whether to use the new behaviour.
+But still, we would really be able to tell how easy
+to reach the target tunnel previously was from the source.
+
+Now, when you add the region data, you can say that if
+the source tunnel and the target tunnel are the same area,
+but different regions, there's some random chance that
+you should join the tunnels (and merge the regions).
+Should we alter the probability depending on how closely
+connected the regions are? I thought so, but then maybe not.
+Keep the probability constant, and low. Maybe around 1 in 30?
+I don't know. Perhaps there should be around 2 or 3 such
+connections in each map. But I'm not sure how often source
+tunnels will find connected target tunnels of different
+regions. Can it be that common??? I haven't a clue.
+Mebbe before implementing this, get attempt_joining()
+to produce such statistics.
+
+-------------------------------------
+
+The structures:
+===============
+
+roomdata_t {
+   same stuff as before, plus
+   entrancelist_t *Firstentrance;
+};
+
+entrancelist_t {
+   entrance_t *Entrance; /* Should it be structure or ptr to one? */
+   entrancelist_t *Next;
+};
+
+entrance_t {
+   int Roomono;
+   Coords;
+   region_t *Region;
+};
+
+tunnellist_t {
+   same stuff as before, plus
+   region_t *Region;
+   Note that the lists of tunnels is now one
+   list per region, not per area.
+};
+
+region_t {
+   area_t *Area;
+   tunnellist_t *Firsttunnel;
+   entrancelist_t *Firstentrance;
+   Note that though an entrance would be in one
+   room and in one region, and the same structure
+   is used for each, the lists are different lists.
+};
+
+area_t {
+   something else...
+};
+
+Now, to find the area a room is in, there's no change.
+To find the area a tunnel's in, you do
+   tunnel->Region->Area;
+
+The main changes are that now we need to have a
+merge_regions() function. I don't know if this will
+replace+include the merge_areas() function, or will
+exist alongside it. I worry it might make merge_areas()
+look simple!!
+Ah, it will most likely call merge_areas when the
+regions are unconnected... but as merge_areas will
+almost certainly have to _change_, and nothing else
+is likely to call merge_areas, wouldn't it be just
+as well to simply put it all in one function???
+
+
+To join 2 regions:
+ region_t *r1  region_t *r2
+ /* We end up removing region 1.
+{
+  a1=r1->Area; a2=r2->Area;
+
+  scan through entrances of r1:
+     for each entrance e, e->Region=r2; /* We don't change the rooms!! */
+  for last entrance e, e->Next=r2->Firstentrance;
+  /* NB really entrances and entrancelists separate */
+
+  scan through tunnels of r1:
+     for each tunnel t, t->Region=r2;
+  for last tunnel t, t->Next=r2->Firsttunnel;
+
+  r2->Firstentrance=r1->Firstentrance;
+  r2->Firsttunnel=r1->Firsttunnel;
+
+  /* Now we remove r1 from area1's list */
+
+  /* Now we merge the areas */
+  merge_areas(a1,a2);
+
+}
+
+Ah, Think again. Merging regions is something that would _only_
+be done after connecting two tunnels.
+Connecting a room to a tunnel just adds an entrance to a region (and
+to the room).
+Connecting 2 rooms creates a new region, with 2 new entrances in it.
+*Conversely*, you do merge_areas() *every* time you connect things
+(unless they're already connected, and there it doesn't matter as
+merge_areas() ought to check if source and target are equal (it
+currently does).
+
+Remember: We still use attempt_joining() to join rooms from 2 different
+*areas*, and we still want the lists of rooms for each area in order to
+pick the smallest ones and to pick a random room from a given area.
+It is only from within attempt_joining() that we might join different
+regions from the same area instead.
+
+Now, in making the alterations to the code (changing the structures turned
+out relatively painless), I see that there are certain questions like:
+ - When do we actually *create* a new region? I realised this within
+   build_tunnel() which used to tag the tunnel data onto the list for the
+   area the tunnel went into. But now, it will have to put it onto the
+   list of the tunnel's *region* instead. Do we know what region it'll be
+   in? Etc. Possible solution: Add another argument, region, and the
+   caller sets it to one region involved in the tunnel. If the tunnel
+   goes to a nonexistent (yet) region, the caller should make a new region
+   first and then pass that. The build_tunnel() function should check if
+   the region argument is NULL and crash if so.
+   Also, it probably isn't necessary for build_tunnel to take an area
+   argument any more. The area data should be filled in in the region
+   structure that gets passed instead.
+ - How do we orchestrate the freeing of data structures now?? They're all
+   a bit tangled now.
+ - What do we do to merge_areas now? Merging regions and then areas sounds
+   messy. I suspect we'll maybe need merge_regions to incorporate its
+   own version of merge_areas, and when merge_regions() is called we don't
+   call the vanilla version of merge_areas() at all.
+ - Do areas have lists of their regions or not??? Either way, Will there
+   be another list of regions?
+ Occurred to me whilst looking to change attempt_joining, that find_area(),
+ which now only works for tunnels anyway, should be changed to find_region(),
+ as each tunnel has exactly one region and each region is in exactly one
+ area. So find_region()->Area would be equivalent to find_area(), plus
+ find_region() would be directly useful in many cases. So there.
+
+ RIGHT: merge_areas, I finally got around to looking at it. Now, before,
+ we went through all the tunnels in one area, and made them part of the
+ other area. Now, tunnels are part of regions, so they're ignored, but
+ regions all have an area, and so merge_areas() must put all of the
+ regions from one area into the other. How? Simple. Quite predictably,
+ each area must have its own list of regions.
+ Now, where merge_areas() _used to_ go through a list of tunnels, it
+ _now_ goes through a list of regions and updates *them* instead.
+ I don't think anymore that this will clash with merge_regions().
+ Oh, wait. merge_regions() will be used on regions that are from
+ different areas (true, later they might be used on regions of the
+ same area, but not the point). So. Um. It would want to merge the
+ areas first??? Would that solve it all?
+
+#######################
+#
+#
+#

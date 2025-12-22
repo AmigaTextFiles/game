@@ -1,0 +1,78 @@
+#!/bin/sh
+
+rm -f core
+
+src/gammapatrol $*
+
+if [ $? -ge 128 ]; then
+   cat <<EOF
+
+
+************************************************************
+
+Damn, Gamma Patrol crashed!!
+EOF
+
+   if [ -e core ]; then
+      if [ x`which gdb` != x ]; then
+         cat <<EOF
+A core dump has been created, I going to analyse it now... 
+EOF
+
+         echo  >.gdb.in "bt"
+	 gdb --nx --batch --command=.gdb.in src/gammapatrol core >gdb.out
+	 FRAMES=`grep '^#' gdb.out | tail -n 1 | sed 's/^#\([0-9]*\).*$/\1/'`
+	 cat >.gdb.in <<EOF
+show architecture
+echo \n
+echo ***********************\n
+echo STACK BACKTRACE\n
+echo ***********************\n
+bt
+echo \n
+EOF
+         for N in `seq 0 $FRAMES`; do
+            cat >>.gdb.in <<EOF
+echo ***********************\n
+echo FRAME #$N\n
+echo ***********************\n
+frame
+echo *** LIST\n
+list
+echo *** FRAME INFO\n
+info frame
+echo *** LOCAL VARIABLES\n
+info locals
+echo \n
+EOF
+            if [ x$N != x$FRAMES ]; then
+               echo >>.gdb.in "up-silent"
+            fi
+         done
+	 gdb --nx --batch --command=.gdb.in src/gammapatrol core >crash-info
+	 rm -f .gdb.in
+	 cat << EOF
+Done.
+
+A file called 'crash-info' has been created in the current
+directory. Please send an email with a description of the
+problem and that file attached to:
+	pink@odahoda.de
+
+That would be a great help for me!
+EOF
+      else
+         cat <<EOF
+Mmmmh, I cannot find 'gdb' (the GNU debugger) on your system.
+With gdb I could analyse the core dump, but without it...
+
+EOF
+      fi
+   else
+      cat <<EOF
+No coredump has been created. Please enable coredumps using
+'ulimit -c unlimited' and restart Gamma Patrol
+EOF
+   fi
+fi
+

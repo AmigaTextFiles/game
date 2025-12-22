@@ -1,0 +1,5 @@
+SUBDIRS = src icons
+
+EXTRA_DIST = AUTHORS COPYING ChangeLog INSTALL README TODO touchall
+
+AUTOMAKE_OPTIONS = foreign

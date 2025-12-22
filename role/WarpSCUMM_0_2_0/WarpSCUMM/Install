@@ -1,0 +1,418 @@
+; $VER: 1.1 Installation script for WarpSCUMM
+; © Adam Waldenberg
+
+; check if we are running under correct OS
+
+
+(if (>= (/ (getversion "C:Installer") 65536) 44)
+
+    (
+        (effect "center" "horizontal" $ddddcc $ffffff)
+        (showmedia "pic" "Pictures/WarpSCUMM.jpg" "upper_center" "none" 0)
+    )
+)
+
+(if (< (/ (getversion) 65536) 39)
+
+    (
+        (abort "Sorry, WarpSCUMM requires AmigaOS V39 or better!")
+    )
+)
+
+; error handling
+
+(onerror
+
+    (if (> @ioerr 0)
+
+        (
+            (message
+                ("An error occurred during installation.")
+            )
+        )
+    )
+
+    (exit (quiet))
+)
+
+(welcome
+    "Welcome to the installation of WarpSCUMM, the Amiga ScummVM port."
+)
+
+(COMPLETE 10)
+
+(set #result
+    (askchoice
+        (prompt "What version of WarpSCUMM do you want to install?")
+        (help @askchoice-help)
+
+        (choices
+            "WarpSCUMM - MC680x0."
+            "WarpSCUMM - PPC (WarpOS)."
+        )
+
+        (default 0)
+    )
+)
+
+(if (= #result 0)
+    (
+        (set #exever (cat "WarpSCUMM"))
+    )
+    (
+        (set #exever (cat "WarpSCUMM_WOS"))
+    )
+)
+
+(COMPLETE 15)
+
+(set #kokodir
+    (askdir
+        (prompt "Please select where to install WarpSCUMM, a directory will be created.")
+        (help @askdir-help)
+        (default "Work:")
+        (disk)
+    )
+)
+
+(set @default-dest (cat #kokodir))
+
+(set #destdir2 (tackon @default-dest "WarpSCUMM"))
+
+(copyfiles
+    (source "")
+    (dest #destdir2)
+    (pattern "WarpSCUMM.guide#?")
+    (optional "fail")
+)
+
+(COMPLETE 20)
+
+(copyfiles
+    (source #exever)
+    (dest #destdir2)
+    (optional "fail")
+)
+
+(set #srcdir
+    (cat "/" "WarpSCUMM.info")
+)
+
+(copyfiles
+    (source #srcdir)
+    (dest @default-dest)
+    (optional "fail") )
+
+(COMPLETE 30)
+
+(set #result
+
+    (askoptions
+        (prompt "What game-script-icons do you want to install? (Will be put in the game directory "
+            "that you will be able to choose for each game, and will execute WarpSCUMM with your "
+            "prefered parameters. Icons are in V44+ Colouricon format.)"
+        )
+
+        (help @askoptions-help)
+
+        (choices
+            "Indiana Jones and the Last Crusade. (VGA)"
+            "Indiana Jones 4 and the Fate of Atlantis."
+            "Indiana Jones 4 and the Fate of Atlantis. (Demo)"
+            "Zak McKracken and the Alien Mindbenders. (VGA)"
+            "The secret of Monkey Island."
+            "The secret of Monkey Island. (EGA)"
+            "Monkey Island 2: LeChuck's revenge."
+            "Day Of The Tentacle."
+            "Day Of The Tentacle. (Demo)"
+            "Sam & Max."
+            "Sam & Max. (Demo)"
+            "Full Throttle."
+            "Simon The Sorcerer (DOS)"
+            "Simon The Sorcerer (Win)"
+        )
+
+        (default (+ 0))
+    )
+)
+
+(COMPLETE 40)
+
+(if (<> (IN #result 0 1 2 3 4 5 6 7 8 9 10 11 12 13) 0)
+    (set #fullscreen
+        (askbool
+            (prompt "What type of mode do you want to run the game(s) in?")
+            (help "For fullscreen mode a 320x200x8 display is recommended!")
+
+            (choices
+
+                "Window mode."
+                "Fullscreen mode."
+            )
+
+            (default 1)
+        )
+    )
+)
+
+(if (<> (IN #result 0 1 2 3 4 5 6 7 8 9 10 11 12 13) 0)
+    (set #gfxmode
+        (askchoice
+            (prompt "What graphics mode do you want to run the games in?")
+	    (help "Normal, Double and Tripple are ordinary 8bit modes "
+                  "while the others use a 16bit screen.")
+
+            (choices
+
+                "Normal."
+                "Double. (2x2)"
+                "Tripple. (3x3)"
+                "2xSai (16bit)"
+		"Super2xSai. (16bit)"
+		"SuperEagle. (16bit)"
+		"AdvMame2x. (16bit)"
+            )
+        )
+    )
+)
+
+(if (= #fullscreen 0)
+    (
+        (set #fullscreen (cat " -f"))
+    )
+    (
+        (set #fullscreen (cat ""))
+    )
+)
+
+(select (IN #gfxmode 0 1 2 3 4 5 6)
+    ((set #gfxmode (cat " -gnormal ")))
+    ((set #gfxmode (cat " -g2x ")))
+    ((set #gfxmode (cat " -g3x ")))
+    ((set #gfxmode (cat " -g2xsai ")))
+    ((set #gfxmode (cat " -gsuper2xsai ")))
+    ((set #gfxmode (cat " -gsupereagle ")))
+    ((set #gfxmode (cat " -gadvmame2x ")))
+)
+
+(set #xtra (cat "xtra"))
+
+(procedure set_game
+    (
+    (set #destdir
+        (askdir
+            (prompt "Where is " #name " installed? (The icon will be copied into the chosen directory.)")
+            (help @askdir-help)
+            (default "Work:")
+            (disk)
+        )
+    )
+
+    (set #dirandexe (tackon #destdir2 #exever))
+    (set #dirandicon (tackon #destdir #icon))
+    (set #dirandiconinfo (cat #dirandicon ".info"))
+
+    (set #srciconinfo (cat "Icons/" #icon ".info"))
+
+    (set #iconx
+        (cat #dirandexe #fullscreen #gfxmode #game)
+    )
+
+    )
+
+    (textfile
+        (dest (cat #dirandicon))
+        (append #iconx)
+    )
+
+    (copyfiles
+        (source #srciconinfo)
+        (dest #destdir)
+        (optional "fail")
+    )
+)
+
+(COMPLETE 53)
+
+; Indiana Jones and the Last Crusade. (VGA)
+
+(if (<> (IN #result 0) 0)
+    (
+        (set #icon (cat "Indy3"))
+        (set #game (cat "indy3"))
+        (set #name (cat "Indiana Jones and the Last Crusade (VGA)"))
+        (set_game)
+    )
+)
+
+
+(COMPLETE 56)
+
+; Indiana Jones 4 and the Fate of Atlantis.
+
+(if (<> (IN #result 1) 0)
+    (
+        (set #icon (cat "Atlantis"))
+        (set #game (cat "atlantis"))
+        (set #name (cat "Indiana Jones 4 and the Fate of Atlantis"))
+        (set_game)
+    )
+)
+
+(COMPLETE 59)
+
+; Indiana Jones 4 and the Fate of Atlantis. (Demo)
+
+(if (<> (IN #result 2) 0)
+    (
+        (set #icon (cat "Atlantis"))
+        (set #game (cat "playfate"))
+        (set #name (cat "Indiana Jones 4 and the Fate of Atlantis (Demo)"))
+        (set_game)
+    )
+)
+
+(COMPLETE 62)
+
+; Zak McKracken and the Alien Mindbenders. (VGA)
+
+(if (<> (IN #result 3) 0)
+    (
+        (set #icon (cat "ZakMcKracken"))
+        (set #game (cat "zak256"))
+        (set #name (cat "Zak McKracken and the Alien Mindbenders (VGA)"))
+        (set_game)
+    )
+)
+
+(COMPLETE 65)
+
+; The secret of Monkey Island.
+(if (<> (IN #result 4) 0)
+    (
+        (set #icon (cat "MonkeyIsland"))
+        (set #game (cat "monkey"))
+        (set #name (cat "The secret of Monkey Island"))
+        (set_game)
+    )
+)
+
+(COMPLETE 68)
+
+; The secret of Monkey Island. (EGA)
+(if (<> (IN #result 5) 0)
+    (
+        (set #icon (cat "MonkeyIsland"))
+        (set #game (cat "monkeyEGA"))
+        (set #name (cat "The secret of Monkey Island. (EGA)"))
+        (set_game)
+    )
+)
+
+(COMPLETE 71)
+
+; Monkey Island 2: LeChuck's revenge.
+(if (<> (IN #result 6) 0)
+    (
+        (set #icon (cat "MonkeyIsland2"))
+        (set #game (cat "monkey2"))
+        (set #name (cat "Monkey Island 2: LeChuck's revenge"))
+        (set_game)
+    )
+)
+
+(COMPLETE 74)
+
+; Day Of The Tentacle.
+(if (<> (IN #result 7) 0)
+    (
+        (set #icon (cat "Tentacle"))
+        (set #game (cat "tentacle"))
+        (set #name (cat "Day Of The Tentacle"))
+        (set_game)
+    )
+)
+
+(COMPLETE 77)
+
+; Day Of The Tentacle. (Demo)
+(if (<> (IN #result 8) 0)
+    (
+        (set #icon (cat "Tentacle"))
+        (set #game (cat "dottdemo"))
+        (set #name (cat "Day Of The Tentacle. (Demo)"))
+        (set_game)
+    )
+)
+
+(COMPLETE 80)
+
+; Sam & Max.
+(if (<> (IN #result 9) 0)
+    (
+        (set #icon (cat "Sam&Max"))
+        (set #game (cat "samnmax"))
+        (set #name (cat "Sam & Max"))
+        (set_game)
+    )
+)
+
+(COMPLETE 87)
+
+; Sam & Max. (Demo)
+(if (<> (IN #result 10) 0)
+    (
+        (set #icon (cat "Sam&Max"))
+        (set #game (cat "snmdemo"))
+        (set #name (cat "Sam & Max. (Demo)"))
+        (set_game)
+    )
+)
+
+(COMPLETE 92)
+
+; Full Throttle.
+(if (<> (IN #result 11) 0)
+    (
+        (set #icon (cat "FullThrottle"))
+        (set #game (cat "ft"))
+        (set #name (cat "Full Throttle"))
+        (set_game)
+    )
+)
+
+
+(COMPLETE 95)
+
+;Simon The Sorcerer (DOS)
+(if (<> (IN #result 12) 0)
+   (
+        (set #icon (cat "Simon"))
+        (set #game (cat "simon1dos"))
+        (set #name (cat "Simon The Sorcerer (DOS)"))
+        (set_game)
+   )
+)
+
+
+(COMPLETE 100)
+
+;Simon The Sorcerer (Win)
+(if (<> (IN #result 13) 0)
+    (
+        (set #icon (cat "Simon"))
+        (set #game (cat "simon1win"))
+        (set #name (cat "Simon The Sorcerer (Win)"))
+        (set_game)
+    )
+)
+
+
+(if (<> (IN #result 0 1 2 3 4 5 6 7 8 9 10 11 12 13) 0)
+    (message (all) "If you want to set further variables, "
+             "you can configure the scripts by hand... Consult the "
+             "amigaguide file for an explanation of everything, or "
+             "simply write \"" (tackon #destdir2 #exever) 
+	     " -h\" in a shell.")
+)
+(exit)

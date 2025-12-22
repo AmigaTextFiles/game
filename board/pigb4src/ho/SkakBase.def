@@ -1,0 +1,213 @@
+DEFINITION MODULE SkakBase; (* grænseflade modul (c) E.B.Madsen 91 DK *)
+
+(*$ DEFINE Test:=FALSE *)
+(*$ DEFINE False:=FALSE *)
+(*$ LongAlign:=TRUE StackParms:=TRUE CStrings:=TRUE LargeVars:=FALSE *)
+(*$ IF Test *)
+  (*$ Volatile:=FALSE StackChk:=TRUE RangeChk:=TRUE OverflowChk:=TRUE
+  NilChk:=TRUE EntryClear:=TRUE CaseChk:=TRUE ReturnChk:=TRUE *)
+(*$ ELSE *)
+  (*$ Volatile:=TRUE StackChk:=FALSE RangeChk:=FALSE OverflowChk:=FALSE
+  NilChk:=FALSE EntryClear:=FALSE CaseChk:=FALSE ReturnChk:=FALSE *)
+(*$ ENDIF *)
+
+(* Re-Compile-kæde: SkakScreen, SkakFil, SkakBrain, Skak *)
+
+FROM SYSTEM IMPORT 
+  ADDRESS;
+
+FROM IntuitionD IMPORT
+  ScreenPtr, WindowPtr;
+
+CONST
+  SkakBaseDefCompilation="40";
+  HvisTur = 110; (* Stilling[HvisTur] indikerer om H eller S er i trækket *)
+  MaxExtras=22; (* Hvor mange Extra PGN infos der er plads til (max 34) *)
+
+TYPE
+  STILLINGTYPE=ARRAY[-10..HvisTur] OF CHAR; (* A1-H8=11-88, HvidSort='H' | 'S' *)
+  STR15=ARRAY[0..15] OF CHAR;
+  STR30=ARRAY[0..30] OF CHAR;
+  STR77=ARRAY[0..77] OF CHAR; 
+  STR97=ARRAY[0..97] OF CHAR;
+(********************** Liste Datatyper :  *******************************)
+
+CONST 
+  MAXMAXLLSIZE=65536*16; (* Maxmax 32768 = maxmax 2.7M *)
+TYPE
+  TextListRec=RECORD
+                Attr:SHORTCARD; (* Attr=0 for Not Selected *)
+                Text:POINTER TO STR77;
+                Adrs:LONGINT;
+              END;
+  TextList=ARRAY[1..MAXMAXLLSIZE] OF TextListRec;
+  TextListPtr=POINTER TO TextList;
+  EMPROCTYPE=PROCEDURE(WindowPtr,BOOLEAN):INTEGER;
+
+VAR
+  EMPROC:EMPROCTYPE;
+  MAXLLSIZE:LONGINT;(* 1024 = max 87K *)
+  LLSIZE:LONGINT;   (* 256 Dynamisk mellem 16 og 1024 linier 2k - 87k (2.7M) *)
+  LL:TextListPtr;
+  LLP:LONGINT;             (* Antal i LL *)
+
+(********************** PGN TAGS Datatyper :  *******************************)
+
+CONST
+
+  (* Skak20 + PGN standard infos: *)
+  gEvent        =-12;(*STR20*)
+  gSite         =-11;(*STR20*)
+  gDate         =-10;(*STR10*)
+  gRound        = -9;(*STR3*)
+  gWhite        = -8;(*STR25*)
+  gBlack        = -7;(*STR25*)
+  gResult       = -6;(*STR7*)
+
+  (* Skak20 standard, PGN ekstras: *)
+  gWhiteTitle   = -5;(*STR3*)
+  gBlackTitle   = -4;(*STR3*)
+  gWhiteElo     = -3;(*STR4 (over/under flag fra v2.7) *)
+  gBlackElo     = -2;(*STR4 (over/under flag fra v2.7) *)
+  gWhiteUSCF    = -1;(*STR4 (over/under flag fra v2.7) *)
+  gBlackUSCF    =  0;(*STR4 (over/under flag fra v2.7) *)
+
+  (* Skak20 ekstras, PGN ekstras: *)
+
+  gNIC          = 1; (* STR11*)
+  gAnnotator    = 2; (* STR15*)
+  gSource       = 3; (* STR19, ustandard *)
+  gInfo         = 4; (* STR12, ustandard *)
+  gEventDate    = 5; (* STR10*)
+  gEventSponsor = 6; (* STR10*)
+  gSection      = 7; (* STR15*)
+  gStage        = 8; (* STR15*)
+  gBoard        = 9; (* STR15*)
+  gOpening      =10; (* STR15*)
+  gVariation    =11; (* STR15*)
+  gSubVariation =12; (* STR15*)
+  gECO          =13; (* STR7*)
+  gTime         =14; (* STR6*)
+  gWhiteCountry =15; (* STR3, ustandard *)
+  gBlackCountry =16; (* STR3, ustandard *)
+  gExt17        =17; (* STR30,              search expression   , selectDeletedToggle *) (* HUSK! gFlags=nonempty, gInverse=special-flags *)
+  gPosition     =MaxExtras-4; (* (gFilters) maxInfoLines        , position search flag (gInverse) *)
+  gComments     =MaxExtras-3; (* (gFilters) Comments antal tegn + over/under flag (gInverse) *)
+  gMoves        =MaxExtras-2; (* (gFilters) Moves antal HEL-træk+ over/under flag (gInverse) *)
+  gIC           =MaxExtras-1; (* (gFilters) Variant value (HALV), Interchange flag (gInverse) *)
+  gSkip         =MaxExtras;   (* (gFilters) Skip value          + over/under flag (use MaxExtras!)*)
+
+TYPE
+  DATARR =ARRAY[-12..MaxExtras] OF STR30;
+  LBLARR =ARRAY[-12..MaxExtras] OF STR15;
+  FLAGARR=ARRAY[-12..MaxExtras] OF BOOLEAN;
+
+CONST
+  gLabels=LBLARR{
+    'Event','Site','Date','Round','White','Black','Result',
+    'WhiteTitle','BlackTitle','WhiteElo','BlackElo','WhiteUSCF',
+    'BlackUSCF','NIC','Annotator','Source','Info','EventDate',
+    'EventSponsor','Section','Stage','Board','Opening','Variation',
+    'SubVariation','ECO','Time','WhiteCountry','BlackCountry',
+    'FEN','Ext18','Ext19','Ext20','Ext21','Ext22'};
+
+VAR
+(*$IF False *)
+  (* Skak20 + PGN standard infos: *)
+  gEvent        :STR30 (*STR20*);     (* -13 *)
+  gSite         :STR30 (*STR20*);     (* -12 *)
+  gDate         :STR30 (*STR10*);     (* -11 *)
+  gRound        :STR30 (*STR3*);      (* -10 *)
+  gWhite        :STR30 (*STR25*);     (*  -9 *)
+  gBlack        :STR30 (*STR25*);     (*  -8 *)
+  gResult       :STR30 (*STR7*);      (*  -7 *)
+  (* Skak20 standard, PGN ekstras: *) (*  -6 *)
+  gWhiteTitle   :STR30 (*STR3*);      (*  -5 *)
+  gBlackTitle   :STR30 (*STR3*);      (*  -4 *)
+  gWhiteElo     :STR30 (*STR4*);      (*  -3 *)
+  gBlackElo     :STR30 (*STR4*);      (*  -2 *)
+  gWhiteUSCF    :STR30 (*STR4*);      (*  -1 *)
+  gBlackUSCF    :STR30 (*STR4*);      (*   0 *)
+(*$ENDIF *)
+
+  (* alle PGN Tags er i gExtras *)
+  gFilters : DATARR;
+  gExtras  : DATARR;   (* ascii in fields *)
+  gFlags   : FLAGARR;  (* flagged if field in gExtra is non-empty *)
+  gInverse : FLAGARR;  (* flagged if text for field in gExtra reversed + SPECIALS! *)
+
+  PIGtotal          :LONGINT; (* total games in PIG file, LLP=Filtered *)
+  PIGdeleted        :LONGINT; (* games deleted in PIG file *)
+  PIGlength         :LONGINT; (* PIG file length *)
+  PIGstat0,PIGstat1,
+  PIGstat2,PIGstat3 :LONGINT; (* 1-0,1/2,0-1,unknown counts sum=games selected*)
+  PIGyear,PIGxtra   :LONGINT; (* gennemsnits år, *)
+  Name20,path20     :STR97;   (* PIG filename,fullname *)
+  Name20ud,path20ud :STR97;
+  Name30,path30     :STR97;
+(********************** Diverse Datatyper :  *******************************)
+
+  OpAd       :BOOLEAN; (* Hvids spilleretning *)
+  SetUpMode  :INTEGER; (* 1=SetUp Mode, 0=Main Mode, 2=InTeori,
+                          3=OutOfTeori, 4=SetUpTeori *)
+  Valg       :INTEGER; (* 'outline' af een gadget 0=ingen *)
+  StyO,StyU  :INTEGER; (* 0=Menneske, 1-9=Maskine styrke Over/Under *)
+  VlmO,VlmU  :INTEGER; (* Værdi materiel   1-99 *)
+  VlpO,VlpU  :INTEGER; (* Værdi positionel 1-99 *)
+  TraekNr    :INTEGER; (* 0..MaxTraek *)
+  MaxTraek   :INTEGER; (* 0..MaxHalvTraek (SkakBrain) *)
+  Simple     :BOOLEAN; (* TRUE = Low-memory refresh-mode *)
+  Debug      :BOOLEAN; (* sættes med colorreq? *)
+  sptr       :ScreenPtr; (* Sat hvis CustomScreen *) 
+  ReqReq     :BOOLEAN; (* Sat hvis Req.library filrequester skal bruges *)
+  SpeakOff   :BOOLEAN; (* Sat hvis speak skal være fra som start *)
+  MaxTeori   :INTEGER; (* MaxTeori *)
+  Later      :LONGINT; (* GetTextPGN: 0=normal (ll20 2=Append 9=SkipCache) *)
+  Later2     :INTEGER; (* listpick: 0=normal 1=Deleted on/off 2=Append *)
+                       (* gemF: set SkipCount when ToA *)
+  InterOn    :BOOLEAN; (* Later3 INTERNATIONAL, TRUE=Engelsk R/W i Ikke-engelske udgaver *)
+
+  MouthOff   :BOOLEAN; (* Disable Munde *)
+  LotMemOn   :BOOLEAN; (* Use lot of memory if possible *)
+  NoSpeakTask:BOOLEAN; (* No loading of the SPEAKER program (multitasking speak) *)
+  NoAutoPGN  :BOOLEAN; (* Drop to show PGN info after loading *)
+  Quick      :BOOLEAN; (* used *)
+
+  NoLocale   :ARRAY[0..32] OF CHAR; (* Later 4, LOCALE filename, 'LOCALE' *)
+  LongFormOn :CHAR; (* Later5 'S'=SHORTFORMWRITE, 'L'=LONGFORMWRITE *)
+  VariantTil : BOOLEAN; (* analyze a variant on the board *)
+  Lates1     :LONGINT; (* Last-error (HentF) PTR TO STR[0..99] *)
+  Lates2     :BOOLEAN; (* True for HentF SuperAuto *)
+  Lates3     :INTEGER; (* Tooltype PGN 0=PGNoff 1=PGNon *)
+  L1b        :BOOLEAN; (* Teoriwindow in foreground if TRUE *)
+  L2b,L3b    :BOOLEAN; (* not (yet) used: *)
+  L1c,L2c,L3c:CHAR;
+  L1i,L2i,L3i:INTEGER;
+  L1s,L2s,L3s:SHORTINT;
+  L1l,L2l,L3l:LONGINT;
+  L1a,L2a,L3a:ADDRESS;  
+    
+TYPE
+  (* Some TYPEs used by SkakTeori *)
+  valuetype=RECORD
+              white:SHORTCARD; (* 255=100%,  draw=255-white-black *)
+              black:SHORTCARD;
+              count :CARDINAL;   (* count of Games *)
+            END;
+  valuetypePtr=POINTER TO valuetype;
+  felttype =SHORTINT;
+  briktype =CHAR;
+  traektype=RECORD
+              fra,til : felttype;
+            END;
+  nodeptr  =POINTER TO node;
+  node     =RECORD
+              link :nodeptr;    (*Linked liste af mulige (iflg. teori) træk*)
+              naest:nodeptr;    (*Næste stilling (efter træk)*)
+              traek:traektype;  (* .fra .til SHORTINT*)
+              value:valuetype;  (* Stillings bedømmelse efter træk*)
+            END;
+VAR
+  TFra,TTil  :SHORTINT;(* The top (recommended) move by theory tree *)
+
+END SkakBase.

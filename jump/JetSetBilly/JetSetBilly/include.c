@@ -1,0 +1,19 @@
+#include <exec/types.h>
+#include <exec/memory.h>
+#include <devices/audio.h>
+#include <hardware/blit.h>
+#include <graphics/gfx.h>
+#include <graphics/gels.h>
+#include <graphics/clip.h>
+#include <graphics/collide.h>
+#include <graphics/rastport.h>
+#include <graphics/gfxbase.h>
+#include <graphics/view.h>
+#include <libraries/asl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <ctype.h>
+
+#include <proto/all.h>

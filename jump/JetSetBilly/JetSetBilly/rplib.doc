@@ -1,0 +1,205 @@
+
+Description
+
+	This is a library of useful assembler subroutines for Amiga
+	programming with assember or SAS/C 6.x. All code and source in this
+	library can be freely used, modified and distributed.
+
+		Risto Paasivirta, paasivir@jyu.fi
+
+Data encryption with Idea algorithm.
+
+	Credits to Colin Plumb for his exellent fast Idea core.
+
+	typedef	UWORD	idea_block[4];
+	typedef UWORD	idea_key[8];
+	typedef UWORD	idea_key_schedule[104];
+
+	Idea types. Idea routines can take any word aligned pointers,
+	you can use these to get block sizes.
+
+	#define IDEA_ENCRYPT 1
+	#define IDEA_DECRYPT 0
+
+	Idea encryption modes.
+
+	void __asm idea_set_key(register __a0 UWORD *userkey,
+		register __a1 UWORD *keysched);
+
+	Generate a key schedule from 128 bit user key block.
+
+	void __asm idea_ecb_encrypt( register __a0 UWORD *src,
+		register __a1 UWORD *dst, register __a2 UWORD *ks,
+		register __d0 int mode);
+
+	Idea encryption in electronic code book mode. This function
+	en/decrypts 64-bit block from src to dst using key schedule ks.
+	src == dst is allowed.
+
+
+	void __asm idea_cbc_encrypt(register __a0 UWORD *src,
+		register __a1 UWORD *dst, register __d0 ULONG len,
+		register __a2 UWORD *ks, register __a3 UWORD *ivec,
+		register __d1 int mode);
+
+	Idea encryption in cipher block chaining mode. Encrypt len
+	bytes from src to dst using key schedule ks and initial vector
+	iv. If len is not multiple of sizeof(idea_block) (ie. multiple of
+	8), last partial block is ingnored. For encryption, data is first
+	exclusive-ored with iv, then encrypted and resulting ciphertext
+	is used as iv for next block. For decryption, data is first decrypted,
+	then exclusive-ored with iv, old ciphertext is used as iv for next
+	block. src==dst is allowed.
+
+	IDEA algorithm is patented, but no license is required for 
+	non-commercial use.  If you would like to use IDEA in a commercial
+	product, contact Dr. Dieter Profos, Ascom Tech AG, Solothurn Lab,
+	Postfach 151, 4502 Solothurn, Switzerland for licensing detaills.
+
+Simple random generator.
+
+	void __asm srnd(register __d0 UWORD seed); 
+
+	Initialize random seed to (seed-1)
+
+	ULONG __asm rnd(void);
+
+	Simple pseudorandom generator. Identical to rand() in C-library,
+	algorithm:
+		seed = (seed * 3677 + 3680) & 0x7fffffff;
+		return (seed--);
+
+Strong random generator
+
+	extern ULONG _random_buffer[16];
+
+	Random value buffer. Random values are produced by encrypting
+	this buffer with Idea in cipher block chaining mode.
+
+	void __asm srandom(register __a0 char key_eor[16]);
+
+	Exclusive-or key_eor to old key value, set key, encrypt key, 
+	set key again, encrypt iv, encrypt random_buffer in cbc mode, set 
+	buf count to 16. If key_eor == NULL, encrypt iv and random_buffer
+	and set count. If you store _random_buffer to disk, you may want to
+	call srandom(NULL) before saving and after loading _random_buffer.
+
+	ULONG __asm random(void);
+
+	Get a random value from buffer, if buffer empty, encrypt iv,
+	encrypt random_buffer in cipher block chaining mode. Return
+	random value from buffer. Note that the value range is (0..2^32-1)
+	when in rnd the range is (0..2^31-1)
+
+Data compression with LZRW1-a algorithm.
+
+	Credits: derived from C-code by Ross Williams
+
+	typedef UBYTE *compress_hash[4096];
+
+	Hash table type used by encompress.
+
+	ULONG __asm decompress(register __a0 UBYTE *src,
+		register __a1 UBYTE *dst, register __d0 ULONG ilen);
+
+	Decompress ilen bytes of compressed data from dst to src.
+	Returns number of bytes written to dst. src and dst may not
+	overlap.
+
+	ULONG __asm encompress(register __a0 UBYTE *src,
+		register __a1 UBYTE *dst, register __d0 ULONG ilen,
+		register __a2 UBYTE **hash);
+
+	Compress ilen bytes from src to dst, hash is used as workspace.
+	Dst should have room for few extra bytes in case data cannot be
+	compressed. Returns number of bytes written to dst, in worst case,
+	ilen+1. src and dst may not overlap.
+
+	LZRW1-a is very fast algoritm, suitable for 'real-time' applications.
+	If you need much better than 50% compression, use LZH or some other
+	slow-but-effective algorithm.
+
+	There is some confusion about patent status of various algorithms
+	in LZ77 algorithm family. As far as I know LZRW1-a is not patented.
+
+CRC32 checksum
+
+	Credits: derived from code posted by Keith.Warden@mtask.omahug.org
+
+	ULONG __asm crc32(register __a0 UBYTE *buf, register __d0 ULONG len);
+
+	Calculate 32-bit cheksum value from buffer buf of len bytes.
+	Returns crc value, with bits reversed. You can reverse crc bits
+	with bitrev().
+
+Integer square root
+
+	Credits: warwick@cs.uq.oz.au posted algorithm.
+
+	ULONG __asm isqrt(register __d0 ULONG v);
+
+	Calculate square root of v. Round to nearest if v is not 
+	square of any value.
+
+Bit operations
+
+	Credits: XXX someone posted bitcount algorithm to sci.crypt
+
+	ULONG __asm bitcount(register __d0 ULONG val);
+	ULONG __asm bitrev(register __d0 ULONG val);
+	ULONG __asm byterev(register __d0 ULONG val);
+	ULONG __asm highbit(register __d0 ULONG val);
+	ULONG __asm lowbit(register __d0 ULONG val);
+	ULONG __asm oddparity(register __d0 ULONG val);
+	ULONG __asm evenparity(register __d0 ULONG val);
+
+	Calculate bit count, reverse bits/bytes, search highest/lowest bit
+	of 32 bit values, calculate even/odd parity of 4 bytes in 32-bit
+	value.
+
+Quicksort
+
+	(Algorithm from Knuth 3, but I haven't read it... I've examined
+	comp.lang.c sort flogger and some other quicksort implementations.)
+
+	void __asm quicksort(register __a0 void *base, register __d0 ULONG elem,
+		register __d1 UWORD width, register __a1 int (*compare_fn)
+			(register __a0 void *e1, register __a1 void *e2));
+
+	Sort nelem elements of size width in array base, using user supplied
+	compare function. Compare function must take its arguments in
+	registers a0 and a1. Sorting is optimized for element width 4 bytes
+	and word aligned array, for 100000 4 byte elements sorting time is
+	about 70% of SAS/C 6.2 qsort time (with 68020.) However SAS/C 6.2 lib
+	quicksort is faster when sorting arrays of huge elements. Note that
+	even bubble sort will be faster than any quicksort when sorting
+	almost-in-order arrays less than 10 elements long. Quicksort takes
+	about one third of stack when compared to SAS qsort, 1k of free stack
+	space should be enough for every sort which fits in memory.
+	(Todo: use bubble sort when nelem<10)
+
+	Here is an example compare function for SAS/C 6.2:
+
+	/* prototype for function pointer */
+	int __asm compare(register __a0 void *a, register __a1 void *b);
+	/* compare two integers in array */
+	int __asm compare(register __a0 void *a, register __a1 void *b)
+	{
+  		if (*((int *)a) > *((int *)b)) return 1;
+		if (*((int *)a) < *((int *)b)) return -1;
+		return 0;
+	}
+
+	The same for assember:
+
+	compare		cmpm.l	(a1)+,(a0)+
+			bgt.b	1$
+			blt.b	2$
+			moveq	#0,d0
+			rts
+	1$		moveq	#1,d0
+			rts
+	2$		moveq	#-1,d0
+			rts
+
+

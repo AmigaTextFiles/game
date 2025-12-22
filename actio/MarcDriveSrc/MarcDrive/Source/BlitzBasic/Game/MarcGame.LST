@@ -1,0 +1,401 @@
+DEFFLT "a-z"
+'
+display
+init_field
+@load_mc
+draw_field
+'
+game
+'
+free_all
+END
+'
+> PROCEDURE display
+DIM rp%(2)
+DIM bm%(2)
+FOR i=1 TO 2
+  SETSPEN 0,16
+  OPENS i,0,0,320,256,5,0
+  SETWPEN 0,16
+  OPENW #i,0,0,320,256,0,&H100F
+  COLOR 31,16
+  CLEARW #i
+  FOR n=0 TO 15
+    SETCOLOR n+16,n*&H111
+  NEXT n
+  rp%(i)={WINDOW(i)+50}
+  bm%(i)=SCREEN(i)+184
+NEXT i
+i=1
+RETURN
+> PROCEDURE load_mc
+DIM m68%(15)
+mc.name$="MarcDrive:Program/PlotWay"+CHR$(0)
+mc.base%=LoadSeg(V:mc.name$)
+IF mc.base%
+MUL mc.base%,4
+ADD mc.base%,4
+ELSE
+PRINT "Einladen des Maschinencode hat nicht geklappt (warum auch)"
+free_all
+END
+ENDIF
+init%=mc.base%+0
+plot%=mc.base%+4
+plot3d%=mc.base%+8
+calc3d%=mc.base%+12
+distance%=mc.base%+16
+plotway%=mc.base%+20
+m68%(0)=waywid
+m68%(9)=pointmem%
+RCALL init%,m68%()
+rotmat%=m68%(8)
+RETURN
+> PROCEDURE free_all
+IF mc.base%
+~UnLoadSeg(V:mc.base%)
+ENDIF
+IF pointmem%
+~FreeMem(pointmem%,pointlen%)
+ENDIF
+CLOSES 1
+CLOSES 2
+RETURN
+> PROCEDURE game
+' ~Disable()
+WHILE curway<waylen-displen AND curway>=calclen
+key=XOR(&HFF,ROR|(PEEK(&HBFEC01),1))
+EXIT IF key=&H45
+SELECT key
+CASE &H1D     ! 7
+CASE &H1E     ! 8
+CASE &H2D     ! 4
+CASE &H2E     ! 5
+CASE &H3D     ! 1
+CASE &H3E     ! 2
+CASE &H4C     ! Hoch
+ADD bally,d
+CASE &H4D     ! Runter
+SUB bally,d
+CASE &H4E     ! Rechts
+ADD ballx,d
+CASE &H4F     ! Links
+SUB ballx,d
+CASE &H4A     ! Vor
+ADD ballz,d
+CASE &H5E     ! Zurück
+SUB ballz,d
+CASE &H40
+ENDSELECT
+stick=STICK(1)
+jump=STRIG(1)
+IF jump<>0 AND dist<=ballr2
+ballvy=15
+ENDIF
+IF BTST(stick,0)
+ADD ballvx,balla*camwx
+ADD ballvy,balla*camwy
+ADD ballvz,balla*camwz
+ENDIF
+IF BTST(stick,1)
+SUB ballvx,balla*camwx
+SUB ballvy,balla*camwy
+SUB ballvz,balla*camwz
+ENDIF
+IF BTST(stick,2)
+rotatek(wx,wy,ballvx,ballvz)
+rotatek(wx,wy,camwx,camwz)
+ENDIF
+IF BTST(stick,3)
+rotatek(wx,-wy,ballvx,ballvz)
+rotatek(wx,-wy,camwx,camwz)
+ENDIF
+draw_field
+WEND
+' ~Enable()
+RETURN
+> PROCEDURE plot3d(x,y,z,mem%)
+m68%(0)=x
+m68%(1)=y
+m68%(2)=z
+m68%(8)=bm%(i)
+RCALL plot3d%,m68%()
+RETURN
+> PROCEDURE ball3d(x,y,z)
+LOCAL c,x1,y1,x2,y2
+'
+m68%(0)=x-ballr
+m68%(1)=y
+m68%(2)=z
+RCALL calc3d%,m68%()
+x1=m68%(0)
+y1=m68%(1)
+m68%(0)=x+ballr
+m68%(1)=y
+m68%(2)=z
+RCALL calc3d%,m68%()
+COLOR m68%(2)
+LINE x1,y1,m68%(0),m68%(1)
+'
+m68%(0)=x
+m68%(1)=y-ballr
+m68%(2)=z
+RCALL calc3d%,m68%()
+x1=m68%(0)
+y1=m68%(1)
+m68%(0)=x
+m68%(1)=y+ballr
+m68%(2)=z
+RCALL calc3d%,m68%()
+LINE x1,y1,m68%(0),m68%(1)
+'
+m68%(0)=x
+m68%(1)=y
+m68%(2)=z-ballr
+RCALL calc3d%,m68%()
+x1=m68%(0)
+y1=m68%(1)
+m68%(0)=x
+m68%(1)=y
+m68%(2)=z+ballr
+RCALL calc3d%,m68%()
+LINE x1,y1,m68%(0),m68%(1)
+RETURN
+> PROCEDURE distance(z1,z2,x,y,z,VAR a,b,d)
+m68%(0)=z1
+m68%(1)=z2
+m68%(2)=x
+m68%(3)=y
+m68%(4)=z
+RCALL distance%,m68%()
+a=m68%(0)
+b=m68%(1)
+d=m68%(2)
+RETURN
+> PROCEDURE plotway(z1,z2)
+m68%(0)=z1
+m68%(1)=z2
+m68%(8)=bm%(i)
+RCALL plotway%,m68%()
+RETURN
+> PROCEDURE turboplot(bm%,x,y,c)
+m68%(0)=x
+m68%(1)=y
+m68%(2)=c
+m68%(8)=bm%
+RCALL plot%,m68%()
+RETURN
+> PROCEDURE init_field
+max=50
+sizex=10
+sizez=10
+' 0-x   1-y   2-z
+waywid=12
+waylen=200
+pointlen%=2*3*waywid*waylen
+pointmem%=AllocMem(pointlen%,65536)
+displen=8
+calclen=5
+curway=calclen
+'
+IF pointmem%=0
+PRINT "Kein Speicher für Punktkoordinaten frei"
+free_all
+END
+ENDIF
+FOR z=0 TO waylen-1
+FOR x=0 TO waywid-1
+xm=x-(waywid-1)/2
+WORD{pointmem%+(z*waywid+x)*6+0}=SINQ(z*9)*40+SINQ(xm/waywid*360)*20
+WORD{pointmem%+(z*waywid+x)*6+2}=COSQ(z*9)*40-COSQ(xm/waywid*360)*20
+WORD{pointmem%+(z*waywid+x)*6+4}=z*10
+' ' WORD{pointmem%+(z*waywid+x)*6+0}=(COSQ(z*18)*2+xm)*10
+' ' WORD{pointmem%+(z*waywid+x)*6+2}=xm*COSQ(z*18)*3
+' WORD{pointmem%+(z*waywid+x)*6+0}=xm*10
+' WORD{pointmem%+(z*waywid+x)*6+2}=xm*xm+200*COSQ(z*3)
+' WORD{pointmem%+(z*waywid+x)*6+4}=z*10
+NEXT x
+NEXT z
+'
+fielda=waywid/2
+fieldb=curway+2
+'
+init_ball(fielda,fieldb)
+'
+ballay=-2
+balla=2
+ballr=10
+ballr2=ballr*ballr
+ballk=0.8
+'
+d=3
+w=10
+wx=COSQ(w)
+wy=SINQ(w)
+RETURN
+> PROCEDURE draw_field
+LOCAL dx1,dy1,dz1,dx2,dy2,dz2,abs,wx,wy,wz,wxy,wxz,wyz,e,f,g
+i=3-i
+RASTPORT rp%(i)
+CLEARW #i
+'
+' Bewegung + Gravitation
+ADD ballvy,ballay
+ADD ballx,ballvx
+ADD bally,ballvy
+ADD ballz,ballvz
+'
+' Abstand zum nächsten Punkt
+distance(curway-calclen,curway+calclen,ballx,bally,ballz,fielda,fieldb,dist)
+TEXT 10,10,fielda
+TEXT 10,20,fieldb
+TEXT 10,30,dist
+curway=fieldb
+'
+' Kollision
+IF dist<ballr2
+SUB ballx,ballvx
+SUB bally,ballvy
+SUB ballz,ballvz
+'
+' Reflexion
+dx1=@coord(fielda+1,fieldb,0)-@coord(fielda-1,fieldb,0)
+dy1=@coord(fielda+1,fieldb,1)-@coord(fielda-1,fieldb,1)
+dz1=@coord(fielda+1,fieldb,2)-@coord(fielda-1,fieldb,2)
+dx2=@coord(fielda,fieldb+1,0)-@coord(fielda,fieldb-1,0)
+dy2=@coord(fielda,fieldb+1,1)-@coord(fielda,fieldb-1,1)
+dz2=@coord(fielda,fieldb+1,2)-@coord(fielda,fieldb-1,2)
+e=(dz2*dy1-dz1*dy2)
+f=(dx1*dz2-dx2*dz1)
+g=(dx1*dy2-dx2*dy1)
+'
+wx=-e*e+f*f+g*g
+wy=e*e-f*f+g*g
+wz=e*e+f*f-g*g
+wxy=2*e*f
+wxz=2*e*g
+wyz=2*f*g
+'
+abs=e*e+f*f+g*g
+dx=ballvx/abs
+dy=ballvy/abs
+dz=ballvz/abs
+'
+ballvx=dx*wx+dy*wxy-dz*wxz
+ballvy=dx*wxy+dy*wy+dz*wyz
+ballvz=-dx*wxz+dy*wyz+dz*wz
+'
+TEXT 20,48,ballvy
+MUL ballvx,ballk
+MUL ballvy,ballk
+MUL ballvz,ballk
+'
+IF FALSE
+wy=@coord(fielda,fieldb,1)
+IF bally<wy
+bally=@coord(fielda,fieldb,1)-ballr
+ELSE
+bally=@coord(fielda,fieldb,1)+ballr
+ENDIF
+ELSE
+ADD ballx,ballvx*0.3
+ADD bally,ballvy*0.3
+ADD ballz,ballvz*0.3
+ENDIF
+ENDIF
+'
+' Runtergefallen?
+IF bally<@coord(fielda,fieldb,1)-300
+init_ball(waywid/2,fieldb)
+ENDIF
+'
+' Kameraposition
+IF FALSE
+WORD{rotmat%+6+8*0}=-@coord(fielda,fieldb,0)
+WORD{rotmat%+6+8*1}=-@coord(fielda,fieldb,1)-50
+WORD{rotmat%+6+8*2}=-@coord(fielda,fieldb,2)
+ELSE
+WORD{rotmat%+6+8*0}=-ballx
+WORD{rotmat%+6+8*1}=-30-bally
+WORD{rotmat%+6+8*2}=-ballz
+ENDIF
+'
+' Kameradrehung
+WORD{rotmat%+0+8*0}=&H4000*camwz
+WORD{rotmat%+2+8*0}=0
+WORD{rotmat%+4+8*0}=-&H4000*camwx
+WORD{rotmat%+0+8*1}=0
+WORD{rotmat%+2+8*1}=&H4000
+WORD{rotmat%+4+8*1}=0
+WORD{rotmat%+0+8*2}=&H4000*camwx
+WORD{rotmat%+2+8*2}=0
+WORD{rotmat%+4+8*2}=&H4000*camwz
+'
+' Punktfeld zeichnen
+IF TRUE
+plotway(curway-2,curway+displen)
+ELSE
+FOR z=curway-2 TO curway+displen
+FOR x=0 TO waywid-1
+plot3d(@coord(x,z,0),@coord(x,z,1),@coord(x,z,2),rotmat%)
+NEXT x
+NEXT z
+ENDIF
+ball3d(ballx,bally,ballz)
+FRONTS i
+RETURN
+> PROCEDURE init_ball(fielda,fieldb)
+LOCAL abs
+ballx=@coord(fielda,fieldb,0)
+bally=@coord(fielda,fieldb,1)+ballr+5
+ballz=@coord(fielda,fieldb,2)
+ballvx=0
+ballvy=0
+ballvz=0
+camwx=@coord(fielda,fieldb+1,0)-@coord(fielda,fieldb,0)
+camwz=@coord(fielda,fieldb+1,2)-@coord(fielda,fieldb,2)
+camw=SQR(camwx*camwx+camwz*camwz)
+camwx=camwx/camw
+camwy=0
+camwz=camwz/camw
+RETURN
+> PROCEDURE rotatek(wx,wy,VAR x,y)
+LOCAL x2,y2
+x2=x*wx-y*wy
+y2=x*wy+y*wx
+x=x2
+y=y2
+RETURN
+> PROCEDURE rotatem(a,b,wx,wy,mem%)
+LOCAL x,y,m1%,m2%
+'
+m1%=mem%+a*8+a*2
+m2%=mem%+a*8+b*2
+x=WORD{m1%}*wx+WORD{m2%}*wy
+y=-WORD{m1%}*wy+WORD{m2%}*wx
+WORD{m1%}=x
+WORD{m2%}=y
+'
+m1%=mem%+b*8+a*2
+m2%=mem%+b*8+b*2
+x=WORD{m1%}*wx+WORD{m2%}*wy
+y=-WORD{m1%}*wy+WORD{m2%}*wx
+WORD{m1%}=x
+WORD{m2%}=y
+RETURN
+> PROCEDURE rotates(a,b,wx,wy,VAR m())
+LOCAL x,y
+x=m(a,a)*wx+m(a,b)*wy
+y=-m(a,a)*wy+m(a,b)*wx
+m(a,a)=x
+m(a,b)=y
+x=m(b,a)*wx+m(b,b)*wy
+y=-m(b,a)*wy+m(b,b)*wx
+m(b,a)=x
+m(b,b)=y
+RETURN
+> PROCEDURE move(a,d,mem%)
+ADD mem%,6+8*a
+WORD{mem%}=WORD{mem%}+d
+RETURN
+DEFFN coord(x,z,coord)=WORD{pointmem%+(z*waywid+MIN(waywid-1,MAX(0,x)))*6+coord*2}

@@ -1,0 +1,256 @@
+/*
+Copyright (C) 2003 Parallel Realities
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+*/
+
+#include "init.h"
+
+/*
+Show the GNU Public License the first time the game is played. Waits 4 seconds
+and then proceeds. THIS MUST NOT BE REMOVED!!!!!
+*/
+void showLicense()
+{
+	graphics.clearScreen(graphics.black);
+	graphics.delay(1000);
+
+	SDL_Surface *pic = graphics.loadImage("gfx/licensePic.jpg");
+	graphics.blit(pic, 0, 0, graphics.screen, false);
+	SDL_FreeSurface(pic);
+
+	engine.loadData("data/LICENSE");
+
+	char line[255];
+	int y = 0;
+
+	char *token = strtok(engine.dataBuffer, "\n");
+
+	while (true)
+	{
+		sscanf(token, "%d %[^\n]", &y, line);
+
+		graphics.drawString(320, y, true, graphics.screen, line);
+
+		token = strtok(NULL, "\n");
+
+		if (token == NULL)
+			break;
+	}
+
+	graphics.delay(4000);
+
+	graphics.drawString(320, 440, true, graphics.screen, "Press Space to Continue...");
+
+	engine.flushInput();
+	engine.clearInput();
+
+	while (true)
+	{
+		graphics.updateScreen();
+		engine.getInput();
+		if (engine.keyState[SDLK_SPACE])
+			break;
+	}
+}
+
+/*
+This bit is just for Linux and Unix users. It attempts to get the user's
+home directory, then creates the .parallelrealities and .parallelrealities/q
+directories so that saves and temporary data files can be written there. Good, eh? :)
+*/
+#if UNIX
+void setupUserHomeDirectory()
+{
+	char *userHome;
+
+	char *name = getlogin();
+
+	passwd *pass;
+
+	if (name != NULL)
+		pass = getpwnam(name);
+	else
+		pass = getpwuid(geteuid());
+
+	if (pass == NULL)
+	{
+		printf("Couldn't determine the user home directory. Exitting.\n");
+		exit(1);
+	}
+
+	userHome = pass->pw_dir;
+
+	char dir[PATH_MAX];
+	strcpy(dir, "");
+
+	sprintf(dir, "%s/.parallelrealities", userHome);
+	if ((mkdir(dir, S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH) != 0) && (errno != EEXIST))
+		exit(1);
+
+	sprintf(dir, "%s/.parallelrealities/q", userHome);
+	if ((mkdir(dir, S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH) != 0) && (errno != EEXIST))
+		exit(1);
+
+	char gameSavePath[PATH_MAX];
+	sprintf(gameSavePath, "%s/.parallelrealities/q/", userHome);
+	engine.setUserHome(gameSavePath);
+}
+
+#endif
+
+bool loadConfig()
+{
+	char configPath[PATH_MAX];
+
+#ifndef __MORPHOS__
+	sprintf(configPath, "%s/config", engine.userHomeDirectory);
+#else
+	sprintf(configPath, "%sconfig", engine.userHomeDirectory);
+#endif
+
+	debug(("Loading Config from %s\n", configPath));
+
+	FILE *fp = fopen(configPath, "rb");
+
+	if (!fp)
+		return true;
+
+	fclose(fp);
+
+	return false;
+}
+
+void saveConfig()
+{
+	char configPath[PATH_MAX];
+
+#ifndef __MORPHOS__
+	sprintf(configPath, "%s/config", engine.userHomeDirectory);
+#else
+	sprintf(configPath, "%sconfig", engine.userHomeDirectory);
+#endif
+
+	FILE *fp = fopen(configPath, "wb");
+
+	if (!fp)
+	{
+		printf("Error Saving Config to %s\n", configPath);
+		return;
+	}
+
+	//fprintf(fp, "%d %d %d %d\n", engine.fullScreen, game.musicVol, game.soundVol, game.brightness);
+
+	fclose(fp);
+}
+
+/*
+Chugg chugg chugg.... brrr... chugg chugg chugg...brrrrrr... chugg ch..
+BRRRRRRRRRRRRRRRRRMMMMMMMMMMMMMMMMMMM!! Well, hopefully anyway! ;)
+*/
+void initSystem()
+{
+	#if UNIX
+		setupUserHomeDirectory();
+	#endif
+
+	bool displayLicense = loadConfig();
+
+	/* Initialize the SDL library */
+	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) < 0) {
+		printf("Couldn't initialize SDL: %s\n", SDL_GetError());
+		exit(1);
+	}
+
+	if (!engine.fullScreen)
+		graphics.screen = SDL_SetVideoMode(640, 480, 0, SDL_HWPALETTE);
+	else
+		graphics.screen = SDL_SetVideoMode(640, 480, 16, SDL_HWPALETTE | SDL_FULLSCREEN);
+
+	if (graphics.screen == NULL)
+	{
+		printf("Couldn't set 640x480x16 video mode: %s\n", SDL_GetError());
+		exit(1);
+	}
+
+	if (TTF_Init() < 0)
+	{
+		printf("Couldn't initialize SDL TTF: %s\n", SDL_GetError());
+		exit(1);
+	}
+
+	if (engine.useAudio)
+	{
+		if (Mix_OpenAudio(22050, AUDIO_S16, engine.useAudio, 1024) < 0)
+		{
+			printf("Warning: Couldn't set 22050 Hz 16-bit audio - Reason: %s\n", Mix_GetError());
+			printf("Sound and Music will be disabled\n");
+			engine.useAudio = 0;
+		}
+	}
+
+	SDL_EventState(SDL_MOUSEMOTION, SDL_DISABLE);
+
+	graphics.registerEngine(&engine);
+	graphics.mapColors();
+
+	//audio.registerEngine(&engine);
+	//Mix_VolumeMusic(game.musicVol);
+
+	srand(time(NULL));
+
+	graphics.loadFont(0, "data/vera.ttf", 12);
+	graphics.loadFont(1, "data/vera.ttf", 14);
+	graphics.loadFont(2, "data/vera.ttf", 22);
+	graphics.loadFont(3, "data/vera.ttf", 26);
+	graphics.loadFont(4, "data/vera.ttf", 32);
+
+	SDL_WM_SetIcon(graphics.loadImage("gfx/alienDevice.png"), NULL);
+	SDL_WM_SetCaption("Q", "Q");
+	
+	map.registerEngine(&engine);
+
+	if (displayLicense)
+		showLicense();
+}
+
+/*
+Removes [hopefully] all the resources that has been
+loaded and created during the game. This is called by
+atexit();
+*/
+void cleanup()
+{
+	debug(("Cleaning Up...\n"));
+
+	debug(("Closing Audio...\n"));
+	if (engine.useAudio)
+		Mix_CloseAudio();
+
+	debug(("Freeing Engine Data...\n"));
+	engine.destroy();
+
+	debug(("Freeing Graphics...\n"));
+	graphics.destroy();
+
+	debug(("Closing SDL Sub System...\n"));
+	SDL_Quit();
+
+	saveConfig();
+
+	debug(("All Done. Thank You For Playing Q.\n"));
+}

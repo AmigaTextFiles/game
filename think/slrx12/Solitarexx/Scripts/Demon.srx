@@ -1,0 +1,151 @@
+/*******************************\
+**  Demon v1.0 for Solitarexx  **
+**    by Michal Szafranski     **
+\*******************************/
+OPTIONS RESULTS
+
+tex = '"Demon v1.0"'
+wintex = '"We Have a Winner"'
+ADDBUTTON 0 10 "Start"
+ADDTEXT 4 42 tex 6
+ADDCYCLE 7 7 '"7|10|13|15"' 2 '"Reserve cards"' 16
+ADDCYCLE 9 14 '"Inf.|Once|Twice|3 Times|4 Times|5 Times|6 Times"' 0 '"Rotate deck"' 14
+ADDCYCLE 11 14 '"3-2-1|One|Two|Three"' 3 '"Cards at once"' 15
+ADDBUTTON 12 10 "Abort"
+ADDTEXT 14 42 tex 6
+SELECTGUI 3
+SCREENSIZE 2 13 6 2
+DO i = 0 TO 3
+	NEWSTACK 7 0 0 i+2 1 2 1 12
+	stack.i = RESULT
+	NEWSTACK 4 0 i+2 i+2 0 2 0 1 1
+	base.i = RESULT
+END
+NEWSTACK 0 0 1 0 1 0 13
+deck = RESULT
+NEWSTACK 5 32+8+1 1 1 1 0 13 2 2
+waste = RESULT
+NEWSTACK 6 4+8+16 0 1 0 2 0 13
+help = RESULT
+ADDCARDS deck SHUFFLED
+
+DO FOREVER
+	ACTION
+	PARSE VAR RESULT act rest
+	IF act = 1 THEN EXIT
+	IF act = 3 THEN CALL GAME
+END
+
+GAME:
+	CLEANUP deck
+	SETGADGET 14 STR tex
+	SELECTGUI 4
+	sel = 0
+	time = 0
+	fin = 1
+	GETGADGET 9
+	gadtimes = RESULT
+	GETGADGET 11
+	gadcards = RESULT
+	ile. = 0
+	SELECT
+		WHEN gadcards = 0 THEN DO
+			ile.0 = 3
+			ile.1 = 2
+			ile.2 = 1
+		END
+		WHEN gadtimes = 0 THEN ile. = gadcards
+		OTHERWISE DO i = 0 TO gadtimes-1
+			ile.i = gadcards
+		END
+	END
+	GETGADGET 7
+	CARDSELECT deck RESULT*3+6
+	MOVECARDS deck help
+	CARDSELECT deck 1
+	MOVECARDS deck help REVERSE
+	CARDSELECT deck 1
+	PARSE VAR RESULT xx base xx
+	base = 13-base
+	MOVECARDS deck base.0 REVERSE
+	DO i=0 TO 3
+		CARDSELECT deck 1
+		MOVECARDS deck stack.i REVERSE
+	END
+	DO FOREVER
+		ACTION
+		PARSE VAR RESULT act stack sid card
+		IF act = 1 THEN EXIT
+		IF act = 2 THEN SELECT
+			WHEN sid = 0 THEN CALL DODECK
+			WHEN sel = 0 & card>0 & sid>4 THEN sel=stack
+			WHEN sel > 0 & (sel = stack | sid = 4) THEN CALL DOBASE
+			WHEN sel > 0 & sid = 7 THEN CALL DOSTACKS
+			OTHERWISE ERRBEEP
+		END
+		IF act = 3 THEN DO
+			SELECTGUI 3
+			RETURN
+		END
+	END
+RETURN
+DODECK:
+	sel=0
+	CARDSELECT deck ile.time
+	IF RESULT = '' THEN DO
+		CARDSELECT waste 52
+		MOVECARDS waste deck REVERSE
+		time = time+1
+	END
+	ELSE MOVECARDS deck waste REVERSE
+RETURN
+DOSTACKS:
+	CARDSELECT sel 0 RELATIVE
+	PARSE VAR RESULT kolors wars xx
+	WHICHCARD sel
+	PARSE VAR RESULT len lsel
+	IF lsel ~= 1 & lsel ~= len THEN RETURN
+	CARDSELECT stack 1
+	PARSE VAR RESULT kolor war xx
+	IF kolor = '' THEN DO
+		war = 1
+		kolor = 1
+		CARDSELECT help 1
+		IF RESULT~='' & sel ~= help THEN kolor=0
+	END
+	ELSE DO
+		kolor = (kolor+kolors) // 2
+		war = (war+base) // 13 - (wars+base) // 13
+	END
+	IF war = 1 & kolor = 1 THEN MOVECARDS sel stack ATONCE
+	ELSE ERRBEEP
+	sel = 0
+RETURN
+DOBASE:
+	IF sel~=stack THEN CALL CHBASE
+	ELSE DO i= 0 TO 3 UNTIL ok=0
+		stack = base.i
+		CALL CHBASE
+	END
+	IF ok=0 THEN DO
+		fin = fin +1
+		MOVECARDS sel stack
+		IF fin = 52 THEN SETGADGET 14 STR wintex
+	END
+	ELSE ERRBEEP
+	sel = 0
+RETURN
+CHBASE:
+	CARDSELECT sel 1
+	PARSE VAR RESULT kolors wars xx
+	wars = (wars+base) // 13
+	CARDSELECT stack 1
+	PARSE VAR RESULT kolor war xx
+	IF kolor = '' THEN DO
+		kolor = kolors
+		war = -1
+	END
+	ELSE war = (war+base) // 13
+	IF kolor = kolors & (wars - war) = 1 THEN ok = 0
+	ELSE ok = 1
+RETURN

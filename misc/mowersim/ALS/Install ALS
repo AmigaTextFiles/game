@@ -1,0 +1,578 @@
+;$VER: Advanced Lawnmower Simulator - Installation Script V2.3
+;Includes FlexALS and Acorn installation, as well as Amiga (of course...)
+
+(if (< @installer-version (+ 3 (* 43 65536)))
+	(message "You appear to be using an old version of Installer\n\n"
+		"This installation script has only been tested with version "
+		"43.3, so if you experience problems download the latest version "
+		"from Aminet")
+	)
+			
+(message "ADVANCED LAWNMOWER SIMULATOR INSTALLATION\n© 1996/7 Unsatisfactory Software\n\nThis script is able to install (or partially install) the following versions:\n\nAmiga, Acorn, Flex (emulator), MSX (emulator)\n\nIt may be possible to transfer emulator versions to the 'real thing'" (all))
+
+(welcome	"********************************\n"
+		"* ADVANCED LAWNMOWER SIMULATOR *\n"
+		"********************************\n"
+		"Original by Duncan MacDonald 1990\n"
+		"New versions by Chris Young and Phillip Lake\n"
+		"© 1996/7 Unsatisfactory Software\n")
+
+(transcript 	"********************************\n"
+			"* ADVANCED LAWNMOWER SIMULATOR *\n"
+			"********************************\n\n"
+			"Original by Duncan MacDonald 1990\n"
+			"This version by Chris Young 1996/7\n"
+			"© 1996/7 Unsatisfactory Software\n\n")
+
+(set alsinst
+	(askbool
+		(prompt "Do you want to install the\n\n»» AMIGA VERSION ««"
+		"\n\nof Advanced Lawnmower Simulator?\n\nALS, ALS+, WB-ALS, InstallerALS, ALS.library and related files")
+		(help "Amiga version consists of:\nAdvanced Lawnmower Simulator (ALS)\nEnhanced Advanced Lawnmower Simulator (ALS+)\nWorkbench-Advanced Lawnmower Simulator (WB-ALS)\nInstallerALS ALS.library LibraryALS ALSPrefs\nSpectrum.font Spectrum/8\nand possibly hisoftbasic.library\n\nThe Amiga Version does NOT include Flex Emulator and Acorn versions - Options for these will appear after the Amiga version installation is completed or skipped")
+		(choices "Install" "Do Not Install")
+	)
+)
+
+(if alsinst (
+(set ALSDIR
+(askdir
+	(prompt "Where would you like to install Advanced Lawnmower Simulator?"
+	        " A drawer called ALS will be created there.")
+	(help @askdir-help)
+	(default @default-dest)
+	(disk)
+)
+)
+))
+
+(if (exists (tackon ALSDIR "ALS"))
+	(set update 1)
+)
+
+(set @default-dest "HELP:English")
+
+(if alsinst (
+(set @default-dest (tackon ALSDIR "ALS"))
+(makedir (@default-dest (infos)))
+
+(if (<> update 1) (
+(copyfiles
+	(prompt "Sorting out the Workbench window for ALS!\n\n"
+	"Please skip this part if you are not installing from a drawer "
+	"named \"ALS\"")
+	(help "This will just snapshot the WB window where we want it!" @copyfiles-help)
+	(source "/ALS.info")
+	(dest ALSDIR)
+;	(confirm 2)
+)
+
+	(tooltype
+		(prompt "This is a new installation of ALS\n\nTherefore, the ALS drawer icon needs to be unsnapshotted...")
+		(help "Installer tends to snapshot new icons at the top-left of windows")
+		(dest @default-dest)
+		(noposition)
+;		(confirm 2)
+	)
+))
+
+(copyfiles
+	(prompt "Select the files to be copied...")
+	(help "ALS is the standard version\n"
+	"ALS+ is the enhanced version\n"
+	"WB-ALS runs in a window\n"
+	"InstallerALS uses Installer\n"
+	"ALS.library is used by (hopefully) many programs including"
+	" ALSrnd (InstallerALS), LibraryALS and ALSPrefs - options for these will appear next\n\n" @copyfiles-help)
+	(source "")
+	(choices "ALS" "ALS+" "WB-ALS" "InstallerALS")
+	(dest @default-dest)
+	(infos)
+	(confirm 0)
+	(optional "nofail" "force")
+)
+
+(set alsplus (exists (tackon @default-dest "ALS+")))
+
+(set NewOwner "NONE")
+
+(if alsplus(
+(if (exists "Owner")(
+
+	(copyfiles
+		(prompt "Checking Owner Information")
+		(help @copyfiles-help)
+		(source "Owner")
+		(dest "ENV:")
+		(newname "ALS+Owner")
+		(nogauge)
+		(safe)
+	)
+	
+	(set Owner
+		(getenv "ALS+Owner")
+	)
+	
+	(delete "ENV:ALS+Owner")
+	
+	(set #ownerlen (strlen Owner))
+	(set #newestowner (substr Owner 0 (- #ownerlen 2)))
+	(set NewOwner
+	(askstring
+		(prompt "You have installed ALS+\n\nThis is currently licenced to:\n\n" #newestowner "\n\nBut can be changed now or within ALS+ by pressing SHIFT-R")
+		(help @askstring-help)
+		(default #newestowner)
+	))
+	
+	(textfile
+		(prompt "Writing new licence information...")
+		(help @textfile-help)
+		(dest (tackon @default-dest "Owner"))
+		(append NewOwner "\x0d\n")
+	)
+))))
+
+(set alslib (askbool
+	(prompt "Do you want to install ALS.library? (and ALSPrefs/LibraryALS)\n\nIt is required for InstallerALS's ALSrnd, and maybe by other programs as well . . . or you could incorporate it into your own ones, of course\n\n")
+	(help "als.library is an Amiga shared library containing"
+	" routines which can be used by any program\n"
+	"Developer 'stuff' can also be installed (later)\n\n")
+	(choices "Yes" "No")
+))
+
+(if alslib
+	(
+		(copylib
+			(prompt "Check you do not have a newer version of rexxreqtools.library already installed")
+			(help "Newer libraries have new and improved features - NEVER replace old libraries unless the new one is proven to have a serious bug\n\n" @copylib-help)
+			(source "libs/rexxreqtools.library")
+			(dest "libs:")
+			(confirm 2)
+		)
+
+		(copylib
+			(prompt "Check you do not have a newer version of als.library already installed")
+			(help "Newer libraries have new and improved features - NEVER replace old libraries unless the new one is proven to have a serious bug\n\n" @copylib-help)
+			(source "libs/als.library")
+			(dest "libs:")
+			(confirm 2)
+		)
+
+	(set ch
+		(askchoice
+			(prompt "ALSPrefs allows you to configure als.library\n"
+			"It is recommended to install it - but where?")
+			(help "ALSPrefs allows you to change mower names etc. for "
+			"als.library's Als() function\n\n" @askchoice-help)
+			(choices @default-dest "SYS:Prefs")
+			(default 1)
+		)
+	)
+	(if (= ch 1)
+			(	
+				(copyfiles
+					(prompt "Copy ALSPrefs")
+					(help @copyfiles-help)
+					(source "ALSPrefs")
+					(dest "SYS:Prefs")
+					(infos)
+				)
+			))
+	(if (= ch 0) (
+				(copyfiles
+					(prompt "Copy ALSPrefs?")
+					(help @copyfiles-help)
+					(source "ALSPrefs")
+					(dest @default-dest)
+					(infos)
+				)
+			)
+	)
+	
+	(copyfiles
+		(prompt "Do you want to install LibraryALS?")
+		(help "LibraryALS is useful for checking you have correctly "
+		"installed als.library, and for testing new versions/prefs. "
+		"It simply calls the Als() function in the library\n\n" @copyfiles-help)
+		(source "LibraryALS")
+		(dest @default-dest)
+		(confirm 0)
+		(infos)
+	)
+	
+	(if (= NewOwner "NONE")
+		(
+			(set NewOwner
+				(askstring
+					(prompt "Please enter your name.  This will used for the 'licenced to' feature of als.library\n\nLicenced To:")
+					(help @askstring-help)
+					(default "Somebody too lazy to enter their name")
+				)
+			)
+		)
+	)
+	
+	
+	(set #Green
+		(rexx "ColPal"
+			(prompt "I'm going to run an ARexx script to bring up a colour requestor.  Select the colour closest to green in your current palette.\n\n"
+			"THIS REQUIRES AREXX!\n\nMake sure RexxMast is running, and skip this part if you do not own ARexx.")
+			(help "Reqtools Colour Palette Requestor - Select colour, then OK.  Do not alter any colours!")
+			(confirm)
+			(safe)
+		)
+	)
+	
+	(textfile
+		(prompt "Creating libextra.prefs:\n\n" NewOwner "\n" #Green "\n")
+		(help @textfile-help)
+		(dest "ENVARC:ALS/libextra.prefs")
+		(confirm)
+		(append NewOwner "\n" #Green "\n")
+	)
+		
+	(copyfiles
+		(prompt "The developer stuff for als.library... Amiga E")
+		(help "If you want to implement als.library into your programs "
+		"then you'll need this...\n\n" @copyfiles-help)
+		(source "ALS-Dev/als.m")
+		(dest "EModules:")
+		(confirm 0) ;assume only expert users want the developer stuff
+	)
+
+	(copyfiles
+		(prompt "The developer stuff for als.library... C/C++\n\nONLY THE PRAGMAS!")
+		(help "If you want to implement als.library into your programs "
+		"then you'll need this...\n\n" @copyfiles-help)
+		(source "ALS-Dev/pragmas")
+		(dest "includes:pragmas")
+		(confirm 0)
+		(all)
+	)
+
+	(copyfiles
+		(prompt "The developer stuff for als.library... BASIC BMAP")
+		(help "If you want to implement als.library into your programs "
+		"then you'll need this...\n\n" @copyfiles-help)
+		(source "ALS-Dev/als.bmap")
+		(dest "libs:")
+		(confirm 0)
+	)
+
+	(copyfiles
+		(prompt "The developer stuff for als.library... FD")
+		(help "If you want to implement als.library into your programs "
+		"then you'll need this...\n\n" @copyfiles-help)
+		(source "ALS-Dev/als_lib.fd")
+		(dest "libs:")
+		(confirm 0)
+	)
+
+	
+
+))
+	
+(set wbals (exists (tackon @default-dest "WB-ALS")))
+(if wbals(
+	(copyfiles
+		(prompt "You have installed WB-ALS\n\nDo you want to install the configuration file \"WB-ALS.config\" as well?")
+		(help "The WB-ALS config file contains information on window size, colours etc...\n\n" @copyfiles-help)
+		(source "WB-ALS.config")
+		(dest @default-dest)
+		(confirm 2)
+		(infos)
+	)
+
+(set def 3)
+
+(set whereinit
+	(askchoice
+		(prompt "WB-ALS likes the Spectrum font to be in memory.\nInitSpeccyFont is designed to do this, but where do you want to install it?")
+		(help "InitSpeccyFont will load Spectrum.font into memory.  Please note that an \"Avail FLUSH\" will probably remove it again!\n\n" @askchoice-help)
+		(choices "Do Not Install" @default-dest "WBStartUp" "User-Startup (C:)" "Other")
+		(default def)
+	)
+)
+
+(if (= whereinit 1)
+	(set initdest @default-dest)
+)
+(if (= whereinit 2)
+	(set initdest "SYS:WBStartUp")
+)
+(if (= whereinit 3)
+	(set initdest "C:")
+)
+(if (= whereinit 4)
+	(
+		(set initdest
+			(askdir
+				(prompt "Select a destination for InitSpeccyFont")
+				(help "Select a destination\n\n" @askdir-help)
+				(default "C:")
+			)
+		)
+	)
+)
+
+(if (<> whereinit 0)
+(copylib
+	(prompt "Copying InitSpeccyFont...\nPlease note that although the version info says \"2.0\", this is actually the (same as the) first release!")
+	(help "Version number is \"2.0\", because for some reason there was a version string in the original which said 'startup 1.12 (05-Nov-95)\n\n" @copylib-help)
+	(source "InitSpeccyFont")
+	(dest initdest)
+	(infos)
+	(confirm 2)
+)
+)
+
+(if (= whereinit 3)
+	(startup "WB-ALS"
+		(prompt "Adding InitSpeccyFont to User-StartUp")
+		(help @startup-help)
+		(command "InitSpeccyFont\n")
+	)
+)
+
+(copylib
+	(prompt "WB-ALS requires hisoftbasic.library\n\nPlease check that you do not have a newer version already installed before proceeding.")
+	(help @copylib-help)
+	(source "libs/hisoftbasic.library")
+	(dest "libs:")
+	(confirm 2)
+)
+))
+
+(set alsinstver (exists (tackon @default-dest "InstallerALS")))
+
+(if alsinstver
+	(
+		(copyfiles
+			(prompt "You have decided to install the NEW Installer version\n\n"
+			"This needs ALSrnd (and als.library)...")
+			(help @copyfiles-help)
+			(source "ALSrnd")
+			(dest @default-dest)
+			
+		)
+		(copylib
+			(prompt "ALSrnd for InstallerALS uses the Alsrnd() function in als.library!\n"
+			"You neglected to install this a minute ago...")
+			(help "DO NOT OVERWRITE A NEWER VERSION!" @copylib-help)
+			(source "libs/als.library")
+			(dest "libs:")
+			(confirm 2)
+		)
+		(run "ALSrnd 10 >ENV:alsrndtest")
+		(set rndtest
+			(getenv "alsrndtest")
+		)
+		(message "Checking ALSrnd is correctly installed...\n\n"
+			"A random number between 0 and 10 should appear below this line.\n\n"
+			"RANDOM NUMBER: " rndtest
+			"\n\nIf no number appears, then something went wrong.\n\n"
+			"Please run ALS Install again, and reinstall als.library "
+			"and ALSrnd.\nMake sure you are using the latest version of Installer.")
+          
+	)
+)
+
+(set sfver (exists ("FONTS:Spectrum/SpeccyFontVersion")))
+
+(if sfver
+	(
+		(copyfiles
+			(prompt "No Prompt")
+			(help "No Help")
+			(source "FONTS:Spectrum/SpeccyFontVersion")
+			(dest "ENV:")
+			(nogauge)
+			(safe)
+		)
+		(set sfontver
+			(getenv "SpeccyFontVersion")
+		)
+	)
+)
+(set sfver (exists ("FONTS/Spectrum/SpeccyFontVersion")))
+
+(if sfver
+	(
+		(copyfiles
+			(prompt "No Prompt")
+			(help "No Help")
+			(source "FONTS/Spectrum/SpeccyFontVersion")
+			(dest "ENV:")
+			(newname "SFNewVer")
+			(nogauge)
+			(safe)
+		)
+		(set sfontvernew
+			(getenv "SFNewVer")
+		)
+	)
+)
+
+(copyfiles
+	(prompt "All versions of Amiga ALS require the Spectrum font\n"
+	"Version currently installed: " sfontver "\n"
+	"Version to install: " sfontvernew "\nDo NOT install this font if you already have a newer version "
+	"installed")
+	(help "You must have UNSATISFACTORY SOFTWARE'S Spectrum font, as it incorporates the old ALS.font"
+	" Other Spectrum fonts (such as ZX8) do not contain the required data\n\nThis is an extended " 
+	"character set, which contains some accented characters as well as game UDGs - You should "
+	"not lose any Speccy characters if you replace an existing Spectrum.font\nTo my knowledge,"
+	" there isn't another font with this name anyway.\n\n" @copyfiles-help)
+	(source "fonts")
+	(dest "fonts:")
+	(all)
+	(confirm 2)
+)
+
+;end Amiga
+))
+
+(copyfiles
+	(prompt "The documentation should also be installed:\n"
+	"It contains information about all 'Unsatisfactory' versions of ALS"
+	", including Amiga, Acorn, Flex and a type-in-and-play Casio"
+	" Calculator version!")
+	(help "The destination defaults to the Amiga ALS dir if you have"
+	" installed it, or HELP:English which is the WB2.1 and up place"
+	" to store English documentation.  Users of WB2.05 and below should"
+	" select a different destination\n\n" @copyfiles-help)
+	(source "ALS.guide")
+	(dest @default-dest)
+	(infos)
+	(confirm)
+)
+
+(set flexver
+	(askbool
+		(prompt "Do you want to install the\n\n»» FLEX EMULATOR VERSION ««"
+		"\n\nof Advanced Lawnmower Simulator?\n\n(You need Ben Williams' Flex Emulation System)")
+		(help "Flex emulator version is designed to run on Ben Williams' Amiga Flex Emulation System, but should also work on the forthcoming Windows version.  It consists of a Flex Virtual Disk, containing all necessary files.")
+		(choices "Install" "Do Not Install")
+	)
+)
+
+(if flexver (
+(set FLEXDIR
+(askdir
+	(prompt "FlexALS MUST be installed in the same directory as the FLEX Emulator"
+	        "\nPlease select the drawer where Flex is installed.")
+	(help "You MUST select the Flex drawer - otherwise, there isn't much point in installing it at all!\n\n" @askdir-help)
+	(default "DH1:Flex")
+)
+)
+
+(copylib
+	(prompt "Copying FlexALS - Please ensure that you are not replacing an older version")
+	(help @copyfiles-help)
+	(source "FlexALS")
+	(dest FLEXDIR)
+	(confirm)
+)
+
+(set #oldcommands "")
+(set #newcommands ">LOGIN FlexALS 2\n>ASN W=2\n")
+(textfile
+	(prompt "I can change your Flex Startup file so that the ALS disk"
+	" is automatically logged in to drive 2, and this also becomes your default work drive.")
+	(help "This will enable you to access FlexALS simply with the"
+	"command:\n\nBASIC FlexALS\n\nNew file will be:\n\n" #oldcommands #newcommands "\n\n" @textfile-help)
+	(dest (tackon FLEXDIR "Startup.txt"))
+	(include (tackon FLEXDIR "Startup.txt"))
+	(append ">LOGIN FlexALS 2\n>ASN W=2\n")
+	(confirm)
+)
+))
+;end of Flex
+(set MSX
+	(askbool
+		(prompt "Do you want to install the\n\n»» MSX VERSION ««"
+		"\n\nof Advanced Lawnmower Simulator?\n\nThis is a virtual disk/file for a MSX disk will should be in or near a MSX emulator (such as fMSX)")
+		(help "MSX version consists of:\nMSX Virtual Disk (MSX-ALS.DSK)\n\nThe file AUTOEXEC.BAS (which can be transferred on to a MSX disk for use with the 'real thing'")
+		(choices "Install" "Do Not Install")
+	)
+)
+
+(if MSX (
+
+(set whichtype
+	(askoptions
+		(prompt "Which flavour of MSX-ALS do you want to install?")
+		(help "The MSX Virtual disk can be used with most MSX emulators\n\nAUTOEXEC.BAS requires you to have a formatted PC/MSX disk in PC0:, and to be accessible from the MSX/Emulator it has to have an MSX bootblock installed.  This can be done with fMSX.\n\n" @askoptions-help)
+		(choices "MSX Virtual Disk" "AUTOEXEC.BAS")
+	)
+)
+
+(if (BITAND whichtype 1)
+	(
+(set MSXDIR
+	(askdir
+		(prompt "Select where you want the MSX Virtual Disk (no drawer will be created)")
+		(help "Select a destination somewhere near your MSX emulator\n\n" @askdir-help)
+		(default "MSX:")
+	)
+)
+
+(copylib
+	(prompt "Copying MSX-ALS.DSK - Do NOT overwrite a newer version!")
+	(help "Do NOT overwrite a newer version of MSX-ALS\n\n" @copyfiles-help)
+	(source "MSX-ALS.DSK")
+	(dest MSXDIR)
+	(confirm)
+)
+))
+
+(if (BITAND whichtype 2)
+	(
+		(askdisk
+			(prompt "Insert a MS-DOS formatted disk")
+			(help @askdisk-help)
+			(dest "PC0")
+		)
+		(copylib
+			(prompt "AUTOEXEC.BAS will be copied onto a PC formatted disk in PC0:\n\nThis disk must be installed with an MSX bootblock, if you wish to use it.")
+			(help @copylib-help)
+			(source "AUTOEXEC.BAS")
+			(dest "PC0:")
+		)
+	)
+)
+
+))
+;end of MSX
+
+(set AcornALS
+	(askbool
+		(prompt "Do you want to install the\n\n»» ACORN VERSION ««"
+		"\n\nof Advanced Lawnmower Simulator?\n\nIt will be copied on to a MS-DOS disk, ready for use with your local RISC OS 3 Acorn Archimedes/RISC PC\n\nYou need a PC disk handler for this, such as CrossDOS")
+		(help "Acorn version consists of:\nAdvanced Lawnmower Simulator (!ALSOLD)\nEnhanced Advanced Lawnmower Simulator (!ALS)")
+		(choices "Install" "Do Not Install")
+	)
+)
+
+(if AcornALS (
+(set ACORNDISK
+(askdir
+	(prompt "Please select the drive which contains a disk FORMATTED for MS-DOS")
+	(help @askdir-help)
+	(default @default-dest)
+	(disk)
+)
+)
+
+(copyfiles
+	(prompt "Copying !ALS - Please note that the licence information can be"
+	" changed by holding down SHIFT and double-clicking on !ALS.  Twice.\n"
+	"See the docs for more info.")
+	(help "Just confirm that you want to copy Acorn !ALS onto a blank floppy\n\n" @copyfiles-help)
+	(source "Acorn")
+	(dest ACORNDISK)
+	(all)
+	(confirm)
+)
+))
+(exit "Finished!")
+

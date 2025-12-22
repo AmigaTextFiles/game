@@ -1,0 +1,238 @@
+G4C
+
+;$VER:N4_Cheater v0.7 (10.05.2001) - ©2001 by thenightshade@freenet.de
+
+WINBIG -1 -1 175 96 ""
+WinType 11010000
+winfont topaz.font 8 000
+nofontsense
+resinfo 8 640 256
+varpath "#this/aboutn4_cheater"
+
+BOX -1 -1 169 92 in button
+
+xOnLoad
+   set margins 5/10/1
+
+   extract #this guipath a
+   assign N4_Cheater: $a
+
+   vers = v0.7
+   date = 10.05.2001
+   mail = thenightshade@freenet.de
+   url =  "Noch keine :-(("
+
+   close = 0
+
+   update #this 2 1
+   update #this 3 0
+
+   BREITE = 320
+   HÖHE   = 256
+
+   ifexists file N4_Cheater:N4_Cheater.info
+      ttget N4_Cheater:N4_Cheater
+   endif
+
+   ifexists assign ~env:
+   andifexists directory ~ram:env
+      makedir ram:env
+      assign env: ram:env
+      mark copyvars
+      ifexists file ~ENV:NEMAC_4
+         copy envarc:NEMAC#? env:
+      endif
+   else
+      goto copyvars
+   endif
+
+   setwintitle #this "N4_Cheater $vers"
+
+   guiload aboutn4_cheater
+   GuiOpen #This
+
+
+xonreload
+   ifexists window #this
+      guiwindow #this front
+      guiwindow #this on
+   else
+      close = 0
+      guiopen #this
+      guiwindow #this front
+   endif
+
+xonclose
+   if $close = 0
+      guiquit #this
+   endif
+
+xonopen
+   gosub #this setscrtitle
+
+xonquit
+   ifexists file guis:gui4cli.prefs
+      guiopen gui4cli.prefs
+   endif
+   assign N4_Cheater: remove
+   cd ram:
+   guiquit aboutn4_cheater
+
+xroutine setscrtitle
+   setscreentitle #this "N4_Cheater $vers ($date) - MailWare by $mail"
+
+xroutine setcursor
+   setattr #this/1 tipos 2
+   setgad #this 1 on
+
+
+XTEXTIN 121 8 40 15 "" "l" "2" 3
+attr title "2/1/Shadow/LSide/Middle/Level (2-37):"
+attr titype int
+gadid 1
+
+if $$TI.POS <= 2
+
+   mark levelsetup
+
+   ifexists directory N4_Cheater:saved_games
+
+      if $l >= 2
+      and $l <= 37
+
+         update #this 1 $l
+
+         ifexists file ~N4_Cheater:saved_games/sg_L$l
+            ezreq "Kopiere Level $l ..." OK|ABRUCH a
+               if $a = 0
+                  flash
+                  delvar a
+                  stop
+               endif
+            copy N4_Cheater:Data/sg_L$l N4_Cheater:saved_games
+         else
+            flash
+            ezreq "Level $l existiert bereits!" Okay ""
+         endif
+
+      else
+
+         flash
+         if $l < 2
+            update #this 1 2
+         elseif $l > 37
+            update #this 1 37
+         endif
+
+      endif
+
+   else
+
+      makedir N4_Cheater:saved_games
+      goto levelsetup
+
+   endif
+
+   gosub #this setcursor
+
+else
+   gosub #this setcursor
+   goto levelsetup
+endif
+
+redraw #this
+
+
+xcheckbox 18 30 26 11 "_Intro zeigen" intro "" "n" off
+gadtitle right
+gadid 2
+
+xcheckbox 18 45 26 11 "_Frame Counter" fcount "r" "" off
+gadtitle right
+gadid 3
+
+box 8 5 158 21 out button
+box -1 60 160 2 in ridge
+box 10 66 154 23 in button
+
+XBUTTON 14 68 146 19 "_Starte N4!"
+;attr frame 31
+
+   mark go
+   ifexists directory N4_Cheater:ScreenShots
+
+      mark monitor
+      ifexists file Devs:Monitors/PAL
+         cli "run >NIL: c:List >T:M DEVS:Monitors/~(#?.info|VGAOnly) LFORMAT DEVS:Monitors/%s"
+         cli "execute T:M"
+         cli "delete T:M quiet"
+      else
+         rename Sys:Storage/Monitors/PAL Devs:Monitors/PAL
+         rename Sys:Storage/Monitors/PAL.info Devs:Monitors/PAL.info
+         goto monitor
+      endif
+
+      ifexists device ~CD0:
+         run "mount CD0:"
+      endif
+
+      setstack 200000
+      cd N4_Cheater:
+      close = 1
+      guiclose #this
+      cli "NEMAC_4 sScreenShots/ScreenShot!$BREITE\!$HÖHE $intro $fcount"
+      guiload #this
+
+   else
+      makedir N4_Cheater:ScreenShots
+      goto go
+   endif
+
+
+xmenu N4_Cheater Hilfe "" ?
+   guiload :read.gc N4_Cheater:Liesmich!
+
+xmenu N4_Cheater Info "#:N4_Cheater" ""
+   setvar a "N4_Cheater $vers ($date)\n"
+   appvar a "MailWare - ©2001 by NIGHTSHADE\n\n"
+   appvar a "eMail: $mail\n"
+   appvar a "URL: $url"
+      ;ezreq $a Okay ""
+      guiwindow #this wait
+      guiopen aboutn4_cheater $a
+
+xmenu N4_Cheater BARLABEL "" ""
+
+xmenu N4_Cheater Ende "" "Q"
+   guiwindow #this wait
+   ezreq "Wirklich beenden?" Ja|Nein ende
+      if $ende = 1
+         guiquit #this
+      endif
+   guiwindow #this resume
+
+;--------------------------
+  newfile aboutn4_cheater
+;--------------------------
+
+winbig -1 -1 310 69 "Über..."
+WinType 00000000
+winfont topaz.font 8 000
+winbackground pattern 0 1
+nofontsense
+resinfo 8 640 256
+
+xonopen abouttext
+   set tbmargins 25/5
+   update #this 1 $abouttext
+
+xonclose
+   guiwindow N4_Cheater resume
+
+xtextbox -1 2 300 50 "" ""
+attr tbstyle 1/2/plain/left
+attr tbox 2/1/0/Button/in
+gadid 1
+
+xbutton -1 53 80 14 "_Cool"
+guiclose #this

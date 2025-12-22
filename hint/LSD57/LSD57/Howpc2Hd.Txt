@@ -1,0 +1,323 @@
+
+
+              Wageningen, the Netherlands	6 december 1994
+
+    HOW TO MAKE A PC DOUBLE DENSITY AND HIGH DENSITY FLOPPYDRIVE WORK.
+
+This is a second draw of the document I am making. It describes a way to
+connect a PC double density drive to the amiga as an 880 kb diskdrive and how
+to connect a PC high density drive as an 880/1760 kb diskdrive. Keep mailing
+me if you think the information is incorrect or incomplete. 
+
+I own an amiga 2000 and I have wondered why the PC drives can't be used for
+the amiga, because they are a lot cheaper. The solutions to this problem will
+be usefull for both internal and external drives.
+In this document I will explain the how the interaction between the drive and
+the amiga works and I will show how I solved the problems. I have constructed
+both a double density drive (DD) and a high density drive (HD). The schemes I
+used worked fine for me. However I can't garantee that it will work with every
+other brand of PC drive. I have used the HD drive over a year now. I am not
+satisfied how it works (sometimes I get read write errors). The high density
+ID misses a bit sometimes. This means the amiga is trying to write a DD track
+on a HD disk. I think this wrinkle can be ironed out so I post this anyway.
+For these hacks you will be needing at least a solder iron and some knowledge
+on how to use logical circuits like NAND gates, OR gates and flipflops.
+
+CONNECTING A DOUBLE DENSITY DRIVE:
+
+HOW IS A DRIVE MOUNTED BY THE SYSTEM ?
+At first when you connect the PC drive to the amiga and boot the system the
+drive will not be recognized by the system. Nearly all signal lines of the
+floppy drive cable are constructed with a low active state. This means that a
+not used a signal line is high (+5 Volt) and of course a active signal line is
+low (0 Volt). The amiga will pull down the SELECT line (there four of them:
+DF0:-DF3:) of the drive down and will now be checking the READY line to see if
+there is a low pulse coming. If so there is a drive connected, else if it
+stays high no drive is mounted for that unit number. This checking is done
+when the drive motor is not spinning. The trouble with pc drives is that only
+when the motor is spinning at enough speed the READY line will react to the
+SELECT signal. So this interaction has to be added to the interface. In a time
+diagram it looks like this:
+
+	SELECT  ~~~~~~|__|~~~~~~|__|~~~~~~|__|~~~~~~|__|~~~~~ amiga signal
+
+	READY   ~~~~~~|__|~~~~~~|__|~~~~~~|__|~~~~~~|__|~~~~~ signal from drive
+
+
+
+HOW SWITCHES THE SYSTEM THE MOTOR ON ?
+The amiga has a different way of switching the motor on then the one used in
+PC. With a PC it is simply done by pulling the MOTORON line of the drive low.
+The disadvantage of this way is that all the drives will respond to this
+signal, causing a powerdrain of the floppy port. The amiga has its own elegant
+solution of avoiding this. With the falling signal of the SELECT line the
+signal of the MOTORON line (MTRXD amiga side) is saved in a flipflop. Was at
+this time the MTRXD signal low the motor will turn on (MOTORON low) was the
+signal at that time the MTRXD signal high the motor will be turned off
+(MOTORON high). When the SELECT signal is put to high again the motor will
+stay in the same state (on or off). In this way only the motor of the drive
+which received the SELECT line pulse will be affected. In a time diagram it
+looks like this:
+
+	SELECT    ~~~~~~|__|~~~~~~|__|~~~~~~|__|~~~~~~|__|~~~~~~ amiga signal
+
+	MTRXD     ~~~~~|_____|~~~~~~~~~~~~~|_____|~~~~~~~~~~~~~~ amiga signal
+
+	MOTORON   ~~~~~~|_________|~~~~~~~~~|_________|~~~~~~~~~ signal to drive
+
+WHAT ABOUT THE DRIVE RESET LINE ?
+By booting the amiga the drive reset line is pulled low to make sure the motor
+of all the drives is off. This is because only with the motor off the READY
+line of the drive will respond to the drive SELECT line described under
+mounting a drive. This is done by connecting the drive reset line (DRESB) to
+the preset gate of the flipflop of the MOTORON signal.
+
+HOW DO YOU GET A DISKCHANGE SIGNAL ?
+The amiga checks for a diskchange by pulling the SELECT line low at intervals.
+When a disk is in the drive it responds by with a low pulse on the diskchange
+line. The amiga thinks the only way to get the DISKCHANGE signal switch back
+again it also has to generate a STEP signal, thats why your drives are always
+clicking with no disk in it. The time diagram looks the as the one with the
+READY line, just picture instead of READY, DISKCHANGE.... You can get this
+signal by tapping in on the switch at the drive which pressed when a disk is
+in the drive or if your lucky on PIN 2 of the drive connector. 
+ 
+HOW DO YOU MAKE THIS ?
+The most easy way of adding a drive is an internal one (DF1:). In this case
+most will be done for you on the amiga motherboard when you install a jumper
+for DF1: (only with an amiga 2000, 3000 and 4000). You will need to put in a
+jumper to the activate the mounting signal. The location of it can be found in
+the documentation of your computer. This will also take care of the MOTORON
+signal and the drive reset line. The only thing you have to make between the
+drive and the amiga is a working DISKCHANGE signal. Even this can SOMETIMES be
+found on the drive. For external you will have to make all the above
+mentioned signals yourself in an interface board which will be located in the
+drive casing between to cable coming from the amiga and the drive. For schemes
+see FIGURE 1 of the iff picture.   
+
+CONNECTING A HIGH DENSITY DRIVE: 
+
+HOW IS THIS DRIVE MOUNTED BY THE SYSTEM ?
+Now we come to the part you have been looking for. For a High density drive to
+work with the amiga you need at least a kickstart 37.175 (2.0). There is
+however a bug only in the 37.175 kickstart. When you used the HD drive with a
+DD floppy and you change it back for a HD floppy you will still be in the DD
+mode so you will get a read error of the roottrack. The program HDFixer in
+aminet archive disk/misc/HDFixer.lzh will remove this bug. I haven't tried it
+because I have 2 other DD drives myself. How is a high density drive
+recognised by the system. The thing I didn't tell you with the double density
+drive is that the system isn't happy with testing the READY line once, no to
+be on the save side it does it only 32 times. If there is a HD disk in the
+drive it will not pull the READY line low the second time the SELECT line is
+low. For every even puls on the SELECT line no READY puls is given.
+
+In a time diagram it looks like this:
+
+	SELECT  ~~~~~~|__|~~~~~~|__|~~~~~~|__|~~~~~~|__|~~~~~ amiga signal
+
+	READY   ~~~~~~|__|~~~~~~~~~~~~~~~~|__|~~~~~~~~~~~~~~~ signal from drive
+
+When the READY signals are put in a long integer it will give the following
+result:
+	FFFFFFFF	= no drive connected (READY stays high, all 1's)
+	00000000	= double density disk in HD drive or double density drive 
+	AAAAAAAA	= high density disk in HD drive (READY alternating 1010)
+	55555555  = Oops, made a design error on the board now there is a 5.25   
+                 inch amiga drive connected.
+I found these definitions disk.h in resources of the includes for 2.0. There
+is also a flag for DRIVE3_5_150RPM mentioned in trackdisk.h
+
+In the package is also a little program (=DriveID) I made which checks all
+four units for their ID so you can check out if your board is working. Maybe
+you find out you have a HD drive already. Some guys are always lucky (or are
+they just stupid ?). 
+
+HOW DO YOU MAKE THIS ?
+The signals described with the DD drive are all working in the same way as the
+HD drive. Exception is of course the drive ID or mounting signal. I generate
+the signal for HD drive by using a flipflop as you can see in figure 2.
+Remember that when you are making this an internal drive you can ignore the
+flipflop motor part. Also in case of a HD drive do NOT place the jumper on the
+amiga motherboard mentioned in the double density drive part or you will end
+up with a perfect running DD drive (No HD ID can come through if the
+motherboard constantly is pulling down the READY line, this is also the case
+for a genuine amiga HD drive, the FB 357 A or the slim one the FZ 357 A). If
+someone bought the chinon FB 357 A and he says it doesn't format HD disks,
+just tell him/her it will probably gives read/write errors with DD disk also
+(LIE!) and you swap it for you own DD drive). 
+On this HD interface board is no diskchange signal so don't forget to make
+this. In order to make the HD drive work you need also to halve the speed of
+the drive motor ( 300 rpm to 150 rpm). The motor of the drive is a step motor
+this means it needs a puls to turn the motor an angle further. Normally there
+is a quartz crystal and a IC on the print where the motor is. The IC is
+regulating the speed of the motor on the timebase of this crystal. You will
+have to remove the crystal from the board by first desoldering the two pins
+and then remove it (it will probably be glued to the board). Then install the
+crystal on your interface board (you left space for it ?). The board will have
+a oscillator circuit on it so it works now there too. Then the signal is fed
+through a flipflop which will divide the signal by two, both signals will go
+through some NAND gates who are networked to change from the normal frequency
+to the halved frequency (from the flipflop) by using a tap on the HD switch of
+the drive. It will be right under the HD hole in a high density disk (the one
+on the other side of the write protected hole). Someone said to me there is a
+problem connecting the oscillator out signal back to the drive motor chip
+because when the crystal is removed there are two connections. Well.. Eeh.
+Just pick one with your eyes closed and pray. Just kidding ! Actually you can
+use both of them but NOT at the same time. The crystal was part of a
+oscillator circuit just like the one you made. So it will only work when there
+is a high enough voltage difference between those pins. I my case it didn't
+matter which one I choosed. You could try connecting the other pin to GROUND
+for eliminating disturbing signals but you could also weaken the frequency
+signal to much that way(I didn't use this). Try it out ! 
+For the HD drive there are the scheme is shown in figure 2. You can see by the
+dotted areas that I use a NAND gate in combination with a inverter. I use this
+to get around with no more then 5 ICs. If anyone can do it better let me know!
+I am thinking of using other ICs or even replace the whole thing by one PAL IC
+and 74LS74 (flipflop).
+
+I developped the whole interface board with a solder iron and a multimeter. I
+am also not an expert in making oscillator circuits. I think the crystal is
+working at a frequency of about 1 Mhz. I don't know if my circuit has the
+same frequency as when the crystal was working on the drive board. You are
+also connecting an oscillating wire to another oscillator circuit on the drive
+board which could interfere with each other. Since I don't have an
+oscilloscoop I can't check this. If you are having trouble with the drive
+speed you could try removing some capacitors on the oscillator board of the
+drive. I also have recently found an alternative (up to 2Mhz) for the
+oscillator circuit on the interface board, this one will work with only one
+inverter so maybe that is just what you needed if you are short of one
+inverter. 
+
+In HD mode the drive doesn't give any bits through to the amiga. It won't
+accept any data for writing a track either. This is because the drive knows
+the disk is not spinning at its normal speed. This is simply eliminated by
+glueing another small magnet or a small piece of magnet just on the opposite
+site of the original one on the flywheel. Now there are two index signals in
+one revolution so the drive chips think the motor is spinning at normal speed.
+It only checks if the motor is going too slow so it doesn't matter a thing
+that there is apparently twice the normal speed in DD mode. I even heard that
+a original amiga high density drive also has more than one index pulse per
+revolution. (The index signal could be generated by an optical sensor, in that
+case drill an extra hole in the flywheel.) I have recently heard of some
+people thinking it won't work because for high density disks you need a higher
+writing current then with double density drives. This might be the case, but
+since the drive hardware is thinking it has a high density floppy in it will
+choose a higher current automatically.  
+
+SOME WORDS ABOUT THE FIGURES.
+For the flipflops I used the 74S74 chips. They are trigger with a positive
+egded clock signal (thats why I invert the SELECT signal)and the SET and RESET
+(or CLEAR) signals are LOW ACTIVE !  
+As I already pointed out nearly all drive signals are designed with a low
+active puls. However I don't know if the signal coming directly from the drive
+switches, like DISK PRESENT and HD switch, will act in the same way. So before
+you start soldering, check out if they work the same as in my scheme. If not
+simple use an inverter or rewire the scheme to correct this.
+ 
+CONNECTIONS TO PC DRIVE
+I checked out some books and magazines to give you some detail on the drive
+connector. Only the even number connections are used for signals. The odd
+numbered pins are connected to ground.
+
+PIN 2: DISKCHANGE
+Output signal. This is a tricky one to start with. It is used for a
+number of different signals by each manufactorer. The first one is the
+most widely spread used. DISKCHANGE is perfect to use for the amiga
+diskchange signal.
+HIGH DENSITY/DOUBLE DENSITY input signal to switch drive motor between
+300 and 360  rpm. Only used for 5 1/4 inch floppy drives.
+IN USE input signal for letting the drive know something is coming up
+soon. Also used for driving led at front of the drive.
+HEAD LOAD input signal for the drive to put the head to the disk and pre
+magnetise it. (Rarely used)
+PIN 4: IN USE
+Another pin use in more ways than one
+IN USE is the most likely candidate. see pin 2 (Sometimes you can have
+DISKCHANGE and HEAD LOAD). With internal Amiga drives IN USE is always
+connected to the MTRX signal.
+PIN 6: DRIVE SELECT 3
+see PIN 10. Pin 6 is sometimes used for the READY signal (see PIN 34).
+PIN 8: INDEX 
+output signal will be low when the magnet on the flywheel of the drive
+passes the Hall sensor (when drive SELECT is low).
+PIN 10: DRIVE SELECT 0 
+input signal for selecting the last drive which is then connected to this
+line. You will have to get the drive jumpers set to the drive select you
+want. Normally the drives are left with the jumper on SELECT 0 and the
+cable is twisted to change select lines (Yes that's why there is a
+twist). 
+PIN 12: DRIVE SELECT 1 see pin 10
+PIN 14: DRIVE SELECT 2 see pin 10
+PIN 16: MOTORON 
+input signal switches to motor on. Sometimes the amiga way of switching
+on the motor with DRIVE SELECT can be set with a jumper on the drive.
+PIN 18: DIRECTION SELECT
+Input signal. When low stepping direction of the head is to the axis
+(inside) of the disk. High is to the outside of the disk.
+PIN 20: STEP
+Input signal. With every low pulse the head is stepped to the next (by
+pin 18 determined) track when the drive is selected.
+PIN 22: WRITE DATA
+Input signal. Here the data to be written on the track is coming in from
+the computer.
+PIN 24: WRITE GATE
+Input signal. When low the data from pin 22 is written on the disk.
+PIN 26: TRACK 0
+Output signal. When the head is above the first track this line will be
+low when SELECT is active.
+PIN 28: WRITE PROTECT
+Output signal. When the write protect hole is open (disk is write
+protected) and SELECT is low this signal will be low.
+PIN 30: READ DATA
+Output signal. When SELECT is low then the data on the track is written
+to this line.
+PIN 32: SIDE 1 SELECT
+Input signal. When the SELECT is active this line set the head (upper or
+lower) on which side is selected.
+PIN 34: READY
+Output signal. Low when SELECT is active and the disk is spinning at the
+right speed (INDEX signal) or, in a older simpler version, if a disk is
+in the drive. It tells the computer that the drive ready to do a read or
+a write of the track. The signal is high when the drive is empty (no
+disk), when the motor isn't running or the motor is running too slow.
+Also very shortly after a Head step signal it is high (15 ms).  
+You see in this way the drive is not mounted by the amiga! 
+(Rarely used as DISKCHANGE or IN USE).
+
+
+EPILOG
+If you post me your experience and questions about this about this hack I will
+then put them in this document. That way I can ensure a better working
+alternative. If you just don't understand certain parts of this document
+please send me a Email and I will try to enlighten you (or correct my error).
+Also tell if parts of the information are missing. Because of my poor
+equipment I am relying on your contribution to perfect this hack( or is it
+contribution to this perfect hack?). I don't have  much sparetime for testing
+out your suggestions. I have changed my expirimental board so much that when I
+point my soldering iron to it, it will probable desingrate. My board consists
+of an island print with wires soldered to make the connections. The wires run
+over IC so it is difficult to make changes.
+Apart from my DriveID program you can use the Drivetest program which you can
+find in the aminet archive in the directory hard/test (DriveTest.lha; 16095
+bytes). The only program which is missing, is the one which tells you how fast
+your drive is spinning in both DD and HD mode. This is extremely usefull for
+people who don't have a scope or frequence counter (like me!). It can be done
+by watching the INDEX signal and measure the time intervals get an average and
+recalculating them into revolutions per minute. So if anyone knows how to do
+this, mail it to me and I will include it in the package. Along with other
+ideas and amendments I will put it then on aminet.   
+
+
+ HAPPY HACKIN' 
+ 
+Dick Diederik 
+ 
+Email:     Dick.Diederik@Medew.ENTO.WAU.NL
+ 
+Snail mail: 
+Dick Diederik 
+van Doesburglaan 32 
+6708 MC Wageningen
+The Netherlands
+
+

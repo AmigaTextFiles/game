@@ -1,0 +1,215 @@
+goto "zbegin"
+: "justentered"
+die
+: "zbegin"
+. "Slime 3"
+set "local32" to "C_ALIEN"
+set "local2" to 200
+set "local3" to 0
+
+: "l"
+color c0e
+set "local5" to random 5 to 15
+wait for "local5"
+: "rl"
+goto "#look"
+if "local3" = 1 then "chase"
+go RANDNB for 1
+goto "l"
+: "chase"
+if "playerdist" = 1 then "ow"
+set "local5" to random 0 to 3
+if "local5" = 3 then "#shoot_at_player"
+wait for 5
+go SEEK for 1
+wait for 3
+goto "rl"
+: "ow"
+wait for 3
+goto "rl"
+: "#look"
+set "x1" to "thisx"
+set "y1" to "thisy"
+set "x2" to "playerx"
+set "y2" to "playery"
+
+
+: "#br_linedraw"
+set "local26" to "loopcount"
+set "local31" to "('x2'-'x1')"
+set "local30" to "('y2'-'y1')"
+set "local27" to 0
+set "local28" to 0
+goto "br_linedraw('abs('local30')'>'abs('local31')')"
+: "#br_swap_pts"
+set "local29" to "x2"
+set "x2" to "x1"
+set "x1" to "local29"
+set "local29" to "y2"
+set "y2" to "y1"
+set "y1" to "local29"
+multiply "local31" by -1
+multiply "local30" by -1
+goto "#return"
+: "br_linedraw0"
+if "x2" < "x1" then "#br_swap_pts"
+loop start
+if c?? CustomBlock p?? at "('loopcount'+'x1')" "('local28'+'y1')" then "no_LOS"
+if c?? CustomBreak p?? at "('local28'+'x1')" "('loopcount'+'y1')" then "no_LOS"
+inc "local27" by "('abs('local30')'<<1)"
+if "local27" >= "local31" then "#br_err_accum0"
+loop for "local31"
+set "local3" to 1
+set "loopcount" to "local26"
+goto "#return"
+: "br_linedraw1"
+if "y2" < "y1" then "#br_swap_pts"
+loop start
+if c?? CustomBlock p?? at "('local28'+'x1')" "('loopcount'+'y1')" then "no_LOS"
+if c?? CustomBreak p?? at "('local28'+'x1')" "('loopcount'+'y1')" then "no_LOS"
+inc "local27" by "('abs('local31')'<<1)"
+if "local27" >= "local30" then "#br_err_accum1"
+loop for "local30"
+set "loopcount" to "local26"
+set "local3" to 1
+goto "#return"
+: "#br_err_accum0"
+inc "local28" by "('local30'>0*2-1)"
+dec "local27" by "('local31'*2)"
+goto "#return"
+: "#br_err_accum1"
+inc "local28" by "('local31'>0*2-1)"
+dec "local27" by "('local30'*2)"
+goto "#return"
+: "no_LOS"
+set "local3" to 0
+goto "#return"
+: "shot"
+dec "local2" by "pb_damage"
+if "local2" < 0 then "death"
+goto "#hitsnd"
+walk OPP SEEK
+go OPP SEEK for 1
+walk IDLE
+wait for 5
+goto "l"
+: "shock"
+color c0e
+dec "local2" by "('pb_damage'/2)"
+goto "#blood_add"
+if "local2" < 0 then "death"
+wait for 20
+goto "l"
+: "slashed"
+dec "local2" by "pb_damage"
+if "local2" < 0 then "death"
+goto "#hitsnd"
+goto "#blood_add"
+go OPP SEEK for 1
+wait for 1
+goto "#blood_add"
+wait for 3
+goto "l"
+: "bombed"
+dec "local2" by "bomb_damage"
+if "local2" < 0 then "death"
+goto "#blood_add"
+wait for 1
+goto "#blood_add"
+wait for 4
+goto "l"
+: "#hitsnd"
+if "('ticker'-'last_enemy_hit')" < 16 then "#return"
+set "last_enemy_hit" to "ticker"
+sam "sf_AH" "&$sn_AH&"
+goto "#return"
+: "#deathsnd"
+if "('ticker'-'last_enemy_hit')" < 16 then "#return"
+set "last_enemy_hit" to "ticker"
+sam "sf_AD" "&$sn_AD&"
+goto "#return"
+: "#shootsnd"
+if "('ticker'-'last_enemy_shot')" < 16 then "#return"
+set "last_enemy_shot" to "ticker"
+sam "sf_ES" "&$sn_ES&"
+goto "#return"
+
+
+: "death"
+goto "#deathsnd"
+lockself
+goto "#blood_add"
+goto "#blood_add"
+wait for 1
+goto "#blood_add"
+goto "#blood_add"
+goto "#blood_add"
+wait for 1
+goto "#blood_add"
+goto "#blood_add"
+goto "#blood_add"
+goto "#blood_add"
+die
+
+: "#blood_add"
+inc "totbullets" by 1
+set "local5" to "ll_top"
+set "ll_top" to "nextfree"
+set "bul&local5&_parent" to "ll_top"
+set "bul&ll_top&_parent" to -1
+set "bul&ll_top&_child" to "local5"
+set "local6" to random -1 to 1
+set "local7" to random -1 to 1
+set "bul&ll_top&_i" to 0
+
+set "bul&ll_top&_x" to "('thisx'+'local6'*65536)"
+set "bul&ll_top&_y" to "('thisy'+'local7'*65536)"
+set "bul&ll_top&_type" to 2
+set "bul&ll_top&_special" to 1
+set "bul&ll_top&_vis" to 5
+inc "nextfree" by 1
+goto "#return"
+
+: "#shoot_at_player"
+goto "#shootsnd"
+inc "totbullets" by 1
+set "local5" to "ll_top"
+set "ll_top" to "nextfree"
+set "bul&local5&_parent" to "ll_top"
+set "bul&ll_top&_parent" to -1
+set "bul&ll_top&_child" to "local5"
+goto "#get_player_dir"
+set "bul&ll_top&_dir" to "pc_dir"
+set "bul&ll_top&_vel" to "(32768)"
+set "bul&ll_top&_x" to "('thisx'*65536)"
+set "bul&ll_top&_y" to "('thisy'*65536)"
+set "bul&ll_top&_type" to 2
+set "bul&ll_top&_special" to 0
+set "bul&ll_top&_ch" to 161
+set "bul&ll_top&_cl" to 13
+set "bul&ll_top&_vis" to 6
+set "bul&ll_top&_life" to "(65536*30)"
+set "bul&ll_top&_dmg" to 12
+inc "nextfree" by 1
+goto "#return"
+
+: "#get_player_dir"
+set "divider" to "(65536)"
+set "pc_dir" to "atan( ('playery'-'thisy'*-65536)/('playerx'-'thisx') )"
+inc "pc_dir" by "(('playerx'>'thisx')*360)"
+inc "pc_dir" by "(('playerx'<'thisx')*180)"
+set "pc_dir" to "('pc_dir'%360)"
+if "(('playery'<'thisy')a('playerx'='thisx'))" = 1 then "#dir_n"
+if "(('playery'>'thisy')a('playerx'='thisx'))" = 1 then "#dir_s"
+goto "#return"
+: "#dir_n"
+set "pc_dir" to 90
+goto "#return"
+: "#dir_s"
+set "pc_dir" to 270
+goto "#return"
+: "#pauseme"
+: "pause_loop"
+wait for 1
+if "game_paused" = 1 then "pause_loop"
+goto "#return"

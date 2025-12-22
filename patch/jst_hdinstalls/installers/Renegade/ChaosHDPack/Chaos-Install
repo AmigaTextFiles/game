@@ -1,0 +1,217 @@
+
+
+
+
+;----------------------------
+
+;try to figure out a place where the user usually installs his games
+(if (exists "Games:" (noreq) )
+    (set @default-dest "Games:")
+    (if (exists "SYS:Games" (noreq) )
+        (set @default-dest "SYS:Games")
+        (if (exists "Work:Games" (noreq) )
+            (set @default-dest "Work:Games")
+            (if (exists "JEUX:" (noreq) )
+               (set @default-dest "JEUX:")
+               (set @default-dest "SYS:")
+            )
+        )
+    )
+)
+
+(message "\n\nThose loaders need the JST program (included)\n to be copied in your path\n\n(if you don't have it already)\n\nJST is available from aminet (game/patch) or on my site\n\nJST is shareware. Please register")
+
+(set #game_ver
+	(askchoice
+		(prompt "Which version of Chaos Engine\ndo you want to install")
+		(help	@askoptions-help)
+		(choices
+		   "Chaos Engine II ECS"
+		   "Chaos Engine II AGA"
+		   "Chaos Engine I  ECS"
+		   "Chaos Engine I  AGA"
+		)
+	)
+)
+
+(set #CI_unit
+	(askchoice
+		(prompt "From which disk unit do you want\nto install the game")
+		(help	@askoptions-help)
+		(choices
+		   "DF0:"
+		   "DF1:"
+		   "DF2:"
+		   "DF3:"
+		)
+	)
+)
+
+(set #CI_drive ("DF%ld:" #CI_unit))
+
+
+(if (= #game_ver 0)
+    (set #app-name "ChaosEngine2-ECS")
+    (set #loader-name "Chaos2HD")
+)
+
+(if (= #game_ver 1)
+    (set #app-name "ChaosEngine2-AA")
+    (set #loader-name "Chaos2HD")
+)
+
+(if (= #game_ver 2)
+    (set #app-name "ChaosEngineECS")
+    (set #loader-name "ChaosHD")
+)
+
+(if (= #game_ver 3)
+    (set #app-name "ChaosEngineAGA")
+    (set #loader-name "ChaosAGAHD")
+)
+
+(set default-dest
+(askdir
+	(prompt ("Where should I install the game ?\nA drawer \"%s\" will automatically created." #app-name))
+	(help @askdir-help)
+	(default @default-dest)
+	(disk)
+)
+)
+
+(set #dest (tackon default-dest #app-name))
+
+
+(makedir #dest
+	(help @makedir-help)
+	(infos)
+)
+
+;----------------------------
+
+
+(copyfiles
+	(help @copyfiles-help)
+	(source "chaos2hd.readme")
+	(dest #dest)
+	(infos)
+)
+
+
+(if (< #game_ver 2)
+(
+(copyfiles
+	(help @copyfiles-help)
+	(source "Chaos2HD")
+	(dest #dest)
+	(infos)
+)
+
+
+(message ("\nInsert %s disk 1 into drive %s !" #app-name #CI_drive))
+	(if
+		(= 0 (run ("disk2file_ %ld \"%s/chaos2.d1\" SKIPROB >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"disk2file\" must be in your PATH !")
+	)
+
+(message ("\nInsert %s disk 2 into drive %s !" #app-name #CI_drive))
+	(if
+		(= 0 (run ("disk2file %ld \"%s/chaos2.d2\" SKIPROB >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"disk2file\" must be in your PATH !")
+	)
+
+(message ("\nInsert %s disk 3 into drive %s !" #app-name #CI_drive))
+	(if
+		(= 0 (run ("disk2file %ld \"%s/chaos2.d3\" SKIPROB >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"disk2file\" must be in your PATH !")
+	)
+
+
+(exit)
+
+)
+)
+
+(if (= #game_ver 2)
+(
+(copyfiles
+	(help @copyfiles-help)
+	(source "ChaosHD")
+	(dest #dest)
+	(infos)
+)
+
+(copyfiles
+	(help @copyfiles-help)
+	(source "ChaosHD.readme")
+	(dest #dest)
+	(infos)
+)
+
+
+(message ("\nInsert %s disk 1 into drive %s !" #app-name #CI_drive))
+	(if
+		(= 0 (run ("disk2file %ld \"%s/chaos.d1\" >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"disk2file\" must be in your PATH !")
+	)
+
+(message ("\nInsert %s disk 2 into drive %s !" #app-name #CI_drive))
+	(if
+		(= 0 (run ("disk2file %ld \"%s/chaos.d2\" SKIPROB >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"disk2file\" must be in your PATH !")
+	)
+
+(exit)
+)
+)
+
+(if (= #game_ver 3)
+(
+(copyfiles
+	(help @copyfiles-help)
+	(source "ChaosAGA_HD")
+	(dest #dest)
+	(infos)
+)
+
+(copyfiles
+	(help @copyfiles-help)
+	(source "ChaosAGA_HD.readme")
+	(dest #dest)
+	(infos)
+)
+
+(message ("\nInsert %s disk 1 into drive %s !" #app-name #CI_drive))
+
+	(if
+		(= 0 (run ("chaosboot %ld \"%s/ChaosAGA.b1\"" #CI_unit #dest )))
+		("")
+		(abort "\"chaosboot\" must be in your PATH !")
+	)
+
+
+	(if
+		(= 0 (run ("rob2file %ld \"%s/ChaosAGA.d1\" 15 149 F674AE7A >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"rob2file\" must be in your PATH !")
+	)
+
+
+(message ("\nInsert %s disk 2 into drive %s !" #app-name #CI_drive))
+	(if
+		(= 0 (run ("rob2file %ld \"%s/ChaosAGA.d2\" 15 149 F674AE7A >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"rob2file\" must be in your PATH !")
+	)
+
+)
+)
+
+
+(exit)
+

@@ -1,0 +1,1298 @@
+PGN: Portable Game Notation Specification and Implementation Guide
+
+Revised: 1993.12.19
+
+Authors: Interested readers of the Internet newsgroup rec.games.chess
+
+Coordinator: Steven J. Edwards (send comments to sje@world.std.com)
+
+
+1: Introduction
+
+PGN is "Portable Game Notation", a format designed for the representation of
+chess game data using ASCII text files.  PGN is structured to allow easy
+reading and writing by human users and easy parsing and generation by computer
+programs.  The intent of the definition and propagation of PGN is to facilitate
+the sharing of public domain chess game data among chessplayers (both organic
+and otherwise), publishers, and computer chess researchers throughout the
+world.
+
+PGN is not intended to be a general purpose format that is suitable for every
+possible use; no format could fill all conceivable requirements.  Instead, PGN
+is proposed as a universal portable format for data interchange.  The idea is
+to allow the construction of a family of chess applications can be implemented
+such that they can read and write chess game data using PGN for import and
+export among themselves.
+
+
+2: Design philosophy
+
+Computer usage among chessplayers has become quite common in recent years and a
+number of programs, commercial and public domain, are used to access, generate,
+and propagate chess game data.  Some of these programs are rather impressive;
+most are now well behaved in that they correctly follow the Laws of Chess and
+handle users' data with reasonable care.  Unfortunately, most programs have
+serious problems with several aspects of the external representation of chess
+game data.  Sometimes these problems become more visible when a user attempts
+to move significant quantities of data from one program to another; if there
+has been no real effort to ensure portability of data, then the chances for a
+successful transfer are small at best.
+
+The reasons for format incompatibility are easy to understand.  In fact, most
+of them are correlated with the same problems that have already been seen with
+commercial software offerings for other domains such as word processing,
+spreadsheets, fonts, and graphics.  Sometimes a manufacturer deliberately
+designs a data format using encryption or some other secret, proprietary
+technique to "lock in" a customer.  Sometimes a designer may produce a format
+that can be deciphered without too much difficulty, but at the same time
+publicly discourage third party software by claiming trade secret protection.
+Another software producer may develop a non-proprietary system, but it may work
+well only within the scope of a single program or application because it is not
+easily expandable.  Finally, some other software may work very well for many
+purposes, but it uses symbols and language not easily understood by people or
+computers available to those outside the country of development.
+
+Therefore, a specification for a portable game notation must observe the
+lessons of history and be able to handle probable needs of the future.  The
+design criteria for PGN were selected to meet these needs.  These criteria
+include:
+
+1) The details of the system must be publicly available and free of unnecessary
+complexity.  Ideally, if the documentation is not available for some reason, a
+typical chess software developer or user should be able to understand the data
+without the need for third party assistance.
+
+2) The details of the system must be non-proprietary so that users and software
+developers are unrestricted by concerns about infringing on intellectual
+property rights.  The idea is to let chess programmers compete in a free market
+where customers may choose software based on their real needs and not
+artificial needs created by a secret data format.
+
+3) The system must work for a variety of programs.  The format should be such
+that it can be used by chess database programs, chess publishing programs,
+chess server programs, and chessplaying programs without being unnecessarily
+specific to any particular application class.
+
+4) The system must be easily expandable and scalable.  The expansion ability
+must include handling data items that may not exist currently but could be
+expected to emerge in the future.  Examples: new opening classifications and
+new country names.  The system should be scalable in that it must not have any
+arbitrary restrictions concerning the quantity of stored data.  Also, planned
+modes of expansion should either preserve earlier database or at least allow
+for their automatic conversion.
+
+5) The system must be international.  Chess software users are found in many
+countries and the system should be free of difficulties caused by conventions
+local to a given region.
+
+6) Finally, the system should handle the same kinds and amounts of data that
+are already handled by existing chess software and by print media.
+
+
+3: Formats: Import and export
+
+There are two formats in the PGN specification.  These are the "import" format
+and the "export" format.  There are two different ways of formatting the same
+PGN data according to its source.  The details of the two formats are described
+throughout the following sections of this document.
+
+
+3.1: Import format allows for manually prepared data
+
+The import format is rather flexible and is used to describe data that may have
+been prepared by hand, much like a source file for a high level programming
+language.  A program that can read PGN data should be able to handle the
+somewhat lax import format.
+
+
+3.2: Export format used for program generated output
+
+The export format is rather strict and is used to describe data that is usually
+prepared under program control, something like a pretty printed source program
+reformatted by a compiler.
+
+For a given PGN data file, export format representations generated by different
+PGN programs on the same computing system should be exactly equivalent, byte
+for byte.
+
+Export format should also be used for archival storage.  Here, "archival"
+storage is defined as storage that may be accessed by a variety of computing
+systems.  The only extra requirement for archival storage is that the newline
+character have a specific representation that is independent of its value for a
+particular computing system's text file usage.  The archival representation of
+a newline is the ASCII control character LF (line feed, decimal value 10).
+
+Several parts of the export format deal with exact descriptions of line and
+field justification that are absent from the import format details.  The main
+reason for these restrictions on the export format are to allow the
+construction of simple data translation programs that can easily scan PGN data
+without having to have a full chess engine or other complex parsing routines.
+The idea is to encourage chess software authors to always allow for at least a
+limited PGN reading capability.  Even when a full chess engine parsing
+capability is available, it is likely to be at least two orders of magnitude
+slower than a simple text scanner.
+
+A PGN game represented using export format is said to be in reduced export
+format if all of the following hold: 1) it has no commentary, 2) it has only
+the standard seven tag roster identification information (see below), 3) it has
+no recursive annotation variations (see below), and 4) it has no numeric
+annotation glyphs (see below).  Reduced export format is used for bulk storage
+of unannotated games.  It represents a minimum level of standard conformance
+for a PGN exporting application.
+
+
+4: Lexicographical issues
+
+PGN data is composed of characters; these form in turn form lexical tokens.
+
+
+4.1: Character codes
+
+PGN data is represented using only the ASCII character set with character codes
+restricted to those with decimal numeric values of less than 128.  Furthermore,
+only printable characters with codes from 32 to 127 are used along with the
+newline character and the horizontal and vertical tab characters.  The external
+representation of the newline character may differ among platforms; this is an
+acceptable variation as long as the details of the implementation are hidden
+from software implementors and users.
+
+
+4.2: Tab characters
+
+Tab characters, both horizontal and vertical, are not permitted in the export
+format.  This is because the treatment of tab characters is highly dependent
+upon the particular software in use on the host computing system.
+
+
+4.3: Line lengths
+
+PGN data are organized as simple text lines without any special bytes or
+controls for secondary record structure imposed by specific operating systems.
+Import format PGN text lines are limited to having a maximum of 255 characters
+per line including the newline character.  Lines with 80 or more printing
+characters are strongly discouraged because of the difficulties experienced by
+common text editors with long lines.  Export format text lines are limited to
+having fewer than 80 characters per line.  These limits are chosen to
+facilitate ease of implementation and ease of viewing.  Also, some systems
+require explicit text file line record length limits.  Sad, but true.
+
+
+5: Commentary
+
+Comment text may appear in PGN data.  There are two types of comments.  The
+first type is the "rest of line" comment; this comment type starts with a
+semicolon character and continues to the end of the line.  The second type
+starts with a left brace character and continues to the next right brace
+character.  Brace comments do not nest.  A semicolon appearing inside of a
+brace comment loses its special meaning and is ignored.  Braces appearing
+inside of a semicolon comments lose their special meaning and are ignored.
+
+*** Export format representation of comments needs definition work.
+
+
+6: Escape mechanism
+
+There is a special escape mechanism for PGN data.  This mechanism is triggered
+by a percent sign character appearing in the first column of a line; the data
+on the rest of the line is ignored by publicly available PGN scanning software.
+This escape convention is intended for the private use of software developers
+and researchers to embed commands and data in PGN streams.
+
+
+7: Tokens
+
+PGN character data is organized as tokens.  A token is a contiguous sequence of
+characters that represents a basic semantic unit.  Tokens may be separated from
+adjacent tokens by whitespace characters.  Some tokens are self delimiting and
+do not require whitespace characters.
+
+A string token is a sequence of zero or more characters that is delimited by a
+pair of quote characters (ASCII value 22).  An empty string is represented by
+two adjacent quotes.  (Note: an apostrophe is not a quote.)  A quote inside a
+string is represented by the backslash immediately followed by a quote.  A
+backslash inside a string is represented by two adjacent backslashes.  Strings
+are commonly used as tag pair values (see below).
+
+An integer token is a sequence of one or more decimal digit characters.  It is
+a special case of the more general "symbol" token class described below.
+Integer tokens are used to help represent move number indications (see below).
+
+A period character is a token by itself.  It is used for move number
+indications (see below).
+
+An asterisk character is a token by itself.  It is used as one of the possible
+game termination markers (see below); it indicates an incomplete game or a game
+with an unknown or otherwise unavailable result.
+
+The left and right bracket characters are tokens.  They are used to delimit tag
+pairs (see below).
+
+The left and right parenthesis characters are tokens.  They are used to delimit
+Recursive Annotation Variations (see below).
+
+A Numeric Annotation Glyph ("NAG", see below) is a token; it is composed of a
+dollar sign character immediately followed by one or more digit characters.
+
+A symbol token starts with a letter or digit character and is immediately
+followed by a sequence of zero or more symbol continuation characters.  These
+continuation characters are letter characters, digit characters, the
+underscore, the plus sign, the octothorpe sign (i.e., pound sign; also known as
+the tic-tac-toe sign or the number sign), the equal sign, and the hyphen.
+Symbols are used for a variety of purposes.  All characters in a symbol are
+significant.
+
+
+8: Parsing games
+
+The basic element of a database composed of games data using the PGN format is
+the single PGN chess game.  A PGN database file is a sequential collection of
+zero or more PGN games.  An empty file is a valid, although somewhat
+uninformative, PGN database.
+
+A PGN game is composed of two major sections.  The first is the tag pair
+section and the second is the movetext section.  The tag pair section provides
+information that identifies the game by defining the values associated with a
+set of standard parameters.  The movetext section gives the enumerated and
+possibly annotated moves of the game along with a concluding game termination
+marker.  The chess moves themselves are represented using SAN (Standard
+Algebraic Notation), also described later in this document.
+
+
+8.1: Tag pair section
+
+The tag pair section is composed of a series of zero or more tag pairs.
+
+A tag pair is composed of four consecutive tokens: a left bracket token, a
+symbol token, a string token, and a right bracket token.  The symbol token is
+the tag name and the string token is the tag value associated with the tag
+name.  (There is a standard set of tag names and semantics described below.)
+The same tag name should not appear more than once in a tag pair section.
+
+A further restriction on tag names is that they are composed exclusively of
+letters, digits, and the underscore character.  This is done to facilitate
+mapping of tag names into third party database programs.
+
+For PGN import format, there may be zero or more whitespace characters between
+any adjacent pair of tokens in a tag pair.
+
+For PGN export format, there are no whitespace characters between the left
+bracket and the tag name, there are no whitespace characters between the tag
+value and the right bracket, and there is a single space character between the
+tag name and the tag value.
+
+Tag names, like all symbols, are case sensitive.  All tag names used for
+archival storage begin with an upper case letter.
+
+PGN import format may have multiple tag pairs on the same line and may even
+have a tag pair spanning more than a single line.  Export format requires each
+tag pair to appear left justified on a line by itself; a single empty line
+follows the last tag pair.  Note that this requirement places a length limit
+for the entire tag pair because of the restriction of fewer than 80 characters
+per line.  Specifically, the sum of the character length of the tag name and
+the tag value should be less than 75.
+
+Some tag values may be composed of a sequence of items.  For example, a
+consultation game may have more than one player for a given side.  When this
+occurs, the single character ":" (colon) appears between adjacent items.
+
+The tag pair format is designed for expansion; initially only strings are
+allowed as tag pair values.  In future revisions, this will be expanded to a
+general list structure as needed.  This will also allow multi-line tag values
+at the same time.
+
+
+8.1.1: Seven Tag Roster
+
+There is a set of tags defined for mandatory use for archival storage of PGN
+data.  This is the STR (Seven Tag Roster).  The interpretation of these tags is
+fixed as is the order in which they appear.  Although other tag names and
+semantics are permitted and encouraged, the STR is the common ground that all
+programs should follow for public data interchange.
+
+For import format, the order of tag pairs is not important.  For export format,
+the STR tags appear before any other tag pairs.  (The STR tag pair must also
+appear in order; this order is described below).  Also for export format, the
+additional tag pairs appear in ASCII order by tag name.
+
+The seven tag names of the STR are (in order):
+
+1) Event (the name of the tournament or match event)
+
+2) Site (the location of the event)
+
+3) Date (the starting date of the game)
+
+4) Round (the playing round ordinal of the game)
+
+5) White (the player of the white pieces)
+
+6) Black (the player of the black pieces)
+
+7) Result (the result of the game)
+
+A set of supplemental tag names is given in Appendix A of this document.
+
+For PGN export format, a single blank line appears after the last of the tag
+pairs to conclude the tag pair section.  This helps simple scanning programs to
+quickly determine the end of the tag pair section and the beginning of the
+movetext section.
+
+
+8.1.1.1: The Event tag
+
+The Event tag value should be reasonably descriptive.  Abbreviations are to be
+avoided unless absolutely necessary to save space.  A consistent event naming
+should be used to help facilitate database scanning.  If the name of the event
+is unknown, a single question mark should appear as the tag value.
+
+Examples:
+
+[Event "FIDE World Championship"]
+
+[Event "Moscow City Championship"]
+
+[Event "ACM North American Computer Championship"]
+
+
+8.1.1.2: The Site tag
+
+The Site tag value should include city and region names along with a standard
+name for the country.  The use of the International Olympic Committee three
+letter names is suggested for those countries where such codes are available.
+If the site of the event is unknown, a single question mark should appear as
+the tag value.
+
+Examples:
+
+[Site "New York City, NY USA"]
+
+[Site "St. Petersburg RUS"]
+
+[Site "Riga LAT"]
+
+
+8.1.1.3: The Date tag
+
+The Date tag value gives the starting date for the game.  (Note: this is not
+necessarily the same as the starting date for the event.)  The Date tag value
+field always uses a standard ten character format: "YYYY.MM.DD".  The first
+four characters are digits that give the year, the next character is a period,
+the next two characters are digits that give the month, the next character is a
+period, and the final two characters are digits that give the day of the month.
+If the any of the digit fields are not known, then question marks are used in
+place of the digits.
+
+Examples:
+
+[Date "1992.08.31"]
+
+[Date "1993.??.??"]
+
+[Date "2001.01.01"]
+
+
+8.1.1.4: The Round tag
+
+The Round tag value gives the playing round for the game.  In a match
+competition, this value is the number of the game played.  In a simultaneous
+exhibition, this is the board number.  If the use of a round number is
+inappropriate, then the field should be a single hyphen character.  If the
+round is unknown, a single question mark should appear as the tag value.
+
+Some organizers employ unusual round designations and have multipart playing
+rounds and sometimes even have conditional rounds.  In these cases, a multipart
+round identifier can be made from a sequence of integer round numbers separated
+by periods.  The leftmost integer represents the most significant round and
+succeeding integers represent round numbers in decending hierarchical order.
+
+Examples:
+
+[Round "1"]
+
+[Round "3.1"]
+
+[Round "4.1.2"]
+
+
+8.1.1.5: The White tag
+
+The White tag value is the name of the player or players of the white pieces.
+The names are given as they would appear in a telephone directory.  The family
+or last name appears first.  If a first name or first initial is available, it
+is separated from the family name by a comma and a space.  Finally, one or more
+middle initials may appear.  If the name is unknown, a single question mark
+should appear as the tag value.
+
+The intent is to allow meaningful ASCII sorting of the tag value that is
+independent of regional name formation customs.  If more than one person is
+playing the white pieces, the names are listed in alphabetical order and are
+separated by the colon character between adjacent entries.  A player who is
+also a computer program should have appropriate version information listed
+after the name of the program.
+
+The format used in the FIDE Rating Lists is appropriate for use for player name
+tags.
+
+Examples:
+
+[White "Tal, Mikhail N."]
+
+[White "van der Wiel, Johan"]
+
+[White "Acme Pawngrabber v.3.2"]
+
+
+8.1.1.6: The Black tag
+
+The Black tag value is the name of the player or players of the black pieces.
+The names are given here as they are for the White tag value.
+
+Examples:
+
+[Black "Lasker, Emmanuel"]
+
+[Black "Smyslov, Vasily V."]
+
+[Black "KingHunter IV:Smith, John Q.:Woodpusher 2000"]
+
+
+8.1.1.7: The Result tag
+
+The Result field value is the result of the game.  It is always exactly the
+same as the game termination marker that concludes the associated movetext.  It
+is always one of four possible values: "1-0" (White wins), "0-1" (Black wins),
+"1/2-1/2" (drawn game), and "*" (game still in progress, game abandoned, or
+result otherwise unknown).  Note that the digit zero is used in both of the
+first two cases; not the letter "O".
+
+All possible examples:
+
+[Result "0-1"]
+
+[Result "1-0"]
+
+[Result "1/2-1/2"]
+
+[Result "*"]
+
+
+8.2: Movetext section
+
+The movetext section is composed of movetext elements.  These elements are:
+chess moves, move number indications, optional annotations, and a single
+concluding game termination marker.
+
+Because illegal moves are not real chess moves, they are not permitted in PGN
+movetext.  They may appear in commentary, however.  One would hope that illegal
+moves are relatively rare in games worthy of recording.
+
+
+8.2.1: Movetext line justification
+
+In PGN import format, elements in the movetext do not require any specific line
+justification.
+
+In PGN export format, elements in the movetext are placed left justified on
+successive text lines each of which has less than 80 printing characters.  As
+many elements as possible are placed on a line with the remainder appearing on
+successive lines.  A single space character appears between any two adjacent
+elements on the same line in the movetext.  As with the tag pair section, a
+single empty line follows the last line of data to conclude the movetext
+section.
+
+
+8.2.2: Movetext move number indications
+
+A move number indication is composed of one or more adjacent digits (an integer
+token) followed by zero or more periods.  The integer portion of the indication
+gives the move number of the immediately following white move (if present) and
+also the immediately following black move (if present).
+
+
+8.2.2.1: Import format move number indications
+
+PGN import format does not require move number indications.  It does not
+prohibit superfluous move number indications anywhere in the movetext as long
+as the move numbers are correct.
+
+PGN import format move number indications may have zero or more period
+characters following the digit sequence that gives the move number; one or more
+whitespace characters may appear between the digit sequence and the period(s).
+
+
+8.2.2.2: Export format move number indications
+
+Export format requires a move number indication immediately prior to each white
+move and nowhere else.  Specifically, a move number indication does not appear
+immediately prior to a game termination marker.
+
+Export format has exactly one period character immediately following the digit
+sequence; this forms a single movetext element.
+
+
+8.2.3: Movetext SAN (Standard Algebraic Notation)
+
+SAN (Standard Algebraic Notation) is a representation standard for chess moves
+using the ASCII Latin alphabet.
+
+Examples of SAN recorded games are found throughout most modern chess
+publications.  SAN as presented in this document uses English language single
+character abbreviations for chess pieces, although this is easily changed in
+the source.  English is chosen over other languages because it appears to be
+the most widely recognized.
+
+An alternative to SAN is FAN (Figurine Algebraic Notation).  FAN uses miniature
+piece icons instead of single letter piece abbreviations.  The two notations
+are otherwise identical.
+
+Details about SAN construction are given in the FIDE Laws of Chess and are also
+described in the following sections of this document.
+
+
+8.2.3.1: Square identification
+
+SAN identifies each of the sixty four squares on the chessboard with a unique
+two character name.  The first character of a square identifier is the file of
+the square; a file is a column of eight squares designated by a single lower
+case letter from "a" (left most or queenside) up to and including "h" (right
+most or kingside).  The second character of a square identifier is the rank of
+the square; a rank is a row of eight squares designated by a single digit from
+"1" (bottom most [White's first rank]) up to and including "8" (top most
+[Black's first rank]).  The initial squares of some pieces are: white queen
+rook at a1, white king at e1, black queen knight pawn at b7, and black king
+rook at h8.
+
+
+8.2.3.2: Piece identification
+
+SAN identifies each piece by a single upper case letter.  The standard English
+values: pawn = "P", knight = "N", bishop = "B", rook = "R", queen = "Q", and
+king = "K".
+
+The letter code for a pawn is not used for SAN moves in PGN output movetext.
+However, some PGN import software disambiguation code may allow for the
+appearence of pawn letter codes.  Also, there is the possibility of using pawn
+and other piece letter codes in tag pair and annotation constructs to be
+defined in the future.
+
+It is admittedly a bit chauvinistic to select English piece letters over those
+from other languages.  There is a slight justification in that English is a de
+facto universal second language among most chessplayers and software users and
+authors.  It is probably the best that can be done for now.  Appendix I of this
+document gives alternative piece letters, but these should be used only for
+local presentation software and not for archival storage or for dynamic
+interchange among programs.
+
+
+8.2.3.3: Basic SAN move construction
+
+A basic SAN move is given by listing the moving piece letter (omitted for
+pawns) followed by the destination square.  Capture moves are denoted by the
+lower case letter "x" immediately prior to the destination square; pawn
+captures include the file letter of the originating square of the capturing
+pawn immediately prior to the "x" character.
+
+SAN kingside castling is indicated by the sequence "O-O"; queenside castling is
+indicated by the sequence "O-O-O".  Note that the upper case letter "O" is
+used, not the digit zero.  The use of a zero character is not only incompatible
+with traditional text practices, but it can also confuse parsing software which
+also has to understand about move numbers and game termination markers.
+
+En passant captures do not have any special notation; they are formed as if the
+captured pawn were on the capturing pawn's destination square.  Pawn promotions
+are denoted by the equal sign "=" immediately following the destination square
+with a promoted piece letter (indicating one of knight, bishop, rook, or queen)
+immediately following the equal sign.  As above, the piece letter is in upper
+case.
+
+In the case of ambiguities (multiple pieces of the same type moving to the same
+square), the first appropriate disambiguating step of the three following steps
+is taken:  First, if the moving pieces can be distinguished by their
+originating files, the originating file letter of the moving piece is inserted
+immediately after the moving piece letter.  Second (when the first step fails),
+if the moving pieces can be distinguished by their originating ranks, the
+originating rank digit of the moving piece is inserted immediately after the
+moving piece letter.  Third (when both the first and the second steps fail),
+the two character square coordinate of the originating square of the moving
+piece is inserted immediately after the moving piece letter.  The result of the
+SAN actions described so for is called "the basic SAN move notation".
+
+
+8.2.3.4: Check and checkmate indication characters
+
+If the move is a checking move, the plus sign "+" is appended as a suffix to
+the basic SAN notation; if the move is a checkmating move, the octothorpe sign
+"#" is appended instead.  Neither the appearance nor the absence of either a
+check or checkmating indicator is used for disambiguation purposes.
+
+There are no special markings used for double checks or discovered checks.
+
+
+8.2.3.5: SAN move length
+
+SAN moves can be as short as two characters (e.g., "d4"), or as long as seven
+characters (e.g., "Qa6xb7#").  The average SAN move length seen in realistic
+games is probably just fractionally longer than three characters.  If the SAN
+rules seem complicated, be assured that the earlier notation systems of LEN
+(Long English Notation) and EDN (English Descriptive Notation) are much more
+complex, and that LAN (Long Algebraic Notation, the predecessor of SAN) is
+unnecessarily bulky.
+
+
+8.2.3.6: Import and export SAN
+
+PGN export format always uses the above canonical SAN to represent moves in the
+movetext section of a PGN game.  Import format is somewhat more relaxed and it
+makes allowances for moves that do not conform exactly to the canonical format.
+However, the allowances may differ among different PGN reader software.  Only
+data appearing in export format is in all cases guaranteed to be importable
+into all PGN readers.
+
+There are a number of suggested guidelines for use with implementing PGN reader
+software for permitting non-canonical SAN move representation.  The idea is to
+have a PGN reader apply various transformations to attempt to discover the move
+that is represented by non-canonical input.  Some suggested transformations
+include: letter case remapping, capture indicator insertion, check indicator
+insertion, and checkmate indicator insertion.
+
+
+8.2.4: Movetext NAG (Numeric Annotation Glyph)
+
+An NAG (Numeric Annotation Glyph) is a movetext element that is used to
+indicate a simple annotation in a language independent manner.  An NAG always
+annotates the immediately preceding move.
+
+*** The NAG "$0" is defined to be the null annotation.  Additional NAGs are to
+be defined later.  Also, it may be useful to extend NAG usage to include
+operands other than or in addition to the immediately preceding move.
+
+
+8.2.5: Movetext RAV (Recursive Annotation Variation)
+
+An RAV (Recursive Annotation Variation) is a sequence of movetext containing
+zero or more moves enclosed in parentheses.  An RAV is used to represent an
+alternative variation.  The alternate move sequence given by an RAV is one that
+may be legally played by first unplaying the move that appears immediately
+prior to the RAV.  Because the RAV is a recursive construct, it may be nested.
+
+*** The specification for import/export representation of RAV elements needs
+further development.
+
+
+Appendix A: Supplemental tag names
+
+The following tag names and their associated semantics are recommended for use
+for information not contained in the Seven Tag Roster.
+
+A.1: Player related information
+
+WhiteTitle, BlackTitle: String values such as "FM", "IM", and "GM"; these tags
+are used only for the standard abbreviations for FIDE titles.
+
+WhiteElo, BlackElo: Integer values; these are used for FIDE Elo ratings.
+
+WhiteUSCF, BlackUSCF: Integer values; these are used for USCF (United States
+Chess Federation) ratings.  Similar tag names can be constructed for other
+rating agencies.
+
+
+A.2: Event related information
+
+EventDate: A date value, similar to the Date tag field, that gives the starting
+date of the Event.
+
+EventSponsor: A string value giving the name of the sponsor of the event.
+
+Section: A string; this is used for the playing section of a tournament (e.g.,
+"Open" or "Reserve").
+
+Stage: A string; this is used for the stage of a multistage event (e.g.,
+"Preliminary" or "Semifinal").
+
+Board: An integer; this identifies the board number in a team event.
+
+
+A.3: Opening information
+
+Opening: A string; this is used for the traditional opening name.  This will
+vary by locale.
+
+Variation: A string; this is used to further refine the Opening tag.  This will
+vary by locale.
+
+SubVariation: A string; this is used to further refine the Variation tag.  This
+will vary by locale.
+
+ECO: String of the form "XDD/DD" where the "X" is a letter from "A" to "E" and
+the "D" positions are digits; this is used for an opening designation from the
+five volume _Encyclopedia of Chess Openings_.
+
+NIC: A string; this is used for an opening designation from the _New in Chess_
+database.
+
+
+A.4: Miscellaneous
+
+Annotator: A name or names in the format of the player name tags; this
+identifies the annotator of the game.
+
+Time: A time-of-day value in the form "HH:MM:SS"; similar to the Date tag
+except that it denotes the local clock time (hours, minutes, and seconds) of
+the start of the game.  Note that colons, not periods, are used for internal
+separators for the Time value.
+
+
+Appendix B: Numeric Annotation Glyphs
+
+*** TBD
+
+
+Appendix C: File names and directories
+
+File names chosen for PGN data should be both informative and portable.  The
+directory names and arrangements should also be chosen for the same reasons and
+also for ease of navigation.
+
+Some of suggested file and directory names may be difficult or impossible to
+represent on certain computing systems.  Use of appropriate conversion customs
+is encouraged.
+
+
+C.1: File name suffix for PGN data
+
+The use of the file suffix ".pgn" is encouraged for ASCII text files containing
+PGN data.
+
+
+C.2: File name formation for PGN data for a specific player
+
+PGN games for a specific player should have a file name consisting of the
+player's last name followed by the ".pgn" suffix.
+
+
+C.3: File name formation for PGN data for a specific event
+
+PGN games for a specific event should have a file name consisting of the
+event's name followed by the ".pgn" suffix.
+
+
+C.4: File name formation for PGN data for chronologically ordered games
+
+PGN data files used for chronologically ordered (oldest first) archives use
+date information as file name root strings.  A file containing all the PGN
+games for a given year would have an eight character name in the format
+"YYYY.pgn".  A file containing PGN data for a given month would have a ten
+character name in the format "YYYYMM.pgn".  Finally, a file for PGN games for a
+single day would have a twelve character name in the format "YYYYMMDD.pgn".
+Large files are split into smaller files as needed.
+
+As game files are commonly arranged by chronological order, games with missing
+or incomplete Date tag pair data are to be avoided.  Any question mark
+characters in a Date tag value will be treated as zero digits for collation
+within a file and also for file naming.
+
+Large quantities of PGN data arranged by chronological order should be
+organized into hierarchical directories.  A directory containing all PGN data
+for a given year would have a four character name in the format "YYYY";
+directories containing PGN files for a given month would have a six character
+name in the format "YYYYMM".
+
+
+C.5: A suggested directory tree
+
+A suggested directory arrangement for ftp sites and CD-ROM distributions:
+
+* PGN: master directory of the PGN subtree (e.g., pub/chess/PGN)
+
+* PGN/ReadMe: brief description of the local directory contents
+
+* PGN/Standard: the PGN standard (this document)
+
+* PGN/News: news and status of the entire PGN subtree
+
+* PGN/Tools: software utilities that access PGN data
+
+* PGN/Players: directory of PGN files, each for a specific player
+
+* PGN/Players/ReadMe: brief description of the local directory contents
+
+* PGN/Players/News: news and status of the player collection
+
+* PGN/Events: directory of PGN files, each for a specific event
+
+* PGN/Events/ReadMe: brief description of the local directory contents
+
+* PGN/Events/News: news and status of the event collection
+
+* PGN/MGR: directory of the Master Games Repository subtree
+
+* PGN/MGR/ReadMe: brief description of the local directory contents
+
+* PGN/MGR/News: news and status of the entire PGN/MGR subtree
+
+* PGN/MGR/YYYY: directory of games or subtrees for the year YYYY
+
+* PGN/MGR/YYYY/ReadMe: description of local directory for year YYYY
+
+* PGN/MGR/YYYY/News: news and status for year YYYY data
+
+
+Appendix D: PGN collating sequence
+
+There is a standard sorting order for PGN games within a file.  This collation
+is based on eight keys; these are the seven tag values of the STF and also the
+movetext itself.
+
+The first (most important, primary key) is the Date tag.  Earlier dated games
+appear prior to games played at a later date.  This field is sorted by
+ascending numeric value first with the year, then the month, and finally the
+day of the month.  Query characters used for unknown date digit values will be
+treated as zero digit characters for ordering comparison.
+
+The second key is the Event tag.  This is sorted in ascending ASCII order.
+
+The third key is the Site tag.  This is sorted in ascending ASCII order.
+
+The fourth key is the Round tag.  This is sorted in ascending numeric order
+based on the value of the integer used to denote the playing round.  A query or
+hyphen used for the round is ordered before any integer value.  A query
+character is ordered before a hyphen character.
+
+The fifth key is the White tag.  This is sorted in ascending ASCII order.
+
+The sixth key is the Black tag.  This is sorted in ascending ASCII order.
+
+The seventh key is the Result tag.  This is sorted in ascending ASCII order.
+
+The eighth key is the movetext itself.  This is sorted in ascending ASCII order
+with the entire text including spaces and newline characters.
+
+
+Appendix E: PGN software
+
+This appendix describes some PGN software that is currently available.  The
+entries are presented in rough chronological order of their initial
+availability.  Authors of PGN capable software are encouraged to contact the
+PGN standard coordinator (e-mail address listed near the start of this
+document) so that the information may be included here in this section.
+
+Some PGN software is freeware and can be gotten from ftp sites and other
+sources.  Other PGN software is payware and appears as part of commercial
+chessplaying programs and chess database managers.  Those who are interested in
+the propagation of the PGN standard are encouraged to support manufacturers of
+chess software that use the standard.  If a particular vendor does not offer
+PGN compatibility, it is likely that a few letters to them along with a copy of
+this specification may help them decide to include PGN support in their next
+release.
+
+The staff at the University of Oklahoma at Norman (USA) have graciously
+provided an ftp site (chess.uoknor.edu) for the storage of chess related data
+and programs.  Because file names change over time, those accessing the site
+are encouraged to first retrieve the file "pub/chess/ls-lR.gz" for a current
+listing.  A scan of this listing will also help locate versions of PGN programs
+for machine types and operating systems other than those listed below.
+
+
+E.1: The SAN Kit
+
+The SAN Kit is an ANSI C source chess programming toolkit available for free
+from the ftp site chess.uoknor.edu in the directory pub/chess/Unix as the file
+"SAN.tar.gz" (a gzip tar archive).  This kit contains code for PGN import and
+export and can be used to "regularize" PGN data into reduced export format by
+use of its "tfgg" command.  Code from this kit is freely redistributable for
+anyone as long as future distribution is unhindered for everyone.  The SAN Kit
+is undergoing continuous development, although dates of future deliveries are
+quite difficult to predict.  Suggestions and comments should be directed to its
+author, Steven J. Edwards (sje@world.std.com).
+
+
+E.2: pgnRead
+
+The program pgnRead runs under MS Windows 3.1 and provides an interactive
+graphical user interface for scanning PGN data files.  This program includes a
+colorful figurine chessboard display and scrolling controls for game and game
+text selection.  It is available from the chess.uoknor.edu ftp site in the
+pub/chess/DOS directory; several versions are available with names of the form
+"pgnrd**.exe"; the latest at this writing is "pgnrd121.exe".  Suggestions and
+comments should be directed to its author, Keith Fuller (keithfx@aol.com).
+
+
+E.3: mail2pgn/GIICS
+
+The program mail2pgn produces a PGN version of chess game data generated by the
+ICS (Internet Chess Server).  It can be found at the chess.uoknor.edu ftp site
+in the pub/chess/DOS directory as the file "mail2pgn.zip"  A C language version
+is in the directory pub/chessUnix as the file "mail2pgn.c".  Suggestions and
+comments should be directed to its author, John Aronson
+(aronson@helios.ece.arizona.edu).  This code has been reportedly incorporated
+into the GIICS (Graphical Interface for the ICS); suggestions and comments
+should be directed to its author, Tony Acero (ace3@midway.uchicago.edu).
+
+
+E.4: XBoard
+
+XBoard is a comprehensive chess utility running under the X Window system that
+provides a graphical user interface in a portable manner.  A new version now
+handles PGN data.  It is available from the chess.uoknor.edu ftp site in the
+pub/chess/X directory as the file "xboard-3.0.pl9.tar.gz".  Suggestions and
+comments should be directed to its author, Tim Mann (mann@src.dec.com).
+
+
+E.5: cupgn
+
+The program "cupgn" converts game data stored in the ChessBase format into PGN.
+It is available from the chess.uoknor.edu ftp site in the
+pub/chess/Game-Databases/CBUFF directory as the file "cupgn.tar.gz".  Another
+version is in the directory pub/chess/DOS as the file "cupgn120.exe".
+Suggestions and comments should be directed to its author, Anjo Anjewierden
+(anjo@swi.psy.uva.nl).
+
+
+E.6: Rumors
+
+There are unofficial reports that the current or future versions of Chess
+Assistant, BookUp8, HIARCS, and Zarkov will have some degree of PGN
+compatibility.
+
+
+Appendix F: PGN data archives
+
+The primary PGN data archive repository is located at the ftp site
+chess.uoknor.edu as the directory "pub/chess/PGN".  It is organized according
+to the description given in section C.5 of this document.
+
+
+Appendix G: International Olympic Committee country codes
+
+International Olympic Committee country codes are employed for Site nation
+information because of their traditional use with the reporting of
+international sporting events.  Due to changes in geography and linguistic
+custom, some of the following may be incorrect or outdated.  Corrections and
+extensions should be sent via e-mail to the PGN coordinator address listed near
+the start of this document.
+
+AFG: Afghanistan
+ALB: Albania
+ALG: Algeria
+AND: Andorra
+ANG: Angola
+ANT: Antigua
+ARG: Argentina
+ARM: Armenia
+AUS: Australia
+AZB: Azerbaijan
+BAN: Bangladesh
+BAR: Bahrain
+BHM: Bahamas
+BEL: Belgium
+BER: Bermuda
+BIH: Bosnia and Herzegovina
+BLA: Belarus
+BLG: Bulgaria
+BLZ: Belize
+BOL: Bolivia
+BRB: Barbados
+BRS: Brazil
+BRU: Brunei
+BSW: Botswana
+CAN: Canada
+CHI: Chile
+COL: Columbia
+CRA: Costa Rica
+CRO: Croatia
+CSR: Czechoslovakia
+CUB: Cuba
+CYP: Cyprus
+DEN: Denmark
+DOM: Dominican Republic
+ECU: Ecuador
+EGY: Egypt
+ENG: England
+ESP: Spain
+EST: Estonia
+FAI: Faroe Islands
+FIJ: Fiji
+FIN: Finland
+FRA: France
+GAM: Gambia
+GCI: Guernsey-Jersey
+GEO: Georgia
+GER: Germany
+GHA: Ghana
+GRC: Greece
+GUA: Guatemala
+GUY: Guyana
+HAI: Haiti
+HKG: Hong Kong
+HON: Honduras
+HUN: Hungary
+IND: India
+IRL: Ireland
+IRN: Iran
+IRQ: Iraq
+ISD: Iceland
+ISR: Israel
+ITA: Italy
+IVO: Ivory Coast
+JAM: Jamaica
+JAP: Japan
+JRD: Jordan
+JUG: Yugoslavia
+KAZ: Kazakhstan
+KEN: Kenya
+KIR: Kyrgyzstan
+KUW: Kuwait
+LAT: Latvia
+LEB: Lebanon
+LIB: Libya
+LIC: Liechtenstein
+LTU: Lithuania
+LUX: Luxembourg
+MAL: Malaysia
+MAU: Mauritania
+MEX: Mexico
+MLI: Mali
+MLT: Malta
+MNC: Monaco
+MOL: Moldova
+MON: Mongolia
+MOZ: Mozambique
+MRC: Morocco
+MRT: Mauritius
+MYN: Myanmar
+NCG: Nicaragua
+NET: The Internet
+NIG: Nigeria
+NLA: Netherlands Antilles
+NLD: Netherlands
+NOR: Norway
+NZD: New Zealand
+OST: Austria
+PAK: Pakistan
+PAL: Palestine
+PAN: Panama
+PAR: Paraguay
+PER: Peru
+PHI: Philippines
+PNG: Papua New Guinea
+POL: Poland
+POR: Portugal
+PRC: People's Republic of China
+PRO: Puerto Rico
+QTR: Qatar
+RIN: Indonesia
+ROM: Romania
+RUS: Russia
+SAF: South Africa
+SAL: El Salvador
+SCO: Scotland
+SEN: Senagal
+SEY: Seychelles
+SIP: Singapore
+SLV: Slovenia
+SMA: San Marino
+SRI: Sri Lanka
+SUD: Sudan
+SUI: Switzerland
+SUR: Surinam
+SVE: Sweden
+SWE: Sweden
+SWZ: Switzerland
+SYR: Syria
+TAI: Thailand
+TMT: Turkmenistan
+TRK: Turkey
+TTO: Trinidad and Tobago
+TUN: Tunisia
+UAE: United Arab Emirates
+UGA: Uganda
+UKR: Ukraine
+URU: Uruguay
+USA: United States of America
+UZB: Uzbekistan
+VEN: Venezuela
+VGB: British Virgin Islands
+VIE: Vietnam
+VUS: U.S. Virgin Islands
+WLS: Wales
+YEM: Yemen
+YUG: Yugoslavia
+ZAM: Zambia
+ZIM: Zimbabwe
+ZRE: Zaire
+
+
+Appendix H: Additional chess data standards
+
+While PGN is used for game storage, there are other data representation
+standards for other chess related purposes.
+
+
+H.1: FEN
+
+FEN is "Forsyth-Edwards Notation"; it is a standard for describing chess
+positions using the ASCII character set.
+
+
+H.1.1: History
+
+FEN is based on a 19th century standard for position recording designed by the
+Scotsman John Forsyth, a newspaper journalist.  The standard has been slightly
+extended for use with chess software by Steven Edwards with assistance from
+commentators on the Internet.
+
+
+H.1.2: Uses for a position notation
+
+Having a standard position notation is particularly important for chess
+programmers as it allows them to share position databases.  For example, there
+exist standard position notation databases with many of the classical benchmark
+tests for chessplaying programs, and by using a common position notation format
+many hours of tedious data entry can be saved.  Additionally, a position
+notation can be useful for page layout programs and for confirming position
+status for e-mail competition.
+
+Many interesting chess problem sets represented with FEN can be found at the
+chess.uoknor.edu ftp site in the directory pub/chess/SAN_testsuites.
+
+
+H.1.3: Data fields
+
+FEN specifies the piece placement, the active color, the castling availability,
+the en passant target square, the halfmove clock, and the fullmove number.
+These can all fit on a single text line in an easily read format.  The length
+of a FEN position description varies somewhat according to the position. In
+some cases, the description could be eighty or more characters in length and so
+may not fit conveniently on some displays.  However, these positions aren't too
+common.
+
+A FEN description has six fields.  Each field is composed only of nonblank
+printing ASCII characters.  Adjacent fields are separated by a single ASCII
+space character.
+
+
+H.1.3.1: Piece placement data
+
+The first field represents the placement of the pieces on the board.  The board
+contents are specified starting with the eighth rank and ending with the first
+rank.  For each rank, the squares are specified from file a to file h.  White
+pieces are identified by uppercase SAN piece letters ("PNBRQK") and black
+pieces are identified by lowercase SAN piece letters ("pnbrqk").  Empty squares
+are represented by the digits one through eight; the digit used represents the
+count of contiguous empty squares.  A solidus character "/" is used to separate
+data of adjacent ranks.
+
+
+H.1.3.2: Active color
+
+The second field represents the active color.  A lower case "w" is used if
+White is to move; a lower case "b" is used if Black is the active player.
+
+
+H.1.3.3: Castling availability
+
+The third field represents castling availability.  This indicates potential
+future castling that may not be possible at the moment due to blocking pieces
+or enemy attacks.  If there is no castling availability for either side, the
+single character symbol "-" is used.  Otherwise, a combination of from one to
+four characters are present.  If White has kingside castling availability, the
+uppercase letter "K" appears.  If White has queenside castling availability,
+the uppercase letter "Q" appears.  If Black has kingside castling availability,
+the lowercase letter "k" appears.  If Black has queenside castling
+availability, then the lowercase letter "q" appears.  Those letters which
+appear will be ordered first uppercase before lowercase and second kingside
+before queenside.  There is no whitespace between the letters.
+
+
+H.1.3.4: En passant target square
+
+The fourth field is the en passant target square.  If there is no en passant
+target square then the single character symbol "-" appears.  If there is an en
+passant target square then is represented by a lowercase file character
+immediately followed by a rank digit.  Obviously, the rank digit will be "3"
+following a white pawn double advance (Black is the active color) or else be
+the digit "6" after a black pawn double advance (White being the active color).
+
+
+H.1.3.5: Halfmove clock
+
+The fifth field is a nonnegative integer representing the halfmove clock.  This
+number is the count of halfmoves (or ply) since the last pawn advance or
+capturing move.  This value is used for the fifty move draw rule.
+
+
+H.1.3.6: Fullmove number
+
+The sixth and last field is a positive integer that gives the fullmove number.
+This will have the value "1" for the first move of a game for both White and
+Black.  It increments by one immediately after each move by Black.
+
+
+H.1.4: Examples
+
+Here's the FEN for the starting position:
+
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+
+And after the move 1. e4:
+
+rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1
+
+And then after 1. ... c5:
+
+rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2
+
+And then after 2. Nf3:
+
+rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2
+
+For two kings on their home squares and a white pawn on e2 (White to move) with
+thirty eight full moves played with five halfmoves since the last pawn move or
+capture:
+
+4k3/8/8/8/8/8/4P3/4K3 w - - 5 39
+
+
+H.2 EPD
+
+EPD is "Extended Position Notation"; it is a standard for describing chess
+positions along with an extended set of structured attribute values using the
+ASCII character set.  It is intended for computer use for data intechange among
+chessplaying programs.  It is also intended for the representation of portable
+opening library repositories.  A specification for EPD is currently under
+development.
+
+
+Appendix I: Alternative chesspiece identifier letters
+
+English language piece names are used to define the letter set for identifying
+chesspieces in PGN movetext.  However, authors of software that is used only
+for local presentation or scanning of chess move data may find it convenient to
+use piece letter codes common in their locales.  This is not a problem as long
+as PGN data that resides in archival storage or that is exchanged among
+programs still uses the standard English piece letter codes: "PNBRQK".
+
+For the above authors only, a list of alternative piece letter codes are
+provided:
+
+Language     Piece letters (pawn knight bishop rook queen king)
+----------   --------------------------------------------------
+Czech        P J S V D K
+Danish       B S L T D K
+Dutch        O P L T D K
+English      P N B R Q K
+Estonian     P R O V L K
+Finnish      P R L T D K
+French       P C F T D R
+German       B S L T R K
+Hungarian    G H F B V K
+Italian      P C A T D R
+Norwegian    B S L T D K
+Polish       P S G W H K
+Portuguese   P C B T D R
+Romanian     P C N T D R
+Spanish      P C A T D R
+Swedish      B S L T D K
+
+
+PGN: EOF

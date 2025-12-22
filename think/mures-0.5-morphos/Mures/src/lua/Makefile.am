@@ -1,0 +1,44 @@
+noinst_LIBRARIES = liblua.a
+
+liblua_a_SOURCES = \
+lapi.c \
+lapi.h \
+lauxlib.h \
+lcode.c \
+lcode.h \
+ldebug.c \
+ldebug.h \
+ldo.c \
+ldo.h \
+lfunc.c \
+lfunc.h \
+lgc.c \
+lgc.h \
+llex.c \
+llex.h \
+llimits.h \
+lmem.c \
+lmem.h \
+lobject.c \
+lobject.h \
+lopcodes.h \
+lparser.c \
+lparser.h \
+lstate.c \
+lstate.h \
+lstring.c \
+lstring.h \
+ltable.c \
+ltable.h \
+ltests.c \
+ltm.c \
+ltm.h \
+lua.h \
+luadebug.h \
+lualib.h \
+lundump.c \
+lundump.h \
+lvm.c \
+lvm.h \
+lzio.c \
+lzio.h \

@@ -1,0 +1,177 @@
+DEFINITION MODULE bgMui;
+
+IMPORT
+
+  d  : DosD,
+  MD : MuiD,
+  y  : SYSTEM;
+
+(*---------------------------------------------------------------------------*)
+
+TYPE StrPtr = POINTER TO Str;
+     Str = ARRAY [0..255] OF CHAR;
+     Str30Ptr = POINTER TO Str30;
+     Str30 = ARRAY [0..30] OF CHAR;
+
+TYPE LongCardPtr = POINTER TO LONGCARD;
+
+CONST env = "ENV:MUIBackgammon";
+      envarc = "ENVARC:MUIBackgammon";
+
+(*---------------------------------------------------------------------------*)
+
+(* Private MUI Sub Classes *)
+CONST myBase = 85EC0000H;
+
+(* Character *)
+CONST mmCharacterGetPref = myBase+0;
+CONST mmCharacterSetPref = myBase+1;
+CONST mmCharacterLoad = myBase+2;
+CONST mmCharacterSave = myBase+3;
+CONST mmCharacterCopy = myBase+4;
+
+CONST maCharacterPref = myBase+20;
+CONST maCharacterChange = myBase+21;
+CONST maCharacterColour = myBase+22;
+
+CONST mvCharacterColourWhite = myBase+40;
+CONST mvCharacterColourBlack = myBase+41;
+CONST mvCharacterCopyLeft = myBase+42;
+CONST mvCharacterCopyRight = myBase+43;
+
+TYPE mCharacterElem = (bar, single, singleProb, distance, six, block, target, home,
+                       distribution);
+
+     mCharacterArrPtr = POINTER TO mCharacterArr;
+     mCharacterArr = ARRAY [1..2], mCharacterElem OF LONGINT;
+
+     mCharacterPrefPtr = POINTER TO mCharacterPref;
+     mCharacterPref = RECORD
+                       character : mCharacterArr;
+                       com       : Str30
+                     END; (* RECORD *)
+
+TYPE mpCharacterCopyPtr = POINTER TO mpCharacterCopy;
+     mpCharacterCopy = RECORD
+                         methodID : LONGINT;
+                         source   : LONGINT;
+                       END; (* RECORD *)
+
+(* PrefWindow *)
+
+CONST mmPrefWindowSetPref = myBase+100;
+CONST mmPrefWindowGetPref = myBase+101;
+CONST mmPrefWindowLoad = myBase+102;
+CONST mmPrefWindowSave = myBase+103;
+
+CONST maPrefWindowPref = myBase+120;
+CONST maPrefWindowChange = myBase+121;
+
+TYPE mPrefWindowPrefPtr = POINTER TO mPrefWindowPref;
+     mPrefWindowPref = RECORD
+                         player1, player2 : LONGINT;
+                         trace            : LONGINT;
+                         level            : LONGINT;
+                         blink, blinkTime : LONGINT;
+                         boardType        : LONGINT;
+                         whiteStones      : MD.mPenSpec;
+                         blackStones      : MD.mPenSpec;
+                         whiteField       : MD.mPenSpec;
+                         blackField       : MD.mPenSpec;
+                         whiteCharacter   : mCharacterPref;
+                         blackCharacter   : mCharacterPref
+                       END; (* RECORD *)
+
+TYPE mpPrefWindowLoadPtr = POINTER TO mpPrefWindowLoad;
+     mpPrefWindowLoad = RECORD
+                          methodID : LONGINT;
+                          name     : StrPtr
+                        END; (* RECORD *)
+
+TYPE mpPrefWindowSavePtr = POINTER TO mpPrefWindowSave;
+     mpPrefWindowSave = mpPrefWindowLoad;
+
+(* Board *)
+
+CONST mmBoardHumanMove = myBase+200;
+CONST mmBoardShow = myBase+201;
+
+CONST maBoardHumanMove = myBase+220;
+CONST maBoardType = myBase+221;
+CONST maBoardBgHandle = myBase+222;
+
+TYPE mBoardMove = ARRAY [1..2] OF INTEGER;
+
+(* Main *)
+
+CONST mmMainPlay = myBase+300;
+CONST mmMainChange = myBase+301;
+CONST mmMainHumanPlay = myBase+302;
+CONST mmMainInit = myBase+303;
+CONST mmMainNewPref = myBase+304;
+CONST mmMainClosePref = myBase+305;
+CONST mmMainPref = myBase+306;
+CONST mmMainWuerfeln = myBase+307;
+
+CONST maMainPlayer = myBase+320;
+CONST maMainStart = myBase+321;
+CONST maMainPref = myBase+322;
+
+(*---------------------------------------------------------------------------*)
+(* Allgemeine Deklarationen (ehemals bgStrukturen *)
+
+TYPE Brett = ARRAY [0..27] OF SHORTINT;
+(* repräsentiert ein Backgammonbrett. Im weissen Heimfeld, ganz aussen, ist die   *)
+(* eins, und im schwarzen Heimfeld, ganz aussen, ist die 24.                      *)
+(* 0 ist das weisse Zielfeld. 25 ist das schwarze Zielfeld.                       *)
+(* 26 => weisse Bar, 27 => schwarze Bar.                                          *)
+
+TYPE Zug   = ARRAY [1..4] OF ARRAY [1..2] OF INTEGER;
+(* (x1,y1) , (x2,y2) , (x3,y3), x4,y4) *)
+
+TYPE Wurf = ARRAY [1..4] OF INTEGER;
+
+TYPE BgHandlePtr = POINTER TO BgHandle;
+TYPE BgHandle = RECORD  (* Gibt Spielzustand wieder *)
+       brett : Brett;
+       wurf  : Wurf;
+       farbe : CARDINAL;
+       typ   : CARDINAL;
+       tiefe : CARDINAL;
+       pref  : mPrefWindowPref
+     END; (* RECORD *)
+
+CONST maxFeld = 27;
+CONST mensch = 1;
+CONST computer = 2;
+CONST setzen = 3;
+CONST weiss = 1;
+CONST schwarz = 2;
+CONST weissZiel = 0;
+CONST schwarzZiel = 25;
+CONST weissBar = 26;
+CONST schwarzBar = 27;
+
+(*---------------------------------------------------------------------------*)
+(* Kleine MUI Hilfsfunktionen *)
+
+PROCEDURE MakeButton (num : LONGINT) : MD.APTR;
+PROCEDURE MakeCycle (num : LONGINT; entries : y.ADDRESS) : MD.APTR;
+PROCEDURE MakeString (num, max : LONGINT) : MD.APTR;
+PROCEDURE MakeNumericButton (num, min, max : LONGINT) : MD.APTR;
+PROCEDURE MakeSlider (num, min, max : LONGINT) : MD.APTR;
+PROCEDURE MakeLabel1 (num : LONGINT) : y.ADDRESS;
+PROCEDURE MakeLabel2 (num : LONGINT) : y.ADDRESS;
+
+PROCEDURE SetQuiet (obj : MD.APTR; n, value : LONGINT);
+PROCEDURE xget (obj : MD.APTR; value : LONGINT) : y.ADDRESS;
+
+PROCEDURE GetFileName (obj : MD.APTR; num : LONGINT; pat : y.ADDRESS; save : BOOLEAN) : y.ADDRESS;
+PROCEDURE OpenPref (obj : MD.APTR; VAR datei : d.FileHandlePtr; name : y.ADDRESS; id : LONGINT; ver : INTEGER;  read : BOOLEAN) : BOOLEAN;
+
+PROCEDURE Read (obj : MD.APTR; datei : d.FileHandlePtr; buf : y.ADDRESS; len : LONGINT) : LONGINT;
+PROCEDURE Write (obj : MD.APTR; datei : d.FileHandlePtr; buf : y.ADDRESS; len : LONGINT) : LONGINT;
+
+
+END bgMui.
+

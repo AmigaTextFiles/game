@@ -1,0 +1,460 @@
+  /*Haus der Angst*/ 
+ /*Story by The Machine*/ 
+/*Rexx  by Saint*/
+/* $VER: Haus Der Angst 0.9ß2 (30.10.01)
+*/
+if open(con,"RAW:0/0/640/256/Haus der Angst/COLS 80/ROWS 25/NOCLOSE/NOSIZE/NOPROPy",RW) then do /*Raw: Fenster öffnen - Raw: um Tastendrücke zu bekommen*/
+    next="vor.dat" /*Das Startfile*/
+    MaxL=init() /*Init() liefert Anzahl der Zeilen zurück*/
+    Do until next="Quit"
+        Anzahl=parsefile(next,1,0,0) /*datei,startwert,möglichkeiten,Links*/
+        Parse VAR Anzahl,i n l/*i= Text, n=fragen l=Links*/
+        PrintText(i,MaxL,n)
+        if n~=0 then next=menu(n,l,MaxL-1)
+        cleanup()
+        END
+    Shutdown(0)
+end
+ELSE DO
+    Say "Konnte Raw: Fenster nicht öffnen!"
+    Exit 20
+    END
+exit
+
+Shutdown: Procedure
+Code=Arg(1) /*Error code*/
+ClearClip() /*Alle Clipboards löschen - Notwendig*/
+close(con) /*Fenster schließen*/
+Exit Code
+
+Init: Procedure
+writech(con,x2c(0C)) /*Schwarzer Hintergrund*/
+writech(con,d2c(155) || ">1" || "m") /*Cursor aus*/
+writech(con,d2c(155) || 0 || " p") /*K.a. ;)*/
+SetBgColor(1) /*Schwarz*/
+SetFgColor(2) /*Weiß*/
+ClearClip()
+MaxL=GetMaxLines()
+return MaxL
+
+ClearClip: Procedure /*Löscht alle Clipboards - Fehler vermeiden*/
+Clip=Show(clips)
+DO while Clip~=""
+    Parse VAR Clip,Tmp" "Clip
+    setclip(tmp) /*Löscht das Clip*/
+    END
+return 0
+
+GetMaxLines: Procedure
+if exists("Env:Hda.prefs")=1 THEN DO 
+    Open(Prefs,"Env:Hda.prefs",r)
+    MaxL=Readln(Prefs)
+    Close(Prefs)
+    END
+ELSE DO
+    DO i=50 to 4 BY -1 /*Wer kennt noch die guten alten Mailboxen? :-)*/
+        Writeln(con,i)
+        END
+    Writeln(con,"")
+    writeln(con,"Welche Zahl ist ganz oben zu sehen?")
+    MaxL=ReadRaw(con)
+    writech(con,x2c(0C))
+    Open(Prefs,"Env:Hda.Prefs",W)
+    writeln(Prefs,MaxL)
+    Close(Prefs)
+    Open(Prefs,"Envarc:Hda.Prefs",W)
+    writeln(Prefs,MaxL)
+    Close(Prefs)
+    END
+Return MaxL
+
+ReadRaw: Procedure
+Eingabe=""
+DO until key='0D'X /*<-Return*/
+    key=readch(con)
+    writech(con,key)
+    if key ~= '0D'X then Eingabe=Eingabe || key
+    END
+Return Eingabe
+
+
+cleanup: Procedure /*Im Moment nur Fenster löschen*/
+writech(con,x2c(0C))
+return 0
+
+parsefile: Procedure
+file=arg(1)
+start=arg(2) /*Wo sind wir bei den Zeilen?*/ /*Wichtig bei Verschachtelungen*/
+n=arg(3) /* Wo sind wir bei den Fragen?*/    /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+l=arg(4)/*Wo sind wir bei den Links?*/
+if exists("data/" || file)=1 then DO
+    open(file,"data/" || file,r)
+    DO until eof(file) /*Text strippen*/ /*Bis zum Textende*/
+        line=readln(file)
+        /*lb=length(line)*/
+        NewL=parseline(line,start,n,l) /*Zeile, Line, Möglichkeit, Link*/
+        Parse Var NewL,line "!#? " start " " n " " l /*!#? ist ein Trennzeichen - mir fiel nichts besseres ein*/
+        n=strip(n) /*Leerzeichen Entfernen*/
+        l=strip(l)
+        if length(Line)>1 then DO
+            setclip(Zeile.start,Line)
+            start=start+1
+            END
+        END
+        if n="N" then n=0 /*Ist die Variable initialisiert?*/
+    close(file)
+END /*IF Exists*/
+ELSE DO
+    Say file || " existiert nicht! Breche ab."
+    Shutdown(20) /*Mit Error abbrechen*/
+    END
+return start n l/*Anzahl Lines,Fragen,Links*/
+
+printtext:Procedure
+i=Arg(1) /*Anzahl textzeilen*/
+MaxL=Arg(2) /*Fenster Größe in Zeilen*/
+n=arg(3) /*Anzahl Fragen*/
+Uebertrag=i//MaxL  /*Modulo*/
+if (Uebertrag+n)>Maxl then DO /*Nicht genug Platz für den Modulo Rest und die fragen am Ende- Selten, nur bei vielen Fragen*/
+    lz=0
+    do p=1 to i-1 /*-1 weil er sonst eine Zeile zuviel aussem clipboard holt. Strange effect!*/
+        lz=lz+1
+        if lz>((MaxL-2)-n) then do /*Max Zeilen= MaxZeilen -Fragem*/
+            p=waitproc(MaxL,p,lz) /*Auf tastendruck warten*/
+            lz=0
+            end
+        writeln(con,getclip(Zeile.p))
+    end
+END
+ELSE DO /*Genug Platz für fragen und Uebertrag am ende*/
+lz=0
+    do p=1 to i-1 /*-1 weil er sonst eine Zeile zuviel aussem clipboard holt. Strange effect!*/
+        lz=lz+1
+        if lz>(MaxL-2) then do /*Max Zeilen= MaxZeilen -Fragem*/
+            p=waitproc(MaxL,p,lz-1) /*Auf tastendruck warten*/
+            lz=1
+            end
+        writeln(con,getclip(Zeile.p))
+    end
+END
+return 0
+
+waitproc: Procedure
+Maxl=Arg(1)
+p=Arg(2) /*Wievielte line.p sind wir grade?*/
+lz=arg(3) /*Anzahl Zeilen auf dem Bildschirm*/
+tmp=p
+Esc=d2c("155")
+Csi=d2c("27")
+writech(con,Esc || "31m" || Esc || "42m" || Esc || "1m" || Csi || "[" || Maxl || ";2" || "H" || "<- Taste ->" || Esc || "0m" || Esc || "32m" || Esc || "41m")
+do until Key=13 && Key=65 && Key=32 && Key=66 /*Return / Cursor up / Space*/
+    key=c2d(readch(con)) 
+    Select
+        WHEN Key=27 then Shutdown(0) /*Abbruch durch Esc*/
+        when key=65 then DO /*Cursor Up - hochblättern*/
+            p=(p-2*lz)
+            say p
+            if p<0 then DO
+                p=tmp
+                key=0 /*Klick zählt nicht*/
+                END
+            END
+        when key=126 then DO
+            help("Taste")
+            /*p=(p-lz)
+            if p<0 then p=tmp*/
+            END
+        OTHERWISE NOP /*Say "Key=" key*/
+    end
+END
+writech(con,x2c(0C)) /*CLS*/
+return p
+
+help: Procedure /*Kontext sensitive Hilfe*/
+Context=Arg(1)
+/*
+writech(con,x2c(0C)) /*CLS*/
+writeln(con,"Hile zur zeit noch nicht verfügbar")
+x=readch(con)
+writech(con,x2c(0C)) /*CLS*/
+*/
+ADDRESS COMMAND 
+"Amigaguide hda.guide"
+ADDRESS
+return 0
+
+menu: Procedure /*Menu, DoChoice etc. unbedingt überarbeiten!*/
+n=Arg(1) /*Von Parsefile ermittelt - genaue Anzahl Fragen*/
+l=arg(2)
+MaxL=Arg(3)
+open(in,file,r)
+Do p=0 to n-1
+Ques=getclip(frage.p) /*Question*/
+stelle=(MaxL + p - (n-1))
+writech(con,d2c(27) || "[" || Stelle  || ";5" || "H") /*An die richtige Stelle gehen mit dem cursor*/
+writech(con,Ques)
+link.p=getclip(link.p)
+end
+Choice=DoChoice(n,MaxL)
+newstage=link.choice
+return NewStage
+
+PrtPfeil: Procedure
+Stelle=Arg(1)
+del=Stelle + Arg(2) /*-1.0.1+*/
+    writech(con,d2c(27) || "[" || del || ";3" || "H")
+    writech(con," ")
+    writech(con,d2c(27) || "[" || Stelle || ";3" || "H")
+    writech(con,">")
+return 0
+
+DoChoice: Procedure
+count=arg(1)
+MaxL=Arg(2)
+choice=1
+PrtPfeil(MaxL+choice-count,0) /*Stelle wo der Peil hinsoll,-1 +1 <- Wo er vorher war -> Y*/
+do until keypr="13"
+key=readch(con)
+keypr=c2d(key)
+if keypr=27 then Shutdown(0) /*Esc Gedrückt*/
+if keypr=126 then help() /*Online Hilfe*/
+if keypr="65" then DO 
+if choice >1 then DO
+    choice=choice-1
+    PrtPfeil(MaxL+choice-count,1)
+    END
+    ELSE    writech(con,x2c("07"))
+end
+if keypr="66" then DO
+if choice < count then DO
+    choice=choice+1
+    PrtPfeil(MaxL+choice-count,-1)
+    END
+    ELSE    writech(con,x2c("07"))
+end
+end
+return choice-1 /*Flickschusterei...*/
+
+Testcolor: /*Obsolete - Nur zum testen gebraucht*/
+DO i=0 to 7
+DO n=0 to 7
+    SetFgColor(n)
+    SetBgColor(i)
+    writech(con,"Test")
+    end
+    end
+return 0
+
+Parseline: Procedure
+Line=Arg(1)
+Start=arg(2) /*Stand bei lines.i, nur wichtig bei Weiterleitung*/
+n = arg(3) /*Stand bei den Fragen. Nur wenn schonmal weitergeleitet wurde wichtig.*/
+l = arg(4) /*Link*/
+/*Auf Sonderzeichen testen*/
+ch=c2d(substr(line,1,1)) /*Erstes Zeichen in Dezimal*/
+/*Inventory*/
+if (ch >= 33) & (ch <= 35) THEN DO
+    select
+        When ch = 33 then setclip(strip(substr(line,3)),1) /*Objekt aufgenommen*/
+        When ch = 34 then setclip(strip(substr(line,3)),0)/* Objekt Verloren  */
+        When ch = 35 then DO /* # -> im inventar?*/
+            temp=InvCheck(strip(substr(line,3)),Start,n,l)
+            PARSE Var temp,Start " " n " " l
+            END
+        Otherwise Nop
+        END
+    Say strip(substr(line,3)) || " aufgenommen."
+    line=""
+    END
+/*Links*/
+if ch=40 THEN DO /*Antwortmöglichkeit*/
+    setclip(frage.n,substr(line,3))
+    /*say "Frage " || n ||" = " || getclip(frage.n)*/
+    n=n+1
+    line=""
+    END
+if ch=41 THEN DO /*Antwortmöglichkeit*/
+    setclip(link.l,substr(line,3))
+/*    say "Link " || l || " = " || getclip(link.l)*/
+    l=l+1
+    line=""
+    END
+if ch=36 then DO 
+    ShowImage(subword(line,2,1)) /*Bild Anzeigen*/
+    line=""
+    end
+
+if ch=61 then DO /*Variable mit "=" gesetzt*/
+/*= Variable Wert*/
+    value=getvalue(subword(line,3,1))
+    say "Wert der Variablen " subword(line,2,1) " = " || value
+    setclip(strip(subword(line,2,1)),value)
+    drop value
+    line=""
+    END
+if ch=43 then do /*Variable mit + erhöht*/
+/*+ Variable Wert*/
+    value=getvalue(subword(line,3,1))
+    say "Wert der Variablen " subword(line,2,1) " = " || getclip(subword(line,2,1))+value
+    setclip(strip(subword(line,2,1)),getclip(subword(line,2,1))+value)
+    line=""
+    END
+if ch=45 then do /*Variable mit - runtergezählt*/
+/*+ Variable Wert*/
+    value=getvalue(subword(line,3,1))
+    say "Wert der Variablen " subword(line,2,1) " = " || getclip(subword(line,2,1))-value
+    setclip(strip(subword(line,2,1)),getclip(subword(line,2,1))-value)
+    line=""
+    END
+
+if ch=63 then do /*Übrprüfen einer Variable mit ?*/
+    worter=words(line)
+    x=getvalue(word(line,2))
+    y=calculate(subword(line,4,worter-5))
+    op=word(line,3) /*Operand*/
+    ausdruck=x || op || y
+    say ausdruck
+    interpret "if " || ausdruck || " then ret=0"
+    if ret="RET" then ret=1
+    say ret
+/*In die nächste Datei springen*/
+    temp=Parsefile(subword(line,((worter-1)+ret),1),Start,n,l) /*Direkt mit +ret das richtige File gewählt*/
+    Parse VAR temp,start n l /*i= Text, n=fragen*/
+    line=""
+    end
+
+
+/*
+? Variable Operand Wert ja.html nein.html
+? x > 2 weiter.html nochmal.html
+? x = y + 2 - t
+words()
+wörter 4 bis words()-2 ausrechnen lassen
+interpreten mit getvalue() werten
+*/
+
+if ch=59 then line="" /*Kommentar*/
+if ch~=32 then if c2d(upper(d2c(ch)))<65 &&  d2c(upper(ch)) > 90 then line="" /*Unbekannte Steuerzeichen ignorieren*/
+
+if (line~="") & (pos("%",line)~=0) then line=Colorize(line) /*Per SeekRep aus %1 <- farbe und %b <- Style machen*/
+Return Line "!#?" Start || " " || n || " " || l
+
+calculate: Procedure /*Rechnet einen Ausdruck wie x+t*2 aus, wobei x und t clipboards sein können*/
+Ausdruck=arg(1)
+/*Variable Operand Var Op V o etc.*/
+worter=words(ausdruck)
+ergebnis=""
+do i=1 to worter
+    if i // 2 =1 then str.i = getvalue(word(ausdruck,i)) /*Nur die Zahlen rauspicken*/
+    ELSE str.i=word(ausdruck,i)
+    ergebnis=Ergebnis || str.i
+    end
+return Ergebnis
+
+getvalue: procedure /*Ermittelt den Wert eines eventuellen clipboards*/
+Variable=arg(1)
+value=strip(getclip(variable))
+    if value="" then value=strip(Variable)
+if c2d(upper(value))>65 & c2d(upper(value))<90 then Value=0 /*Nicht initialisierte Clip Variable*/
+return Value
+
+InvCheck: Procedure
+Line=Arg(1)
+Start=Arg(2)
+n=arg(3)
+l=arg(4)
+if getclip(subword(line,1,1))=1 then DO
+    say subword(line,1,1) gefunden
+    temp=Parsefile(subword(line,2,1),Start,n,l)
+    Parse VAR temp,start n l /*i= Text, n=fragen*/
+    END    
+ELSE DO
+    say subword(line,1,1) nicht gefunden
+    temp=Parsefile(subword(line,3,1),Start,n,l)
+    Parse VAR temp,start n l /*i= Text, n=fragen*/
+    END
+Return Start || " " || n || " " || l
+
+SeekRep: Procedure /*String,Find,Replace*/
+string=Arg(1)
+find=Arg(2)
+replace=Arg(3)
+l=length(find)
+do while pos(find,string)~=0
+p=pos(find,string)
+string=insert(replace,delstr(string,p,l),p-1)
+end
+return string
+
+Colorize: Procedure
+line=Arg(1)
+Esc=d2c("155")
+line=SeekRep(line,"%p",Esc || "0m" || Esc || "32m" || Esc || "41m") /*Plain + Schwarz/Weiß*/
+line=SeekRep(line,"%b",Esc || "1m") /*Bold*/
+line=SeekRep(line,"%u",Esc || "4m") /*underline*/
+line=SeekRep(line,"%i",Esc || "3m") /*Italic(?)*/
+Return line
+
+SetStyle: Procedure
+style=upper(Arg(1))
+Select
+    When Style=plain then writech(con,d2c("155") || 0 || "m")
+    When Style=bold then writech(con,d2c("155") || 1 || "m")
+    When Style=faint then writech(con,d2c("155") || 2 || "m")
+    When Style=underline then writech(con,d2c("155") || 4 || "m")
+    When Style=blink then writech(con,d2c("155") || 5 || "m")
+            Otherwise Nop
+    END
+Return 0
+
+SetFgColor: Procedure
+Color=Arg(1)
+writech(con,d2c("155") || Color+30 || "m")
+Return 0
+
+SetBgColor: Procedure
+Color=Arg(1)
+writech(con,d2c("155") || Color+40 || "m")
+Return 0
+
+showimage: Procedure
+    img=Arg(1)
+    lf = '0a'x
+    pic="HDA:Images/" || Img
+    ADDRESS COMMAND "Getimageinfo " || Pic || " >t:imginfo"
+    open(inf,"t:imginfo",r)
+    info=readln(inf)
+    close(inf)
+    PARSE VAR info,name ": " x " x " y " [" .
+    Open(g4c,"T:Pic.gc",w)
+    writeln(g4c,"G4C" || lf || "winbig -1 -1 " || x+2 || " " || y+2 || " """"" || lf || "wintype 00001000" || lf || "xonload" || lf || "LoadImage " || pic || " img Workbench" || lf || "guiopen pic.gc" || lf || "Delay 500" || lf || "guiclose pic.gc" || lf || "freeimage img" || lf || "guiquit pic.gc" || lf || lf ||"IMAGE 0 0 img" || lf || "Box 0 0 " || x || " " || y || " OUT RIDGE")
+    close(g4c)
+    ADDRESS COMMAND
+    "Gui T:Pic.gc"
+    ADDRESS
+return 0
+
+dead: Procedure /*Anspringen Bei Todesfall*/
+Reason=arg(1)
+say "Du bist tot! " Reason
+showimage("skullhead.png")
+return 0
+
+/*CSI = d2c("155")*/
+/*CSI 6 n -> Cursor Position*/
+/* Sonderzeichen für Sonderfunktionen:
+33 , ! -> Inventar Put
+34 , " -> Inventar Del
+35 , # -> Invantar Check. Form: "# Feuerzeug ja.html nein.html"
+36 , $ -> Image
+37 , % -> Textstyle/Color
+40 , ( -> Frage
+41 , ) -> Link zur Frage
+59 , ; -> Kommentar
+43 , + |
+45 , - +-> Variablen
+61 , = |
+63 , ? |
+
+*/
+/*CSI >?1 n -> Cursor Position mit Readch kriegen*/

@@ -1,0 +1,161 @@
+;
+;$VER: R-Type HD Installer script v1.00 (c) 1996 John Girvin
+;
+
+(welcome "Welcome to the R-Type Hard Drive Installer")
+(set @app-name "R-Type HD")
+(set #RTROOTDIR "DH0:")
+(set #RTDESTDIR #RTDESTDIR)
+
+(set #RTSRCDRIVE 0)
+(set #RTUSEGUI 0)
+(set #RTDEFTRAINERS 0)
+
+(if
+	(<> @user-level 2)
+	(abort "You must select 'Expert' user level")
+)
+
+(message "\n\nWelcome to the R-Type Hard Drive Installer\n"
+		 "(c) 1996-1997 John Girvin\n\n"
+		 "Please read the documentation thoroughly before"
+		 " attempting to use this installer!\n\n"
+		 "This is version 1.00\n\n"
+		 "Click 'Proceed' to begin."
+)
+
+(set #RTROOTDIR
+	(askdir
+		(prompt "Where would you like R-Type installed?\n"
+				"(a new drawer called 'R-Type' will be created here)"
+		)
+		(help @askdir-help)
+		(default "DH0:")
+	)
+)
+(set #RTDESTDIR (tackon #RTROOTDIR "R-Type/"))
+(set @default-dest #RTDESTDIR)
+(set #RTDATFILE (tackon #RTDESTDIR "R-Type.dat"))
+
+(set #RTSRCDRIVE
+	(askchoice
+		(prompt "Which drive do you wish to install from?")
+		(help @askchoice-help)
+		(choices "DF0:" "DF1:" "DF2:" "DF3:")
+		(default #RTSRCDRIVE)
+	)
+)
+
+(set #RTUSEGUI
+	(askchoice
+		(prompt "Do you want the cheat GUI to appear every time you load R-Type_HD?\n"
+				"(this may be changed later by editing the tooltypes of R-Type_HD)"
+		)
+		(help @askchoice-help)
+		(choices "Yes" "No")
+		(default #RTUSEGUI)
+	)
+)
+
+(set #RTDEFTRAINERS
+	(askoptions
+		(prompt "Please select the default trainers to use:\n"
+				"(these may be changed later by either\n"
+				"editing the tooltypes of R-Type_HD\n"
+				"or using the cheat GUI)"
+		)
+		(help @askoptions-help)
+		(choices "Infinite lives"
+				 "Invulnerability"
+    	)
+		(default #RTDEFTRAINERS)
+	)
+)
+
+(makedir #RTDESTDIR
+	(prompt "I will now create the directory '" #RTDESTDIR "'")
+	(help @makedir-help)
+	(infos)
+	(confirm)
+)
+
+(message "\n\n\nPlease insert your R-Type game disk in drive DF"
+  		 #RTSRCDRIVE
+		 ":\n\n"
+		 "Click 'Proceed' when disk has been inserted and"
+		 " disk activity has stopped."
+)
+
+(working "Creating disk image in '" #RTDATFILE "'")
+(set #RTVERSION  (run (cat "RTMakeDat " #RTSRCDRIVE " " #RTDATFILE)))
+
+(if (>= #RTVERSION 100)
+	(abort (cat "Could not create disk image!\n\nError: " #RTVERSION))
+)
+
+(set #RTBOOTNAME "RTBoot")
+
+(copyfiles
+	(prompt "Copying HD drawer icon")
+	(help @copyfiles-help)
+	(source "R-Type_icon")
+	(newname "R-Type.info")
+	(dest #RTROOTDIR)
+	(nogauge)
+	(optional fail force)
+)
+
+(copyfiles
+	(prompt "Copying trainer program")
+	(help @copyfiles-help)
+	(source "R-Type_HD")
+	(dest #RTDESTDIR)
+	(nogauge)
+	(noposition)
+	(optional fail force)
+)
+
+(copyfiles
+	(prompt "Copying trainer program icon")
+	(help @copyfiles-help)
+	(source "R-Type_HD_icon")
+	(newname "R-Type_HD.info")
+	(dest #RTDESTDIR)
+	(nogauge)
+	(optional fail force)
+)
+
+(if (= #RTUSEGUI 1)
+	(tooltype
+		(prompt "Setting trainer program icon tooltypes")
+		(dest (cat #RTDESTDIR "R-Type_HD"))
+		(settooltype "NOGUI" "")
+	)
+)
+
+(if (<> 0 (IN #RTDEFTRAINERS 0))
+	(tooltype
+		(prompt "Setting trainer program icon tooltypes")
+		(dest (cat #RTDESTDIR "R-Type_HD"))
+		(settooltype "INF_LIVES" "")
+	)
+)
+
+(if (<> 0 (IN #RTDEFTRAINERS 1))
+	(tooltype
+		(prompt "Setting trainer program icon tooltypes")
+		(dest (cat #RTDESTDIR "R-Type_HD"))
+		(settooltype "INVULNERABLE" "")
+	)
+)
+
+(copyfiles
+	(prompt "Copying HD loader")
+	(help @copyfiles-help)
+	(source #RTBOOTNAME)
+	(newname "RTBoot")
+	(dest #RTDESTDIR)
+	(nogauge)
+	(noposition)
+	(optional fail force)
+)

@@ -1,0 +1,1066 @@
+
+Guida grafica di PuzzleBOBS
+---------------------------
+
+ Benvenuti nel testo di riferimento sullo sviluppo degli elementi grafici del gioco PuzzleBOBS.
+ Spero di essere chiaro nei concetti a seguire, comunque se riscontrate imperfezioni o 
+problemi di ogni genere riferitemeli liberamente.
+ Dovendomi riferire spesso a eguali parole ho inserito accanto tra parentesi una abbreviazione
+in maiuscolo di quelle più frequenti.
+ Una precisazione, prima di leggere la guida, riguarda le convenzioni fissate dal sistema di 
+coordinate adottato da AmigaOS.
+ Il contenitore video, o schermo si può intendere come un piano che ha origine (0,0) nell'angolo
+in alto a sinistra, dove le ascisse (x) crescono verso destra, e le ordinate (y) verso il basso,
+rispecchiando quindi il movimento del pennello elettronico e il nostro modo di leggere una
+pagina di un libro.
+
+
+1) Introduzione
+----------------
+
+ PuzzleBOBS (PB) è un gioco profondamente configurabile in ogni suo aspetto, ma quello più
+importante è quello grafico che modifica e caratterizza il suo comportamento.
+ La "grafica" in PB è il risultato dell' unione di una serie di singoli oggetti grafici che
+possono avere le più disparate forme e dimensioni, collegati tutti assieme in un apposito file, 
+un "PuzzleBOBS Config file" (CF) che contiene tutte le informazioni per permettere a PB di 
+individuarli e di conoscerne le caratteristiche morfologiche.
+ Un oggetto grafico inserito all'interno di questo motore può sensibilmente modificarne il 
+comportamento, in base alle forme, dimensioni e al tempo, se deve essere rappresentato anche
+in movimento, che la macchina impiega per animarlo.   
+
+ La grafica per il gioco può essere disegnata con qualsiasi tecnica, come quella della 
+modellazione tridimensionale o fatta a mano, realistica o stilizzata, ma nella sua forma finale
+deve essere bidimensionale poichè PB è attualmente un gioco che si articola su un piano. 
+ In futuro probabilmente, su altre architetture, il motore di PB sarà esteso per accettare anche 
+la terza dimensione e la grafica sarà basata completamente sulla modellazione di solidi 
+renderizzati direttamente in tempo reale.
+
+ La preparazione del set grafico necessita primariamente di conoscere le dimensioni del
+contenitore video (schermo) che dovrà contenere tutti gli oggetti grafici.
+ Se ne può scegliere la profondità e la dimensione, anche se nulla vieta all'utente finale 
+di utilizzare la stessa grafica in un altro schermo diverso in dimensioni e numero di colori.
+
+ Attualmente PB ha un ostico approccio nei confronti dei dati grafici degli elementi di gioco
+poichè usa il formato "chunky" ad un byte per ogni pixel per i dati che hanno un numero di
+colori minore o uguale a 256 e usa sempre il formato chunky ma a 4 bytes per pixel (ARGB) per 
+tutte  le profondità di schermo che superano i 256 colori come quelle a 16 e 24 bit.  
+ Comunque considerando che è inusuale usare grafica a 256 colori in uno schermo a 24 bit e 
+viceversa, possiamo accettare questo limite che oltretutto permette di mantenere la compatibilità
+con l'AGA,l'ECS, e l'OCS che purtroppo limitano attualmente il sistema Amiga a 256 colori 
+massimi, impedendo qualsiasi accesso pulito attraverso AmigaOS, a bitmaps con profondità 
+maggiori degli 8 bitplanes consueti.
+ La capacità di visulizzare più di 256 colori è data solo dalla presenza di apposito hardware e 
+sistemi RTG che implementano nelle loro liberie, vere e proprie estensioni della graphics.library
+permettendo di leggere dati a 32 bit (questo è il caso di PB) ed inserirli in bitmaps truecolor
+e hicolor.
+ Per questi motivi attualmente bisogna inserire la grafica optando per uno dei due intervalli,
+poichè non sempre è possibile usare le librerie RTG per maneggiare i dati nelle bitmaps
+standards di AmigaOS.
+ Uno è quello che lascia la compatibilità con AGA, ECS,OCS che è quello con profondità di schermo 
+che va da 1 a 8 (2-256 colori) che può comunque essere usato anche su una scheda grafica, e
+l'altro che va da 9 a 24 bit (da 2-16milioni) che non è assolutamente compatibile con
+gli Amiga standard.
+ Per convertire i dati nella forma definitiva si abbisogna di programmi idonei che supportino
+questi formati di salvataggio:
+
+-Chunky ad un byte per pixel.
+-Chunky a quattro bytes per pixel (ARGB).
+-Palette, nel formato compatibile con la funzione di sistema LoadRGB32().
+    
+ Se si usa uno schermo con profondità maggiore di 256 colori la palette non è necessaria
+e si può mettere uno "0" nel file di configuarzione.
+ L'unico problema derivante dal non uso della palette può essere quello di perdere la
+distinguibilità di alcuni colori usati da AmigaOs (intuition.library) per rendere i requesters
+usati dal gioco, come quelli di tipo Asl o quelli di errore. 
+ Questo capita sia su schermi a 16 e 24 bit, che su quelli con profondità minore o uguale a 256 
+colori, quando si usano stesse tonalità per i colori 0 (colore di fondo) e 1.
+ A tal fine, anche se nel proseguire della guida è più volte ribadita la possibilità di non
+associare una palette ad uno schermo con profondità maggiore di 8, è meglio verificare la 
+leggibilità dei requesters.
+ La stessa attenzione si dovrebbe portare anche per gli schermi con profondità minore o uguale
+a 8, associando ai registri colore 0 e 1 due tonalità sufficentemente distanti. 
+ Per fornire una palette idonea ad uno schermo a 16 o 24 bit, è sufficente salvarla da una 
+immagine a 256 colori che rispetti la regola suddetta per i primi due registri colore (0,1).  
+
+
+			/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+
+
+
+
+2) Oggetti grafici
+----------------------
+
+ PB necessita di questi oggetti grafici basilari.
+
+-Bobs
+-Colonne
+-Trave superiore
+-Puntatore ruotante principale
+-Oggetti ruotanti satellitari al puntatore principale.	   (opzionale)
+-Supporto del puntatore ruotante	   (opzionale)
+-Sfondi
+-Fonti
+-Linea di mira
+-Timer
+-Limite del livello
+-Esplosioni 		(opzionale)
+-Palette
+-Orologio
+-Elementi grafici aggiuntivi (opzionale) 
+
+ Questi sono gli elementi principali necessarti a PB,(vedere PIC0), in futuro potrebbero 
+aumentare.
+ Gli oggetti opzionali non sono strettamente necessari e possono non essere inseriti.
+ Nella lavorazione di un oggetto bisogna ricordare una importante funzione svolta dal colore
+di fondo, lo 0, che lascia trasparire lo sfondo ovunque venga collocato nella superficie 
+dell' oggetto, nello stesso modo in cui operano i genlocks.
+ Se lo schermo ha più di 256 colori,il colore zero è il nero con i valori 
+[rosso,verde,blu]=[0,0,0].   
+ Quando è stato disegnato un oggetto bisogna definirne le dimensioni e questo si fa attraverso 
+il CF dove ci sono locazioni inerenti ad ogniuno di essi.
+ Di solito è necessario indicare solo la larghezza (W) o l'altezza (H), in altri casi bisogna
+specificare anche centri di rotazione, fattori di zoom etc, che saranno comunque esaminati
+nella guida ogni volta per ogni oggetto.
+ Le dimensioni sono libere, comunque ho inserito un paragrafo nella guida che espone quali
+siano le migliori dimensioni da assegnare ad un oggetto, con le relative formule ai quali
+risultati si giunge considerando la larghezza e l'altezza dello schermo contenitore. 
+
+
+
+
+
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+****
+BOBS
+****
+
+ Un BOB ([B]litter [OB]ject) è l' elemento che costituisce i livelli di gioco che possiamo 
+controllare al fine di eliminarli dal livello.
+ PB è in grado di gestirne un numero elevato anche con funzioni diverse l'uno dall'altro.
+ I bobs sono di due tipi: normale (NBOB) o speciale (SBOB).
+ Un NBOB ha una funzione standard ovvero quella di esplodere quando si posiziona vicino ad altri
+dello stesso tipo in un numero almeno uguale a tre.
+ Un SBOB è simile a un NBOB ma ha una funzione diversa, quindi speciale, che varia per ogni 
+tipo, essendone previsti più d' uno.
+ Attualmente si possono avere fino a 12 NBOB, diversi ma con la stessa funzione e 7 SBOB ogniuno
+con diverso comportamento.
+ Ciò significa che è possibile creare un set che utilizzi tutti i tipi previsti, o anche solo 
+una minima parte di essi.
+ Per esempio si possono usare 8 NBOB e soltanto 3 tra gli SBOB, ma bisogna considerare che 
+PB è in grado di accettare diversi tipologie di livelli, tramite il sistema dei "PuzzleBOBS 
+LevelSet Files" (LSF), che possono contenere un variabile uso degli SBOBS e NBOBS in numero.
+ Per questo la cosa migliore sarebbe quella di creare un set che contenga tutti i tipi sia 
+normali che speciali previsti dal gioco, in modo da mantenere una compatibilità totale
+con ogni LSF attuale o futuro.
+ Comunque questo non deve essere considerato come una costrizione ma bensì come la cosa
+ottimale, ci si può quindi comportare liberamente nella scelta dei tipi da includere.
+ Dato che ogni SBOB permette una particolare funzione sarebbe meglio che questa sia esplicitata
+dal suo aspetto grafico, mentre per un NBOB è sufficente mantenerne la distinguibilità dagli
+altri.
+  
+ Elenco ora i tipi di BOB previsti attualmente, notare che potrebbero aumentare.
+
+
+
+-NORM=     Bob normale (NBOB), se ne possono avere fino a 12.
+-BOMB=     Questo posizionato fa esplodere tutti i bobs tangenti.
+-BOMBX=    Fa esplodere tutti i bobs collegati non interrotti da spazi vuoti che si trovano 
+	   orizzontalmente rispetto alla sua posizione finale.
+-BOMBY=    Come la bombx ma agendo verticalmente.
+-INERM=    Questo è un bob inerme che soltanto le bombe possono eliminare.
+-GAS=      Questo bob è tipo l'inerme ma se va verso l'alto esplode quando giunge nel limite
+	   più alto del livello.
+-ARCOB=    Questo fa esplodere tutti i bobs come quello con il quale ha colliso per primo.
+-SUBSTAIN= Questo sostiene i bobs che lo circondano, fino a quando non sono stati tutti rimossi,
+	   alchè esplode.
+-AIM=	   Questa una volta posizionatasi esplode e fornisce al giocatore una linea di mira. 
+
+
+ Un BOB può avere qualsiasi dimensione e può differire da quella di un altro BOB dello stesso set,
+è sufficente che si definiscano i valori di W e H del BOB più grande, che saranno considerati
+come valori di modulo del sistema con cui si organizzano (PIC2).
+ PB è infatti in grado di rilevare le collisioni non considerando le dimensioni del modulo, 
+ma bensì rispettando la superficie effettiva del BOB.
+ L'area è data da tutti i pixel diversi da 0, permettendo così di non rilevare le
+collisioni dove il bob abbia il colore di fondo, e di associargli una particolare forma che
+può modificare il suo comportamento nel gioco.
+ Questo aspetto introduce il concetto di "trasparenza hardware" un metodo che permette di 
+simulare una trasparenza senza perdere velocità per rappresentarla.
+ In pratica si utilizza il colore di fondo, disposto nella superficie del BOB in modo che 
+faccia passare lo sfondo simulando sia la traparenza che possibilmente la tridimensionalità
+dell'oggetto (PIC1).
+ Questo sistema può però vanificare l'efficenza del rilevamento delle collisioni, perciò è 
+necessario fare in modo che la superficie esterna del BOB sia sempre continua per almeno un 
+pixel (PIC1).
+ Questo è in definitiva un ottimo effetto ma può perdere efficacia quando il connubio tra la 
+risoluzione di schermo usata e la dimensione del monitor si dimostri sfavorevole.
+ Ad esempio su un 17 pollici in 800x600 la retinatura trasparente è già troppo visibile, mentre
+in 1024*768 migliora già di molto, in 1120*832 è ottimale.
+ Penso che su un 14 pollici sia accettabile già in 640*512.
+
+
+ Quando si sono disegnati tutti i BOBS del set, vanno organizzati in un sistema compatibile
+con PB, bisogna cioè disporli verticalmente in una griglia che abbia come rettangolo unitario il
+modulo di cui abbiamo parlato sopra.
+ La disposizione dei BOBS in questa griglia è di fondamentale importanza quando non hanno
+tutti la stessa dimensione, poichè influenza la collocazione finale che assumono nel livello
+(PIC2).
+ Infine sussiste la possibilità di animare i BOBS, dando ad ogniuno al massimo 255 frames di
+animazione, disponendoli orizzontalmente nella solita griglia (PIC3).
+ 
+
+ Questa è la locazione del CF in cui inserire le informazioni relative ai bobs.
+
+; -----
+; Balls
+; -----
+6		;NUMBER (1-50) of balls in the graphic array.
+1		;FRAMES (1-255) of anim of balls. If 1 you have only a frame.  Remember that all balls in graphic chunky file  must have the same number of anim frames.
+55		;WIDTH (+) of bigger ball of set in graphic chunky array.
+55		;HEIGHT (+) of bigger ball of set.
+28		;WIDTH (+) of space between balls when near. If you have four tangs this value is not consider and tha game uses the WIDTH of a ball.If you have six tangs you can decide here which value to use as shift to right.
+48		;HEIGHT (+) os space between balls when near.
+
+ In questo caso stiamo usando solo 6 BOBS non animati (1 frame) il cui modulo è di 55*55 pixels.
+ I valori 28 e 48 rappresentano i valori di spostamento che un BOB deve avere rispetto ad un 
+altro quando disposti in un livello a 6 tangenti (PIC4). 
+
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+*******
+Colonne
+*******
+
+ Una colonna circoscrive il livello orizzontalmente poichè contro di essa i BOBS rimbalazano.
+ E` sufficente disegnare solo la colonna sinistra perchè PB ne evincerà la simmetrica 
+autonomamente.
+ Anche in questo caso dove si usa il colore 0 vedremo lo sfondo attraverso.
+ La dimensione è libera, se è troppo grande rispetto all' H dello schermo viene tagliata nella 
+parte bassa, mentre orizzontalmente non viene mai modificata.
+ Per questa ragione è bene non esagerare nelle sue dimensioni e dato che i BOBS ci rimbalzano
+contro è meglio fare il lato interno, che guarda verso il livello, completamente piatto.
+ E` possibile anche attivare un modo che sposta la colonna verso il centro del livello, così 
+facendo i BOBS potranno passarci sopra indisturbati, può quindi sembrare un controsenso
+ma dando alle colonne la giusta tridimensionalità può risultare un ottimo effetto e superfluo 
+il lato piatto (PIC5).
+
+
+
+Valori del CF:
+
+; -------
+; Columns
+; -------
+18		;WIDTH (+) of graphic chunky array that define the left column. The game will calculate with this the right column.
+724		;HEIGHT (+) of graphic chunky array taht define the left column.
+18		;WIDTH (+) of column that is out of array of balls. If it is as the WIDTH of column, the column is all out the ring.Else you can shift the column to the level.
+6		;Y (+)	of start position of columns, Here you can define where columns have to be positioned from the top of screen.
+
+
+ Abbiamo una colonna di 28*724 pixels, dopo un 18 come valore, che significa che la
+colonna deve stare totalmente al di fuori del livello.
+ Se avessimo messo 15 invece di 18 avremmo avuto la colonna spostata di 18-15=3 pixels verso
+il centro del livello.
+ L'ultimo valore rappresenta la coordinata Y di partenza della colonna dalla parte più alta 
+dello schermo.
+ 
+
+
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+***************
+Trave superiore
+***************
+
+ La trave superiore è il blocco rettangolare che trema e spinge il livello verso il basso.
+ Si può fare di qualsiasi dimensione verticalmente che orizzontalmente poichè PB ne usa solo
+la parte necessaria, pur venendo collocata completamente in videoram.
+ Per questa ragione è bene farla delle dimensioni necessarie per risparmiare memoria ed è bene
+testarne il comportamento in gioco, poichè se troppo grande può richiedere molto tempo per
+essere disegnata. Il colore 0 fa passare lo sfondo.
+
+
+ Valori del CF:
+
+; ----
+; Beam
+; ----
+448		;WIDTH (+) of grapich chunky array that define beam over balls.
+46		;HEIGHT (+) of graphic chunky array that define	 beam over balls.
+4		;VALUE (+) of lateral movement of beam that push the balls array when it tremble.
+
+ L'ultimo valore definisce lo spostamento laterale massimo quando trema prima di spingere in 
+basso il livello.
+
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+**********************************************************
+Puntatore ruotante principale
+Oggetti ruotanti satellitari al puntatore principale.	   (opzionale)
+**********************************************************
+
+ Il puntatore (PO) è un aggregato di oggetti, o di un solo oggetto, che ruotando indicano al 
+giocatore la traiettoria che assumerà il BOB una volta lanciato, svolge quindi una funzione di
+grande importanza e necessita un'attenzione particolare nella sua realizzazione.
+ Il PO può essere costituito da un puntatore ruotante principale (PRP) soltanto, o essere
+accompagnato da una serie di altri oggetti ruotanti satellitari (SRP), con centri e velocità
+di rotazione diversi.
+ Per convenzione il PRP ha sempre centro di rotazione C_PRP(0,0), perciò per posizionare un
+SRP rispetto ad esso si indica il suo spostamento nel piano.
+ Se ad esempio si ha C_SRP(-30,30), il SRP viene collocato a sinistra sotto il PRP. 
+ Sempre per convenzione si assume la velocità del PRP uguale ad 1, mentre i SRP possono averne
+una multiplo di 1 (*1,*2,*3,*4, etc).
+ Un PRP può avere qualsiasi forma e dimensione ma deve rendere il più palese possibile il 
+suo orientamento.
+ Un SRP può invece avere le più disparate forme avendo un funzione di trascurabile importanza, ma
+mentre il PRP ha una escursione di rotazione che va da 0° a 180° , il SRP va da 0° a 360°.
+ Infine un SRP può avere un rapporto di priorità rispetto al PRP e agli altri SRP, può
+essere disegnato prima (priorità minore) e stare nel piano più basso, o essere disegnato dopo 
+(priorità maggiore) e stare in primo piano.
+ La priorità di un SRP è data dall'ordine con cui viene inserito nel CF, il primo inserito ha 
+priorità 1,il secondo 2 e così via.
+ Se il PRP ha priorità 0  viene disegnato per primo, in ultimo piano, se invece abbiamo
+per esempio anche 3 SRP (con priorità 1,2,3) e gli si assegna priorità 4 sarà disegnato per 
+ultimo, sopra a tutti gli altri.  
+ Il colore 0 anche in questo caso lascerà passare lo sfondo, poichè un pixel a 0 non viene mai
+considerato nelle funzioni di rotazione, e non consuma tempo macchina.
+ Più è grande la superficie dell' oggetto, più ha pixel da ruotare e più tempo si impiaga per
+farlo, quindi è bene realizzarlo in maniera ottimale e testarne il comportamento.
+ Quando si disegna un PRP,e si inserisce nei dati grafici del gioco, bisogna orientarlo a 90°
+trigonometrici, mentre un SRP non ha questa necessità venendo ruotato completamente e non 
+dovendo indicare angoli di traiettoria.
+ Per ruotare gli oggetti è stato adottato un sistema di tipo fixed che calcolando le rotazioni 
+utilizzando esclusivamente numeri interi, fornisce elevate prestazioni a discapito della 
+precisione.
+ Per questa ragione, in angoli x compresi tra 30°<x<60° e 120°<x<150° più i corrispettivi oltre
+i 180 gradi, l'imprecisione diventa molto evidente toccando il momento massimo a 45° e 135°.
+ Per riottenere precisione è necessario inserire l'oggetto con dimensioni maggiori rispetto
+a quella finale in gioco, attivando un fattore di zoom che lo scala condensandone i punti
+costitutivi (PIC7).
+
+ Valori del CF:
+
+; ----------------
+; Rotation objects
+; ----------------
+1		;NUMBER (1-5) that define how many rotating objects have you. If you have only the principal pointer you must set this to 1.If you add some geares to your pointer you have to add them.
+35		;WIDTH (+) of chunky rectangle of principal pointer.
+100		;HEIGHT (+) of chunky rectangle of principal pointer.
+18		;X of rotation center in chunky rectangular of principal pointer.
+66		;Y of rotation center in chunky rectangular of principal pointer.
+14		;VALUE (1-16) of precision of rotations.
+0		;VALUE (0-255) of zoom of all rotation pointers. If you use zero it has no zoom and has dimensions defined in rectangular chunky array.
+0		;FLAG (0-1) If you set it to 1 you want rotation procedures to be optimized else no optimizations.
+1		;PRI (0-4) of principal pointer. If you set to 0 the principal pointer has lower pri than pri of other gears the second has pri 1 the third 2 etc. Consider that if you have two gears and principal pointer to have principal pointer over geares you have to set its pri to 2. if you set this to 3 you will have pri 0.
+; first gear.
+51		;WIDTH (+) of graphic chunky array that define the first gear of pointer.
+51		;HEIGHT (+) of graphic chunky array that define the first gear of pointer.
+25		;X of rotation center of first gear in the rectangular array from 0,0.
+25		;Y of rotation center of first gear in the rectangular array from 0,0.
+10		;X of distance of the rotation center of this gear from the rotation center of the pointer.
+10		;Y of distance of the rotation center of this gear from the rotation center of the pointer.
+-5		;MOLTIPLIER of the variation in degree of principal pointer. If you set this to 0 this gear will not move.
+; second gear.
+49		;WIDTH (+) of graphic chunky array that define the second gear of pointer.
+49		;HEIGHT (+) of graphic chunky array that define the second gear of pointer.
+24		;X of rotation center of second gear in the rectangular array from 0,0.
+24		;Y of rotation center of second gear in the rectangular array from 0,0.
+-10		;X of distance of the rotation center of this gear from the rotation center of the pointer.
+10		;Y of distance of the rotation center of this gear from the rotation center of the pointer.
+2		;MOLTIPLIER of the variation in degree of second gear. If you set this to 0 this gear will not move.
+
+
+ Se il valore di zoom è 0, non si attiva lo zoom e non si altera le dimensioni. Con 1 si 
+ottiene la dimensione più piccola possibile, con 255 la seconda più grande, con 0 la maggiore.
+ Attualmente PB prevede l'uso al massimo di un PRP e 2 SRP, probabilmente in futuro il numero
+degli SRP verrà esteso fino a 4 oggetti.
+
+
+ Il centro di rotazione di un oggetto ruotante si prende all'interno del piano che lo contiene, 
+considerando in (0,0) il punto nell'angolo in alto a sinistra.
+
+ Questo è un esempio di un rettangolo di dimensioni 11*7.
+
+
+0---.-----
+|  /|\	  | Il centro di rotazione C è in posizione (3,4) dallo (0,0).
+|   |	  | la x cresce verso destra, la y verso il basso.
+| --C--	  |
+|   |	  |
+|  _|_	  |
+ ---------
+
+ Quando si vuole determinare il centro di rotazione di un SRP si deve considerare che quello
+dello PRP che è in (0,0).
+
+
+
+	   |		 A(-8,3), B(-3,2), C(10,0)
+	   .
+   A	  /|\		 A,B,C sono 3 SRP,in 0 abbiamo il PRP.
+	   |
+	   |
+-----------0---------C-
+	   |
+	B _|_
+	   |
+	   |
+	   |
+
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+
+*******************************
+Supporto del puntatore ruotante
+*******************************
+
+ Il supporto del puntatore ruotante è un` immagine che si colloca al di sotto del PO.
+ Le dimensioni sono libere e come sempre lo 0 lascia che lo sfondo passi attraverso.
+ Quando viene disegnato bisogna anche indicarne il centro di rotazione che andrà a coincidere 
+con quello del PRP (Vedere PIC7).
+
+
+
+ Valori nel CF.
+
+; -------------------
+; Pointer Support
+; -------------------
+51		;WIDTH (+) of graphic chunky array that define the support that is under the principal poiner and substain it.
+83		;HEIGHT (+) of graphic chunky array that define the support that is under the principal poiner and substain it.
+26		;X of center that coincides with the rotating center of principal pointer.
+26		;Y of center that coincides with the rotating center of principal pointer.
+
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+******
+Sfondi
+******
+
+ PB permette di utilizzare molti sfondi diversi, che vengono sempre posti dietro ad ogni altro
+oggetto, in ultimo piano.
+ Possono rappresentare qualsiasi cosa ma debbono coincidere con la W e H dello schermo prescelto.
+Riguardo ad essi si può trovare un approfondimento nel paragrafo "elementi grafici aggiuntivi".  
+
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+*****
+Fonti
+*****
+
+ PB permette di inserire nel gioco due fonti distinti.
+ Il primo è usato per scrivere il testo nel menu e per tutte le scritte piccole tipo quella
+che conteggia il livello attuale o quella del punteggio.
+ L'altro è usato per scrivere tutto il resto, sopratutto scritte che non hanno problemi di
+spazio, come quelle che appaiono a inizio e fine livello, può quindi avere dimensioni maggiori
+rispetto al primo. 
+ E` anche possibile inserire un solo font, indicando la stessa stringa del file e mettendo gli
+stessi valori di dimensione per ambedue.
+ Questo permette di risparmiare videoram dato che per motivi legati alla velocità con cui vanno
+scritti restano sempre in memoria.
+ Un font  (FontSet)(FS)in PB si organizza differentemente rispetto ad AmigaOS, deve cioè 
+rispondere alle esigenze di un sottosistema propietario che li gestisce.
+ Innanzitutto possono essere colorati, ereditano cioè la palette assegnata allo schermo
+(se con più di 256 colori, la palette non serve), e vanno inseriti in un rettangolo costituito 
+da un modulo che coincide con la massima larghezza e altezza che tutte le lettere previste 
+occuperebbero se fossere tutte scritte nel medesimo punto (i valori della W e H del modulo vanno
+inseriti nel CF).
+ Il FS utilizza solo una parte delle lettere previste dallo standard ASCII, ovvero quelle che
+vanno dal valore 32 (space) sino al valore 126 (~).
+ Questi si devono posizionare in un array composto da 6(x)*16(y) moduli delle dimensioni che
+abbiamo detto sopra (PIC8).
+ PB nella fase di boot del gioco evincerà automaticamente le giuste distanze che caratterizzano
+ogni lettera quando scritte in parole. Anche in questo caso il colore 0 svolge la solita 
+funzione.
+ Nel CF si trovano anche valori che specificano la distanza tra le lettere (oltre a quella reale)
+e tra le righe, e sono espressi in pixels.
+
+
+Valori nel CF.
+; -----
+; Fonts
+; -----
+32		;WIDTH (+) in pixel of the bigger letter (module) of the large font set.The bigger letter is a form of the set and this value represent the max size.
+25		;HEIGHT (+) in pixel of the bigger letter of the large font set.
+22		;WIDTH (+) in pixel of the bigger letter (module) of the small font set.
+15		;HEIGHT (+) in pixel of the bigger letter of the small font set.
+1		;X in pixel between two letters of large font set when written.
+2		;Y in pixel between two letters of large font set when written.
+1		;X in pixel between two letters of small font set when written.
+2		;Y in pixel between two letters of small font set when written.
+1		;FLAG (0-1) if you set this to 1 you don't want to have the exact distance between letters but use the value of maximum width of a letter.
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+*************
+Linea di mira
+*************
+
+ PB permette di avvalersi di un sistema che facilita la determinazione della traiettoria che
+il BOB assumerà una volta lanciato.
+ Questo è rappresentato da un oggetto base (AOB) ripetuto una serie di volte a formare
+una linea continua.
+ Un AOB si comporta molto similmente ad un BOB, quindi tutto ciò che abbiamo detto per i BOBS è
+ora valido per un AOB.
+ Un AOB può essere anch'esso animato con al massimo 255 frames, può avere svariate forme e 
+dimensioni, ma dato che viene disegnato molte volte per creare la linea è bene non esagerare 
+con le sue dimensioni.
+ Se invece si usa un AOB animato non si hanno perdite di prestazioni, l'unico aspetto negativo
+è una maggiore consumazione di videoram, anche se per oggetti così piccoli è una quantita
+trascurabile e ininfluente (PIC9).
+
+
+ Valori nel CF.
+
+; --------
+; Aim Line
+; --------
+5		;WIDTH (+) of graphic chunky array that define an element of aim line.
+5		;HEIGHT (+) of graphic chunky array that define an element of aim line.
+100		;NUMBER (1-255) of frames in graphic chunky array of aim line.
+40		;VALUE (0-255) of distance of the first element of aim line from the rotation center of pointer.
+13		;VALUE (0-16) that define speed of aim line elements.If you set this to zero you will have not linear movement of aim line element.I advise you to use values from 10 to 15.
+13		;VALUE (0-16) that define the distance between two elements of aim line.
+20		;NUMBER (+) of elements that define the aim line.More elements you have, slower is the speed of aim line. I advise you to not ask too many aim objects and use other method as to increase the distance between elements.
+13		;SPEED (0-16) of an element of aim line.An Other value.???
+
+ I primi 3 valori sono quelli importanti per definire il singolo AOB, mentre i restanti si usano
+per decidere da quanti di essi deve essere costituita la linea di mira, se si devono muovere 
+all'interno di essa, quale sia la distanza tra due AOB, etc.
+ 
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+*****
+Timer
+*****
+
+ In PB durante la fase di gioco se si lascia trascorrere un lasso di tempo tra un tiro e l'altro,
+ritenuto dall'autore del LSF troppo lungo, appare un piccolo contatore del tempo, o timer, che 
+scandisce quanto manca all'espulsione automatica del BOB.
+ Questo tempo può quindi essere variabile o può persino non sussistere se l'autore così ha deciso.
+A livello di realizzazione nel LSF, il tempo si definisce in secondi, mentre a livello grafico
+il timer apparirà trascorsa la metà di questi.
+ Quindi se si definiscono 10 secondi, soltanto dopo 5 di essi avremo la visualizzazione 
+del timer.
+ Il timer graficamente è rappresentato da una animazione, di massimo 255 frames che si aggiorna
+considerando il tempo totale e il numero di frames costituenti la sequenza.
+ Se si ha 20 frames nella sequenza e 10 secondi di lasso temporale avremo l'aggiornamento ogni:
+10/2=5 sec 5/20=0.25 secondi (PIC10).
+ E` consigliabile non esagerare con il numero di frames, nè di farne troppo pochi (il numero 
+ottimale va dai 10 ai 20) poichè il rapporto tra frames e il tempo è inversamente proporzionale,
+quindi il lasso tra un aggiornamento e il successivo tende sempre di più a meno infinito (0).
+ Al diminuire della durata del lasso diventa sempre più probabile che il tempo per disegnare
+il frame di animazione ecceda quello dell'intervallo temporale, con l'evidente effetto 
+collaterale di una sua dilatazione.
+ Questo effetto, in ambienti multitasking come l'Amiga, può sensibilmente aumentare quando il 
+sistema viene portato a condizioni di forte stress, causato da un` eccessiva richiesta di 
+risorse da parte di svariati task, ed è comunque un fattore dipendente dalle prestazioni offerte
+dalla macchina.    
+
+
+Valori nel CF.
+
+; -----
+; Timer
+; -----
+37		;WIDTH (+) of grapich chunky array that define a frame of timer.
+37		;HEIGHT (+) of grapich chunky array that define a frame of timer.
+16		;NUMBER (1-255) of frames of timer animation.
+
+
+
+ /////////////////////////////////////////////////////////////////////\
+ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/
+
+******************
+Limite del livello
+******************
+
+ Il limite di livello è una striscia che indica il confine inferiore del livello al di sotto 
+del quale una palla posizionata determina un "Game Over".
+ Possiamo applicare per essa tutte le considerazioni fatte per la "trave superiore", ma a 
+differenza di essa è consigliabile non esagerare con la sua dimensione verticale (PIC11).
+
+Valori del CF.
+
+; ---------------
+; Game Over Limit
+; ---------------
+380		;WIDTH (+) of graphic chunky rectangle of stripe that define gameover limit.
+2		;HEIGHT (+) of graphic chunky rectangle of stripe that define gameover limit.
+
+*******
+Palette
+*******
+
+ La palette determina il colore RGB (rosso,verde,blu) che un colore nell'array colori deve 
+assumere.
+ L'array colori sotto AmigaOS (come in tutti i sistemi a palette) è composto al massimo da 
+256 valori, e tutti gli oggetti grafici appartenenti alla rappresentazione video l' ereditano. 
+ Per salvare la palette è sufficente usare un programma convertitore che salvi nel formato
+LoadRGB32(), una funzione grafica della graphics.library di AmigaOS.
+ La dimensione in bytes di una palette con un numero di colori x è uguale a:
+dimensione_in_bytes=[8+x*(4+4+4)], poichè sia ha una long per ogni componente colore 
+RGB moltiplicate per il numero di colori,più due LONG (8 bytes) di formattazione della struttura
+(ColorTable).
+ Se lo schermo ha un numero di colori maggiore di 256 e profondità maggiore di 8, la palette 
+non è necessaria e si può mettere uno 0 nel CF al posto della stringa che la individua.
+
+
+**********
+Esplosioni
+**********
+
+ Attualmente PB accetta due tipi di esplosioni.
+ Uno è completamente realizzato dallo CPU con il supporto di un Blitter per mandare a video il 
+suo prodotto, che calcola per ogni pixel di un BOB la traiettoria secondo un'equazione parabolica,
+stampandoli su schermo rispettandone il colore originario.
+ L'altro metodo è invece completamente gestito dal blitter, che sussegue su schermo una animazione
+della deflagrazione che è quindi disegnata e precalcolata in precedenza.
+ Il primo metodo ha il vantaggio che non è necessario disegnare l'animazione dell'esplosione,
+che non occupa videoram ma una quantità accettabile di memoria pubblica, e che interagisce con
+l'ambiente circostante, infatti quando un BOB esplode vicino a un elemento di confine si nota 
+che i suoi frammenti si "spalmano" sulle loro superfici.
+ Lo svantaggio è che è relativamente lenta poichè il calcolo avviene in tempo reale e tutto a 
+carico della CPU e che tuttosommato è di minore qualità rispetto ad una ben disegnata.
+ La seconda si avvale di frames disegnati, quindi precalcolati, che si susseguono secondo tempi
+prestabilibili, quindi la velocità risulta molto superiore, non essendoci carico per la CPU, con
+l'unico svantaggio, non trascurabile, dell'occupazione di una grande quantità di videoram.
+ Nel caso del secondo sistema è possibile definire un numero variabile di animazioni da associare
+ad ogni BOB.
+ Se ne può fare una per ogni bob o anche un numero minore secondo questo criterio di 
+assegnazione: se ne abbiamo un numero uguale al numero di BOB del set ogni BOB avrà una serie
+nello stesso ordine, se invece ne abbiamo un numero minore i bobs le riclicheranno una volta 
+esauritesi, quindi nel caso si abbiamo 8 bobs e 6 sequenze, il 7° e l'8° utilizzeranno la 1° e 
+la 2°.
+ Inserendo una sola sequenza se ne avrà una usata da ogni BOB, con un risparmio discreto di 
+videoram.
+ Per abilitare il secondo metodo è sufficente indicare nel CF la stringa del file grafico che
+contiene le sequenze, mentre con uno 0 nel luogo della stringa si abilita il primo metodo
+(Vedere PIC11),
+
+Valori nel CF.
+  
+; ---------------------------
+; Graphic explosion extension  
+; ---------------------------
+0		;WIDTH (+) of an explosion's set frame in graphic data which defines explosion's animation.
+0		;HEIGHT (+) of an explosion's set frame in graphic data which defines explosion's animation.
+0		;X (+) from the top left corner of pixel in a single explosion frame which coincides with the left top corner of a bob's module. With this you can center the explosion animation.
+0		;Y (+) from the top left corner of pixel in a single explosion frame which coincides with the left top corner of a bob's module. With this you can center the explosion animation.
+1		;FRAMES (1-255) of animation frames.
+0		;NUMBER (+) of animation sequences done. If you have 8 bobs in your set and you have done an animation for each you have to set this to 8. If you do only 4 animations you will have 8 bobs using them only (bob1->fr1,bob2->fr1,bob3->fr2,bob4->fr2,..).You can do only one animation to be used by each bob, putting 1 there. 
+
+ Il primo e secondo valore definiscono il modulo delle sequenze che coincide con il frame più 
+grande fra tutte.
+ Il terzo e il quarto servono per centrare l'animazione rispetto all'angolo in alto a sinistra
+del BOB.
+ Il quinto dichiara il numero di frames in uso e infine il numero di sequenze fatte (Vedere PIC11).
+
+********
+Orologio
+********
+
+ L'orologio è usato nei LSF che hanno tutti o solo alcuni livelli limitati dal tempo, che una
+volta esaurito genera un "Game Over".
+ L'orologio è costituito da uno sfondo che rappresenta la sua cassa e da una lancetta che gli
+ruota sopra.
+ Le dimensioni ottimali dell'orologio si possono vedere nel capitolo dedicato. 
+ La lancetta ha lo stesso comportamento dei PRP e dei SRP, quindi è tutto valido quello che
+abbiamo già detto per essi, sia per quel che rigurda l'orientamento quando messo nel file
+grafico che per tutte le altre caratteristiche come il colore 0 che lascia lo sfondo passare.
+ Nel CF bisogna indicare la W e la H della cassa dell'orologio, quelle della lancetta e i 
+corripettivi centri di rotazione che li centrano.
+ Anche in questo caso è possibile decidere un fattore di zoom per la lancetta, risolvendo
+i problemi di precisone delle routine di rotazione (Vedere PIC12).
+
+
+Valori nel CF.
+
+; -----
+; Clock
+; -----
+89		;WIDTH (+) of grapich chunky array that define the clock.
+91		;HEIGHT (+) of grapich chunky array that define the clock.
+44		;(+) X of rotation center that coincides with the rotating center of hand, from 0,0.
+46		;(+) Y of rotation center that coincides with the rotating center of hand, from 0,0.
+1		;FLAG (0-1) If you set 1 you have the clock respects the second, else with 0 divides the total time in 360 equal parts. 
+60		;VALUE (0-360) Here you can choose how many seconds before the time finish, the clock must have written in letters, seconds left (with 0 never, with 360 all the time). 
+0		;FLAG (0-1) If you set this to 0 you will have the SMALL FONT (0) for the numbers over the clock, else with 1 you will have the BIG FONT (1).
+25		;PERCENTAGE (0-100) of screen's height that define the clock's y position.
+; ------------
+; Clock's Hand	
+; ------------
+15		;WIDTH (+) of grapich chunky array that define the clock's hand.
+53		;HEIGHT (+) of grapich chunky array that define the clock's hand.
+7		;(+) X of rotation center of hand in  the rectangular array from 0,0.
+42		;(+) Y of rotation center of hand in  the rectangular array from 0,0.
+0		;VALUE (0-255) of zoom of hand. If you use zero it has no zoom and has dimensions defined in rectangular chunky array.	
+
+***************************************
+Elementi grafici aggiuntivi (opzionale)
+***************************************
+
+ PuzzleBOBS prevede l'inserimento di una serie di elementi grafici opzionali, allo scopo di
+mutare la rappresentazione durante la fase di gioco.
+ A questo fine è possibile definire 20 insiemi di oggetti aggiuntivi, che vengono caricati
+da PuzzleBOBS al passaggio di livello.
+ Ogni insieme comprende sfondo, palette, colonne e trave e si indicano nel CF attraverso i 
+loro percorsi.
+ E` possibile definire un insieme senza attivare alcuni elementi, quindi si può indicare per
+esempio soltanto uno sfondo senza colonne, o palette.
+ Per cambiare le colonne e il trave superiore è invece necessario che si muti anche lo sfondo,
+mentre la palette può essere cambiata senza vincoli.
+ Infine ogni elemento deve avere le stesse dimensioni dei corrispettivi definiti prima nel CF,
+altrimenti i dati risulteranno compromessi nella visualizzazione.
+ Il 20° insieme ha una funzione speciale, ovvero viene caricato solo durante l'ultimo livello
+del LSF.
+ Nel CF per abilitare un oggetto si devono inserire le stringhe di percorso relative, mentre
+per disabilitarlo è sufficente inserire uno "0".
+ 
+Il blocco delle stringhe si trova in fondo al CF:
+
+
+
+
+;
+;Others backgrounds, beams, columns and palettes (strings of).
+;
+;1°
+PuzzleBOBS:gfx/sfondo1	;Background
+0		;palette
+0		;beam
+0		;columns
+;2°
+0		;Background
+0		;palette
+0		;beam
+0		;columns
+;3°
+0		;Background
+0		;palette
+0		;beam
+0		;columns
+;4°
+0		;Background
+0		;palette
+0		;beam
+0		;columns
+;5°
+0		;Background
+0		;palette
+0		;beam
+0		;columns
+;6°
+0		;Background
+0		;palette
+0		;beam
+0		;columns
+;7°
+0		;Background
+0		;palette
+0		;beam
+0		;columns
+;8°
+0		;Background
+0		;palette
+0		;beam
+0		;columns
+;9°
+0		;Background
+0		;palette
+0		;beam
+0		;columns
+;10°
+0		;Background
+0		;palette
+0		;beam
+0		;columns
+
+.........................
+
+ Questo blocco contiene gli elementi aggiuntivi, il primo è un esempio, quando viene selezionato
+sostituisce lo sfondo vigente con "PuzzleBOBS:gfx/sfondo1", non mappa nessuna nuova palette nè
+cambia il trave o le colonne.
+
+ 
+
+			/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+
+
+3) Altri valori nel CF.
+-----------------------
+
+ Ci sono molti valori nel CF che interessano il comportamento degli oggetti nel gioco, come le 
+loro velocità e varie opzioni a basso livello, ma è comunque possibile trascurarli utilizzando
+un CF già presente nell'archivio del gioco, e variarli magari in un secondo momento.
+ Ce ne sono invece certi di fondamentale importanza che devono essere controllati prima di 
+provare il CF.
+ In futuro sarà possibile fare questi settaggi attraverso un programma dotato di GUI propria
+che renderà molto più intuitive queste fasi (vi sarà reso disponibile appena completato).
+
+
+SCREEN ID=   Qui si deve collocare il modeid dello schermo usato. Si può ottenere usando dei
+	     programmi come i monitor di sistema.
+	     Spesso questi lo forniscono in esadecimale con numeri a 8 cifre con il suffisso $.
+	     In questo caso vanno convertiti in decimale, ottenendo dei numeri a 10 cifre, e
+	     così direttamente inserite nel CF.
+	     E' possibile settare il valore a -1, in questo modo PuzzleBOBS al boot promuoverà
+	     uno ScreenMode Requester dal quale potrete scegliere lo schermo.
+
+SCREENDEPTH= Qui si inserisce la profondità dello schermo, la quale coincide con l'esponenete a 
+	     cui si eleva 2 per ottenere il numero di colori desiderati.
+
+SCREENW=     Larghezza dello schermo espressa in pixel.
+
+SCREENH=     Altezza dello schermo espressa in pixel.
+
+
+Valori nel CF.
+
+
+; --------------------
+; Screen confuguration
+; --------------------
+;
+1342312448	;DISPALYID of screen. You must insert this as a decimal value. Normally IDS are written in esadecimal. If you use a window the game uses ID of WorkBench Screen.
+800		;WIDTH (+) of window or screen.
+600		;HEIGHT (+) of window or screen.
+8		;DEPTH (+) of screen. If you use a window the game uses depth of Workbench screen.If you use non-amiga graphic devices you can not define this value becouse depth is in ID.
+0		;FLAG (0-2) if set to (0) you use a screen, if you set to (1) you want a window and if you set to (2) you want a PIP window (Picture in Picture) but now only with Picasso96 and PicassoIV.
+0		;FLAG (0-1) If 1 you want closeworkbench else 0 you don't want. If you use a window for game this flag is no consider. If you close workbench you get a lot of video memory.
+0		;FLAG (0-1) With 1 you can have screen forcing the ratio as in 640*256 that is not 16:9,and with 0 you disable this choice.
+1		;FLAG (0-1) Here you can choose if the main titles have to be done by Blitter (1) or faster by copper (0) (On Aga machines is better 0, and with a graphic board is better 1).
+800		;WIDTH (+) of the area that you want dedicate to the array of balls. With this value you can limit the size of rectangle that cointains the array of balls and limit the need of video memory. This could activate the zoom of balls. PAY ATTENTION TO THIS VALUE because if balls become smaller is more difficult to play.
+600		;HEIGHT (+) of the area that you want dedicate to the array of balls.
+1		;FLAG (0-4) Here you can choose the mode of blitting. See the docs to choose method you want.
+50		;PERCENTAGE (0-100) When you use the cooperative method between cpu and blitter, here you can set the percentage in blit height done by cpu. The rimanent will be done by amiga custom blitter.
+
+
+
+
+
+			/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+
+4) CF's strings.
+
+
+ Nel CF c`è un settore che contiene le stringhe dei file dei dati grafici usati.
+ Se non si vuole inserire un elemento che sia opzionale, è sufficente mettere uno 0 al posto
+della stringa.
+ Se una stringa ha degli spazi si deve scrivere tra virgolette, e comunque rispettare tutte le
+convenzioni di AmigaDOS.
+
+Questa è la parte del CF dedicata alle stringhe.
+
+PuzzleBOBS:gfx/Hurricane			;STRING of background.
+PuzzleBOBS:gfx/Bobs_8_43-43			;STRING of balls.
+PuzzleBOBS:gfx/Colonna_26x516_8			;STRING of column.
+PuzzleBOBS:gfx/Dolmen_464x198_8			;STRING beam.
+PuzzleBOBS:gfx/Font_GEMINIblu_22_15		;STRING font set SMALL.
+PuzzleBOBS:gfx/HurrPalette			;STRING palette of background.
+PuzzleBOBS:gfx/Traie_5x5x100_8			;STRING aim objects.
+PuzzleBOBS:gfx/limite_380x2_8			;STRING graphic limit of level.
+PuzzleBOBS:gfx/fr_35x100_8			;STRING principal pointer.
+PuzzleBOBS:gfx/fr_51x51_8			;STRING first gear.
+PuzzleBOBS:gfx/ing_49x49_256			;STRING second gear.
+PuzzleBOBS:gfx/Sostegno_51x83_8			;STRING object under the pointer.
+PuzzleBOBS:gfx//ploing				;STRING Audio file.
+PuzzleBOBS:gfx/Font_GEMINIblu_22_15		;STRING font set SMALL.
+PuzzleBOBS:gfx/Timer2_37x37_16f_8		;STRING Timer.
+........
+
+
+			/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+
+
+5) Considerazioni finali
+------------------------
+
+ Una delle cose più importanti da valutare quando si crea un set grafico per PB è la quantità
+di videoram che esso necessita.
+ Possiamo considerare che attualmente la videoram è una delle risorse più importanti e costose
+all'interno di un computer, e per tutta una serie di motivi che ben conosciamo sui sistemi 
+Amiga ce n'è in piccola quantità (chip memory).
+ Anche le schede di espansione in standard VGA non sono da meno, fornendo al massimo 8 MBytes di 
+videoram, nel caso delle schede più moderne, o altrimenti soltanto 4 o 2 megabytes.
+ Nel caso di PuzzleBOBS la risorsa più impiegata è stata proprio la videoram.
+ Questo a causa di una serie di scelte architetturali che sono state adottate per risolvere
+i problemi dovuti alla natura di questo tipo di gioco, che hanno obbligato ad esempio a
+mantenere in memoria (videoram) quasi tutti gli oggetti grafici che abbiamo elencato sopra, per 
+tutta la durata della fase di gioco.
+ Il fatto di aver scelto di non dipendere da nessun limite hardware degli Amiga standard,
+ha portato ad adottare BOBS invece dei ben più veloci SPRITES, che purtroppo sono
+vincolati da limiti che non permetterebbero di creare un gioco così altamente configurabile 
+ma bensì uno con un aspetto statico ed immutabile.
+ Oltretutto gli sprites non sono utilizzabili in macchine con schede grafiche e il supporto 
+che questi sistemi danno per simularne l'azione, rimpiazzandoli con BOBS, non è così 
+direttamente controllabile come invece l' architettura ideata richiede, sopratutto nel caso
+del rilevamento delle collisioni.
+ L'implementazione scelta ha permesso però di sfruttare pienamente le caratteristiche di velocità
+che permettono i blitter montati sulle schede grafiche, senza ricadere nel pesante uso della
+CPU classico della tecnica del double o triple buffering, arrivando a promuovere a velocità
+più che accettabili schermi molto ampi anche a 16 bit.
+ Per tutta questa serie di ragioni, in definitiva, si può affermare che questo gioco richiede
+molta videoram, ma è sempre possibile ridurre il suo consumo adottando scelte propedeutiche che
+limitino ad esempio le dimensioni di alcuni oggetti grafici.
+ A questo fine è utile sapere come AmigaOS organizza i dati grafici nelle BitMaps.
+ Quando si alloca una bitmap, si devono indicare la larghezza e l'altezza volute, oltre ad
+altri fattori, ma pur richiedendo un valore di larghezza qualsiasi otterremo come risultato
+una bitmap che orizzontalmente è sempre un multiplo di 16 pixel.
+ Per questa ragione è meglio non dare agli oggetti larghezze tipo 17-18 o 33-34, che per
+soltanto uno o due pixel di troppo richiedono molta più memeoria (17-18-->32 ,33-34-->48).
+
+ PuzzleBOBS è in grado di accettare un numero ampio di LSF anche molto diversi.
+ Può capitare che un LSF preveda livelli con 12 BOBS disposti orizzontalmente o meno o anche 
+un numero maggiore.
+ Mentre ciò non causa problemi per i BOBS, le colonne e gli altri elementi di gioco può causarne
+invece per il trave superiore e per il limite di livello, poichè potrebbero non coprire
+l'aumento di superficie richiesto da un numero elevato di BOBS sull'orizzonte.
+ PB in questo caso centra il trave e il limite in questo spazio, ma può risultarne un effetto 
+irritante, considerando che i bobs lateralmente al trave urtano con un'ostacolo che non esiste.
+ Per questa ragione ci sono 2 possibilità: una è di fare il trave e il limite molto ampi
+orizzontalmente in modo che siano sempre sufficenti a coprire una superficie molto vasta, ma 
+mentre per il limite può essere accettabile per il trave l'aumento di memoria richiesto può
+essere troppo esoso, quindi è una possibilità che deve essere valutata con attenzione.
+ L'altro sistema è quello di fissare una massima ampiezza che il livello può assumere, magari
+coincidente con la larghezza del trave, che in casi di aumento del numero di BOBS attiva lo
+ZOOM che li scala facendoli entrare comunque nel livello.
+
+
+; --------------------
+; Screen confuguration
+; --------------------
+;
+167940		;1  DISPALYID of screen. You must insert this as a decimal value. Normally IDS are written in esadecimal. If you use a window the game uses ID of WorkBench Screen.
+640		;2  WIDTH (+) of window or screen.
+512		;3  HEIGHT	(+) of window or screen.
+8		;4  DEPTH (+) of screen. If you use a window the game uses depth of Workbench screen.If you use non-amiga graphic devices you can not define this value becouse depth is in ID.
+0		;5  FLAG (0-2) if set to (0) you use a screen, if you set to (1) you want a window and if you set to (2) you want a PIP window (Picture in Picture) but now only with Picasso96 and PicassoIV.
+0		;6  FLAG (0-1) If 1 you want closeworkbench else 0 you don't want. If you use a window for game this flag is no consider. If you close workbench you get a lot of video memory.
+0		;7  FLAG (0-1) With 1 you can have screen forcing the ratio as in 640*256 that is not 16:9,and with 0 you disable this choice.
+1		;8  FLAG (0-1) Here you can choose if the main titles have to be done by Blitter (1) or faster by copper (0) (On Aga machines is better 0, and with a graphic board is better 1).
+640		;9  WIDTH (+) of the area that you want dedicate to the array of balls. With this value you can limit the size of rectangle that cointains the array of balls and limit the need of video memory. This could activate the zoom of balls. PAY ATTENTION TO THIS VALUE because if balls become smaller is more difficult to play.
+512		;10 HEIGHT (+) of the area that you want dedicate to the array of balls.
+3		;11 FLAG (0-4) Here you can choose the mode of blitting. See the docs to choose method you want.
+50		;12 PERCENTAGE (0-100) When you use the cooperative method between cpu and blitter, here you can set the percentage in blit height done by blitter. The rimanent will be done by cpu.
+
+
+I valori sono il 10° e l'11° e permettono di scegliere delle dimensioni massime per il livello.
+
+
+6) Dimensioni ottimali.Formule.
+------------------------------
+
+ Qui elenco una serie di formule che permettono di individuare le dimensioni di un oggetto
+partendo da quelle del contenitore video.
+ Ho basato questi calcoli considerando una situazione frequente, ovvero quando si ha due giocatori 
+che giocano nello stesso momento con due livelli distinti costituiti da 8(x)*11(y) bobs.
+ Notare che questi sono validi per schermi con aspect ratio uguale ad 1, in uno schermo a 
+640*256 ad esempio un quadrato è in realtà un rettangolo con l'altezza uguale circa alla metà
+della larghezza.  
+
+
+-scrx=Larghezza dello schermo.
+-scry=Altezza dello schermo.
+-bobw=Larghezza del bob più grande del set (modulo).
+-bobh=Altezza del bob più grande del set (modulo).
+-colonh=Larghezza della colonna.
+-colonw=
+-beamw=Larghezza del trave.
+-beamh=
+-limitw=Larghezza del limite livello.
+-limith=
+-pointerw=Larghezza del rettangolo del puntatore in tutta l'escursione di rotazione (*¹).
+-pointerh=
+-fontbigw=Larghezza del modulo del font set largo.
+-fontbigh=
+-fontsmallw=Larghezza del modulo del font set stretto.
+-fontsmallh=
+-timerw=Larghezza del timer.
+-timerh=
+-suppw=Larghezza del supporto del puntatore.
+-supph=
+-aimw=Larghezza di un elemento della linea di mira (di un AOB).
+-aimh
+-intw=Spazio tra due livelli e i lati dello schermo.
+
+
+ Il disegno che segue serve per comprendere la funzione di intw:
+"|" è una colonna, "o" è un bob,"s" è intw, mentre con "*" si intendono i lati dello schermo.
+
+ *s|oooooooo|s|oooooooo|s*
+ *s|oooooooo|s|oooooooo|s*
+ *s|oooooooo|s|oooooooo|s*
+ *s|oooooooo|s|oooooooo|s*
+ *s|oooooooo|s|oooooooo|s*
+
+Queste sono le formule, dove trovate "!" potete fare come volete ma considerate sempre
+il tempo che si impiega per muovere un oggetto (se va anche animato).
+
+
+beamw=bobw*8
+beamh=!
+limitw=beamw=bobw*8
+limith=!
+columnw=scrx/40
+columnh=scry
+intw=scrw/80
+bobw=(scrw-3*intw-4*columnw)/16
+bobh=bobw
+pointerh=scrh/6
+pointerw=? (dipende dai centri di rotazione e dall'altezza del puntatore)
+timerw=!
+timerh=!
+suppw=!
+supph=!
+fontsmallw=scrw/35
+fontsmallh=scrh/40
+fontbigw=2*fontsmallw
+fontbigh=2*fontsmallh
+aimw=scrw/160
+aimh=aimw
+clockw=scrw/8
+clockh=clockw
+
+
+*¹=Bisogna considerare la massima area che il PO occupa quando ruota nell'intervallo da
+0° a 180°.
+
+
+
+
+
+
+
+
+
+Emanuele Cesaroni.
+Nexus Development.
+
+
+Per ogni ulteriore chiarimento scrivetemi a: emacesa@tin.it
+
+
+
+
+

@@ -1,0 +1,1 @@
+heretic2.exe +set game motu +map motu/phireres

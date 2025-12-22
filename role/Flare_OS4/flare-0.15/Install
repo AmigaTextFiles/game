@@ -1,0 +1,311 @@
+;$VER: Flare SDL Install 0.1 (24.12.2011)
+(set #flare-version "0.15")
+(set #appname "Flare")
+;==============================================================================
+; Procedure to determine available languages and a default language
+;==============================================================================
+(procedure P_findlola
+	(onerror (set #applang "en"))
+	(foreach "mods/fantasycore/languages" "engine.#?.po" 
+		(
+			(set #copylangcode (substr @each-name 7 2))
+			(set #batchlangcode (cat #batchlangcode #copylangcode " "))
+		)
+	)
+	(set #lenblc (strlen #batchlangcode))
+	
+	(if (= #lenblc 1)
+		(set #applang "en")
+		(set #applang	
+			(askstring
+				(prompt "The following translations were detected: \n" #batchlangcode
+				"\nWhich do you wish to use for " #appname "(English is default)?"
+				)
+				(default "en")
+				(help "Type two letters from the list shown," 
+				"or leave it as it is."
+				)
+			)
+		)
+	)
+)
+;==============================================================================
+; Procedure to determine "movement" controller
+;==============================================================================
+(procedure P_control
+	(set #mcont
+		(askchoice
+			(prompt "Your Flare character can be moved around in the game world"
+			"by either keyboard (default) or mouse. Which do you prefer?"
+			)
+			(help "The keyboard control reads your cursor keys for directions."
+			"\nThe mouse control requires you to press the left mouse button down "
+			"on a location toward which you wish to move."
+			)
+			(choices "Keyboard" "Mouse")
+		)
+	)
+)		
+;==============================================================================
+; Procedure to write settings file
+;==============================================================================
+(procedure P_settings
+	(if (= #mcont "1")
+		(set #optmouse "1")
+		(set #optmouse "0")
+	)
+	(textfile
+		(prompt "Writing options to settings.txt .")
+		(help #appname " will read this file when it starts up.")
+		(dest #prgopt)
+		(include "settings.txt")
+		(append "\n# use mouse to move (experimental). 1 enable, 0 disable.")
+		(append "\nmouse_move=" #optmouse)
+		(append "\nlanguage=" #applang)
+		(append "\nframes_per_sec=20")
+		(append "\n")
+		(confirm "expert")
+	)
+)
+;==============================================================================
+; Procedure to add AmiDock object
+;==============================================================================
+(procedure P_todock
+	(if (= #fouroh 1)
+		(message "Excuse me, it is assumed that in AmigaOS 4.0 you need to"
+		"modify AmiDock settings yourself."
+		)
+		(
+			(copyfiles
+				(prompt "Copying icon (small)")
+				(help @copyfiles-help)
+				(source "Flare_Amidock.info")
+				(noposition)
+				(dest           #fdest)	
+				(confirm "expert")
+			)
+			(set #flareloc (tackon #fdest "flare"))
+			(textfile
+				(prompt "Making temporary script T:Icontodock.rexx")
+				(help "AmiDock ARexx port is utilized to add the icon.")
+				(append #t_rexxheader "ADDRESS AMIDOCK\n")
+				(append "ADDOBJECT FILE '" #flareloc "' ICON '" #fdest "/Flare_Amidock'\n") 
+				(dest "T:Icontodock.rexx")
+			)
+			(rexx "T:Icontodock.rexx"
+				(prompt "Running script which adds the 'Flare' icon "
+				"to the main dock in your AmiDock."
+				)
+				(help "This script resides in T: & will be "
+				"deleted immediately."
+				)
+				(confirm "expert")
+			)
+			(delete "T:Icontodock.rexx")
+		)
+	)
+)
+;==============================================================================
+; Procedure to put icon on Workbench (leave out)
+;==============================================================================
+(procedure P_towb
+	(set #sourcedir (pathonly (expandpath "Install")))
+	(message "Install script is in " #sourcedir)
+	(textfile
+		(prompt "Making temporary script T:IcontoWB.rexx")
+		(help "Workbench ARexx port is utilized to select the correct "
+		"icon, which is then left out on the main Workbench window."
+		)
+		(append #t_rexxheader "ADDRESS Workbench\n")
+		(append "window windows '" #fdest "' open\n")
+		(append "ICON WINDOW '" #sourcedir "' NAMES 'Install' UNSELECT\n")
+		(append "ICON WINDOW '" #fdest "' NAMES 'Flare' SELECT\n")
+		(append "MENU ICONS.LEAVEOUT\n")
+		(append "window windows '" #fdest "' close\n")
+		(dest "T:IcontoWB.rexx")
+	)
+	(rexx "T:IcontoWB.rexx"
+		(prompt "Running script which asks Workbench to leave "
+		"the 'Freeciv' script (icon) visible on the desktop."
+		)
+		(help "This script resides in T: & will be deleted immediately.")
+		(confirm "expert")
+	)
+	(delete "T:IcontoWB.rexx")
+)
+;==============================================================================
+; Text
+;==============================================================================
+(set #t_welcomeMsg
+    (cat	"You are about to install Flare.\n"
+			
+	)
+)
+(set #t_installerf
+		(cat		"\nInstaller program is unsupported. Version found to be below 43."))
+(set #t_os-kick
+        	(cat		"\nYou need AmigaOS 4 or higher."))
+(set #t_odddir-kick
+		(cat		"\nInstead of file, found a directory! Aborting."))
+(set #t_rexxheader
+		(cat		"/* Temporary script */\n\n"))
+;==============================================================================
+; Abort if OS < 50
+;==============================================================================
+(if (< (/ @installer-version 65536) 43)
+	(ABORT #t_installerf)
+)
+(if (< (/ (getversion) 65536) 50) 
+	(ABORT #t_os-kick)
+)
+;==============================================================================
+; Begin
+;==============================================================================
+(complete 0)
+(welcome #t_welcomeMsg)
+(set #defaultdrawer (cat (expandpath "SYS:") "flare-" #flare-version))
+(set #fdest			(askdir
+						(prompt "Where do you wish to install " #appname "? "
+						"No further directory will be made."
+						)
+						(default #defaultdrawer)
+						(help @askdir-help "\nThe program with its associated "
+						"subdirectories " 
+						"will be copied into the specified directory. No other "
+						"location is to be modified unless requested."
+						)
+						(newpath)
+					)
+)
+(set @default-dest #fdest)
+(P_findlola)
+(P_control)
+(set #flaresavedir		(tackon #fdest "saves/"))
+(set #prgopt			(tackon #fdest "settings.txt"))
+;==============================================================================
+; Optional configuration of options for the client
+;==============================================================================
+(if (= (exists #prgopt) 2)
+	(abort #t-odddir-kick)
+)
+(if (= (exists #prgopt) 1)
+	(if (=
+		(askbool
+			(prompt "Preparing Flare options...\n\n"
+			"Caution: A configuration file for Flare was found. It "
+			"isn't recommended to install over a previous version. "
+			"Overwrite options?"
+			)
+			(help "If there is an installation of Flare at the "
+			"specified location, you may wish to abort installation."
+			)
+		(default 0)
+		) 1
+		)
+			((set #wsettings 1))
+			
+	)
+	((set #wsettings 1))
+)
+;==============================================================================
+; Confirm installation
+;==============================================================================
+(set #sco
+	(askoptions
+		(prompt "An icon for the start script can be placed now to "
+		"Workbench desktop, or added to the main dock of AmiDock, or both."
+		)
+		(help @askchoice-help)
+		(choices "Workbench" "AmiDock")
+		(default 0)
+	)
+)
+; Make yes/no strings for confirm screen
+(set #iwb "No")
+(set #ido "No")
+(if (= #sco 1)
+	(set #iwb "Yes")
+)
+(if (= #sco 2)
+	(set #ido "Yes")
+)
+(if (= #sco 3)
+	((set #iwb "Yes") (set #ido "Yes"))
+)
+(if (= #mcont 1)
+	(set #contstr "mouse")
+	(set #contstr "keyboard")
+)
+(set #userokayed
+	(askbool
+		(prompt "You are about to install Flare as follows:\n\n"
+		"Destination directory: " #fdest "\n"
+		"Language: " #applang "\n"
+		"Main controller: " #contstr "\n"
+		"Icon on Workbench: " #iwb "\n"
+		"Icon on Amidock: " #ido "\n"
+		"\nIs this acceptable?"
+		)
+		(help "You may review your choices before anything happens.")
+ 	)
+)
+(if (= #userokayed 0)
+	(abort "Aborting per request.")
+)
+;==============================================================================
+; Copy to wherever, do shortcuts
+;==============================================================================
+(copyfiles
+	(prompt "Copying program file")
+	(help @copyfiles-help)
+	(source "flare")
+	(infos)
+	(noposition)
+	(dest           #fdest)	
+	(confirm "expert")
+)
+(complete 9)
+(if (= #sco 1)
+	(P_towb)
+)
+(if (= #sco 2)
+	(P_todock)
+)
+(if (= #sco 3)
+	((P_towb) (P_todock))
+)
+; Without saves directory, saves won't be written!
+(makedir (tackon #fdest "saves"))
+(complete 11)	
+(copyfiles
+	(prompt "Copying documentation")
+	(help @copyfiles-help "\nThe documentation of Flare."
+	)
+	(source "")
+	(choices "README" "README.info" "README.AmigaOS" "README.AmigaOS.info" "COPYING" "COPYING.info")
+	(dest			#fdest)
+	(infos)
+	(confirm "expert")
+)
+(complete 13)
+(copyfiles
+	(prompt "Copying 'mods' directory")
+	(help @copyfiles-help "\nThese files are required for the game to work. "
+	"They take about 46 MiB of diskspace."
+	)
+	(source "mods")
+	(dest			(tackon #fdest "mods"))
+	(all)
+	(confirm "expert")
+)
+(complete 97)
+;==============================================================================
+; Create or overwrite file(s) - settings and scripts
+;==============================================================================
+(complete 98)
+(P_settings)
+(complete 100)
+(message #appname " is now installed. It may be uninstalled/removed by simply "
+"deleting the drawer " #fdest
+)
+(exit)

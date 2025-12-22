@@ -1,0 +1,177 @@
+ Tunnels take 3: Moving the tunnel creation out of attempt_joining()
+ ===================================================================
+
+ The map generation has been buggy, and the fact the buggy stuff was
+all in attempt_joining() alongside the complex stuff that did work
+well (and was understood) doesn't help that. So all that is going
+into plunk_path1, and plunk_path2.
+
+
+ These will find any/all areas and regions at either end of the
+tunnel; it will place all the tunnel sections; it will place all
+the intersections; it will place any doors; it will merge regions
+and areas. Think that's everything...
+
+
+ At each end, there WILL be AT LEAST one area; I don't think there can
+actually be more than 2 different areas per end, even though the code
+will likely have to deal with the possibility of 3.
+
+ At each end, there could be any number (actually 0 to 2 or 3) of
+different regions. If joining 2 rooms, there are no regions (because
+no preexisting tunnels), so we have to produce a new one for the
+tunnel. If joining 1 room, we will have to use the region (or one of
+the regions) found at the other end for the tunnel. If joining
+2 tunnels, we can pick any region, but will likely pick the first
+one found at the source. All this guff was done in attempt_joining,
+but I think the plunk_paths code should do that too, now.
+
+ Tun_region->Area should be tun_region->Area, unsuprisingly: if we
+pick a region from the source end, the area for the tunnel should be
+the area of that region we found. But if we create a region, then we
+have to set an area for it: just choose the source area (from the
+source room). How do we set this? Well not only do we set tun_region
+=source_area, we ALSO have to remember to do:
+ tun_region->Nextregion=source_area->Firstregion;
+ source_area->Firstregion=tun_region;
+as was done in attempt_joining for those circumstances. We should also
+initialise all the other elements of tun_region, but that's self-
+explanatory.
+
+
+ So, we now have tun_region set up to pass to build_tunnel;
+
+ We've also worked out "soverlap" and "toverlap", to remember whether
+or not tunnels have to be extended at source/target ends (simply looking
+for tunnels at either end isn't right, as there's bound to be other
+tunnels there already if connecting tunnels; no, rather, we check the
+central cells themselves of the source and target areas: if they're
+empty, we need to extend tunnels, otherwise we don't! Simple, eh?)
+
+ If tunnels need to be extended in-line, then we alter the coords that
+build_tunnel() will use.
+
+ Now, we do build_tunnel(); And then we do merge_areas(source_area,target_area),
+as source_area and target_area MUST be different... And if source and
+target were both tunnels, we THEN do merge_regions(source_region,target_region),
+as they MUST have been different too.. EXCEPT that eventually attempt_joining()
+should be able to sometimes choose to connect already-connected regions
+(but that's different regions of the same area).
+
+ Now, source and target should be logically connected, BUT there may be
+other regions/areas around either end which also need to be connected
+(I'm pretty sure that there couldn't be any others at the source end
+unless the tunnel's one single cell and therefore that end is also
+the target...).
+
+ So, if "toverlap" is false (meaning tunnel had to be extended in whichever
+direction), we check the 3 surrounding cells (I think it should actually
+be 2, tho) for tunnels with a different region pointer (which would
+also catch any with a different area pointer, unless things are corrupted).
+But a different region pointer to WHAT? If we'd been joining 2 tunnels,
+one of our regions would have been absorbed by the other, so would be
+invalid... OK, in those cases, source_region gets freed and we would
+have to set  tun_region=target_region  to keep things sweet. Or alter
+the order of arguments to merge_regions().
+
+ So, for each of those where tun->Region!=tun_region, we first check
+if tun->Region->Area!=tun_region->Area, and if so, call
+merge_areas(tun->Region->Area,tun_region) (which absorbs tun->Region->Area);
+Then, we call merge_regions(tun->Region,tun_region).
+
+So, is that all? No! Still assuming that soverlap or toverlap were false,
+for each end as appropriate, we check the surrounding cells for tunnel/
+door tiles, and do the stuff with building new intersections and/or
+tunnels to connect them.
+
+ If in-line tunnel and one side-tunnel at source end:
+
+      *
+     *+::::::::::::
+
+     (*: new intersection to connect with adjoining tunnel tile;
+      +: actual source coords, also with intersection)
+
+
+  If in-line tunnel at source end, but no side tunnels,
+     *+:::::::::::::
+
+    (*: new intersection to connect with in-line tunnel cell;
+     +: actual source coords, WITHOUT intersection)
+
+  If in-line tunnel at source end, with 2 side tunnels,
+
+      *
+     *+::::::::::::::::
+      *
+    (*: new intersection to connect with adjoining tunnel tile;
+     +: actual source coords, also with intersection)
+
+  If no in-line tunnel at source end, but 1 side tunnel,
+
+      *
+      +:::::::::::::::
+
+     (*:new intersection to connect with adjoining tunnel cell;
+      +:actual source coords, also with intersection)
+
+  If no in-line tunnel at source end, but with 2 side tunnels,
+
+      *
+      +:::::::::::::::::
+      *
+
+     (*:new intersection to connect with adjoining tunnel cell;
+      +:actual source coords, also with intersection)
+
+ Diagrams don't show extra tunnels sections created for side tunnel cells.
+
+So: If there's any side tunnels at all, there has to be an intersection
+at the proper coords; if there's no in-line tunnel, there has to be an
+intersection at the proper coords (because that's where the tunnel ends).
+If there's any side tunnels at all, there has to be a second tunnel
+that crosses the main tunnel, joining them. If there's 2 side tunnels
+(AFAICT, this would actually be the only possible case for there being
+2 different tunnel regions at either end... although you could still have
+other combinations of 2 or more tunnels at an end that weren't different),
+then the crossing tunnel would be 3 cells long, else it would only be
+2. Any side tunnels have to have intersections built on them.
+
+
+ EEK! If any of the adjoining tunnel cells were actually entrances, we
+really wouldn't want to put intersections there, as it'd prolly muck
+up the AI. BUT, would it be possible to even HAVE entrances right
+next to our vacant cell? I'm pretty sure entrances are ALWAYS
+orthogonally surrounded by 1 room cell, 1 tunnel cell, and 2 wall
+cells (or corner cells). So the only way our endpoints could be
+next to an entrance would be if they were on top of tunnel cells,
+in which case there'd be overlap (so adjoining cells ignored).
+
+ Source/target constraints:
+ ==========================
+
+ As mentioned above, I'm fairly sure that there are certain constraints
+over what can be found around either end of the tunnel:
+
+ There shouldn't be areas around source that aren't source_area, unless
+source IS target, in which case the target code should take care of that.
+As said below, there could be surrounding cells to join to tho.
+
+ There shouldn't be an in-line tunnel for the target end (due to the way
+probe path works)... but I'm not sure this is the case. Actually, I think
+there could be one if there's also a side tunnel (as these would stop
+probe path); otherwise, the target would have gone one step further and
+overlapped it.
+
+ There may be 3 tunnels found around source or target ends... but that
+doesn't mean there'd be 3 different regions or areas to be found.
+The tunnels (assuming there was no overlap set) would still have to have
+intersections and/or tunnels built, whether or not they needed to be
+merged in with the area/region.
+
+ If there's overlap, we don't care about any surrounding tunnels AT ALL,
+as they should be truly connected with the overlap (because they already
+surrounded the overlap...)
+
+ If the source IS the target, there can't be overlap. For a start, that
+would mean that source_area == target_area...

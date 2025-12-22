@@ -1,0 +1,122 @@
+(set GameDir "ChuckRock2")
+
+;----------------------------
+
+;try to figure out a place where the user usually installs his games
+(if (exists "Games:" (noreq) )
+    (set @default-dest "Games:")
+    (if (exists "SYS:Games" (noreq) )
+        (set @default-dest "SYS:Games")
+        (if (exists "Work:Games" (noreq) )
+            (set @default-dest "Work:Games")
+            (if (exists "JEUX:" (noreq) )
+               (set @default-dest "JEUX:")
+               (set @default-dest "SYS:")
+            )
+        )
+    GameDir
+    )
+)
+
+(set #game_ver
+	(askchoice
+		(prompt "Which version")
+		(help	@askoptions-help)
+		(choices
+		   "CD-32 version"
+		   "Floppy version"
+		)
+	)
+)
+
+(message "\n\n\nThis loader needs the JST program (NOT INCLUDED)\n to be copied in your path\n\n(if you don't have it already)\n\nJST is available from aminet (game/patch) or on my site")
+
+(set @default-dest
+(askdir
+	(prompt ("Where should %s installed ?\nA drawer \"%s\" will automatically created." @app-name @app-name))
+	(help @askdir-help)
+	(default @default-dest)
+	(disk)
+)
+)
+
+(set #dest (tackon @default-dest @app-name))
+
+
+(makedir #dest
+	(help @makedir-help)
+	(infos)
+)
+
+;----------------------------
+
+(copyfiles
+	(help @copyfiles-help)
+	(source "Chuck2HD")
+	(dest #dest)
+	(infos)
+)
+
+(copyfiles
+	(help @copyfiles-help)
+	(source "chuck2hd.readme")
+	(dest #dest)
+	(infos)
+)
+
+
+(if (= #game_ver 1)
+    (
+
+(set #CI_unit
+	(askchoice
+		(prompt "From which disk unit do you want\nto install the game")
+		(help	@askoptions-help)
+		(choices
+		   "DF0:"
+		   "DF1:"
+		   "DF2:"
+		   "DF3:"
+		)
+	)
+)
+
+(set #CI_drive ("DF%ld:" #CI_unit))
+
+
+	(message ("\nInsert %s disk 1 into drive %s !" @app-name #CI_drive))
+	(if
+		(= 0 (run ("disk2file %ld \"%s/ChuckRock2.d1\" SKIPROB >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"disk2file\" must be in your PATH !")
+	)
+
+	(message ("\nInsert %s disk 2 into drive %s !" @app-name #CI_drive))
+	(if
+		(= 0 (run ("disk2file %ld \"%s/ChuckRock2.d2\" >con:///1000//CLOSE/WAIT" #CI_unit #dest )))
+		("")
+		(abort "\"disk2file\" must be in your PATH !")
+	)
+
+)
+
+(if (= #game_ver 0)
+    (
+	(message ("\nInsert %s CD-ROM into any drive" @app-name))
+
+        (copyfiles (source "CHUCK_ROCK_2:soc1")
+                   (dest #dest)
+		   (newname "ChuckRock2.d1")
+        )
+
+        (copyfiles (source "CHUCK_ROCK_2:soc2")
+                   (dest #dest)
+		   (newname "ChuckRock2.d2")
+        )
+
+	)
+    )
+)
+
+(exit)
+

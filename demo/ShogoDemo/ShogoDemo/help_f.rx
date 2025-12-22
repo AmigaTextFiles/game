@@ -1,0 +1,204 @@
+/* AREXX Script to ask to configure the browser */
+
+
+OPTION RESULTS
+
+if ~exists("ENV:ShogoDemo") then
+do
+    address command 'makedir env:ShogoDemo'
+    address command 'makedir envarc:ShogoDemo'
+end
+
+if ~exists("ENV:ShogoDemo/Browser") then
+do
+    call main()
+end
+
+i = open("f", "ENV:ShogoDemo/Browser", "READ")
+if i = 0 then
+do
+    address command 'RequestChoice TITLE "Error" BODY "Cannot get browser info" GADGETS "Abort"'
+    return
+end
+
+line = readln("f")
+line = line || '"file://localhost/' || pragma("d") || '/README.french.html"'
+address command line
+
+return
+
+getresult: procedure
+    if open("f", "t:h2w", "READ") = 1 then do
+	line = readln("f")
+	call close("f")
+	return line
+    end
+    return ""
+
+
+GetChoice: Procedure
+    parse arg list,gads
+
+    string = "I have determined that you have the following browsers installed:*n"
+    string = string || list
+    string = string || "*nPlease select which one you want to use:"
+
+    address command 'RequestChoice >t:h2w TITLE "Browser Selection" BODY "'||string||'" GADGETS "'||gads||'"'
+    return
+
+WriteEnv: Procedure
+    parse arg what
+
+    if ~exists("ENV:ShogoDemo") then
+    do
+	call MakeDir("ENV:ShogoDemo")
+	call MakeDir("ENVARC:ShogoDemo")
+    end
+
+    i = open("a","ENV:ShogoDemo/Browser","WRITE")
+    if i = 0 then return
+
+    call writeln("a", what)
+    call close("a")
+
+    i = open("a","ENVARC:ShogoDemo/Browser","WRITE")
+    if i = 0 then return
+
+    call writeln("a", what)
+    call close("a")
+    
+    return
+
+
+main: Procedure
+    /* Check for IBrowse in the path */
+    address command 'which IBrowse >t:h2w'
+    ib = getresult()
+
+    /* Check for WORK:Ibrowse/IBrowse */
+    if ib = "" then
+    do
+	call pragma("Window", "Null")
+	if exists("WORK:Ibrowse/IBrowse") then
+	    ib = "WORK:IBrowse/IBrowse"
+	call pragma("Window", "WorkBench")
+    end
+
+    /* Check for SYS:Ibrowse/ibrowse */
+    if ib = "" then
+    do
+	call pragma("Window", "Null")
+	if exists("SYS:Ibrowse/IBrowse") then
+	    ib = "SYS:IBrowse/IBrowse"
+	call pragma("Window", "WorkBench")
+    end
+
+
+    address command 'which Aweb-II >t:h2w'
+    aweb = getresult()
+
+    /* Check for OS 3.5 default installation */
+    if aweb = "" then
+    do
+	call pragma("Window", "Null")
+	if exists("sys:Internet/AWeb3SE/AWeb-II") then
+	    aweb = "sys:Internet/AWeb3SE/AWeb-II"
+	call pragma("Window", "WorkBench")
+    end
+
+    address command 'which V >t:h2w'
+    voyager = getresult()
+
+    /* Check for Work:Voyager/V */
+    if voyager = "" then
+    do
+	call pragma("Window", "Null")
+	if exists("work:Voyager/V") then
+	    voyager = "Work:Voyager/V"
+	call pragma("Window", "WorkBench")
+    end
+
+    /* Verify that what we found as 'V' is really voyager */
+    if voyager ~= "" then
+    do
+	address command 'version '||voyager||' >t:h2w'
+	vers = getresult()
+	parse upper var vers prog .
+	if prog ~= "VOYAGER" then
+	    voyager = ""
+    end
+
+    list = ""
+    gads = ""
+    sym  = ""
+
+    if ib ~= "" then
+    do
+	list = "IBrowse"
+	gads = "IBrowse"
+	sym  = "I"
+    end
+
+    if aweb ~= "" then
+    do
+	list = list||" AWeb"
+	gads = gads||"|AWeb"
+	sym = sym||"A"
+    end
+
+    if voyager ~= "" then
+    do
+	list = list||" Voyager"
+	gads = gads||"|Voyager"
+	sym = sym||"V"
+    end
+
+    if left(gads,1,1) = "|" then
+    do
+	gads = substr(gads,2)
+	list = substr(list,2)
+    end
+
+    ch = ""
+
+    if gads ~= "" then
+    do
+	gads = gads||"|Let me choose"
+	call GetChoice(list,gads)
+	res = getresult()
+	if res = "0" then
+	    ch = ""
+	else
+	    ch = substr(sym, res,1)
+    end
+
+    if gads = "" | ch = "" then
+    do
+	address command 'RequestFile >t:h2w TITLE "Select your Browser..." POSITIVE "Use this program" NEGATIVE "Abort" DRAWER "SYS:"'
+	line = getresult()
+	if line ~= "" then
+	do
+	    line = substr(line, 2, length(line)-2)
+	    ch = " "
+	end
+    end
+
+    select
+	when ch = "I" then
+	    cmdline = ib || " URL "
+	when ch = "A" then
+	    cmdline = aweb || " URL "
+	when ch = "V" then
+	    cmdline = voyager || " URL "
+	when ch = " " then
+	    cmdline = line||" "
+	otherwise
+	    return
+    end
+
+    call WriteEnv(cmdline)
+
+    return
+
+
+

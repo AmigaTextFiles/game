@@ -1,0 +1,89 @@
+; Small reloc routine for those who include the module directly in
+; the program code.
+
+; NOTE: THE MODULE POINTER IS PASSED IN STACK, SO THIS IS COMPATIBLE
+;       WITH C-PROGRAMS.
+
+	section	"text",code
+
+	xdef	_RelocModule
+
+reloci	move.l	24(a2),d0
+	beq.s	xloci
+	movea.l	d0,a0
+	moveq   #0,d0
+	move.b  787(a1),d0	;number of samples
+	subq.b  #1,d0
+relocs:	bsr.s   relocentr
+	move.l	-4(a0),d3	;sample ptr
+	beq.s	nosyn
+	move.l	d3,a3
+	tst.w	4(a3)
+	bpl.s	nosyn		;type >= 0
+	move.w	20(a3),d2	;number of waveforms
+	lea	278(a3),a3	;ptr to wf ptrs
+	subq.w	#1,d2
+relsyn:	add.l	d3,(a3)+
+	dbf	d2,relsyn
+nosyn:	dbf     d0,relocs
+xloci	rts
+norel	addq.l	#4,a0
+	rts
+relocentr:
+	tst.l   (a0)
+	beq.s   norel
+	add.l   d1,(a0)+
+	rts
+_RelocModule:
+	move.l	4(sp),a0	;get module pointer from stack
+	movem.l	a2-a3/d2-d3,-(sp)
+	movea.l a0,a2
+	move.l  a2,d1		;d1 = ptr to start of module
+	bsr.s	relocp
+	movea.l 8(a2),a1
+	bsr.s	reloci
+rel_lp	bsr.s	relocb
+	move.l	32(a2),d0	;extension struct
+	beq.s	rel_ex
+	move.l	d0,a0
+	bsr.s	relocentr	;ptr to next module
+	bsr.s	relocentr	;InstrExt...
+	addq.l	#4,a0		;skip sizes of InstrExt
+; We reloc the pointers of MMD0exp, so anybody who needs them can easily
+; read them.
+	bsr.s	relocentr	;annotxt
+	addq.l	#4,a0		;annolen
+	bsr.s	relocentr	;InstrInfo
+	addq.l	#8,a0
+	bsr.s	relocentr	;rgbtable (not useful for most people)
+	addq.l	#4,a0		;skip channelsplit
+	bsr.s	relocentr	;NotationInfo
+	move.l	d0,a0
+	move.l	(a0),d0
+	beq.s	rel_ex
+	move.l	d0,a2
+	bsr.s	relocp
+	movea.l 8(a2),a1
+	bra.s	rel_lp
+rel_ex	movem.l	(sp)+,d2-d3/a2-a3
+	rts
+
+relocb	move.l	16(a2),d0
+	beq.s	xlocb
+	movea.l	d0,a0
+	move.w  504(a1),d0
+	subq.b  #1,d0
+rebl	bsr.s   relocentr
+	dbf     d0,rebl
+xlocb	rts
+
+relocp	lea	8(a2),a0
+	bsr.s	relocentr
+	addq.l	#4,a0
+	bsr.s	relocentr
+	addq.l	#4,a0
+	bsr.s	relocentr
+	addq.l	#4,a0
+	bra.s	relocentr
+
+	end

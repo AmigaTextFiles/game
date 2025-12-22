@@ -1,0 +1,148 @@
+; $VER: RoboCod CD32 & floppy HD Install-Script V1.0 by Jean-Francois Fabre
+
+
+;try to figure out a place where the user usually installs his games
+(if (exists "Games:" (noreq) )
+    (set @default-dest "Games:")
+    (if (exists "SYS:Games" (noreq) )
+        (set @default-dest "SYS:Games")
+        (if (exists "Work:Games" (noreq) )
+            (set @default-dest "Work:Games")
+            (if (exists "JEUX:" (noreq) )
+               (set @default-dest "JEUX:")
+               (set @default-dest "SYS:")
+            )
+        )
+    )
+)
+
+;	(message ("\"%s %s\"" (tackon @icon "patchexe") (tackon @default-dest "RoboCod") ))
+;	(message ("\"xfddecrunch %s\"" (tackon @default-dest "RoboCod") ))
+
+(set #game_ver
+	(askchoice
+		(prompt "Which version of RoboCod \ndo you want to install")
+		(help	@askoptions-help)
+		(choices
+		   "CD-32 version"
+		   "A1200 floppy version"
+		)
+	)
+)
+
+
+(set GameDir "RoboCod")
+
+
+
+;ask the user to select a directory to install the game into
+(set default-dest
+     (tackon (askdir (prompt "Where would you like " @app-name " installed?\n"
+                             "A drawer called " GameDir " will be created.")
+                     (help @askdir-help)
+                     (default @default-dest)
+             )
+     GameDir
+     )
+)
+(set @default-dest default-dest)
+
+;	create the selected directory
+(makedir @default-dest
+         (infos)
+)
+
+
+(if (= #game_ver 0)
+    (
+
+(makedir (tackon @default-dest "pages"))
+(makedir (tackon @default-dest "c"))
+
+        (message "\n\n\n\n\n\nPlease insert RoboCod CD-ROM in any drive")
+
+        (copyfiles (source "RoboCod_CD:")
+                   (dest @default-dest)
+		   (pattern "#?")
+		   (files)
+        )
+
+        (copyfiles (source "RoboCod_CD:pages")
+                   (dest (tackon @default-dest "pages"))
+		   (all)
+        )
+
+        (copyfiles (source "RoboCod_CD:c")
+                   (dest (tackon @default-dest "c"))
+		   (all)
+        )
+
+
+        (copyfiles (source "Start.icon")
+                   (dest @default-dest)
+		   (newname "Start.info")
+        )
+
+        (copyfiles (source "Start")
+                   (dest @default-dest)
+        )
+
+        (copyfiles (source "run500")
+                   (dest @default-dest)
+        )
+
+   )
+)
+
+
+
+(if (= #game_ver 1)
+    (
+
+
+        (message "\n\n\n\n\n\nPlease insert RoboCod A1200 disk in any drive")
+
+        (copyfiles (source "RoboCod:RoboCod")
+                   (dest @default-dest)
+        )
+
+        (copyfiles (source "Start.icon")
+                   (dest @default-dest)
+		   (newname "RoboCodHD.info")
+        )
+
+        (copyfiles (source "RoboCodHD")
+                   (dest @default-dest)
+        )
+
+        (message "\n\n\n\n\n\nI will now decrunch and patch the program")
+
+	(if
+
+		(= 0 (run ("xfddecrunch >NIL: %s" (tackon @default-dest "RoboCod")  )) )
+		("")
+		(abort "Install XFDDecrunch package first\n\n(util/pack/XFDDecrunch.lha on aminet)")
+	)
+
+		(message ("%s %s" (tackon @icon "patchexe") (tackon @default-dest "RoboCod") ))
+
+	(if
+
+		(= 0 (run ("patchexe %s" (tackon @default-dest "RoboCod") )) )
+		("")
+		(abort "patchexe could not be executed!!")
+	)
+
+
+   )
+)
+
+
+	;copy all extra files to this directory
+
+        (copyfiles (source "RoboCodhd.readme")
+                   (dest @default-dest)
+		   (infos)
+        )
+
+

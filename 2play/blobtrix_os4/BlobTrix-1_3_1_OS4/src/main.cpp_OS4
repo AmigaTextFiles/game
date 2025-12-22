@@ -1,0 +1,129 @@
+/*
+    Copyright (c) 2004-2005 Markus Kettunen
+
+    This file is part of Blobtrix.
+
+    Blobtrix is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Blobtrix is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Blobtrix; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+
+#include <stdio.h>
+#include <string.h>
+
+#include "SDL/SDL.h"
+#include "SDL_net.h"
+
+#include "config.h"
+
+#include "window.h"
+#include "graphics.h"
+#include "keyboard.h"
+#include "mouse.h"
+#include "variable.h"
+#include "net.h"
+#include "block.h"
+#include "trixmenu.h"
+#include "client.h"
+#include "followclient.h"
+#include "sound.h"
+#include "media.h"
+
+#include "files.h"
+
+window Window;
+graphics Graphics;
+keyboard Keyboard;
+mouse Mouse;
+block Block;
+menu Menu;
+media Media;
+
+UDPsocket sock;
+
+#define SCREENWIDTH 800
+#define SCREENHEIGHT 600
+#define SCREENBPP 32
+
+int main(int argc, char *argv[]) {
+   bool fullscreen=false;
+
+	Uint32 flags=0;
+	flags = flags|SDL_INIT_TIMER;
+#ifndef NOVIDEO
+	flags = flags|SDL_INIT_VIDEO;
+#endif
+#ifndef NOAUDIO
+	flags = flags|SDL_INIT_AUDIO;
+#endif
+
+	if (SDL_Init(flags) != 0) {
+		fprintf (stderr, "Couldn't init SDL: %s\n", SDL_GetError() );
+		exit(1);
+	}
+	atexit(SDL_Quit);
+
+	SDL_EnableUNICODE(1);
+
+	srand(SDL_GetTicks());
+
+	for (int argnum=1; argnum < argc; argnum++) {
+		if (!strcmp(argv[argnum], "-f") || !strcmp(argv[argnum], "--fullscreen")) {
+			fullscreen=true;
+		}
+
+	}
+	if (!fullscreen) Window.OpenWindow(SCREENWIDTH, SCREENHEIGHT, SCREENBPP, SDL_HWSURFACE|SDL_DOUBLEBUF);
+	else Window.OpenWindow(SCREENWIDTH, SCREENHEIGHT, SCREENBPP, SDL_HWSURFACE|SDL_FULLSCREEN|SDL_DOUBLEBUF);
+
+	
+	net::Start();
+
+	sock = SDLNet_UDP_Open(0);
+	if (!sock) {
+		fprintf (stderr, "Couldn't open socket. :(\n");
+		fprintf (stderr, "Exiting.\n");
+		exit(1);
+	}
+
+#ifndef NOSOUND
+	sound::Start();
+	sound::SetChannels(8);
+#endif
+
+	Window.SetTitle("Blobtrix");
+
+	SDL_Surface *blobtrox = Graphics.LoadPicture(DATA_BLOBTROX_JPG);
+	Graphics.DrawIMG(Window.GetScreen(), blobtrox, 0, 0);
+	SDL_Flip(Window.GetScreen());
+
+	Block.LoadPics();
+	Keyboard.ResetAll();
+/*
+	SDL_Surface *blobtrix = Graphics.LoadPicture(DATA_BLOBTROX_JPG);
+	Graphics.DrawIMG(Window.GetScreen(), blobtrix, 0, 0);
+	SDL_Flip(Window.GetScreen());
+*/
+	Menu.Initialize();
+   	Menu.MainMenu();
+
+#ifndef NOSOUND
+	sound::Stop();
+#endif
+	net::Stop();
+
+	Menu.CleanUp();
+
+  return(0);
+}

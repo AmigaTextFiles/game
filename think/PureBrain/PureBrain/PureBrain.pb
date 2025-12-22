@@ -1,0 +1,1612 @@
+;
+;
+;
+; Pure Brain
+; By MaVaTi        
+; Started the 29-4-2000
+;
+;
+; Done on A1200/040/PPC , AmigaOS3.5 (Brandivy/56)
+; and on Portable-Celeron433, with WinUAE ! (Nanterre/92)
+;
+WBStartup()
+
+GamePath.s = "PROGDIR:"                       ; for making executable
+;GamePath.s = "PureBasic:Progs/PureBrain/"     ; for running from PureBasic editor
+Ver.s ="0.7.4"
+VerDate.s = "09 august 2000"
+Version.s="$VER: PureBrain 0.7.4 (09.09.00) Copyright 2000 Marc Le Douarain"
+
+
+Structure PBScreenRequester
+  DisplayID.l
+  Width.l
+  Height.l
+  Depth.w
+  AutoScroll.b
+EndStructure
+
+Structure StructGfxData
+  NumPatMaxi.w
+  PatWidth.w
+  PatHeight.w
+  Depth.w
+  BackgroundUsed.w
+  BackgroundLeft.w
+  BackgroundTop.w
+  BackgroundWidth.w
+  BackgroundHeight.w
+EndStructure
+
+Structure StructPrefsData
+  ScreenModeID.l
+  ScreenWidth.l ;w
+  ScreenHeight.l ;w
+  FontName.s
+  FontSize.l ;w
+  FontLoaded.l ;w
+  PatternsFile.s
+EndStructure
+
+Structure StructHiScore
+  Name.s
+  Level.l
+  Score.l
+EndStructure
+
+; Const
+#TRUE = 1
+#FALSE = 0
+#NUM_PATTERN_MAXI = 100
+#ID_BMP_BACKGROUND = #NUM_PATTERN_MAXI+1
+#ID_BMP_PICTURE = #NUM_PATTERN_MAXI+2
+
+#AREA_XSIZE = 6
+#AREA_YSIZE = 6
+
+#MODEL = 0
+#GAME = 1
+
+#CLOCKWISE = 0
+#ANTICLOCKWISE = 1
+
+#MODEMENU = 0
+#MODEPLAY = 1
+#MODEEDIT = 2
+
+#ENDGAME_ABORT = 1
+#ENDGAME_END = 2
+#ENDGAME_TIMEOUT = 3
+
+#SOUND_COMPUTER_SWAP = 0
+#SOUND_USER_SWAP = 1
+#SOUND_LOOSE = 2
+#SOUND_WIN = 3
+#SOUND_CLOCK = 4
+
+; Integer constants for random numbers
+#A = 16807
+#M = 2147483647
+#Q = 127773
+#R = 2836
+
+; Globals
+
+Dim GameArea(#AREA_XSIZE*#AREA_YSIZE)
+Dim ModelArea(#AREA_XSIZE*#AREA_YSIZE)
+
+Dim AAAAAAAAAA(1000)
+PtrGameArea.l = @GameArea()
+PtrModelArea.l = @ModelArea()
+            
+Global Ver.s
+Global GameArea_XBase
+Global GameArea_YBase
+Global ModelArea_XBase
+Global ModelArea_YBase
+Global PatSelectedX
+Global PatSelectedY
+Global PatSelectedXBak
+Global PatSelectedYBak
+Global TimeToGo.l
+Global NumPatMaxi
+Global GameMode
+Global LevelFileEdited.s
+Global GfxData.StructGfxData
+Global PrefsData.StructPrefsData
+Dim HiScore.StructHiScore(22)
+Global ScrTitle.s
+Global WinEditTitle.s
+Global WinHiScoresTitle.s
+Global MenuWindow.l
+Global GameWindow.l
+Global EditWindow.l
+Global CreateMenuFirstTime
+Global SoundInitOk
+GameArea_XBase = 160
+GameArea_YBase = 135
+ModelArea_XBase = 50
+ModelArea_YBase = 22
+PatSelectedX = -1
+PatSelectedY = -1
+PatSelectedXBak = -1
+PatSelectedYBak = -1
+TimeToGo.l = 0
+NumPatMaxi = 1
+GameMode = #MODEMENU
+LevelFileEdited.s = ""
+PrefsData\ScreenWidth = 0
+PrefsData\ScreenHeight = 0
+GfxData\Depth = 2
+PrefsData\FontName = "XHelvetica.font"
+PrefsData\FontSize = 13
+PrefsData\FontLoaded = #FALSE
+PrefsData\PatternsFile = GamePath.s+"Data/DefaultGfx_16x16_ecs.iff"
+for i=1 to 10
+  HiScore(i)\Name = "---"
+  HiScore(i)\Level = 0
+  HiScore(i)\Score = 0
+next i
+CreateMenuFirstTime = #TRUE
+SoundInitOk = #FALSE
+
+ScrTitle.s = "PureBrain v"+Ver.s
+WinEditTitle.s = "Editor"                             
+WinHiScoresTitle.s = "PureBrain Hi-Scores"
+                                             
+iseed.l = 1 ; for random numbers
+
+
+
+; Init libraries
+InitScreen(1)
+InitWindow(5)
+InitPicture(0)
+if InitBitmap(#ID_BMP_PICTURE+1)=0
+  printn("Init Bitmap library failed!")
+  end
+endif
+InitPalette(0)
+InitTaglist(10)
+InitFile(0)
+InitMenu(5,30)                      
+InitGadget(2)
+if InitRequester()=0
+  printn("Init ASL.library failed!")
+  end
+endif
+if InitToolType(1)=0
+  printn("Init ToolType lib failed")
+  end
+endif
+if InitFont(5)=0
+  printn("Init diskfont.library failed")
+  end
+endif
+
+if OpenIntuitionLibrary_(36)=0
+  printn("Init. Intuition Library failed")
+  end
+endif
+
+if OpenUtilityLibrary_(36)=0
+  printn("Init. Utility Library failed")
+  end
+endif
+
+Procedure.b GetGameArea(x,y)
+shared PtrGameArea.l
+  *Ptr = PtrGameArea.l
+  ProcedureReturn PeekB(*Ptr+x+y*#AREA_XSIZE) 
+EndProcedure
+
+Procedure SetGameArea(x,y,val)
+shared PtrGameArea.l
+  *Ptr = PtrGameArea.l
+  PokeB(*Ptr+x+y*#AREA_XSIZE,val)
+EndProcedure
+
+Procedure.b GetModelArea(x,y)
+shared PtrModelArea.l
+  *Ptr = PtrModelArea.l
+  ProcedureReturn PeekB(*Ptr+x+y*#AREA_XSIZE) 
+EndProcedure
+
+Procedure SetModelArea(x,y,val)
+shared PtrModelArea.l
+  *Ptr = PtrModelArea.l
+  PokeB(*Ptr+x+y*#AREA_XSIZE,val)
+EndProcedure
+
+
+Procedure.b ExtractCar(Adr.l,Posi)
+  ProcedureReturn PeekB(Adr.l+Posi)
+EndProcedure
+
+
+Procedure AdaptForScreenSize()
+  ScrWi = PrefsData\ScreenWidth
+  Val.l = ScrWi*170
+  Val.l = Val.l/320
+  GameArea_XBase = Val.l
+  ScrHe = PrefsData\ScreenHeight
+  Val = ScrHe*135
+  Val = Val/256
+  GameArea_YBase = Val
+  Val = ScrWi*40
+  Val = Val/320
+  ModelArea_XBase = Val
+  Val = ScrHe*22
+  Val = Val/256
+  ModelArea_YBase = Val
+;  GameArea_XBase = (160*PrefsData\ScreenWidth) ;/320 
+;  GameArea_YBase = (135*PrefsData\ScreenHeight)/256
+;  ModelArea_XBase = (50*PrefsData\ScreenWidth)/320
+;  ModelArea_YBase = (22*PrefsData\ScreenHeight)/256
+EndProcedure
+
+Procedure InitLevel()
+  for y = 0 to #AREA_YSIZE-1
+    for x = 0 to #AREA_XSIZE-1
+      SetGameArea(x,y,0)    
+      SetModelArea(x,y,0)
+    next x
+  next y
+EndProcedure
+
+; Init game area & model area with a level from a file
+Procedure.w LoadLevel(LevelFile.s)
+  InitLevel()
+  x=0
+  y=0
+  if ReadFile(0,LevelFile.s)
+    str.s = ReadString()
+    TimeToGo.l = val(str.s)
+    repeat
+
+      str.s = ReadString()
+      printn("LINE="+str.s+"   LEN="+Str(len(str.s)))
+      posi = 0
+
+      if len(str.s)>0
+
+        ; reading the full line...
+        repeat
+
+          ; getting one number
+          val = 0
+          repeat
+            car = ExtractCar(@str.s,posi)
+            posi+1
+            if car<>asc(",") AND car<>13 AND car<>asc(" ") AND Eof()=0 
+              val = val*10
+              val = val+car-asc("0")
+            endif
+          until car=Asc(",") OR posi>=len(str.s)     ;OR Eof()!=0
+
+          SetGameArea(x,y,val)
+          SetModelArea(x,y,val)
+;-printn("  ######")
+printn("X:"+Str(x)+" Y:"+Str(y)+"  PatVal=>"+Str(val))
+          x+1
+
+        until posi>=len(str.s)
+
+;      if car.b=13
+        y+1
+        x=0
+;      endif
+      endif
+
+    until Eof()
+    CloseFile(0)
+    ProcedureReturn #TRUE
+  else
+    ProcedureReturn #FALSE
+  endif
+EndProcedure
+
+
+; Save the level edited to a file
+Procedure SaveLevel(LevelFile.s)
+  if CreateFile(0,LevelFile.s)
+    Str.s = Str(TimeToGo.l)
+    Str.s = Str.s+Chr(10)
+    WriteString(Str.s)
+    for Line=0 to #AREA_YSIZE-1
+      Str.s = ""
+      for Col=0 to #AREA_XSIZE-1
+        Str.s = Str.s+Str(GetGameArea(Col,Line))
+        if Col<#AREA_XSIZE-1
+          Str.s = Str.s+","
+        endif
+      next
+      Str.s = Str.s+Chr(10)
+      WriteString(Str.s)
+    next
+    WriteString(Chr(10))
+    CloseFile(0)
+  endif
+EndProcedure
+
+
+Procedure MessageError(Msg.s)
+  EasyRequester("PureBrain",Msg.s,"Ok")
+EndProcedure
+
+Procedure DrawBackground()
+  if GfxData\BackgroundUsed
+    UseBitmap(#ID_BMP_BACKGROUND)
+    y = 0
+    repeat
+      x = 0
+      repeat
+        CopyBitmap(BitmapID(),0,0,x,y,GfxData\BackgroundWidth,GfxData\BackgroundHeight)
+        x = x + GfxData\BackgroundWidth
+      until x>=ScreenWidth()
+      y = y + GfxData\BackgroundHeight
+    until y>=ScreenHeight()
+  endif
+EndProcedure
+
+Procedure Box(bx1,by1,w,h)
+  Line(bx1,by1,w,0)
+  Line(bx1,by1+h,w,0)
+  Line(bx1,by1,0,h)
+  Line(bx1+w,by1,0,h)
+EndProcedure
+
+Procedure DrawBorder(Who)
+  if Who=#GAME
+    x = GameArea_XBase-4
+    y = GameArea_YBase-4
+  else
+    x = ModelArea_XBase-4
+    y = ModelArea_YBase-4
+  endif
+  FrontColour(0)
+  BoxFill(x,y,#AREA_XSIZE*GfxData\PatWidth+4+3,#AREA_YSIZE*GfxData\PatHeight+4+3)
+  FrontColour(1)
+  Box(x,y,#AREA_XSIZE*GfxData\PatWidth+4+3,#AREA_YSIZE*GfxData\PatHeight+4+3)
+  if Who=#GAME
+    x = x - 2
+    y = y - 2
+    Box(x,y,#AREA_XSIZE*GfxData\PatWidth+6+5,#AREA_YSIZE*GfxData\PatHeight+6+5)
+  endif
+EndProcedure
+
+Procedure HideGameArea()
+  FrontColour(2)
+  For y=GameArea_YBase-2 to GameArea_YBase+2+6+#AREA_YSIZE*GfxData\PatHeight Step 2
+    Line(GameArea_XBase-3,y,#AREA_XSIZE*GfxData\PatWidth+5,0)
+    VWait()
+  Next y
+  For y=GameArea_YBase+2+5+#AREA_YSIZE*GfxData\PatHeight to GameArea_YBase-3 Step -2
+    Line(GameArea_XBase-3,y,#AREA_XSIZE*GfxData\PatWidth+5,0)
+    VWait()
+  Next y
+EndProcedure
+
+Procedure DrawPattern(Who,Num,XPos,YPos)
+  shared NumPatMaxi
+  if Num>NumPatMaxi
+    Num = 1
+  endif
+  UseBitmap(Num)
+  if Who=#GAME
+    CopyBitMap(BitMapID(),0,0,GameArea_XBase+XPos*GfxData\PatWidth,GameArea_YBase+YPos*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight) 
+  else
+    CopyBitmap(BitMapID(),0,0,ModelArea_XBase+XPos*GfxData\PatWidth,ModelArea_YBase+YPos*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight)
+  endif
+EndProcedure
+
+Procedure DrawGamePatt(XPos,YPos)
+  PatNum = GetGameArea(XPos,YPos)
+  DrawPattern(#GAME,PatNum,XPos,YPos)
+EndProcedure
+
+Procedure DrawAllPatt(Who)
+  DrawBorder(Who)
+  for y = 0 to #AREA_YSIZE-1
+    for x = 0 to #AREA_XSIZE-1
+      if Who=#GAME
+        PatNum = GetGameArea(x,y)
+      else
+        PatNum = GetModelArea(x,y)
+      endif
+      DrawPattern(Who,PatNum,x,y)
+    next x.b
+  next y.b
+EndProcedure
+
+Procedure SwapPat(Sense,XBase,YBase)
+  Val1 = GetGameArea(XBase,YBase)
+  Val2 = GetGameArea(XBase+1,YBase)
+  Val3 = GetGameArea(XBase+1,YBase+1)
+  Val4 = GetGameArea(XBase,YBase+1)
+  if Sense=#CLOCKWISE
+    SetGameArea(XBase,YBase,Val4)
+    SetGameArea(XBase+1,YBase,Val1)
+    SetGameArea(XBase+1,YBase+1,Val2) 
+    SetGameArea(XBase,YBase+1,Val3) 
+  else
+    SetGameArea(XBase,YBase,Val2)
+    SetGameArea(XBase+1,YBase,Val3)
+    SetGameArea(XBase+1,YBase+1,Val4) 
+    SetGameArea(XBase,YBase+1,Val1) 
+  endif
+ 
+  for i=0 to GfxData\PatWidth
+    if Sense=#CLOCKWISE
+      UseBitmap(Val1)
+      CopyBitmap(BitmapID(),0,0,GameArea_XBase+i+XBase*GfxData\PatWidth,GameArea_YBase+YBase*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight)
+      UseBitmap(Val2)
+      CopyBitmap(BitmapID(),0,0,GameArea_XBase+(XBase+1)*GfxData\PatWidth,GameArea_YBase+i+YBase*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight)
+      UseBitmap(Val3)
+      CopyBitmap(BitmapID(),0,0,GameArea_XBase-i+(XBase+1)*GfxData\PatWidth,GameArea_YBase+(YBase+1)*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight)
+      UseBitmap(Val4)
+      CopyBitmap(BitmapID(),0,0,GameArea_XBase+XBase*GfxData\PatWidth,GameArea_YBase-i+(YBase+1)*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight)
+    else
+      UseBitmap(Val1)
+      CopyBitmap(BitmapID(),0,0,GameArea_XBase+XBase*GfxData\PatWidth,GameArea_YBase+i+YBase*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight)
+      UseBitmap(Val2)
+      CopyBitmap(BitmapID(),0,0,GameArea_XBase-i+(XBase+1)*GfxData\PatWidth,GameArea_YBase+YBase*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight)
+      UseBitmap(Val3)
+      CopyBitmap(BitmapID(),0,0,GameArea_XBase+(XBase+1)*GfxData\PatWidth,GameArea_YBase-i+(YBase+1)*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight)
+      UseBitmap(Val4)
+      CopyBitmap(BitmapID(),0,0,GameArea_XBase+i+XBase*GfxData\PatWidth,GameArea_YBase+(YBase+1)*GfxData\PatHeight,GfxData\PatWidth,GfxData\PatHeight)
+    endif
+;;;;;;    vwait()
+  next i
+
+;  DrawGamePatt(XBase,YBase)
+;  DrawGamePatt(XBase+1,YBase) 
+;  DrawGamePatt(XBase+1,YBase+1) 
+;  DrawGamePatt(XBase,YBase+1) 
+
+;  BoxX = GameArea_XBase + XBase*GfxData\PatWidth
+;  BoxY = GameArea_YBase + YBase*GfxData\PatHeight
+;  FrontColour(1)
+;  Box(BoxX,BoxY,GfxData\PatWidth*2,GfxData\PatHeight*2)
+EndProcedure
+
+Procedure.l Random(Maxi)
+  shared iseed.l
+  ; Find the quotient q=iseed/Q and remainder r=mod(iseed,Q)=iseed-q*Q
+  qq.l = SDivMod32_(iseed.l,#Q)
+  rr.l = iseed-SMult32_(qq,#Q)
+
+  ; Find the next seed from the formula: iseed=A*r-R*q
+  iseed = SMult32_(#A,rr) - SMult32_(#R,qq)
+
+  ; If iseed is negative, add m to iseed to make iseed a positive number
+  if iseed<0
+    iseed = iseed+#M
+  endif
+
+  itmp.l = iseed.l
+  iMaxi.l = Maxi
+  iMaxi.l = iMaxi.l+1
+  if itmp.l>Maxi
+    iq.l = SDivMod32_(itmp.l,iMaxi.l)
+    itmp.l = iseed.l - (SMult32_(iq.l,iMaxi.l))
+  endif
+
+  ProcedureReturn itmp.l
+EndProcedure
+
+
+Procedure LoadGfx(PictureFile.s)
+  ; --- Looking ToolTypes of the graphic file ---
+  if ReadToolTypeDiskInfo(0,PictureFile.s)
+    ToolValue.s = GetToolTypeValue(0,"NBR_PATTERNS")
+    if ToolValue.s<>""
+      NumPatMaxi = Val(ToolValue.s)
+    else
+      MessageError("Incorrect tooltype value for 'NBR_PATTERNS' of the graphics file")
+      end
+    endif
+    ToolValue.s = GetToolTypeValue(0,"PATTERN_WIDTH")
+    if ToolValue.s<>""
+      GfxData\PatWidth = Val(ToolValue.s)
+    else
+      MessageError("Incorrect tooltype value for 'PATTERN_WIDTH' of the graphics file")
+      end
+    endif
+    ToolValue.s = GetToolTypeValue(0,"PATTERN_HEIGHT")
+    if ToolValue.s<>""
+      GfxData\PatHeight = Val(ToolValue.s)
+    else
+      MessageError("Incorrect tooltype value for 'PATTERN_HEIGHT' of the graphics file")
+      end
+    endif
+    GfxData\BackgroundUsed = #TRUE
+    ToolValue.s = GetToolTypeValue(0,"BACKGROUND_LEFT")
+    if ToolValue.s<>""
+      GfxData\BackgroundLeft = Val(ToolValue.s)
+    else
+      GfxData\BackgroundUsed = #FALSE
+    endif
+    ToolValue.s = GetToolTypeValue(0,"BACKGROUND_TOP")
+    if ToolValue.s<>""
+      GfxData\BackgroundTop = Val(ToolValue.s)
+    else
+      GfxData\BackgroundUsed = #FALSE
+    endif
+    ToolValue.s = GetToolTypeValue(0,"BACKGROUND_WIDTH")
+    if ToolValue.s<>""
+      GfxData\BackgroundWidth = Val(ToolValue.s)
+    else
+      GfxData\BackgroundUsed = #FALSE
+    endif
+    ToolValue.s = GetToolTypeValue(0,"BACKGROUND_HEIGHT")
+    if ToolValue.s<>""
+      GfxData\BackgroundHeight = Val(ToolValue.s)
+    else
+      GfxData\BackgroundUsed = #FALSE
+    endif
+
+    printn( "Left = "+Str(GfxData\BackgroundLeft) )
+    printn( "Top = "+Str(GfxData\BackgroundTop) )
+    printn( "Width= "+Str(GfxData\BackgroundWidth) )
+    printn( "Height= "+Str(GfxData\BackgroundHeight) )
+  else
+    MessageError("Failed to load tooltypes in the icon of the graphics file :"+Chr(10)+"Gfx File .info not found : "+Chr(10)+PictureFile.s)
+    end
+  endif
+
+  ; --- Loading graphics ---
+  res.l = LoadPicture(0,PictureFile.s)
+  if res>0
+    PrintN ("Picture information: "+Str(PictureWidth())+"*"+Str(PictureHeight())+"*"+Str(PictureDepth()))
+    AllocateBitMap (#ID_BMP_PICTURE, PictureWidth(), PictureHeight(), PictureDepth())
+    UseBitmap(#ID_BMP_PICTURE)      
+    PictureToBitMap(0, BitMapID())
+    GfxData\Depth = PictureDepth()
+    ; --- Extract the background of the game ---
+    if GfxData\BackgroundUsed
+      AllocateBitmap(#ID_BMP_BACKGROUND,GfxData\BackgroundWidth,GfxData\BackgroundHeight,PictureDepth())
+      UseBitmap(#ID_BMP_BACKGROUND)
+      DrawingOutput(BitmapRastPort())
+      UseBitmap(#ID_BMP_PICTURE)
+      CopyBitmap(BitmapID(),GfxData\BackgroundLeft,GfxData\BackgroundTop,0,0,GfxData\BackgroundWidth,GfxData\BackgroundHeight)
+    endif
+    ; --- Extract all the patterns ---
+    SrcPatX = 0
+    SrcPatY = 0
+    PictureXSize = PictureWidth()
+    for NumPat = 0 to NumPatMaxi
+      AllocateBitmap(NumPat,GfxData\PatWidth,GfxData\PatHeight,PictureDepth())
+      UseBitmap(NumPat)
+      DrawingOutput(BitmapRastPort())
+      UseBitmap(#ID_BMP_PICTURE)
+      if NumPat>0
+        CopyBitmap(BitmapID(),SrcPatX,SrcPatY,0,0,GfxData\PatWidth,GfxData\PatHeight)
+        SrcPatX = SrcPatX + GfxData\PatWidth
+        if SrcPatX>PictureXSize
+          SrcPatX = 0
+          SrcPatY + GfxData\PatHeight
+        endif
+
+  PrintN ("SrcPatX = "+Str(SrcPatX)+"   "+Str(SrcPatY) )
+
+      endif
+    next NumPat.b
+    GetPicturePalette (0, PictureID())
+;;;;;;  FreeBitmap(#ID_BMP_PICTURE)
+  else
+    MessageError("Failed to load graphics")
+    end
+  endif
+EndProcedure
+
+
+Procedure.w TestIfWon()
+  IsWon = #TRUE
+  for y = 0 to #AREA_YSIZE-1
+    for x = 0 to #AREA_XSIZE-1
+        PatNumG = GetGameArea(x,y)
+        PatNumM = GetModelArea(x,y)
+        if PatNumG<>PatNumM
+          IsWon = #FALSE
+        endif
+    next x.b
+  next y.b
+  printn("Etat de TestIfWon = "+Str(IsWon))
+  ProcedureReturn IsWon
+EndProcedure
+
+Procedure RandomMixPatt()
+  shared iseed.l
+  Dummy.l = 0
+  CurrentTime_(@Dummy.l,@iseed.l)
+  if iseed.l=0
+    iseed.l = 100
+  endif
+  NbrSwap = Random(35)
+  if NbrSwap<10
+    NbrSwap = 10
+  endif
+  i=0
+  repeat
+    repeat
+      Sens = Random(100)
+      if Sens>50
+        Sens = #CLOCKWISE
+      else
+        Sens = #ANTICLOCKWISE
+      endif
+      NbrLoops = 0
+      repeat
+        CoorX = Random(#AREA_XSIZE-2)
+        CoorY = Random(#AREA_YSIZE-2)
+;print("RndX,Y => ")
+;printnumber(CoorX)
+;print(";")
+;printnumbern(CoorY)
+        ItIsOk = #TRUE
+        if CoorX>=#AREA_XSIZE-1
+          ItIsOk = #FALSE
+        endif
+        if CoorY>=#AREA_YSIZE-1
+          ItIsOk = #FALSE
+        endif
+        Val1 = GetGameArea(CoorX,CoorY)
+        if Val1=0
+          ItIsOk = #FALSE
+        endif
+        Val2 = GetGameArea(CoorX+1,CoorY)
+        if Val2=0
+          ItIsOk = #FALSE
+        endif
+        Val3 = GetGameArea(CoorX+1,CoorY+1)
+        if Val3=0
+          ItIsOk = #FALSE
+        endif 
+        Val4 = GetGameArea(CoorX,CoorY+1)
+        if Val4=0
+          ItIsOk = #FALSE
+        endif
+        if Val1=Val2 AND Val1=Val3 AND Val1=Val4 AND Val2=Val3 AND Val2=Val4 AND Val3=Val4
+          ItIsOk = #FALSE
+        endif
+        NbrLoops = NbrLoops+1
+        if NbrLoops>40
+          CurrentTime_(@Dummy.l,@iseed.l)
+          if iseed.l=0
+            iseed.l = 100
+          endif
+          NbrLoops=0
+          printn("Trop de loops détectés ! Réinit de random...")
+        endif 
+      until ItIsOk
+      if SoundInitOk
+        PlaySound(#SOUND_COMPUTER_SWAP,1)
+      endif
+      SwapPat(Sens,CoorX,CoorY)
+      i = i+1
+;    print( "i="+Str(i)+" NbrSwap=" )
+;    printnumber(NbrSwap)
+;    print("   Sens=")
+;    printnumbern(Sens)
+    until i>NbrSwap
+  until TestIfWon()=#FALSE
+EndProcedure
+
+Procedure IsPosiNotValid(PosiX,PosiY)
+  NotValid = #FALSE
+  if GetGameArea(PosiX,PosiY)=0
+    NotValid = #TRUE
+  endif
+  if GetGameArea(PosiX+1,PosiY)=0
+    NotValid = #TRUE
+  endif
+  if GetGameArea(PosiX+1,PosiY+1)=0    
+    NotValid = #TRUE
+  endif 
+  if GetGameArea(PosiX,PosiY+1)=0                                           
+    NotValid = #TRUE
+  endif
+  if (PosiX>=#AREA_XSIZE-1) OR (PosiY>=#AREA_YSIZE-1)
+    NotValid = #TRUE
+  endif
+  ProcedureReturn NotValid
+EndProcedure
+
+Procedure.w GetMousePosition()
+  WeAreIn = #FALSE
+  MouseX = WindowMouseX()
+  MouseY = WindowMouseY()
+;  if GameMode=#MODEPLAY
+;    WidthInPat = #AREA_XSIZE-1 
+;    HeightInPat = #AREA_YSIZE-1
+;  else
+    WidthInPat = #AREA_XSIZE
+    HeightInPat = #AREA_YSIZE
+;  endif
+  if ( MouseX>=GameArea_XBase ) AND ( MouseX<(GameArea_XBase+GfxData\PatWidth*WidthInPat) )
+    if ( MouseY>=GameArea_YBase ) AND ( MouseY<(GameArea_YBase+GfxData\PatHeight*HeightInPat) )
+          
+      TmpSelectedX.l = (MouseX-GameArea_XBase)/GfxData\PatWidth
+      TmpSelectedY.l = (MouseY-GameArea_YBase)/GfxData\PatHeight
+;printn("MouxeX="+Str(MouseX)+" MouseY="+Str(MouseY)+" - "+Str(GameArea_XBase)+" "+Str(GameArea_YBase))
+
+      printn("PatSelected = "+Str(TmpSelectedX)+"   "+Str(TmpSelectedY))
+
+;      printn("Bak:"+Str(PatSelectedXBak)+"   "+Str(PatSelectedYBak))
+
+      if GameMode=#MODEPLAY
+        ; test if on 4 valid patterns
+        NotValid = IsPosiNotValid(TmpSelectedX,TmpSelectedY)
+        if NotValid=#TRUE
+          if IsPosiNotValid(TmpSelectedX,PatSelectedY)=#FALSE
+printn("TmpSelectedX = "+Str(TmpSelectedX)+" / PatSelectedY = "+Str(PatSelectedY))
+            TmpSelectedY = PatSelectedY
+            NotValid = #FALSE
+          endif
+          if NotValid
+            if IsPosiNotValid(PatSelectedX,TmpSelectedY)=#FALSE
+printn("PatSelectedX = "+Str(PatSelectedX)+" / TmpSelectedY = "+Str(TmpSelectedY))
+              TmpSelectedX = PatSelectedX
+              NotValid = #FALSE
+            endif
+          endif
+        endif
+
+        if NotValid=#FALSE
+         
+          PatSelectedXBak = PatSelectedX
+          PatSelectedYBak = PatSelectedY
+
+          PatSelectedX = TmpSelectedX
+          PatSelectedY = TmpSelectedY
+                                           
+          if (PatSelectedX<>PatSelectedXBak) OR (PatSelectedY<>PatSelectedYBak)
+            if PatSelectedXBak>=0 AND PatSelectedYBak>=0
+              BoxX = GameArea_XBase + PatSelectedXBak*GfxData\PatWidth -1
+              BoxY = GameArea_YBase + PatSelectedYBak*GfxData\PatHeight -1
+              FrontColour(0)
+              Box(BoxX,BoxY,GfxData\PatWidth*2+1,GfxData\PatHeight*2+1)
+            endif
+            BoxX = GameArea_XBase + PatSelectedX*GfxData\PatWidth -1
+            BoxY = GameArea_YBase + PatSelectedY*GfxData\PatHeight -1
+            FrontColour(1)
+            Box(BoxX,BoxY,GfxData\PatWidth*2+1,GfxData\PatHeight*2+1)
+
+;        printn("Différent  :"+Str(BoxX)+"  "+Str(BoxY))
+          endif
+
+        endif
+      else
+        PatSelectedX = TmpSelectedX
+        PatSelectedY = TmpSelectedY
+        WeAreIn = #TRUE
+      endif
+    endif
+
+  endif
+  ProcedureReturn WeAreIn
+EndProcedure
+
+Procedure.w MouseClick(ButtonCode)
+  Swapped = #FALSE
+  printn("MouseButton. Code="+Str(ButtonCode) )
+  if PatSelectedX>=0 AND PatSelectedX<GfxData\PatWidth
+    if PatSelectedY>=0 AND PatSelectedY<GfxData\PatHeight
+      ; left mouse button released
+      if ButtonCode=232
+        Sense = #ANTICLOCKWISE
+        Swapped = #TRUE
+      endif
+      ; right mouse button released
+      if ButtonCode=233
+        Sense = #CLOCKWISE
+        Swapped = #TRUE
+      endif
+      if Swapped
+        if SoundInitOk
+          PlaySound(#SOUND_USER_SWAP,1)
+        endif
+        SwapPat(Sense,PatSelectedX,PatSelectedY)
+      endif
+    endif
+    ProcedureReturn Swapped
+  endif
+EndProcedure
+
+; -------------------------
+; - Open Screen & Windows -
+; -------------------------
+Procedure.w OpenScrAndWins()
+  Okay = #TRUE
+;  PensData.s = "testestestestest"+Chr(0)+Chr(0)+Chr(0)+Chr(1)+Chr(0)
+  ModeID.l = PrefsData\ScreenModeID
+  ResetTagList(#SA_DisplayID,ModeID.l)
+  AddTag(#SA_Title,@ScrTitle.s)
+;  AddTag(#SA_Pens,@PensData.s)
+  AddTag(#SA_LikeWorkbench,1) 
+  if OpenScreen(0,PrefsData\ScreenWidth,PrefsData\ScreenHeight,GfxData\Depth,TagListID())
+    ; Window for the game with no menu
+    ResetTagList(#WA_CustomScreen,ScreenID())
+    AddTag(#WA_IDCMP,#IDCMP_RAWKEY|#IDCMP_MOUSEBUTTONS|#IDCMP_VANILLAKEY)
+    GameWindow.l = OpenWindow(0,0,0,PrefsData\ScreenWidth,PrefsData\ScreenHeight,#WFLG_BACKDROP|#WFLG_BORDERLESS|#WFLG_RMBTRAP,TagListID())
+    if GameWindow.l
+      DisplayPalette(0,ScreenID())
+      ; Window for the menu
+if CreateMenuFirstTime
+      MenuTitle("Game")
+      MenuItem (1, "Start", 0)
+      MenuBar()
+      MenuItem (2, "Hi-Scores",0)
+      MenuBar()
+      MenuItem (3, "About", 0)
+      MenuBar()
+      MenuItem (4, "Quit"  , 0)
+      MenuTitle("Editor")
+      MenuItem (5, "New"   , 0)
+      MenuItem (6, "Load"  , 0)
+      MenuItem (7, "Save"  , 0)
+      MenuTitle("Prefs")
+      MenuItem (8, "PatternsFile", 0)
+      MenuItem (9, "ScreenMode",   0)
+      CreateMenuFirstTime = #FALSE
+
+      CreateMenu(0, ScreenID())
+endif
+      ResetTagList(#WA_CustomScreen,ScreenID()) 
+      AddTag (#WA_CustomScreen, ScreenID())
+      AddTag (#WA_NewLookMenus, 1)
+
+      MenuWindow.l = OpenWindow(1,0,0,PrefsData\ScreenWidth,PrefsData\ScreenHeight,#WFLG_ACTIVATE|#WFLG_BACKDROP|#WFLG_BORDERLESS,TagListID())
+      if MenuWindow.l
+        AttachMenu(0,WindowID())
+      else
+        Okay = #FALSE
+      endif
+    else
+      Okay = #FALSE
+    endif
+  else
+    Okay = #FALSE
+  endif
+  ProcedureReturn Okay
+EndProcedure
+
+Procedure CloseScrAndWins()
+  if EditWindow.l
+    CloseWindow(2)
+  endif
+  CloseWindow(0)
+  UseWindow(1)
+  DetachMenu()
+;  FreeMenu(0)
+  CloseWindow(1)                         
+  CloseScreen(0)
+EndProcedure
+
+Procedure LoadFonts()
+  Name.s = PrefsData\FontName
+  Size = PrefsData\FontSize
+;  if LoadFont(0,Name.s,Size)
+;    PrefsData\FontLoaded = #TRUE
+;    printn("Font loaded !!!")
+;  endif
+EndProcedure
+
+Procedure CloseFonts()
+;  if PrefsData\FontLoaded
+;    CloseFont(0)
+;  endif
+EndProcedure
+
+Procedure RefreshEditWindow()
+  UseWindow(2)
+  DrawingOutput(WindowRastPort())
+  Height = WindowInnerHeight()
+  NumPatt = 0
+  printn ( "ScreenFontHeight="+Str(ScreenFontHeight()) )
+  printn ( "Height="+Str(Height) )
+  y = ScreenFontHeight()*3+13
+  repeat
+    x = 0
+    for i = 0 to 2
+      if NumPatt<=NumPatMaxi
+        UseBitmap(NumPatt)
+        CopyBitMap(BitMapID(),0,0,x+5,y+4,GfxData\PatWidth,GfxData\PatHeight) 
+      endif
+      x = x+ GfxData\PatWidth
+      NumPatt+1
+    next
+    y = y+GfxData\PatHeight
+  until y>=Height
+  UseWindow(1)
+  DrawingOutput(WindowRastPort())
+EndProcedure
+
+Procedure.w GetPatSelectedForEdit()
+  PatSelected = 0
+  MouseX = WindowMouseX() 
+  MouseY = WindowMouseY()
+  if MouseX>=5
+    printn( "PosiMouse="+Str(MouseX)+" "+Str(MouseY) )
+    PosiX = (MouseX-5)/GfxData\PatWidth
+    PosiY = (MouseY-4-(ScreenFontHeight()*3)-13)/GfxData\PatHeight
+    PatSelected = PosiY*3 + PosiX
+    printn ( "Posi="+Str(PosiX)+","+Str(PosiY)+"  "+Str(PatSelected) )
+  endif
+  if PatSelected>NumPatMaxi
+    PatSelected = NumPatMaxi
+  endif
+  ProcedureReturn PatSelected
+EndProcedure
+
+Procedure LoadFileToEdit(Win.l)
+  IniFile.s = GetFilePart(LevelFileEdited.s)
+  IniDrawer.s = GetPathPart(LevelFileEdited.s)
+  IniPattern.s = "#?.csv"
+  ResetTagList(#ASLFR_Window,Win.l)
+  AddTag(#ASLFR_SleepWindow,1)
+  AddTag(#ASLFR_InitialFile,@IniFile.s)
+  AddTag(#ASLFR_InitialDrawer,@IniDrawer.s) 
+  AddTag(#ASLFR_DoPatterns,1)
+  AddTag(#ASLFR_InitialPattern,@IniPattern.s)
+  TmpFile.s = FileRequester(TagListID())
+  printn(TmpFile.s)
+  if TmpFile.s<>"#?.csv" AND TmpFile.s<>""   ;really strange, isn't it...?
+    LevelFileEdited.s = TmpFile.s
+    ResetTagList(#WA_BusyPointer,#TRUE)
+    SetWindowPointerA_(Win.l,TagListID())
+    LoadLevel(LevelFileEdited.s)
+    ResetTagList(#WA_BusyPointer,#FALSE)
+    SetWindowPointerA_(Win.l,TagListID())
+  endif
+EndProcedure
+
+Procedure SaveFileEdited(Win.l)
+  IniFile.s = GetFilePart(LevelFileEdited.s)
+  IniDrawer.s = GetPathPart(LevelFileEdited.s)
+  IniPattern.s = "#?.csv"
+  ResetTagList(#ASLFR_Window,Win.l)
+  AddTag(#ASLFR_SleepWindow,1)
+  AddTag(#ASLFR_InitialFile,@IniFile.s)
+  AddTag(#ASLFR_InitialDrawer,@IniDrawer.s) 
+  AddTag(#ASLFR_DoSaveMode,1)
+  AddTag(#ASLFR_DoPatterns,1)
+  AddTag(#ASLFR_InitialPattern,@IniPattern.s)
+  TmpFile.s = FileRequester(TagListID())
+  if TmpFile.s<>"#?.csv" AND TmpFile.s<>""
+    LevelFileEdited.s = TmpFile.s
+    SaveLevel(LevelFileEdited.s)
+  endif
+EndProcedure
+
+
+Procedure.w RequesterScreenMode()
+  Done = #FALSE
+  ResetTagList(#ASLSM_DoWidth,1)
+  AddTag(#ASLSM_DoHeight,1)
+
+  *Ptr.PBScreenRequester = ScreenRequester(TagListID());
+ 
+  if *Ptr
+    Done = #TRUE
+    PrefsData\ScreenModeID = *Ptr\DisplayID
+    PrefsData\ScreenWidth = *Ptr\Width
+    PrefsData\ScreenHeight = *Ptr\Height
+  endif
+  ProcedureReturn Done
+EndProcedure
+
+Procedure.w SelectPatternsFile(Win.l)
+  Done = #FALSE
+  IniFile.s = GetFilePart(PrefsData\PatternsFile)
+  IniDrawer.s = GetPathPart(PrefsData\PatternsFile)
+  IniPattern.s = "#?.iff"
+  ResetTagList(#ASLFR_Window,Win.l)
+  AddTag(#ASLFR_SleepWindow,1)
+  AddTag(#ASLFR_InitialFile,@IniFile.s)
+  AddTag(#ASLFR_InitialDrawer,@IniDrawer.s) 
+  AddTag(#ASLFR_DoPatterns,1)
+  AddTag(#ASLFR_InitialPattern,@IniPattern.s)
+  TmpFile.s = FileRequester(TagListID())
+  printn(TmpFile.s)
+  if TmpFile.s<>"#?.iff" AND TmpFile.s<>""   ;really strange, isn't it...?
+    Done = #TRUE
+    PrefsData\PatternsFile = TmpFile.s
+    ResetTagList(#WA_BusyPointer,#TRUE)
+    SetWindowPointerA_(Win.l,TagListID())
+    LoadGfx(PrefsData\PatternsFile)
+    ResetTagList(#WA_BusyPointer,#FALSE)
+    SetWindowPointerA_(Win.l,TagListID())
+  endif
+  ProcedureReturn Done
+EndProcedure
+
+Procedure LoadingHiScores()
+  If ReadFile(0,"ENV:PureBrain_scores")
+    Tmp.s = ReadString()
+    Tmp.s = ReadString()
+    For I=1 To 10
+      HiScore(I)\Name = ReadString()
+      Tmp.s = ReadString()
+      HiScore(I)\Level = Val(Tmp.s) 
+      Tmp.s = ReadString()
+      HiScore(I)\Score = Val(Tmp.s)
+    Next
+    CloseFile(0)
+  EndIf
+EndProcedure
+
+Procedure SavingHiScores()
+  If CreateFile(0,"ENV:PureBrain_scores")
+    WriteString("PureBrain_score_file"+Chr(10))
+    WriteString(Ver.s+Chr(10))
+    For I=1 To 10
+      WriteString(HiScore(I)\Name)
+      WriteString(Chr(10))
+      Tmp.s = Str(HiScore(I)\Level)+Chr(10) 
+      WriteString(Tmp.s)
+      Tmp.s = Str(HiScore(I)\Score)+Chr(10)
+      WriteString(Tmp.s)
+    Next
+    CloseFile(0)
+    RunProgram("SYS:","Copy ENV:PureBrain_scores ENVARC:PureBrain_scores",0,4096)
+  EndIf
+EndProcedure
+
+Procedure TheHiScores(EndType.w,EndLevel.w,EndScore.l)
+  ResetTagList(#WA_CustomScreen,ScreenID()) 
+  AddTag(#WA_Title,@WinHiScoresTitle.s)
+  Wid = 250
+  Hei = ScreenFontHeight()*15
+  Left = (ScreenWidth()-Wid)/2
+  Top = (ScreenHeight()-Hei)/2
+  HiScoresWindow.l = OpenWindow(3,Left,Top,Wid,Hei,#WFLG_CLOSEGADGET|#WFLG_DRAGBAR|#WFLG_ACTIVATE,TagListID())
+  if HiScoresWindow.l
+    DrawingOutput(WindowRastPort())
+    FrontColour(1)
+    Locate(40,ScreenFontHeight()+5)
+    if EndType=#ENDGAME_TIMEOUT
+      PrintText("TIME-OUT !!!")
+    endif
+    if EndType=#ENDGAME_END
+      PrintText("WELL DONE !!!")
+    endif
+    ; Garbarini's method : a little copy-paste from TowersOfHanoi ;-)
+    ; humm...not always a good idea, but... really fast!
+    TR=0 
+    if EndType=#ENDGAME_TIMEOUT or EndType=#ENDGAME_END
+      ; Is it better than the last one ?
+      If EndScore>HiScore(10)\Score
+        TR=0
+        Repeat
+          TR+1
+        Until EndScore>HiScore(TR)\Score
+        For I=10 To TR Step -1
+          If I+1<11
+            HiScore(I+1)\Score = HiScore(I)\Score
+            HiScore(I+1)\Level = HiScore(I)\Level
+            HiScore(I+1)\Name = HiScore(I)\Name
+          EndIf
+        Next I
+        HiScore(TR)\Score = EndScore
+        HiScore(TR)\Level = EndLevel
+      EndIf
+    else
+      Locate(50,ScreenFontHeight()*2+4)
+      PrintText("Name")
+      Locate(150,ScreenFontHeight()*2+4)
+      PrintText("Level")
+      Locate(200,ScreenFontHeight()*2+4)
+      PrintText("Score")
+    endif
+
+    For I=1 To 10
+      y = (I*(ScreenFontHeight()+2))+(ScreenFontHeight()*2)+10
+      if I<10
+        Locate(22,y)
+      else
+        Locate(14,y)
+      endif
+      Printtext(Str(I)+".")
+      Locate(50,y)
+      If I<>TR
+        PrintText(HiScore(I)\Name)
+      else
+        y_entry = y
+      EndIf
+      Locate(150,y)
+      PrintText(Str(HiScore(I)\Level))
+      Locate(200,y)
+      PrintText(Str(HiScore(I)\Score))
+    Next I
+    If TR<>0
+      if CreateGadgetList(1,ScreenID())
+        StringGadget(0,44,y_entry,85,ScreenFontHeight()+4,"","",NULL)
+        AttachGadgetList(1,WindowID())
+        ActivateGadget(0)
+      else
+        DisplayBeep_(0)
+      endif
+    endif
+    Fin = #FALSE
+    repeat
+      Idcmp.l = WindowEvent()
+      if Idcmp.l=#IDCMP_CLOSEWINDOW
+        Fin = #TRUE
+      endif
+    until Fin
+    if TR<>0
+      HiScore(TR)\Name = GetStringText(0)
+      if len(HiScore(TR)\Name)>10
+        HiScore(TR)\Name = Left(HiScore(TR)\Name,11)
+      endif
+      ; Saving the scores
+      SavingHiScores()
+    endif
+    UseWindow(0)
+    DrawingOutput(WindowRastPort())
+    CloseWindow(3)
+  else
+    DisplayBeep_(0)
+  endif
+EndProcedure
+ 
+
+; Store a long number in ascii in the file opened - for ScreenModeID
+Procedure SaveLongInFile(Val.l)
+  nbr.l = Val.l
+  ptr.l = @nbr.l
+  for i = 1 to 4
+    byte = peekb(ptr.l)
+    byt1 = byte/16
+    byt1 = byt1 & 15
+    byt2 = byte & 15
+    if byt1>9
+      byt1 = byt1+65-10
+    else
+      byt1 = byt1+48
+    endif
+    if byt2>9
+      byt2 = byt2+65-10
+    else
+      byt2 = byt2+48
+    endif
+    WriteByte(byt1)
+    WriteByte(byt2)
+    ptr = ptr+1
+  next
+  WriteByte(10)
+EndProcedure
+
+; Get a long number from the file opened - for ScreenModeID
+Procedure.l ReadLongFromFile()
+  nbr.l = 0
+  ptr.l = @nbr.l
+  for i = 1 to 4
+    byt1 = ReadByte()
+    byt2 = ReadByte()
+    if byt1<58
+      byt1 = byt1-48
+    else
+      byt1 = byt1-65+10
+    endif
+    if byt2<58
+      byt2 = byt2-48
+    else
+      byt2 = byt2-65+10
+    endif
+    byte = byt1*16
+    byte = byte + byt2
+    pokeb(ptr.l,byte)
+    ptr.l = ptr.l+1
+  next
+  byte = ReadByte() ; the 'CR'
+  ProcedureReturn nbr.l
+EndProcedure
+
+Procedure LoadingPrefs()
+  If ReadFile(0,"ENV:PureBrain_prefs")
+    Tmp.s = ReadString() ; ident string
+    Tmp.s = ReadString() ; ver string not used
+    Tmp.s = ReadString()
+    PrefsData\ScreenWidth = Val(Tmp.s)
+    Tmp.s = ReadString()
+    PrefsData\ScreenHeight = Val(Tmp.s)
+    PrefsData\ScreenModeID = ReadLongFromFile()
+    PrefsData\PatternsFile = ReadString()
+    CloseFile(0)
+  EndIf
+EndProcedure
+
+Procedure SavingPrefs()
+  If CreateFile(0,"ENV:PureBrain_prefs")
+    WriteString("PureBrain_prefs_file"+Chr(10))
+    WriteString(Ver.s+Chr(10))
+    Tmp.s = Str(PrefsData\ScreenWidth)+Chr(10)
+    WriteString(Tmp.s)
+    Tmp.s = Str(PrefsData\ScreenHeight)+Chr(10)
+    WriteString(Tmp.s)
+    SaveLongInFile(PrefsData\ScreenModeID)
+    Tmp.s = PrefsData\PatternsFile+Chr(10)
+    WriteString(Tmp.s)
+    CloseFile(0)
+    RunProgram("SYS:","Copy ENV:PureBrain_prefs ENVARC:PureBrain_prefs",0,4096)
+  EndIf
+EndProcedure
+
+Procedure InitSoundPart()
+  shared GamePath.s
+  if InitSound(6)
+printn("InitSound OK!")
+    if AllocateSoundChannels(15)
+printn("AllocateSound Ok !")
+      if LoadSound(#SOUND_COMPUTER_SWAP,GamePath.s+"Data/SoundComputerSwap.iff")
+        if LoadSound(#SOUND_USER_SWAP,GamePath.s+"Data/SoundUserSwap.iff"
+          SetSoundChannels(#SOUND_USER_SWAP,1+2)
+          if LoadSound(#SOUND_LOOSE,GamePath.s+"Data/SoundLoose.iff")
+            if LoadSound(#SOUND_WIN,GamePath.s+"Data/SoundWin.iff")
+              if LoadSound(#SOUND_CLOCK,GamePath.s+"Data/SoundClock.iff")
+                SetSoundChannels(#SOUND_CLOCK,4+8)
+printn("LoadSound #0 Ok!")
+                SoundInitOk = #TRUE
+              endif
+            endif
+          endif
+        endif
+      endif
+    endif
+  endif
+EndProcedure
+
+; -------------
+; --- START ---
+; -------------
+
+; Load Preferences
+LoadingPrefs()
+
+; Load Hi-Scores
+LoadingHiScores()
+
+; Load graphics
+LoadGfx(PrefsData\PatternsFile)
+
+; Load fonts
+;;;;LoadFonts()
+
+; Load sounds
+InitSoundPart()
+
+if PrefsData\ScreenWidth=0
+  RequesterScreenMode()
+endif
+
+; Calculate positions of the game
+AdaptForScreenSize()
+
+if PrefsData\ScreenWidth>0
+  if OpenScrAndWins()=#FALSE
+    ; second try with another modeid
+    RequesterScreenMode()
+    if PrefsData\ScreenWidth>0
+      if OpenScrAndWins()=#FALSE
+        MessageError("Failed to open screen/windows !")
+        end
+      endif
+    endif
+  endif
+
+        UseWindow(1)
+        DrawingOutput(WindowRastPort())
+
+;;;;        if PrefsData\FontLoaded
+;;;;          DrawingFont(FontID(0))
+;;;;        endif
+        FrontColour(1)
+        Locate(30,30)
+        PrintText("PureBrain v"+Ver.s)
+        Locate(30,50)
+        PrintText("Version Alpha2") 
+        Locate(30,70)
+        PrintText("Compiled with PureBasic 1.50_r2")
+
+        EditWindow.l = NULL
+
+
+UseBitmap(1)
+ 
+
+      Abort = #FALSE
+      GameMode = #MODEMENU
+      Level = 0
+      GoToNextLevel = #FALSE
+      EndOfGame = 0
+      CurTimeSecs.l = 0
+      BaseTimeSecs.l = 0
+      CurTimeMilliSecs.l = 0
+      Score.l = 0
+
+      repeat
+
+        if GoToNextLevel=#TRUE
+          UseWindow(0)
+          DrawingOutput(WindowRastPort())
+
+          if Level=1
+            DrawBackground()
+            Score.l = 0
+          endif
+
+          FileToLoad.s = GamePath.s+"Data/Level"+Str(Level)+".csv"
+          if LoadLevel(FileToLoad.s)=#FALSE
+            MessageError("Failed to load level file!!!")
+            end
+          endif
+          GoToNextLevel = #FALSE
+
+          FrontColour(1)
+          Locate(ModelArea_XBase+10,ModelArea_YBase+#AREA_YSIZE*GfxData\PatHeight+30)
+          PrintText(" Level:"+Str(Level)+" ")
+          Locate(GameArea_XBase+50,20)
+          PrintText("Mixing...")
+
+          if Level>1
+            Score.l = Score.l+100
+            if TimeSecs.l>0
+              Score.l = Score.l+TimeSecs.l
+            endif
+          endif
+
+          Locate(GameArea_XBase+50,40)
+          PrintText(" Score:"+Str(Score.l)+" ")
+
+          PatSelectedX = -1
+          PatSelectedY = -1
+          PatSelectedXBak = -1
+          PatSelectedYBak = -1
+ 
+          DrawAllPatt(#MODEL)
+          DrawAllPatt(#GAME)
+
+          RandomMixPatt()
+          CurrentTime_(@BaseTimeSecs.l,@TimeMillSecs.l)
+        endif
+
+        repeat
+
+          VWait()
+          Idcmp.l = WindowEvent()
+
+          ; ***********************
+          ; ****** MODE PLAY ******
+          ; ***********************
+          if GameMode=#MODEPLAY
+
+            CurrentTime_(@CurTimeSecs.l,@TimeMillSecs.l)
+            TimeSecs.l = TimeToGo.l - (CurTimeSecs.l-BaseTimeSecs.l)
+            Locate(GameArea_XBase+50,20)
+            PrintText(" ==>"+Str(TimeSecs.l)+"<== ")
+            if TimeSecs.l<>TimeSecsBak.l
+              if TimeSecs.l<TimeToGo.l
+                if (TimeSecs.l/10)*10=TimeSecs
+                  PlaySound(#SOUND_CLOCK,1)
+                  printn("CLOCK!!!")
+                  printnumbern(TimeSecs.l)
+                endif
+              endif
+              if TimeSecs.l<10
+                PlaySound(#SOUND_CLOCK,1)
+              endif
+            endif
+            if TimeSecs.l=0
+              PlaySound(#SOUND_LOOSE,1)
+              EndOfGame = #ENDGAME_TIMEOUT
+            endif
+            TimeSecsBak.l = TimeSecs.l
+
+            GetMousePosition()
+
+ 
+            if Idcmp.l=#IDCMP_VANILLAKEY      
+              if EventCode()=27
+                EndOfGame = #ENDGAME_ABORT
+              endif
+              if EventCode()=Asc("p") or EventCode()=Asc("P")
+                Locate(GameArea_XBase+50,20)
+                PrintText("--Pause--")
+                Delay(25)
+                repeat
+                  Idcmp.l = WindowEvent()
+                until Idcmp.l=#IDCMP_VANILLAKEY and (EventCode()=Asc("p") or EventCode()=Asc("P"))
+                Locate(GameArea_XBase+50,20)
+                PrintText(" ==>"+Str(TimeSecs.l)+"<== ")
+              endif
+              printn("Key pressed with VANILLA. Code="+Str(EventCode()))
+            endif
+
+            if Idcmp.l=#IDCMP_MOUSEBUTTONS
+              if MouseClick(EventCode())
+                printn("Has been swapped...")
+                if TestIfWon()=#TRUE
+                  PlaySound(#SOUND_WIN,1)
+                  Level+1
+                  GoToNextLevel = #TRUE
+                  HideGameArea()
+                  ; this is the last level ?
+                  FileToLoad.s = GamePath.s+"Data/Level"+Str(Level)+".csv"
+                  if ReadFile(0,FileToLoad.s)=0
+                    EndOfGame = #ENDGAME_END
+                    GoToNextLevel = #FALSE
+                  else
+                    CloseFile(0)
+                  endif
+                endif
+              endif
+            endif 
+
+          endif
+
+
+          ; *************************
+          ; ****** MODE EDITOR ******
+          ; *************************
+          if GameMode=#MODEEDIT
+
+            if Idcmp.l=#IDCMP_CLOSEWINDOW
+              CloseWindow(2)
+              EditWindow.l = NULL
+              GameMode = #MODEMENU
+              UseWindow(1)
+              OnMenu_(WindowID(),0)
+              OnMenu_(WindowID(),2)
+              OnMenu_(WindowID(),34)
+              OnMenu_(WindowID(),64)
+            endif
+
+            if Idcmp.l=#IDCMP_MOUSEBUTTONS
+              if EventWindow()=2
+                PatSelectedInEdit = GetPatSelectedForEdit()
+                ActivateWindow_(MenuWindow.l)
+              else
+                if GetMousePosition()
+                  if PatSelectedX>=0 AND PatSelectedY>=0
+                    SetGameArea(PatSelectedX,PatSelectedY,PatSelectedInEdit)
+                    DrawGamePatt(PatSelectedX,PatSelectedY)
+                  endif
+                endif
+              endif
+            endif
+
+          endif
+
+          ; ***********************************
+          ; ****** MENUS DURING MENU/EDIT******
+          ; ***********************************
+          if GameMode=#MODEMENU OR GameMode=#MODEEDIT
+
+            if Idcmp.l=#IDCMP_MENUPICK
+              select EventGadget()
+                case 1
+                  printn("Début du jeu !!!")
+                  GameMode = #MODEPLAY
+                  GoToNextLevel = #TRUE
+                  EndOfGame = 0
+                  UseWindow(0)
+                  DrawingOutput(WindowRastPort())
+                  WindowToBack_(MenuWindow.l)
+                  ActivateWindow_(GameWindow.l)
+                  Level = 1
+                case 2
+                  TheHiScores(0,0,0)
+                case 3
+                  Text$ = "A game done by :"
+                  Text$ = Text$ + chr(10) + "Marc 'MaVaTi' Le Douarain"
+                  Text$ = Text$ + chr(10) + "mavati@club-internet.fr"
+                  Text$ = Text$ + chr(10) + "Last update : "+VerDate
+                  Delay(5)
+                  EasyRequester("PureBrain v"+Ver,Text$,"Ok")
+                case 4
+                  Abort = #TRUE
+                case 8
+                  if SelectPatternsFile(MenuWindow.l)
+                    CloseScrAndWins()
+                    if OpenScrAndWins()=#FALSE
+                      MessageError("Failed to open screen/windows !")
+                      End
+                    endif
+                    SavingPrefs()
+                  endif                                       
+                case 9
+                  if RequesterScreenMode()
+                    CloseScrAndWins()
+                    AdaptForScreenSize()
+                    if OpenScrAndWins()=#FALSE
+                      MessageError("Failed to open screen/windows !")
+                      End
+                    endif
+                    SavingPrefs()
+                  endif
+              endselect
+              if EventGadget()=5 or EventGadget()=6
+                ; not already editing ?
+                if GameMode<>#MODEEDIT
+                  GameMode = #MODEEDIT
+                  if CreateGadgetList(0,ScreenID())
+                    IntegerGadget(0,10,ScreenFontHeight()*2+6,GfxData\PatWidth*3,ScreenFontHeight()+4,"",NULL)
+                    ResetTagList(#WA_CustomScreen,ScreenID()) 
+                    AddTag(#WA_Title,@WinEditTitle.s)
+                    EditWindow.l = OpenWindow(2,0,0,GfxData\PatWidth*3+15,ScreenHeight()-50,#WFLG_CLOSEGADGET|#WFLG_DRAGBAR|#WFLG_SIZEGADGET|#WFLG_DEPTHGADGET,TagListID())
+                    if EditWindow.l=NULL
+                      GameMode = #MODEMENU
+                    else
+                      AttachGadgetList(0,WindowID())
+                      DrawingOutput(WindowRastPort())
+                      Locate(5,ScreenFontHeight()+5)
+                      PrintText("TimeOut")
+                      UseWindow(1)
+                      OffMenu_(WindowID(),0)
+                      OffMenu_(WindowID(),2)
+                      OffMenu_(WindowID(),34)
+                      OffMenu_(WindowID(),64)
+        DisplayPalette(0,ScreenID())   ; why my screen palette is corrupted ?!
+                    endif
+                  else
+                    GameMode = #MODEMENU
+                  endif
+                endif
+                if GameMode=#MODEEDIT
+                  UseWindow(2)
+                  SetStringText(0,"90")
+                  RefreshGadget(0)
+                  UseWindow(1)
+                  RefreshEditWindow()
+                  InitLevel()
+                  DrawBorder(#GAME)
+                  PatSelectedInEdit = 0
+                endif
+              endif
+              if EventGadget()=6
+                LoadFileToEdit(MenuWindow.l)
+                DrawAllPatt(#GAME)
+                SetStringText(0,Str(TimeToGo.l))
+                RefreshGadget(0)
+              endif
+              if EventGadget()=7
+                Time.s = GetStringText(0)
+                TimeToGo.l = Val(Time.s)
+                SaveFileEdited(MenuWindow.l)
+              endif
+ 
+            endif
+          endif
+
+
+        until Abort=#TRUE OR GoToNextLevel=#TRUE or EndOfGame
+
+        if EndOfGame
+          if EndOfGame=#ENDGAME_END OR EndOfGame=#ENDGAME_TIMEOUT
+            TheHiScores(EndOfGame,Level,Score.l)
+          endif
+          GameMode = #MODEMENU
+          Cls(0)
+          WindowToBack_(GameWindow.l)
+          ActivateWindow_(MenuWindow.l)
+          EndOfGame = 0
+        endif
+ 
+
+      until Abort=#TRUE
+
+      CloseScrAndWins()
+      CloseFonts()
+      if InitSoundOk
+        FreeSoundChannels(15)
+      endif
+
+endif
+
+
+end
+
+

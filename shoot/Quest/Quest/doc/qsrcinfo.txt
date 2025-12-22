@@ -1,0 +1,330 @@
+Quest Source Code v1.1
+ by Trey Harrison (otaku@u.washington.edu)
+and Chris Carollo (carollo@cis.ohio-state.edu)
+Release Notes
+November 23rd, 1996
+----------------------
+
+-------
+Welcome
+-------
+        HI! And Welcome to the Quest Source Code (v1.1) Release Notes!
+I've done the best I could arranging the modules, and including information
+below that hopefully explains the basics of how Quest works. There is some
+legal information you definitely need to know about, find it in legal.txt.
+Read it, learn it, love it, obey it. We dont want people ripping off our
+5 months of work. All of the C and H files will compile into one nice
+32-bit DOS4GW executable (just run wmake), assuming you have all your
+environment variables for Watcom set correctly. And if you arent using watcom,
+well, I wish you the best of luck. The one .pas file will compile with Turbo
+Pascal 7.0 (or probably any old version of pascal, but just to be on the safe
+side, I thought I'd let you know what I used to compile it 6 months ago when
+it was written). Even if you dont have Pascal, it doesnt matter, because I've
+included the executable that does the menu.txt -> menu.dat conversion.
+The format of the menu.txt file should be self explanatory. The "mappings"
+of the function ID's seen in the menu.txt file can be found in the menu_exe()
+function in the menu.c module.
+
+-----------------------------------
+The Official Quest Seal of Approval
+-----------------------------------
+        We can't have 5 different "new" version of Quest floating around.
+Similarly, we can't have 5 different versions of a Win95 Quest port flying
+around. So, before you release your port or your new version, you must
+have the OK from Chris Carollo and Trey Harrison. It is unlikely that we
+will allow more than 1 version of Quest per platform. So if you are seriously
+trying to port it, I suggest letting us know about it and sending us a working
+demo as soon as possible. Otherwise we'll be sure to put your name on our
+page under the category of "People who released a Quest derivitive work
+without our Seal of Approval". And if you sell it, well then we'll definitely
+be doing a bit more than putting your name on a blacklist. Read legal.txt for
+more information.
+
+--------------------------------
+Here is the flow of the program:
+--------------------------------
+
+	1) Init Everything:
+		a. Init list variables to NULL, strings to \0, etc
+		b. Read the config file (quest.cfg)
+		c. Read the mdl info file (mdlref.lst)
+		d. Load a map from the command line if specified
+		   or create a new one (and then init the camera
+		   positions)
+		e. Init the video mode (set up screen buffer also)
+		f. Init the mouse
+		g. Init the "display" (load bitmap graphics, palette,
+		   etc)
+		h. Load the menu data file and init the menu system
+		i. Init the Tool Buttons
+		j. Init the keyboard handler
+		k. Update all of the viewports
+		l. Copy the screen buffer to video memory
+		m. Draw the mouse
+
+	2) The Main Loop:
+		{
+		if the exit flag is set, then exit		
+	
+		Find the mouse. Depending on what section of the
+		screen its in, call an appropriate handler.
+		
+		Update the mouse position.
+		Process any key presses.
+		}
+
+	3) Exit the program:		
+		a. Save the configuration file
+		b. Shut off the keyboard handler
+
+---------------------------------------------------------------
+Here is an explanation of some of the more important functions:
+---------------------------------------------------------------
+
+FindMouse(), mouse.c
+--------------------
+	Determines which "window" the mouse is over. There are 5
+windows: Status window, menu window, tool window, message window, and
+map window.
+
+UpdateMap(), display.c
+----------------------
+	Called from the main loop. Depending on what mode Quest is in
+and whether or not the mouse is just sitting there or if it has been
+clicked in the active viewport or in an unactive viewport, call 
+appropriate an appropriate handler or activate a viewport / deactivate
+another, etc.
+
+UpdateMenu(), menu.c
+--------------------
+	Called from the main loop. Highlights the menu entry the mouse
+is over, checks for a click. If there is a mouse click, calls Menu_Exe
+which determines (by the menu id numbers) what to do from there. More
+menu information can be garnered from menu.txt and menucnv.pas.
+
+UpdateMsg(), message.c
+----------------------
+	Called from the main loop. Just scrolls the message window if
+necessary.
+
+UpdateTool(), tool.c
+--------------------
+	Called from the main loop. Checks to see if any tool buttons
+have been clicked and takes appropriate actions.
+
+UpdateViewport() / UpdateAllViewports(), 3d.c
+---------------------------------------------
+	Called from all throughout the program whenever the screen
+needs to be "rendered". These functions, along with DrawViewport() and
+DrawBSPTree() are the core map drawing functions. UpdateViewport()
+is what you would call to update a specific viewport (note that there
+are a max of 3 viewports, all of which are in the map window).
+UpdateAllViewports() is what you would call to update all of the
+currently visible viewports.
+
+RefreshPart() / RefreshScreen(), video.c
+----------------------------------------
+	This does the copying from the screen buffer to video memory.
+Very few things are written directly to video memory (the mouse is
+all that comes to mind at the moment). RefreshPart will copy
+any rectangular portion of the screen buffer, RefreshScreen() will
+copy the entire screen buffer.
+
+UpdateMouse(), mouse.c
+----------------------
+	Updates the mouse's position and also takes a screenshot if
+applicable. Hows that for poor design. UpdateMouse() is called more
+than any other function. Demo recording used to go through it. Anyway
+it calls a DOS interrupt to get the mouse's position, erases the
+old mouse, draws the new position, stores the previous position and
+new position in the global mouse variable (aptly named "mouse"). So
+anytime you want the mouse's coordinates as of the last UpdateMouse,
+mouse.x and mouse.y are what you want.
+
+GetMousePos(), mouse.c
+----------------------
+	Use this if you want to update the mouse variable without
+drawing the new mouse position to the screen. Examining the code
+will show you that GetMousePos() is actually called by UpdateMouse().
+
+TestKey(), keyboard.c
+---------------------
+	Call this with the scancode of the key you want to check.
+It will return TRUE if its pressed, FALSE if it isnt.
+
+Q_free(), Q_malloc(), Q_realloc(), memory.c
+-------------------------------------------
+	These functions handle all memory allocation / reallocation /
+freeing. They work exactly like their standard C counterparts (malloc,
+free, realloc). They also update the memused variable (useful in 
+tracking down memory leaks / bugs).
+
+---------------------------------------------
+Here is an explanation of some of the modules
+---------------------------------------------
+
+3D.C:	
+	Handles most of the 3D matrix and drawing operations. The core
+	3D and 2D line-rendering module.
+
+POLY.C:
+	Handles the Z-buffered polygon drawing stuff.
+
+BSP.C:
+	Handles everything having to do with BSP stuff. Calls very
+	few functions outside of its own. Building the tree, clipping
+	faces,traversing the tree, rasterizing and drawing the faces 
+	is all done in it.
+
+CAMERA.C:
+	Handles camera movement (looking up, down, left, right, moving,
+	etc).
+
+CONFIG.C:
+	Reads and Writes from the Quest.Cfg file. Also has a function
+	LoadSetup() that reads the Quest setup from a .map file.
+
+DISPLAY.C:
+	Handles bitmap loading, registering, finding, drawing. Handles 
+	the map window too, for some reason.
+
+EDBRUSH.C:
+	Handles brush and brush vertex editing. Moving brushes, 
+	copying brushes, selecting brushes, selecting brush vertices, 
+	checking the convexivity of a brush, making new brushes, 
+	scaling and rotating, etc.
+
+EDENT.C,EDFACE.C,EDSCRIPT.C:
+	Do basically the same thing as edbrush.c for entities,
+	faces, and scripts.
+
+ENTITY.C:
+	Handles entity initialization, setting key/value pairs, etc.
+
+ERROR.C:
+	Has the HandleError() function. thats pretty much it.
+
+GEOM.C:
+	Has the geometric functions that every good boy should know
+	and love (Normalize a vector, Crossproduct 2 vectors, dot
+	product 2 vectors, get the sign of a number, etc).
+
+NEWGROUP.C:
+	Handles group manipulations (creating the world group, creating
+	user specified groups, the group picker window, the group
+	popup window, removing groups, loading group info from a file,
+	etc). Actual Group Loading and Saving is done in MAP.C.
+
+KEYBOARD.C:
+	Has the keyboard handler and the TestKey function.
+
+MAP.C:
+        Handles all map loading and saving. Also handles group loading
+	and saving. Uses a lot of CSG routines from clip.c during the
+	map loading process.
+
+MDL.C:
+	Handles all mdl loading / drawing.
+
+MENU.C:
+	Handles all menu functions. Drawing the menu, highlighting 
+	different parts of the menu, calling menu functions, etc.
+
+MESSAGE.C:
+	Handles message scrolling, displaying, dumping, etc.
+
+MOUSE.C:
+	Handles all mouse operations. Init, Drawing, "Un"drawing,
+	updating the position, determining which window on the screen
+	it is in. Also handles taking screenshots, also handles
+	demo playback and recording (which may or may not still work).
+
+QUI.C:
+	Handles all aspects of the user interface except for most of
+	the popup windows (those are in POPUPWIN.C and TEMPPOP.C).
+	Handles drawing buttons, making buttons out of
+	text, drawing strings, drawing characters, loading / registering
+	fonts, redrawing any of the 5 "windows" (status, menu, message,
+	tool, map)
+
+STATUS.C:
+	Updates the status window, also sets preferences from within
+	Quest.
+
+TOOL.C:
+	Updates the tool window.
+
+VIDEO.C:
+	Contains many video operations. The only ones called frequently
+	are RefreshScreen,RefreshPart, and the line drawing primitives.
+
+VBE.C:
+	Contains VBE 1.2 interface routines. This is based heavily
+	upon code by Bob Pendleton. He has a fantastic page at
+	http://www.pendleton.com/rants.html.
+
+FILE.C:
+	Contains WAD interface functions. Reading textures from wads,
+	primarily. Also gets directory and file lists, also has
+	functions to read strings of input from the keyboard. Dont
+	ask why its in file.c =).
+
+POPUPWIN.C,TEMPPOP.C:
+	Has all file popup windows, also texture selection popup window,
+	also has the entity popup window.
+
+MEMORY.C:
+	Has the old and new memory scheme. The "new" memory scheme
+	likely does not work. Either will do your basic malloc,
+	realloc, and free.
+
+CLIP.C:
+	Has the somewhat complex CSG operations: face splitting,
+	brush building, brush intersection (AddBrushes()), brush
+	subtraction (SubtractBrushes()).
+
+--------------------
+Info on the .h files
+--------------------
+
+DEFINES.H:
+	Contains all #defines (well, most of them). Keys, window names,
+	a few macro functions.
+
+PROCS.H:
+	Contains almost all of the function prototypes. This is a
+	pretty lame way of doing things, but oh well.
+
+TYPES.H:
+	Contains all type definitions except for mdl types (which can
+	be found in mdl.h).
+
+GLOBALS.H:
+	Contains *references* to global variables. Most of the globals
+	are instantiated in quest.c, and refered to in globals.h
+	ie in quest.c, you might find:
+		char mapfilename[128];
+	and in globals.h:
+		extern char mapfilename[128];
+	This is basically to provide easy access to all the often
+	used variables in the program without having to keep passing
+	them around as function arguments.
+	
+	
+
+Final Comments
+--------------
+	If you were to port Quest, there are only a few things you
+need to worry about: rewriting the UpdateMouse and GetMousePos
+functions so that they actually work on whatever platform you are
+compiling for. Rewrite the RefreshScreen and RefreshPart functions
+so that they actually draw from the virtual screen buffer to the
+screen. Rewrite TestKey() and the keyboard interrupt so that they
+actually work on your platform. Find the very few spots where we
+used assembler and, well, do something about it :)
+						   
+Its been real, its been fun, its even been real fun. Look for our names
+in future big coding projects!
+
+       Chris Carollo         and        Trey Harrison
+carollo@cis.ohio-state.edu         otaku@u.washington.edu

@@ -1,0 +1,2532 @@
+
+
+             /*** Copyright © 1988 by Joseph M. Hinkle ***/
+
+	This is raw text prepared for articles and a book on programming the
+Amiga for novices with the intent of quickly getting the reader into the
+more powerful features fairly quickly.  There are some errors of
+explanation of more abstruse things which I need to clean up, but in the
+main() (Ha! a little c joke) you will find this useful.  Because it is a
+kind of super-outline of the book it moves along at a pace you may find
+breathtaking if you are new to programming the machine, but careful study
+of this and the ROM Kernel Manuals will help you greatly.
+	The tutorial explains lists, tasks, and startup code with comments on
+programming style and example programs which I have tested thoroughly.  The
+discussion and examples are valid for Workbench v1.2 (v1.3 is just becoming
+available as I post this, so I haven't seen anything on it yet, but I doubt
+there would be much trouble using that version).  I use the Lattice v4.01
+compiler and don't have Manx, so can't say much about compiling with that
+one.  Expect some minor trouble, but the examples are Amiga specific, not
+compiler specific, for the most part.
+	I hang around A-Link in Everett, Washington at (206) 774-4735, run by
+the charming and gracious John (He paid me to say this) Willott, and I go
+by the name Marty Hinkle on the board.  Please send me questions and
+comments there.
+	I also have a tutorial on making shared libraries yourself without using
+assembly code (other than the skeleton in the RKM) which does not require
+you to be proficient in assembly coding.  If someone is interested in that,
+I'll straighten it up and upload it.
+   This production comes from extensive study of the machine itself with
+little input from Commodore (It is probably quite shortsighted of me to not
+be in their developer's program).  A shareware style donation will not be
+inappropriate, and you will get a free copy of the whole book if I can ever
+get a publisher.
+
+                                                  Joseph M. Hinkle
+                                                  Route 2, Box 2647
+                                                  Lopez, Washington 98261
+
+                                                  Posted September 20, 1988
+
+/*************************************************************************/
+
+Programming the Amiga
+From Novice to Advanced
+
+	Anyone getting the idea to write a useful program on the Amiga decides
+to get the Rom Kernel Manual and DOS manual to learn how the system works.
+The size of the manuals gives one pause.  Reading them is daunting.  After
+a bit of study one realizes there is no good overview of the executive and
+disk operating system, but there is plenty of detail.  Trying out some of
+the example programs can lead to odd results as there are many small
+mistakes in them which one can overlook.  After getting something to work
+many questions are left, such as "What will make this program work under
+Workbench?", "How can this program be made to multitask?", "What is a
+process?", and "How can this program be loaded by another?".  All of these
+are mentioned in the books and there is much discussion of them, but
+nowhere are there clear examples of useful programs that implement these
+things.  You will find, after some experience with the machine, that nearly
+every point is mentioned somewhere in the books.  Tying them all together
+is the difficult part.
+	I will cover these questions and more by showing a simple program to
+establish a style, then using that program to build ever more involved
+programs which will take you through the heart of the Amiga.  I will refer
+to the RKM (ROM Kernel Manual, Addison-Wesley, in four volumes: ROM Kernel
+Reference Manual: Libraries and Devices,  ROM Kernel Reference
+Manual:Exec, Intuition Reference Manual, and Hardware Reference Manual),
+and the AmigaDOS Manual, Bantam Books.  These might appear pricey, but for
+serious programming on the Amiga they are indispensable.  If you are new
+to the c programming language you should also have a text on c such as the
+original language definition "The c Programming Language" by Kernighan and
+Ritchie, Prentice-Hall, or another textbook on the subject.  Make sure you
+understand data structures because there will be a lot of references to
+them.  Let's get started:
+	We will need a timer for this experiment, something that goes tick,
+tick, tick, every second or so.  There is a section in the RKM: Libraries
+and Devices called Timer Device. To see if everything will work as
+advertised, let's try a simple delay.  We need to open a timer, run it,
+and then close it.  In order to open a timer we need to fill in a
+timerequest structure (RKM:Libraries and Devices, Include Files,
+devices/timers.h.  Note the .i structures are for assembly language
+writers).  Note the structure is tagged timerequest, not timeRequest as in
+the text.  The structure is:
+
+struct timerequest {
+	struct IORequest tr_node;
+	struct timeval	tr_time;
+}
+
+Aha! A typical Amiga data structure!  It consists of nothing more than
+other structures!  Sigh.  There is hope, though.  The struct timeval is in
+the same include file:
+
+struct timeval {
+	ULONG tv_secs;
+	ULONG tv_micro;
+}
+
+But what is a ULONG?  Look in RKM:Exec, Include Files, exec/types.h:
+
+typedef unsigned long ULONG;
+
+Now we know the timerequest structure is a template for an IORequest
+structure and two 32 bit quantities.  At the top of the file timer.h there
+is a line:
+
+#include exec/io.h
+
+So, while you're thumbing through RKM:Exec, look at exec/io.h.  You will
+find:
+
+struct IORequest {
+	struct Message	io_Message;
+	struct Device	*io_Device;
+	struct Unit		*io_Unit;
+	UWORD	io_Command;
+	UBYTE	io_Flags;
+	BYTE	io_Error;
+}
+
+That file #includes exec/ports.h, which defines the struct Message and
+struct MsgPort.  That file in turn references exec/nodes.h, exec/lists.h
+and exec/tasks.h, which contain the definitions needed to completely
+specify the struct timerequest (In my compiler's include files there is
+no mention of #including exec/types.h, so I have to do that myself.
+#including devices/timer.h gets all the rest).  The reason for belaboring
+all the various data structures is to show you what happens when a request
+is made, that is, just what data is passed around the machine and what
+Exec does with it.  Exec, the executive program, supervises the use of the
+microprocessor, responding to interrupts and checking tables of things to
+do.  It is generally invisible to you but it helps to know it is there,
+and we will be using its library of functions often.
+	This exercise also gets you used to referencing the RKM, which you will
+also be doing often.  Continuing with the full definition of struct
+timerequest,  we see it is a template for memory arranged like this,
+assuming we call the structure TR:
+
+LONG TR.tr_node.io_Message.mn_Node.ln_Succ ; points to the following node
+LONG TR.tr_node.io_Message.mn_Node.ln_Pred ; points to the preceding node
+BYTE TR.tr_node.io_Message.mn_Node.ln_Type ; defines the type of node
+BYTE TR.tr_node.io_Message.mn_Node.ln_Pri  ; this node's priority
+LONG TR.tr_node.io_Message.mn_Node.ln_Name ; points to a text string name
+LONG TR.tr_node.io_Message.mn_ReplyPort    ; points to a message port
+WORD TR.tr_node.io_Message.mn_Length       ; length of this whole block
+LONG TR.tr_node.io_Device                  ; points to a struct Device
+LONG TR.tr_node.io_Unit                    ; points to a struct Unit
+WORD TR.tr_node.io_Command                 ; a command
+BYTE TR.tr_node.io_Flags                   ; flags set
+BYTE TR.tr_node.io_Error                   ; error returned
+LONG TR.tr_time.tv_secs                    ; seconds requested
+LONG TR.tr_time.tv_micro                   ; microseconds requested
+
+	These 40 bytes are the complete timerequest structure.  We fill in some
+members ourselves and functions provided in the system fill in others.  In
+particular, we need to fill in what kind of timer it is, how we want the
+timer to behave (the command), and when we want the timer to reply to us.
+	First, however, we have to allocate some memory for the structure.
+There is a routine available which will do that for us, CreateExtIO(), but
+one of the things it needs is the address of a message port (struct
+MsgPort), which, as you recall from looking in exec/ports.h, is a little
+structure itself, starting with a Node structure.  Are you getting the
+idea that everything starts with a Node structure?  Just about everything
+does, because Exec uses these to link them into Lists (RKM:Exec, Lists)
+which are scanned periodically to see if anything needs doing, or when a
+routine wants to see if it has any mail.  Whole data structures are not
+passed around in the machine, just addresses of nodes, which also happen
+to be the first addresses of most structures.  We will get into detail on
+that later; suffice to say that if we ever get this memory allocated we
+will ask somebody to link our structure into some list or another so it
+will get processed.
+	There is a good discussion of memory allocation in RKM:Exec, Memory
+Allocation but fortunately there is a routine for that, too, for certain
+cases such as we need now.  CreatePort(), which needs only a name and a
+priority (RKM:Exec, Tasks, et al), will provide us with the address of a
+MsgPort structure we can use to call CreateExtIO(), which will provide us
+with an address of a timerequest structure, which in turn we will use to
+open a timer device.  For now, we will make everything priority 0.
+	These routines should be declared as functions returning something to
+make life easier as we write the program.  Some, like CreatePort(), always
+return the address of a MsgPort structure, so we can declare them
+globally. Others, like CreateExtIO() return the address of differently
+sized blocks, depending on what we are doing, so they should be cast as
+the type we need as we call them.
+	We also have to remember to free up the memory when we are done, and
+the routines DeletePort() and DeleteExtIO() will do that for us.  After
+all this discussion, the problem is again beginning to look simpler.  We
+will eventually fix things so they will get simpler yet.  These routines,
+by the way, are described in RKM:Libraries and Devices, Library Summaries.
+	So here it is:
+
+/***** Tick.c ***********************************************************/
+
+#include "exec/types.h"
+#include "devices/timer.h"
+
+struct MsgPort *CreatePort();
+
+void
+main()
+{
+	struct MsgPort *TP;
+	struct timerequest *TR;
+	int error;
+
+	TP = CreatePort(NULL, 0);
+	if (TP == NULL) {
+		printf("Not enough memory for the Message Port\n");
+		exit(0);
+	}
+
+	TR = (struct timerequest *)
+					CreateExtIO(TP, sizeof(struct timerequest));
+	if (TR == NULL) {
+		printf("Not enough memory for the timerequest\n");
+		DeletePort(TP);
+		exit(0);
+	}
+
+	error = OpenDevice("timer.device", UNIT_VBLANK, TR, 0);
+	if (error > 0) {
+		printf("The timer won't open\n");
+		DeleteExtIO(TR, sizeof(struct timerequest));
+		DeletePort(TP);
+		exit(0);
+	}
+
+	TR->tr_node.io_Command = TR_ADDREQUEST;
+	TR->tr_time.tv_secs = 5;
+	TR->tr_time.tv_micro = 0;
+
+	DoIO(TR);
+
+	printf("Tick\n");
+
+	CloseDevice(TR);
+	DeleteExtIO(TR, sizeof(struct timerequest));
+	DeletePort(TP);
+
+}
+
+/***********************************************************************/
+
+	You did read the section RKM: Timer Device didn't you?  So you know
+what a UNIT_VBLANK is, and that the constants in capital letters are
+defined in the appropriate include files.  I also included error checks
+in a crude way for good programming practice.  Compile this and play with
+it a minute or two.
+	All we have done here is allocate memory for the two structures that we
+use, initialized them with our values, requested the system to link them
+into the appropriate lists, and waited.  Five seconds later, our routine
+wakes up, prints a "Tick" message, and exits.  If you don't believe that,
+change the value of TR->tr_time.tv_secs to about ten or fifteen, recompile
+it, and RUN Tick.  A new CLI will be created, and for the time you have
+called for you will be able to perform a DOS command like Date in your
+original CLI.  In the time you have specified, the "Tick" message will
+appear and the background CLI will end.  You've been multitasking!  The
+trouble is that the manuals don't clearly show how you can accomplish
+that from within a program.
+	You have read the RKM: Exec, Input/Output so you saw the mention of
+DoIO() and the other functions for doing IO.  In the program we tried, the
+function DoIO() was used to make things simple.  We built the appropriate
+structures and DoIO() requested the timerequest structure to be linked
+into a message port somewhere.  Did you notice in your earlier perusal of
+the exec/ports.h file that the last item in a struct MsgPort is a struct
+List?  Not a pointer to a structure, but an actual structure.  The ln_Pred
+and ln_Succ fields of your timerequest structure are changed by Exec to
+point to the proper elements of that list.  When your time is up Exec
+changes the pointers to link the message (timerequest structure) onto the
+MsgPort you called for in CreatePort().  DoIO() sees there is mail, sets
+any error codes or flags, and exits.  We will be doing quite a bit with
+this timer program, so it would be better if we had more convenient
+routines to handle allocation and deallocation for us, as well as setting
+and stopping a timer.  So, before we continue, let's build a file of timer
+utilities to help us.  You might want to modify these somewhat to suit your
+specific needs.  In particular, SetTimer() does not now set the
+microseconds part of the timerequest so only even second periods are
+available.  If you wanted, you could change the formal variable to a double
+and do the math to get microseconds right in the routine.
+	An important note about compilers:  The stack checking routines various
+compilers put into the code will not work in task code.  Since we expect to
+be using these routines within tasks, they and any of the following routines
+which will become part of task code must be compiled with stack checking
+disabled.  There is a further consideration if you are using Lattice v4.0:
+When task code is added to the system task list, register A4 is not
+preserved, thereby destroying the code's reference to its data sections.
+There is a compiler option to cause it to generate register saving code at
+the beginning of each function call.  It costs only 24 bytes per function,
+and is necessary only for functions referenced by AddTask() or
+CreateTask() (q.v.).  It's unlikely any of these would be, but you never
+know.  For Lattice 4.0 the compiler command line would be:
+
+	lc -v -y TimerUtilities
+
+	Carefully check your compiler documentation for any special treatment
+required for task code.
+
+/***** TimerUtilities.c *************************************************/
+/*																								*/
+/*		A package of utilities to control timer devices.	This package	*/
+/* contains:																				*/
+/*																								*/
+/*		CreateTimer(unit, priority)													*/
+/*			returns: Pointer to a struct timerequest or zero if trouble		*/
+/*		AbortTimer(timerequest)															*/
+/*			returns: Nothing																*/
+/*		SetTimer(time)																		*/
+/*			returns: Nothing																*/
+/*		DeleteTimer(timerequest)														*/
+/*			returns: Nothing																*/
+/*																								*/
+/************************************************************************/
+
+#include "exec/types.h"
+#include "devices/timer.h"
+
+extern struct MsgPort * CreatePort();
+
+struct timerequest *
+CreateTimer(unit, priority)
+	ULONG unit;
+	LONG priority;
+{
+	struct MsgPort *TP;
+	struct timerequest *TR;
+
+	if ((TP = CreatePort(NULL, priority)) == NULL)
+		return(NULL);
+
+	if ((TR = (struct timerequest *)
+			CreateExtIO(TP, sizeof(struct timerequest))) == NULL) {
+		DeletePort(TP);
+		return(NULL);
+	}
+
+	if (OpenDevice(TIMERNAME, unit, TR, 0) != NULL) {
+		DeleteExtIO(TR, sizeof(struct timerequest));
+		DeletePort(TP);
+		return(NULL);
+	}
+
+	return(TR);
+}
+
+void
+AbortTimer(T)
+	struct timerequest *T;
+{
+	if (AbortIO(T) == NULL) {
+		Wait(1 << T->tr_node.io_Message.mn_ReplyPort->mp_SigBit);
+		GetMsg(T->tr_node.io_Message.mn_ReplyPort);
+	}
+}
+
+void
+SetTimer(T, time)
+	struct timerequest *T;
+	int time;
+{
+		AbortTimer(T);
+		T->tr_node.io_Command = TR_ADDREQUEST;
+		T->tr_time.tv_secs = time;
+		T->tr_time.tv_micro = 0;
+		SendIO(T);
+}
+
+void
+DeleteTimer(TR)
+	struct timerequest *TR;
+{
+	struct MsgPort *TP;
+
+	if (TR != 0) {
+		AbortTimer(TR);
+		TP = TR->tr_node.io_Message.mn_ReplyPort;
+		CloseDevice(TR);
+		DeleteExtIO(TR, sizeof(struct timerequest));
+		DeletePort(TP);
+	}
+}
+
+/************************************************************************/
+
+	Compile these, but don't link them.  There's nothing to link to yet.
+Notice the routines don't use DoIO().  They use SendIO() instead.  That
+will allow us to use them in a task we will create Real Soon Now.  First,
+let's write a test routine to see if everything works.  We'll include an
+argument this time so we will be able to set the timer to anything we
+want.  We'll use the function WaitPort() to wait for completion of the
+timer.  This gets us closer to a full multitasking program.  The reason it
+isn't full multitasking is that we aren't doing anything else while
+waiting for a message (the timerequest structure) to arrive at our message
+port.
+
+/***** Test.c ***********************************************************/
+
+#include "exec/types.h"
+#include "devices/timer.h"
+
+struct timerequest *CreateTimer();
+
+void
+main(argc, argv)
+	int argc;
+	char *argv[];
+{
+	struct timerequest *T;
+	struct MsgPort *P;
+	int delay;
+
+	if (argc != 2) {
+		printf("Please provide a delay time\n");
+		exit(0);
+	}
+
+	delay = atoi(argv[1]);
+
+	T = CreateTimer(UNIT_VBLANK, 0);
+	P = T->tr_node.io_Message.mn_ReplyPort;
+	SetTimer(T, delay);
+	WaitPort(P);
+	printf("Tock\n");
+	DeleteTimer(T);
+}
+
+/************************************************************************/
+
+	Compile this and link it with TimerUtilities.o to get a complete
+program.  Alternatively, you could combine both files together just for
+test purposes.  Now run the test program, remembering to include a delay
+value: Test 3, for example.
+	Allright! The utility package is quite a help.  Now, look carefully at
+AbortTimer().  A brief mention should be made here about the function
+AbortIO().  It isn't described in some books.  If the IO has completed
+when AbortIO() is called, it returns a -1 from a timer device (or  a
+meaningless value from some other devices), and no message is attached to
+the message port.  If the IO has not completed and is aborted, the
+function returns a 0 and the timerequest structure (our message) is
+attached to the message port.  We then call GetMsg() to remove it from the
+port, something unnecessary in this application, but possibly required in
+others that use this routine.  We will see more of GetMsg() later.  The
+way AbortTimer() waits for completion is Wait().  This function waits for
+a particular bit to be set.  While waiting, of course, just as in the case
+of WaitPort() and WaitIO(), Exec can be doing other things.  To see that
+effect, try Running several copies of Test at the same time: Run Test 30
+<CR> Run Test 20 <CR> Run Test 10 <CR>.  You should see the word "Tock"
+printed three times, ten seconds apart.
+	I said Wait() waits for a particular bit to be set.  This bit is called
+a signal, and every message port gets one allocated.  They have to be
+allocated because for every task, like the one we are running when we run
+Test, has a longword (32 bits) in a structure available for signalling.
+Each bit has to have a unique meaning.  Exec takes the lower sixteen for
+itself, leaving the upper sixteen available to us.  We don't know which
+bits have been allocated already, or to what, so we use a routine
+AllocSignal() to find out our bit number.  The signal must be freed with
+FreeSignal() when we don't need it any more.  These details have been
+taken care of for us by CreatePort() and DeletePort().  The point is that
+there is a number in a message port that is the number of a bit (from 0 to
+31) that says when this bit is set in a certain location, mail has arrived
+at the port.  It stays set until you Wait() for it in some fashion or
+another ( WaitPort() or WaitIO() ).  We can recreate that bit by shifting
+a 1 left the number of times equal to the signal number.  The signal
+number is in a struct MsgPort, element mp_SigBit.  Remembering that in our
+timerequest structure there is an IORequest structure containing a
+Message structure which contains a pointer to a message port, the
+reference is mn_ReplyPort->mp_SigBit.  Since that Message structure is
+part of an IORequest structure we have to say
+io_Message.mn_ReplyPort.mp_SigBit.  That IORequest in turn is a named part
+of a timerequest structure called tr_node.  So, we obtain the number,
+shift a 1 left that number of times, and Wait() for it to be set, which
+yields the mouthful operation:
+
+Wait(1 << T->tr_node.io_Message.mn_ReplyPort->mp_SigBit);
+
+	We won't say that very often, but we will be using Wait() on specific
+bits.
+	Let's review what we've done.  We allocated and initialized a MsgPort
+structure.  That sits off to the side as our mailbox.  We allocated and
+initialized a timerequest structure, among other things putting the
+address of our mailbox in it so the system will know where to send the
+structure back to when it's done with it, a return address, if you like.
+That's our message.  We put some stuff in the message (the command and
+time values), sent it off to Exec, and waited for mail to arrive at our
+mailbox.  Because of the particular functions used for waiting, the
+microprocessor can go to sleep if Exec isn't doing anything else.  We
+could have done busy loop waiting, which consists of looking at some value
+in the MsgPort to see if it has changed, and if it hasn't, looking again.
+That kind of program won't quite choke up the machine, depending on the
+priority it has, but it eats up all the spare processor time and can make
+some operations very slow.  We will demonstrate that with our timer
+routines by and by.
+	We have been operating as a task spawned by the CLI (A process,
+actually, but that is a sort of super task run by DOS.  More on that
+later).  We communicated with the rest of the system by sending messages
+and looking for signals.  You cannot write a function and call it with
+values as in ordinary c programming and have it be a separate task.  You
+must use the message passing system.  Exec, whose name we have been
+invoking all along, is primarily a program which manipulates lists, lists
+of messages being a large part of a busy program.  It is properly called
+the executive.  Every time a clock interrupt occurs, Exec is activated,
+and it goes looking for things to do by scanning various lists.  You
+don't ever call Exec, you just readdress a message.  Exec will know about
+it soon enough and take suitable action.
+	Let's examine lists more closely (You have been diving into the RKM to
+look things up all along, haven't you?  See RKM: Exec, Lists).  A list is
+a simple little structure of three pointers and a byte defining its type:
+
+LONG lh_Head		; points to the first node in the list
+LONG lh_Tail		; is always zero
+LONG lh_TailPred	; points to the last node in the list
+BYTE lh_Type		; defines the types of nodes in the list
+BYTE lh_pad			; is here to make the structure an even number of bytes
+
+	The lh_Type field signifies what kind of a list it is.  Those
+definitions are in the include file exec/nodes.h, and can be tasks,
+interrupts, memory, all the things that Exec keeps track of.
+	If the list is empty the lh_Head element points to its lh_Tail and the
+lh_TailPred points to its lh_Head.
+
+        ---- lh_Head <------
+        |                  |
+        ---> lh_Tail = 0   |
+                           |
+             lh_TailPred ---
+
+				Figure 1
+
+	Now if a node is added to the list, the list's head is made to point to
+the node, that is, the first location of the node.  The node has no
+successors, so the ln_Succ field is made to point to the list's lh_Tail,
+which is always zero so a search routine has a place to stop.  The node's
+predecessor is the list, so that field is made to point to the first
+location of the list.  As more nodes are added on to the list, the ln_Succ
+field is made to point to the first location of the following node and the
+following node's ln_Pred field is made to point to the first location of
+the preceding node.  That way all nodes are linked forwards and backwards.
+A list and the nodes linked into it could be represented like this:
+
+                                     Node:
+                              -------> ln_Succ -------<-|
+                              |   ---- ln_Pred       |  |
+              List:           |   |    ln_Type       |  |
+                lh_Head -------<---    ln_Pri        |  |
+         (zero) lh_Tail <--------      ln_Name       |  |
+                lh_TailPred --- |                    |  |
+                              | |                    |  |
+                              | |    Node:           |  |
+                              | |      ln_Succ <======<-+--|
+                              | |      ln_Pred ------+--|  |
+                              | |                    |     |
+                              | |                    |     |
+                              | |    Node:           |     |
+                              |_====>  ln_Succ <-----|     |
+                                       ln_Pred ------------|
+
+										Figure 2
+
+	A node has a type, just like a list, and generally agrees with the type
+of list it is in.  It also has a priority so that Exec can establish the
+order in which it will process a node.  There is a name field which can be
+a pointer to a character string such as "Initial CLI" to give the
+structure an identifier that can be searched for without knowing which
+list it is in.
+	Nodes by themselves aren't of any use, but they are the beginning
+structure of almost every structure in the system.  Recalling the
+discussion of messages and the timerequest structure, you can see how
+messages can be sent to a message port just by finding where the
+lh_TailPred field of the message port points, putting that address in the
+ln_Pred of the message, and changing the contents of that address to point
+to the first location of the message.  Since it will be the latest message
+attached to the port, its ln_Succ field will be filled with the address of
+the lh_TailPred field of the message port.  Exec has to change just those
+three addresses and three more in the list the message came from, if it
+was in one, to send it, no matter how large the message.  You don't have
+to bother yourself with these details as there are routines that perform
+these functions, allowing you to think of "sending" or "putting" a message
+somewhere and waiting for a "reply".  The list structure comes more
+readily to mind when we link something into one, such as a task (See RKM:
+Exec, Tasks and include/exec/tasks.h).
+	Tasks are jobs that Exec performs when the conditions warrant, such as
+a timer running out, or a key being pressed.  There are certain
+limitations to tasks as such.  They are procedures which cannot be called
+by another function (Exec does that when the time is right, and it is best
+not to interfere with the opertion of Exec.  It bytes).  A task cannot
+return a result, and as you shall see, should probably not return at all.
+A task cannot call any DOS related input or output functions that require
+multitasking like printf(), although way down the line I'll give some
+pointers on accomplishing those functions.
+  Communication with a task is done by message passing.  There are
+standard system messages like we have been using (the timerequest
+structure), and you can construct messages to suit your taste as long as
+Exec understands them (the beginning structure is a Message structure) and
+your task understands them (the remainder of the structure contains
+information meaningful to it).  There is a special kind of message called
+a semaphore, used to provide a means of mutual exclusion, and
+communication is also done by signals, which are single bits of an
+unsigned longword. One other means not supported by Exec is by global
+variables.  If your task can see a variable changed by another program,
+your task can act on it.  However, a very important point for a
+multitasking system, you must not busy wait in a task as you will eat up
+all the spare time the microprocessor has.  Notice I said spare time and
+not necessarily all its time.  That depends on your task's priority.  Busy
+waiting is exemplified by this:
+
+	s = 0;
+	while (s != 999999999) {
+		s = s + 1;
+	}
+
+Later on we will try a busy waiting routine to see what happens.
+	Signals are the simplest executive system for intertask communication.
+Every task has available an unsigned longword called tc_SigAlloc.  I'm
+sure you have your RKM:Exec book open to the include/exec/tasks section
+this very moment, so have a look at the other signal related elememts
+tc_SigWait and tc_SigRecvd.  Signals are single bits of the longword
+tc_SigAlloc.  As I mentioned earlier in the discussion of Wait() the lower
+sixteen are reserved for use by Exec.  The upper sixteen are available for
+your use. You could define a certain bit as meaning a certain thing to
+your task, but the burden of maintaining that bit is large.  You would
+have to keep a copy in your main program, one in your task, and provide
+one for Exec so it would know what to do if that signal bit was set or
+cleared.  The overhead is taken care of neatly by the functions
+AllocSignal() and FreeSignal().  AllocSignal() returns a number which is
+the number of times a 1 bit must be shifted left to obtain the signal bit.
+FreeSignal() takes that number as its argument, so it must be saved until
+FreeSignal() is called.  You can specify which bit you want allocated by
+providing AllocSignal() with the bit number, but in the case of several
+possible paths and times of signalling a task, the preferred method is to
+call AllocSignal(-1), which returns the next signal number available.  If
+no signal is available, the function returns a minus one.  If a signal is
+allocated, that bit is set in the longword tc_SigAlloc.  Would you like to
+see that?  I said a program run from the CLI could be seen as a task.  You
+can find your own task structure by calling FindTask(0), which returns the
+address of a task structure.  Well, a process structure, really, but a
+process structure starts off with a task structure and structures are
+nothing more than a representation to the programmer of a bunch of
+locations in contiguous memory.  FindTask() returns an address, and if we
+tell the compiler that address is a task structure, it will believe us.
+The snare and delusion is that block of memory must have been built as a
+task structure originally or our results will be meaningless.  It was
+built that way.  Trust me.
+
+/***** Tasking.c *********************************************************/
+
+#include "exec/types.h"
+#include "exec/tasks.h"
+
+void
+main()
+{
+	struct Task *T;							/* Declare your variables */
+	unsigned int s;							/* Sounds like eat your vegiables */
+
+	T = (struct Task *) FindTask(0);		/* Find out where we are  */
+	printf("%08x\n", T->tc_SigAlloc);	/* Print our allocated signals */
+	s = AllocSignal(-1);						/* Get another one */
+	printf("%08x\n", T->tc_SigAlloc);	/* Print the allocated signals */
+	FreeSignal(s);								/* Give it up */
+	printf("%08x\n", T->tc_SigAlloc);	/* Print the allocated signals */
+	printf("%d\n", s);						/* Print the bit number */
+}
+
+/*************************************************************************/
+
+You should have obtained the results 0000ffff, 8000ffff, 0000ffff, and 31.
+If you didn't you shouldn't be reading this.  It's wrong.  Anyway, we see
+that the most significant bit was allocated, then deallocated.  The bit
+number is 31 decimal, which agrees with the hexadecimal printout of the
+bits themselves, and we see all lower sixteen already allocated.
+	If we make a task, the signals we expect to receive must be allocated
+within that task, not by another one, so that will be part of the
+initialization.  We must also inform other tasks just what bit we expect to
+receive for a particular action.  We must use one of the methods described
+before, namely message passing, signalling (rather tricky in this case; a
+problem left as an exercise for the student), or global data.  We'll use
+the last method in this demonstration because the programs are small.
+(There is another way if a message port is constructed:  Give the port a
+name, let the other task find it with FindPort("name"), then get the
+mp_SigBit of that port.)
+	Now that you know something about signals, you must know how to deal
+with them within the task.  I mentioned waiting before.  The Wait()
+function is the essential part of multitasking as the programmer sees it.
+Wait() causes the particular bits specified in its argument to be put into
+the tc_SigWait element of the task structure and calls Exec.  Until that
+bit gets set by some other task, Exec can give the processor to some other
+task.  Your task is essentially halted.  When that bit gets set, Exec moves
+your task to the ready queue (attaches your task structure to the TaskReady
+list) in order of its priority.  When all higher priority tasks have run
+and gone into the wait state (have been attached to the TaskWait list),
+yours will get processor time.
+	WaitPort() and WaitIO() are alternate methods of waiting, as I mentioned
+before.  Both can wait for one event.  True, WaitPort() could be waiting
+for messages from different sources, but it is still waiting for the SigBit
+of that one port to be set, indicating message arrival.  Wait() can wait
+for as many as sixteen events at a time.  Thirty-two are possible, but
+remember the reservation of sixteen bits by Exec.  The reason is that the
+argument supplied to Wait() is a mask of bits.  Wait() returns a
+collection of bits received.  If you allocated three bits for signals in
+your task, calling them x, y, and z, you would use the form:
+
+	ULONG signals, x, y, z;
+
+	signals = Wait( x | y | z );
+	if (signals & x) {
+		/* Do job x */
+	}
+	if (signals & y){
+		/* Do job y */
+	}
+	if (signals & z){
+		/* Do job z */
+	}
+
+The jobs that are done can be separately defined procedures.  Those
+procedures take on the priority of your task because they are using
+processor time while your task is active.  They can operate at another
+priority if a task of a different priority calls them.  A small point, but
+one worth remembering.
+	What makes a program of such a form a task is the Task structure (RKM:
+Exec, Tasks) that we allocate for it which contains information Exec needs
+to run it, like the signals allocated for it we played with before, the
+stack it will use, and so on, and a call to the function AddTask(), which
+informs Exec of the address of the program.  There are many variations on
+the use of the structure, so here we will use the functions CreateTask()
+and DeleteTask() which take care of the details in a simple but useful way.
+The structure will be linked into the system task list in the way I
+discussed in the section on lists.
+	I have discussed task initialization well enough to make a small task,
+that is, the startup part of the task itself, and the body of the task and
+waiting.  The other essential part is ending a task.  Recall I said a task
+should probably not exit at all.  The reason comes from the way a task is
+created.  You allocate space for a task structure, fill in various fields,
+including the address of your task code and the size of the stack the task
+will need, and ask Exec to link the structure into its task list.  After
+you give the task a chance to run (that doesn't happen until your main
+program waits) there will come a time to exit.  When you do you must either
+leave the task in memory, still operating, or inform Exec that it is no
+longer needed, at which time Exec will deallocate the task's stack, memory
+attached to the task structure (another whole subject we won't need at the
+moment, see RKM:Exec, Memory Allocation), and the task structure itself.
+If your task exits on its own for some reason, with your main program still
+running, Exec will go through the deallocation process without informing
+your main program.  When your main program exits, attempting to deallocate
+the same task, Exec will become strange.  You might not see an effect until
+another program is run, at which time the Guru may visit you, or there may
+be the AMIGA_FIREWORKS_DISPLAY.  So responsibility for task cleanup must be
+thought out beforehand.  If your task is to end with the end of the main
+program, then the task must not exit on its own without informing your main
+program.  If it is to survive the ending of your main program, then the
+task itself must deallocate any resources such as close open libraries,
+deallocate memory other than that in the task's stack and memory lists
+(tc_MemEntry), close devices, and turn off the lights before the iceman
+comes.  In our first example we will put responsibility of deallocation in
+the main program, so we won't let the task exit.  We do that with the
+Wait() function.  Remember that Wait() waits for some bit of a mask, or
+collection, of bits to be set.  If we don't specify a mask, then the task
+will Wait() forever.  This isn't busy waiting: remember that Wait() gives
+Exec control of the microprocessor.  Wait(0) is sufficient.  Later on we
+will leave the task running after the main program exits and have it
+terminate on some external event.
+	It is helpful to have a free memory checking routine available while
+you're playing with programs of this kind to see the room your program
+takes, and more importantly, that everything is returned to free memory
+after your program exits.  Avail in its various incarnations is perfectly
+good for that.
+	Here we use the functions you compiled already.  Don't forget to link
+that object file with these two when you compile.  The first program is
+the task itself: in this case one that will provide a stream of "ticks" at
+one second intervals. It first allocates a signal the main program will
+use to tell it when it is no longer needed, then creates a timer,
+discovers the signal bit it uses so we know when the timer has expired,
+and sets the timer to get it running.  Then it waits, either for a tick or
+an abort signal.  If it is a tick it immediately resets the timer and
+signals the main program whose identity we know from the global
+declaration of MT, and then loops back to waiting for another event.  If
+it receives an abort signal it deallocates the abort signal bit and the
+timer structure, signals the main program it has finished, and waits to be
+deallocated itself.	A priority for the timer is available from the main
+program as a global variable that will be of use when experimenting.  Since
+this is going to be used as a task, you must compile it with stack checking
+disabled and register preserving code generation enabled.
+
+/***** TimeTick.c ********************************************************/
+
+#include "exec/types.h"
+#include "devices/timer.h"
+
+extern struct timerequest *CreateTimer();
+extern void SetTimer();
+extern void DeleteTimer();
+
+extern struct Task *MT;
+extern unsigned int ready;
+extern unsigned int tick;
+extern int priority;
+
+unsigned int abort;
+
+void
+TimeTick()
+{
+	struct timerequest *T;
+	int ab;
+	unsigned int t;
+	unsigned int signals;
+
+	ab = AllocSignal(-1);
+	abort = 1 << ab;
+
+	T = CreateTimer(UNIT_VBLANK, priority);
+	t = 1 << T->tr_node.io_Message.mn_ReplyPort->mp_SigBit;
+	SetTimer(T, 1);
+
+	for(;;) {
+		signals = Wait(t | abort);
+		if (signals & t) {
+			SetTimer(T, 1);
+			Signal(MT, tick);
+		}
+		if (signals & abort) {
+			FreeSignal(ab);
+			DeleteTimer(T);
+			Signal(MT, ready);
+			Wait(0);
+		}
+	}
+}
+
+/*************************************************************************/
+
+	Now for the main program: It provides the timer with the address of
+this task and a bit the main program expects to see as a "ready" signal,
+used for the ticks themselves and as a signal that the abort procedure has
+completed when it comes time to deallocate the task.  It installs the task,
+waits for a few ticks, printing out a message on the screen at each tick,
+then deletes the task.  Compile it, link it with the object files you got
+by compiling TimeTick.c and TimerUtilities.c, and run it.
+
+/***** ShowTicks.c *******************************************************/
+
+#include "exec/types.h"
+#include "exec/tasks.h"
+
+extern struct Task *FindTask();
+extern struct Task *CreateTask();
+
+extern void TimeTick();
+
+extern unsigned int abort;
+
+struct Task *MT;
+unsigned int ready;
+unsigned int tick;
+int priority = 0;
+
+void
+main()
+{
+	struct Task *T;
+	int r, t;
+	int i;
+
+	MT = FindTask(0);
+	r = AllocSignal(-1);
+	ready = 1 << r;
+	t = AllocSignal(-1);
+	tick = 1 << t;
+
+	T = CreateTask("Ticks", priority, TimeTick, 4000);
+
+	for (i = 0; i < 10; i++) {
+		Wait(tick);
+		printf("Tick\n");
+	}
+
+	Signal(T, abort);
+	Wait(ready);
+	FreeSignal(r);
+	FreeSignal(t);
+	DeleteTask(T);
+
+}
+
+/*************************************************************************/
+
+	Note that when CreateTask() is called, Exec links the task into its task
+list, and if it has a priority higher than than the program that spawned
+it, the task will begin execution before the spawning program retains
+control of the microprocessor.  If the priority is lower, the task will not
+run until the main program gives up control of the microprocessor with a
+Wait() instruction (or some other form of Wait() such as WaitIO()).  In
+this case it makes no difference because immediately after CreateTask() is
+called, Wait() is called to wait for tick events.  Note, too, that after
+the task is signalled to abort, the main program Waits for a ready signal
+assuring that the task has gone through its abort procedure.  If the
+priority of the task was lower than that of the main program and the
+Wait() was not present, the main program would continue to have control of
+the microprocessor until it exited.  The last instruction is DeleteTask(),
+so that would be performed before the task ever saw the abort signal.  The
+timer would be left in memory with no easy way to later delete the memory
+it occupies.  The important thing to keep in mind is Signal() can cause
+Exec to halt the calling program and run the signalled task before
+returning to the calling program.  Fine points like this are not
+immediately obvious in source code.  I provided the global int priority so
+you could experiment with it.  For reference, the priority of a program run
+from CLI is zero unless you've changed it.  It would be helpful to add code
+to accept a priority from the command line (argc & argv).
+	Now try a busy waiting program to investigate the Amiga's behavior.  It
+is easy enough to avoid such a programming practice, but the real value of
+doing such an investigation is learning the effects of tasks which take up
+a good deal of processor time. Let's set up two tasks: one for giving time
+ticks and one for trying to occupy all of the processor for a while. We'll
+make a hog task and a new main program, but use the same TimeTick with a
+temporary modification and the same TimerUtility routines.  Modify
+TimeTick() by declaring an extern int count, and after the SetTimer() call
+in the Wait() loop but before the call to Signal(MT, tick), increment count
+with count++;.  This agrees with the declaration of count in ProcHog() and
+provides the means for determining the relative actions of the two tasks.
+The result is printed out as the main program exits.
+	The main routine expects two priority values to be provided: ProcHog 2 1
+for example.
+	The function BusyWait() will be installed as a task, so you must compile
+this with stack checking disabled and register preserving code enabled.
+
+/***** ProcHog.c *********************************************************/
+
+#include "exec/types.h"
+#include "exec/tasks.h"
+
+extern void TimeTick();
+extern LONGBITS abort;
+
+struct Task *MT, *FindTask(), *CreateTask();
+
+int count = 0;
+int priority;
+LONGBITS ready, tick;
+
+void
+BusyWait()
+{
+	int i;
+
+	for (i = 0; i < 1000000; i++);
+
+	Signal(MT, ready);
+	Wait(0);
+}
+
+void
+main(argc, argv)
+	int argc;
+	char *argv[];
+{
+	struct Task *T, *H;
+	int r, t;
+	LONGBITS signals;
+
+	if (argc != 3) {
+		printf("Please provide priority values for TimeTick and BusyWait\n");
+		exit(0);
+	}
+
+	MT = FindTask(0);
+	r = AllocSignal(-1);
+	ready = 1 << r;
+	t = AllocSignal(-1);
+	tick = 1 << t;
+
+	T = CreateTask("Ticks", atoi(argv[1]), TimeTick, 4000);
+	H = CreateTask("Hog", atoi(argv[2]), BusyWait, 4000);
+
+	for (;;) {
+		signals = Wait(tick | ready);
+		if (signals & tick) {
+			printf("Tick\n");
+		}
+		if (signals & ready) {
+			Wait(tick);
+			Signal(T, abort);
+			Wait(ready);
+			DeleteTask(T);
+			DeleteTask(H);
+			FreeSignal(r);
+			FreeSignal(t);
+			break;
+		}
+	}
+	printf("Ticks counted: %d\n", count);
+}
+
+/*************************************************************************/
+
+	Here I used the exec/types typedef LONGBITS to replace "unsigned int" to
+clarify the role of the variable.  BusyWait() is the task designed to hog
+the microprocessor, and main(), of course, is the task spawning program
+running at priority 0.  If you invoke ProcHog 2 1 so that both tasks run at
+a higher priority than the main program with the timer running at a
+priority higher than BusyWait(), here's what happens: At creation of task T
+("Ticks") the timer is started, that is, TimeTick is set to running
+immediately.  It will be a full second before the timer runs out, so as
+soon as Wait() is reached in TimeTick(), control is returned to the main
+program, which proceeds with creating the task H ("Hog").  Since its
+priority is also higher than that of the main program it begins running
+immediately, preventing control from returning to the main program for
+about ten seconds.  Meanwhile, every second TimeTick() sets the signal
+"tick", but it is not seen by the main program because it is prevented from
+running by the looping of BusyWait().  When BusyWait() finally quits and
+sets the signal "ready" the main program can run.  The main program sees
+that the signal "tick" has been set (remember signals get cleared by Wait()
+so there is no way of telling how many signals there were, just that there
+was at least one) and prints the word "Tick".  It also sees that "ready"
+was set so it signals TimeTick() to abort itself.  The reason for waiting
+for one more "tick" will become apparent when we change the priorities of
+the tasks.  After the main program signals TimeTick() to abort it waits for
+the ready signal to ensure TimeTick() has deallocated its resources before
+continuing for the reasons discussed above.  If both are run at the same
+priority above that of the main program the same thing happens, although
+in this case Exec doesn't run TimeTick() for the same reason.  Here you see
+the effect of the Exec "quantum" which allows a task to run for a certain
+length of time whereupon Exec halts the running task to examine its task
+list to see if there are any of higher priority that need to run.  There
+are none in our program suite, but Exec places the task just halted at the
+bottom of the list of tasks at that same priority so others of the same
+priority can run for a while.  The effect is that TimeTick() and BusyWait()
+each get to run.  Since both are still at a higher priority than the main
+program, they will keep control of the microprocessor until BusyWait()
+expires.  As you can see, busy waiting doesn't exactly stop everything in
+the Amiga, but it can interfere with lower priority tasks.
+	Now if you run ProcHog 1 2 so that both tasks have a higher priority
+than the main program, as before, but with BusyWait() at a higher priority
+than TimeTick(), much the same thing appears to happen, but in this case
+TimeTick() runs down to its Wait() when created as a task, and is prevented
+from doing more until BusyWait() expires, when it again gets control and
+sees that at least one second has passed.  It resets the timer and waits
+again.  The main program regains control, waits for another tick, aborts
+TimeTick(), and exits, so only two tick events are recorded instead of ten.
+	If you run all three at the same priority by invoking ProcHog 0 0, then
+the quantum effect allows the main program to share the processor equally
+with the two spawned tasks, and each tick event is shown by the main
+program as the word "Tick".  Eleven are counted instead of ten because the
+main program waits for a tick before aborting TimeTick().  If you invoke
+ProcHog -1 -2 to put both tasks below the priority of the main program then
+the main program keeps control until it waits.  TimeTick() runs as needed
+because the main program is waiting most of the time, taking only enough
+processor time to print the word "Tick", and BusyWait() gets whatever time
+is left over.
+	The final case is both tasks having a lower priority than the main
+program but with BusyWait() having a higher priority than TimeTick() (e.g.
+ProcHog -2 -1).  You see that the word "Tick" is never printed, and that
+TimeTick() has recorded only one event.  Here is the sequence of events:
+The main program creates the task "Tick" (TimeTick()), but since the task
+has a lower priority than that of the main program, it does not yet run.
+The main program then creates the task "Hog" (BusyWait()), which also has a
+lower priority so does not run.  The main program keeps control until it
+waits for a signal (tick or ready).  BusyWait(), having the next lower
+priority, takes control of the microprocessor and keeps it until the loop
+is exhausted, whereupon it signals the main program with "ready".  The main
+program then proceeds to abort TimeTick().  TimeTick() has never had a
+chance to even initialize!  If we tried to signal an abort the bit would be
+undefined (zero, actually, since it is declared an extern, and external
+variables are supposed to be initialized to zero at compile time) because
+it is defined within TimeTick().  Remember, signals must be defined within
+the task which expects to receive them.  So, we would signal TimeTick()
+with nothing and wait for a ready from it.  As soon as we waited,
+TimeTick() would get control, proceed with counting ticks, signalling the
+main program with "tick" each time, but the main program would ignore it
+because it would be waiting for "ready".  The main program would hang up.
+By waiting for a tick at this point, we can be sure that TimeTick() has
+initialized, that "abort" has been defined and that TimeTick() will respond
+to it.
+	Now is the time to put all this into useful programs.  A simple
+demonstration is a little digital clock that can fit in the title bar of an
+existing window.  We can obtain the date and time in seconds from January
+1, 1978 by reading the system clock with the timer.device command
+TR_GETSYSTIME.  A little arithmetic massaging will yield the time of day.
+We can use the same kind of timer as we did TimeTick() to provide a signal
+to update the clock.  The display can be a window the same height as a title
+bar.  I won't get into much of a discussion of windows here because of the
+thorough treatment already given in the Intuition Reference Manual.  It
+would probably be helpful to read this source code while referencing that
+manual to gain an understanding of practical window implementations.
+	The function main() opens the little window in the title bar of the
+Workbench screen, sets the colors to use, makes a one second repeatable
+timer,  and waits for either a tick signal or a signal that you clicked on
+the close box of the clock window.  To avoid complexity, main() will exit
+on reception of any signal from the window, but because of the way
+NewWindow is defined, the only signal Wait() can get is that from a click
+on the close box. Notice the loop for Wait() and decoding of signals is
+defined by the macro FOREVER.  This is a definition in
+intuition/intuition.h of the function for(;;) which helps clarify the
+source code.
+	The function cia() is just a routine to convert an integer to a two
+digit ASCII string and place it in a string buffer for the display.
+	Notice that the one second ticks are used only as an alert to main() to
+read the clock, rather than being used as actual clock ticks.  The reason
+for this is that in a multitasking system, the ticks will not necessarily
+come at exact one second intervals depending on other system activities
+(tasks), such as resizing other windows and so forth.
+	Compile and link this by itself.  I purposely didn't use any functions
+in TimerUtilities.c to make it small.  Also, I put main() before cia() and
+commented out the two lines referring to SysBase because an experiment soon
+to come will need that order and that reference.
+	Try Clock as a command, and also try Run Clock several times to see
+several invocations of it.  The clock display itself is in the drag bar of
+its own window so you can move one out of the way to uncover another.  You
+might use Avail to see how much memory each invocation takes, for future
+reference.  I will be discussing the reasons for that later on.
+Compilation does not now need any special options.
+
+/***** Clock.c ***********************************************************/
+
+#include <exec/types.h>
+#include <intuition/intuition.h>
+
+extern struct Window *OpenWindow();
+extern struct Task *FindTask();
+extern struct MsgPort *CreatePort();
+extern struct IntuiMessage *GetMsg();
+extern struct timerequest *CreateExtIO();
+
+/* Use this when compiling as NewClock.c */
+/* struct ExecBase *SysBase; */
+
+struct IntuitionBase * IntuitionBase;
+struct GfxBase * GfxBase;
+
+char timestring[9];	/* The ASCII time buffer */
+BYTE t_i;				/* The buffer index */
+
+struct NewWindow NewWindow = {
+	489, 0, 150, 10, 3, 2, CLOSEWINDOW,
+	WINDOWCLOSE | WINDOWDRAG | WINDOWDEPTH | BORDERLESS,
+	NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0, WBENCHSCREEN
+};
+
+void
+main()
+{
+	extern void cia();
+
+	struct Window *W;
+	struct IntuiMessage *IM;
+	struct timerequest *TR;
+	struct MsgPort *TP;
+	struct Task *T;
+	LONGBITS t;
+	LONGBITS w;
+	LONGBITS signals;
+	int secs, h, m, s;
+
+/* Use this when compiling as NewClock.c */
+/*	SysBase = *((struct ExecBase **) 4);  */
+
+	IntuitionBase = (struct IntuitionBase *)		/* Open the window */
+							OpenLibrary("intuition.library", 0);
+	GfxBase = (struct GfxBase *)
+							OpenLibrary("graphics.library", 0);
+	W = OpenWindow(&NewWindow);
+	w = 1 << W->UserPort->mp_SigBit;
+	SetAPen(W->RPort, 2);
+	RectFill(W->RPort, 27, 0, 98, 9);
+	SetAPen(W->RPort, 3);
+	SetBPen(W->RPort, 2);
+
+	T = FindTask(0); 		/* Make the timer priority the same as this task */
+	TP = CreatePort(NULL, T->tc_Node.ln_Pri);		 /* Make a timer */
+	TR = CreateExtIO(TP, sizeof(struct timerequest));
+	OpenDevice(TIMERNAME, UNIT_VBLANK, TR, 0);
+	t = 1 << TP->mp_SigBit;
+	TR->tr_node.io_Command = TR_ADDREQUEST;		/* Start the timer */
+	TR->tr_time.tv_secs = 0;
+	TR->tr_time.tv_micro = 1000;
+	SendIO(TR);
+
+	FOREVER {
+		signals = Wait(t | w);
+		if (signals & t) {									/* The timer ticked */
+			TR->tr_node.io_Command = TR_GETSYSTIME;
+			DoIO(TR);
+			secs = TR->tr_time.tv_secs;
+			s = secs % 60;					/* Extract hours, minutes, seconds */
+			secs -= s;
+			m = secs % 3600;
+			secs -= m;
+			m /= 60;
+			h = secs % 86400;
+			h /= 3600;
+			t_i = 0;							/* Initialize the buffer pointer */
+			cia(h);							/* Convert values to ASCII */
+			cia(m);
+			cia(s);
+			Move(W->RPort, 30, 7);		/* Display all but the final ':' */
+			Text(W->RPort, timestring, 8);
+
+			TR->tr_node.io_Command = TR_ADDREQUEST;	/* Restart the timer */
+			TR->tr_time.tv_secs = 1;
+			TR->tr_time.tv_micro = 0;
+			SendIO(TR);
+		}
+		if (signals & w) {					/* You clicked on the close box */
+			IM = GetMsg(W->UserPort);
+			if (AbortIO(TR) == NULL) {
+			Wait(t);
+			}
+			CloseDevice(TR);
+			DeleteExtIO(TR, sizeof(struct timerequest));
+			DeletePort(TP);
+			ReplyMsg(IM);
+			CloseWindow(W);
+			CloseLibrary(IntuitionBase);
+			CloseLibrary(GfxBase);
+			break;
+		}
+	}
+}
+
+void
+cia(i)
+	int i;
+{
+	timestring[t_i++] = 0x30 + i / 10;
+	timestring[t_i++] = 0x30 + i % 10;
+	timestring[t_i++] = ':';
+}
+
+/*************************************************************************/
+
+	This could be done in a different way by passing messages between two
+tasks.  One task will be a window as in Clock.c, and the other will be a
+task which gets system time, converts it to a string, and replies to the
+message.  We must first define a message structure:  We need a command byte
+to tell the time task whether to send a time value or abort itself, and we
+need a longword that is a pointer to a string.  The command bytes will be
+defined with #define statements.  These #defines and the structure
+definition will be put into an include file so they will be available to
+any source code using them:
+
+/***** timetask.h ********************************************************/
+
+#ifndef EXEC_PORTS_H
+#include "exec/ports.h"
+#endif
+
+#define TM_REQUEST 0
+#define TM_ABORT   1
+
+struct TimeMsg {
+	struct Message	tm_Msg;
+	UBYTE				tm_Cmd;
+	char *			tm_Tim;
+};
+
+/*************************************************************************/
+
+	The task which makes the time string will have the arithmetic routines
+of Clock.c, a timer.device to obtain system time, and a message port.  An
+important point here is that many different tasks can send messages to the
+time task to get the string.  It does not have to be compiled or linked
+with the tasks using it because its message port can be found in the system
+by name by calling FindPort("TimeTaskPort").  Since it can stand alone it
+takes responsibility for its own task cleanup and actually exits, unlike
+the previous tasks.  For this reason, DeleteTask() should not be called on
+it once you have sent it a TM_ABORT message.  On reception of the TM_ABORT
+message the task deletes the timer it uses and scans the message port for
+any outstanding messages (including the TM_ABORT message).  If there are
+any, it sets the timestring pointer of each to NULL and replies.  It then
+deletes the message port and exits. When the message port is deleted,
+DeletePort() removes it from the Exec list of named ports and it cannot be
+mistakenly found after that.  This routine needs stack checking disabled
+and registers saved.
+
+/***** TimeTask.c *********************************************************/
+
+#include <exec/types.h>
+#include <devices/timer.h>
+#include "timetask.h"
+
+extern struct MsgPort * CreatePort();
+extern struct MsgPort * FindPort();
+extern struct TimeMsg * GetMsg();
+extern struct timerequest *CreateTimer();
+extern void SetTimer();
+extern void DeleteTimer();
+
+char timestring[9];
+int t_i;
+
+void
+cia(i)
+	int i;
+{
+	timestring[t_i++] = 0x30 + i / 10;
+	timestring[t_i++] = 0x30 + i % 10;
+	timestring[t_i++] = ':';
+}
+
+void
+TimeTask()
+{
+	struct timerequest *TR;
+	struct MsgPort *MP;
+	struct TimeMsg *M;
+	int secs, h, m, s;
+
+	TR = CreateTimer(UNIT_VBLANK, 0);				/* Make a timer */
+	TR->tr_node.io_Command = TR_GETSYSTIME;
+
+	MP = CreatePort("TimeTaskPort", 0);				/* Make a message port */
+
+	for (;;) {
+		WaitPort(MP);										/* Wait for mail */
+		M = GetMsg(MP);
+		if (M->tm_Cmd == TM_REQUEST) {				/* Time to go to work */
+			/* The timer command is always TR_GETSYSTIME */
+			DoIO(TR);
+			secs = TR->tr_time.tv_secs;
+			s = secs % 60;					/* Extract hours, minutes, seconds */
+			secs -= s;
+			m = secs % 3600;
+			secs -= m;
+			m /= 60;
+			h = secs % 86400;
+			h /= 3600;
+			t_i = 0;							/* Initialize the buffer pointer */
+			cia(h);							/* Convert values to ASCII */
+			cia(m);
+			cia(s);
+			M->tm_Tim = timestring;		/* Put the address in the message */
+			ReplyMsg(M);
+		}
+		if (M->tm_Cmd == TM_ABORT) {					/* Boss says quit */
+			DeleteTimer(TR);
+			do {												/* Tell everybody */
+				M->tm_Tim = 0;
+				ReplyMsg(M);
+			} while (M = GetMsg(MP));
+			DeletePort(MP);
+			break;	/* Drop out of the function, let Exec delete the task */
+		}
+	}
+}
+
+/*************************************************************************/
+
+	The window we will use is much like the one in Clock.c, but since
+TimeTask() does the arithmetic, the window has only to send a request
+message to it.  The program creates a message port for replies, a timer as
+in Clock.c and a task for the previous program, TimeTask().  We are running
+the ports, timers and task at the same priority of the main program, so
+when CreateTask() is called, the main program retains control of the
+microprocessor.  In order for TimeTask() to initiate, the main program has
+to halt briefly.  A handy way to do that here is to Wait() for a tick from
+the timer.  As soon as Wait() is called, Exec will give control to
+TimeTask(), which will then create its message port and timer, and then
+gives up control by WaitPort(), to sit idle until a message is sent to its
+port.  As soon as the main program's timer ticks, control will return to
+it, whereupon it will be able to find the port that the task created.  It
+can then wait for a tick (which signals it to send its message to the task
+port), a reply from the task, or a click on the window close gadget.
+	When the main program gets a tick, signalled by the bit "t", it makes up
+a message to send to the task.  Part of the message initialization was done
+right after creation of the reply port.  The initialization is the
+references to m.tm_Msg and m_tm_Cmd.  Notice that the message is declared
+as a TimeMsg structure (struct TimeMsg m), not a pointer to a structure
+(structure TimeMsg *M, for example, for the pointer to the reply).  This
+lets the compiler allocate space for the message.  Quite often you will
+see a call to AllocMem() to allocate this space dynamically. An example is
+in RKM: Exec Appendix B in the source code for CreateExtIO(). This is done
+to allow the program itself to deallocate the memory used by the message
+when it is no longer needed.  In this case we use the memory until the
+program exits, so we let the compiler handle it.
+	Refer to the include file exec/ports.h.  You see there that a message
+structure is defined as a node, an address to a reply port, and a length.
+Our extension of that structure, struct TimeMsg, also has a command byte
+and a string address.  We initialize the command portion of the structure
+and fill in the address of our reply port.  The length word would be used
+if we were allocating memory for the structure dynamically.  You would use
+it by filling it in with sizeof(struct TimeMsg) and refer to it when
+deallocating it.  We don't need to do that here.  The node portion is
+filled in by Exec.  The ln_Pred and ln_Succ fields are filled in by
+PutMsg() and ReplyMsg() to link the message into a message port message
+list (mp_MsgList) (recall my discussion of Lists, above).  The ln_Type
+field is also filled in by PutMsg() and ReplyMsg(): PutMsg() sets the field
+to be NT_MESSAGE and ReplyMsg() sets it to NT_REPLY.  We use that to
+advantage to tell who has control of the message.  If the type is
+NT_MESSAGE then we have sent it to another task and it has not yet replied
+to it.  If it is NT_REPLY then we have control of it.  This is a very
+important consideration because once we send the message off to another
+task, we should not be changing it.  The other task just might be trying to
+change portions of it itself, and could get very confused by outside
+interference.  It is actually of little consequence here but we do want to
+be sure TimeTask() is done with it before the main program exits and
+deallocates it.  Otherwise TimeTask() could be trying to reply to a
+non-existent port with a non-existent message.  This kind of thing
+distresses the Amiga.  The ln_Pri and ln_Name fields could be filled in by
+a task.  Exec does not initialize these fields but uses the ln_Pri field to
+order the position of the message in a message port list, allowing the
+sending of "priority mail".  The name field is of little use in a message
+structure.  By the way, the name field is helpful in other structures such
+as message ports.  We had CreatePort() fill in the name field of the
+TimeTask() port, which allowed FindPort() to find it by scanning the system
+list PortList defined in exec/execbase.h.  That's all there is to it:
+Allocate memory for a message structure, fill in the ReplyPort and perhaps
+Length fields and any extensions of it of importance to your programs, and
+PutMsg() and ReplyMsg() with it, remembering to deallocate its memory when
+you're done with it.
+	No special options are needed to compile this, but link it with
+TimeTask.o and TimerUtilities.o.
+
+/***** Window.c **********************************************************/
+
+#include <exec/types.h>
+#include <intuition/intuition.h>
+#include "timetask.h"
+
+extern struct Task *FindTask();
+extern struct MsgPort *CreatePort(), *FindPort();
+extern struct TimeMsg *GetMsg();
+extern struct timerequest *CreateTimer();
+extern void SetTimer();
+extern void DeleteTimer();
+extern void TimeTask();
+
+struct IntuitionBase * IntuitionBase;
+struct GfxBase * GfxBase;
+
+struct NewWindow NewWindow = {
+	489, 0, 150, 10, 3, 2, CLOSEWINDOW,
+	WINDOWCLOSE | WINDOWDRAG | WINDOWDEPTH | BORDERLESS,
+	NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0, WBENCHSCREEN
+};
+
+void
+main()
+{
+	struct Window *W;
+	struct timerequest *TR;
+	struct MsgPort *TP, *RP, *P;
+	struct TimeMsg m, *M;
+	LONGBITS signals, p, t, w;
+	int pri;
+
+	IntuitionBase = (struct IntuitionBase *)
+							OpenLibrary("intuition.library", 0);
+	GfxBase = (struct GfxBase *)
+							OpenLibrary("graphics.library", 0);
+	W = (struct Window *) OpenWindow(&NewWindow);
+	w = 1 << W->UserPort->mp_SigBit;
+	SetAPen(W->RPort, 2);
+	RectFill(W->RPort, 27, 0, 98, 9);
+	SetAPen(W->RPort, 3);
+	SetBPen(W->RPort, 2);
+
+	pri = FindTask(0)->tc_Node.ln_Pri;	/* Use our own process's priority */
+
+	RP = CreatePort("", pri);				/* Make our own reply port	*/
+	p = 1 << RP->mp_SigBit;					/* Use its signal bit		*/
+	m.tm_Msg.mn_ReplyPort = RP;			/* Prepare the message		*/
+	m.tm_Cmd = TM_REQUEST;
+
+	TR = CreateTimer(UNIT_VBLANK,  pri);	/* Make the one second timer */
+	TP = TR->tr_node.io_Message.mn_ReplyPort;
+	t = 1 << TP->mp_SigBit;
+	SetTimer(TR, 1);
+
+	CreateTask("TimeTask", pri, TimeTask, 4000);
+	Wait(t);						/* Give the system time to start the task */
+	SetTimer(TR, 1);			/* Reset the timer */
+	P = FindPort("TimeTaskPort");			/* Find the task port */
+
+	FOREVER {
+		signals = Wait(p | t | w);
+		if (signals & t) {		/* The timer ticked */
+			PutMsg(P, &m);						/* Send the message */
+			SetTimer(TR, 1);					/* Reset the one second timer */
+		}
+		if (signals & p) {		/* Our request has been answered */
+			M = GetMsg(RP);					/* Get the reply */
+			Move(W->RPort,  30, 7);
+			Text(W->RPort, M->tm_Tim, 8);	/* Display its contents */
+		}
+		if (signals & w) {		/* You want to close the window */
+			DeleteTimer(TR);			/* Stop the one second timer */
+				/* See who has the message. If them, wait for a reply */
+			if (m.tm_Msg.mn_Node.ln_Type == NT_MESSAGE) {
+				WaitPort(RP);
+			}
+			m.tm_Cmd = TM_ABORT;
+			PutMsg(P, &m);
+			WaitPort(RP);
+			DeletePort(RP);
+			CloseWindow(W);
+			CloseLibrary(IntuitionBase);
+			CloseLibrary(GfxBase);
+			break;
+		}
+	}
+}
+
+/*************************************************************************/
+
+	Compile Window.c and link it with TimeTask.o and TimerUtilities.o.  When
+you run Window you will see the same display as in Clock.  There is a great
+difference, however.  Compile this program to see why (No special options):
+
+/***** TestPort.c ********************************************************/
+
+#include <exec/types.h>
+#include "timetask.h"
+
+void
+main()
+{
+	struct MsgPort *P, *RP, *CreatePort(), *FindPort();
+	struct TimeMsg t, *M, *GetMsg();
+
+	P = FindPort("TimeTaskPort");
+
+	if (P) {
+		RP = CreatePort("", 0);
+		t.tm_Msg.mn_ReplyPort = RP;
+		t.tm_Cmd = TM_REQUEST;
+		PutMsg(P, &t);
+		WaitPort(RP);
+		M = GetMsg(RP);
+		printf("%s\n", M->tm_Tim);
+		DeletePort(RP);
+	} else {
+		printf("TimeTaskPort not found\n");
+	}
+}
+
+/*************************************************************************/
+
+	Now run TestPort.  It will respond "TimeTaskPort not found" because
+there is no message port in the system by that name.  Now Run Window so the
+clock is visible on the screen and you have a CLI to type into.  Invoke
+TestPort again.  Hello! what's this?  TestPort has found the message port
+of the task TimeTask(), has sent it a message just like the clock is doing,
+and has printed out the time on the CLI.  This shows how different tasks
+can communicate with each other even though they have not been compiled
+together.  It also shows how a Process (The process CLI is running for you
+when you invoke TestPort) can communicate with a Task and use AmigaDOS
+functions to print out the results, something forbidden to a task.  It
+isn't forbidden in the sense that Exec won't let you do it, but if you try
+it, you'll destroy Exec and DOS, as I mentioned before.
+	There are many other aspects of tasks to investigate.  I didn't address
+stack allocation.  I had CreateTask() allocate 4000 bytes for everything
+and let it go at that.  I didn't discuss semaphores as a means of intertask
+communications.  I didn't go into separate routines for task deletion
+(finalPC, which CreateTask() sets to NULL to let Exec do it), nor task
+traps.  I also said a task could not be called with formal parameters as a
+normal c function, but that's not strictly true.  You can preset values on
+the task stack when it is allocated, and when the task initializes it can
+pull off those values.  These things are mentioned in RKM Exec.  I
+recommend reading of the Memory Allocation section as well as the Tasks and
+Messages and Ports sections.
+	You are now ready for examining AmigaDOS functions which will load code
+into memory.  Refer to the AmigaDOS Reference Manual.  Its style and the
+style of the RKM are different, and it often isn't clear that things said
+in the AmigaDOS manual are spelled out in RKM.  AmigaDOS was written in
+BCPL, a language that is a forerunner of c.  You don't really have to know
+much about BCPL even though it may seem so by reading the AmigaDOS manual.
+What you do need to keep in mind are the differences between pointers and
+strings in BCPL and c.  A c pointer is just a number which points to a
+particular byte in memory.  A c string is just a string of bytes with a
+null (0) character at the end.  A BCPL pointer is a memory address divided
+by four.  When it is multiplied by four (shifted left two places) it will
+refer to a memory location starting on a longword boundary.  A BCPL string
+is a string of bytes, the first being the length of the string and the rest
+being the string characters themselves with no terminating character.  A
+BCPL pointer is referred to in c as a BPTR, and a BSTR is a BCPL pointer to
+a BCPL string.  A conversion definition from a BPTR to a c pointer is in
+libraries/dos.h: #define BADDR( bptr )   (((ULONG)bptr) << 2).  Matthew
+Dillon, writing in the first issue of Transactor for the Amiga (The Packet
+Interface to DOS, in C) has provided #defines for both conversions:
+
+	#define BTOC(bptr) ((long)(bptr) << 2)
+	#define CTOB(cptr) ((long)(cptr) >> 2)
+
+	There is also the definition:
+
+	#define BADDR(bptr) (bptr << 2)
+
+in libraries/dos.h.
+	We can now begin to make sense of the DOS functions given in the
+AmigaDOS Reference Manual and use them for implementing programs in a
+different way than we have before.  Recalling what we did with Clock.c:  We
+compiled it into the current directory with the compiler supplied startup
+code which interfaces main() to the Amiga system.  It allows the program to
+be run from either CLI or Workbench, and we usually don't think much of it.
+However, Clock.c can stand alone.  That is, it doesn't need DOS functions
+for input or output since it writes directly to a window it creates and it
+cleans up all resources it allocates before it exits, so it can be compiled
+and linked in a way that will make it less than half its former size.
+Since it won't have startup code the first lines of code in the source file
+have to be the main program (startup code calls main() by name so main()
+can be anywhere in the source file).  Startup code also defines the
+variable SysBase, the pointer to the ExecBase structure.  We'll have to do
+that ourselves.  It is always located in memory address 4, the only fixed
+address in the system.
+	Make NewClock.c out of the source for Clock.c by uncommenting the two
+lines referring to SysBase: The structure pointer declaration and the
+structure pointer definition inside main().  You can rename main() as
+NewClock() because the function name is not important any more although its
+position in the source file now is important.
+	We will be using this as a task, so compile it with stack checking
+disabled and register saving enabled.  Do not link it with startup code or
+the utility files.  To save a few more bytes you could keep the linker from
+including debugging information in the final file.  If you are using Blink
+the command line would be:
+
+	Blink NewClock.o LIBRARY LIB:lc.lib LIB:Amiga.lib NODEBUG
+
+	When you run it, it will behave just like Clock.
+	Save NewClock to the current directory.  Recall that CreateTask()
+requires the address of the code that is going to be implemented as the
+task.  We can use AmigaDOS to load NewClock and tell us the address where
+it has been loaded.  Pull out your AmigaDOS Reference Manual, look up
+LoadSeg() under "Calling AmigaDOS".  We will use this function to get
+NewClock, find its address, implement it as a task, and exit, leaving the
+task running by itself on the system.  In order to find it later we will
+give it a name.  We also will need to know the BPTR to the loaded segment
+later on, so we will save it in the task structure itself for future
+reference.
+	LoadSeg() returns a BPTR to a segment list (q.v. under AmigaDOS data
+structures).  We will need to convert that to a real address before we can
+use it.  A segment list is a forward linked list.  The first word of it is
+a BPTR to the following segment.  We won't need to scan the list, but we
+will need the address of the first byte of code in the list.  We get that
+simply by adding 4 to the address that we obtained from LoadSeg() converted
+to a c address.  We add 4 because the segment list address is declared as a
+long here, but if you get fancy in your own code and declare it as a pointer,
+remember c adds the size of the declared pointer to a pointer so that if:
+
+	long *lp = (long *) 50;
+
+then lp + 1 will equal 54.
+	CreateTask() also requires a character string for a name.  This program
+will exit after making the task, so any character string within it will
+disappear upon exit and the string pointer put into the task structure will
+be meaningless.  We will need to find the task by name when it comes time
+to delete the clock, so the character string itself has to be attached to
+the task structure.  Doing this will serve as an example of memory
+management related to tasks.  There is a memory List structure within a
+Task structure, namely tc_MemEntry.  If you tried reading the source code
+to CreateTask() you might have noticed that the memory allocated for the
+task stack was linked into this list.  The reason for doing it that way is
+that upon task exit or deletion, Exec will deallocate all memory linked
+into the list automatically.  You won't have to.  The key function for this
+is AllocEntry().  It accepts a MemList structure, which is the usual Node
+structure and some information on the block of memory you want.  It returns
+a MemList structure filled in with information on the block of memory it
+allocated.  You can then use the allocated memory for whatever you like,
+then link it into the task memory list.  Here we need only one entry long
+enough for the task name.  We fill in the requirements and call
+AllocEntry().  When it returns we copy the characters of the name string
+into the part of the structure that is the memory we asked for.
+	Now we're ready to make the program a task.  We call CreateTask with the
+address of the name string we just made, a priority, the address of the
+code in the segment we loaded, and the usual 4000 stack size request.  (It
+would be fruitful to investigate just how much stack this routine needs.  I
+suspect it is much less.)  Now that we have an address of a task structure
+we can link the newly allocated memory into the task list with AddTail() so
+that it will stay with the task when we exit.
+	Once we exit, the address of the code segment will be lost, so for the
+deleting program we put that information into another task structure
+element: tc_UserData.  It is intended to be a pointer to anything you want
+to relate to the task, but here we have only a longword, so it fits nicely.
+	You will have to provide the full pathname of NewClock to LoadSeg(), so
+alter this source code accordingly.  Compile and link this without any
+special options.
+
+/***** GetClock.c ********************************************************/
+
+#include <exec/types.h>
+#include <exec/memory.h>
+#include <libraries/dosextens.h>
+
+#define PRIORITY 0
+#define STACK 4000
+#define MAXNAME 20
+
+struct Task *CreateTask();
+struct MemList *AllocEntry();
+
+void
+main()
+{
+	BPTR segment;
+	ULONG newclock;
+	struct Task *T;
+	struct MemList ml, *ML;
+
+	segment = LoadSeg("NewClock"); /* Expects it in the current directory */
+	newclock = BADDR(segment);     /* Convert the BPTR to an address */
+	newclock += 4;                 /* Get the address of the code */
+
+	ml.ml_NumEntries = 1;          /* Build the MemList request */
+	ml.ml_me[0].me_Reqs = (MEMF_PUBLIC | MEMF_CLEAR);
+	ml.ml_me[0].me_Length = MAXNAME;
+	ML = AllocEntry(&ml);          /* Allocate memory */
+
+	strcpy(ML->ml_me[0].me_Addr, "NewClockTask");   /* Copy name to it */
+
+	T = CreateTask(ML->ml_me[0].me_Addr, PRIORITY, newclock, STACK);
+
+	AddTail(&T->tc_MemEntry, ML);	/* Link in the new memory allocation */
+
+	T->tc_UserData = (APTR) segment;	/* Save the segment BPTR cast to */
+												/* agree with tc_UserData def.   */
+
+				/* Exit and let NewClock work */
+}
+
+/*************************************************************************/
+
+	When you run this you will have a clock just like Clock.c produced in
+the title bar.  Before you do, run Avail to find out how much memory you
+have available.  Then Run Clock and run Avail again to see how much memory
+is taken by doing things that way.  If you do that with GetClock and click
+on the close gadget, you will notice about 2000 bytes less memory than you
+had before.  That's the loaded segment of NewClock.  You caused NewClock to
+drop out of its function, which causes Exec to delete the task, but Exec
+doesn't know anything about the segment.  Its address is lost.  So maybe I
+better supply a routine to properly close everything up.
+	We took care to make a name for the task, so now we find it with
+FindTask().  We have to tell NewClock that we are going to delete the
+segment from memory (return its memory to the free pool).  That way
+NewClock can properly exit, just as it does when you click on the close
+gadget.  We do that by sending a message to the window UserPort it looks at
+in its Wait() function.  A message arriving sets the SigBit.  In this case
+the message contents don't matter.  We can find that port with FindPort()
+since we know its name is "IDCMP".  The trouble is, Intuition calls two
+ports in every window "IDCMP" so there can be a lot of ports in the Exec
+PortList with the same name.  There are two such ports associated with the
+CLI window you are using to run these programs.  The distinguishing thing
+is that we had Intuition create ports for NewClock in the task we created
+and there are no others by that name in that task.  How do we tell them
+apart?  One is the UserPort, which we use to detect window events like a
+click on the close gadget.  The other is the WindowPort, which is the port
+we reply to when we ReplyMsg() to an IntuiMessage.  The UserPort has a
+message arrival action of signalling its task.  The WindowPort doesn't.
+So, we use FindPort() to find the first port named "IDCMP" in the list.  We
+scan through the list with FindName() because it has the property that it
+will find the next following occurence of the name given to it.  We scan
+through the list until we find a port named "IDCMP" that is in the task we
+found with FindTask().  We pick the one that has a message arrival action
+of PA_SIGNAL.  Now we pick up the task's tc_UserData value before we tell
+the task to delete itself.
+	We then create a port for accepting a message reply and send a message
+to the port we found.  Its contents don't matter because NewClock responds
+only to the action of a message arriving.  It won't reply to the WindowPort
+as it usually does because we've put the address of our reply port right in
+the message.  When we wait for that reply, we are giving up control of the
+microprocessor so NewClock can close things up.  Notice, however, that when
+NewClock replies, if we are operating at a higher priority than it is, we
+will regain control before NewClock is quite finished.  This gives me an
+opportunity to demonstrate the use the AmigaDOS function Delay() to give up
+control for a fraction of a second, long enough for NewClock to finish
+before we unload the code of NewClock.  When the delay (about 20
+milliseconds) expires, we assume NewClock is done and unload its code from
+memory.
+	Good programming practice requires somewhat more positive action than
+this, but my aim is to show how some of the AmigaDOS functions work and to
+give you an idea of the kind of thinking required for programming a
+multitasking system: sometimes your program is running and sometimes it
+isn't, and it's very important to keep the consequences of that in mind.
+	Compile and link this with no special options and you'll be able to
+close NewClock without touching the close gadget.
+
+/***** DumpClock.c *******************************************************/
+
+#include <exec/types.h>
+#include <libraries/dosextens.h>
+
+struct Task *FindTask();
+struct MsgPort *CreatePort(), *FindPort(), *FindName();
+
+void
+main()
+{
+	BPTR segment;
+	struct Task *T;
+	struct MsgPort *P, *RP;
+	struct Message m;
+
+	T = FindTask("NewClockTask");
+	if (T == NULL) {
+		printf("NewClockTask not found\n");
+		exit(0);
+	}
+
+	P = FindPort("IDCMP");
+	do {
+		if (P->mp_SigTask == T && P->mp_Flags == PA_SIGNAL) break;
+		P = FindName(P, "IDCMP");
+	} while (P != 0);
+
+	if (P == 0) {
+		printf("Port 'IDCMP' not found\n");
+		exit(0);
+	}
+
+	segment = (BPTR) T->tc_UserData;
+
+	RP = CreatePort("", 0);
+	m.mn_ReplyPort = RP;
+	PutMsg(P, &m);
+	WaitPort(RP);
+	DeletePort(RP);
+	Delay(1);
+	UnLoadSeg(segment);
+}
+
+/*************************************************************************/
+
+	This example showed off task memory allocation and used the same source
+code for the clock as we used before, but another way to close out this
+kind of program is to use a FinalPC() routine.  In the case of NewClock.c
+you would drop out of the program immediately upon receipt of the close
+message, be it from an Intuition message or one from outside.  Since it is
+running as a task, Exec will then call your FinalPC() function which would
+abort the timer and close the window and libraries.  There is a problem in
+replying to the message:  If it were from Intuition you must reply before
+you close the window, but if it came from outside you would want to have
+the window and libraries closed before you replied.  The simple way to
+distinguish the two cases would be to use techniques we used before: check
+the message->mn_ReplyPort->mp_SigTask to see if it agrees with the result
+of FindTask(0).  If it does, the message came from within our task
+(Intuition), and if it does not, the message came from outside and you
+would ReplyMsg() after everything were closed.  It is also possible to use
+Forbid() right before the ReplyMsg() call.  It stops multitasking, so
+control cannot pass to the task receiving the reply (or any other task)
+until the forbidden state is exited by the termination of the program.
+This prevents DumpClock from ever unloading the NewClock program segment
+until it has completed deallocating things.
+	A Process is to AmigaDOS what a Task is to Exec.  A process permits
+access to AmigaDOS functions that themselves multitask, such as Write() and
+functions which use them such as printf().  The process structure is
+defined in libraries/dosextens.h in the RKM.  It starts off as a Task
+structure, has a message port, and continues with elements specific to a
+process.  The discussion in the AmigaDOS Reference manual starts with the
+extensions.  Communications between processes is by an extension to the
+Exec message structure called a packet (See Amiga Transactor, volume 1,
+issue 1, "The Packet Interface to AmigaDOS").  A process structure is
+created by the DOS function CreateProc() just as CreateTask() creates a
+task structure for Exec.  The result returned by CreateProc(), however, is
+a c pointer (A real address, not a BPTR) to the message port within the
+process structure.  To obtain the address of the task structure (which can
+also be interpreted as the address of the process structure) you can
+subtract the size of a Task structure from the address returned by
+CreateProc().  You can also obtain that address by examining the mp_SigTask
+field of the message port pointed to by the address CreateProc() returns,
+or you can get it with FindTask(0).
+	CreateProc() links the process structure into the Exec task list with
+its type (pr_Task.tc_Node.ln_Type) set to 13 to indicate it is a Process (a
+Task has a type of 1.  See exec/nodes.h).  If you wanted to find it later
+you would use FindTask() and check the type.  A BPTR to the loaded segment
+is the fourth element of the SegArray (Counting the first, or element[0],
+as the SegArray size).  That is sort of pointed to by the element
+pr_SegList, a BPTR.  The segment pointer itself is a BPTR, ready for use by
+UnLoadSeg(). To find that pointer you would use code like this:
+
+	#include <libraries/dosextens.h>
+
+	struct Process *P;
+	long *seglist;
+	BPTR segment;
+
+	P = (struct Process *) FindTask("process_name");
+	seglist = (long *) (P->pr_SegList << 2);
+	segment = seglist[3];
+
+I've provided code in the example to print out some information on the
+process it creates.
+	Programs you write are usually prepended with startup code.  You don't
+see this in the code you write, but it is the first code block your linker
+works on (called c.o, AStartup.obj, LStartup.obj or the like) as it makes
+you executable program.  From a cold start AmigaDOS has control of the
+machine.  It loads Intuition (The set of all the fancy Amiga graphics
+routines), opens a CLI window, and runs the commands in the file
+S:Startup-Sequence.  If the program LoadWB is in the file then a program
+called Workbench is installed as a process.  If not, the CLI is active,
+accepting characters typed on the screen.  A carriage return typed in the
+CLI causes AmigaDOS to find the program, attach it to the process already
+existing for the CLI, then turns control over to your startup code.  If
+LoadWB was executed in the startup sequence, a program called Workbench is
+installed as a process.  It monitors clicks on icons among other things.
+When you click on a program's icon, Workbench is activated, which finds the
+associated program, gathers some data from the icon and other sources (more
+on that in a bit), builds a process structure for it, and calls your startup
+code.
+	The startup code finds the address of the ExecBase structure (SysBase),
+opens the DOS library and examines the process structure element pr_CLI.
+That will be zero if your program was started from Workbench or some value
+if started from AmigaDOS.  That value is a BPTR to a CommandLineInterface
+structure which contains pertinent information for the CLI (see RKM
+Libraries and Devices, libraries/dosextens.h).  In either case the startup
+routine makes up a list of arguments on a stack with the number of
+arguments as the first entry and passes this to the routine called _main().
+That routine also makes a determination of the source of the startup, CLI
+or Workbench, opens files for your program's input and output (stdio) and
+passes pointers to the arguments to your program in the familiar form of
+argc (an argument count) and argv (a pointer or list of pointers to the
+arguments themselves).  Your program can determine who started it by
+examining argc.  If it is not zero, startup was from the CLI, otherwise
+startup was from Workbench.  When your program exits, if no exit routine
+was called, _main() calls exit() for you, which completes any file writing
+in progress and closes any open files.  The startup environment under
+AmigaDOS and Workbench is so different I'll treat them separately.
+	For a CLI startup, the arguments are the things you have typed on the
+command line after the program name.  If the first character after the
+command is a '<' or a '>' then DOS traps out the next following item and
+tries to interpret it as a filename for redirecting standard input or
+output.  Otherwise everything typed on the screen before a carriage return
+is put in a string (starting with the command name).  AmigaDOS finds the
+command (your program), loads the code into memory, attaches it to the
+process structure already existing for the CLI, and passes the address of
+the command string to your startup code.  The startup code sees you have
+started from the CLI (pr_CLI != 0) and passes the address of the string to
+_main().  That routine also sees you have started from the CLI, so it
+separates the tokens (characters separated by spaces or enclosed in double
+quotes) and builds an array of pointers (argv[]) to them.  It puts the
+count of tokens in argc.  It then opens the standard IO files with calls to
+Input() and Output() and obtains the FileHandle of the console (CLI) with a
+call to Open() (All AmigaDOS functions).  It then calls your program with
+the two function arguments (int) argc and (char *) argv[].  The first
+argument of the array, argv[0], is the name of your program, so argc is
+always at least 1.  It will be in argv[0], and any arguments typed after
+the command will be in argv[1] through argv[argc].
+	If you started by double clicking on an icon, Workbench obtains
+information about your program from the .info file associated with it.
+That file holds the graphics for your program's icon and information for
+running your program like stack size.  The equivalent of a command line is
+a list of icons you have selected.  The first one is your program and other
+items are other icons you might have selected with extended selection.
+Each item comes in the form of a struct WBArg, consisting of a BPTR to a
+FileLock structure and a pointer to a string of characters that is the name
+of the item selected.  Workbench gets your program, builds a process
+structure for it with pr_CLI set to zero, and calls your program.  The
+startup code sees that you started from Workbench so it waits at pr_MsgPort
+for a startup message of the form struct WBStartup (refer to RKM Libraries
+and Devices, workbench/startup.h).  That gives Workbench an opportunity to
+make up the startup message.  When it arrives at the process port, the
+startup code is activated and looks for an argument list in the message
+(sm_ArgList, which points to a struct WBArg).  If there is one it assumes
+the first argument structure contains a lock on a directory which it makes
+the current directory.  It then looks for a filename in sm_ToolWindow.
+This is expected to be the name of a CON: or RAW: window that has already
+been opened.  If there is one the startup code opens that file and makes it
+the standard I/O, putting the address of its process message port (fh_Type
+in the FileHandle structure obtained from Open()) into this process's
+structure element pr_ConsoleTask.  Instead of passing an address of a
+string to _main() as above, it pushes the address of the startup message on
+the stack and then a zero.  When _main() sees it has been called with a
+zero it knows that the startup is from Workbench, so it sets argc to zero,
+opens a small console window which it makes the standard IO (which could
+conflict with the ToolWindow; more on that later),  sets the name of that
+window to the name in the wa_Name field of the first argument (if one
+exists) and calls your program.  The value of argv is the address of the
+startup message.
+	We can simulate the action of a Workbench startup with the following
+program.  We first obtain a lock on the code we wish to load to prevent
+another task from deleting or changing it before we're finished.  If it
+exists we load it into memory and create a process structure for it much as
+we did for the task demonstrations.  At this point CreateProc() asks Exec
+to enter the process structure into the system task list and Exec calls
+your code, but the startup code quickly reaches the point of waiting on the
+process message port for the startup message.  Exec returns control to this
+program as soon as the startup code executes WaitPort().  CreateProc()
+returns a pointer to a message port (pr_MsgPort) from which we extract the
+address of the newly created process structure.  CreateProc() puts the name
+of the program you loaded into the process node.  I've put code in here to
+print out that name and the node type to show how it is entered in the
+system task list.  Next we make up an argument structure (there can be more
+than one; make them an array: struct WBArg args[], for example), putting a
+file lock structure into it so the current directory will become the
+directory containing the loaded program, and also putting in the name of
+the loaded program.  The startup message can be prepared now: Like all
+messages there needs to be a reply port, and in this case the length field
+needs to be filled in so the system won't lose track of any of it.  The
+element sm_Process is set to the address of the message port of the process
+structure (AmigaDOS refers to all process structures by their message ports
+rather than the address of the node structure).  The BPTR to the loaded
+code segment goes into sm_Segment.  There is only one argument here: its
+address is in sm_ArgList.  I didn't set any ToolWindow filename because the
+_main() the compiler uses opens a console window.  There is a section here
+to print out the contents of the message on the CLI for reference.  (Soon
+to come is a program that can be run from Workbench itself and use the
+small window _main() makes to print out the contents of the received
+startup message.)  We start the loaded program running by sending the
+message.  We can tell when it has terminated by waiting for it to reply to
+our reply port.  At that point we deallocate resources: delete the reply
+port, unlock the file we loaded, and unload its segment.
+	Compile and link this without any special options.
+
+/***** DoProc.c **********************************************************/
+
+#include <exec/types.h>
+#include <libraries/dosextens.h>
+#include <workbench/startup.h>
+
+struct MsgPort *CreatePort(), *CreateProc();
+
+void
+main(argc, argv)
+	int argc;
+	char *argv[];
+{
+	struct WBStartup WBS;
+	struct WBArg WBA;
+	struct MsgPort *MP, *RP;
+	struct Process *P;
+	BPTR segment;
+	BPTR FL;
+
+	if (argc != 2) {
+		printf("Please provide a filename\n");
+		exit(0);
+	}
+
+	FL = Lock(argv[1], ACCESS_READ);
+	if (FL == NULL) {
+		printf("%s not found\n", argv[1]);
+		exit(0);
+	}
+
+	segment = LoadSeg(argv[1]);
+
+	MP = CreateProc(argv[1], 0, segment, 4096);
+
+	P = (struct Process *) MP->mp_SigTask;
+
+	printf("Process Name: '%s'\n", P->pr_Task.tc_Node.ln_Name);
+	printf("Task Type:     %d\n",  P->pr_Task.tc_Node.ln_Type);
+
+	WBA.wa_Lock = FL;
+	WBA.wa_Name = argv[1];
+
+	RP = CreatePort(NULL, 0);
+	WBS.sm_Message.mn_ReplyPort = RP;
+	WBS.sm_Message.mn_Length = sizeof(struct WBStartup);
+	WBS.sm_Process = MP;
+	WBS.sm_Segment = segment;
+	WBS.sm_NumArgs = 1;
+	WBS.sm_ToolWindow = NULL;
+	WBS.sm_ArgList = &WBA;
+
+	printf("sm_Message:    %6x\n", &WBS.sm_Message   );
+	printf("sm_Process:    %6x\n",  WBS.sm_Process   );
+	printf("sm_Segment:    %6x\n",  WBS.sm_Segment   );
+	printf("sm_NumArgs:    %6x\n",  WBS.sm_NumArgs   );
+	printf("sm_ToolWindow: '%s'\n", WBS.sm_ToolWindow);
+	printf("sm_ArgList:    %6x\n",  WBS.sm_ArgList   );
+
+	PutMsg(MP, &WBS);
+	WaitPort(RP);
+	GetMsg(RP);
+
+	DeletePort(RP);
+	UnLock(FL);
+	UnLoadSeg(segment);
+}
+
+/*************************************************************************/
+
+	You can run this on Clock that you made before, but not on NewClock.
+The reason is that NewClock has no startup code, so the startup message
+passed to it will never be replied.  When you run it on Clock you will see
+the clock as before, but also a small CLI window called "Clock".  This is
+the window _main() opens for a program started from Workbench.  Clock does
+not use any DOS I/O, so the window stays empty.  I'll present a little
+program to read and print out the startup message in that window before I
+go on to showing how to avoid opening it.  You might wonder why the window
+doesn't open when Clock is run directly.  When you run it directly, DOS
+calls the program from the CLI, so _main() doesn't open the window.  When
+you call it from DoProc, _main() thinks it started from Workbench, so opens
+the window.  Since you are now proficient in reading c source, here is
+Start.c without comment:
+
+/***** Start.c ***********************************************************/
+
+#include <libraries/dosextens.h>
+#include <workbench/startup.h>
+#include <stdio.h>
+
+void
+main(argc, argv)
+	int argc;
+	struct WBStartup *argv;
+{
+	struct WBStartup *WBS;
+
+	if (argc != 0) exit(0);
+
+	WBS = argv;
+
+	printf("sm_Message:    %6x  ", &WBS->sm_Message   );
+		printf("wa_Lock: %x\n", WBS->sm_ArgList->wa_Lock);
+	printf("sm_Process:    %6x  ",  WBS->sm_Process   );
+		printf("wa_Name: %s\n", WBS->sm_ArgList->wa_Name);
+	printf("sm_Segment:    %6x\n",  WBS->sm_Segment   );
+	printf("sm_NumArgs:    %6x\n",  WBS->sm_NumArgs   );
+	printf("sm_ToolWindow: '%s'\n", WBS->sm_ToolWindow);
+	printf("sm_ArgList:    %6x\n",  WBS->sm_ArgList   );
+
+	printf("\nHit return when ready: ");
+	getchar();
+}
+
+/*************************************************************************/
+
+	Notice the declaration of WBS is redundant.  I put it in for a smidgin
+of clarity.  You could try running Clock, NewClock and Start from
+Workbench.  Copy some program .icon file to the same directory they are in,
+copying to Clock.info, NewClock.info, and Start.info.  Now that they have
+icons (one on top of the other; move them apart, click once on each one and
+select the menu item Snapshot to fix them in place), you can click on them
+to see the same kind of thing as you do when you run DoProc on Clock and
+Start.  NewClock runs as soon as AmigaDOS calls CreateProc() for it,
+ignoring the startup message.  When you click on its close gadget it
+returns to DOS, never having replied to the message nor restoring the
+machine's stack pointer, so DOS doesn't deallocate things properly.  All
+these things are done in a few bytes of startup code.  NewClock is really
+an example for setting up programs as tasks from within other programs.
+While the technique is useful when your main program controls loading and
+executing code, it isn't suitable for execution from the Workbench
+environment.  Using the standard startup code and modifying _main.c is a
+fruitful approach.
+	If you are writing a program to run from Workbench and you don't intend
+to use standard I/O (printf(), scanf(), and the like), you'll not want that
+little CLI window.  In the files that came with your compiler there should
+be a file called _main.c.  Using the Lattice compiler as an example, you
+will see a few #ifndef TINY statements.  These enclose code which relates
+to opening that console window.  Place the statement #define TINY with the
+other #defines at the beginning of the source code and compile it.  Since
+it is a proven program you can defeat stack checking when you compile to
+make it even smaller.  Then link from your startup code, _main.o, and
+Clock.o to LittleClock, in that order, with the debugging option off.  The
+use of _main.o in the link line prevents the linker from looking into the
+libraries for its usual version of _main.o.  Now run DoProc Clock and you
+will not see the console window.  You'll notice the file is about 700 bytes
+smaller than that of Clock, too.  If you recompiled Clock.c with stack
+checking disabled, the final file will be about two thirds the size of the
+original. NewClock doesn't have _main() in it because the linker pulls it
+in only if it is referenced by the startup code.  If you want a Workbench
+program to have a console window of a different size you can alter the
+window definition in _main.c and recompile it.
+	Now that you see how a startup message looks, you can run this next
+program to show a Workbench style argument list.  It is obtained by holding
+down a shift key, then clicking on the program's icon once.  While still
+holding down the shift key, move to another icon and click on it once.  Do
+a few this way, double clicking on the last one.  Workbench obtains file
+locks on each one and gets their names, passing it all to you.
+	Compile this without special options so you get the default console
+window to print into.  Make an icon for this program or copy another one to
+the name ShowNames.info so it will show on the screen.
+
+/***** ShowNames.c ******************************************************/
+
+#include <workbench/startup.h>
+#include <stdio.h>
+
+extern char *_ProgramName;
+extern struct WBStartup *WBenchMsg;
+
+void
+main(argc, argv)
+	int argc;
+	char *argv;
+{
+	struct WBArg *A;
+	int i;
+
+	/* Don't allow a CLI start */
+	if (argc != 0) exit(0);
+
+	printf("%s: \n", _ProgramName);
+	/* Print the argument list */
+	A = WBenchMsg->sm_ArgList;
+	for(i = 0; i < WBenchMsg->sm_NumArgs; i++) {
+		printf("'%s'\n", (A + i)->wa_Name);
+	}
+
+	printf("Hit return to continue: ");
+	getchar();
+
+}
+
+/************************************************************************/
+
+	The reason for passing arguments like this is mainly for data files.
+The icons you have been using are called Tool icons, meaning that when they
+are activated, Workbench executes the associated program.  A data file that
+you intend to read must have a different type of icon called a Project
+icon.  Using extended selection, you'll have the name of the project to
+work on and a file lock all ready so you can use the DOS functions Read()
+and Write() to access it.  This next program is intended only to show you
+ how the arguments are obtained.  Notice the use of the external variable
+_ProgramName.  It comes from the startup code, and there are others of some
+utility, the most useful being SysBase, the pointer to the ExecBase
+structure that holds the fundamental Exec pointers, lists, and constants.
+	Workbench provides more information than just a list of selected icons.
+If you click once on an icon and then obtain the Workbench menu, under the
+Workbench menu list you'll see an Info selection.  Selecting that gets you
+a full sized window of icon information.  The comment string gadget
+implements the same thing that the CLI command FileNote does.  It attaches
+a short note to a file that you can see with the List command, or see in
+the Info window whenever you select it.  The Tool Types box can be of great
+help to a program.  You can enter anything you want here (There's 32k of
+space available for these text strings), but by using a certain format you
+can use Intuition functions to sort them out for you.  They are of no
+importance to the system, just your program.  You enter them by clicking on
+the ADD gadget, then in the string gadget, and start typing.  You can click
+on the up and down arrows to enter or see other strings.  There is some
+discussion in RKM, Libraries and Devices, in the Workbench section.  Here
+is a program that will read strings in the recommended format.  It is a
+name in capital letters followed by the equals sign and then the text of
+interest to your program.  We'll just name them FIRST, SECOND, and THIRD.
+
+/***** ShowTools.c ******************************************************/
+
+#include <workbench/workbench.h>
+#include <workbench/icon.h>
+#include <stdio.h>
+
+extern char  *_ProgramName;
+
+long IconBase;
+
+char *tools[]= { "FIRST", "SECOND", "THIRD" };
+
+void
+main()
+{
+	struct DiskObject *DO;
+	char *text;
+	int i;
+
+	if (!(IconBase = OpenLibrary("icon.library", 0))) {
+		/* Error reporting goes here */
+		exit(0);
+	}
+	if (DO = GetDiskObject(_ProgramName)) {
+		for (i = 0; i < sizeof(tools)/sizeof(char *); i++) {
+			if (text = FindToolType(DO->do_ToolTypes, tools[i])) {
+				printf("%s\n", text);
+			} else {
+				printf("%s not found\n", tools[i]);
+			}
+		}
+		FreeDiskObject(DO);
+	} else {
+		/* Error reporting goes here */
+	}
+	CloseLibrary(IconBase);
+	printf("Hit return to continue ");
+	getchar();
+}
+
+/************************************************************************/
+
+	Make a Tool icon for this program with the Workbench icon editor.  After
+you have one, click on it once and select the Info menu item.  In the
+Tool Types gadget select ADD and click on the string gadget.  Type in
+"FIRST=" and some text.  The tool name has to be in upper case and the
+equals sign must follow without a space in between.  Click on ADD again.
+The text you just typed will disappear and the string gadget is ready to
+accept another line.  Keep doing that until you have enough entries.  (You
+might have noticed that the reading loop in the above program calculates
+the size of the tools array, so if you want more, just put some more
+strings in tools[]).  When you're finished, click on the SAVE gadget in the
+lower left corner.  Now it's ready.  Click twice on the icon and watch the
+show.  If you plan to have a program read another icon's tool types, get
+the name of the other icon from the startup message argument list.  You'll
+also have to use the lock in the argument list (wa_Lock) to make the
+current directory the one that contains the selected icon (wa_Name).  To
+use the pevious example, If "A" is your pointer to the argument list then
+CurrentDir((A + i)->wa_Lock) will accomplish that.  At the end of the loop
+set the current directory back by using your own directory with
+CurrentDir(A->wa_Lock).
+	A note about style before I go on:  This program is quite a simple
+thing.  If you are reading several tool types and intend to take action on
+them later, you will have to copy the string from the DiskObject structure
+into a buffer.  FindToolType() returns only a pointer to a string which
+will be invalid as soon as you look at another one or FreeDiskObject().
+The other function for handling tool strings is MatchToolValue(), which
+searches the string for a specific text and returns TRUE or FALSE.  Also it
+would be wise to check the element do_Type to see that the icon you get is
+the correct type.  For a project the type will be WBPROJECT.  See the
+initial #defines in workbench/workbench.h.
+	Notice the lines in the code above, "Error reporting goes here".  You
+should provide a path for any faults so that the program can inform you of
+them.  Under Workbench there is usually no window to print into with
+printf() (although if you prevent _main() from opening one, you can open
+one yourself later).  There is another way.  When you're using Workbench
+the Workbench screen title bar is usually visible.  There is an Intuition
+function which makes it easy to write into it.  To use it you must know the
+address of the window structure of your window.  Refer to
+intuition/intuitionbase.h.  You'll see the element ActiveWindow.  The
+instant you click on an icon your window is the active one.  If you grab
+that address right off you'll be ready to write to the screen's title bar
+any time later.  The reason you get it right away is that another window
+can become active while your program is running, and it could be in another
+screen.  Here's the example:
+
+/***** ShowTitle.c ******************************************************/
+
+#include <intuition/intuition.h>
+#include <intuition/intuitionbase.h>
+
+struct IntuitionBase *IntuitionBase;
+
+void
+main()
+{
+	struct Window *W;
+
+	IntuitionBase = (struct IntuitionBase *)
+												OpenLibrary("intuition.library", 0);
+	if (! IntuitionBase) exit(0);
+
+	W = IntuitionBase->ActiveWindow;
+
+	SetWindowTitles(W, -1, "Hello There!");
+	Delay(100);
+
+	CloseLibrary(IntuitionBase);
+}
+
+/************************************************************************/
+
+	Compile this, make an icon for it, and run it from Workbench.  An
+important point for whoever uses your program is that way deep in it, some
+screen other than Workbench may be active when you need to report an error.
+You can choose to put the message on the screen that contains your icon, or
+you can put it on the currently active screen by obtaining the window
+address just before displaying the message.  By using the screen currently
+active you alert the user immediately if titles are visible on the current
+screen.  The second parameter, the -1 in the example, is a place for
+putting text in the window title bar instead of the screen's.  What can
+happen is an attempt to put more text into a window title bar than will fit
+(the user might have resized the window).  Whatever method you use, it's a
+good way to report things to the user.
+	Besides specifically writing to the screen title bar, you can specify a
+Screen Title to be displayed when the window is active by setting
+char * Window->ScreenTitle.  Normally it holds the title from the Screen
+structure.
+	One of the things you will need to report is a failed result of a call
+to an AmigaDOS function like Open().  AmigaDOS reports a failure of this
+call by returning a zero.  AmigaDOS also puts the error number (as listed
+in the AmigaDOS manual, "Error Codes and Messages") in your process's
+element pr_Result2, and it is also available by a call to IoErr().  If you
+want to handle reporting all errors yourself, then put a -1 in your
+process's element pr_WindowPtr.  This causes AmigaDOS to report errors
+quietly, as they say in the trade.  If you put a zero in pr_WindowPtr, (the
+default value when your process is created) and the error is one that
+requires user intervention like an attempted Open() on a non-existent disk,
+then AmigaDOS will put up a requester on the Workbench screen asking that
+the disk be inserted in a drive.  If the user corrects the situation and
+clicks on the Retry box, then the call will return with a succesful
+indication like the address of the file handle you wanted.  If the user
+selects Cancel the call will return with an unsuccessful indication (zero
+in the case of Open()) and DOS will put the error value in pr_Result2.
+Perhaps you are operating your program in another screen than Workbench.
+Then you can put the address of your window in pr_WindowPtr, and the same
+action will occur, but in your screen instead of Workbench's.
+  If you are operating from the CLI you can report errors as text in the
+CLI window.  Put an error code from the list in the DOS manual into
+pr_Result2 and call exit(-1) yourself, bypassing the call in _main().  You
+might try this little program to illustrate:
+
+	#include <libraries/dosextens.h>
+
+	void
+	main()
+	{
+		struct Process *FindTask();
+
+		FindTask(0)->pr_Result2 = 226;
+		exit(-1);
+	}
+
+	Did you know you could use a function call as a structure pointer like
+that?  Anyway, you'll generally not set pr_Result2 yourself.
+	Way back when, I said that tasks couldn't call functions which require
+multitasking themselves, like printf().  You can, of course, have your task
+report back to your main program, which is always installed as a process
+and so can use such functions.  However, now that you have a handle on
+error reporting (so these next experiments won't confuse the daylights out
+of you) and some of the DOS functions, here's an example of AmigaDOS input
+and output from a task.  Instead of using compiler library functions or
+calling the DOS functions directly, we send DOS packets, or the message
+form that DOS uses.  It's a peculiar adaptation of the Exec message system.
+It has been discussed in Amiga Transactor, volume 1, issue 1, by Matthew
+Dillon.  I also recommend a careful reading of the DOS manual.  That
+reference speaks of various structures using different names for the
+structure elements than the RKM, but study will clarify things.  At least
+the structure names are pretty much the same.  They are, indeed, the same
+structures listed in RKM, Libraries and Devices, Include Files,
+libraries/dos.h and libraries/dosextens.h.  The main program simply makes a
+task as we have done before and waits on a signal that it has completed.
+The task builds a DOS packet first to write to the console window (twice)
+then reads from it, using the same packet.  When it receives a carriage
+return it cleans up and signals main().  Compile this with stack checking
+disabled and register saving enabled and link it with the standard _main.o
+so you'll have a console window to use when you run this from Workbench.
+
+/***** DoPackets.c ******************************************************/
+
+#include <libraries/dosextens.h>
+#include <exec/memory.h>
+
+#define BTOC(p) ((ULONG *) ((int) p << 2))
+#define CTOB(p) ((BPTR) ((int) p >> 2))
+
+struct Task *Mother, *FindTask();
+struct FileHandle *FH;
+LONGBITS ready;
+
+void
+Task()
+{
+	struct MsgPort *MP;
+	struct StandardPacket *PKT;
+
+	MP = (struct MsgPort *) CreatePort("", 0);
+	PKT = (struct StandardPacket *)
+		AllocMem(sizeof(struct StandardPacket), MEMF_CLEAR | MEMF_PUBLIC);
+
+	PKT->sp_Msg.mn_Node.ln_Name = (char *) &PKT->sp_Pkt;
+	PKT->sp_Pkt.dp_Link = &PKT->sp_Msg;
+	PKT->sp_Pkt.dp_Port = MP;
+	PKT->sp_Pkt.dp_Type = ACTION_WRITE;
+	PKT->sp_Pkt.dp_Arg1 = (LONG) CTOB(FH->fh_Type);
+	PKT->sp_Pkt.dp_Arg2 = (LONG) "Hello There!\n";
+	PKT->sp_Pkt.dp_Arg3 = 13;
+	PutMsg(FH->fh_Type, PKT);
+	WaitPort(MP);
+	GetMsg(MP);
+
+	PKT->sp_Pkt.dp_Port = MP;
+	PKT->sp_Pkt.dp_Arg2 = (LONG) "Hit return to continue ";
+	PKT->sp_Pkt.dp_Arg3 = 23;
+	PutMsg(FH->fh_Type, PKT);
+	WaitPort(MP);
+	GetMsg(MP);
+
+	PKT->sp_Pkt.dp_Port = MP;
+	PKT->sp_Pkt.dp_Type = ACTION_READ;
+	PKT->sp_Pkt.dp_Arg2 = NULL;
+	PKT->sp_Pkt.dp_Arg3 = 1;
+	PutMsg(FH->fh_Type, PKT);
+	WaitPort(MP);
+	GetMsg(MP);
+
+	DeletePort(MP);
+	FreeMem(PKT, sizeof(struct StandardPacket));
+	Signal(Mother, ready);
+	Wait(0);
+}
+
+void
+main()
+{
+	struct Task *T;
+	BPTR FileHandle;
+	int r;
+
+	Mother = FindTask(0);
+	r = AllocSignal(-1);
+	ready = 1 << r;
+	FileHandle = Open("*", MODE_OLDFILE);
+	FH = (struct FileHandle *) BTOC(FileHandle);
+	T = (struct Task *) CreateTask("T", 0, Task, 4000);
+	Wait(ready);
+	Close(FileHandle);
+	DeleteTask(T);
+	FreeSignal(r);
+}
+
+/************************************************************************/
+
+	Notice the pointer to a FileHandle structure in main().  Open() returns
+a BPTR to such a structure.  It has to be converted to a real pointer to
+reference the element fh_Type which is a pointer to the message port where
+the opened file expects to receive packets (the "*" in Open() is just a
+reference to the existing console window, and is an easy way to obtain a
+FileHandle).  In the task itself you see what makes a packet peculiar.  The
+structure starts off with an Exec Message structure which isn't initialized
+as you usually would.  The name field, however is expected to contain, not
+a pointer to a name, but a pointer to a StandardPacket structure.  The first
+field of that structure is a pointer to the Message structure.  Because of
+that the two structures can be allocated separately, although here I
+didn't.  The next element of the StandardPacket part is a pointer to a
+message port to be used as a reply port.  This pointer gets overwritten by
+DOS every time it receives a message, so that element has to be rewritten
+by your program every time you reuse the packet.  The next element is the
+action desired of DOS.  The various kinds are discussed in the DOS manual
+and the ACTION_XX codes are in libraries/dosextens.h.  All the other
+elements contain values particular to the action desired.  The packet is
+put to the message port obtained by Open() and put in fh_Type as I
+mentioned.  The task waits on the arrival of a reply and goes on from
+there, rebuilding the message port element and putting in new values where
+needed.  I put the Open() in main() to keep things simpler (you can't call
+a DOS function directly from a task!).  The mechanism for doing it all from
+within a task gets quite involved because some of the DOS functions aren't
+available by packet passing.  The real importance of this demonstrator is
+that the file opened doesn't have to be a console device.  It can be any
+valid file in the system.  Since file handling is done from within a task
+your main program doesn't have to stop everything to read or write.  This
+can become very important in high speed serial data transfers.
+	As usual with the Amiga, there's another way.  You don't necessarily
+have to involve DOS at all!  If you have built a window yourself rather
+than use the DOS CON: console device, you can have your tasks send messages
+directly to your window's UserPort.  Windows are discussed fairly
+thoroughly in RKM Intuition Reference Manual.  I recommend trying out
+window and screen building and installing them as tasks.  Pretty soon you
+get to the point that main() becomes not much more than a task monitoring
+program.
+	I hope you've come a long way from being mystified by the mass of
+information available on the Amiga, and I hope you can use some of this to
+utilize the great capabilities of the machine.
+
+																	Joseph M. Hinkle
+																	April 7, 1988
+
+
+
+/*************************************************************************/
+/*************************************************************************/
+

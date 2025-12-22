@@ -1,0 +1,1 @@
+SUBDIRS=src editor_data doc

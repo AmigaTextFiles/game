@@ -1,0 +1,145 @@
+\ Make screen and window for HAMmmm display.
+\ Use double buffering to achieve smooth animation.
+\
+\ MOD: PLB 7/18/89 Use GR.OPENCURW for safer open.
+\
+\ Author: Phil Burk
+\ Copyright 1987 Phil Burk
+\ This code is considered to be in the public domain and
+\ may be freely distributed but may not be sold for profit.
+
+ANEW TASK-MMM_SCREEN
+
+\ Declare Intuition structures.
+NewScreen HAMNewScreen
+NewWindow HAMNewWindow
+
+VARIABLE HAMScreen  ( holder for relative screen pointer )
+
+\ Define drawing surface.
+0 constant HAM_XMIN
+10 constant HAM_YMIN
+320 constant HAM_XMAX
+200 constant HAM_YMAX
+
+: HAM.OPEN ( -- window | NULL , open custom HAM screen and window)
+     gr.init   
+\ Set to default values.
+     HAMNewScreen NewScreen.Setup
+     HAMNewWindow NewWindow.Setup
+\
+\ Modify defaults for this demo.
+     HAM HAMNewScreen ..! ns_viewmodes   ( Change to HAM )
+     6 HAMNewScreen ..! ns_depth
+     0" HAMmmm2    by Phil Burk" >abs
+        HAMNewScreen ..! ns_DefaultTitle
+\
+\ Open Screen and store pointer in NewWindow structure.
+     HAMNewScreen openscreen() dup
+     IF  dup HAMScreen !  ( Open screen. )
+         >abs HAMNewWindow ..! nw_screen ( Modify window for this screen)
+\
+\ Sometimes the Amiga can build a bad COPPER list for screens.
+\ This can happen if you have Emacs up in INTERLACE mode and open a
+\ NON-INTERLACE screen.
+\ The following call will correct this problem (hopefully).
+        RemakeDisplay()
+\
+\ Set up Backdrop window.
+        CUSTOMSCREEN   HAMNewWindow ..! nw_type
+        0    HAMNewWindow ..! nw_TopEdge
+        ham_xmax  HAMNewWindow ..! nw_Width
+        ham_ymax  HAMNewWindow ..! nw_Height
+        BACKDROP  ACTIVATE | BORDERLESS | HAMNewWindow ..! nw_flags
+        MENUVERIFY MENUPICK | HAMNewWindow ..! nw_IDCMPFlags
+        HAMNewWindow gr.opencurw
+    ELSE drop NULL
+    THEN
+;
+
+: HAM.CLOSE ( -- , Close screen and window.)
+    gr.closecurw
+    HAMScreen @ ?dup
+    IF closescreen()
+    THEN
+;
+
+\ -----------------------------------------------
+\ ------- Double Buffering ----------------------
+\ -----------------------------------------------
+\
+\ A BACKDROP window's Rastport points to the Bitmap
+\ that is contained in the screen structure.  This
+\ Bitmap points to 6 planes allocated by intuition.
+\ We can switch to a new drawing surface by replacing
+\ the original 6 plane pointers with pointers to
+\ our own 6 planes.  We can then draw into these planes
+\ using the Rastport from the window.  When we are through
+\ drawing we can make these visible by rebuilding the
+\ display Copper lists. By repeating this process we can
+\ always be drawing into a surface that is not visible
+\ thus eliminating visual breakup of the display.
+
+6 array BIT-PLANES-0  ( store pointers to drawing surfaces )
+6 array BIT-PLANES-1
+
+: ALLOC.BIT.PLANES ( -- , allocate second drawing surface )
+    6 0
+    DO 320 200 allocraster() >abs
+       i bit-planes-1 !
+    LOOP
+;
+: FREE.BIT.PLANES ( -- , free when done )
+    6 0
+    DO i bit-planes-1 @ ?dup
+       IF >rel 320 200 freeraster()
+       THEN
+    LOOP
+;
+
+: SCREEN.PLANE.BASE  ( -- addr , of pointer to first plane )
+    hamscreen @ .. sc_bitmap .. bm_planes
+;
+
+variable PLANES-CURRENT  ( 0/1 )
+
+: GRAB.FIRST.BUFFER ( -- , get planes allocated by OpenScreen )
+    screen.plane.base 0 bit-planes-0 6 cells move
+    0 planes-current !
+;
+
+: HAM.REBUILD ( -- , rebuild HAM screen , make changes visible )
+    hamscreen @ >abs call intuition_lib makescreen drop
+    call intuition_lib rethinkdisplay drop
+;
+
+: SWAP.BUFFERS ( -- , swap bit planes so draw in next buffer )
+    planes-current @ 0=
+    IF 0 bit-planes-1
+    ELSE 0 bit-planes-0
+    THEN
+    screen.plane.base 6 cells move
+    planes-current @ 1 xor planes-current !
+;
+
+: HAM.SHOW&SWAP ( flag -- )
+    dup not
+    HAMScreen @ swap showtitle()  ( force REdraw )
+    HAMScreen @ swap showtitle()
+    swap.buffers
+;
+
+: BUFFERS.INIT ( -- )
+    alloc.bit.planes
+    grab.first.buffer
+    swap.buffers
+    1 ham.show&swap
+;
+
+: BUFFERS.TERM  ( -- )
+\ Make sure CloseScreen deallocates proper planes.
+    planes-current @ 0= 0=
+    IF swap.buffers
+    THEN
+    free.bit.planes
+;

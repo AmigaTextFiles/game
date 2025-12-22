@@ -1,0 +1,42 @@
+write "Loading maps...\n"
+
+-- battle maps
+
+loadmap "maps/battle/bottom.mus"
+loadmap "maps/battle/box.mus"
+loadmap "maps/battle/buffer.mus"
+loadmap "maps/battle/corner.mus"
+loadmap "maps/battle/cycle.mus"
+loadmap "maps/battle/default.mus"
+loadmap "maps/battle/grid.mus"
+loadmap "maps/battle/horiz.mus"
+loadmap "maps/battle/imbalance.mus"
+loadmap "maps/battle/inside.mus"
+loadmap "maps/battle/left.mus"
+loadmap "maps/battle/lines.mus"
+loadmap "maps/battle/maze.mus"
+loadmap "maps/battle/open.mus"
+loadmap "maps/battle/paths.mus"
+loadmap "maps/battle/random.mus"
+loadmap "maps/battle/section.mus"
+loadmap "maps/battle/sides.mus"
+loadmap "maps/battle/sidemice.mus"
+loadmap "maps/battle/spin.mus"
+loadmap "maps/battle/split.mus"
+loadmap "maps/battle/top.mus"
+loadmap "maps/battle/tunnels.mus"
+loadmap "maps/battle/turn.mus"
+loadmap "maps/battle/twirl.mus"
+loadmap "maps/battle/untitled.mus"
+loadmap "maps/battle/x.mus"
+
+-- puzzle maps
+
+loadmap "maps/puzzle/nineteen.mus"
+loadmap "maps/puzzle/seven.mus"
+loadmap "maps/puzzle/six.mus"
+loadmap "maps/puzzle/top.mus"
+loadmap "maps/puzzle/two.mus"
+loadmap "maps/puzzle/zone.mus"
+
+write "done.\n"

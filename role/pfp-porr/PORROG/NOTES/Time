@@ -1,0 +1,82 @@
+ Currently, every time the player presses a key, the game advances by the
+same amount of time, in which each monster is able to do exactly the same
+amount as each other and the player.
+
+ Reasons this is bad:
+-Certain actions the player does should take no time (eg, displaying
+inventory, looking at items on the floor, pressing a key that does nothing)
+-Monsters should be able to have different speeds to each other (although
+ that's likely to play havoc with the AI's method for getting monsters
+ to bypass each other in the tunnels).
+-Eventually there ought to be ways the player's speed can be altered one
+ way or another (eg potions).
+
+ General way of doing this:
+-Each action the player can do returns the amount of time it takes (likely
+ to vary, especially depending on if it succeeds or fails).
+-Each monster similarly takes varying amounts of time to do different things,
+ which is also affected by monster's speed (when implemented).
+
+-These time values will be such that generally, one step for an average
+ speed player takes around 1000 time units.
+
+-Each time player or monster acts, that given amount of time is added to
+ a "counter" for them; further, the player's latest action's time is
+ remembered.
+
+-Each iteration through the game update loop, pick some value that will
+ be about  min of (50,player_action's time). So if the player did
+ something taking 0 time, that value will be 0. If the player did something
+ taking 1000 (or could be much more, even), it'd be just 50. If the player
+ hadn't done anything that iteration (because of the next rule), then I
+ think the value would be the 50, but I'm not sure.
+
+-Now, having got that value, you subtract that value from the player and
+ each monster, whether they get to move or not. Then, if the player or
+ monster has its counter at 0 or below, it is able to act again.
+
+
+ PSEUDOCODE:
+ ===========
+
+ ctrl_loop()
+ {
+    player.Ticker=0;
+    loop_forever {
+      if(player.Ticker<=0) {
+         get_keys();
+         switch(key) {
+            case moveabout:
+              pdur=p_do_move(direction);
+              break;
+            case pickup:
+              pdur=p_do_pickup();
+              break;
+            case drop:
+              pdur=p_do_drop();
+              break;
+            case wait:
+              pdur=500;
+              break;
+            default: /* bad key */
+              pdur=0;
+         }
+         player.Ticker+=pdur;
+      }
+      gametick=min(50,pdur);
+      for(each mob) {
+         if(mob.Ticker<=0) {
+            mob.Ticker+=m_do_ai_actions();
+         }
+         mob.Ticker-=gametick;
+      }
+      player.Ticker-=gametick;
+    }
+    /* End of game */
+}
+
+Note that under this scheme, monsters shouldn't be able to have actions that
+take less than 50 units, or they could end up with very negative values (it's
+OK for them to get values as low as -49 or so), such that they could later
+do very slow actions in one turn...
+

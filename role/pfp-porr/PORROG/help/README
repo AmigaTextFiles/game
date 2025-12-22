@@ -1,0 +1,221 @@
+This directory will contain help files.
+
+When I make them.
+
+And decide on a format.
+
+OK, format:
+ We have source files that are plain text, called something.src
+ We run a command on these files to produce something.ifo
+ which can be read by porrog's help system.
+ Each of these .ifo files is a section.
+ The source files need some means to give links to other pages.
+
+ Hmm, most roguelikes help systems aren't really hyperlinked,
+ but have contents pages and help pages.
+ Nethack has one contents page, everything else is help.
+ *band has a contents page with links to lots of other contents
+  pages with links to help pages. The links can jump to specific
+  lines of help files.
+ ADOM has one contents page, everything else is help.
+ Crawl has one help page (OK, it covers 2 screens, but meh).
+ Omega has one contents page, everything else is help.
+
+ I think ADOM and *band have most suitable help (though not
+ necessarily the best keys)...
+
+ OK, So we'll have the .src and .ifo files just be help pages
+ with *no* links, and create a separate format for contents pages:
+
+ .cts files should have a list of pointers, one per line, in the
+ format sectiondescriptor:section
+ where sectiondescriptor is what is printed on screen for each
+ section, and section is used to determine the file to link to
+ (either section.ifo or section.cts).
+ It'd also be nice to be able to have a little other stuff for
+ our contents pages, like a header?
+ Mebbe .hdr for headers, that get printed verbatim at top of
+ corresponding contents pages? Or we could have headers as
+ part of the .cts file format, which would then get delimited
+ by a %% or something before the contents proper?
+
+Navigation:
+ Navigation of help files should be very basic: Mebbe use the
+ same keys we use to move the character should navigate the
+ help: Up to go up through the section, down to go down.
+ Left should either go to the very top, or maybe to contents
+ page that led to this section? Hmm.
+
+ Navigating contents pages could be done by either having
+ letters for each section, where we press appropriate key,
+ or have a line-cursor that can go up and down and select
+ one. This would make all the navigation very consistent.
+
+ I think it would be best if each contents page was no more
+ than a screenfull.
+
+----------------------
+
+ Revisited:
+
+ I thought further about the format. I don't think there should be some
+sort of compiler to an intermediate format. Rather, there should be
+2 ASCII type file formats: .ifo for long, scrollable help content,
+and .cts for individual single-screen indices with hyperlinks.
+
+The .ifo format would basically be like a plain text file, but with
+each line limited to 76(?) characters per line before hitting a newline
+character; perhaps the first line should be #!/usr/games/porroghelp
+to work with the separate, standalone helpfile browser (useful for
+validating files). The file should be limited to 400 lines?
+
+The .cts format would also have the same first line (more useful for
+that format than for .ifo), but each line would start with a single
+letter and a colon, such as
+C:control data goes here
+H:header text then goes here
+D:this would be the "section descriptor"
+L:sectionlink
+There would be NO space between the colon and the rest of the text for
+each line.
+C (control data) lines are not printed. There must be EXACTLY one
+ control line, before any other...
+H (header text) lines would be printed verbatim to the screen.
+D (descriptor) lines would be printed somewhere in the middle of the
+ screen, and be limited to 60 characters before the newline. You
+ can have several descriptor lines following each other, as long as
+ there's a sectionlink line at the end of it.
+L (sectionlink) lines would obviously not be printed. They would be
+ the filename of the section to link to, without the directory or
+ file extension. They must be directly preceded by one (or more)
+ descriptor line(s). Limited to 20 characters, because I feel generous.
+
+Blank lines are ignored, and lines beginning with anything other than
+#, newline, or one of the ?: combinations above makes the file invalid
+(invalid pages do not cause a crash, but rather the browser displays
+a FAULTY PAGE page)
+
+
+Total number of H and D lines in file may not be more than 20. The
+author would be expected to use H lines to space the links out (it
+isn't done automatically).
+
+.cts parser:
+
+char *line[20]; /* text to be shown on each line */
+int menuline[20]; /* row number that each menu item is shown on (can have
+                     a screen of only menu items) */
+char *secfile[20]; /* filename of section accessed from each menu item */
+char parsebuf[80]; /* 76 chars + line type ?: + newline + /0 */
+int l; /* line of the screen we're working on */
+int m; /* menu item we're working on */
+int t; /* character being read */
+int haveline=1;
+int faulty=0;
+int state=0; /* 0: just started; 1: have read C line, not parsing menu item;
+      2: parsing D line, expecting more D lines or an L line;
+      3: Cack. */
+
+while (haveline) {
+   t=getc(hfile);
+   switch(t) {
+     case NL: /* ignore this */
+     case LF:
+       break;
+     case EOF:
+       haveline=0;
+       break;
+     case '#': /* comment, read till newline */
+       while(t=getc(hfile),(t!=NL&&t!=LF&&t!=EOF));
+       break;
+     case 'C':
+       if(state!=0) {faulty=1;break;}
+       if(getc(hfile)!=':') {faulty=1;break;}
+       for(c=0;c<80;c++) {
+         t=getc(hfile);
+         if(t==EOF) {faulty=1;break;} /* Could call it valid, but its stupid*/
+         if(t==NL||t==LF) {parsebuf[c]=0; break;}
+         else parsebuf[c]=t;
+       }
+       if(c==80) {faulty=1;break;}
+       scanf(parsebuf,"%ld %ld",&indent,&something);
+       state=1;
+       break;
+     case 'H':
+       if(state==0||state==2) {faulty=1;break;}
+       if(getc(hfile)!=':') {faulty=1;break;}
+       for(c=0;c<76;c++) {
+         t=getc(hfile);
+         if(t==EOF||t==NL||t==LF) {parsebuf[c]=0;break;}
+         else parsebuf[c]=t;
+       }
+       if(c==76) {faulty=1;break;}
+       line[l]=(char *)malloc(c+1);
+       strcpy(line[l],parsebuf);
+       l++;/* don't change state */
+       break;
+     case 'D':
+       if(state==0) {faulty=1;break;}
+       if(getc(hfile)!=':') {faulty=1;break;}
+       for(c=0;c<60;c++) {
+         t=getc(hfile);
+         if(t==EOF) {faulty=1;break;} /* D lines MUST precede L lines */
+         if(t==NL||t==LF) {parsebuf[c]=0;break;}
+         else parsebuf[c]=t;
+       }
+       if(c==60) {faulty=1;break;}
+       line[l]=(char *)malloc(c+1);
+       strcpy(line[l],parsebuf);
+       if (state!=2) menuline[m]=l; /* point to this menu item; */
+       /* update m when we get the L line */
+       l++; state=2;
+       break;
+     case 'L':
+       if(state!=2) {faulty=1;break;} /* L can only follow D */
+       if(getc(hfile)!=':') {faulty=1;break;}
+       for(c=0;c<20;c++) {
+         t=getc(hfile);
+         if(t==EOF||t==NL||t==LF) {parsebuf[c]=0;break;}
+         else parsebuf[c]=t;
+       }
+       if(c==20) {faulty=1;break;}
+       /* Now check it's a reasonable file:
+       if it has a . in it, then only ifo or cts may follow that. */
+       if(strrchr(parsebuf,'.')!=NULL) {
+          /* Has a . so make sure the extension's valid */
+          if(strcmp(strrchr(parsebuf,'.')+1,"ifo") ||
+             strcmp(strrchr(parsebuf,'.')+1,"cts")) {faulty=1;break;}
+       }
+       secfile[m]=(char *)malloc(c+1);
+       strcpy(secfile[m],parsebuf);
+       m++;state=1;
+       break;
+     default:
+       faulty=1;
+   }
+   if(l>20) faulty=1; /* Too many lines */
+   if(faulty) haveline=0;
+   if(feof(hfile)) haveline=0;
+}
+fclose(hfile);
+if(faulty) display_bad_help_page(); /* Let the user know the page is crap*/
+
+for(y=0;y<l;y++) {
+  wmove(win,y,1);waddstr(win,line[y]);
+}
+y=0; /* Set cursor line */
+while() {
+  wmove(win,menuline[y],0);waddch(win,'>');
+  t=getch();
+  switch(t) {
+    case 'k':
+      if(y>0) {wmove(win,menuline[y],0);waddch(win,' ');y--;}
+      break;
+    case 'j':
+      if(y<m-1) {wmove(win,menuline[y],0);waddch(win,' ');y++;}
+      break;
+    case 'l':
+      load_help(secfile[y]);
+      break;
+  }
+}

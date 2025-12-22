@@ -1,0 +1,185 @@
+*****************************************************************************
+*									    *
+*      PROGRAM:	TOD (Ticks Of Day)					    *
+*      VERSION:	1.0							    *
+*  SOURCE CODE:	3							    *
+*	  DATE:	19.10.2010						    *
+*     LANGUAGE:	Assembler, DevPac V3.01					    *
+*	SYSTEM:	A2000C REV 6.2  KS-V34.5 WB-V34.34			    *
+*									    *
+*	 AUTHOR: Joerg Riemer 14167 Berlin/SchottmuellerStr.107/Germany	    *
+*	  EMAIL: Joerg Riemer <joerg_riemer@freenet.de>			    *
+*									    *
+*      FUNCTION: used in my script to get the time. prints the current	    *
+*		 value (ticks) of the TOD-Register (time of day)	    *
+*		 PAL 1sec. = 50ticks; NTSC 1sec. = 60ticks		    *
+*									    *
+*****************************************************************************
+
+*		OPT	D+
+
+		OUTPUT	RAM:TOD
+
+*****************************************************************************
+
+Start		move.l	d0,d5		;save option_count
+		movea.l	a0,a5		;save option_base
+
+		moveq	#0,d0		;set last supported version
+		lea	DosName(pc),a1	;get library name
+		movea.l	$4.w,a6		;set execbase to call a function
+		jsr	-$228(a6)	;use EXEC to (openlibrary)
+		tst.l	d0		;be sure it's open
+		beq.w	Error		;quit if not
+
+*****************************************************************************
+
+		movea.l	d0,a6		;set dosbase to call a function
+		jsr	-$3c(a6)	;use DOS to find (output)
+		move.l	d0,d7		;save output
+
+*****************************************************************************
+
+		lea	InfoText(pc),a2
+		cmp.b	#"?",(a5)
+		beq	PrintInfo
+
+*****************************************************************************
+
+		lea	TickBuf(pc),a0
+
+		move.b	$bfea01,1(a0)	;get TOD high
+		move.b	$bfe901,2(a0)	;get TOD mid
+		move.b	$bfe801,3(a0)	;get TOD low
+
+		move.l	(a0),d0
+
+*****************************************************************************
+	
+		lea	DecBuf(pc),a0	;get buffer
+		lea	DecTab(pc),a1	;get decimal table
+
+		moveq	#0,d3		;don't write leading zeros
+.Hex2Dec	moveq	#9,d2		;set loop counter
+
+.loop0		moveq	#$2f,d1		;prepare ASCII-digit
+		addq.l	#4,a1		;set decimal divider
+
+.loop1		addq.b	#1,d1		;inc. ASCII char.
+		sub.l	(a1),d0		;sub value
+		bcc.b	.loop1		;do until carry set
+
+		add.l	(a1),d0		;reset value
+
+		cmp.b	#$30,d1		;digit > 0 ?
+		beq.b	.skip1		;branch if not
+
+		st	d3		;switch on writing
+
+.skip1		tst.b	d3		;write leading zeros?
+		beq.b	.skip2		;no, skip!
+
+		move.b	d1,(a0)+	;set decimal char
+
+.skip2		dbra	d2,.loop0	;do for all digits
+
+		tst.b	d3		;something written?
+		bne.b	.skip3		;branch if so
+
+		move.b	d1,(a0)+	;at least write one zero!
+
+.clear		clr.b	(a0)+		;clear string up to end
+
+.skip3		cmp.b	#$a,(a0)	;check for linefeed
+		bne.b	.clear		;clear rest of buffer
+
+*****************************************************************************
+
+		lea	DecBuf(pc),a2	;get ascii-value
+		bsr	PrintText
+
+*****************************************************************************
+		
+		subq.l	#1,d5		;option available?
+		bcs.b	Quit		;no option, bra!
+
+		clr.b	(a5,d5.w)	;delete linefeed
+		sub.l	#1,d5		;prepare loop count
+		lea	Option(pc),a1	;get option
+		clr.b	6(a1)		;remove slash
+.loop		bclr	#5,(a5)		;uppercase
+		cmpm.b	(a5)+,(a1)+	;compare byte by byte
+		dbne	d5,.loop	;do until NE/loopend
+		beq.b	Quit		;equal, bra!
+
+		lea	LFeed(pc),a2	;get linefeed
+
+PrintInfo	bsr.b	PrintText
+
+*****************************************************************************
+
+Quit		movea.l	A6,A1		;set dosbase for close
+		movea.l	$4.w,A6		;set execbase to call a function
+		jsr	-$19E(A6)	;use EXEC to (closelibrary)
+
+Error		moveq	#0,d0		;clear returncode
+		rts			;back to console
+
+*****************************************************************************
+
+PrintText	move.l	d7,d1		;set output-handle
+		move.l	a2,d2		;set text to write
+		move.l	d2,d3		;prepare string length
+.getend		tst.b	(a2)+		;search string-end
+		bne.b	.getend		;do until
+		sub.l	a2,d3		;calc. string length
+		not.l	d3		;up to terminator (null)
+		jsr	-$30(a6)	;use DOS to (write) par.
+		rts
+
+*****************************************************************************
+
+DosName	 dc.b "dos.library",0		;library name
+
+*****************************************************************************
+
+	 even
+		
+InfoText dc.b $a,"[T]icks [O]f [D]ay Version 1.0 by Joerg Riemer Oct'2010",$a
+	 dc.b $a,"TEMPLATE: "
+
+Option	 dc.b "NOLINE/S",$a,$a,0
+
+*****************************************************************************
+
+	 cnop 0,4
+
+DecBuf	 dc.b "4294967295",0
+LFeed	 dc.b $a
+
+*****************************************************************************
+
+	 cnop 0,4
+
+DecTab	 dc.l 0
+
+	 dc.l 1000000000
+	 dc.l 100000000
+	 dc.l 10000000
+	 dc.l 1000000
+	 dc.l 100000
+	 dc.l 10000
+	 dc.l 1000
+	 dc.l 100
+	 dc.l 10
+	 dc.l 1
+
+	 dc.l 0
+
+TickBuf	 dc.l 0
+
+*****************************************************************************
+
+	 dc.b "$VER: tod 1.0 (19.10.2010) by joerg riemer oct'2010",0
+
+ end of source **************************************************************

@@ -1,0 +1,146 @@
+;------------------------------------------------------------
+; General installscript for DOS-GAMES with patcher, by Harry
+; Adapted from a script by Bert Jahn
+;------------------------------------------------------------
+;****************************
+
+(set #readme-file "README")		;name of readme file
+(set #CI_drive "Billiard:")		;default source drive
+(set #cleanup "")			;files to delete after install
+(set #paramver 1)			;parameterversion:1-org, 2-rerelease
+
+;****************************
+
+(if
+  (exists #readme-file)
+  (if 
+    (= 0 (run ("SYS:Utilities/Multiview %s" #readme-file)))
+    ("")
+    (run ("SYS:Utilities/More %s" #readme-file))
+  )
+)
+
+(set @default-dest
+  (askdir
+    (prompt ("Where should \"%s\" installed ?\nA drawer \"%s\" will automatically created." @app-name @app-name))
+    (help @askdir-help)
+    (default @default-dest)
+    (disk)
+  )
+)
+(set #dest (tackon @default-dest @app-name))
+(if
+  (exists #dest)
+  (
+    (set #choice
+      (askbool
+        (prompt ("\nDirectory \"%s\" already exists.\n Should it be deleted ?" #dest))
+        (default 1)
+        (choices "Delete" "Skip")
+        (help @askbool-help)
+      )
+    )
+    (if
+      (= #choice 1)
+      (run ("Delete \"%s\" \"%s.info\" All" #dest #dest))
+    )
+  )
+)
+(makedir #dest
+  (help @makedir-help)
+  (infos)
+)
+
+(copyfiles
+  (help @copyfiles-help)
+  (source (""))
+  (dest #dest)
+  (pattern ("#?.prefs"))
+)
+
+(copyfiles
+  (help @copyfiles-help)
+  (source ("%s.inf" @app-name ))
+  (newname ("%s.info" @app-name ))
+  (dest #dest)
+)
+
+(copyfiles
+  (help @copyfiles-help)
+  (source ("%s_st" @app-name ))
+  (newname ("%s" @app-name ))
+  (dest #dest)
+)
+
+(copyfiles
+  (help @copyfiles-help)
+  (source ("kultst"))
+  (dest #dest)
+)
+
+(copyfiles
+  (help @copyfiles-help)
+  (source ("kult.solution.lha"))
+  (dest #dest)
+)
+
+(copyfiles
+  (help @copyfiles-help)
+  (source #readme-file)
+  (dest #dest)
+)
+
+;now copying the disk...
+(message "Please insert your KULT disk in any drive.")
+(if
+  (= (exists "Kult:" (noreq)) 2)
+  (
+    (set #CI_drive "Kult:")
+    (set #paramver 2)
+  )
+)
+(if
+  (= (exists #CI_drive (noreq)) 2)
+  ("")
+  (
+    (abort "Wrong disk. Contact Author.")
+  )
+)
+
+(copyfiles
+  (help @copyfiles-help)
+  (source ("%s" #CI_drive))
+  (dest #dest)
+  (pattern ("#?.BIN"))
+)
+(copyfiles
+  (help @copyfiles-help)
+  (source ("%srunback" #CI_drive))
+  (dest #dest)
+)
+
+
+(copyfiles
+  (help @copyfiles-help)
+  (source ("BRUIT.BIN"))
+  (dest #dest)
+)
+
+(copyfiles
+  (help @copyfiles-help)
+  (source ("kult.prg"))
+  (dest #dest)
+)
+
+(if
+  (= #paramver 2)
+  (
+    (run ("Assign \"KLT:\" \"%s\"" #dest))
+    (rename "KLT:AMICD.BIN" "KLT:DESCD.BIN")
+    (rename "KLT:AMICE.BIN" "KLT:DESCE.BIN")
+    (rename "KLT:AMICF.BIN" "KLT:DESCF.BIN")
+    (run ("Assign \"KLT:\" Remove"))
+  )
+)
+
+(exit)

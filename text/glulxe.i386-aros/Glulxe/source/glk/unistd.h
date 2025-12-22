@@ -1,0 +1,1 @@
+/* Unix header for Amiga */

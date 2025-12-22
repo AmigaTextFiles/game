@@ -1,0 +1,39 @@
+MULTIPLAYER = YES
+BLUETOOTH = YES
+GTK = YES
+
+CXXFLAGS = -Wall -pedantic -Wno-long-long `sdl-config --cflags` -O2 -ggdb -I../inc
+LDFLAGS = -lm `sdl-config --libs` -lGL -lSDL_ttf
+EXTRAOBJS = tcpip.o socketconn.o
+ifeq ($(MULTIPLAYER), YES)
+  CXXFLAGS += -DMULTIPLAYER
+  ifeq ($(BLUETOOTH), YES)
+    CXXFLAGS += -DHAVE_BLUETOOTH
+    LDFLAGS += -lbluetooth
+    EXTRAOBJS += bluez.o
+  endif
+  ifeq ($(GTK), YES)
+    CXXFLAGS += `pkg-config --cflags gtk+-2.0`
+    LDFLAGS += `pkg-config --libs gtk+-2.0 gthread-2.0`
+    EXTRAOBJS += gtk.o
+  else
+    EXTRAOBJS += cli.o
+  endif
+else
+  EXTRAOBJS += cli.o 
+endif
+
+GLOBJECTS = bantumigl.o hand.o matrix.o mesh.o grid.o quat.o glfont.o
+GAMEOBJECTS = bantumi.o
+
+all: bantumi-gl
+
+bantumi-gl: main-sdlgl.o sdlttf.o sdlthread.o $(GLOBJECTS) $(GAMEOBJECTS) $(EXTRAOBJS)
+	$(CXX) -o $@ $+ $(LDFLAGS)
+
+makeh: makeh.o
+	$(CXX) -o $@ $+
+
+clean:
+	rm -rf *.o bantumi-gl makeh
+

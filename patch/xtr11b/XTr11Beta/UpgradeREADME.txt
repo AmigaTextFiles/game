@@ -1,0 +1,209 @@
+
+V1.1ß : 22/3/96
+
+XTreme Racing V1.1ß Aminet Upgrade
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is an upgrade to be provided on Aminet sites and Aminet CDs only.
+
+In order to use this upgrade the user must already own a copy of
+XTreme Racing. Otherwise it won't work...obviously!
+
+NOTE : This is a BETA version. Ensure you have a backup of
+XTreme Racing before installing.
+
+
+Whats New?
+~~~~~~~~~~
+
+We have received hundreds of letters and emails regarding XTreme
+Racing, almost all of which have been very very positive. However,
+we have taken on board some of the comments made by you, the players,
+and also by some magazines and have strived to improve many things
+and correct a few minor bugs. The list is too big to write in full,
+but here is a brief list :
+
+Several changes on the Frontend Menus to make it more reliable and
+easier to use. This includes adding an auto-save laptimes option
+which many people have requested.
+
+LapTime Displayer - This is a beta version and has a couple of changes
+yet to be made, but it allows you to display laptimes and to merge
+laptime tables with between several different laptime files.
+
+4 Player Joystick Adapter Support - note that joypads cannot be
+used on the 4 player adapter since the fire button doesn't work.
+
+New Weapons - try 'em and see!
+
+Modified some current weapons - yes! Invisibility suddenly becomes
+more fun, but you will have to see why.
+
+Much bigger differences between each car, in handling, weapon
+selection, and speed. There is no real best one, but you can find
+ones with handling you may prefer, and if you do well with one car
+try on a more difficult one next time.
+
+Easier easy mode - in response to comments from those who are
+not so good at games a few things have been modified to stop
+them giving in so easily. 
+
+Easy Control - Each player can now individually select to use
+easy control. This means that when you start playing you can 
+learn to play like this, or if playing with friends you can
+play with the harder but more fun control and they can play
+on easy control at the same time. Players on easy control
+may not save their laptimes. So there.
+
+New Cup - the DEEEEEMOOOW Cup, this is all the extra demo tracks
+rolled into one nice new spanking cup - you lucky people!!!
+
+Volcanic Badlands Bonus tracks - both of these have been
+touched up (several Lemmings removed) after popular demand.
+More fun to play now - far less frustrating! :)
+
+I'm also writing a new c2p routine for low-end 030/020 machines
+with fastram that may be faster. This is not fully implented
+in this version.
+
+
+Why is it a Beta Version
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+We want your comments on this version :
+
+Is it Better? Worse? Easier? Friendlier? Better for Beginners?
+And Why?
+
+We were particularly looking to add more variety into the cars
+and enable first time players to grasp the game much quicker.
+
+Also, we want to know of any bugs or any systems that it doesn't
+work on. If you find a bug then email me urgently with a full
+statement of your machine setup and exactly how you made the
+bug occur. We need to be able to replicate the problem in order
+to solve it.
+
+NOTE : We know of a bug when saving lap times on >1 player
+currently. I'll probably replace the necessary file in a
+new beta version when this is fixed, but most other stuff will
+be kept for the Extra Track Discs that this upgrade is really
+meant for.
+
+Email : alex@teeth.demon.co.uk
+
+If you have any comments on the graphics or difficulty settings
+then email rich@xtreme.demon.co.uk (please read the Settings 
+README text for further info.)
+
+
+Installation
+~~~~~~~~~~~~
+
+Ensure you have a backup of XTR before installing this version.
+We are not responsible if anything goes wrong!
+
+Double Click on the HDInstall Icon to install this upgrade.
+
+You will also find that we have included several of the
+freebie tracks we have done for demo versions. They have
+been combined into a new cup.
+
+Also, we have included snapshots of some of the datadisc
+graphics.
+
+
+Editor & Extra Tracks
+~~~~~~~~~~~~~~~~~~~~~
+
+The Editor, extra tracks, and final version of this upgrade will
+be available commercially at Easter. The extra tracks are all
+complete and the Editor is simply having the manual written.
+
+But incase you didn't know....
+
+The extra tracks (20) are fun, silly, and challenging, though we have
+included a couple of easy ones for dodgy players! So if you want
+to run over Elvis, a West Brom football player, drive on Lego Land
+or in Hell, then you will want the extra tracks.
+
+But the editor, now thats something else. A fully fledged track editor
+that allows you to add in your own objects, tiles, and create your
+own race tracks and deathmatch tracks. You can set up where the
+computer cars go, add in short cuts, place Elvis whereever you want,
+and basically you can do anything! It is a slightly modified version
+of our own in-house editor and it has been used to create all our
+tracks in a matter of hours. The editor is fully multitasking and
+system compliant, and functions well on graphics boards. It does
+not require any additional ram though its obviously faster to operate
+with more memory. For those people with lower spec machines you can change
+the screenmode to suit your need, and turn off several of the draw options.
+
+
+>>>>*** READ THIS ***<<<<
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+All the above can be ordered from Guildhall and they can start taking
+orders at Easter. We have done all the above despite very low Amiga game
+sales because *we care*. Please return the favour by supporting
+us, and tell all your friends to buy xtreme racing and any upgrades 
+since then you will be able to design & play all your own tracks, even
+Deathmatch specialties.
+
+The Upgrade costs only 9.99 for all this.
+
+Order from : Guildhall Leisure : +44 (0)1302 890000 (credit cards)
+
+Postage and Packing is 1.00 P&P Worldwide.
+
+Or write a cheque payable to Guildhall Leisure Services at :
+
+Unit 15
+Guildhall Industrial Estate
+Kirk Sandall
+Doncaster
+South Yorkshire
+England
+DN3 1QR
+
+
+Disclaimer & Distribution Rules
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+APPLICABLE LAW. EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+HOLDER AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
+OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
+PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE
+COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+
+   IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY REDISTRIBUTE THE
+PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
+GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS
+OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR
+THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
+PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGES.
+
+Silltunna Software Ltd./Black Magic Software are NOT responsible for any
+damage caused directly or indirectly by the use or misuse of XTreme Racing
+and any related material whether written by us or otherwise. You use these
+programs at your own risk. 
+
+Distribution
+~~~~~~~~~~~~
+No materials provided here may be distributed either separately or in this
+form anywhere, whether for profit or otherwise. This archive and all data
+is provided SOLELY for Aminet and Aminet CDs. It must NOT be placed upon
+any coverdiscs or placed in the public domain anywhere other than Aminet.
+Public Domain companies take note.
+
+By using this software you agree to accept and abide by all these rules.
+
+© Copyright Silltunna Software Ltd 1996
+
+

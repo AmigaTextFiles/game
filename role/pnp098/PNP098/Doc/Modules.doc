@@ -1,0 +1,97 @@
+A Module is almost a normal program, but it uses some arguments
+that make a module be able to exchange data with PNP.
+
+However a module does not need to use these arguments. You can even
+start a normal program as a module if it does not take any argument.
+There are 6 arguments, but the 0. and the 2. aren't used yet.
+The arguments are:
+
+    0   unused
+    1   a pointer to textattr from PNP
+    2   unused
+    3   a pointer to long (if the content is set to 1 (TRUE) PNP reads data from
+        the module)
+    4   a pointer to string (here you can store the data)
+    5   a pointer to long (its content must be set to 1 as soon as the module is closed)
+
+The variables that are used to store the arguments must be defined as follows:
+
+    DEF tattr:PTR TO textattr,insclicked;LONG,dataptr:LONG,closed:LONG
+
+    ( in C you will have to use: struct textattr *tattr, char **dataptr,
+      long *insclicked, long *close)
+           ^                 ^
+           not sure about that
+
+
+The routine for reading the arguments can look as follows:
+
+    PROC getargs()
+        DEF myargs:PTR TO LONG,rdargs,buf[255]:STRING /* ,htattr:PTR TO textattr */
+
+        myargs:=[0,0,0,0,0,0]       /* initialise */
+        IF rdargs:=ReadArgs('S/A, W/A, A/A, B/A, C/A, D/A',myargs,NIL)
+
+            /* Args 0,2 are not used yet */
+
+            StringF(buf,'\s',myargs[1])
+            tattr:=Val(buf,NIL)          /* Now your modules uses the same font as PNP */
+
+            StringF(buf,'\s',myargs[3])
+            insclicked:=Val(buf,NIL)
+
+            StringF(buf,'\s',myargs[4])
+            dataptr:=Val(buf,NIL)
+
+            StringF(buf,'\s',myargs[5])
+            closed:=Val(buf,NIL)
+
+            FreeArgs(rdargs)
+
+        ENDIF
+    ENDPROC
+
+
+If your module shall open a window you should use the following:
+
+    PROC setupscreen()
+        IF (scr:=LockPubScreen('PNP'))=NIL THEN RETURN NOWB
+        IF (visual:=GetVisualInfoA(scr,NIL))=NIL THEN RETURN NOVISUAL
+        offy:=scr.wbortop+Int(scr.rastport+58)-10
+    ENDPROC
+
+where scr is defined as PTR TO scr.
+The window will be opened on the PNP screen now.
+
+Nearly everything else is a normal program. But if you want your module to be
+able to insert text in the editor you don't have to implement an ARexxport.
+Simply write:
+
+    StrCopy(^dataptr,'your text',ALL)
+    ^insclicked:=1
+
+The ^ before the variables indicates that you want to write to the content of the
+memoryarea the pointer points to. As these pointers are given by PNP, PNP can read
+this data. ^insclicked:=1 says that PNP shall look at ^dataptr and put the data
+via ARexx to the editor. After that ^insclicked is set to 0 by PNP.
+
+If you want to store more than one line you can write:
+
+    maxline:=10
+    FOR a:=1 TO maxline
+        StringF(txt,'\s',zeile[a].inh)  /* zeile[a].inh is an object,txt a STRING */
+        StrCopy(^dataptr,txt,ALL)       /* OBJECT mystring                        */
+        ^insclicked:=1                  /*      inh[255]:ARRAY                    */
+                                        /* ENDOBJECT                              */
+        REPEAT              /* Important: Wait until PNP has read the data !! */
+        UNTIL ^insclicked=0
+    ENDFOR
+
+This is in most cases be done after the user has clicked an insertbutton, but
+of course you can also write a module that does not open a window but e.g.
+opens a file, reads the data and stores it to ^dataptr.
+
+The last thing you must take care of is that ^closed must be set to 1 or TRUE
+if the modules is closed. This is necessary for the module handling of PNP.
+
+See the example modules in PNP:modules/ too.

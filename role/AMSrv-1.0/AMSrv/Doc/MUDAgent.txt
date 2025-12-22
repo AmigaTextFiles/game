@@ -1,0 +1,491 @@
+AmigaMUD, Copyright 1996 by Chris Gray
+
+
+			The MUDAgent Program
+
+The MUDAgent program is only needed on a host machine (one running
+MUDServ, the AmigaMUD server program) which wants to allow serial port
+connections to remote players. One running copy of MUDAgent is needed
+for each serial port connection. MUDAgent serves as a "protocol
+converter" in that it uses the AmigaMUD reliable protocol over the
+serial port and uses simple Amiga OS messages to and from MUDServ.
+
+MUDAgent can be used in a number of ways:
+
+    - by default, MUDAgent will open a serial port and wait for
+	connections on that port. Each connection is treated as a
+	request to play one AmigaMUD session. When the session is
+	over, MUDAgent will go back to waiting for a connection. If
+	MUDAgent is started from a shell in this mode, then it can
+	be shut down by sending a BREAK signal to its CLI number. If
+	it is started from the Workbench, then the AgentKill program
+	can be used to shut it down.
+
+    - MUDAgent can be started up by another program which has already
+	established a connection and setup the serial port. In this
+	mode, MUDAgent will open the serial port for shared use, and
+	will exit after a single AmigaMUD session completes.
+
+    - MUDAgent communicates with a remote copy of "MUD" using a
+	special protocol. This allows reliable handling of graphics
+	output, mouse input, function editing, etc. MUDAgent can work
+	with a simple remote terminal (or terminal emulator), however,
+	by operating in a text-only mode. This mode is detectable by
+	the scenario, so it can change its behaviour accordingly.
+
+MUDAgent can be run from either the Workbench or from a shell command
+line. When started by another program (such as "Getty" or a BBS), it
+expects to be started as if from a shell command line.
+
+MUDAgent requires a stack of at least 10000 bytes. It will exit right
+away if it detects an insufficient stack. The large stack is needed
+because of the possibility that, when running in text-only mode, a
+remote wizard may cause functions to be parsed using the recursive
+descent parser in "mud.library". See file "Programming.txt" for more
+information on this and other wizard-mode features.
+
+MUDAgent supports Christopher Wichura's OwnDevUnit library. When not
+started with the '-Getty' flag, it will attempt to open that library
+and lock the serial port. It will wait indefinitely for that lock.
+Once it has the port locked, MUDAgent will accept a release request
+from OwnDevUnit.library, and will close and release the port. It will
+then request the port again, ready for when the other user releases
+it. If your system does not use OwnDevUnit.library, then this
+paragraph does not apply and can be ignored. Note that MUDAgent will
+not release the port if a MUD session is currently underway.
+
+
+Workbench ToolTypes Understood by MUDAgent
+
+'bool' values are those which can have one of two different values.
+The accepted values for a positive value are 'YES', 'Y', 'ON', 'TRUE',
+'Y' and 'T'. Any other value is interpreted as a negative value. If
+no value is given it is interpreted as a positive value. Note that
+early versions of the AmigaOS will not accept empty values.
+
+    DEVICE (string) - specifies the name of the serial device to open.
+	The default name is "serial.device", which refers to the
+	standard built-in serial port. Other names are used with
+	expansion serial ports. (Do not include the quotation marks.)
+
+    UNIT (number) - specifies the number of the port within a given
+	serial device of the particular port to use. This defaults to
+	0, indicating the "first" port.
+
+    BAUD (number) - specifies the connection speed to use. The default
+	value is whatever speed the serial port was last used at,
+	which is normally the preferences speed. A later section gives
+	more details on connection speed selection.
+
+    SHARED (boolean) - under the Amiga OS, a serial port can be opened
+	in "shared" mode. This means that more than one program can
+	have the port open at the same time. This can lead to great
+	confusion unless the programs cooperate. MUDAgent assumes that
+	if SHARED is specified, the calling program will not try to
+	use the port until MUDAgent has exited. If SHARED is not
+	specified, MUDAgent cannot open the port if some other program
+	already has it open. The other program must also have the port
+	opened for shared use.
+
+    XONXOFF (boolean) - this tooltype causes MUDAgent to open the
+	serial port with Xon/Xoff software flow control enabled. This
+	is only relevant for a text-only connection, since in a full
+	binary connection the flow control characters can be part of
+	messages and hence cannot be treated specially. By default,
+	MUDAgent will not enable this feature.
+
+    IGNORECD (boolean) - this tooltype causes MUDAgent to setup the
+	serial port to ignore the CD (Carrier Detect) signal. By
+	default, MUDAgent will assume that if the signal is not
+	present there is no connection, and will terminate the
+	session. You will need to supply this flag if your modem is
+	not configured to supply the signal, or if your serial cable
+	does not properly transmit the signal. Also, when connecting
+	directly to another computer or to a terminal, without a modem
+	in between, no CD signal will be present, so this flag should
+	be given. By default, MUDAgent will respect the CD signal.
+
+    7WIRE (boolean) - this tooltype tells MUDAgent to setup the serial
+	port using a 7-wire hardware flow-control system. Such a
+	system is recommended when using a high-speed connection,
+	since it allows either end of the serial cable to tell the
+	other end to temporarily stop transmitting. Compression and
+	error-recovery protocols on newer modems may require this type
+	of signalling. You should NOT specify this mode if your modem
+	is not configured to pay attention to it, or if your serial
+	cable does not transmit all of the required signals. By
+	default, MUDAgent will not enable 7-wire flow control.
+
+    AT (boolean) - by default, MUDAgent will assume that there is a
+	"Hayes-compatible" modem on the serial port, and will send an
+	"AT\r" sequence to get it in synchronization. This can be
+	disabled using the AT tooltype.
+
+    BINARY (boolean) - this tooltype forces MUDAgent to look for a
+	full binary connection (as opposed to a text-only connection)
+	on the serial port. It will not recognize a text-only
+	connection. Forcing the type of connection must be done when
+	MUDAgent is started up from another program, and can also be
+	done under other types of startup.
+
+    TEXT (boolean) - this tooltype forces MUDAgent to only look for a
+	text-only connection on the serial port. It will not attempt
+	to make a full binary connection.
+
+    PARITY={NONE|EVEN|ODD} - this tooltype can be used to specify the
+	parity of the serial connection. Parity other than 'NONE'
+	cannot be used for a binary connection. By default, MUDAgent
+	will use 'NONE' parity.
+
+    RETRY (number) - this tooltype allows you to specify the number of
+	seconds that MUDAgent is to delay between its attempts to open
+	the serial port. This facility allows MUDAgent to be started
+	when the serial port is already in use, without using a
+	locking mechanism. The default value is 60 seconds.
+
+    PROBE (number) - this tooltype specifies in seconds the delay
+	between probes of the opened serial device, looking for a
+	carrier detect signal (if IGNORECD is specified, the first
+	such probe will report a connection). The default value is 3
+	seconds.
+
+    DISCONNECT (number) - this tooltype specifies in seconds the delay
+	between the ending of a session and when MUDAgent will close
+	the serial port (thus dropping the connection in most cases).
+	This delay allows characters to be flushed out, and prevents
+	possible disconnection noise for the given interval. The
+	default value is 3 seconds.
+
+    TIMEOUT (number) - this tooltype specifies in seconds the
+	inactivity timeout value. If no characters are received on the
+	serial port for this period, MUDAgent will assume that the
+	other end has gone away, and will terminate the connection.
+	The default value is 15 * 60 seconds, or 15 minutes.
+
+    RETRYLIMIT (number) - when operating in binary mode, line noise or
+	other errors can cause a message to be incorrectly received.
+	When this happens, the AmigaMUD protocol will try again to
+	send the same message, and will keep doing so until the
+	message is properly acknowledged by the receiving end, or
+	until this number of attempts have been made. In the latter
+	case, MUDAgent will assume that the other end has gone away,
+	and will terminate the session. The default value is 10.
+
+    REQUESTLIMIT (number) - the number of AmigaMUD messages that go
+	back and forth between the server and the remote client is not
+	possible to predict, and the counts can vary widely between
+	the two directions. Because of this, MUDAgent may build up an
+	accumulation of unused messages. This accumulation should be
+	limited, to prevent unreasonably large amounts of memory from
+	being tied up. This tooltype specifies the number of such
+	messages that MUDAgent can keep around. The default is 10.
+
+    TEST - by default, MUDAgent will look for an Amiga OS message port
+	called "MUD port" by which to contact MUDServ. If this
+	tooltype is given, then MUDAgent will use name "MUD test port"
+	instead. This is a handy way of having more than one AmigaMUD
+	running on a given Amiga.
+
+    PORTNAME (string) - this tooltype is a more general form of the
+	TEST tooltype. It allows a specific Amiga OS message port name
+	to be given for the connection to MUDServ.
+
+    FLAGS (number) - this flags value is passed through to the code in
+	"mud.library" when a text-only connection is made. In binary
+	connections, the flags are passed to the copy of the library
+	running on the remote machine by the "MUD" program. The flags
+	only affect wizards, and relate to some caching that can be
+	done by the library code. The value, which defaults to 0, is
+	the sum of the following two values:
+
+	    1 - cache procs
+	    2 - cache symbols
+
+	Both are of benefit only when a wizard will be doing a lot of
+	parsing of AmigaMUD code. They cut down on the number of
+	messages between MUDAgent and MUDServ when parsing code, at
+	the expense of increased memory usage.
+
+    IGNORECTRLE (boolean) - MUDAgent normally responds to a ^E signal
+	by immediately terminating the connection. This is useful if
+	something hangs. Setting this tooltype will cause MUDAgent to
+	ignore the ^E signal. This should not be needed, but I am
+	leaving it in because of the problems encountered when I was
+	using ^F for this signal, instead of ^E.
+
+
+Command Line Arguments
+
+If a command line argument does not have a leading '-', then it is
+parsed as a tooltype value, as described in the previous section. The
+first six command line flags described here are for use by the "Getty"
+program and for callouts by BBS's, etc. Most of the other flags are
+equivalent to a tooltype value. See those descriptions for more
+details.
+
+    -Getty - this flag tells MUDAgent that the serial port is already
+	opened and set up. MUDAgent will open it in shared mode and
+	will not do any initialization on it. Also, it will not send
+	any "AT\r" sequence, and it will exit after one AmigaMUD
+	session.
+
+    -DEVICE <name> - <name> is the name of the serial device to use.
+	The default name is "serial.device". Other names are used to
+	specify ports on expansion boards.
+
+    -UNIT <unit> - <unit> is the number of the particular port on a
+	serial port device to use. The default is 0.
+
+    -HLINK - this flag is equivalent to the IGNORECD=TRUE tooltype.
+
+    -BAUD <speed> - <speed> is the speed of the connection. The
+	default is the preferences set speed, although this value is
+	not actually used when the "-Getty" flag is given.
+
+    -USER <name> - this flag, given by newer versions of "Getty", is
+	ignored by MUDAgent.
+
+    -d<name> - this is the normal flag for specifying the name of the
+	device to use for the serial connection. The default name is
+	"serial.device".
+
+    -u<unit> - this is the normal flag for specifying the unit number
+	within a device of the port to use. The default is port 0.
+
+    -b<speed> - this is the normal flag to use to specify the speed of
+	the connection.
+
+    -s - this flag specifies that the port should be opened in shared
+	mode.
+
+    -x - enable XON/XOFF flow control (only in text-only mode)
+
+    -i - ignore CD (Carrier Detect)
+
+    -7 - use 7-wire hardware flow control
+
+    -a - do not send 'AT' sequence to force rate on modem
+
+    -p{n|e|o} - set parity. Must be 'n' for binary connection. The
+	default is -pn (no parity).
+
+    -t{r|p|d|t}<value> - set a timeout value:
+	-tr - retry delay between attempts to open serial port. (default
+	    60 seconds)
+	-tp - probe delay between probes for a carrier after the port
+	    is open (default 3 seconds)
+	-td - disconnect delay before device close. (default 3 secs)
+	-tt - inactivity timeout before disconnect. (default 15 * 60
+	    or 15 minutes)
+
+    -h - (hardwired) - this is an abbreviation for "-a -td1"
+
+    -T - use "MUD test port" as the Amiga OS port name
+
+    -P<name> - use <name> as the Amiga OS port name. The default name
+	is "MUD port".
+
+    -f<value> - set flags value. The flags value, (default 0) is the
+	sum of:
+	    1 - cache procs
+	    2 - cache symbols
+	Non-zero values are only of use when a text-only connection is
+	made, and the remote user is a wizard who will be doing a lot
+	of parsing of AmigaMUD code. In that case, enabling these
+	caches can greatly reduce the message traffic between MUDAgent
+	and MUDServ, at the expense of increased memory usage by the
+	remote MUD program.
+
+    -r<value> - the given value is the number of times MUDAgent will
+	attempt to send a given message over the serial port. Retries
+	are needed when line noise or lost data prevent a message from
+	reaching the receiver intact. If a given message cannot be
+	sent after this number of attempts, then MUDAgent will give up
+	on the connection and close it down. The default value is 10.
+	This is only relevant for binary connections.
+
+    -R<value> - set free request limit (default 10)
+
+    -N<name> - use <name> as the name of the character for the first
+	playing session, rather than prompting for a name. Note that
+	this option only makes sense for a text-only connection. On a
+	full binary connection, the corresponding flags can be given
+	on the remote MUD run.
+
+    -W<word> - use <word> as the password for the first playing
+	session. If it is incorrect, it counts as the first attempt,
+	and only two attempts remain. This is normally used in
+	conjunction with -N, but can be used without it. This flag
+	also is only relevant for a text-only connection.
+
+    -l<path> - do a bit of logging to <path>. Note that there is no
+	support for having multiple MUDAgent's logging to the same
+	file at the same time. This can be useful during initial
+	setup, if you are having trouble getting connections made, or
+	if they are going away for some reason.
+
+    -E - ignore ^E
+
+Line Speed and Mode Selection
+
+When MUDAgent is started by another program which already has the
+serial port set up (the "-Getty" flag is given), then MUDAgent will
+not do any serial port initialization, and will not try to change the
+connection speed. Thus, the presence of "-Getty" makes BAUD, IGNORECD,
+7WIRE, PARITY, RETRY, PROBE, DISCONNECT and XONXOFF meaningless. It
+also forces SHARED and AT=FALSE. TEXT, BINARY, RETRYLIMIT,
+REQUESTLIMIT and FLAGS are still meaningful. With this type of
+startup, the type of connection (TEXT or BINARY) must be specified.
+
+The following paragraphs discuss speed and mode selection when
+MUDAgent is not started by another program.
+
+In most cases, MUDAgent will be used with a high-speed modem, and the
+connection between the modem and MUDAgent will be at a fixed rate,
+such as 38400 bps, regardless of the actual modem connection speed.
+The modem converts between the fixed serial port speed and the varying
+data speed as required. The type of connection can either be forced
+using TEXT or BINARY, or can be chosen dynamically, based on the first
+valid characters received. If the first two characters are ASCII SYN
+characters, then a binary connection is assumed. If the character
+received is a carriage return, in either no parity or even parity,
+then a text-only connection with that parity is assumed.
+
+Older, slower modems do not do this speed conversion, so the correct
+speed must be given explicitly, and must match the actual connection
+speed. If, however, a speed of 0 is specified, then MUDAgent will
+cycle through the 2400, 1200 and 300 bps speeds, looking for an ASCII
+SYN character or a carriage return.
+
+If possible, an explicit TEXT or BINARY should be given, so that
+MUDAgent does not have to do the possibly unreliable autodetection of
+the mode.
+
+
+Text-Only Line Editing
+
+When a text-only connection is in effect, MUDAgent keeps user input
+and asynchronous output on separate lines. It does this by holding
+back output lines if the user has typed a partial input line. If the
+number of held-back lines reaches 10, then MUDAgent will erase the
+partial input line and prompt, display all held-back output lines,
+then redisplay the prompt and partial input line. If any lines are
+held back when the line is ended or is fully erased, then the prompt
+is erased, the held-back lines are printed, and the prompt is
+redisplayed. The normal situation is that there is no partial input
+line, and just the prompt is displayed. In this case, when output
+lines arrive, the prompt is cleared, the output lines are immediately
+displayed, and then the prompt is redisplayed.
+
+MUDAgent supports a small set of input-editing features when a text-
+only connection is in effect. The special characters handled are:
+
+    - carriage return (\r) or newline (\n) - these characters signal
+	the end of the input line. The current input line is sent to
+	the server (or parsed if in wizard mode). If any output lines
+	are held back, they are then displayed. Finally, a new prompt
+	is displayed. Input lines are entered into an input history
+	buffer, from which they can be retrieved.
+
+    - backspace (\b) - if there are any characters in the current
+	input line, then the rightmost one is erased (using a
+	backspace-space-backspace sequence). If this results in the
+	input line being empty, then any held-back lines are flushed.
+
+    - control-W - this character causes MUDAgent to erase the previous
+	"word" of input, in the same way that the standard Amiga shell
+	does, or the MUD client does.
+
+    - control-X, control-C or control-U - any of these characters will
+	empty the current input line, and, if needed, allow any held-
+	back output lines to be flushed.
+
+    - control-R - this character causes MUDAgent to redraw the current
+	input line. This is useful if line noise has garbled the
+	display. A '^R' is displayed at the end of the input line, and
+	it is redrawn on the next line.
+
+    - control-\ or control-D - these characters (the AmigaDOS and more
+	standard end-of-file characters) indicate an end-of-input to
+	MUDAgent. It will output a carriage-return/linefeed sequence
+	and then initiate termination of the current session.
+
+    - control-P - this character retrieves the previous line of input
+	history. Any current input line is erased, and the previous
+	input line is redisplayed. Multiple control-P's can go back
+	further in the input history. Input lines retrieved from
+	history can be edited just like input lines typed by the user.
+	Lines retrieved and used unchanged from history are not re-
+	entered into the input history.
+
+    - control-N - this character retrieves the next line of input
+	history, undoing the effect of a control-P. Sequences of
+	control-P's and control-N's can be used to view the entire
+	input history (limited to 1024 characters).
+
+Other non-printable characters are simply discarded. When operating in
+8N1 mode the full international character set is allowed through.
+
+
+Examples
+
+If MUDAgent is run with all default settings, it will open the built-
+in serial port at whatever speed it is currently at, and wait for
+text-only or binary connections. It will only exit when a BREAK signal
+is sent to it (CLI startup) or the AgentKill program is run (Workbench
+startup).
+
+If a BBS or Getty is running, and will be used to startup MUDAgent,
+then there will normally be BBS commands or Getty logins which will
+start it in the text-only and the full binary modes. I use Getty
+logins 'mudt' and 'mudb' for those purposes. Appropriate entries in
+the "Passwd" file are something like this:
+
+    mudt,,207,1,(MUD-TEXT),AmigaMUD:,AmigaMUD:C/MUDAgent -7 text
+    mudb,,207,2,(MUD-BINARY),AmigaMUD:,AmigaMUD:C/MUDAgent -7 binary
+
+This assumes that the system has a volume or assign named "AmigaMUD"
+and that a "C" directory in that location contains the various
+AmigaMUD programs. Equivalent commands for a BBS callout might be:
+
+    AmigaMUD:C/MUDAgent -Getty -DEVICE $device -UNIT $unit text
+    AmigaMUD:C/MUDAgent -Getty -DEVICE $device -UNIT $unit binary
+
+where '$device' is replaced by the name of the serial device the
+caller is on, and '$unit' is replaced by it's unit number. For the
+built-in port, a binary connection would then be:
+
+    AmigaMUD:C/MUDAgent -Getty -DEVICE serial.device -UNIT 0 binary
+
+If no BBS is being run, and Getty is not being used, then MUDAgent can
+be told to answer incoming calls at the current speed with:
+
+    run AmigaMUD:C/MUDAgent
+
+from a shell or by double-clicking on its icon with no tooltypes
+specified.
+
+If an older, low-speed modem is used on device siosbx.device, unit 1,
+and auto-detection of line speed is desired, then the shell command:
+
+    run AmigaMUD:C/MUDAgent -dsiosbx.device -u1 -b0
+
+could be used. If the modem does not understand the "AT" commands,
+does not generate a proper carrier detect signal, but does properly do
+hardware handshaking, then the following set of icon tooltypes could
+be used for an appropriate Workbench startup:
+
+    DEVICE=siosbx.device
+    UNIT=1
+    BAUD=0
+    AT=OFF
+    IGNORECD=TRUE
+    7WIRE=TRUE
+
+Many other possibilities exist. Most users will not need to change the
+values of RETRY, PROBE, DISCONNECT, TIMEOUT, RETRYLIMIT, REQUESTLIMIT
+or PORT. Increasing RETRYLIMIT can help compensate for noisy binary
+connections, but the user will have to do the same with the MUD client
+program. If you have trouble with connections being dropped for no
+apparent reason, try using the -E flag or the IGNORECTRLE tooltype, or
+use the -l CLI flag and examine the logfile generated.

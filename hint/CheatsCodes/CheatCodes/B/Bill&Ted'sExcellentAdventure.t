@@ -1,0 +1,93 @@
+  This solution does not tell you the order to visit the times in, but
+  it does tell you how to rescue all the historical figures.
+  Levels 1 and 2:
+     Antoinette, Marie ...................1793
+          Just walk into the labyrinth
+     Arc, Joan of ........................1429
+          You need the Fire Extinguisher to extinguish the fire.
+          Get the Fire Extinguisher from `0064'
+     Beethoven, Ludwig von ...............1810
+          You need the Note to make him follow you
+          Get the Note from `1805'
+     Bonaparte, Napolean .................1805
+          You need nothing to get this "Short, Dead Dude"
+     Einstein, Albert ....................1915
+          You need the Calculator for this guy
+          Get it from `0010'
+     Freud, Sigmund ......................1901
+          You need the Flower for Him
+          Get the Flower From `1810'
+     Kahn, Genghis .......................1209
+          You need the Twinkie for this chap
+          Get the Twinkie from `1878'
+     Kid, Billy The ......................1878
+          You need Nothing; wait for fist to beat the shit out of
+          three ugly dudes.
+     Lincoln, Abraham ....................1863
+          You need to Bribe him with a Penny
+          Get the Penny from `9410'
+     Michaelangelo .......................1509
+          Pretty easy to get him.  But beware of paint can's
+     Nero ................................0064
+          Get the Violin and this guy will be your slave forever
+          The Violin is at `1509'
+     Socrates ............................9410
+          Collect the Coins and climb the rock to get the answer
+     Other Ages:
+          Circle K ............................1989
+          Desert ..............................1632
+          Iceage ..............................0000
+          One Million B.C. ....................0010
+          San Dimas Mall ......................1990
+   Levels 3 and 4:
+     Antoinette, Marie ...................1793
+          Just walk the labyrinth
+     Arc, Joan of ........................1429
+          You need the Fire Extinguisher to turn of the fire.
+          Get the Shovel at `1805' and go to `1632' and dig, then
+          you get the Fire Extinguisher.
+     Beethoven, Ludwig von ...............1810
+          You need the Note to make him follow you
+          Get the Butane from `1429' then go to `0010'
+          Give butane to caveman, and get the Note.
+     Bonaparte, Napolean .................1805
+          You need Nothing to get him.
+     Einstein, Albert ....................1915
+          You need the Calculator for this guy.
+          Go to the Year `1989' go in the shop, take the Icepick
+          and go to the Year `0000' and use the IcePick, then you
+          get the Calculator.
+     Freud, Sigmund ......................1901
+          You need the Flower for Him.
+          Get the Seed From `1209' then go to `1990' and plant the
+          seed in the tree pot outside the mall, then take the flower.
+     Kahn, Genghis .......................1209
+          You need the Twinkie for this guy
+          Get the Bread Box from `1901' go outside stand next to
+          the edge of the street, then drop the bread box.
+          Now you get a Twinkie.
+     Kid, Billy The ......................1878
+          You need Nothing, wait for fist to beat the shit out of
+          three ugly dudes.  You need the 1$ Bill from `9410' before
+          you complete this scene, Read `Lincoln, Abraham' first.
+     Lincoln, Abraham ....................1863
+          You need to Bribe him with a Penny.
+          Get the 1$ Bill from `9410' and then go to `1878'
+          Go to the Bar man and give him the 1$ bill, then you get
+          a Penny Back.
+     Michaelangelo .......................1509
+          Pretty easy to get him, but beware of paint can's & drops.
+          A little hint: jump up in the paint drops so you don't
+          fall down..
+     Nero ................................0064
+          Get the Violin and this guy will be your slave forever
+          Get the Key from `1863' then go to `1509' and use the key
+          on the Violin Box in the Corner.
+     Socrates ............................9410
+          Collect the Coins and climb the rock to get the answer
+     Other Ages:
+          Circle K ............................1989
+          Desert ..............................1632
+          Iceage ..............................0000
+          One Million B.C. ....................0010
+          San Dimas Mall ......................1990

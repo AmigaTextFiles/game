@@ -1,0 +1,61 @@
+00StockBrick.bpk
+01StockBars.bpk
+02RayTracedDoor.bpk
+03Slime.bpk
+05StockVent.bpk
+06AirDuct.bpk
+07FencePanel.bpk
+08FencePanelSign.bpk
+11StockSwitchOff.bpk
+12StockSwitchOn.bpk
+16FanFrames.bpk
+-
+00Pillar.bpk
+01Bullets.bpk
+02FirstAidKit.bpk
+03Magazine.bpk
+04Lamp.bpk
+05Chest.bpk
+06Emerald.bpk
+07Sapphires.bpk
+08Battery.bpk
+13Barrel.bpk
+14ExplodedBarrel.bpk
+16NewExplosionFrames.bpk
+-
+00GemFrames.bpk
+-
+ 512
+ 129
+ 139
+ 130
+ 512
+ 13
+ 14
+ 15
+ 145
+ 0
+ 0
+ 0
+ 0
+ 576
+ 0
+ 0
+-
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 2
+ 1
+ 0
+ 0
+ 0
+-
